@@ -1,21 +1,21 @@
-id: 'office_wled_living_room_sequence'
-alias: Office WLED → Living Room 70% → Office WLED 100%
-description: "When Office WLED turns on, stagger Living Room and Office brightness"
-mode: restart
+id: 'office_wled_living_room_brightness_sequence'
+alias: Office WLED – Living Room Brightness Sequence
+description: "When Office WLED turns on, stage Living Room and Office brightness levels with delays"
+mode: single
 trigger:
   - platform: state
     entity_id: light.wled
-    from: "off"
-    to: "on"
+    from: 'off'
+    to: 'on'
 conditions: []
 action:
-  - delay: "00:00:02"
+  - delay: '00:00:02'
   - service: light.turn_on
     target:
       entity_id: light.living_room_2
     data:
       brightness_pct: 70
-  - delay: "00:00:03"
+  - delay: '00:00:03'
   - service: light.turn_on
     target:
       entity_id: light.wled

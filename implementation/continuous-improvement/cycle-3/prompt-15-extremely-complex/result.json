@@ -3,10 +3,10 @@
   "prompt_name": "Multi-Conditional with Choose",
   "prompt_text": "When any living room light changes state, check the time and the current brightness of the Office WLED. If it's daytime (6 AM to 6 PM) and the Office WLED is below 50%, turn it on to 70%. If it's nighttime (6 PM to 6 AM) and any living room light is above 60%, dim the Office WLED to 30%. If the Office WLED is already at the target brightness, do nothing. Wait 2 seconds between each check and action.",
   "complexity": "Extremely Complex",
-  "query_id": "query-e4ab47df",
-  "suggestion_id": "ask-ai-f3a50fdf",
-  "automation_id": "automation.office_wled_follow_living_room_brightness_by_time_1763979936_44a98865",
-  "automation_yaml": "id: 'office_wled_follow_living_room_brightness_by_time'\nalias: Office WLED \u2013 Follow Living Room Brightness by Time\ndescription: \"Adjust Office WLED brightness by time of day when living room lights change\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id:\n      - light.wled\nconditions: []\naction:\n  - choose:\n      # Daytime behavior: 06:00\u201318:00\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '18:00:00'\n          - condition: template\n            value_template: \"{{ not is_state('light.wled', 'unavailable') }}\"\n          - condition: template\n            value_template: >-\n              {% set bri = state_attr('light.wled', 'brightness') | int(0) %}\n              {{ bri == 0 or (bri > 0 and (bri / 255) < 0.5) }}\n        sequence:\n          - delay: '00:00:02'\n          - condition: template\n            value_template: >-\n              {% set bri = state_attr('light.wled', 'brightness') | int(0) %}\n              {% set perc = (bri / 255 * 100) | round(0) if bri > 0 else 0 %}\n              {{ perc != 70 }}\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 178\n      # Nighttime behavior: 18:00\u201306:00\n      - conditions:\n          - condition: or\n            conditions:\n              - condition: time\n                after: '18:00:00'\n              - condition: time\n                before: '06:00:00'\n          - condition: template\n            value_template: \"{{ not is_state('light.wled', 'unavailable') }}\"\n          - condition: template\n            value_template: >-\n              {% set bri = state_attr('light.wled', 'brightness') | int(0) %}\n              {{ bri > 0 and (bri / 255) > 0.3 }}\n        sequence:\n          - delay: '00:00:02'\n          - condition: template\n            value_template: >-\n              {% set bri = state_attr('light.wled', 'brightness') | int(0) %}\n              {% set perc = (bri / 255 * 100) | round(0) if bri > 0 else 0 %}\n              {{ perc != 30 }}\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 77\n    default: []",
+  "query_id": "query-b9fe04bb",
+  "suggestion_id": "ask-ai-dae63013",
+  "automation_id": "automation.office_wled_sync_with_living_room_by_time_1764012240_e793caed",
+  "automation_yaml": "id: 'office_wled_sync_with_living_room_by_time'\nalias: Office WLED \u2013 Sync Brightness with Living Room by Time\ndescription: \"Keep the Office WLED brightness aligned with living room activity and time of day.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\nvariables:\n  office_brightness: \"{{ state_attr('light.wled', 'brightness') | int(0) }}\"\n  living_brightness: \"{{ state_attr('light.living_room_2', 'brightness') | int(0) }}\"\n  office_day_target: 179\n  office_night_target: 77\ncondition: []\naction:\n  - delay: \"00:00:02\"\n  - choose:\n      - conditions:\n          - condition: time\n            after: \"06:00:00\"\n            before: \"18:00:00\"\n          - condition: template\n            value_template: \"{{ states('light.wled') == 'on' and office_brightness > 0 and office_brightness < 128 }}\"\n          - condition: template\n            value_template: \"{{ office_brightness != office_day_target }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 179\n      - conditions:\n          - condition: or\n            conditions:\n              - condition: time\n                after: \"18:00:00\"\n                before: \"23:59:59\"\n              - condition: time\n                after: \"00:00:00\"\n                before: \"06:00:00\"\n          - condition: template\n            value_template: \"{{ states('light.living_room_2') == 'on' and living_brightness > 153 }}\"\n          - condition: template\n            value_template: \"{{ states('light.wled') == 'on' }}\"\n          - condition: template\n            value_template: \"{{ office_brightness != office_night_target }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 77\n  - delay: \"00:00:02\"",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: target brightness, living_room, office wled, office, living",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: office wled, target brightness, office, living_room, living",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,13 +51,13 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:24:55.039506"
+      "timestamp": "2025-11-24T11:23:11.504850"
     }
   ],
-  "automation_score": 80.0,
+  "automation_score": 85.0,
   "yaml_score": 100.0,
-  "total_score": 89.0,
+  "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:24:53.497649"
+  "timestamp": "2025-11-24T11:23:09.241331"
 }

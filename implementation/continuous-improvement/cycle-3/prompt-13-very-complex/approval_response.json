@@ -1,50 +1,20 @@
 {
-  "suggestion_id": "ask-ai-65df1a9d",
-  "query_id": "clarify-2f3e93c2",
-  "status": "yaml_generated",
-  "automation_id": null,
-  "automation_yaml": "id: 'office_wled_living_room_focus_then_restore'\nalias: Office WLED \u2013 Living Room focus then restore\ndescription: \"When Office WLED turns on, save its state, set Living Room light to 80%, then after 10 minutes restore WLED and turn off Living Room light.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_saved_state\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_saved_state\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2'",
-  "ready_to_deploy": false,
-  "safe": true,
+  "suggestion_id": "ask-ai-5f6844fe",
+  "query_id": "clarify-801d0d91",
+  "status": "approved",
+  "automation_id": "automation.office_wled_living_room_scene_restore_1764012153_303790db",
+  "automation_yaml": "id: 'office_wled_living_room_scene_restore'\nalias: Office WLED Living Room 10-Min Scene\ndescription: \"When Office WLED turns on, set Living Room to 80% for 10 minutes, then restore Office and turn Living Room off\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:01'\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_scene\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_scene\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
   "safety_report": {
     "safe": true,
-    "issues": [
-      {
-        "severity": "warning",
-        "category": "availability",
-        "message": "Entity not found: light.living_room_2'",
-        "details": {
-          "entity_id": "light.living_room_2'",
-          "was_validated": false,
-          "suggestions": []
-        },
-        "recommendation": "Verify entity light.living_room_2' exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
-      }
-    ],
+    "issues": [],
     "critical_issues": [],
-    "warnings": [
-      {
-        "severity": "warning",
-        "category": "availability",
-        "message": "Entity not found: light.living_room_2'",
-        "details": {
-          "entity_id": "light.living_room_2'",
-          "was_validated": false,
-          "suggestions": []
-        },
-        "recommendation": "Verify entity light.living_room_2' exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
-      }
-    ],
+    "warnings": [],
     "info": [],
     "coverage": 1.0,
-    "message": "Validation passed with warnings"
+    "message": "Validation passed"
   },
-  "message": "YAML generated but deployment failed: HTTP 400: Message malformed: not a valid value for dictionary value @ data['actions'][4]['target']['entity_id']",
-  "error_details": {
-    "type": "deployment_error",
-    "message": "HTTP 400: Message malformed: not a valid value for dictionary value @ data['actions'][4]['target']['entity_id']"
-  },
-  "warnings": [
-    "Deployment failed: HTTP 400: Message malformed: not a valid value for dictionary value @ data['actions'][4]['target']['entity_id']"
-  ]
+  "safe": true
 }

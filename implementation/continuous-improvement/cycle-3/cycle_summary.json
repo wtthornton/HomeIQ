@@ -1,8 +1,8 @@
 {
   "cycle_number": 3,
-  "overall_score": 87.33333333333333,
+  "overall_score": 86.83333333333333,
   "all_successful": true,
-  "timestamp": "2025-11-24T02:18:38.698649",
+  "timestamp": "2025-11-24T11:18:14.183220",
   "prompt_results": [
     {
       "prompt_id": "prompt-1-simple",
@@ -32,7 +32,7 @@
       "prompt_id": "prompt-4-medium",
       "prompt_name": "Time-Based Conditional Lighting",
       "complexity": "Medium",
-      "total_score": 99.0,
+      "total_score": 89.0,
       "success": true,
       "error": null
     },
@@ -120,7 +120,7 @@
       "prompt_id": "prompt-15-extremely-complex",
       "prompt_name": "Multi-Conditional with Choose",
       "complexity": "Extremely Complex",
-      "total_score": 89.0,
+      "total_score": 91.5,
       "success": true,
       "error": null
     }

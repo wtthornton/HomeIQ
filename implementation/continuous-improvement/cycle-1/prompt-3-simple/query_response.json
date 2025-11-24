@@ -1,5 +1,5 @@
 {
-  "query_id": "query-c0dcff18",
+  "query_id": "query-03c6bfb3",
   "original_query": "Turn on the Office WLED at 8:00 AM on weekdays only",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -13,10 +13,10 @@
   ],
   "suggestions": [],
   "confidence": 0.6332198802498645,
-  "processing_time_ms": 1390,
-  "created_at": "2025-11-24T02:06:37.098514",
+  "processing_time_ms": 1417,
+  "created_at": "2025-11-24T11:07:16.964968",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-c33bc616",
+  "clarification_session_id": "clarify-0cf871ab",
   "questions": [
     {
       "id": "q1",

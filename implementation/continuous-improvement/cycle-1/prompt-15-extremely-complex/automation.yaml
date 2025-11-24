@@ -1,69 +1,68 @@
-id: 'office_wled_adjust_on_living_room_changes'
-alias: Office WLED – Adjust on Living Room Changes
-description: "Basic Office WLED brightness adjustment based on time of day and living room light changes. Add your living-room light entity_ids to the trigger and living_room_ids variable."
-mode: restart
+id: 'office_wled_follow_living_room_by_time'
+alias: Office Wled – Follow Living Room Brightness by Time
+description: "When any living room light changes state, adjust the Office Wled brightness based on time of day."
+mode: single
 trigger:
   - platform: state
-    entity_id: []
+    entity_id: light.living_room_2
 variables:
-  office_wled_brightness_pct: >-
-    {% if state_attr('light.wled', 'brightness') is not none %}
-      {{ (state_attr('light.wled', 'brightness') | int(0) / 255 * 100) | round(0) }}
+  office_brightness_pct: >-
+    {% set b = state_attr('light.wled', 'brightness') %}
+    {% if b is not none %}
+      {{ (b | float(0) / 255 * 100) | round(0) }}
     {% else %}
       0
     {% endif %}
-  living_room_ids: >-
-    {{ [
-      ] }}
-  living_room_max_brightness_pct: >-
-    {% set ids = living_room_ids %}
-    {% set b = [] %}
-    {% for e in ids %}
-      {% if state_attr(e, 'brightness') is not none %}
-        {% set _ = b.append(state_attr(e, 'brightness') | int(0)) %}
-      {% endif %}
-    {% endfor %}
-    {% if b|length > 0 %}
-      {{ ((b|max) / 255 * 100) | round(0) }}
+  living_brightness_pct: >-
+    {% set b = state_attr('light.living_room_2', 'brightness') %}
+    {% if b is not none %}
+      {{ (b | float(0) / 255 * 100) | round(0) }}
     {% else %}
       0
     {% endif %}
-conditions:
-  - condition: template
-    value_template: "{{ not is_state('light.wled', 'unavailable') }}"
+  is_daytime: >-
+    {{ now().hour >= 6 and now().hour < 18 }}
+conditions: []
 action:
-  - delay: "00:00:02"
+  - delay: '00:00:02'
   - choose:
       - conditions:
-          - condition: time
-            after: "06:00:00"
-            before: "18:00:00"
           - condition: template
-            value_template: "{{ office_wled_brightness_pct < 50 }}"
+            value_template: "{{ is_daytime }}"
+          - condition: template
+            value_template: "{{ office_brightness_pct < 50 }}"
         sequence:
-          - condition: template
-            value_template: "{{ office_wled_brightness_pct < 67 or office_wled_brightness_pct > 73 }}"
-          - service: light.turn_on
-            target:
-              entity_id: light.wled
-            data:
-              brightness_pct: 70
-      - conditions:
           - condition: or
             conditions:
-              - condition: time
-                after: "18:00:00"
-                before: "23:59:59"
-              - condition: time
-                after: "00:00:00"
-                before: "06:00:00"
+              - condition: state
+                entity_id: light.wled
+                state: 'on'
+              - condition: state
+                entity_id: light.wled
+                state: 'off'
           - condition: template
-            value_template: "{{ living_room_max_brightness_pct > 60 }}"
-        sequence:
-          - condition: template
-            value_template: "{{ office_wled_brightness_pct < 27 or office_wled_brightness_pct > 33 }}"
+            value_template: "{{ office_brightness_pct | int != 70 }}"
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
-              brightness_pct: 30
+              brightness: "{{ (255 * 0.7) | int }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ not is_daytime }}"
+          - condition: state
+            entity_id: light.living_room_2
+            state: 'on'
+          - condition: template
+            value_template: "{{ living_brightness_pct > 60 }}"
+          - condition: state
+            entity_id: light.wled
+            state: 'on'
+          - condition: template
+            value_template: "{{ office_brightness_pct | int != 30 }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness: "{{ (255 * 0.3) | int }}"

@@ -1,6 +1,6 @@
-id: 'office_wled_7am_on'
-alias: Office WLED On at 7 AM
-description: "Turn on the Office WLED strip every day at 7:00 AM"
+id: 'office_wled_7am_daily'
+alias: Office WLED - 7 AM On Daily
+description: "Turn on the Office WLED strip every day at 7:00 AM at a consistent brightness and neutral blue color."
 mode: single
 trigger:
   - platform: time
@@ -10,3 +10,9 @@ action:
   - service: light.turn_on
     target:
       entity_id: light.wled
+    data:
+      brightness: 160
+      rgb_color:
+        - 80
+        - 140
+        - 255

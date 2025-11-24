@@ -3,10 +3,10 @@
   "prompt_name": "Simple Light Control",
   "prompt_text": "Turn off all living room lights at 11:00 PM every night",
   "complexity": "Simple",
-  "query_id": "query-ecfe7f3d",
-  "suggestion_id": "ask-ai-47c8ec8c",
-  "automation_id": "automation.living_room_light_off_2300_1763979561_925d5695",
-  "automation_yaml": "id: 'living_room_light_off_2300'\nalias: Turn Off LR Front Right Ceiling at 11 PM\ndescription: \"Turn off the LR Front Right Ceiling light every night at 11:00 PM.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.hue_color_downlight_1_4",
+  "query_id": "query-69ef9b5b",
+  "suggestion_id": "ask-ai-23d91036",
+  "automation_id": "automation.living_room_lights_off_23_00_1764011933_5a91c92c",
+  "automation_yaml": "id: 'living_room_lights_off_23_00'\nalias: Turn Off Living Room Light at 11 PM\ndescription: \"Turn off the Living Room light every night at 11:00 PM.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:18:55.407779"
+      "timestamp": "2025-11-24T11:18:39.793027"
     }
   ],
   "automation_score": 80.0,
@@ -59,5 +59,5 @@
   "total_score": 89.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:18:54.061065"
+  "timestamp": "2025-11-24T11:18:38.030547"
 }

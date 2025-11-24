@@ -3,10 +3,10 @@
   "prompt_name": "Time-Based Sequence",
   "prompt_text": "Every day at 5:00 PM, turn on the Office WLED to 80%, wait 1 minute, turn on all living room lights to 60%, wait 30 seconds, and dim the Office WLED to 40%",
   "complexity": "Complex",
-  "query_id": "query-078aaea8",
-  "suggestion_id": "ask-ai-9edd9024",
-  "automation_id": "automation.daily_office_wled_living_room_sequence_1700000000_1763979780_665a93ae",
-  "automation_yaml": "id: 'daily_office_wled_living_room_sequence_1700000000'\nalias: Daily 5PM Office and Living Room Lighting Sequence\ndescription: \"Daily at 5:00 PM, brighten Office WLED to 80%, then Living Room to 60%, then dim Office WLED to 40%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 204\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 153\n  - delay: '00:00:30'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 102",
+  "query_id": "query-d1cd45bb",
+  "suggestion_id": "ask-ai-a98b36cd",
+  "automation_id": "automation.office_wled_living_room_evening_routine_1764012078_b4303914",
+  "automation_yaml": "id: 'office_wled_living_room_evening_routine'\nalias: Office WLED and Living Room Evening Routine\ndescription: \"At 5:00 PM brighten Office WLED to 80%, then Living Room to 60%, then dim Office WLED to 40%\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 80\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 60\n  - delay: '00:00:30'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 40",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, living_room, office",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, office, living_room",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:22:38.753924"
+      "timestamp": "2025-11-24T11:21:01.961136"
     }
   ],
   "automation_score": 85.0,
@@ -59,5 +59,5 @@
   "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:22:37.298221"
+  "timestamp": "2025-11-24T11:21:00.018132"
 }

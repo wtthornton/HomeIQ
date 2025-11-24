@@ -1,10 +1,11 @@
-id: 'office_wled_living_room_70_office_100'
-alias: Office WLED → Living Room 70% → Office WLED 100%
-description: "When Office WLED turns on, set Living Room to 70%, then Office WLED to 100%"
+id: 'office_wled_living_room_sequence'
+alias: Office WLED - Living Room Sequence
+description: "When Office WLED turns on, sequence living room and office brightness levels"
 mode: restart
 trigger:
   - platform: state
     entity_id: light.wled
+    from: 'off'
     to: 'on'
 conditions: []
 action:

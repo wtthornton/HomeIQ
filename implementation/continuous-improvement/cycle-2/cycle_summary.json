@@ -1,8 +1,8 @@
 {
   "cycle_number": 2,
-  "overall_score": 87.33333333333333,
+  "overall_score": 88.66666666666667,
   "all_successful": true,
-  "timestamp": "2025-11-24T02:12:16.111355",
+  "timestamp": "2025-11-24T11:12:13.661739",
   "prompt_results": [
     {
       "prompt_id": "prompt-1-simple",
@@ -32,7 +32,7 @@
       "prompt_id": "prompt-4-medium",
       "prompt_name": "Time-Based Conditional Lighting",
       "complexity": "Medium",
-      "total_score": 89.0,
+      "total_score": 99.0,
       "success": true,
       "error": null
     },
@@ -104,7 +104,7 @@
       "prompt_id": "prompt-13-very-complex",
       "prompt_name": "Complex State Management",
       "complexity": "Very Complex",
-      "total_score": 81.5,
+      "total_score": 91.5,
       "success": true,
       "error": null
     },

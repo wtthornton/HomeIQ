@@ -1,5 +1,10 @@
 # Database Schema
 
+**Related Documents:**
+- [Database Optimization Guide](database-optimization.md) - Performance tuning and best practices
+
+---
+
 ## Hybrid Database Architecture (Epic 22)
 
 This system uses a **hybrid database architecture** optimizing for different data types:

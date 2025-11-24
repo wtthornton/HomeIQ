@@ -3,10 +3,10 @@
   "prompt_name": "Sunset-Based Multi-Device Sequence",
   "prompt_text": "After sunset every day, turn on the living room lights for 5 minutes, then turn on the Office WLED, wait 30 seconds, and turn off the living room lights",
   "complexity": "Complex",
-  "query_id": "query-534fad67",
-  "suggestion_id": "ask-ai-861b67e9",
-  "automation_id": null,
-  "automation_yaml": "id: 'after_sunset_living_room_then_office_wled'\nalias: After Sunset - Living Room then Office WLED\ndescription: \"After sunset each day, turn on the Living Room light for 5 minutes, then turn on the Office WLED, wait 30 seconds, and finally turn off the Living Room light.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n  - delay: '00:05:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n  - delay: '00:00:30'\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2'",
+  "query_id": "query-a52e1fb9",
+  "suggestion_id": "ask-ai-ad7f9078",
+  "automation_id": "automation.after_sunset_living_room_then_office_wled_1764011687_ee59ac9c",
+  "automation_yaml": "id: 'after_sunset_living_room_then_office_wled'\nalias: After Sunset - Living Room then Office WLED\ndescription: \"After sunset turn on Living Room for 5 minutes, then Office WLED for 30 seconds, then turn off Living Room\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n  - delay: '00:05:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n  - delay: '00:00:30'\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, living_room, office",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, office, living_room",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:15:22.407901"
+      "timestamp": "2025-11-24T11:14:28.918392"
     }
   ],
   "automation_score": 85.0,
@@ -59,5 +59,5 @@
   "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:15:21.027545"
+  "timestamp": "2025-11-24T11:14:26.804706"
 }

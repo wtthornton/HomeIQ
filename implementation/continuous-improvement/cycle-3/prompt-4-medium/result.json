@@ -3,10 +3,10 @@
   "prompt_name": "Time-Based Conditional Lighting",
   "prompt_text": "Between 6 PM and 11 PM every day, turn on the living room lights to 80% brightness",
   "complexity": "Medium",
-  "query_id": "query-7b67daf5",
-  "suggestion_id": "ask-ai-a437c1e2",
-  "automation_id": "automation.living_room_lights_80pct_evening_1763979625_7f915144",
-  "automation_yaml": "id: 'living_room_lights_80pct_evening'\nalias: Living Room Lights 80% Between 6-11 PM\ndescription: \"Every day between 6:00 PM and 11:00 PM, keep the Living Room ceiling lights at 80% brightness.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/5'\nconditions: []\naction:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.hue_lr_back_left_ceiling\n        - light.hue_color_downlight_1_4\n        - light.hue_color_downlight_1\n    data:\n      brightness_pct: 80",
+  "query_id": "query-d2a9f851",
+  "suggestion_id": "ask-ai-1c7aab6d",
+  "automation_id": "automation.living_room_evening_80pct_1764011966_e2de94a1",
+  "automation_yaml": "id: 'living_room_evening_80pct'\nalias: Living Room Evening 80% Brightness\ndescription: \"Between 6 PM and 11 PM every day, turn on the Living Room light to about 80% brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 204",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -68,13 +68,13 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:19:47.941781"
+      "timestamp": "2025-11-24T11:19:11.162547"
     }
   ],
-  "automation_score": 100.0,
+  "automation_score": 80.0,
   "yaml_score": 100.0,
-  "total_score": 99.0,
+  "total_score": 89.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:19:46.707754"
+  "timestamp": "2025-11-24T11:19:09.511026"
 }

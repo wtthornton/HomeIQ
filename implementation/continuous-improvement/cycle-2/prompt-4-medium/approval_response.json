@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-f6de2ae3",
-  "query_id": "clarify-31387a7e",
+  "suggestion_id": "ask-ai-e76f0456",
+  "query_id": "clarify-1ff41b78",
   "status": "approved",
-  "automation_id": "automation.living_room_evening_lights_80_brightness_1763979236_c1501d2a",
-  "automation_yaml": "id: 'living_room_evening_lights_80_brightness'\nalias: Living Room Evening Lights 80% Brightness\ndescription: \"Between 6:00 PM and 11:00 PM, set LR Back Right and LR Front Right Ceiling to 80% brightness\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.hue_color_downlight_1\n        - light.hue_color_downlight_1_4\n    data:\n      brightness: 204",
+  "automation_id": "automation.living_room_6pm_11pm_1764011617_9d376746",
+  "automation_yaml": "id: 'living_room_6pm_11pm'\nalias: Living Room Evening Schedule\ndescription: \"Between 6 PM and 11 PM every day, turn Living Room light on at 80% and off at 11 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: time\n            after: '17:59:59'\n            before: '18:00:01'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.living_room_2\n            data:\n              brightness_pct: 80\n      - conditions:\n          - condition: time\n            after: '22:59:59'\n            before: '23:00:01'\n        sequence:\n          - service: light.turn_off\n            target:\n              entity_id: light.living_room_2",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-52fdb4ae",
-  "query_id": "clarify-fd1c6843",
+  "suggestion_id": "ask-ai-4ce8d05f",
+  "query_id": "clarify-777485af",
   "status": "approved",
-  "automation_id": "automation.office_wled_weekday_morning_on_1763979988_e88533ee",
-  "automation_yaml": "id: 'office_wled_weekday_morning_on'\nalias: Office WLED Weekday 8 AM On\ndescription: \"Turn on the Office WLED every weekday at 8:00 AM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '08:00:00'\nconditions:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
+  "automation_id": "automation.office_wled_weekday_morning_on_1764012288_7564a3c5",
+  "automation_yaml": "id: 'office_wled_weekday_morning_on'\nalias: Office WLED Weekday 8AM On\ndescription: \"Turn on the Office WLED light every weekday at 8:00 AM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '08:00:00'\nconditions:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

@@ -4609,6 +4609,8 @@ async def generate_suggestions_from_query(
             error_msg += "This usually means the device names in the query don't match available entities. "
             error_msg += f"Reasons: {', '.join(skipped_reasons[:3])}"  # Show first 3 reasons
             logger.error(f"❌ {error_msg}")
+            # Quick Win 4: Log structured failure data
+            logger.error(f"📊 FAILURE_METRIC: entity_mapping_failed, skipped_count={skipped_suggestions_count}, reasons={skipped_reasons[:3]}")
             raise ValueError(error_msg)
         
         return suggestions
@@ -5103,56 +5105,90 @@ async def process_natural_language_query(
             # Fallback confidence calculation with quality scoring
             confidence = _calculate_base_confidence_with_quality(entities)
 
-        # Step 2: Generate suggestions if no clarification needed
+        # Step 2: Generate suggestions (even when clarification is needed - Quick Win 1)
         suggestions = []
-        if not questions:  # Only generate suggestions if clarification not needed
-            suggestions = await generate_suggestions_from_query(
-                request.query,
-                entities,
-                request.user_id,
-                db_session=db,
-                clarification_context=None,
-                query_id=query_id,  # Pass query_id for metrics tracking
-                area_filter=area_filter  # Pass area_filter for location filtering
-            )
+        
+        # Build clarification context if questions exist (for context-aware suggestion generation)
+        clarification_context_for_suggestions = None
+        if questions:
+            # Build minimal clarification context indicating questions are pending
+            questions_list = [
+                {
+                    'question': q.question_text if hasattr(q, 'question_text') else str(q),
+                    'answer': None,  # No answers yet
+                    'selected_entities': [],
+                    'category': q.category if hasattr(q, 'category') else 'unknown'
+                }
+                for q in questions
+            ]
+            clarification_context_for_suggestions = {
+                'original_query': request.query,
+                'questions_and_answers': questions_list,
+                'clarification_pending': True  # Flag indicating answers are pending
+            }
+            logger.info(f"🔍 Generating suggestions with {len(questions)} pending clarification questions")
+        
+        # Always generate suggestions (Quick Win 1: Fix clarification blocker)
+        suggestions = await generate_suggestions_from_query(
+            request.query,
+            entities,
+            request.user_id,
+            db_session=db,
+            clarification_context=clarification_context_for_suggestions,
+            query_id=query_id,  # Pass query_id for metrics tracking
+            area_filter=area_filter  # Pass area_filter for location filtering
+        )
 
-            # Recalculate confidence with suggestions
-            if suggestions:
-                confidence = min(0.9, confidence + (len(suggestions) * 0.1))
+        # Reduce confidence for suggestions generated with pending clarification (Quick Win 1)
+        if questions and suggestions:
+            clarification_penalty = 0.2
+            for suggestion in suggestions:
+                original_confidence = suggestion.get('confidence', 0.7)
+                suggestion['confidence'] = max(0.1, original_confidence - clarification_penalty)
+                # Add metadata flag indicating clarification is pending
+                if 'metadata' not in suggestion:
+                    suggestion['metadata'] = {}
+                suggestion['metadata']['clarification_pending'] = True
+                suggestion['metadata']['original_confidence'] = original_confidence
+            logger.info(f"📉 Reduced confidence by {clarification_penalty} for {len(suggestions)} suggestions (clarification pending)")
 
-                # NEW: Check for location mismatches in generated suggestions
-                # If any suggestion has low confidence due to location mismatch, trigger clarification
-                location_mismatch_found = False
-                query_location = None
-                for suggestion in suggestions:
-                    # Check if confidence was lowered due to location mismatch
-                    # We lowered it to max(0.3, original * 0.5), so if it's <= 0.5, likely a mismatch
-                    if suggestion.get('confidence', 1.0) <= 0.5:
-                        # Check if this is a location mismatch by examining validated_entities
-                        validated_entities = suggestion.get('validated_entities', {})
-                        if validated_entities and clarification_detector:
-                            try:
-                                # Extract location from query
-                                from ..clients.data_api_client import DataAPIClient
-                                from ..services.entity_validator import EntityValidator
-                                data_api_client = DataAPIClient()
-                                ha_client_check = ha_client if 'ha_client' in locals() else get_ha_client()
-                                entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client_check)
-                                query_location = entity_validator._extract_location_from_query(request.query)
+        # Recalculate confidence with suggestions
+        if suggestions:
+            confidence = min(0.9, confidence + (len(suggestions) * 0.1))
 
-                                if query_location:
-                                    # Check if any matched entities are in wrong location
-                                    location_mismatch_found = True
-                                    logger.warning(
-                                        f"⚠️ Location mismatch detected in suggestions - triggering clarification. "
-                                        f"Query location: '{query_location}'"
-                                    )
-                                    break
-                            except Exception as e:
-                                logger.warning(f"⚠️ Error checking for location mismatch: {e}", exc_info=True)
+            # NEW: Check for location mismatches in generated suggestions
+            # If any suggestion has low confidence due to location mismatch, trigger clarification
+            location_mismatch_found = False
+            query_location = None
+            for suggestion in suggestions:
+                # Check if confidence was lowered due to location mismatch
+                # We lowered it to max(0.3, original * 0.5), so if it's <= 0.5, likely a mismatch
+                if suggestion.get('confidence', 1.0) <= 0.5:
+                    # Check if this is a location mismatch by examining validated_entities
+                    validated_entities = suggestion.get('validated_entities', {})
+                    if validated_entities and clarification_detector:
+                        try:
+                            # Extract location from query
+                            from ..clients.data_api_client import DataAPIClient
+                            from ..services.entity_validator import EntityValidator
+                            data_api_client = DataAPIClient()
+                            ha_client_check = ha_client if 'ha_client' in locals() else get_ha_client()
+                            entity_validator = EntityValidator(data_api_client, db_session=None, ha_client=ha_client_check)
+                            query_location = entity_validator._extract_location_from_query(request.query)
 
-                # If location mismatch found, generate clarification questions
-                if location_mismatch_found and not questions and clarification_detector and question_generator and query_location:
+                            if query_location:
+                                # Check if any matched entities are in wrong location
+                                location_mismatch_found = True
+                                logger.warning(
+                                    f"⚠️ Location mismatch detected in suggestions - triggering clarification. "
+                                    f"Query location: '{query_location}'"
+                                )
+                                break
+                        except Exception as e:
+                            logger.warning(f"⚠️ Error checking for location mismatch: {e}", exc_info=True)
+
+            # If location mismatch found, generate clarification questions
+            if location_mismatch_found and not questions and clarification_detector and question_generator and query_location:
                     try:
                         # Create a location mismatch ambiguity
                         from ..services.clarification.models import (
@@ -5196,6 +5232,122 @@ async def process_natural_language_query(
                     except Exception as e:
                         logger.warning(f"⚠️ Error generating location mismatch clarification: {e}", exc_info=True)
 
+        # Quick Win 3: Pattern-based fallback when Ask AI generates zero suggestions
+        if not suggestions or len(suggestions) == 0:
+            logger.info("🔄 Quick Win 3: No suggestions generated, attempting pattern-based fallback")
+            try:
+                from ..database import get_patterns
+                from ..clients.data_api_client import DataAPIClient
+                
+                # Extract device IDs from entities
+                device_ids = []
+                entity_ids = []
+                for entity in entities:
+                    if entity.get('type') == 'device':
+                        # Try to get device_id from entity
+                        device_id = entity.get('device_id')
+                        entity_id = entity.get('entity_id')
+                        if device_id and device_id not in device_ids:
+                            device_ids.append(device_id)
+                        if entity_id and '.' in entity_id:
+                            # Extract device_id from entity_id if possible
+                            entity_ids.append(entity_id)
+                
+                # If we have entity IDs but no device IDs, try to fetch device IDs from data-api
+                if entity_ids and not device_ids:
+                    try:
+                        data_api_client = DataAPIClient()
+                        for entity_id in entity_ids[:5]:  # Limit to first 5
+                            try:
+                                entity_metadata = await data_api_client.get_entity_metadata(entity_id)
+                                if entity_metadata and entity_metadata.get('device_id'):
+                                    device_id = entity_metadata['device_id']
+                                    if device_id not in device_ids:
+                                        device_ids.append(device_id)
+                            except Exception as e:
+                                logger.debug(f"Failed to get device_id for {entity_id}: {e}")
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch device IDs from entity IDs: {e}")
+                
+                # Query patterns for extracted device IDs
+                if device_ids:
+                    logger.info(f"🔍 Querying patterns for {len(device_ids)} device IDs: {device_ids[:3]}...")
+                    fallback_patterns = []
+                    for device_id in device_ids[:3]:  # Limit to top 3 devices
+                        try:
+                            patterns = await get_patterns(
+                                db=db,
+                                device_id=device_id,
+                                min_confidence=0.6,  # Only high-confidence patterns
+                                limit=1  # One pattern per device
+                            )
+                            fallback_patterns.extend(patterns)
+                        except Exception as e:
+                            logger.warning(f"Failed to query patterns for device {device_id}: {e}")
+                    
+                    # Convert patterns to suggestion format
+                    if fallback_patterns:
+                        logger.info(f"✅ Found {len(fallback_patterns)} patterns for fallback suggestions")
+                        for pattern in fallback_patterns[:3]:  # Limit to top 3 suggestions
+                            try:
+                                # Build simple suggestion from pattern
+                                pattern_metadata = pattern.pattern_metadata
+                                if isinstance(pattern_metadata, str):
+                                    import json
+                                    try:
+                                        pattern_metadata = json.loads(pattern_metadata)
+                                    except:
+                                        pattern_metadata = {}
+                                elif not isinstance(pattern_metadata, dict):
+                                    pattern_metadata = {}
+                                
+                                # Generate simple description based on pattern type
+                                if pattern.pattern_type == 'time_of_day':
+                                    hour = int(pattern_metadata.get('avg_time_decimal', 0))
+                                    minute = int((pattern_metadata.get('avg_time_decimal', 0) % 1) * 60)
+                                    description = f"Automation based on your usage pattern: device typically used at {hour:02d}:{minute:02d}"
+                                    title = f"Time-based automation ({hour:02d}:{minute:02d})"
+                                elif pattern.pattern_type == 'co_occurrence':
+                                    if '+' in pattern.device_id:
+                                        device1, device2 = pattern.device_id.split('+', 1)
+                                        description = f"Automation based on co-occurrence pattern: {device1} and {device2} are often used together"
+                                        title = f"Co-occurrence automation"
+                                    else:
+                                        description = f"Automation based on detected usage pattern"
+                                        title = f"Pattern-based automation"
+                                else:
+                                    description = f"Automation based on detected usage pattern (confidence: {pattern.confidence:.0%})"
+                                    title = f"Pattern-based automation"
+                                
+                                fallback_suggestion = {
+                                    'suggestion_id': f'pattern-fallback-{pattern.id}',
+                                    'description': description,
+                                    'trigger_summary': f"Based on {pattern.pattern_type} pattern",
+                                    'action_summary': "Device control based on pattern",
+                                    'devices_involved': [pattern.device_id] if pattern.device_id else [],
+                                    'validated_entities': {},  # Will be populated when user approves
+                                    'confidence': pattern.confidence * 0.8,  # Slightly lower confidence for fallback
+                                    'status': 'draft',
+                                    'created_at': datetime.now().isoformat(),
+                                    'metadata': {
+                                        'source': 'pattern_fallback',
+                                        'pattern_id': pattern.id,
+                                        'pattern_type': pattern.pattern_type,
+                                        'occurrences': pattern.occurrences
+                                    }
+                                }
+                                suggestions.append(fallback_suggestion)
+                            except Exception as e:
+                                logger.warning(f"Failed to convert pattern {pattern.id} to suggestion: {e}")
+                        
+                        if suggestions:
+                            logger.info(f"✅ Quick Win 3: Generated {len(suggestions)} pattern-based fallback suggestions")
+                else:
+                    logger.info("⚠️ Quick Win 3: No device IDs extracted from entities, cannot query patterns")
+            except Exception as e:
+                logger.warning(f"⚠️ Quick Win 3: Pattern fallback failed: {e}", exc_info=True)
+                # Non-critical: continue without fallback
+
         # Step 4: Determine parsed intent
         intent_keywords = {
             'automation': ['automate', 'automatic', 'schedule', 'routine'],
@@ -5213,6 +5365,36 @@ async def process_natural_language_query(
 
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
 
+        # Quick Win 4: Determine failure reason
+        failure_reason = None
+        if not suggestions or len(suggestions) == 0:
+            # Determine why no suggestions were generated
+            if questions:
+                failure_reason = 'clarification_needed'
+            else:
+                # Check if pattern fallback was attempted
+                pattern_fallback_used = any(
+                    s.get('metadata', {}).get('source') == 'pattern_fallback' 
+                    for s in (suggestions or [])
+                )
+                if pattern_fallback_used:
+                    failure_reason = 'pattern_fallback_used'  # Fallback was used but still no suggestions
+                else:
+                    failure_reason = 'empty_suggestions'  # No suggestions and no fallback
+        else:
+            # Check if any suggestions had entity mapping failures
+            has_entity_mapping_issues = any(
+                not s.get('validated_entities') or len(s.get('validated_entities', {})) == 0
+                for s in suggestions
+            )
+            if has_entity_mapping_issues and len(suggestions) == 1:
+                # Only one suggestion and it has mapping issues - likely a partial failure
+                failure_reason = 'entity_mapping_partial'
+            elif questions:
+                failure_reason = 'success_with_clarification'  # Suggestions generated despite clarification needed
+            else:
+                failure_reason = 'success'  # Successful generation
+
         # Step 5: Save query to database (or update if already exists from clarification session)
         existing_query = await db.get(AskAIQueryModel, query_id)
         if existing_query:
@@ -5222,6 +5404,7 @@ async def process_natural_language_query(
             existing_query.suggestions = suggestions
             existing_query.confidence = confidence
             existing_query.processing_time_ms = int(processing_time)
+            existing_query.failure_reason = failure_reason  # Quick Win 4
             query_record = existing_query
         else:
             # Create new query record
@@ -5233,7 +5416,8 @@ async def process_natural_language_query(
                 extracted_entities=entities,
                 suggestions=suggestions,
                 confidence=confidence,
-                processing_time_ms=int(processing_time)
+                processing_time_ms=int(processing_time),
+                failure_reason=failure_reason  # Quick Win 4
             )
             db.add(query_record)
 
@@ -5289,11 +5473,22 @@ async def process_natural_language_query(
             if auto_resolved_answers:
                 auto_resolved_info = f" I've automatically resolved {len(auto_resolved_answers)} ambiguity(ies) based on context."
             
-            message = f"I found some ambiguities in your request.{device_info}{area_info}{auto_resolved_info} Please answer {len(questions)} question(s) to help me create the automation accurately."
+            # Quick Win 1: Mention that preliminary suggestions are also provided
+            suggestions_info = ""
+            if suggestions:
+                suggestions_info = f" I've generated {len(suggestions)} preliminary suggestion(s) below, but please answer {len(questions)} question(s) to refine them."
+            else:
+                suggestions_info = f" Please answer {len(questions)} question(s) to help me create the automation accurately."
+            
+            message = f"I found some ambiguities in your request.{device_info}{area_info}{auto_resolved_info}{suggestions_info}"
         elif suggestions:
             device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
             device_info = f" I detected these devices: {', '.join(device_names)}." if device_names else ""
-            message = f"I found {len(suggestions)} automation suggestion(s) for your request.{device_info}"
+            # Quick Win 1: Indicate if suggestions are preliminary (clarification pending)
+            if questions:
+                message = f"I found {len(suggestions)} preliminary automation suggestion(s) for your request.{device_info} Please answer the questions above to refine these suggestions."
+            else:
+                message = f"I found {len(suggestions)} automation suggestion(s) for your request.{device_info}"
         else:
             # No suggestions and no questions - explain why
             device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
@@ -9261,3 +9456,89 @@ async def reverse_engineer_yaml(request: dict[str, Any]):
     except Exception as e:
         logger.error(f"Reverse engineering failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/failure-stats")
+async def get_failure_stats(
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Quick Win 4: Get failure statistics for Ask AI queries.
+    
+    Returns breakdown of failure reasons to identify main causes of the 54% failure rate.
+    
+    Example:
+        GET /api/v1/ask-ai/failure-stats
+        {
+            "total_queries": 1000,
+            "success_count": 460,
+            "failure_count": 540,
+            "failure_rate": 54.0,
+            "failure_breakdown": {
+                "clarification_needed": 300,
+                "entity_mapping_failed": 150,
+                "empty_suggestions": 80,
+                "pattern_fallback_used": 10
+            },
+            "failure_percentages": {
+                "clarification_needed": 55.6,
+                "entity_mapping_failed": 27.8,
+                "empty_suggestions": 14.8,
+                "pattern_fallback_used": 1.9
+            }
+        }
+    """
+    try:
+        from sqlalchemy import func
+        
+        # Get total queries
+        total_result = await db.execute(
+            select(func.count(AskAIQueryModel.query_id))
+        )
+        total_queries = total_result.scalar() or 0
+        
+        # Get failure reason breakdown
+        failure_result = await db.execute(
+            select(
+                AskAIQueryModel.failure_reason,
+                func.count(AskAIQueryModel.query_id).label('count')
+            )
+            .where(AskAIQueryModel.failure_reason.isnot(None))
+            .group_by(AskAIQueryModel.failure_reason)
+        )
+        failure_breakdown = {row[0]: row[1] for row in failure_result.all()}
+        
+        # Get success count
+        success_result = await db.execute(
+            select(func.count(AskAIQueryModel.query_id))
+            .where(AskAIQueryModel.failure_reason == 'success')
+        )
+        success_count = success_result.scalar() or 0
+        
+        # Calculate failure count (total - success)
+        failure_count = total_queries - success_count
+        
+        # Calculate percentages
+        failure_percentages = {}
+        if failure_count > 0:
+            for reason, count in failure_breakdown.items():
+                if reason != 'success':
+                    failure_percentages[reason] = round((count / failure_count) * 100, 1)
+        
+        failure_rate = round((failure_count / total_queries * 100), 1) if total_queries > 0 else 0.0
+        
+        return {
+            "total_queries": total_queries,
+            "success_count": success_count,
+            "failure_count": failure_count,
+            "failure_rate": failure_rate,
+            "failure_breakdown": failure_breakdown,
+            "failure_percentages": failure_percentages,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get failure stats: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get failure stats: {str(e)}"
+        ) from e

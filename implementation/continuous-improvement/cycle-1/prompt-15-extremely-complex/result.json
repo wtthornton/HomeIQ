@@ -3,10 +3,10 @@
   "prompt_name": "Multi-Conditional with Choose",
   "prompt_text": "When any living room light changes state, check the time and the current brightness of the Office WLED. If it's daytime (6 AM to 6 PM) and the Office WLED is below 50%, turn it on to 70%. If it's nighttime (6 PM to 6 AM) and any living room light is above 60%, dim the Office WLED to 30%. If the Office WLED is already at the target brightness, do nothing. Wait 2 seconds between each check and action.",
   "complexity": "Extremely Complex",
-  "query_id": "query-8fb4fe0f",
-  "suggestion_id": "ask-ai-3b0e0498",
-  "automation_id": "automation.office_wled_adjust_on_living_room_changes_1763979133_36cd6d38",
-  "automation_yaml": "id: 'office_wled_adjust_on_living_room_changes'\nalias: Office WLED \u2013 Adjust on Living Room Changes\ndescription: \"Basic Office WLED brightness adjustment based on time of day and living room light changes. Add your living-room light entity_ids to the trigger and living_room_ids variable.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: []\nvariables:\n  office_wled_brightness_pct: >-\n    {% if state_attr('light.wled', 'brightness') is not none %}\n      {{ (state_attr('light.wled', 'brightness') | int(0) / 255 * 100) | round(0) }}\n    {% else %}\n      0\n    {% endif %}\n  living_room_ids: >-\n    {{ [\n      ] }}\n  living_room_max_brightness_pct: >-\n    {% set ids = living_room_ids %}\n    {% set b = [] %}\n    {% for e in ids %}\n      {% if state_attr(e, 'brightness') is not none %}\n        {% set _ = b.append(state_attr(e, 'brightness') | int(0)) %}\n      {% endif %}\n    {% endfor %}\n    {% if b|length > 0 %}\n      {{ ((b|max) / 255 * 100) | round(0) }}\n    {% else %}\n      0\n    {% endif %}\nconditions:\n  - condition: template\n    value_template: \"{{ not is_state('light.wled', 'unavailable') }}\"\naction:\n  - delay: \"00:00:02\"\n  - choose:\n      - conditions:\n          - condition: time\n            after: \"06:00:00\"\n            before: \"18:00:00\"\n          - condition: template\n            value_template: \"{{ office_wled_brightness_pct < 50 }}\"\n        sequence:\n          - condition: template\n            value_template: \"{{ office_wled_brightness_pct < 67 or office_wled_brightness_pct > 73 }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 70\n      - conditions:\n          - condition: or\n            conditions:\n              - condition: time\n                after: \"18:00:00\"\n                before: \"23:59:59\"\n              - condition: time\n                after: \"00:00:00\"\n                before: \"06:00:00\"\n          - condition: template\n            value_template: \"{{ living_room_max_brightness_pct > 60 }}\"\n        sequence:\n          - condition: template\n            value_template: \"{{ office_wled_brightness_pct < 27 or office_wled_brightness_pct > 33 }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 30",
+  "query_id": "query-baeb5b0c",
+  "suggestion_id": "ask-ai-b9f01903",
+  "automation_id": "automation.office_wled_follow_living_room_by_time_1764011531_b2a17c67",
+  "automation_yaml": "id: 'office_wled_follow_living_room_by_time'\nalias: Office Wled \u2013 Follow Living Room Brightness by Time\ndescription: \"When any living room light changes state, adjust the Office Wled brightness based on time of day.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\nvariables:\n  office_brightness_pct: >-\n    {% set b = state_attr('light.wled', 'brightness') %}\n    {% if b is not none %}\n      {{ (b | float(0) / 255 * 100) | round(0) }}\n    {% else %}\n      0\n    {% endif %}\n  living_brightness_pct: >-\n    {% set b = state_attr('light.living_room_2', 'brightness') %}\n    {% if b is not none %}\n      {{ (b | float(0) / 255 * 100) | round(0) }}\n    {% else %}\n      0\n    {% endif %}\n  is_daytime: >-\n    {{ now().hour >= 6 and now().hour < 18 }}\nconditions: []\naction:\n  - delay: '00:00:02'\n  - choose:\n      - conditions:\n          - condition: template\n            value_template: \"{{ is_daytime }}\"\n          - condition: template\n            value_template: \"{{ office_brightness_pct < 50 }}\"\n        sequence:\n          - condition: or\n            conditions:\n              - condition: state\n                entity_id: light.wled\n                state: 'on'\n              - condition: state\n                entity_id: light.wled\n                state: 'off'\n          - condition: template\n            value_template: \"{{ office_brightness_pct | int != 70 }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: \"{{ (255 * 0.7) | int }}\"\n      - conditions:\n          - condition: template\n            value_template: \"{{ not is_daytime }}\"\n          - condition: state\n            entity_id: light.living_room_2\n            state: 'on'\n          - condition: template\n            value_template: \"{{ living_brightness_pct > 60 }}\"\n          - condition: state\n            entity_id: light.wled\n            state: 'on'\n          - condition: template\n            value_template: \"{{ office_brightness_pct | int != 30 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: \"{{ (255 * 0.3) | int }}\"",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: target brightness, living_room, office wled, office, living",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: office wled, target brightness, office, living_room, living",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:11:34.556761"
+      "timestamp": "2025-11-24T11:11:37.709387"
     }
   ],
   "automation_score": 85.0,
@@ -59,5 +59,5 @@
   "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:11:32.907799"
+  "timestamp": "2025-11-24T11:11:35.844852"
 }

@@ -3,10 +3,10 @@
   "prompt_name": "State Restoration with Conditions",
   "prompt_text": "Every 15 mins choose a random effect on the Office WLED device. Play the effect for 15 secs. Choose random effect, random colors and brightness to 100%. At the end of the 15 sec the WLED light needs to return to exactly what it was before it started.",
   "complexity": "Very Complex",
-  "query_id": "query-7dc383f2",
-  "suggestion_id": "ask-ai-3bc615f5",
-  "automation_id": "automation.office_wled_random_effect_every_15_min_1763979435_b5d47905",
-  "automation_yaml": "id: 'office_wled_random_effect_every_15_min'\nalias: Office WLED Random Effect Burst\ndescription: \"Every 15 minutes run a random WLED effect on Office for 15 seconds at 100% brightness, then restore previous state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: \"/15\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random_burst\n      snapshot_entities:\n        - light.wled\n  - variables:\n      wled_effects: \"{{ state_attr('light.wled', 'effect_list') if state_attr('light.wled', 'effect_list') is not none else [] }}\"\n      random_effect: >-\n        \"{{ (wled_effects | reject('equalto', 'Solid') | list | random(default='Solid')) if wled_effects | length > 0 else 'Solid' }}\"\n      random_r: \"{{ range(0, 256) | random }}\"\n      random_g: \"{{ range(0, 256) | random }}\"\n      random_b: \"{{ range(0, 256) | random }}\"\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100\n      effect: \"{{ random_effect }}\"\n      rgb_color:\n        - \"{{ random_r }}\"\n        - \"{{ random_g }}\"\n        - \"{{ random_b }}\"\n  - delay: \"00:00:15\"\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_random_burst",
+  "query_id": "query-610c103a",
+  "suggestion_id": "ask-ai-f055629c",
+  "automation_id": "automation.office_wled_random_effect_15min_1764011771_9f81d335",
+  "automation_yaml": "id: 'office_wled_random_effect_15min'\nalias: Office WLED Random Effect Every 15 Minutes\ndescription: \"Every 15 minutes set a random effect, random color, 100% brightness on Office WLED for 15 seconds, then restore previous state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/15'\nconditions:\n  - condition: not\n    conditions:\n      - condition: state\n        entity_id: light.wled\n        state: 'unavailable'\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random_effect\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100\n      effect: \"random\"\n      rgb_color:\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n  - delay: '00:00:15'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_random_effect",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: end of, office",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: office, end of",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:16:50.786754"
+      "timestamp": "2025-11-24T11:15:50.030140"
     }
   ],
   "automation_score": 100.0,
@@ -59,5 +59,5 @@
   "total_score": 99.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:16:49.272421"
+  "timestamp": "2025-11-24T11:15:47.723927"
 }

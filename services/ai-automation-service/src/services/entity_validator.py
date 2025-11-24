@@ -91,6 +91,25 @@ class EntityValidator:
     This service ensures that automations use actual entities that exist
     in the Home Assistant instance, preventing "Entity not found" errors.
     """
+    
+    # Quick Win 2: Common device aliases for better matching
+    COMMON_DEVICE_ALIASES = {
+        'light': ['lamp', 'bulb', 'lamp', 'fixture', 'luminaire'],
+        'lamp': ['light', 'bulb', 'fixture'],
+        'switch': ['toggle', 'button', 'control'],
+        'toggle': ['switch', 'button'],
+        'sensor': ['detector', 'monitor', 'gauge'],
+        'detector': ['sensor', 'monitor'],
+        'thermostat': ['climate', 'temperature control'],
+        'climate': ['thermostat', 'temperature control'],
+        'door': ['entrance', 'entry'],
+        'window': ['opening'],
+        'fan': ['ventilator', 'blower'],
+        'lock': ['deadbolt', 'latch'],
+        'camera': ['webcam', 'security camera'],
+        'motion': ['movement', 'motion sensor'],
+        'presence': ['occupancy', 'presence sensor']
+    }
 
     def __init__(self, data_api_client=None, enable_full_chain: bool = True, db_session=None, ha_client=None):
         """
@@ -1573,27 +1592,48 @@ class EntityValidator:
                 exact_match = True
                 score_details['exact_device_name'] = True
 
-            # Signal 2.5: Fuzzy string matching (for typos/abbreviations) - Weight: 15%
-            # Only use if exact match failed (don't penalize exact matches)
+            # Signal 2.5: Common alias matching (Quick Win 2) - Weight: 15%
+            # Check aliases before fuzzy matching for better accuracy
+            alias_match_score = 0.0
             if not exact_match:
-                fuzzy_scores = []
-                # Check against all available names in priority order
-                if friendly_name:
-                    fuzzy_scores.append(self._fuzzy_match_score(query_term, friendly_name))
-                if name_by_user:
-                    fuzzy_scores.append(self._fuzzy_match_score(query_term, name_by_user))
-                if device_name:
-                    fuzzy_scores.append(self._fuzzy_match_score(query_term, device_name))
-                # Also check entity_id parts
-                if entity_name:
-                    fuzzy_scores.append(self._fuzzy_match_score(query_term, entity_name))
+                query_lower_words = query_lower.split()
+                # Check if query contains alias terms
+                for alias_term, aliases in self.COMMON_DEVICE_ALIASES.items():
+                    if alias_term in query_lower_words or any(alias in query_lower_words for alias in aliases):
+                        # Check if entity names contain the alias or its alternatives
+                        entity_texts = [t for t in [friendly_name, name_by_user, device_name, entity_name] if t]
+                        for entity_text in entity_texts:
+                            entity_lower = entity_text.lower()
+                            if alias_term in entity_lower or any(alias in entity_lower for alias in aliases):
+                                alias_match_score = 0.8  # High score for alias match
+                                score_details['alias_match'] = True
+                                break
+                        if alias_match_score > 0:
+                            break
+                
+                if alias_match_score > 0:
+                    score += alias_match_score * 0.15
+                else:
+                    # Signal 2.6: Fuzzy string matching (for typos/abbreviations) - Weight: 15%
+                    # Only use if exact match and alias match failed
+                    fuzzy_scores = []
+                    # Check against all available names in priority order
+                    if friendly_name:
+                        fuzzy_scores.append(self._fuzzy_match_score(query_term, friendly_name))
+                    if name_by_user:
+                        fuzzy_scores.append(self._fuzzy_match_score(query_term, name_by_user))
+                    if device_name:
+                        fuzzy_scores.append(self._fuzzy_match_score(query_term, device_name))
+                    # Also check entity_id parts
+                    if entity_name:
+                        fuzzy_scores.append(self._fuzzy_match_score(query_term, entity_name))
 
-                if fuzzy_scores:
-                    max_fuzzy = max(fuzzy_scores)
-                    # Only add fuzzy score if it's above threshold (e.g., >0.6 for meaningful match)
-                    if max_fuzzy > 0.6:
-                        score += max_fuzzy * 0.15
-                        score_details['fuzzy_match'] = max_fuzzy
+                    if fuzzy_scores:
+                        max_fuzzy = max(fuzzy_scores)
+                        # Quick Win 2: Lower threshold from 0.6 to 0.5 for better typo handling
+                        if max_fuzzy > 0.5:
+                            score += max_fuzzy * 0.15
+                            score_details['fuzzy_match'] = max_fuzzy
 
             # Signal 3: Numbered device matching - Weight: 15% (reduced from 20%)
             if numbered_info:

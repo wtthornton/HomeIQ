@@ -1,20 +1,46 @@
 {
-  "suggestion_id": "ask-ai-9b37dfef",
-  "query_id": "clarify-ab56fbe3",
+  "suggestion_id": "ask-ai-988998ea",
+  "query_id": "clarify-96dc0d01",
   "status": "approved",
-  "automation_id": "automation.office_wled_living_room_scene_restore_1763979457_e0fb3088",
-  "automation_yaml": "id: 'office_wled_living_room_scene_restore'\nalias: Office WLED \u2013 Living Room 10-Min Scene\ndescription: \"When Office WLED turns on, snapshot it, set Living Room to 80%, then after 10 minutes restore Office WLED and turn Living Room off.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_scene\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_scene\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "automation_id": "automation.office_wled_temp_living_room_lighting_1764011811_658b5b5b",
+  "automation_yaml": "id: 'office_wled_temp_living_room_lighting'\nalias: Office WLED \u2192 Temporary Living Room Lighting\ndescription: \"When Office WLED turns on, brighten Living Room to 80%, then restore WLED and turn Living Room off after 10 minutes.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: 'on'\nconditions: []\naction:\n  # Step 1 \u2013 Snapshot Office WLED state before changes\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_temp_living_room\n      snapshot_entities:\n        - light.wled\n\n  # Step 2 \u2013 Turn on Living Room light to ~80% brightness if supported\n  - choose:\n      - conditions:\n          - condition: template\n            value_template: \"{{ state_attr('light.living_room_2','supported_features')|int(default=0) % 2 == 0 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.living_room_2\n            data:\n              brightness_pct: 80\n    default:\n      - service: light.turn_on\n        target:\n          entity_id: light.living_room_2\n\n  # Step 3 \u2013 Wait 10 minutes\n  - delay: '00:10:00'\n\n  # Step 4 \u2013 Restore Office WLED to saved state\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_temp_living_room\n\n  # Step 5 \u2013 Turn off Living Room light\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "ready_to_deploy": true,
-  "warnings": [],
+  "warnings": [
+    "Entity not found: scene.office_wled_before_temp_living_room"
+  ],
   "message": "Automation created and enabled successfully",
   "safety_report": {
     "safe": true,
-    "issues": [],
+    "issues": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_before_temp_living_room",
+        "details": {
+          "entity_id": "scene.office_wled_before_temp_living_room",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_before_temp_living_room exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
     "critical_issues": [],
-    "warnings": [],
+    "warnings": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_before_temp_living_room",
+        "details": {
+          "entity_id": "scene.office_wled_before_temp_living_room",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_before_temp_living_room exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
     "info": [],
     "coverage": 1.0,
-    "message": "Validation passed"
+    "message": "Validation passed with warnings"
   },
   "safe": true
 }

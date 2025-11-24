@@ -3,10 +3,10 @@
   "prompt_name": "Conditional Chain",
   "prompt_text": "When any living room light is turned on between 9 PM and 11 PM, turn on the Office WLED to 20% brightness, wait 10 seconds, then turn off the Office WLED",
   "complexity": "Complex",
-  "query_id": "query-e63dfdeb",
-  "suggestion_id": "ask-ai-025292a2",
-  "automation_id": null,
-  "automation_yaml": "id: 'living_room_lights_office_wled_pulse_9_11'\nalias: Living Room Lights - Pulse Office WLED 9-11 PM\ndescription: \"When any living room light is turned on between 9 PM and 11 PM, briefly turn on the Office WLED at low brightness, wait 10 seconds, then turn it back off.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: 'on'\nconditions:\n  - condition: time\n    after: '21:00:00'\n    before: '23:00:00'\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_pulse\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 20\n  - delay: '00:00:10'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_pulse'",
+  "query_id": "query-893a5721",
+  "suggestion_id": "ask-ai-b4708cb6",
+  "automation_id": "automation.living_room_wled_pulse_21_23_1764011747_73db3bf7",
+  "automation_yaml": "id: 'living_room_wled_pulse_21_23'\nalias: Living Room Lights - Office WLED Pulse 21-23\ndescription: \"When Living Room light turns on between 21:00 and 23:00, briefly turn on Office WLED at low brightness, then off\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '21:00:00'\n    before: '23:00:00'\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_pulse\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 20\n  - delay: '00:00:10'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_pulse",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, living_room, office",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, office, living_room",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:16:32.381801"
+      "timestamp": "2025-11-24T11:15:32.518721"
     }
   ],
   "automation_score": 65.0,
@@ -59,5 +59,5 @@
   "total_score": 81.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:16:30.811131"
+  "timestamp": "2025-11-24T11:15:30.324351"
 }

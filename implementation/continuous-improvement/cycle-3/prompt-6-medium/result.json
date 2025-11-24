@@ -3,10 +3,10 @@
   "prompt_name": "Conditional Brightness",
   "prompt_text": "When the living room lights are turned on after 8 PM, automatically dim them to 40% brightness",
   "complexity": "Medium",
-  "query_id": "query-3c34117b",
-  "suggestion_id": "ask-ai-69248144",
-  "automation_id": "automation.living_room_lights_dim_after_8pm_1763979686_1ac18c49",
-  "automation_yaml": "id: 'living_room_lights_dim_after_8pm'\nalias: Living Room Lights - Dim After 8 PM\ndescription: \"When any Living Room ceiling light is turned on after 8:00 PM, dim all Living Room ceiling lights to ~40% brightness\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id:\n      - light.hue_lr_back_left_ceiling\n      - light.hue_color_downlight_1_4\n      - light.hue_color_downlight_1\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.hue_lr_back_left_ceiling\n        - light.hue_color_downlight_1_4\n        - light.hue_color_downlight_1\n    data:\n      brightness: 100",
+  "query_id": "query-14d7453b",
+  "suggestion_id": "ask-ai-e9fde4a6",
+  "automation_id": "automation.living_room_evening_dim_40_rgb_1764012004_521cb68d",
+  "automation_yaml": "id: 'living_room_evening_dim_40_rgb'\nalias: Living Room - Dim to 40 Percent After 8 PM\ndescription: \"When the Living Room light is turned on after 8:00 PM, automatically set a dim warm RGB value to approximate 40% brightness.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      rgb_color: [255, 180, 120]",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -68,7 +68,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:20:49.980962"
+      "timestamp": "2025-11-24T11:19:46.572312"
     }
   ],
   "automation_score": 60.0,
@@ -76,5 +76,5 @@
   "total_score": 79.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:20:48.366916"
+  "timestamp": "2025-11-24T11:19:44.676425"
 }
