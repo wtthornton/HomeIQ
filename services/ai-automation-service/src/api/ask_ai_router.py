@@ -302,6 +302,74 @@ def _get_ambiguity_context(amb: Any) -> dict[str, Any]:
     return amb.context if hasattr(amb, 'context') else {}
 
 
+def _calculate_base_confidence_with_quality(entities: list[dict[str, Any]]) -> float:
+    """
+    Medium Win 3: Calculate base confidence with entity quality scoring.
+    
+    Improved formula that considers:
+    - Entity count (as before)
+    - Entity quality (entity_id presence, confidence scores, device intelligence data)
+    - Entity match quality (semantic similarity, fuzzy match scores)
+    
+    Args:
+        entities: List of extracted entities with metadata
+        
+    Returns:
+        Base confidence score (0.5 to 0.95)
+    """
+    if not entities:
+        return 0.5  # Minimum base confidence
+    
+    # Count entities
+    entity_count = len(entities)
+    
+    # Calculate quality score based on entity metadata
+    quality_scores = []
+    for entity in entities:
+        quality = 0.0
+        
+        # Has entity_id? (high quality indicator)
+        if entity.get('entity_id'):
+            quality += 0.3
+        
+        # Has device intelligence data? (capabilities, health score, etc.)
+        if entity.get('capabilities') or entity.get('health_score') is not None:
+            quality += 0.2
+        
+        # Has high confidence from extraction?
+        extraction_confidence = entity.get('confidence', 0.5)
+        if extraction_confidence > 0.8:
+            quality += 0.2
+        elif extraction_confidence > 0.6:
+            quality += 0.1
+        
+        # Has semantic similarity score? (from embeddings)
+        similarity = entity.get('similarity', entity.get('match_score', 0.0))
+        if similarity > 0.85:
+            quality += 0.2
+        elif similarity > 0.75:
+            quality += 0.1
+        
+        # Has area/device matching? (spatial context)
+        if entity.get('area_id') or entity.get('device_id'):
+            quality += 0.1
+        
+        quality_scores.append(min(1.0, quality))  # Cap at 1.0
+    
+    # Average quality score
+    if not quality_scores:
+        avg_quality = 0.0  # No entities = no quality
+    else:
+        avg_quality = sum(quality_scores) / len(quality_scores)
+    
+    # Base formula: 0.5 + (entity_count * 0.08) + (avg_quality * 0.15)
+    # This gives more weight to quality than just count
+    base = 0.5 + (entity_count * 0.08) + (avg_quality * 0.15)
+    
+    # Cap at 0.95 (slightly higher than before to account for quality)
+    return min(0.95, base)
+
+
 def _get_temperature_for_model(model: str, desired_temperature: float = 0.1) -> float:
     """
     Get the appropriate temperature value for a given model.
@@ -833,8 +901,9 @@ async def get_clarification_services(db: AsyncSession = None):
             except Exception as e:
                 logger.warning(f"⚠️ Failed to initialize calibrator: {e}")
 
+        # Quick Win 1: Use new default threshold (0.75) or env var, configurable
         _confidence_calculator = ConfidenceCalculator(
-            default_threshold=0.85,
+            default_threshold=None,  # Will use 0.75 default or CLARIFICATION_CONFIDENCE_THRESHOLD env var
             rag_client=rag_client_for_confidence,
             calibrator=calibrator,
             calibration_enabled=getattr(settings, "clarification_calibration_enabled", True)
@@ -4691,8 +4760,9 @@ async def process_natural_language_query(
                     automation_context=automation_context
                 )
 
-                # Calculate base confidence
-                base_confidence = min(0.9, 0.5 + (len(entities) * 0.1))
+                # Medium Win 3: Calculate base confidence with entity quality scoring
+                # Improved formula that considers entity quality, not just count
+                base_confidence = _calculate_base_confidence_with_quality(entities)
 
                 # Get RAG client for historical success checking
                 rag_client_for_confidence = await _get_rag_client(db)
@@ -5028,10 +5098,10 @@ async def process_natural_language_query(
             except Exception as e:
                 logger.error(f"Failed to detect ambiguities: {e}", exc_info=True)
                 # Continue with normal flow if clarification fails
-                confidence = min(0.9, 0.5 + (len(entities) * 0.1))
+                confidence = _calculate_base_confidence_with_quality(entities)
         else:
-            # Fallback confidence calculation
-            confidence = min(0.9, 0.5 + (len(entities) * 0.1))
+            # Fallback confidence calculation with quality scoring
+            confidence = _calculate_base_confidence_with_quality(entities)
 
         # Step 2: Generate suggestions if no clarification needed
         suggestions = []

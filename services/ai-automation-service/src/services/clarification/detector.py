@@ -487,20 +487,56 @@ class ClarificationDetector:
                 logger.warning(f"RAG lookup failed, falling back to hardcoded rules: {e}")
 
         # Fallback: Check for vague action terms (hardcoded rules)
+        # Quick Win 2: Context-aware ambiguity detection - check if details are already present
         vague_actions = {
-            'flash': ['fast', 'slow', 'pattern', 'color', 'duration'],
-            'show': ['effect', 'pattern', 'animation'],
-            'turn': ['on', 'off', 'dim', 'brighten']
+            'flash': {
+                'required_details': ['fast', 'slow', 'pattern', 'color', 'duration'],
+                'detail_patterns': {
+                    'duration': r'\d+\s*(sec|second|min|minute|hour|hr)',
+                    'color': r'(color|colour|rgb|hue|red|blue|green|yellow|white)',
+                    'pattern': r'(pattern|sequence|cycle|repeat)',
+                    'fast': r'(fast|quick|rapid)',
+                    'slow': r'(slow|gradual|gentle)'
+                }
+            },
+            'show': {
+                'required_details': ['effect', 'pattern', 'animation'],
+                'detail_patterns': {
+                    'effect': r'(effect|animation|pattern|display)',
+                    'pattern': r'(pattern|sequence|cycle)',
+                    'animation': r'(animation|effect|display)'
+                }
+            },
+            'turn': {
+                'required_details': ['on', 'off', 'dim', 'brighten'],
+                'detail_patterns': {
+                    'on': r'\b(on|enable|activate)\b',
+                    'off': r'\b(off|disable|deactivate)\b',
+                    'dim': r'\b(dim|lower|reduce|decrease)\b',
+                    'brighten': r'\b(brighten|increase|raise|boost)\b'
+                }
+            }
         }
 
-        for action, required_details in vague_actions.items():
+        for action, action_config in vague_actions.items():
             if action in query_lower:
-                # Check if required details are present
-                missing_details = [
-                    detail for detail in required_details
-                    if detail not in query_lower
-                ]
+                required_details = action_config['required_details']
+                detail_patterns = action_config.get('detail_patterns', {})
+                
+                # Context-aware check: verify if details are actually present
+                missing_details = []
+                for detail in required_details:
+                    # First check simple keyword match
+                    if detail not in query_lower:
+                        # Then check pattern match if available
+                        pattern = detail_patterns.get(detail)
+                        if pattern:
+                            if not re.search(pattern, query_lower, re.IGNORECASE):
+                                missing_details.append(detail)
+                        else:
+                            missing_details.append(detail)
 
+                # Only flag as ambiguous if details are truly missing
                 if missing_details:
                     ambiguities.append(Ambiguity(
                         id=f"amb-{id_counter}",

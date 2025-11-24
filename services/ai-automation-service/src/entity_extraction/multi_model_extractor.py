@@ -696,33 +696,99 @@ class MultiModelEntityExtractor:
         search_name: str,
         all_devices: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
-        """Find devices matching search name (fuzzy, case-insensitive)."""
+        """
+        Medium Win 1: Enhanced device matching with multiple strategies.
+        
+        Improved matching that checks:
+        - name (exact, contains, partial word)
+        - friendly_name (user-friendly names)
+        - name_by_user (custom user names)
+        - fuzzy matching with rapidfuzz (if available)
+        """
         search_name_lower = search_name.lower().strip()
+        if not search_name_lower:
+            return []
 
         matches = []
+        match_scores = {}  # Track match quality scores
+
+        # Try rapidfuzz if available (better fuzzy matching)
+        try:
+            from rapidfuzz import fuzz, process
+            rapidfuzz_available = True
+        except ImportError:
+            rapidfuzz_available = False
 
         for device in all_devices:
             if not isinstance(device, dict):
                 logger.debug(f"Skipping non-dict device entry during match: {device!r}")
                 continue
 
+            # Check multiple name fields
             device_name = device.get('name', '').lower()
+            friendly_name = device.get('friendly_name', '').lower()
+            name_by_user = device.get('name_by_user', '').lower()
+            
+            # Collect all name variants to check
+            name_variants = [device_name]
+            if friendly_name and friendly_name != device_name:
+                name_variants.append(friendly_name)
+            if name_by_user and name_by_user not in name_variants:
+                name_variants.append(name_by_user)
 
-            # Exact match
-            if device_name == search_name_lower:
-                matches.append(device)
-                continue
+            best_score = 0.0
+            best_match_type = None
 
-            # Contains match
-            if search_name_lower in device_name or device_name in search_name_lower:
-                matches.append(device)
-                continue
+            for variant in name_variants:
+                if not variant:
+                    continue
+                
+                # Exact match (highest priority)
+                if variant == search_name_lower:
+                    best_score = 1.0
+                    best_match_type = 'exact'
+                    break
+                
+                # Contains match (high priority)
+                if search_name_lower in variant or variant in search_name_lower:
+                    score = len(search_name_lower) / max(len(variant), 1)
+                    if score > best_score:
+                        best_score = score
+                        best_match_type = 'contains'
+                
+                # Fuzzy match with rapidfuzz (if available)
+                if rapidfuzz_available:
+                    ratio = fuzz.ratio(search_name_lower, variant) / 100.0
+                    if ratio > 0.7 and ratio > best_score:  # 70% similarity threshold
+                        best_score = ratio
+                        best_match_type = 'fuzzy'
+                
+                # Partial word match
+                search_words = search_name_lower.split()
+                variant_words = variant.split()
+                if any(word in variant_words for word in search_words):
+                    word_match_ratio = sum(1 for word in search_words if word in variant_words) / max(len(search_words), 1)
+                    if word_match_ratio > best_score:
+                        best_score = word_match_ratio
+                        best_match_type = 'partial'
 
-            # Partial word match
-            search_words = search_name_lower.split()
-            device_words = device_name.split()
-            if any(word in device_words for word in search_words):
+            # Add match if score is above threshold
+            if best_score > 0.5:  # 50% similarity threshold
                 matches.append(device)
+                match_scores[id(device)] = {
+                    'score': best_score,
+                    'type': best_match_type
+                }
+
+        # Sort by match quality (exact > contains > fuzzy > partial)
+        match_priority = {'exact': 4, 'contains': 3, 'fuzzy': 2, 'partial': 1}
+        matches.sort(
+            key=lambda d: (
+                match_priority.get(match_scores.get(id(d), {}).get('type', ''), 0),
+                match_scores.get(id(d), {}).get('score', 0)
+            ),
+            reverse=True
+        )
 
         return matches
 
