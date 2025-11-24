@@ -102,6 +102,11 @@ class Pattern(Base):
     raw_confidence = Column(Float, nullable=True)  # Original confidence before calibration
     calibrated = Column(Boolean, default=False, nullable=False)  # Whether confidence has been calibrated
 
+    # Pattern lifecycle management fields
+    deprecated = Column(Boolean, default=False, nullable=False)  # Whether pattern is deprecated (stale)
+    deprecated_at = Column(DateTime, nullable=True)  # When pattern was deprecated
+    needs_review = Column(Boolean, default=False, nullable=False)  # Whether pattern needs manual review
+
     def __repr__(self):
         return f"<Pattern(id={self.id}, type={self.pattern_type}, device={self.device_id}, confidence={self.confidence}, trend={self.trend_direction})>"
 

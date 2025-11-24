@@ -400,7 +400,13 @@ async def get_analysis_status():
 
     except Exception as e:
         logger.error(f"Failed to get analysis status: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        error_detail = {
+            "error": "Failed to get analysis status",
+            "error_code": "ANALYSIS_STATUS_ERROR",
+            "message": str(e),
+            "retry_after": None
+        }
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 @router.post("/trigger")

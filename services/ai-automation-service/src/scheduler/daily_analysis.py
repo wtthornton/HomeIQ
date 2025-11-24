@@ -278,83 +278,143 @@ class DailyAnalysisScheduler:
 
             all_patterns = []
 
+            # Improvement: Initialize detector health monitor
+            from ..pattern_detection.detector_health_monitor import DetectorHealthMonitor
+            import time
+            health_monitor = DetectorHealthMonitor()
+            
+            # Helper function to track detector execution
+            async def run_detector_with_monitoring(
+                detector_name: str,
+                detector_func,
+                *args,
+                **kwargs
+            ) -> list[dict]:
+                """Run detector with health monitoring"""
+                start_time = time.time()
+                patterns = []
+                error = None
+                try:
+                    if asyncio.iscoroutinefunction(detector_func):
+                        patterns = await detector_func(*args, **kwargs)
+                    else:
+                        patterns = detector_func(*args, **kwargs)
+                except Exception as e:
+                    error = e
+                    logger.error(f"Detector {detector_name} failed: {e}", exc_info=True)
+                
+                processing_time = time.time() - start_time
+                health_monitor.track_detection_run(
+                    detector_name=detector_name,
+                    patterns_found=len(patterns),
+                    processing_time=processing_time,
+                    error=error
+                )
+                return patterns
+            
             # Time-of-day patterns (Story AI5.3: Incremental processing enabled)
             logger.info("  → Running time-of-day detector (incremental)...")
-            tod_detector = TimeOfDayPatternDetector(
-                min_occurrences=settings.time_of_day_min_occurrences,
-                min_confidence=settings.time_of_day_base_confidence,
-                aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
-                domain_occurrence_overrides=dict(settings.time_of_day_occurrence_overrides),
-                domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
-            )
-            logger.info("  → Running co-occurrence detector (incremental)...")
-            # Quality improvement: Increased thresholds for better pattern quality
-            # min_support: 5 → 10, min_confidence: 0.7 → 0.75
-            co_detector = CoOccurrencePatternDetector(
-                window_minutes=5,
-                min_support=max(10, settings.co_occurrence_min_support),  # Quality: increased from 5 to 10
-                min_confidence=max(0.75, settings.co_occurrence_base_confidence),  # Quality: increased from 0.7 to 0.75
-                aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
-                domain_support_overrides=dict(settings.co_occurrence_support_overrides),
-                domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
-            )
+            try:
+                tod_detector = TimeOfDayPatternDetector(
+                    min_occurrences=settings.time_of_day_min_occurrences,
+                    min_confidence=settings.time_of_day_base_confidence,
+                    aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
+                    domain_occurrence_overrides=dict(settings.time_of_day_occurrence_overrides),
+                    domain_confidence_overrides=dict(settings.time_of_day_confidence_overrides)
+                )
+                logger.info("  → Running co-occurrence detector (incremental)...")
+                # Quality improvement: Increased thresholds for better pattern quality
+                # min_support: 5 → 10, min_confidence: 0.7 → 0.75
+                co_detector = CoOccurrencePatternDetector(
+                    window_minutes=5,
+                    min_support=max(10, settings.co_occurrence_min_support),  # Quality: increased from 5 to 10
+                    min_confidence=max(0.75, settings.co_occurrence_base_confidence),  # Quality: increased from 0.7 to 0.75
+                    aggregate_client=aggregate_client,  # Story AI5.4: Pass aggregate client
+                    domain_support_overrides=dict(settings.co_occurrence_support_overrides),
+                    domain_confidence_overrides=dict(settings.co_occurrence_confidence_overrides)
+                )
 
-            tod_patterns = []
-            co_patterns = []
-            chain_used = False
+                tod_patterns = []
+                co_patterns = []
+                chain_used = False
 
-            if getattr(settings, "enable_langchain_pattern_chain", False):
-                try:
-                    from ..langchain_integration.pattern_chain import build_pattern_detection_chain
+                if getattr(settings, "enable_langchain_pattern_chain", False):
+                    try:
+                        from ..langchain_integration.pattern_chain import build_pattern_detection_chain
 
-                    chain_inputs = {
-                        "events_df": events_df,
-                        "last_update": self._last_pattern_update_time,
-                        "incremental": self.enable_incremental,
-                        "current_run_time": datetime.now(timezone.utc),
-                    }
-                    pattern_chain = build_pattern_detection_chain(
-                        tod_detector=tod_detector,
-                        co_detector=co_detector,
-                    )
-                    chain_result = await pattern_chain.ainvoke(chain_inputs)
-                    tod_patterns = chain_result.get("time_of_day_patterns", [])
-                    co_patterns = chain_result.get("co_occurrence_patterns", [])
-                    self._last_pattern_update_time = chain_result.get("last_update", datetime.now(timezone.utc))
-                    chain_used = True
-                    logger.info("🧱 LangChain pattern chain executed for time-of-day and co-occurrence detectors.")
-                except Exception as chain_exc:  # pragma: no cover - defensive logging
-                    logger.warning(
-                        "⚠️ LangChain pattern chain failed (%s); reverting to legacy detection.",
-                        chain_exc,
-                        exc_info=True,
-                    )
+                        chain_inputs = {
+                            "events_df": events_df,
+                            "last_update": self._last_pattern_update_time,
+                            "incremental": self.enable_incremental,
+                            "current_run_time": datetime.now(timezone.utc),
+                        }
+                        pattern_chain = build_pattern_detection_chain(
+                            tod_detector=tod_detector,
+                            co_detector=co_detector,
+                        )
+                        chain_result = await pattern_chain.ainvoke(chain_inputs)
+                        tod_patterns = chain_result.get("time_of_day_patterns", [])
+                        co_patterns = chain_result.get("co_occurrence_patterns", [])
+                        self._last_pattern_update_time = chain_result.get("last_update", datetime.now(timezone.utc))
+                        chain_used = True
+                        logger.info("🧱 LangChain pattern chain executed for time-of-day and co-occurrence detectors.")
+                    except Exception as chain_exc:  # pragma: no cover - defensive logging
+                        logger.warning(
+                            "⚠️ LangChain pattern chain failed (%s); reverting to legacy detection.",
+                            chain_exc,
+                            exc_info=True,
+                        )
 
-            if not chain_used:
-                if self.enable_incremental and self._last_pattern_update_time and hasattr(tod_detector, 'incremental_update'):
-                    logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
-                    tod_patterns = tod_detector.incremental_update(events_df, self._last_pattern_update_time)
-                else:
-                    tod_patterns = tod_detector.detect_patterns(events_df)
-
-                self._last_pattern_update_time = datetime.now(timezone.utc)
-
-                if self.enable_incremental and self._last_pattern_update_time and hasattr(co_detector, 'incremental_update'):
-                    logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
-                    co_patterns = co_detector.incremental_update(events_df, self._last_pattern_update_time)
-                else:
-                    if len(events_df) > 10000:
-                        co_patterns = co_detector.detect_patterns_optimized(events_df)
+                if not chain_used:
+                    if self.enable_incremental and self._last_pattern_update_time and hasattr(tod_detector, 'incremental_update'):
+                        logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
+                        tod_patterns = await run_detector_with_monitoring(
+                            'TimeOfDayPatternDetector',
+                            tod_detector.incremental_update,
+                            events_df,
+                            self._last_pattern_update_time
+                        )
                     else:
-                        co_patterns = co_detector.detect_patterns(events_df)
+                        tod_patterns = await run_detector_with_monitoring(
+                            'TimeOfDayPatternDetector',
+                            tod_detector.detect_patterns,
+                            events_df
+                        )
 
-                logger.info(f"    ✅ Legacy detectors found {len(tod_patterns)} time-of-day patterns and {len(co_patterns)} co-occurrence patterns")
+                    self._last_pattern_update_time = datetime.now(timezone.utc)
 
-            all_patterns.extend(tod_patterns)
-            logger.info(f"    ✅ Total time-of-day patterns appended: {len(tod_patterns)}")
+                    if self.enable_incremental and self._last_pattern_update_time and hasattr(co_detector, 'incremental_update'):
+                        logger.info(f"    → Using incremental update (last update: {self._last_pattern_update_time})")
+                        co_patterns = await run_detector_with_monitoring(
+                            'CoOccurrencePatternDetector',
+                            co_detector.incremental_update,
+                            events_df,
+                            self._last_pattern_update_time
+                        )
+                    else:
+                        if len(events_df) > 10000:
+                            co_patterns = await run_detector_with_monitoring(
+                                'CoOccurrencePatternDetector',
+                                co_detector.detect_patterns_optimized,
+                                events_df
+                            )
+                        else:
+                            co_patterns = await run_detector_with_monitoring(
+                                'CoOccurrencePatternDetector',
+                                co_detector.detect_patterns,
+                                events_df
+                            )
 
-            all_patterns.extend(co_patterns)
-            logger.info(f"    ✅ Total co-occurrence patterns appended: {len(co_patterns)}")
+                    logger.info(f"    ✅ Legacy detectors found {len(tod_patterns)} time-of-day patterns and {len(co_patterns)} co-occurrence patterns")
+
+                all_patterns.extend(tod_patterns)
+                logger.info(f"    ✅ Total time-of-day patterns appended: {len(tod_patterns)}")
+
+                all_patterns.extend(co_patterns)
+                logger.info(f"    ✅ Total co-occurrence patterns appended: {len(co_patterns)}")
+            except Exception as e:
+                logger.error(f"❌ Time-of-day/co-occurrence detection failed: {e}", exc_info=True)
+                # Continue with other detectors even if these fail
 
             # ML-Enhanced Pattern Detection (Story AI5.3: Incremental processing enabled)
             logger.info("  → Running ML-enhanced pattern detectors (incremental)...")
@@ -371,9 +431,18 @@ class DailyAnalysisScheduler:
             )
             # Use incremental update if enabled and previous run exists
             if self.enable_incremental and self._last_pattern_update_time and hasattr(sequence_detector, 'incremental_update'):
-                sequence_patterns = sequence_detector.incremental_update(events_df, self._last_pattern_update_time)
+                sequence_patterns = await run_detector_with_monitoring(
+                    'SequenceDetector',
+                    sequence_detector.incremental_update,
+                    events_df,
+                    self._last_pattern_update_time
+                )
             else:
-                sequence_patterns = sequence_detector.detect_patterns(events_df)
+                sequence_patterns = await run_detector_with_monitoring(
+                    'SequenceDetector',
+                    sequence_detector.detect_patterns,
+                    events_df
+                )
             all_patterns.extend(sequence_patterns)
             logger.info(f"    ✅ Found {len(sequence_patterns)} sequence patterns (daily aggregates stored)")
 
@@ -390,9 +459,18 @@ class DailyAnalysisScheduler:
             )
             # Use incremental update if enabled and previous run exists
             if self.enable_incremental and self._last_pattern_update_time and hasattr(contextual_detector, 'incremental_update'):
-                contextual_patterns = contextual_detector.incremental_update(events_df, self._last_pattern_update_time)
+                contextual_patterns = await run_detector_with_monitoring(
+                    'ContextualDetector',
+                    contextual_detector.incremental_update,
+                    events_df,
+                    self._last_pattern_update_time
+                )
             else:
-                contextual_patterns = contextual_detector.detect_patterns(events_df)
+                contextual_patterns = await run_detector_with_monitoring(
+                    'ContextualDetector',
+                    contextual_detector.detect_patterns,
+                    events_df
+                )
             all_patterns.extend(contextual_patterns)
             logger.info(f"    ✅ Found {len(contextual_patterns)} contextual patterns (monthly aggregates stored)")
 
@@ -406,9 +484,18 @@ class DailyAnalysisScheduler:
             )
             # Use incremental update if enabled and previous run exists
             if self.enable_incremental and self._last_pattern_update_time and hasattr(room_detector, 'incremental_update'):
-                room_patterns = room_detector.incremental_update(events_df, self._last_pattern_update_time)
+                room_patterns = await run_detector_with_monitoring(
+                    'RoomBasedDetector',
+                    room_detector.incremental_update,
+                    events_df,
+                    self._last_pattern_update_time
+                )
             else:
-                room_patterns = room_detector.detect_patterns(events_df)
+                room_patterns = await run_detector_with_monitoring(
+                    'RoomBasedDetector',
+                    room_detector.detect_patterns,
+                    events_df
+                )
             all_patterns.extend(room_patterns)
             logger.info(f"    ✅ Found {len(room_patterns)} room-based patterns (daily aggregates stored)")
 
@@ -423,9 +510,18 @@ class DailyAnalysisScheduler:
             )
             # Use incremental update if enabled and previous run exists
             if self.enable_incremental and self._last_pattern_update_time and hasattr(session_detector, 'incremental_update'):
-                session_patterns = session_detector.incremental_update(events_df, self._last_pattern_update_time)
+                session_patterns = await run_detector_with_monitoring(
+                    'SessionDetector',
+                    session_detector.incremental_update,
+                    events_df,
+                    self._last_pattern_update_time
+                )
             else:
-                session_patterns = session_detector.detect_patterns(events_df)
+                session_patterns = await run_detector_with_monitoring(
+                    'SessionDetector',
+                    session_detector.detect_patterns,
+                    events_df
+                )
             all_patterns.extend(session_patterns)
             logger.info(f"    ✅ Found {len(session_patterns)} session patterns (weekly aggregates stored)")
 
@@ -441,9 +537,18 @@ class DailyAnalysisScheduler:
             )
             # Use incremental update if enabled and previous run exists
             if self.enable_incremental and self._last_pattern_update_time and hasattr(duration_detector, 'incremental_update'):
-                duration_patterns = duration_detector.incremental_update(events_df, self._last_pattern_update_time)
+                duration_patterns = await run_detector_with_monitoring(
+                    'DurationDetector',
+                    duration_detector.incremental_update,
+                    events_df,
+                    self._last_pattern_update_time
+                )
             else:
-                duration_patterns = duration_detector.detect_patterns(events_df)
+                duration_patterns = await run_detector_with_monitoring(
+                    'DurationDetector',
+                    duration_detector.detect_patterns,
+                    events_df
+                )
             all_patterns.extend(duration_patterns)
             logger.info(f"    ✅ Found {len(duration_patterns)} duration patterns (daily aggregates stored)")
 
@@ -457,9 +562,18 @@ class DailyAnalysisScheduler:
             )
             # Use incremental update if enabled and previous run exists
             if self.enable_incremental and self._last_pattern_update_time and hasattr(day_type_detector, 'incremental_update'):
-                day_type_patterns = day_type_detector.incremental_update(events_df, self._last_pattern_update_time)
+                day_type_patterns = await run_detector_with_monitoring(
+                    'DayTypeDetector',
+                    day_type_detector.incremental_update,
+                    events_df,
+                    self._last_pattern_update_time
+                )
             else:
-                day_type_patterns = day_type_detector.detect_patterns(events_df)
+                day_type_patterns = await run_detector_with_monitoring(
+                    'DayTypeDetector',
+                    day_type_detector.detect_patterns,
+                    events_df
+                )
             all_patterns.extend(day_type_patterns)
             logger.info(f"    ✅ Found {len(day_type_patterns)} day-type patterns (weekly aggregates stored)")
 
@@ -475,9 +589,18 @@ class DailyAnalysisScheduler:
             )
             # Use incremental update if enabled and previous run exists
             if self.enable_incremental and self._last_pattern_update_time and hasattr(seasonal_detector, 'incremental_update'):
-                seasonal_patterns = seasonal_detector.incremental_update(events_df, self._last_pattern_update_time)
+                seasonal_patterns = await run_detector_with_monitoring(
+                    'SeasonalDetector',
+                    seasonal_detector.incremental_update,
+                    events_df,
+                    self._last_pattern_update_time
+                )
             else:
-                seasonal_patterns = seasonal_detector.detect_patterns(events_df)
+                seasonal_patterns = await run_detector_with_monitoring(
+                    'SeasonalDetector',
+                    seasonal_detector.detect_patterns,
+                    events_df
+                )
             all_patterns.extend(seasonal_patterns)
             logger.info(f"    ✅ Found {len(seasonal_patterns)} seasonal patterns (monthly aggregates stored)")
 
@@ -496,9 +619,18 @@ class DailyAnalysisScheduler:
             )
             # Use incremental update if enabled and previous run exists
             if self.enable_incremental and self._last_pattern_update_time and hasattr(anomaly_detector, 'incremental_update'):
-                anomaly_patterns = anomaly_detector.incremental_update(events_df, self._last_pattern_update_time)
+                anomaly_patterns = await run_detector_with_monitoring(
+                    'AnomalyDetector',
+                    anomaly_detector.incremental_update,
+                    events_df,
+                    self._last_pattern_update_time
+                )
             else:
-                anomaly_patterns = anomaly_detector.detect_patterns(events_df)
+                anomaly_patterns = await run_detector_with_monitoring(
+                    'AnomalyDetector',
+                    anomaly_detector.detect_patterns,
+                    events_df
+                )
             all_patterns.extend(anomaly_patterns)
             logger.info(f"    ✅ Found {len(anomaly_patterns)} anomaly patterns (daily aggregates stored)")
 
@@ -514,7 +646,11 @@ class DailyAnalysisScheduler:
                     min_confidence=0.65,  # Quality: decreased from 0.7 to 0.65 for more patterns
                     aggregate_client=aggregate_client
                 )
-                multi_factor_patterns = multi_factor_detector.detect_patterns(events_df)
+                multi_factor_patterns = await run_detector_with_monitoring(
+                    'MultiFactorPatternDetector',
+                    multi_factor_detector.detect_patterns,
+                    events_df
+                )
                 all_patterns.extend(multi_factor_patterns)
                 logger.info(f"    ✅ Found {len(multi_factor_patterns)} multi-factor patterns")
             except Exception as e:
@@ -526,6 +662,27 @@ class DailyAnalysisScheduler:
                 self._last_pattern_update_time = self._last_analysis_time
 
             logger.info(f"✅ Total patterns detected: {len(all_patterns)}")
+            
+            # Improvement: Pattern lifecycle management
+            logger.info("🔄 Running pattern lifecycle management...")
+            try:
+                from ..pattern_detection.pattern_lifecycle_manager import PatternLifecycleManager
+                lifecycle_manager = PatternLifecycleManager(
+                    stale_threshold_days=60,
+                    deletion_threshold_days=90,
+                    validation_window_days=30
+                )
+                async with get_db_session() as db:
+                    lifecycle_results = await lifecycle_manager.manage_pattern_lifecycle(db)
+                    logger.info(
+                        f"✅ Lifecycle management: {lifecycle_results['deprecated_count']} deprecated, "
+                        f"{lifecycle_results['deleted_count']} deleted, "
+                        f"{lifecycle_results['needs_review_count']} need review"
+                    )
+                    job_result['lifecycle_management'] = lifecycle_results
+            except Exception as e:
+                logger.warning(f"⚠️ Pattern lifecycle management failed: {e}")
+                job_result['lifecycle_management'] = {'error': str(e)}
             logger.info("   📦 Aggregates stored: 6 Group A (daily), 2 Group B (weekly), 2 Group C (monthly)")
             if self.enable_incremental:
                 stats_summary = {}

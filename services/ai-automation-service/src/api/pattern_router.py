@@ -702,6 +702,114 @@ async def get_quality_metrics(
         ) from e
 
 
+@router.get("/detector-health")
+async def get_detector_health(
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Get detector health report.
+    
+    Returns health metrics for all pattern detectors including:
+    - Success rates
+    - Average patterns per run
+    - Processing times
+    - Error tracking
+    - Status (healthy/degraded/failing)
+    """
+    try:
+        from ..pattern_detection.detector_health_monitor import DetectorHealthMonitor
+        
+        # Note: Health monitor is in-memory, so we create a new instance
+        # In production, this could be persisted or shared via a singleton
+        health_monitor = DetectorHealthMonitor()
+        
+        # For now, return empty report (health is tracked during daily analysis)
+        # TODO: Persist health monitor state or retrieve from analysis runs
+        health_report = health_monitor.get_health_report()
+        
+        return {
+            "success": True,
+            "data": {
+                "detector_health": health_report,
+                "note": "Health monitoring is tracked during daily analysis runs. Check analysis run results for detailed health metrics."
+            },
+            "message": "Detector health report retrieved"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get detector health: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get detector health: {str(e)}"
+        ) from e
+
+
+@router.get("/lifecycle-stats")
+async def get_lifecycle_stats(
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Get pattern lifecycle statistics.
+    
+    Returns statistics about pattern lifecycle management:
+    - Total/active/deprecated patterns
+    - Stale patterns count
+    - Patterns needing review
+    - Lifecycle thresholds
+    """
+    try:
+        from ..pattern_detection.pattern_lifecycle_manager import PatternLifecycleManager
+        
+        lifecycle_manager = PatternLifecycleManager()
+        stats = await lifecycle_manager.get_lifecycle_stats(db)
+        
+        return {
+            "success": True,
+            "data": stats,
+            "message": "Pattern lifecycle statistics retrieved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get lifecycle stats: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get lifecycle stats: {str(e)}"
+        ) from e
+
+
+@router.post("/lifecycle-manage")
+async def run_lifecycle_management(
+    db: AsyncSession = Depends(get_db),
+    auth=Depends(require_admin_user)
+) -> dict[str, Any]:
+    """
+    Manually trigger pattern lifecycle management.
+    
+    This will:
+    - Deprecate stale patterns (not seen in 60 days)
+    - Delete very old deprecated patterns (90+ days deprecated)
+    - Validate active patterns (mark for review if no recent occurrences)
+    """
+    try:
+        from ..pattern_detection.pattern_lifecycle_manager import PatternLifecycleManager
+        
+        lifecycle_manager = PatternLifecycleManager()
+        results = await lifecycle_manager.manage_pattern_lifecycle(db)
+        
+        return {
+            "success": True,
+            "data": results,
+            "message": f"Lifecycle management complete: {results['deprecated_count']} deprecated, {results['deleted_count']} deleted, {results['needs_review_count']} need review"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to run lifecycle management: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to run lifecycle management: {str(e)}"
+        ) from e
+
+
 @router.on_event("shutdown")
 async def shutdown_pattern_client():
     """Close Data API client on shutdown"""

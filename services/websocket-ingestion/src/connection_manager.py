@@ -621,6 +621,16 @@ class ConnectionManager:
                    f"base_delay={self.base_delay}, max_delay={self.max_delay}, "
                    f"backoff_multiplier={self.backoff_multiplier}, jitter_range={self.jitter_range}")
 
+    @property
+    def is_running(self) -> bool:
+        """
+        Check if connection manager is running
+        
+        Returns:
+            True if connected, connecting, or reconnecting
+        """
+        return self.state_machine.get_state() in [ConnectionState.CONNECTED, ConnectionState.CONNECTING, ConnectionState.RECONNECTING]
+
     def get_status(self) -> dict[str, Any]:
         """
         Get connection manager status
@@ -632,7 +642,7 @@ class ConnectionManager:
 
         return {
             "state": self.state_machine.get_state().value,
-            "is_running": self.state_machine.get_state() in [ConnectionState.CONNECTED, ConnectionState.CONNECTING, ConnectionState.RECONNECTING],
+            "is_running": self.is_running,  # Use property instead of inline computation
             "connection_attempts": self.connection_attempts,
             "successful_connections": self.successful_connections,
             "failed_connections": self.failed_connections,

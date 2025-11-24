@@ -15,6 +15,7 @@ _capability_listener = None
 # Reference to global model orchestrator (set in main.py)
 _model_orchestrator = None
 _multi_model_extractor = None
+_entity_extractor = None  # Current active extractor (EntityExtractor using UnifiedExtractionPipeline)
 
 def set_capability_listener(listener):
     """Set capability listener reference for health checks"""
@@ -27,9 +28,14 @@ def set_model_orchestrator(orchestrator):
     _model_orchestrator = orchestrator
 
 def set_multi_model_extractor(extractor):
-    """Set multi-model extractor reference for stats endpoint"""
+    """Set multi-model extractor reference for stats endpoint (deprecated)"""
     global _multi_model_extractor
     _multi_model_extractor = extractor
+
+def set_entity_extractor(extractor):
+    """Set entity extractor reference for stats endpoint (current active extractor)"""
+    global _entity_extractor
+    _entity_extractor = extractor
 
 
 @router.get("/health")
@@ -255,7 +261,21 @@ async def get_call_statistics():
         Call pattern statistics including direct vs orchestrated calls,
         latency metrics, and model usage statistics
     """
-    # Try multi-model extractor first (currently active)
+    # Try EntityExtractor first (currently active - uses UnifiedExtractionPipeline)
+    if _entity_extractor and hasattr(_entity_extractor, 'call_stats'):
+        return {
+            "call_patterns": {
+                "direct_calls": _entity_extractor.call_stats.get('direct_calls', 0),
+                "orchestrated_calls": _entity_extractor.call_stats.get('orchestrated_calls', 0)
+            },
+            "performance": {
+                "avg_direct_latency_ms": _entity_extractor.call_stats.get('avg_direct_latency', 0.0),
+                "avg_orch_latency_ms": _entity_extractor.call_stats.get('avg_orch_latency', 0.0)
+            },
+            "model_usage": _entity_extractor.stats if hasattr(_entity_extractor, 'stats') else {}
+        }
+
+    # Fallback to multi-model extractor (deprecated)
     if _multi_model_extractor and hasattr(_multi_model_extractor, 'call_stats'):
         return {
             "call_patterns": {
@@ -289,3 +309,73 @@ async def get_call_statistics():
         "performance": {},
         "model_usage": {}
     }
+
+
+@router.get("/stats/diagnostic")
+async def get_stats_diagnostic():
+    """
+    Diagnostic endpoint to help troubleshoot why stats might be empty.
+    
+    Returns detailed information about extractor initialization and status.
+    """
+    diagnostic = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "extractors": {
+            "entity_extractor": {
+                "registered": _entity_extractor is not None,
+                "has_call_stats": _entity_extractor is not None and hasattr(_entity_extractor, 'call_stats'),
+                "has_stats": _entity_extractor is not None and hasattr(_entity_extractor, 'stats'),
+                "call_stats": _entity_extractor.call_stats if _entity_extractor and hasattr(_entity_extractor, 'call_stats') else None,
+                "stats": _entity_extractor.stats if _entity_extractor and hasattr(_entity_extractor, 'stats') else None
+            },
+            "multi_model_extractor": {
+                "registered": _multi_model_extractor is not None,
+                "has_call_stats": _multi_model_extractor is not None and hasattr(_multi_model_extractor, 'call_stats'),
+                "has_stats": _multi_model_extractor is not None and hasattr(_multi_model_extractor, 'stats'),
+                "note": "Deprecated - not actively used"
+            },
+            "model_orchestrator": {
+                "registered": _model_orchestrator is not None,
+                "has_call_stats": _model_orchestrator is not None and hasattr(_model_orchestrator, 'call_stats'),
+                "has_stats": _model_orchestrator is not None and hasattr(_model_orchestrator, 'stats'),
+                "note": "Fallback extractor"
+            }
+        },
+        "service_container": {}
+    }
+    
+    # Try to get ServiceContainer info
+    try:
+        from ...services.service_container import get_service_container
+        container = get_service_container()
+        entity_extractor = container.entity_extractor
+        diagnostic["service_container"] = {
+            "entity_extractor_available": entity_extractor is not None,
+            "entity_extractor_type": type(entity_extractor).__name__ if entity_extractor else None,
+            "entity_extractor_has_call_stats": entity_extractor is not None and hasattr(entity_extractor, 'call_stats'),
+            "entity_extractor_has_stats": entity_extractor is not None and hasattr(entity_extractor, 'stats'),
+            "note": "ServiceContainer.entity_extractor is the active extractor used for processing"
+        }
+        
+        # If ServiceContainer has extractor but it's not registered, that's the issue
+        if entity_extractor and not _entity_extractor:
+            diagnostic["issue"] = "EntityExtractor exists in ServiceContainer but is not registered with health endpoint"
+            diagnostic["recommendation"] = "Call set_entity_extractor() in main.py during startup"
+    except Exception as e:
+        diagnostic["service_container"] = {
+            "error": str(e)
+        }
+    
+    # Determine active extractor
+    if _entity_extractor:
+        diagnostic["active_extractor"] = "EntityExtractor (UnifiedExtractionPipeline)"
+    elif _multi_model_extractor:
+        diagnostic["active_extractor"] = "MultiModelEntityExtractor (deprecated)"
+    elif _model_orchestrator:
+        diagnostic["active_extractor"] = "ModelOrchestrator"
+    else:
+        diagnostic["active_extractor"] = "None - no extractor registered"
+        diagnostic["issue"] = "No extractor is registered with the health endpoint"
+        diagnostic["recommendation"] = "Ensure extractor is registered in main.py during startup"
+    
+    return diagnostic

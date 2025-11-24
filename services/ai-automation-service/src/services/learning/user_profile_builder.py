@@ -266,14 +266,17 @@ class UserProfileBuilder:
         """Determine user's automation style (conservative, balanced, aggressive)."""
         try:
             # Analyze approval rate and suggestion types
+            # Extract source_type from JSON metadata field
+            source_type_expr = func.json_extract(Suggestion.metadata, '$.source_type').label('source_type')
+            
             query = (
                 select(
                     UserFeedback.action,
-                    Suggestion.source_type,
+                    source_type_expr,
                     func.count(UserFeedback.id).label('count')
                 )
                 .join(Suggestion, UserFeedback.suggestion_id == Suggestion.id)
-                .group_by(UserFeedback.action, Suggestion.source_type)
+                .group_by(UserFeedback.action, source_type_expr)
             )
 
             result = await db.execute(query)

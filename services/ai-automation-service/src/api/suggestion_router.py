@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
 from ..clients.data_enrichment_client import DataEnrichmentClient
+from ..clients.ha_client import HomeAssistantClient
 from ..config import settings
 from ..database import (
     can_trigger_manual_refresh,
@@ -29,6 +30,7 @@ from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 from ..services.model_comparison_service import ModelComparisonService
 from ..services.suggestion_context_enricher import SuggestionContextEnricher
 from ..services.learning.user_profile_builder import UserProfileBuilder
+from ..synergy_detection.relationship_analyzer import HomeAssistantAutomationChecker
 from ..validation.device_validator import DeviceValidator, ValidationResult
 
 logger = logging.getLogger(__name__)
@@ -59,6 +61,22 @@ user_profile_builder = UserProfileBuilder()
 
 # Initialize Device Validator for validating suggestions
 device_validator = DeviceValidator(data_api_client)
+
+# Phase 4.1: Initialize Home Assistant Automation Checker (if HA is configured)
+automation_checker: HomeAssistantAutomationChecker | None = None
+if settings.ha_url and settings.ha_token:
+    try:
+        ha_client = HomeAssistantClient(
+            ha_url=settings.ha_url,
+            access_token=settings.ha_token
+        )
+        automation_checker = HomeAssistantAutomationChecker(ha_client)
+        logger.info("✅ HomeAssistantAutomationChecker initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize HomeAssistantAutomationChecker: {e}")
+        automation_checker = None
+else:
+    logger.debug("Home Assistant not configured - automation duplicate checking disabled")
 
 
 # Pydantic models for model comparison API
@@ -282,18 +300,31 @@ async def refresh_status(
     """
     Return the current manual refresh status and cooldown timer.
     """
-    cooldown_hours = settings.manual_refresh_cooldown_hours
-    allowed, last_trigger = await can_trigger_manual_refresh(db, cooldown_hours=cooldown_hours)
+    try:
+        cooldown_hours = settings.manual_refresh_cooldown_hours
+        allowed, last_trigger = await can_trigger_manual_refresh(db, cooldown_hours=cooldown_hours)
 
-    next_allowed_at = None
-    if last_trigger and not allowed:
-        next_allowed_at = (last_trigger + timedelta(hours=cooldown_hours)).isoformat()
+        next_allowed_at = None
+        if last_trigger and not allowed:
+            next_allowed_at = (last_trigger + timedelta(hours=cooldown_hours)).isoformat()
 
-    return {
-        "allowed": allowed,
-        "last_trigger_at": last_trigger.isoformat() if last_trigger else None,
-        "next_allowed_at": next_allowed_at
-    }
+        return {
+            "allowed": allowed,
+            "last_trigger_at": last_trigger.isoformat() if last_trigger else None,
+            "next_allowed_at": next_allowed_at
+        }
+    except Exception as e:
+        logger.error(f"Failed to get refresh status: {e}", exc_info=True)
+        error_detail = {
+            "error": "Failed to get refresh status",
+            "error_code": "REFRESH_STATUS_ERROR",
+            "message": str(e),
+            "retry_after": None
+        }
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_detail
+        )
 
 
 @router.post("/refresh", status_code=status.HTTP_202_ACCEPTED)
@@ -440,6 +471,16 @@ async def generate_suggestions(
                         except Exception as e:
                             logger.warning(f"Context enrichment failed for predictive suggestion: {e}")
                         
+                        # Phase 4.1: Device Health Integration - Check health before storing
+                        if not await _check_and_filter_by_health(suggestion_data, "predictive"):
+                            logger.info("Skipping predictive suggestion due to poor device health")
+                            continue
+                        
+                        # Phase 4.1: Existing Automation Analysis - Check for duplicates
+                        if not await _check_and_filter_duplicate_automations(suggestion_data, "predictive"):
+                            logger.info("Skipping predictive suggestion - duplicate automation exists")
+                            continue
+                        
                         stored = await store_suggestion(db, suggestion_data)
                         suggestions_stored.append(stored)
                         suggestions_generated += 1
@@ -539,6 +580,16 @@ async def generate_suggestions(
                             )
                         except Exception as e:
                             logger.warning(f"Context enrichment failed for cascade suggestion: {e}")
+                        
+                        # Phase 4.1: Device Health Integration - Check health before storing
+                        if not await _check_and_filter_by_health(cascade_data, "cascade"):
+                            logger.info("Skipping cascade suggestion due to poor device health")
+                            continue
+                        
+                        # Phase 4.1: Existing Automation Analysis - Check for duplicates
+                        if not await _check_and_filter_duplicate_automations(cascade_data, "cascade"):
+                            logger.info("Skipping cascade suggestion - duplicate automation exists")
+                            continue
                         
                         stored = await store_suggestion(db, cascade_data)
                         suggestions_stored.append(stored)
@@ -663,6 +714,16 @@ async def generate_suggestions(
                 except Exception as e:
                     logger.warning(f"Context enrichment failed (continuing without): {e}")
 
+                # Phase 4.1: Device Health Integration - Check and filter by device health
+                if not await _check_and_filter_by_health(suggestion_data, "pattern"):
+                    logger.info(f"Skipping suggestion for pattern #{pattern.id} due to poor device health")
+                    continue  # Skip this suggestion
+                
+                # Phase 4.1: Existing Automation Analysis - Check for duplicates
+                if not await _check_and_filter_duplicate_automations(suggestion_data, "pattern"):
+                    logger.info(f"Skipping suggestion for pattern #{pattern.id} - duplicate automation exists")
+                    continue  # Skip this suggestion
+
                 stored_suggestion = await store_suggestion(db, suggestion_data)
                 suggestions_stored.append(stored_suggestion)
                 suggestions_generated += 1
@@ -779,9 +840,18 @@ async def list_suggestions(
             user_preference_match = 0.0
             user_preference_badge = None
             if user_profile and isinstance(user_profile, dict):
+                # Extract device_id from metadata or device_capabilities
+                device_id = None
+                if isinstance(suggestion_metadata, dict):
+                    device_id = suggestion_metadata.get('device_id')
+                if not device_id and isinstance(s.device_capabilities, dict):
+                    devices = s.device_capabilities.get('devices', [])
+                    if isinstance(devices, list) and len(devices) > 0:
+                        device_id = devices[0].get('entity_id') if isinstance(devices[0], dict) else None
+                
                 suggestion_dict_for_match = {
                     'category': s.category,
-                    'device_id': s.device_id,
+                    'device_id': device_id,
                     'priority': s.priority,
                     'metadata': suggestion_metadata
                 }
@@ -800,6 +870,11 @@ async def list_suggestions(
                 except Exception as e:
                     logger.debug(f"Failed to calculate preference match: {e}")
             
+            # Extract device_id from metadata or device_capabilities for response
+            response_device_id = device_id  # Use device_id extracted above for user preference match
+            if not response_device_id and device_info and len(device_info) > 0:
+                response_device_id = device_info[0].get('entity_id') if isinstance(device_info[0], dict) else None
+            
             suggestion_dict = {
                 "id": s.id,
                 "pattern_id": s.pattern_id,
@@ -811,6 +886,7 @@ async def list_suggestions(
                 "confidence": s.confidence,
                 "category": s.category,
                 "priority": s.priority,
+                "device_id": response_device_id,  # Include device_id in response
                 "source_type": source_type,  # Phase 1: For UI badges
                 "energy_savings": energy_savings,  # Phase 2: Energy savings data
                 "estimated_monthly_savings": estimated_monthly_savings,  # Phase 2: Quick access
@@ -853,9 +929,16 @@ async def list_suggestions(
 
     except Exception as e:
         logger.error(f"Failed to list suggestions: {e}", exc_info=True)
+        # Provide structured error response with error code
+        error_detail = {
+            "error": "Failed to list suggestions",
+            "error_code": "SUGGESTIONS_LIST_ERROR",
+            "message": str(e),
+            "retry_after": None
+        }
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list suggestions: {str(e)}"
+            detail=error_detail
         )
 
 
@@ -913,6 +996,211 @@ async def reset_usage_stats() -> dict[str, Any]:
 
 
 # ==== Helper Functions ====
+
+async def _check_and_filter_duplicate_automations(suggestion_data: dict[str, Any], suggestion_type: str = "pattern") -> bool:
+    """
+    Phase 4.1: Existing Automation Analysis
+    
+    Check if suggestion duplicates an existing automation and filter it out.
+    Adds duplicate check metadata to suggestion_data.
+    
+    Args:
+        suggestion_data: Suggestion dictionary to check
+        suggestion_type: Type of suggestion ("pattern", "predictive", "cascade")
+    
+    Returns:
+        True if suggestion should be stored, False if it's a duplicate and should be filtered out
+    """
+    # Skip check if automation checker not available
+    if not automation_checker:
+        return True
+    
+    try:
+        # Extract entity pairs to check
+        entity_pairs_to_check: list[tuple[str, str]] = []
+        
+        # For co-occurrence patterns, check device1 → device2
+        device1 = suggestion_data.get('device1')
+        device2 = suggestion_data.get('device2')
+        
+        if device1 and device2:
+            # Check if these are entity IDs (contain '.') or device IDs
+            # HomeAssistantAutomationChecker works with entity IDs
+            # Try to get entity IDs from device_info if available
+            device_info = suggestion_data.get('device_info') or []
+            
+            entity1 = None
+            entity2 = None
+            
+            # If device_info is available, extract entity IDs
+            if isinstance(device_info, list) and len(device_info) >= 2:
+                entity1 = device_info[0].get('entity_id') if isinstance(device_info[0], dict) else None
+                entity2 = device_info[1].get('entity_id') if isinstance(device_info[1], dict) else None
+            elif isinstance(device_info, list) and len(device_info) == 1:
+                entity1 = device_info[0].get('entity_id') if isinstance(device_info[0], dict) else None
+                # Fall back to device2 if we only have one device_info entry
+                entity2 = device2 if '.' in str(device2) else None
+            
+            # If device IDs look like entity IDs (contain '.'), use them directly
+            if not entity1 and device1 and '.' in str(device1):
+                entity1 = device1
+            if not entity2 and device2 and '.' in str(device2):
+                entity2 = device2
+            
+            # If we have valid entity IDs, check for duplicates
+            if entity1 and entity2:
+                entity_pairs_to_check.append((entity1, entity2))
+        
+        # Also check devices_involved list for entity pairs
+        devices_involved = suggestion_data.get('devices_involved')
+        if isinstance(devices_involved, list) and len(devices_involved) >= 2:
+            # Check each pair in the list
+            for i in range(len(devices_involved) - 1):
+                entity1 = devices_involved[i]
+                entity2 = devices_involved[i + 1]
+                
+                # Only check if both look like entity IDs
+                if isinstance(entity1, str) and isinstance(entity2, str) and '.' in entity1 and '.' in entity2:
+                    entity_pairs_to_check.append((entity1, entity2))
+        
+        # Check each entity pair for existing automations
+        is_duplicate = False
+        duplicate_pairs = []
+        
+        for entity1, entity2 in entity_pairs_to_check:
+            try:
+                connected = await automation_checker.is_connected(entity1, entity2)
+                if connected:
+                    is_duplicate = True
+                    duplicate_pairs.append((entity1, entity2))
+                    logger.debug(
+                        f"Found existing automation connecting {entity1} → {entity2}"
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to check automation for {entity1} → {entity2}: {e}")
+                # Continue checking other pairs
+        
+        # Filter out duplicate suggestions
+        if is_duplicate:
+            logger.info(
+                f"Skipping {suggestion_type} suggestion - "
+                f"automation already exists for pairs: {duplicate_pairs}"
+            )
+            return False  # Filter out this suggestion
+        
+        # Add duplicate check metadata
+        if not isinstance(suggestion_data.get('metadata'), dict):
+            suggestion_data['metadata'] = {}
+        
+        suggestion_data['metadata']['duplicate_check_performed'] = True
+        suggestion_data['metadata']['is_duplicate'] = False
+        suggestion_data['metadata']['entity_pairs_checked'] = [
+            f"{pair[0]} → {pair[1]}" for pair in entity_pairs_to_check
+        ]
+        
+        logger.debug(
+            f"Duplicate check for {suggestion_type} suggestion: "
+            f"checked {len(entity_pairs_to_check)} pairs, no duplicates found"
+        )
+        
+        return True  # Proceed with suggestion
+    
+    except Exception as e:
+        logger.warning(f"Duplicate automation check failed (continuing without duplicate filter): {e}")
+        # Continue with suggestion if check fails - don't block suggestions
+        return True
+
+async def _check_and_filter_by_health(suggestion_data: dict[str, Any], suggestion_type: str = "pattern") -> bool:
+    """
+    Phase 4.1: Device Health Integration
+    
+    Check device health scores and filter suggestions for devices with poor health.
+    Adds health metadata to suggestion_data.
+    
+    Args:
+        suggestion_data: Suggestion dictionary to check
+        suggestion_type: Type of suggestion ("pattern", "predictive", "cascade")
+    
+    Returns:
+        True if suggestion should be stored, False if it should be filtered out
+    """
+    try:
+        device_ids_to_check = []
+        
+        # Collect all device IDs to check
+        if suggestion_data.get('device_id'):
+            device_ids_to_check.append(suggestion_data['device_id'])
+        if suggestion_data.get('device1'):
+            device_ids_to_check.append(suggestion_data['device1'])
+        if suggestion_data.get('device2'):
+            device_ids_to_check.append(suggestion_data['device2'])
+        
+        # Also check devices_involved list
+        devices_involved = suggestion_data.get('devices_involved')
+        if isinstance(devices_involved, list):
+            device_ids_to_check.extend([d for d in devices_involved if isinstance(d, str)])
+        
+        if not device_ids_to_check:
+            # No device IDs to check, proceed with suggestion
+            return True
+        
+        # Check health for each device and find worst score
+        worst_health_score = 100
+        worst_device_id = None
+        health_scores_found = False
+        
+        for device_id_to_check in device_ids_to_check:
+            # Only check health for actual device IDs (not entity IDs ending with .)
+            # Skip entity IDs as they might not have health scores
+            if device_id_to_check and '.' not in device_id_to_check:
+                health_score_data = await data_api_client.get_device_health_score(device_id_to_check)
+                if health_score_data:
+                    health_scores_found = True
+                    overall_score = health_score_data.get('overall_score', 100)
+                    
+                    if overall_score < worst_health_score:
+                        worst_health_score = overall_score
+                        worst_device_id = device_id_to_check
+        
+        # Filter out suggestions for devices with poor health (score < 50)
+        if worst_health_score < 50:
+            logger.info(
+                f"Skipping {suggestion_type} suggestion - "
+                f"device {worst_device_id} has poor health score: {worst_health_score}/100"
+            )
+            return False  # Filter out this suggestion
+        
+        # Add health info to metadata if available
+        if health_scores_found:
+            if not isinstance(suggestion_data.get('metadata'), dict):
+                suggestion_data['metadata'] = {}
+            
+            suggestion_data['metadata']['health_score'] = worst_health_score
+            if worst_device_id:
+                suggestion_data['metadata']['worst_health_device_id'] = worst_device_id
+            
+            # Get health status from the worst device
+            if worst_device_id:
+                worst_health_data = await data_api_client.get_device_health_score(worst_device_id)
+                if worst_health_data:
+                    health_status = worst_health_data.get('health_status', 'unknown')
+                    suggestion_data['metadata']['health_status'] = health_status
+                    
+                    # Add warning flag if health is fair (50-70) or poor (<50)
+                    if worst_health_score < 70:
+                        suggestion_data['metadata']['health_warning'] = True
+                    
+                    logger.debug(
+                        f"Device health check for {suggestion_type} suggestion: "
+                        f"worst score = {worst_health_score}/100 ({health_status})"
+                    )
+        
+        return True  # Proceed with suggestion
+    
+    except Exception as e:
+        logger.warning(f"Device health check failed (continuing without health filter): {e}")
+        # Continue with suggestion if health check fails - don't block suggestions
+        return True
 
 async def _build_device_context(pattern_dict: dict[str, Any]) -> dict[str, Any]:
     """

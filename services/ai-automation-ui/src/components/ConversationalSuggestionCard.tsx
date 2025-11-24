@@ -412,6 +412,30 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   👤 {suggestion.user_preference_badge.label}
                 </span>
               )}
+              
+              {/* Device Health Warning Badge (Phase 4.1) */}
+              {suggestion.metadata?.health_warning && suggestion.metadata?.health_score !== undefined && (
+                <span 
+                  className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    suggestion.metadata.health_score < 60
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                  }`}
+                  title={`Device health: ${suggestion.metadata.health_score}/100 (${suggestion.metadata.health_status || 'fair'}). This device may not be reliable for automation.`}
+                >
+                  ⚠️ Health: {suggestion.metadata.health_score}/100
+                </span>
+              )}
+              
+              {/* Device Health Info Badge (Phase 4.1 - Good Health) */}
+              {!suggestion.metadata?.health_warning && suggestion.metadata?.health_score !== undefined && suggestion.metadata.health_score >= 70 && (
+                <span 
+                  className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  title={`Device health: ${suggestion.metadata.health_score}/100 (${suggestion.metadata.health_status || 'good'})`}
+                >
+                  💚 Health: {suggestion.metadata.health_score}/100
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -447,6 +471,30 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   </span>
                 )}
               </span>
+            </div>
+          )}
+          
+          {/* Phase 4.1: Device Health Warning */}
+          {suggestion.metadata?.health_warning && suggestion.metadata?.health_score !== undefined && (
+            <div className="mt-2 pt-2 border-t border-gray-600">
+              <div className={`text-xs p-2 rounded-md ${
+                suggestion.metadata.health_score < 60
+                  ? 'bg-red-900/30 border border-red-700/50'
+                  : 'bg-orange-900/30 border border-orange-700/50'
+              }`}>
+                <span className={`font-medium flex items-center gap-1.5 ${
+                  suggestion.metadata.health_score < 60 ? 'text-red-300' : 'text-orange-300'
+                }`}>
+                  <span>⚠️</span>
+                  <span>
+                    Device Health Warning: This device has a health score of {suggestion.metadata.health_score}/100
+                    {suggestion.metadata.health_status && (
+                      <span> ({suggestion.metadata.health_status})</span>
+                    )}
+                    . The automation may not work reliably.
+                  </span>
+                </span>
+              </div>
             </div>
           )}
         </div>

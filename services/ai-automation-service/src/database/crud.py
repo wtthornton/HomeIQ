@@ -16,6 +16,7 @@ from .models import (
     DeviceFeatureUsage,
     ManualRefreshTrigger,
     Pattern,
+    PatternHistory,
     Suggestion,
     SynergyOpportunity,
     SystemSettings,
@@ -184,15 +185,22 @@ async def list_training_runs(db: AsyncSession, limit: int = 20) -> list[Training
 # Pattern CRUD Operations
 # ============================================================================
 
-async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
+async def store_patterns(
+    db: AsyncSession, 
+    patterns: list[dict], 
+    time_window_days: int = 30
+) -> int:
     """
     Store detected patterns in database with history tracking.
     
     Phase 1: Enhanced to track pattern history and update trend cache.
+    Improvement: Time-windowed occurrence tracking to prevent unbounded accumulation.
     
     Args:
         db: Database session
         patterns: List of pattern dictionaries from detector
+        time_window_days: Time window in days for occurrence tracking (default: 30)
+                         Patterns will track occurrences within this rolling window
     
     Returns:
         Number of patterns stored/updated
@@ -203,10 +211,12 @@ async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
 
     try:
         from ..integration.pattern_history_validator import PatternHistoryValidator
+        from .models import PatternHistory
 
         history_validator = PatternHistoryValidator(db)
         stored_count = 0
         now = datetime.now(timezone.utc)
+        cutoff_date = now - timedelta(days=time_window_days)
 
         # Filter out invalid patterns before storing
         valid_patterns = [p for p in patterns if validate_pattern(p)]
@@ -225,23 +235,47 @@ async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
             existing_pattern = result.scalar_one_or_none()
 
             if existing_pattern:
-                # Enhanced deduplication: Merge occurrences and update confidence
-                # Use max confidence (keep best), merge occurrences (additive)
+                # Improvement: Time-windowed occurrence tracking
+                # Instead of accumulating indefinitely, calculate occurrences within time window
+                # Get occurrences from history within the time window
+                history_query = select(func.sum(PatternHistory.occurrences)).where(
+                    and_(
+                        PatternHistory.pattern_id == existing_pattern.id,
+                        PatternHistory.recorded_at >= cutoff_date
+                    )
+                )
+                history_result = await db.execute(history_query)
+                windowed_occurrences = history_result.scalar() or 0
+                
+                # Add new occurrences from current detection
+                new_occurrences = pattern_data.get('occurrences', 0)
+                total_windowed_occurrences = windowed_occurrences + new_occurrences
+                
+                # If no history exists or pattern is new, use the new occurrences directly
+                if windowed_occurrences == 0 and existing_pattern.occurrences > 0:
+                    # First time using windowed tracking - use new occurrences as baseline
+                    total_windowed_occurrences = new_occurrences
+                    logger.debug(f"Switching pattern {existing_pattern.id} to time-windowed tracking (was: {existing_pattern.occurrences})")
+                
+                # Update with windowed count, not accumulated
                 existing_pattern.confidence = max(existing_pattern.confidence, pattern_data['confidence'])
-                existing_pattern.occurrences = existing_pattern.occurrences + pattern_data.get('occurrences', 1)
+                existing_pattern.occurrences = total_windowed_occurrences
                 existing_pattern.pattern_metadata = pattern_data.get('metadata', existing_pattern.pattern_metadata)
                 existing_pattern.last_seen = now
                 existing_pattern.updated_at = now
                 pattern = existing_pattern
-                logger.debug(f"Updated existing pattern {pattern.id} for {pattern.device_id} (merged occurrences: {existing_pattern.occurrences})")
+                logger.debug(
+                    f"Updated existing pattern {pattern.id} for {pattern.device_id} "
+                    f"(windowed occurrences: {total_windowed_occurrences}, new: {new_occurrences}, window: {time_window_days}d)"
+                )
             else:
-                # Create new pattern
+                # Create new pattern with time-windowed tracking from the start
                 pattern = Pattern(
                     pattern_type=pattern_data['pattern_type'],
                     device_id=pattern_data['device_id'],
                     pattern_metadata=pattern_data.get('metadata', {}),
                     confidence=pattern_data['confidence'],
-                    occurrences=pattern_data['occurrences'],
+                    occurrences=pattern_data['occurrences'],  # Will be tracked in window going forward
                     created_at=now,
                     updated_at=now,
                     first_seen=now,
@@ -597,7 +631,7 @@ async def get_suggestions(
         feedback_score = (approval_weight * 0.15 - rejection_weight * 0.15) * 0.20
         
         # Category-based priority boost (energy/security get higher priority)
-        from sqlalchemy import case
+        # Note: 'case' is already imported at top of file, don't re-import here
         category_boost = case(
             (Suggestion.category == 'energy', 0.15),
             (Suggestion.category == 'security', 0.12),
@@ -682,6 +716,12 @@ async def can_trigger_manual_refresh(
         return True, None
 
     now = datetime.now(timezone.utc)
+    
+    # Ensure last_trigger is timezone-aware (handle both naive and aware datetimes)
+    if last_trigger.tzinfo is None:
+        # If naive, assume it's UTC
+        last_trigger = last_trigger.replace(tzinfo=timezone.utc)
+    
     if now - last_trigger >= timedelta(hours=cooldown_hours):
         return True, last_trigger
 
