@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Implement Quick Wins for Ask AI: Fix 54% failure rate** (eee53e3) - wtthornton
+- **Phase 4.1 enhancements and Docker deployment fixes** (42eeac4) - wtthornton
+- **Reduce clarification questions while maintaining 100% pass rate** (912ff27) - wtthornton
+- **Implement comprehensive suggestions engine improvements (Phase 1-3)** (9540345) - wtthornton
+- **Integrate patterns and synergies into Ask AI query processing** (5c43548) - wtthornton
+- **Add implementation docs and update service files** (2b25be1) - wtthornton
+- **Implement device detection enhancement with two-stage matching** (1021133) - wtthornton
+- **Enhanced YAML validation with multi-stage pipeline** (de8497c) - wtthornton
+- **Add AI automation learning features and QA improvements** (3f89d58) - wtthornton
+- **Standardize fuzzy matching with rapidfuzz best practices** (8d2f9a8) - wtthornton
+- **feat(validation): add comprehensive validation command** (fafb163) - Claude
+- **Add debugging logs to AskAI UI for clarification flow - Improve original request detection to look backwards through messages - Add console logging for suggestion rendering and structure - Add logging for clarification message handling - Better error messages showing suggestion counts** (be51b74) - wtthornton
+
+### Changed
+
+- **Update continuous improvement cycles and related files** (ff6a6fa) - wtthornton
+- **Update continuous improvement cycles, synergy detection enhancements, and name enhancement features** (80bf25c) - wtthornton
+- **Improve Ask AI continuous improvement: fix entity ID quote stripping, improve clarification detection, refine scoring, add retry logic** (a10342c) - wtthornton
+- **Update dependencies and Dockerfiles across all services** (2f9a7a8) - wtthornton
+- **Update validate command and YAML generation service** (0379e9f) - wtthornton
+- **Improve error handling for clarification suggestion generation failures - Add tracking for skipped suggestions with detailed reasons - Improve error messages when entity mapping fails - Add better diagnostics for why suggestions are skipped - Log specific reasons when suggestions fail entity validation - Provide helpful error messages indicating device name mismatches - Deployed and tested successfully** (0ba4927) - wtthornton
+
+### Fixed
+
+- **Fix prompt 14 in ask-ai-continuous-improvement.py - clarify light control logic for Home Assistant** (8b6c5a0) - wtthornton
+- **Fix admin-api service startup errors** (1e254a3) - wtthornton
+- **Remove duplicate generate_automation_yaml function from ask_ai_router.py** (943b6e5) - wtthornton
+- **Remove emojis and special characters from ask_ai_router.py prompt strings** (b6e37b8) - wtthornton
+- **Remove all emoji characters from yaml_generation_service.py** (216091d) - wtthornton
+- **Remove emojis from logger statements and fix f-string escaping** (ddd0067) - wtthornton
+- **Fix device filtering: Use fuzzy matching instead of hardcoded lists** (0dc415c) - wtthornton
+- **Fix ASK AI clarification flow: resolve NameError and location expansion** (f1e69ee) - wtthornton
+
+
+### Added
+
 - **Phase 4.1 enhancements and Docker deployment fixes** (42eeac4) - wtthornton
 - **Reduce clarification questions while maintaining 100% pass rate** (912ff27) - wtthornton
 - **Implement comprehensive suggestions engine improvements (Phase 1-3)** (9540345) - wtthornton
