@@ -9,6 +9,7 @@ Confidence Calculator - Enhanced confidence calculation with clarification suppo
 """
 
 import logging
+import os
 from typing import Any, Literal
 
 import numpy as np
@@ -26,7 +27,7 @@ class ConfidenceCalculator:
 
     def __init__(
         self,
-        default_threshold: float = 0.85,
+        default_threshold: float | None = None,
         rag_client: Any | None = None,
         calibrator: ClarificationConfidenceCalibrator | None = None,
         calibration_enabled: bool = True,
@@ -39,7 +40,7 @@ class ConfidenceCalculator:
         Initialize confidence calculator.
         
         Args:
-            default_threshold: Default confidence threshold for proceeding
+            default_threshold: Default confidence threshold for proceeding (defaults to 0.75 or env var)
             rag_client: Optional RAG client for historical success checking
             calibrator: Optional confidence calibrator instance (isotonic regression)
             calibration_enabled: Whether to apply calibration (default: True)
@@ -48,6 +49,18 @@ class ConfidenceCalculator:
             uncertainty_quantifier: Optional uncertainty quantifier (Phase 3)
             uncertainty_enabled: Whether to calculate uncertainty (default: False)
         """
+        # Quick Win 1: Lower default threshold from 0.85 to 0.75, configurable via env var
+        if default_threshold is None:
+            threshold_str = os.getenv("CLARIFICATION_CONFIDENCE_THRESHOLD", "0.75")
+            try:
+                default_threshold = float(threshold_str)
+                # Validate bounds
+                if not (0.0 <= default_threshold <= 1.0):
+                    logger.warning(f"Invalid threshold {default_threshold}, using default 0.75")
+                    default_threshold = 0.75
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid threshold format '{threshold_str}', using default 0.75")
+                default_threshold = 0.75
         self.default_threshold = default_threshold
         self.rag_client = rag_client
         self.calibrator = calibrator
@@ -110,11 +123,16 @@ class ConfidenceCalculator:
                 if similar_queries and similar_queries[0]['similarity'] > 0.75:
                     similarity = similar_queries[0]['similarity']
                     success_score = similar_queries[0].get('success_score', 0.5)
+                    
+                    # Validate and clamp values to [0, 1] range
+                    similarity = max(0.0, min(1.0, similarity))
+                    success_score = max(0.0, min(1.0, success_score))
 
                     # Boost base_confidence based on similarity and historical success
                     # Formula: similarity * success_score * max_boost
                     # Higher similarity (closer to 1.0) and higher success_score = bigger boost
-                    max_boost = 0.20  # Maximum boost of 20%
+                    # Quick Win 3: Increased from 20% to 30% for better historical learning
+                    max_boost = 0.30  # Maximum boost of 30% (increased from 20%)
                     historical_boost = min(max_boost, similarity * success_score * max_boost)
 
                     logger.debug(
@@ -125,8 +143,13 @@ class ConfidenceCalculator:
                 # Non-critical: continue even if RAG check fails
                 logger.debug(f"⚠️ RAG historical check failed: {e}")
 
-        # Start with base_confidence + historical boost
-        confidence = base_confidence + historical_boost
+        # Medium Win 2: Add entity match quality scoring
+        entity_quality_boost = self._calculate_entity_quality_boost(extracted_entities)
+        
+        # Start with base_confidence + historical boost + entity quality boost
+        # Clamp early to prevent overflow in intermediate calculations
+        confidence = base_confidence + historical_boost + entity_quality_boost
+        confidence = min(1.0, max(0.0, confidence))  # Early clamp for safety
 
         # Reduce for ambiguities using hybrid approach (Phase 1.3: Reduced aggressiveness)
         # First ambiguity: multiplicative, additional ambiguities: additive
@@ -435,12 +458,17 @@ class ConfidenceCalculator:
                     similarity = top_result.get('final_score') or top_result.get('hybrid_score') or top_result.get('similarity', 0.0)
                     success_score = top_result.get('success_score', 0.5)
                     
+                    # Validate and clamp values to [0, 1] range
+                    similarity = max(0.0, min(1.0, similarity))
+                    success_score = max(0.0, min(1.0, success_score))
+                    
                     # If similar query was successful, lower threshold
+                    # Quick Win 4: Increased threshold reduction from 0.10 to 0.15 for proven patterns
                     if similarity >= 0.75 and success_score > 0.8:
-                        threshold -= 0.10  # Lower threshold for proven patterns
+                        threshold -= 0.15  # Lower threshold for proven patterns (increased from 0.10)
                         logger.debug(
                             f"Historical success detected (similarity={similarity:.2f}, "
-                            f"success={success_score:.2f}) - lowering threshold by 0.10"
+                            f"success={success_score:.2f}) - lowering threshold by 0.15"
                         )
             except Exception as e:
                 logger.debug(f"RAG historical check failed in adaptive threshold: {e}")
@@ -463,4 +491,67 @@ class ConfidenceCalculator:
         )
 
         return threshold
+    
+    def _calculate_entity_quality_boost(self, extracted_entities: list[dict[str, Any]]) -> float:
+        """
+        Medium Win 2: Calculate confidence boost based on entity match quality.
+        
+        Factors:
+        - Entity ID presence (exact matches are high quality)
+        - Device intelligence data (capabilities, health scores)
+        - Semantic similarity scores
+        - Extraction confidence
+        
+        Args:
+            extracted_entities: List of extracted entities
+            
+        Returns:
+            Quality boost (0.0 to 0.15)
+        """
+        if not extracted_entities:
+            return 0.0
+        
+        quality_indicators = []
+        
+        for entity in extracted_entities:
+            entity_quality = 0.0
+            
+            # Has entity_id? (exact match = high quality)
+            if entity.get('entity_id'):
+                entity_quality += 0.4
+            
+            # Has device intelligence data?
+            if entity.get('capabilities'):
+                entity_quality += 0.2
+            if entity.get('health_score') is not None:
+                entity_quality += 0.1
+            
+            # High extraction confidence?
+            extraction_confidence = entity.get('confidence', 0.5)
+            if extraction_confidence > 0.8:
+                entity_quality += 0.2
+            elif extraction_confidence > 0.6:
+                entity_quality += 0.1
+            
+            # High semantic similarity?
+            similarity = entity.get('similarity', entity.get('match_score', 0.0))
+            if similarity > 0.85:
+                entity_quality += 0.1
+            
+            quality_indicators.append(min(1.0, entity_quality))
+        
+        # Average quality across all entities
+        avg_quality = sum(quality_indicators) / len(quality_indicators) if quality_indicators else 0.0
+        
+        # Boost: up to 15% based on average quality
+        # High quality entities (avg > 0.7) get full boost
+        # Medium quality (avg > 0.5) get partial boost
+        if avg_quality > 0.7:
+            return 0.15
+        elif avg_quality > 0.5:
+            return 0.10
+        elif avg_quality > 0.3:
+            return 0.05
+        else:
+            return 0.0
 
