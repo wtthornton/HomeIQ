@@ -1,0 +1,13 @@
+id: 'living_room_lights_off_2300'
+alias: Living Room Lights Off at 11 PM
+description: "Turn off the Living Room Light every night at 11:00 PM."
+mode: single
+trigger:
+  - platform: time
+    at: '23:00:00'
+conditions: []
+action:
+  - service: light.turn_off
+    target:
+      entity_id:
+        - light.living_room_2

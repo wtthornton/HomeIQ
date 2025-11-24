@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-df53edb6",
+  "query_id": "clarify-810490ca",
+  "status": "approved",
+  "automation_id": "automation.living_room_to_office_wled_brightness_sync_1763945248_8544d17f",
+  "automation_yaml": "id: 'living_room_to_office_wled_brightness_sync'\nalias: Living Room to Office WLED Brightness Sync\ndescription: \"Keep the Office WLED brightness in sync with living room activity based on time of day.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\nconditions: []\naction:\n  - delay: '00:00:02'\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '18:00:00'\n          - condition: template\n            value_template: \"{{ (state_attr('light.wled', 'brightness') | int(0)) < (255 * 0.5) }}\"\n        sequence:\n          - condition: template\n            value_template: \"{{ (state_attr('light.wled', 'brightness') | int(0)) != (255 * 0.7) | int }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 70\n      - conditions:\n          - condition: or\n            conditions:\n              - condition: time\n                after: '18:00:00'\n              - condition: time\n                before: '06:00:00'\n          - condition: template\n            value_template: \"{{ (state_attr('light.wled', 'brightness') | int(0)) > (255 * 0.6) }}\"\n        sequence:\n          - condition: template\n            value_template: \"{{ (state_attr('light.wled', 'brightness') | int(0)) != (255 * 0.3) | int }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 30",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

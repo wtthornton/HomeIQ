@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-9a6ca66d",
-  "query_id": "clarify-5c191186",
+  "suggestion_id": "ask-ai-303e821b",
+  "query_id": "clarify-0c4cbbf8",
   "status": "approved",
-  "automation_id": "automation.after_sunset_living_room_office_sequence_1763941352_ed309b8d",
-  "automation_yaml": "id: 'after_sunset_living_room_office_sequence'\nalias: After Sunset Living Room and Office WLED Sequence\ndescription: \"After sunset, turn on Living Room light for 5 minutes, then turn on Office WLED, wait 30 seconds, and turn off Living Room light.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 100\n  - delay: '00:05:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n  - delay: '00:00:30'\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "automation_id": "automation.after_sunset_living_room_then_office_wled_1763944770_f06ee63c",
+  "automation_yaml": "id: 'after_sunset_living_room_then_office_wled'\nalias: After Sunset - Living Room then Office WLED\ndescription: \"After sunset every day, turn on the Living Room light for 5 minutes, then turn on the Office WLED, wait 30 seconds, and finally turn off the Living Room light.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n  - delay: '00:05:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n  - delay: '00:00:30'\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

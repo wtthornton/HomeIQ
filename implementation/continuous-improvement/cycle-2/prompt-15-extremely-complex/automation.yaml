@@ -1,0 +1,42 @@
+id: 'living_room_to_office_wled_brightness_sync'
+alias: Living Room to Office WLED Brightness Sync
+description: "Keep the Office WLED brightness in sync with living room activity based on time of day."
+mode: single
+trigger:
+  - platform: state
+    entity_id: light.wled
+conditions: []
+action:
+  - delay: '00:00:02'
+  - choose:
+      - conditions:
+          - condition: time
+            after: '06:00:00'
+            before: '18:00:00'
+          - condition: template
+            value_template: "{{ (state_attr('light.wled', 'brightness') | int(0)) < (255 * 0.5) }}"
+        sequence:
+          - condition: template
+            value_template: "{{ (state_attr('light.wled', 'brightness') | int(0)) != (255 * 0.7) | int }}"
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness_pct: 70
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: time
+                after: '18:00:00'
+              - condition: time
+                before: '06:00:00'
+          - condition: template
+            value_template: "{{ (state_attr('light.wled', 'brightness') | int(0)) > (255 * 0.6) }}"
+        sequence:
+          - condition: template
+            value_template: "{{ (state_attr('light.wled', 'brightness') | int(0)) != (255 * 0.3) | int }}"
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness_pct: 30

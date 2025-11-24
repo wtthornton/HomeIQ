@@ -9,7 +9,7 @@ Story AI3.1: Device Synergy Detector Foundation
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from ..config import settings
@@ -174,10 +174,13 @@ class DeviceSynergyDetector:
         self.min_confidence = min_confidence
         self.same_area_required = same_area_required
 
-        # Cache for performance
+        # Cache for performance (with TTL)
         self._device_cache = None
+        self._device_cache_timestamp = None
         self._entity_cache = None
+        self._entity_cache_timestamp = None
         self._automation_cache = None
+        self._cache_ttl = timedelta(hours=6)  # 6-hour cache TTL
 
         # Initialize synergy cache (Phase 1)
         try:
@@ -330,24 +333,38 @@ class DeviceSynergyDetector:
             return []
 
     async def _get_devices(self) -> list[dict]:
-        """Fetch all devices from data-api with caching."""
-        if self._device_cache is not None:
+        """Fetch all devices from data-api with caching (6-hour TTL)."""
+        # Check cache validity
+        if (self._device_cache is not None and 
+            self._device_cache_timestamp is not None and
+            datetime.now(timezone.utc) - self._device_cache_timestamp < self._cache_ttl):
+            logger.info("✅ Using cached device data")
             return self._device_cache
 
         try:
+            logger.info("📥 Loading device data from data-api...")
             self._device_cache = await self.data_api.fetch_devices()
+            self._device_cache_timestamp = datetime.now(timezone.utc)
+            logger.info(f"✅ Loaded {len(self._device_cache)} devices (cached for 6 hours)")
             return self._device_cache
         except Exception as e:
             logger.error(f"Failed to fetch devices: {e}")
             return []
 
     async def _get_entities(self) -> list[dict]:
-        """Fetch all entities from data-api with caching."""
-        if self._entity_cache is not None:
+        """Fetch all entities from data-api with caching (6-hour TTL)."""
+        # Check cache validity
+        if (self._entity_cache is not None and 
+            self._entity_cache_timestamp is not None and
+            datetime.now(timezone.utc) - self._entity_cache_timestamp < self._cache_ttl):
+            logger.info("✅ Using cached entity data")
             return self._entity_cache
 
         try:
+            logger.info("📥 Loading entity data from data-api...")
             self._entity_cache = await self.data_api.fetch_entities()
+            self._entity_cache_timestamp = datetime.now(timezone.utc)
+            logger.info(f"✅ Loaded {len(self._entity_cache)} entities (cached for 6 hours)")
             return self._entity_cache
         except Exception as e:
             logger.error(f"Failed to fetch entities: {e}")

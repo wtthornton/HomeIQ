@@ -1,11 +1,23 @@
 Cycle 2 Execution Log
 ================================================================================
 
-Timestamp: 2025-11-23T12:26:03.585624
-Status: Failed
-Total Score: 0.00/100
-Automation Score: 0.00/100
-YAML Score: 0.00/100
-Clarification Rounds: 1
+Timestamp: 2025-11-23T16:42:48.012781
+Overall Score: 87.50/100
+All Successful: True
+Number of Prompts: 15
 
-Error: Approval failed: Failed to validate entities in automation YAML (Type: validation_error). Details: Entity validation failed: Scene entities referenced but not created via scene.create: scene.wled_office_pre_burst". All scene entities must be created using the scene.create service before they can be used. Example: Use 'service: scene.create' with 'data.scene_id' before referencing the scene entity.
+  Simple Time-Based Light (Simple): ✓ 89.00/100
+  Simple Light Control (Simple): ✓ 89.00/100
+  Basic Schedule (Simple): ✓ 89.00/100
+  Time-Based Conditional Lighting (Medium): ✓ 89.00/100
+  Time-Based Multi-Light (Medium): ✓ 89.00/100
+  Conditional Brightness (Medium): ✓ 79.00/100
+  Multi-Area Lighting (Medium): ✓ 91.50/100
+  Sunset-Based Multi-Device Sequence (Complex): ✓ 91.50/100
+  Sequential Actions (Complex): ✓ 81.50/100
+  Time-Based Sequence (Complex): ✓ 91.50/100
+  Conditional Chain (Complex): ✓ 81.50/100
+  State Restoration with Conditions (Very Complex): ✓ 81.50/100
+  Complex State Management (Very Complex): ✓ 81.50/100
+  Complex Conditional Logic (Extremely Complex): ✓ 91.50/100
+  Multi-Conditional with Choose (Extremely Complex): ✓ 96.50/100

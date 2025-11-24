@@ -1,5 +1,5 @@
-id: 'living_room_lights_off_2300'
-alias: Turn Off Living Room Lights at 11 PM
+id: 'living_room_light_off_2300'
+alias: Living Room Light Off at 11 PM
 description: "Turn off the Living Room Light every night at 11:00 PM"
 mode: single
 trigger:
@@ -9,9 +9,4 @@ conditions: []
 action:
   - service: light.turn_off
     target:
-      entity_id:
-        - light.living_room_2
-        - light.hue_lr_back_left_ceiling
-        - light.hue_color_downlight_1_4
-        - light.hue_color_downlight_1_3
-        - light.hue_play_1
+      entity_id: light.living_room_2

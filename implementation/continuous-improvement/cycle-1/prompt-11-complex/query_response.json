@@ -1,5 +1,5 @@
 {
-  "query_id": "query-042a7ec0",
+  "query_id": "query-169a9375",
   "original_query": "When any living room light is turned on between 9 PM and 11 PM, turn on the Office WLED to 20% brightness, wait 10 seconds, then turn off the Office WLED",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -19,11 +19,11 @@
     }
   ],
   "suggestions": [],
-  "confidence": 0.4831249057561775,
-  "processing_time_ms": 1323,
-  "created_at": "2025-11-23T15:43:17.293086",
+  "confidence": 0.48495753513403633,
+  "processing_time_ms": 1536,
+  "created_at": "2025-11-23T16:40:19.487471",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-7aaff1e6",
+  "clarification_session_id": "clarify-c62b71bb",
   "questions": [
     {
       "id": "q1",

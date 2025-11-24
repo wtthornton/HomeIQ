@@ -1,11 +1,10 @@
-id: 'office_wled_living_room_follow_2025'
-alias: Office WLED Living Room Follow
-description: "When Office WLED turns on, stage living room and then brighten Office WLED"
+id: 'office_wled_living_room_sequence'
+alias: Office WLED – Living Room Sequence
+description: "When Office WLED turns on, stage Living Room and then brighten Office WLED"
 mode: single
 trigger:
   - platform: state
     entity_id: light.wled
-    from: 'off'
     to: 'on'
 conditions: []
 action:
@@ -20,4 +19,4 @@ action:
     target:
       entity_id: light.wled
     data:
-      brightness: 255
+      brightness_pct: 100

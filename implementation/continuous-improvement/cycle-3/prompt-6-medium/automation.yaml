@@ -1,0 +1,18 @@
+id: 'living_room_light_auto_dim_after_8_pm'
+alias: Living Room Light - Auto Dim After 8 PM
+description: "Dim the Living Room Light to 40% brightness when turned on after 8 PM"
+mode: restart
+trigger:
+  - platform: state
+    entity_id: light.living_room_2
+    from: "off"
+    to: "on"
+condition:
+  - condition: time
+    after: "20:00:00"
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.living_room_2
+    data:
+      brightness_pct: 40

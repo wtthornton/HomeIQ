@@ -1,0 +1,46 @@
+{
+  "suggestion_id": "ask-ai-9d4022cd",
+  "query_id": "clarify-385a188b",
+  "status": "approved",
+  "automation_id": "automation.living_room_light_cue_office_wled_1763945463_43c1c220",
+  "automation_yaml": "id: 'living_room_light_cue_office_wled'\nalias: Living Room Lights Cue Office WLED\ndescription: \"When any living room light turns on between 21:00 and 23:00, briefly set Office WLED to 20% brightness as a visual cue, then turn it off after 10 seconds, restoring prior state.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id:\n      - light.hue_office_back_left\n      - light.hue_color_downlight_2_2\n      - light.hue_color_downlight_1_7\n    to: 'on'\nconditions:\n  - condition: time\n    after: '21:00:00'\n    before: '23:00:00'\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_cue\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 20\n  - delay: '00:00:10'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_cue",
+  "ready_to_deploy": true,
+  "warnings": [
+    "Entity not found: scene.office_wled_before_living_room_cue"
+  ],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_before_living_room_cue",
+        "details": {
+          "entity_id": "scene.office_wled_before_living_room_cue",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_before_living_room_cue exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
+    "critical_issues": [],
+    "warnings": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_before_living_room_cue",
+        "details": {
+          "entity_id": "scene.office_wled_before_living_room_cue",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_before_living_room_cue exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed with warnings"
+  },
+  "safe": true
+}

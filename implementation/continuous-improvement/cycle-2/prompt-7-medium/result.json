@@ -1,0 +1,63 @@
+{
+  "prompt_id": "prompt-7-medium",
+  "prompt_name": "Multi-Area Lighting",
+  "prompt_text": "At 6:00 AM, turn on the Office WLED to 50% and turn on all living room lights to 30%",
+  "complexity": "Medium",
+  "query_id": "query-35fd5e93",
+  "suggestion_id": "ask-ai-eaad82b2",
+  "automation_id": "automation.morning_office_living_room_lights_1763945076_ea103e5b",
+  "automation_yaml": "id: 'morning_office_living_room_lights'\nalias: Morning Office & Living Room Lights\ndescription: \"At 6:00 AM every day, set the Office Wled strip to 50% brightness and turn on the Living Room light to 30% brightness, giving you a consistent, gentle wake\u2011up lighting in your office and living room.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '06:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 50\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 30",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Office Wled",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T16:44:20.897543"
+    }
+  ],
+  "automation_score": 85.0,
+  "yaml_score": 100.0,
+  "total_score": 91.5,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T16:44:19.560352"
+}

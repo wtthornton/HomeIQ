@@ -1,0 +1,63 @@
+{
+  "prompt_id": "prompt-14-extremely-complex",
+  "prompt_name": "Complex Conditional Logic",
+  "prompt_text": "Check the time. If it's between 6 AM and 9 AM, turn on the Office WLED to 50% with a warm white color. If it's between 5 PM and 8 PM, turn on all living room lights to 80% and set the Office WLED to 100% with a cool white color. If it's after 9 PM, only turn on the Office WLED to 20% brightness. Wait 5 seconds after any action, then turn off all other lights that weren't part of the selected time-based action.",
+  "complexity": "Extremely Complex",
+  "query_id": "query-e5e804a8",
+  "suggestion_id": "ask-ai-176e6049",
+  "automation_id": "automation.office_wled_time_based_control_1763945229_8991e2c1",
+  "automation_yaml": "id: 'office_wled_time_based_control'\nalias: Office WLED Time-Based Control\ndescription: \"Time-based Office WLED brightness and color control with cleanup of other lights\"\nmode: single\ntrigger:\n  - platform: event\n    event_type: office_wled_time_based_trigger\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: time\n            after: \"06:00:00\"\n            before: \"09:00:00\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 128\n              rgb_color:\n                - 255\n                - 160\n                - 90\n      - conditions:\n          - condition: time\n            after: \"17:00:00\"\n            before: \"20:00:00\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 255\n              rgb_color:\n                - 180\n                - 220\n                - 255\n          - service: light.turn_on\n            target:\n              entity_id: light.living_room_2\n            data:\n              brightness: 204\n      - conditions:\n          - condition: time\n            after: \"21:00:00\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 51\n              rgb_color:\n                - 255\n                - 140\n                - 60\n  - delay: '00:00:05'\n  - service: light.turn_off\n    target:\n      entity_id:\n        - light.living_room_2\n        - light.hue_go_1\n        - light.hue_color_downlight_1_6\n        - light.hue_color_downlight_2_2\n        - light.hue_office_back_left\n        - light.hue_color_downlight_1_7",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office, selected time",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Office Wled",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T16:46:45.470190"
+    }
+  ],
+  "automation_score": 85.0,
+  "yaml_score": 100.0,
+  "total_score": 91.5,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T16:46:44.254890"
+}

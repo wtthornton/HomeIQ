@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-c872868b",
+  "query_id": "clarify-821d396c",
+  "status": "approved",
+  "automation_id": "automation.daily_office_wled_1700_brightness_sequence_1763945133_41e4f346",
+  "automation_yaml": "id: 'daily_office_wled_1700_brightness_sequence'\nalias: Daily 5 PM Office WLED Brighten Then Dim\ndescription: \"At 5:00 PM, set Office WLED to ~80%, wait 1 minute, then dim to ~40%\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 204\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 102",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}
