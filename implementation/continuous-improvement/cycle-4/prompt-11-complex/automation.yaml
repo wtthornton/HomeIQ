@@ -1,0 +1,22 @@
+id: 'living_room_lights_office_wled_pulse'
+alias: Living Room Lights Office WLED Pulse
+description: "When any living room light is turned on between 9 PM and 11 PM, briefly turn on the Office WLED to low brightness, wait 10 seconds, then turn it off."
+mode: single
+trigger:
+  - platform: state
+    entity_id: light.wled
+    to: 'on'
+conditions:
+  - condition: time
+    after: '21:00:00'
+    before: '23:00:00'
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.wled
+    data:
+      brightness_pct: 20
+  - delay: '00:00:10'
+  - service: light.turn_off
+    target:
+      entity_id: light.wled

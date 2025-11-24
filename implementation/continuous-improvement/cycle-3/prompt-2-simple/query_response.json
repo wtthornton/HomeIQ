@@ -1,5 +1,5 @@
 {
-  "query_id": "query-af4accd0",
+  "query_id": "query-ecfe7f3d",
   "original_query": "Turn off all living room lights at 11:00 PM every night",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -12,16 +12,16 @@
     }
   ],
   "suggestions": [],
-  "confidence": 0.42088809929103493,
-  "processing_time_ms": 1055,
-  "created_at": "2025-11-23T17:30:58.632244",
+  "confidence": 0.4808277185990044,
+  "processing_time_ms": 1333,
+  "created_at": "2025-11-24T02:18:55.398688",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-33721590",
+  "clarification_session_id": "clarify-da187f9e",
   "questions": [
     {
       "id": "q1",
       "category": "device",
-      "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: 11, living_room, living",
+      "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: 11, living, living_room",
       "question_type": "text",
       "options": null,
       "priority": 1,

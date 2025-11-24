@@ -1,6 +1,6 @@
 id: 'office_wled_sunset_warm_white'
 alias: Office WLED Sunset Warm White
-description: "At sunset each day, turn on the Office WLED to warm white-like RGB at about 60% brightness (using last-used brightness)."
+description: "At sunset, set the Office WLED strip to warm white at about 60% brightness."
 mode: single
 trigger:
   - platform: sun
@@ -11,6 +11,7 @@ action:
     target:
       entity_id: light.wled
     data:
+      brightness_pct: 60
       rgb_color:
         - 255
         - 180

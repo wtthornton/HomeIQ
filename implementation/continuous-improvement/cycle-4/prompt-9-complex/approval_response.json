@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-b6e5824a",
+  "query_id": "clarify-25a35ab3",
+  "status": "approved",
+  "automation_id": "automation.office_wled_living_room_sequence_1763980159_328b1da3",
+  "automation_yaml": "id: 'office_wled_living_room_sequence'\nalias: Office WLED \u2192 Living Room 70% \u2192 Office WLED 100%\ndescription: \"When Office WLED turns on, set Living Room to 70% then Office WLED to 100% with delays\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: \"on\"\nconditions: []\naction:\n  - delay: \"00:00:02\"\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 70\n  - delay: \"00:00:03\"\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

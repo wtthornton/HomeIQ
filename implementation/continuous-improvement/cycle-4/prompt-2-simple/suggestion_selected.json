@@ -1,0 +1,460 @@
+{
+  "suggestion_id": "ask-ai-68499423",
+  "description": "Turn off the Living Room Light every night at 11:00 PM, matching your request to turn off all living room lights on a fixed schedule. Based on your clarification that you meant \u201cLiving Room Light,\u201d and the entities available, this automation will switch off all ceiling lights identified as living room ceiling lights: \u201cLR Back Left Ceiling\u201d, \u201cLR Front Right Ceiling\u201d, and \u201cLR Back Right Ceiling.\u201d",
+  "trigger_summary": "Time-based trigger at 23:00 (11:00 PM) every day.",
+  "action_summary": "At 11:00 PM, send a `light.turn_off` command to LR Back Left Ceiling, LR Front Right Ceiling, and LR Back Right Ceiling so that the Living Room Light grouping is effectively turned off.",
+  "devices_involved": [
+    "LR Back Left Ceiling",
+    "LR Front Right Ceiling",
+    "LR Back Right Ceiling"
+  ],
+  "validated_entities": {
+    "LR Back Left Ceiling": "light.hue_lr_back_left_ceiling",
+    "LR Front Right Ceiling": "light.hue_color_downlight_1_4",
+    "LR Back Right Ceiling": "light.hue_color_downlight_1"
+  },
+  "enriched_entity_context": "{\n  \"entities\": [\n    {\n      \"entity_id\": \"light.hue_lr_back_left_ceiling\",\n      \"friendly_name\": \"LR Back Left Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: LR Back Left Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": null,\n        \"supported_features\": 44,\n        \"brightness\": null,\n        \"friendly_name\": \"LR Back Left Ceiling\",\n        \"color_mode\": null,\n        \"effect\": null,\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_5\",\n      \"friendly_name\": \"Master Front Left\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: Master Front Left\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": null,\n        \"supported_features\": 44,\n        \"brightness\": null,\n        \"friendly_name\": \"Master Front Left\",\n        \"color_mode\": null,\n        \"effect\": null,\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null\n    },\n    {\n      \"entity_id\": \"light.kitchen_strip_segment_1\",\n      \"friendly_name\": \"Kitchen Strip Segment 1\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Kitchen Strip Segment 1\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"brightness\"\n      ],\n      \"supported_features\": 36,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          255,\n          255\n        ],\n        \"supported_features\": 36,\n        \"brightness\": 255,\n        \"friendly_name\": \"Kitchen Strip Segment 1\",\n        \"color_mode\": \"rgbw\",\n        \"effect\": \"Solid\",\n        \"effect_list_summary\": \"Solid, Blink, Breathe (+184 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 255,\n      \"rgb_color\": [\n        255,\n        255,\n        255\n      ],\n      \"current_effect\": \"Solid\"\n    },\n    {\n      \"entity_id\": \"light.wled_dishes\",\n      \"friendly_name\": \"Dishes\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Dishes\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"brightness\"\n      ],\n      \"supported_features\": 36,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          0,\n          0,\n          255\n        ],\n        \"supported_features\": 36,\n        \"brightness\": 253,\n        \"friendly_name\": \"Dishes\",\n        \"color_mode\": \"rgbw\",\n        \"effect\": \"Solid\",\n        \"effect_list_summary\": \"Solid, Blink, Breathe (+184 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 253,\n      \"rgb_color\": [\n        0,\n        0,\n        255\n      ],\n      \"current_effect\": \"Solid\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_3\",\n      \"friendly_name\": \"Master Back Left\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: Master Back Left\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": null,\n        \"supported_features\": 44,\n        \"brightness\": null,\n        \"friendly_name\": \"Master Back Left\",\n        \"color_mode\": null,\n        \"effect\": null,\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null\n    },\n    {\n      \"entity_id\": \"light.back_front_hallway\",\n      \"friendly_name\": \"Back Front Hallway\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"unavailable\",\n      \"description\": \"controls individual device: Back Front Hallway\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"supported_features\": 44,\n        \"friendly_name\": \"Back Front Hallway\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_2\",\n      \"friendly_name\": \" New front hall back\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device:  New front hall back\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 90,\n        \"friendly_name\": \" New front hall back\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.hue_lightstrip_outdoor_1\",\n      \"friendly_name\": \"Basketball\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Basketball\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 90,\n        \"friendly_name\": \"Basketball\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_4\",\n      \"friendly_name\": \"LR Front Right Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: LR Front Right Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          224,\n          206\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 14,\n        \"friendly_name\": \"LR Front Right Ceiling\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 14,\n      \"rgb_color\": [\n        255,\n        224,\n        206\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.festavia_string_lights_1_3\",\n      \"friendly_name\": \"Festavia string lights 1\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"unavailable\",\n      \"description\": \"controls individual device: Festavia string lights 1\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"supported_features\": 44,\n        \"friendly_name\": \"Festavia string lights 1\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1\",\n      \"friendly_name\": \"LR Back Right Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: LR Back Right Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 90,\n        \"friendly_name\": \"LR Back Right Ceiling\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.bar_segment_2\",\n      \"friendly_name\": \"Segment 2\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"unavailable\",\n      \"description\": \"controls individual device: Segment 2\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\"\n      ],\n      \"supported_features\": 36,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"supported_features\": 36,\n        \"friendly_name\": \"Segment 2\",\n        \"effect_list_summary\": \"Solid, Blink, Breathe (+184 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\"\n    },\n    {\n      \"entity_id\": \"light.hue_lightstrip_outdoor_1_2\",\n      \"friendly_name\": \"Hue lightstrip outdoor 1\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Hue lightstrip outdoor 1\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 90,\n        \"friendly_name\": \"Hue lightstrip outdoor 1\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_7\",\n      \"friendly_name\": \"Office Front Right\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: Office Front Right\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": null,\n        \"supported_features\": 44,\n        \"brightness\": null,\n        \"friendly_name\": \"Office Front Right\",\n        \"color_mode\": null,\n        \"effect\": null,\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null\n    },\n    {\n      \"entity_id\": \"light.kitchen_strip\",\n      \"friendly_name\": \"Kitchen Strip\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Kitchen Strip\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"brightness\"\n      ],\n      \"supported_features\": 36,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          0,\n          0,\n          255\n        ],\n        \"supported_features\": 36,\n        \"brightness\": 255,\n        \"friendly_name\": \"Kitchen Strip\",\n        \"color_mode\": \"rgb\",\n        \"effect\": \"Washing Machine\",\n        \"effect_list_summary\": \"Solid, Blink, Breathe (+184 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 255,\n      \"rgb_color\": [\n        0,\n        0,\n        255\n      ],\n      \"current_effect\": \"Washing Machine\"\n    }\n  ],\n  \"summary\": {\n    \"total_entities\": 15,\n    \"group_entities\": 0,\n    \"individual_entities\": 15\n  }\n}",
+  "capabilities_used": [
+    "power_state"
+  ],
+  "confidence": 0.93,
+  "status": "draft",
+  "created_at": "2025-11-24T02:26:03.673963",
+  "debug": {
+    "device_selection": [
+      {
+        "device_name": "LR Back Left Ceiling",
+        "entity_id": "light.hue_lr_back_left_ceiling",
+        "selection_reason": "Exact match: 'LR Back Left Ceiling' matches entity friendly_name",
+        "entity_type": "individual",
+        "entities": [
+          {
+            "entity_id": "light.hue_lr_back_left_ceiling",
+            "friendly_name": "LR Back Left Ceiling"
+          }
+        ],
+        "capabilities": [],
+        "actions_suggested": [
+          "light.turn_on"
+        ]
+      },
+      {
+        "device_name": "LR Front Right Ceiling",
+        "entity_id": "light.hue_color_downlight_1_4",
+        "selection_reason": "Exact match: 'LR Front Right Ceiling' matches entity friendly_name",
+        "entity_type": "individual",
+        "entities": [
+          {
+            "entity_id": "light.hue_color_downlight_1_4",
+            "friendly_name": "LR Front Right Ceiling"
+          }
+        ],
+        "capabilities": [],
+        "actions_suggested": [
+          "light.turn_on"
+        ]
+      },
+      {
+        "device_name": "LR Back Right Ceiling",
+        "entity_id": "light.hue_color_downlight_1",
+        "selection_reason": "Exact match: 'LR Back Right Ceiling' matches entity friendly_name",
+        "entity_type": "individual",
+        "entities": [
+          {
+            "entity_id": "light.hue_color_downlight_1",
+            "friendly_name": "LR Back Right Ceiling"
+          }
+        ],
+        "capabilities": [],
+        "actions_suggested": [
+          "light.turn_on"
+        ]
+      }
+    ],
+    "system_prompt": "You are a HIGHLY CREATIVE and experienced Home Assistant automation expert with deep knowledge of device capabilities and smart home best practices.\n\nYour expertise includes:\n- Understanding device-specific features (LED notifications, smart modes, timers, color control, etc.)\n- Creating practical, safe, and user-friendly automations\n- Leveraging manufacturer-specific capabilities for creative solutions\n- Considering device health and reliability in recommendations\n- Designing sophisticated automation sequences and patterns\n\nCRITICAL: When clarification context is provided (questions and answers), you MUST:\n- Use the EXACT devices, locations, and preferences specified in the clarification answers\n- Prioritize user-selected entities over generic assumptions\n- Respect all user choices and selections - they override your initial interpretations\n- If the user specified \"all four lights in office\", find and use exactly those four lights\n- Never substitute different devices than what the user explicitly selected or confirmed\n\nADVANCED CAPABILITY EXAMPLES:\n\nNumeric Capabilities (with ranges):\n- Brightness (0-100%): \"Fade lights to 50% brightness over 5 seconds\"\n- Color Temperature (153-500K): \"Warm from 500K to 300K over 10 minutes\"\n- Timer (1-80 seconds): \"Set fan timer to 30 seconds\"\n- Position (0-100%): \"Move blinds to 75% position\"\n\nEnum Capabilities (with values):\n- Speed [off, low, medium, high]: \"Set fan to medium speed when temperature > 75F\"\n- Mode [auto, manual, schedule]: \"Switch to manual mode when motion detected\"\n- State [ON, OFF]: \"Turn on when door opens\"\n\nComposite Capabilities (with features):\n- Breeze Mode {speed1, time1, speed2, time2}: \"Configure fan to run high for 30s, then low for 15s\"\n- LED Notifications {state, brightness}: \"Flash red at 80% brightness for 3 seconds\"\n- Fan Control {speed, oscillate}: \"Set oscillating fan to high speed\"\n\nBinary Capabilities:\n- LED Notifications (ON/OFF): \"Flash LED when door opens\"\n- Power State (ON/OFF): \"Toggle device when condition met\"\n\nGuidelines:\n- Use device friendly names, not entity IDs in descriptions\n- Leverage ACTUAL capability types, ranges, and values from device intelligence\n- Use capability properties (min/max, enum values) for precise automations\n- Consider device health scores (prioritize devices with health_score > 70, avoid devices with health_score < 50)\n- Keep automations simple, practical, and easy to understand\n- Always include proper service calls and valid Home Assistant syntax\n- Be creative and think beyond basic on/off patterns\n- Create sophisticated sequences using composite capabilities\n- Use numeric ranges for smooth transitions and graduated effects\n- Leverage enum values for state-specific automations",
+    "user_prompt": "Based on this query: \"Turn off all living room lights at 11:00 PM every night\n\n(Enriched with user clarifications - see CLARIFICATION CONTEXT below)\"\n\nAvailable devices and capabilities:\n- living_room\n- living room\n\n\n\nENRICHED ENTITY CONTEXT (Complete Entity Information):\n{\n  \"entities\": [\n    {\n      \"entity_id\": \"light.hue_lr_back_left_ceiling\",\n      \"friendly_name\": \"LR Back Left Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: LR Back Left Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": null,\n        \"supported_features\": 44,\n        \"brightness\": null,\n        \"friendly_name\": \"LR Back Left Ceiling\",\n        \"color_mode\": null,\n        \"effect\": null,\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_5\",\n      \"friendly_name\": \"Master Front Left\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: Master Front Left\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": null,\n        \"supported_features\": 44,\n        \"brightness\": null,\n        \"friendly_name\": \"Master Front Left\",\n        \"color_mode\": null,\n        \"effect\": null,\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null\n    },\n    {\n      \"entity_id\": \"light.kitchen_strip_segment_1\",\n      \"friendly_name\": \"Kitchen Strip Segment 1\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Kitchen Strip Segment 1\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"brightness\"\n      ],\n      \"supported_features\": 36,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          255,\n          255\n        ],\n        \"supported_features\": 36,\n        \"brightness\": 255,\n        \"friendly_name\": \"Kitchen Strip Segment 1\",\n        \"color_mode\": \"rgbw\",\n        \"effect\": \"Solid\",\n        \"effect_list_summary\": \"Solid, Blink, Breathe (+184 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 255,\n      \"rgb_color\": [\n        255,\n        255,\n        255\n      ],\n      \"current_effect\": \"Solid\"\n    },\n    {\n      \"entity_id\": \"light.wled_dishes\",\n      \"friendly_name\": \"Dishes\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Dishes\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"brightness\"\n      ],\n      \"supported_features\": 36,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          0,\n          0,\n          255\n        ],\n        \"supported_features\": 36,\n        \"brightness\": 253,\n        \"friendly_name\": \"Dishes\",\n        \"color_mode\": \"rgbw\",\n        \"effect\": \"Solid\",\n        \"effect_list_summary\": \"Solid, Blink, Breathe (+184 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 253,\n      \"rgb_color\": [\n        0,\n        0,\n        255\n      ],\n      \"current_effect\": \"Solid\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_3\",\n      \"friendly_name\": \"Master Back Left\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: Master Back Left\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": null,\n        \"supported_features\": 44,\n        \"brightness\": null,\n        \"friendly_name\": \"Master Back Left\",\n        \"color_mode\": null,\n        \"effect\": null,\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null\n    },\n    {\n      \"entity_id\": \"light.back_front_hallway\",\n      \"friendly_name\": \"Back Front Hallway\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"unavailable\",\n      \"description\": \"controls individual device: Back Front Hallway\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"supported_features\": 44,\n        \"friendly_name\": \"Back Front Hallway\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_2\",\n      \"friendly_name\": \" New front hall back\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device:  New front hall back\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 90,\n        \"friendly_name\": \" New front hall back\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.hue_lightstrip_outdoor_1\",\n      \"friendly_name\": \"Basketball\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Basketball\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 90,\n        \"friendly_name\": \"Basketball\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_4\",\n      \"friendly_name\": \"LR Front Right Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: LR Front Right Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          224,\n          206\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 14,\n        \"friendly_name\": \"LR Front Right Ceiling\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 14,\n      \"rgb_color\": [\n        255,\n        224,\n        206\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.festavia_string_lights_1_3\",\n      \"friendly_name\": \"Festavia string lights 1\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"unavailable\",\n      \"description\": \"controls individual device: Festavia string lights 1\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"supported_features\": 44,\n        \"friendly_name\": \"Festavia string lights 1\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1\",\n      \"friendly_name\": \"LR Back Right Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: LR Back Right Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 90,\n        \"friendly_name\": \"LR Back Right Ceiling\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.bar_segment_2\",\n      \"friendly_name\": \"Segment 2\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"unavailable\",\n      \"description\": \"controls individual device: Segment 2\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\"\n      ],\n      \"supported_features\": 36,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"supported_features\": 36,\n        \"friendly_name\": \"Segment 2\",\n        \"effect_list_summary\": \"Solid, Blink, Breathe (+184 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\"\n    },\n    {\n      \"entity_id\": \"light.hue_lightstrip_outdoor_1_2\",\n      \"friendly_name\": \"Hue lightstrip outdoor 1\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Hue lightstrip outdoor 1\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"supported_features\": 44,\n        \"brightness\": 90,\n        \"friendly_name\": \"Hue lightstrip outdoor 1\",\n        \"color_mode\": \"xy\",\n        \"effect\": \"off\",\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\"\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_7\",\n      \"friendly_name\": \"Office Front Right\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: Office Front Right\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": null,\n        \"supported_features\": 44,\n        \"brightness\": null,\n        \"friendly_name\": \"Office Front Right\",\n        \"color_mode\": null,\n        \"effect\": null,\n        \"effect_list_summary\": \"off, candle, fire (+10 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null\n    },\n    {\n      \"entity_id\": \"light.kitchen_strip\",\n      \"friendly_name\": \"Kitchen Strip\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: Kitchen Strip\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"brightness\"\n      ],\n      \"supported_features\": 36,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"rgb_color\": [\n          0,\n          0,\n          255\n        ],\n        \"supported_features\": 36,\n        \"brightness\": 255,\n        \"friendly_name\": \"Kitchen Strip\",\n        \"color_mode\": \"rgb\",\n        \"effect\": \"Washing Machine\",\n        \"effect_list_summary\": \"Solid, Blink, Breathe (+184 more effects)\"\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 255,\n      \"rgb_color\": [\n        0,\n        0,\n        255\n      ],\n      \"current_effect\": \"Washing Machine\"\n    }\n  ],\n  \"summary\": {\n    \"total_entities\": 15,\n    \"group_entities\": 0,\n    \"individual_entities\": 15\n  }\n}\n\nUse this enriched context to:\n- Distinguish between group entities and individual entities\n- Understand device capabilities and limitations\n- Generate automations that respect device types (e.g., don't control individual Hue lights when room group is available)\n- Create appropriate service calls based on entity attributes\n\n\n\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\nCLARIFICATION CONTEXT (CRITICAL - USER PROVIDED ANSWERS):\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\nThe user was asked clarifying questions and provided these specific answers. \nYOU MUST USE THESE ANSWERS when generating suggestions. DO NOT IGNORE THEM.\n\n1. Q: Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: 11, living, living_room\nA: Living Room Light\n2. Q: Could you clarify: Action 'turn' is vague - missing details: on, dim, brighten\nA: Yes\n\nCRITICAL REQUIREMENTS (MUST FOLLOW):\n- Use the EXACT devices/locations mentioned in the answers above\n- If the user specified specific devices, use ONLY those devices (e.g., \"all four lights in office\")\n- If the user selected specific entities, use ONLY those entities from the enriched context\n- Respect the user's choices - do NOT use different devices than what they specified\n- If the user said \"all four lights in office\", find ALL FOUR lights from the office area in the enriched context\n- If the user selected specific entities, prioritize those exact entities over generic device names\n- The clarification answers OVERRIDE any assumptions you might make from the original query\n- If the user answered \"office\" for location, use ONLY devices from the office area\n- If the user selected specific entity IDs, use those EXACT entity IDs in devices_involved\n\nDO NOT:\n- Use devices from different locations (e.g., outdoor lights when user said \"office\")\n- Use generic device names when user specified exact devices\n- Ignore user-selected entities\n- Make assumptions that contradict the clarification answers\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\n\n\n\n\n\nCAPABILITY-SPECIFIC AUTOMATION IDEAS:\n- Use available device capabilities creatively\n\nPATTERN GUIDANCE:\nCORE DELIVERY PATTERN\n- Anchor every suggestion to the user's stated intent before expanding\n- Summarize the user scenario in one sentence to keep responses grounded\n- Call out the Home Assistant outcome in plain language before any YAML or technical details\nOUTPUT PROGRESSION\n- FIRST suggestion focuses on immediate fulfillment of the request with minimal prerequisites\n- SECOND suggestion layers in a meaningful enhancement that remains practical for a single-home setup\n\nCLARIFICATION REQUIREMENTS\n- Explicitly reference each answered question so the user sees how their input was applied\n- If any requested entity is unavailable, explain the gap and propose the closest safe alternative\n- Never add extra devices or rooms beyond those confirmed in clarifications\n\nSAFETY CHECKLIST\n- Avoid automations that could leave appliances running unattended for long periods\n- Respect device health scores - suggest manual intervention if all options score below 50\n- Flag actions that modify security sensors or door locks and require explicit confirmation\n\nCREATIVE FLOURISH\n- Tie enhancements to real household benefits such as comfort, energy savings, or ambiance\n- Use no more than one advanced capability (e.g., color loops, adaptive scenes) per suggestion\n- Offer a short note describing why the enhancement is valuable for a single occupant\n\nCRITICAL: DEVICE NAMING REQUIREMENTS:\n- ONLY use devices that are listed in the \"Available devices and capabilities\" section OR the \"ENRICHED ENTITY CONTEXT\" section above\n- Count how many devices are actually available - DO NOT assume a specific number\n- Use ACTUAL device friendly names from the enriched entity context JSON - DO NOT make up generic names like \"Device 1\" or \"office lights\"\n- Reference devices by their EXACT friendly_name from the entities list\n- If the enriched context shows 6 individual lights, list all 6 with their actual names\n- DO NOT use group entity names unless the enriched context shows it's a group entity\n- Example: If enriched context shows [\"Office light 1\", \"Office light 2\", \"Office light 3\"], use those exact names\n\nGenerate EXACTLY 2 suggestions that PROGRESS from CLOSE to your request \u2192 to ENHANCED CREATIVE:\n\nPROGRESSION STRATEGY:\n1. FIRST suggestion: Direct, straightforward automation closely matching the request\n   - Simple implementation\n   - Exactly what was asked for\n   - High confidence (0.9+)\n   \n2. SECOND suggestion: Enhanced variation building on the request\n   - Practical improvements\n   - Leverage device capabilities\n   - Moderate-high confidence (0.8-0.9)\n\nAll suggestions should:\n- Be practical and achievable\n- Leverage the specific capabilities of available devices\n- Be safe and user-friendly\n- Consider device health scores (avoid devices with health_score < 50)\n\nThe progression should show INCREASING CREATIVITY from first to last.\n\nIMPORTANT: Return your response as a JSON array of suggestion objects, each with these fields:\n- description: A detailed description of the automation\n- trigger_summary: What triggers the automation\n- action_summary: What actions will be performed\n- devices_involved: Array of device names - MUST use EXACT friendly_name values from the enriched entity context JSON above\n- capabilities_used: Array of device capabilities being used\n- confidence: A confidence score between 0 and 1 (higher for conservative, lower for creative)\n\nCRITICAL: For devices_involved, extract the exact \"friendly_name\" values from the enriched entity context JSON. Do NOT invent generic names like \"Device 1\" or \"office lights\". Use the actual device names from the entities array in the enriched context.\n\n\u26a0\ufe0f IMPORTANT: If clarification context is provided:\n- The user has already answered specific questions about their automation request\n- Use the EXACT devices, locations, and preferences specified in the clarification answers\n- If the user selected specific entities in Q&A, use ONLY those entities\n- If the user specified \"all four lights in office\", find and list all four lights from the office area\n- The clarification answers take PRECEDENCE over any assumptions from the original query\n- DO NOT use different devices than what the user explicitly selected or confirmed in the Q&A",
+    "filtered_user_prompt": "Based on this query: \"Turn off all living room lights at 11:00 PM every night\n\n(Enriched with user clarifications - see CLARIFICATION CONTEXT below)\"\n\nAvailable devices and capabilities:\n- living_room\n- living room\n\n\n\nENRICHED ENTITY CONTEXT (Complete Entity Information):\n{\n  \"entities\": [\n    {\n      \"entity_id\": \"light.hue_lr_back_left_ceiling\",\n      \"friendly_name\": \"LR Back Left Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: LR Back Left Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"min_color_temp_kelvin\": 2000,\n        \"max_color_temp_kelvin\": 6535,\n        \"min_mireds\": 153,\n        \"max_mireds\": 500,\n        \"effect_list\": [\n          \"off\",\n          \"candle\",\n          \"fire\",\n          \"prism\",\n          \"sparkle\",\n          \"opal\",\n          \"glisten\",\n          \"underwater\",\n          \"cosmos\",\n          \"sunbeam\",\n          \"enchant\",\n          \"sunrise\",\n          \"sunset\"\n        ],\n        \"supported_color_modes\": [\n          \"color_temp\",\n          \"xy\"\n        ],\n        \"effect\": null,\n        \"color_mode\": null,\n        \"brightness\": null,\n        \"color_temp_kelvin\": null,\n        \"color_temp\": null,\n        \"hs_color\": null,\n        \"rgb_color\": null,\n        \"xy_color\": null,\n        \"mode\": \"normal\",\n        \"dynamics\": \"none\",\n        \"friendly_name\": \"LR Back Left Ceiling\",\n        \"supported_features\": 44\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"color_temp\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null,\n      \"available_effects\": [\n        \"off\",\n        \"candle\",\n        \"fire\",\n        \"prism\",\n        \"sparkle\",\n        \"opal\",\n        \"glisten\",\n        \"underwater\",\n        \"cosmos\",\n        \"sunbeam\",\n        \"enchant\",\n        \"sunrise\",\n        \"sunset\"\n      ],\n      \"supported_color_modes\": [\n        \"color_temp\",\n        \"xy\"\n      ]\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_4\",\n      \"friendly_name\": \"LR Front Right Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: LR Front Right Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"min_color_temp_kelvin\": 2000,\n        \"max_color_temp_kelvin\": 6535,\n        \"min_mireds\": 153,\n        \"max_mireds\": 500,\n        \"effect_list\": [\n          \"off\",\n          \"candle\",\n          \"fire\",\n          \"prism\",\n          \"sparkle\",\n          \"opal\",\n          \"glisten\",\n          \"underwater\",\n          \"cosmos\",\n          \"sunbeam\",\n          \"enchant\",\n          \"sunrise\",\n          \"sunset\"\n        ],\n        \"supported_color_modes\": [\n          \"color_temp\",\n          \"xy\"\n        ],\n        \"effect\": \"off\",\n        \"color_mode\": \"xy\",\n        \"brightness\": 14,\n        \"color_temp_kelvin\": null,\n        \"color_temp\": null,\n        \"hs_color\": [\n          22.041,\n          19.216\n        ],\n        \"rgb_color\": [\n          255,\n          224,\n          206\n        ],\n        \"xy_color\": [\n          0.3737,\n          0.3451\n        ],\n        \"mode\": \"normal\",\n        \"dynamics\": \"none\",\n        \"friendly_name\": \"LR Front Right Ceiling\",\n        \"supported_features\": 44\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 14,\n      \"color_temp\": null,\n      \"rgb_color\": [\n        255,\n        224,\n        206\n      ],\n      \"current_effect\": \"off\",\n      \"available_effects\": [\n        \"off\",\n        \"candle\",\n        \"fire\",\n        \"prism\",\n        \"sparkle\",\n        \"opal\",\n        \"glisten\",\n        \"underwater\",\n        \"cosmos\",\n        \"sunbeam\",\n        \"enchant\",\n        \"sunrise\",\n        \"sunset\"\n      ],\n      \"supported_color_modes\": [\n        \"color_temp\",\n        \"xy\"\n      ]\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1\",\n      \"friendly_name\": \"LR Back Right Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: LR Back Right Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"min_color_temp_kelvin\": 2000,\n        \"max_color_temp_kelvin\": 6535,\n        \"min_mireds\": 153,\n        \"max_mireds\": 500,\n        \"effect_list\": [\n          \"off\",\n          \"candle\",\n          \"fire\",\n          \"prism\",\n          \"sparkle\",\n          \"opal\",\n          \"glisten\",\n          \"underwater\",\n          \"cosmos\",\n          \"sunbeam\",\n          \"enchant\",\n          \"sunrise\",\n          \"sunset\"\n        ],\n        \"supported_color_modes\": [\n          \"color_temp\",\n          \"xy\"\n        ],\n        \"effect\": \"off\",\n        \"color_mode\": \"xy\",\n        \"brightness\": 90,\n        \"color_temp_kelvin\": null,\n        \"color_temp\": null,\n        \"hs_color\": [\n          33.767,\n          84.314\n        ],\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"xy_color\": [\n          0.561,\n          0.4042\n        ],\n        \"mode\": \"normal\",\n        \"dynamics\": \"none\",\n        \"friendly_name\": \"LR Back Right Ceiling\",\n        \"supported_features\": 44\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"color_temp\": null,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\",\n      \"available_effects\": [\n        \"off\",\n        \"candle\",\n        \"fire\",\n        \"prism\",\n        \"sparkle\",\n        \"opal\",\n        \"glisten\",\n        \"underwater\",\n        \"cosmos\",\n        \"sunbeam\",\n        \"enchant\",\n        \"sunrise\",\n        \"sunset\"\n      ],\n      \"supported_color_modes\": [\n        \"color_temp\",\n        \"xy\"\n      ]\n    }\n  ],\n  \"summary\": {\n    \"total_entities\": 3,\n    \"group_entities\": 0,\n    \"individual_entities\": 3\n  }\n}\n\nUse this enriched context to:\n- Distinguish between group entities and individual entities\n- Understand device capabilities and limitations\n- Generate automations that respect device types (e.g., don't control individual Hue lights when room group is available)\n- Create appropriate service calls based on entity attributes\n\n\n\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\nCLARIFICATION CONTEXT (CRITICAL - USER PROVIDED ANSWERS):\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\nThe user was asked clarifying questions and provided these specific answers. \nYOU MUST USE THESE ANSWERS when generating suggestions. DO NOT IGNORE THEM.\n\n1. Q: Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: 11, living, living_room\nA: Living Room Light\n2. Q: Could you clarify: Action 'turn' is vague - missing details: on, dim, brighten\nA: Yes\n\nCRITICAL REQUIREMENTS (MUST FOLLOW):\n- Use the EXACT devices/locations mentioned in the answers above\n- If the user specified specific devices, use ONLY those devices (e.g., \"all four lights in office\")\n- If the user selected specific entities, use ONLY those entities from the enriched context\n- Respect the user's choices - do NOT use different devices than what they specified\n- If the user said \"all four lights in office\", find ALL FOUR lights from the office area in the enriched context\n- If the user selected specific entities, prioritize those exact entities over generic device names\n- The clarification answers OVERRIDE any assumptions you might make from the original query\n- If the user answered \"office\" for location, use ONLY devices from the office area\n- If the user selected specific entity IDs, use those EXACT entity IDs in devices_involved\n\nDO NOT:\n- Use devices from different locations (e.g., outdoor lights when user said \"office\")\n- Use generic device names when user specified exact devices\n- Ignore user-selected entities\n- Make assumptions that contradict the clarification answers\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\n\n\n\n\n\nCAPABILITY-SPECIFIC AUTOMATION IDEAS:\n- Use available device capabilities creatively\n\nPATTERN GUIDANCE:\nCORE DELIVERY PATTERN\n- Anchor every suggestion to the user's stated intent before expanding\n- Summarize the user scenario in one sentence to keep responses grounded\n- Call out the Home Assistant outcome in plain language before any YAML or technical details\nOUTPUT PROGRESSION\n- FIRST suggestion focuses on immediate fulfillment of the request with minimal prerequisites\n- SECOND suggestion layers in a meaningful enhancement that remains practical for a single-home setup\n\nCLARIFICATION REQUIREMENTS\n- Explicitly reference each answered question so the user sees how their input was applied\n- If any requested entity is unavailable, explain the gap and propose the closest safe alternative\n- Never add extra devices or rooms beyond those confirmed in clarifications\n\nSAFETY CHECKLIST\n- Avoid automations that could leave appliances running unattended for long periods\n- Respect device health scores - suggest manual intervention if all options score below 50\n- Flag actions that modify security sensors or door locks and require explicit confirmation\n\nCREATIVE FLOURISH\n- Tie enhancements to real household benefits such as comfort, energy savings, or ambiance\n- Use no more than one advanced capability (e.g., color loops, adaptive scenes) per suggestion\n- Offer a short note describing why the enhancement is valuable for a single occupant\n\nCRITICAL: DEVICE NAMING REQUIREMENTS:\n- ONLY use devices that are listed in the \"Available devices and capabilities\" section OR the \"ENRICHED ENTITY CONTEXT\" section above\n- Count how many devices are actually available - DO NOT assume a specific number\n- Use ACTUAL device friendly names from the enriched entity context JSON - DO NOT make up generic names like \"Device 1\" or \"office lights\"\n- Reference devices by their EXACT friendly_name from the entities list\n- If the enriched context shows 6 individual lights, list all 6 with their actual names\n- DO NOT use group entity names unless the enriched context shows it's a group entity\n- Example: If enriched context shows [\"Office light 1\", \"Office light 2\", \"Office light 3\"], use those exact names\n\nGenerate EXACTLY 2 suggestions that PROGRESS from CLOSE to your request \u2192 to ENHANCED CREATIVE:\n\nPROGRESSION STRATEGY:\n1. FIRST suggestion: Direct, straightforward automation closely matching the request\n   - Simple implementation\n   - Exactly what was asked for\n   - High confidence (0.9+)\n   \n2. SECOND suggestion: Enhanced variation building on the request\n   - Practical improvements\n   - Leverage device capabilities\n   - Moderate-high confidence (0.8-0.9)\n\nAll suggestions should:\n- Be practical and achievable\n- Leverage the specific capabilities of available devices\n- Be safe and user-friendly\n- Consider device health scores (avoid devices with health_score < 50)\n\nThe progression should show INCREASING CREATIVITY from first to last.\n\nIMPORTANT: Return your response as a JSON array of suggestion objects, each with these fields:\n- description: A detailed description of the automation\n- trigger_summary: What triggers the automation\n- action_summary: What actions will be performed\n- devices_involved: Array of device names - MUST use EXACT friendly_name values from the enriched entity context JSON above\n- capabilities_used: Array of device capabilities being used\n- confidence: A confidence score between 0 and 1 (higher for conservative, lower for creative)\n\nCRITICAL: For devices_involved, extract the exact \"friendly_name\" values from the enriched entity context JSON. Do NOT invent generic names like \"Device 1\" or \"office lights\". Use the actual device names from the entities array in the enriched context.\n\n\u26a0\ufe0f IMPORTANT: If clarification context is provided:\n- The user has already answered specific questions about their automation request\n- Use the EXACT devices, locations, and preferences specified in the clarification answers\n- If the user selected specific entities in Q&A, use ONLY those entities\n- If the user specified \"all four lights in office\", find and list all four lights from the office area\n- The clarification answers take PRECEDENCE over any assumptions from the original query\n- DO NOT use different devices than what the user explicitly selected or confirmed in the Q&A\n\n[NOTE: Entity context filtered to show only 3 entities used in this suggestion out of 37 available]",
+    "openai_response": [
+      {
+        "description": "Turn off the Living Room Light every night at 11:00 PM, matching your request to turn off all living room lights on a fixed schedule. Based on your clarification that you meant \u201cLiving Room Light,\u201d and the entities available, this automation will switch off all ceiling lights identified as living room ceiling lights: \u201cLR Back Left Ceiling\u201d, \u201cLR Front Right Ceiling\u201d, and \u201cLR Back Right Ceiling.\u201d",
+        "trigger_summary": "Time-based trigger at 23:00 (11:00 PM) every day.",
+        "action_summary": "At 11:00 PM, send a `light.turn_off` command to LR Back Left Ceiling, LR Front Right Ceiling, and LR Back Right Ceiling so that the Living Room Light grouping is effectively turned off.",
+        "devices_involved": [
+          "LR Back Left Ceiling",
+          "LR Front Right Ceiling",
+          "LR Back Right Ceiling"
+        ],
+        "capabilities_used": [
+          "power_state"
+        ],
+        "confidence": 0.93
+      },
+      {
+        "description": "Enhanced bedtime living room shutdown: every night at 11:00 PM, the Living Room Light (LR Back Left Ceiling, LR Front Right Ceiling, LR Back Right Ceiling) will gently dim over 60 seconds and then turn off, giving you a visual cue that it\u2019s night-time without an abrupt blackout. This respects your clarification that the target is the \u201cLiving Room Light\u201d and focuses only on those living-room ceiling lights.",
+        "trigger_summary": "Time-based trigger at 23:00 (11:00 PM) every day.",
+        "action_summary": "At 11:00 PM, if any of the three living room ceiling lights are on, first set their brightness to a low level (e.g., about 10\u201315%) to simulate a fade-down effect, then after a 60-second delay, send `light.turn_off` to LR Back Left Ceiling, LR Front Right Ceiling, and LR Back Right Ceiling.",
+        "devices_involved": [
+          "LR Back Left Ceiling",
+          "LR Front Right Ceiling",
+          "LR Back Right Ceiling"
+        ],
+        "capabilities_used": [
+          "brightness",
+          "power_state"
+        ],
+        "confidence": 0.86
+      }
+    ],
+    "token_usage": {
+      "prompt_tokens": 5822,
+      "completion_tokens": 483,
+      "total_tokens": 6305,
+      "cost_usd": 0.0121,
+      "model": "gpt-5.1",
+      "endpoint": "ask_ai_suggestions"
+    },
+    "entity_context_stats": {
+      "total_entities_available": 37,
+      "entities_used_in_suggestion": 3,
+      "filtered_entity_context_json": "{\n  \"entities\": [\n    {\n      \"entity_id\": \"light.hue_lr_back_left_ceiling\",\n      \"friendly_name\": \"LR Back Left Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"off\",\n      \"description\": \"controls individual device: LR Back Left Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"min_color_temp_kelvin\": 2000,\n        \"max_color_temp_kelvin\": 6535,\n        \"min_mireds\": 153,\n        \"max_mireds\": 500,\n        \"effect_list\": [\n          \"off\",\n          \"candle\",\n          \"fire\",\n          \"prism\",\n          \"sparkle\",\n          \"opal\",\n          \"glisten\",\n          \"underwater\",\n          \"cosmos\",\n          \"sunbeam\",\n          \"enchant\",\n          \"sunrise\",\n          \"sunset\"\n        ],\n        \"supported_color_modes\": [\n          \"color_temp\",\n          \"xy\"\n        ],\n        \"effect\": null,\n        \"color_mode\": null,\n        \"brightness\": null,\n        \"color_temp_kelvin\": null,\n        \"color_temp\": null,\n        \"hs_color\": null,\n        \"rgb_color\": null,\n        \"xy_color\": null,\n        \"mode\": \"normal\",\n        \"dynamics\": \"none\",\n        \"friendly_name\": \"LR Back Left Ceiling\",\n        \"supported_features\": 44\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": null,\n      \"color_temp\": null,\n      \"rgb_color\": null,\n      \"current_effect\": null,\n      \"available_effects\": [\n        \"off\",\n        \"candle\",\n        \"fire\",\n        \"prism\",\n        \"sparkle\",\n        \"opal\",\n        \"glisten\",\n        \"underwater\",\n        \"cosmos\",\n        \"sunbeam\",\n        \"enchant\",\n        \"sunrise\",\n        \"sunset\"\n      ],\n      \"supported_color_modes\": [\n        \"color_temp\",\n        \"xy\"\n      ]\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1_4\",\n      \"friendly_name\": \"LR Front Right Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: LR Front Right Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"min_color_temp_kelvin\": 2000,\n        \"max_color_temp_kelvin\": 6535,\n        \"min_mireds\": 153,\n        \"max_mireds\": 500,\n        \"effect_list\": [\n          \"off\",\n          \"candle\",\n          \"fire\",\n          \"prism\",\n          \"sparkle\",\n          \"opal\",\n          \"glisten\",\n          \"underwater\",\n          \"cosmos\",\n          \"sunbeam\",\n          \"enchant\",\n          \"sunrise\",\n          \"sunset\"\n        ],\n        \"supported_color_modes\": [\n          \"color_temp\",\n          \"xy\"\n        ],\n        \"effect\": \"off\",\n        \"color_mode\": \"xy\",\n        \"brightness\": 14,\n        \"color_temp_kelvin\": null,\n        \"color_temp\": null,\n        \"hs_color\": [\n          22.041,\n          19.216\n        ],\n        \"rgb_color\": [\n          255,\n          224,\n          206\n        ],\n        \"xy_color\": [\n          0.3737,\n          0.3451\n        ],\n        \"mode\": \"normal\",\n        \"dynamics\": \"none\",\n        \"friendly_name\": \"LR Front Right Ceiling\",\n        \"supported_features\": 44\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 14,\n      \"color_temp\": null,\n      \"rgb_color\": [\n        255,\n        224,\n        206\n      ],\n      \"current_effect\": \"off\",\n      \"available_effects\": [\n        \"off\",\n        \"candle\",\n        \"fire\",\n        \"prism\",\n        \"sparkle\",\n        \"opal\",\n        \"glisten\",\n        \"underwater\",\n        \"cosmos\",\n        \"sunbeam\",\n        \"enchant\",\n        \"sunrise\",\n        \"sunset\"\n      ],\n      \"supported_color_modes\": [\n        \"color_temp\",\n        \"xy\"\n      ]\n    },\n    {\n      \"entity_id\": \"light.hue_color_downlight_1\",\n      \"friendly_name\": \"LR Back Right Ceiling\",\n      \"name\": null,\n      \"name_by_user\": null,\n      \"original_name\": null,\n      \"domain\": \"light\",\n      \"type\": \"individual\",\n      \"state\": \"on\",\n      \"description\": \"controls individual device: LR Back Right Ceiling\",\n      \"capabilities\": [\n        \"flash\",\n        \"rgb_color\",\n        \"white_value\",\n        \"brightness\"\n      ],\n      \"supported_features\": 44,\n      \"available_services\": [],\n      \"icon\": null,\n      \"device_class\": null,\n      \"unit_of_measurement\": null,\n      \"attributes\": {\n        \"min_color_temp_kelvin\": 2000,\n        \"max_color_temp_kelvin\": 6535,\n        \"min_mireds\": 153,\n        \"max_mireds\": 500,\n        \"effect_list\": [\n          \"off\",\n          \"candle\",\n          \"fire\",\n          \"prism\",\n          \"sparkle\",\n          \"opal\",\n          \"glisten\",\n          \"underwater\",\n          \"cosmos\",\n          \"sunbeam\",\n          \"enchant\",\n          \"sunrise\",\n          \"sunset\"\n        ],\n        \"supported_color_modes\": [\n          \"color_temp\",\n          \"xy\"\n        ],\n        \"effect\": \"off\",\n        \"color_mode\": \"xy\",\n        \"brightness\": 90,\n        \"color_temp_kelvin\": null,\n        \"color_temp\": null,\n        \"hs_color\": [\n          33.767,\n          84.314\n        ],\n        \"rgb_color\": [\n          255,\n          161,\n          40\n        ],\n        \"xy_color\": [\n          0.561,\n          0.4042\n        ],\n        \"mode\": \"normal\",\n        \"dynamics\": \"none\",\n        \"friendly_name\": \"LR Back Right Ceiling\",\n        \"supported_features\": 44\n      },\n      \"is_group\": false,\n      \"integration\": \"unknown\",\n      \"brightness\": 90,\n      \"color_temp\": null,\n      \"rgb_color\": [\n        255,\n        161,\n        40\n      ],\n      \"current_effect\": \"off\",\n      \"available_effects\": [\n        \"off\",\n        \"candle\",\n        \"fire\",\n        \"prism\",\n        \"sparkle\",\n        \"opal\",\n        \"glisten\",\n        \"underwater\",\n        \"cosmos\",\n        \"sunbeam\",\n        \"enchant\",\n        \"sunrise\",\n        \"sunset\"\n      ],\n      \"supported_color_modes\": [\n        \"color_temp\",\n        \"xy\"\n      ]\n    }\n  ],\n  \"summary\": {\n    \"total_entities\": 3,\n    \"group_entities\": 0,\n    \"individual_entities\": 3\n  }\n}"
+    },
+    "clarification_context": {
+      "original_query": "Turn off all living room lights at 11:00 PM every night",
+      "questions_and_answers": [
+        {
+          "question": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: 11, living, living_room",
+          "answer": "Living Room Light",
+          "selected_entities": null,
+          "category": "device"
+        },
+        {
+          "question": "Could you clarify: Action 'turn' is vague - missing details: on, dim, brighten",
+          "answer": "Yes",
+          "selected_entities": null,
+          "category": "action"
+        }
+      ]
+    }
+  },
+  "technical_prompt": {
+    "alias": "Turn off the Living Room Light every night at 11:00 PM, matching your request to turn off all living",
+    "description": "Turn off the Living Room Light every night at 11:00 PM, matching your request to turn off all living room lights on a fixed schedule. Based on your clarification that you meant \u201cLiving Room Light,\u201d and the entities available, this automation will switch off all ceiling lights identified as living room ceiling lights: \u201cLR Back Left Ceiling\u201d, \u201cLR Front Right Ceiling\u201d, and \u201cLR Back Right Ceiling.\u201d",
+    "trigger": {
+      "entities": [
+        {
+          "entity_id": "light.hue_lr_back_left_ceiling",
+          "friendly_name": "LR Back Left Ceiling",
+          "domain": "light",
+          "platform": "state",
+          "from": "off",
+          "to": "on"
+        },
+        {
+          "entity_id": "light.hue_color_downlight_1_4",
+          "friendly_name": "LR Front Right Ceiling",
+          "domain": "light",
+          "platform": "state",
+          "from": "off",
+          "to": "on"
+        },
+        {
+          "entity_id": "light.hue_color_downlight_1",
+          "friendly_name": "LR Back Right Ceiling",
+          "domain": "light",
+          "platform": "state",
+          "from": "off",
+          "to": "on"
+        }
+      ],
+      "platform": "state"
+    },
+    "action": {
+      "entities": [
+        {
+          "entity_id": "light.hue_lr_back_left_ceiling",
+          "friendly_name": "LR Back Left Ceiling",
+          "domain": "light",
+          "service_calls": [
+            {
+              "service": "light.turn_on",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "entity_id": "light.hue_color_downlight_1_4",
+          "friendly_name": "LR Front Right Ceiling",
+          "domain": "light",
+          "service_calls": [
+            {
+              "service": "light.turn_on",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "entity_id": "light.hue_color_downlight_1",
+          "friendly_name": "LR Back Right Ceiling",
+          "domain": "light",
+          "service_calls": [
+            {
+              "service": "light.turn_on",
+              "parameters": {}
+            }
+          ]
+        }
+      ],
+      "service_calls": [
+        {
+          "service": "light.turn_on",
+          "parameters": {}
+        },
+        {
+          "service": "light.turn_on",
+          "parameters": {}
+        },
+        {
+          "service": "light.turn_on",
+          "parameters": {}
+        }
+      ]
+    },
+    "conditions": [],
+    "entity_capabilities": {
+      "light.hue_lr_back_left_ceiling": {
+        "capabilities": [],
+        "supported_features": 44,
+        "domain": "light",
+        "friendly_name": "LR Back Left Ceiling",
+        "attributes": {
+          "min_color_temp_kelvin": 2000,
+          "max_color_temp_kelvin": 6535,
+          "min_mireds": 153,
+          "max_mireds": 500,
+          "effect_list": [
+            "off",
+            "candle",
+            "fire",
+            "prism",
+            "sparkle",
+            "opal",
+            "glisten",
+            "underwater",
+            "cosmos",
+            "sunbeam",
+            "enchant",
+            "sunrise",
+            "sunset"
+          ],
+          "supported_color_modes": [
+            "color_temp",
+            "xy"
+          ],
+          "effect": null,
+          "color_mode": null,
+          "brightness": null,
+          "color_temp_kelvin": null,
+          "color_temp": null,
+          "hs_color": null,
+          "rgb_color": null,
+          "xy_color": null,
+          "mode": "normal",
+          "dynamics": "none",
+          "friendly_name": "LR Back Left Ceiling",
+          "supported_features": 44
+        }
+      },
+      "light.hue_color_downlight_1_4": {
+        "capabilities": [],
+        "supported_features": 44,
+        "domain": "light",
+        "friendly_name": "LR Front Right Ceiling",
+        "attributes": {
+          "min_color_temp_kelvin": 2000,
+          "max_color_temp_kelvin": 6535,
+          "min_mireds": 153,
+          "max_mireds": 500,
+          "effect_list": [
+            "off",
+            "candle",
+            "fire",
+            "prism",
+            "sparkle",
+            "opal",
+            "glisten",
+            "underwater",
+            "cosmos",
+            "sunbeam",
+            "enchant",
+            "sunrise",
+            "sunset"
+          ],
+          "supported_color_modes": [
+            "color_temp",
+            "xy"
+          ],
+          "effect": "off",
+          "color_mode": "xy",
+          "brightness": 14,
+          "color_temp_kelvin": null,
+          "color_temp": null,
+          "hs_color": [
+            22.041,
+            19.216
+          ],
+          "rgb_color": [
+            255,
+            224,
+            206
+          ],
+          "xy_color": [
+            0.3737,
+            0.3451
+          ],
+          "mode": "normal",
+          "dynamics": "none",
+          "friendly_name": "LR Front Right Ceiling",
+          "supported_features": 44
+        }
+      },
+      "light.hue_color_downlight_1": {
+        "capabilities": [],
+        "supported_features": 44,
+        "domain": "light",
+        "friendly_name": "LR Back Right Ceiling",
+        "attributes": {
+          "min_color_temp_kelvin": 2000,
+          "max_color_temp_kelvin": 6535,
+          "min_mireds": 153,
+          "max_mireds": 500,
+          "effect_list": [
+            "off",
+            "candle",
+            "fire",
+            "prism",
+            "sparkle",
+            "opal",
+            "glisten",
+            "underwater",
+            "cosmos",
+            "sunbeam",
+            "enchant",
+            "sunrise",
+            "sunset"
+          ],
+          "supported_color_modes": [
+            "color_temp",
+            "xy"
+          ],
+          "effect": "off",
+          "color_mode": "xy",
+          "brightness": 90,
+          "color_temp_kelvin": null,
+          "color_temp": null,
+          "hs_color": [
+            33.767,
+            84.314
+          ],
+          "rgb_color": [
+            255,
+            161,
+            40
+          ],
+          "xy_color": [
+            0.561,
+            0.4042
+          ],
+          "mode": "normal",
+          "dynamics": "none",
+          "friendly_name": "LR Back Right Ceiling",
+          "supported_features": 44
+        }
+      }
+    },
+    "metadata": {
+      "query": "Original request: Turn off all living room lights at 11:00 PM every night\n\nUser clarifications:\n1. Question: Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: 11, living, living_room\n   Answer: Living Room Light\n2. Question: Could you clarify: Action 'turn' is vague - missing details: on, dim, brighten\n   Answer: Yes",
+      "devices_involved": [
+        "LR Back Left Ceiling",
+        "LR Front Right Ceiling",
+        "LR Back Right Ceiling"
+      ],
+      "confidence": 0.93,
+      "trigger_summary": "Time-based trigger at 23:00 (11:00 PM) every day.",
+      "action_summary": "At 11:00 PM, send a `light.turn_off` command to LR Back Left Ceiling, LR Front Right Ceiling, and LR Back Right Ceiling so that the Living Room Light grouping is effectively turned off."
+    }
+  },
+  "device_mentions": {
+    "LR Back Left Ceiling": "light.hue_lr_back_left_ceiling",
+    "LR Front Right Ceiling": "light.hue_color_downlight_1_4",
+    "LR Back Right Ceiling": "light.hue_color_downlight_1",
+    "light": "light.hue_lr_back_left_ceiling"
+  },
+  "entity_ids_used": [
+    "light.hue_lr_back_left_ceiling",
+    "light.hue_color_downlight_1_4",
+    "light.hue_color_downlight_1"
+  ],
+  "entity_id_annotations": {
+    "LR Back Left Ceiling": {
+      "entity_id": "light.hue_lr_back_left_ceiling",
+      "domain": "light",
+      "friendly_name": "LR Back Left Ceiling",
+      "mentioned_in": [
+        "description",
+        "action_summary"
+      ]
+    },
+    "LR Front Right Ceiling": {
+      "entity_id": "light.hue_color_downlight_1_4",
+      "domain": "light",
+      "friendly_name": "LR Front Right Ceiling",
+      "mentioned_in": [
+        "description",
+        "action_summary"
+      ]
+    },
+    "LR Back Right Ceiling": {
+      "entity_id": "light.hue_color_downlight_1",
+      "domain": "light",
+      "friendly_name": "LR Back Right Ceiling",
+      "mentioned_in": [
+        "description",
+        "action_summary"
+      ]
+    }
+  },
+  "metadata": {
+    "guardrail": {
+      "label": "toxic",
+      "score": 0.0011927179293707013,
+      "flagged": false
+    }
+  },
+  "conversation_history": {
+    "original_query": "Turn off all living room lights at 11:00 PM every night",
+    "questions": [
+      {
+        "id": "q1",
+        "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: 11, living, living_room",
+        "category": "device"
+      },
+      {
+        "id": "q2",
+        "question_text": "Could you clarify: Action 'turn' is vague - missing details: on, dim, brighten",
+        "category": "action"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "q1",
+        "answer_text": "Living Room Light",
+        "selected_entities": null
+      },
+      {
+        "question_id": "q2",
+        "answer_text": "Yes",
+        "selected_entities": null
+      }
+    ]
+  }
+}

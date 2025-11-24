@@ -3,10 +3,10 @@
   "prompt_name": "Time-Based Multi-Light",
   "prompt_text": "At sunset, turn on the Office WLED to 60% brightness and set it to a warm white color",
   "complexity": "Medium",
-  "query_id": "query-0b67f6e6",
-  "suggestion_id": "ask-ai-79170bfa",
-  "automation_id": "automation.office_wled_sunset_warm_60pct_1763947915_2e09abc9",
-  "automation_yaml": "id: 'office_wled_sunset_warm_60pct'\nalias: Office WLED Sunset Warm 60%\ndescription: \"At sunset, turn on the Office WLED to 60% brightness with a warm white color.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 60\n      rgb_color:\n        - 255\n        - 190\n        - 120",
+  "query_id": "query-a08be6b8",
+  "suggestion_id": "ask-ai-054d861e",
+  "automation_id": "automation.office_wled_sunset_warm_white_1763979647_0008bd8b",
+  "automation_yaml": "id: 'office_wled_sunset_warm_white'\nalias: Office WLED Sunset Warm White\ndescription: \"At sunset, turn on the Office WLED to ~60% brightness with warm white color\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 153\n      rgb_color:\n        - 255\n        - 180\n        - 120",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -49,7 +49,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T17:31:44.011810"
+      "timestamp": "2025-11-24T02:20:27.590925"
     }
   ],
   "automation_score": 80.0,
@@ -57,5 +57,5 @@
   "total_score": 89.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T17:31:42.903227"
+  "timestamp": "2025-11-24T02:20:26.031636"
 }

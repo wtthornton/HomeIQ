@@ -1,0 +1,80 @@
+{
+  "prompt_id": "prompt-6-medium",
+  "prompt_name": "Conditional Brightness",
+  "prompt_text": "When the living room lights are turned on after 8 PM, automatically dim them to 40% brightness",
+  "complexity": "Medium",
+  "query_id": "query-21e0a875",
+  "suggestion_id": "ask-ai-1bc5acd9",
+  "automation_id": "automation.living_room_lights_dim_after_8pm_1763980090_d8fbac7a",
+  "automation_yaml": "id: 'living_room_lights_dim_after_8pm'\nalias: Living Room Lights - Dim to 40 Percent After 8 PM\ndescription: \"When LR ceiling lights turn on after 8 PM - dim to 40% brightness\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id:\n      - light.hue_color_downlight_1_4\n      - light.hue_color_downlight_1\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.hue_color_downlight_1_4\n        - light.hue_color_downlight_1\n    data:\n      brightness_pct: 40",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, living_room",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: off, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q3",
+          "category": "timing",
+          "question_text": "Could you clarify: Timing sequence is unclear - should actions happen simultaneously or sequentially?",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Living Room Light",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q3",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-24T02:27:32.240780"
+    }
+  ],
+  "automation_score": 60.0,
+  "yaml_score": 100.0,
+  "total_score": 79.0,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-24T02:27:30.872615"
+}

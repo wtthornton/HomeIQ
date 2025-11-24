@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-3f8f87d0",
+  "query_id": "clarify-0620591e",
+  "status": "approved",
+  "automation_id": "automation.office_wled_living_room_scene_automation_1763980267_d9d95af6",
+  "automation_yaml": "id: 'office_wled_living_room_scene_automation'\nalias: Office WLED - Living Room 10 Minute Focus\ndescription: \"When Office WLED turns on, snapshot its state, set Living Room light to 80% for 10 minutes, then restore Office WLED and turn Living Room off.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_focus\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_focus\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

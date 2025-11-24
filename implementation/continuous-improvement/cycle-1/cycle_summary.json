@@ -1,8 +1,8 @@
 {
   "cycle_number": 1,
-  "overall_score": 85.83333333333333,
+  "overall_score": 87.33333333333333,
   "all_successful": true,
-  "timestamp": "2025-11-24T00:23:55.011740",
+  "timestamp": "2025-11-24T02:05:59.164862",
   "prompt_results": [
     {
       "prompt_id": "prompt-1-simple",
@@ -96,7 +96,7 @@
       "prompt_id": "prompt-12-very-complex",
       "prompt_name": "State Restoration with Conditions",
       "complexity": "Very Complex",
-      "total_score": 76.5,
+      "total_score": 99.0,
       "success": true,
       "error": null
     },

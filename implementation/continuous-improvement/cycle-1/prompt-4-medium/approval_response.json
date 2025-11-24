@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-8da280da",
-  "query_id": "clarify-ed1c526d",
+  "suggestion_id": "ask-ai-c2df0530",
+  "query_id": "clarify-6fd863aa",
   "status": "approved",
-  "automation_id": "automation.living_room_evening_18_00_1763972691_d5f81e86",
-  "automation_yaml": "id: 'living_room_evening_18_00'\nalias: Living Room Evening Lights\ndescription: \"Between 6 PM and 11 PM every day, turn on the Living Room light to 80% brightness at 6 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80",
+  "automation_id": "automation.lr_evening_lights_1800_1763978841_31ce56de",
+  "automation_yaml": "id: 'lr_evening_lights_1800'\nalias: Living Room Ceiling Lights 6PM On\ndescription: \"Between 6:00 PM and 11:00 PM every day, set the Living Room ceiling lights to 80% brightness at 6 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.hue_lr_back_left_ceiling\n        - light.hue_color_downlight_1_4\n        - light.hue_color_downlight_1\n    data:\n      brightness_pct: 80",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

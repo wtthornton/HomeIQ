@@ -1,15 +1,15 @@
 Cycle 3 Execution Log
 ================================================================================
 
-Timestamp: 2025-11-23T17:30:43.512775
-Overall Score: 86.86/100
-All Successful: False
+Timestamp: 2025-11-24T02:18:38.698649
+Overall Score: 87.33/100
+All Successful: True
 Number of Prompts: 15
 
   Simple Time-Based Light (Simple): ✓ 89.00/100
   Simple Light Control (Simple): ✓ 89.00/100
   Basic Schedule (Simple): ✓ 89.00/100
-  Time-Based Conditional Lighting (Medium): ✓ 79.00/100
+  Time-Based Conditional Lighting (Medium): ✓ 99.00/100
   Time-Based Multi-Light (Medium): ✓ 89.00/100
   Conditional Brightness (Medium): ✓ 79.00/100
   Multi-Area Lighting (Medium): ✓ 91.50/100
@@ -17,7 +17,7 @@ Number of Prompts: 15
   Sequential Actions (Complex): ✓ 81.50/100
   Time-Based Sequence (Complex): ✓ 91.50/100
   Conditional Chain (Complex): ✓ 81.50/100
-  State Restoration with Conditions (Very Complex): ✗ Failed: Approval failed: Automation contains invalid entity IDs (Type: invalid_entities). Details: Invalid entity IDs in YAML: script.office_wled_random_show
+  State Restoration with Conditions (Very Complex): ✓ 91.50/100
   Complex State Management (Very Complex): ✓ 81.50/100
-  Complex Conditional Logic (Extremely Complex): ✓ 91.50/100
-  Multi-Conditional with Choose (Extremely Complex): ✓ 91.50/100
+  Complex Conditional Logic (Extremely Complex): ✓ 76.50/100
+  Multi-Conditional with Choose (Extremely Complex): ✓ 89.00/100

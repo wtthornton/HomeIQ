@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-686c0483",
-  "query_id": "clarify-c8699d4e",
+  "suggestion_id": "ask-ai-2c87e1b6",
+  "query_id": "clarify-0b3f5d3b",
   "status": "approved",
-  "automation_id": "automation.office_wled_7am_on_1763972933_810df1f2",
-  "automation_yaml": "id: 'office_wled_7am_on'\nalias: Office WLED on at 7 AM\ndescription: \"Turn on the Office WLED every day at 7:00 AM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '07:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
+  "automation_id": "automation.office_wled_7am_on_1763979149_4df104f1",
+  "automation_yaml": "id: 'office_wled_7am_on'\nalias: Turn On Office WLED at 7 AM\ndescription: \"Turn on the Office WLED strip every day at 7:00 AM at ~70% brightness\"\nmode: single\ntrigger:\n  - platform: time\n    at: '07:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 70",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

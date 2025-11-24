@@ -1,46 +1,20 @@
 {
-  "suggestion_id": "ask-ai-a819b24f",
-  "query_id": "clarify-6e07d6d3",
+  "suggestion_id": "ask-ai-4633dea8",
+  "query_id": "clarify-e35584de",
   "status": "approved",
-  "automation_id": "automation.living_room_wled_night_pulse_1763972813_e9e80712",
-  "automation_yaml": "id: 'living_room_wled_night_pulse'\nalias: Living Room Night WLED Pulse\ndescription: \"When the Living Room light is turned on between 21:00 and 23:00, briefly turn on the Office WLED at low brightness, wait 10 seconds, then turn it off.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '21:00:00'\n    before: '23:00:00'\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_pulse\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      rgb_color:\n        - 51\n        - 51\n        - 51\n  - delay: '00:00:10'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_pulse",
+  "automation_id": "automation.living_room_on_office_wled_pulse_1763979017_bb9bb0de",
+  "automation_yaml": "id: 'living_room_on_office_wled_pulse'\nalias: Living room on \u2192 Office WLED 20% pulse\ndescription: \"When any living room light is turned on between 9 PM and 11 PM, briefly activate the Office WLED at low brightness, then turn it off.\"\nmode: restart\ntrigger:\n  - platform: state\n    # NOTE: Select your actual living room light entities in the UI for this trigger.\n    entity_id: []\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '21:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 20\n  - delay: '00:00:10'\n  - service: light.turn_off\n    target:\n      entity_id: light.wled",
   "ready_to_deploy": true,
-  "warnings": [
-    "Entity not found: scene.office_wled_before_pulse"
-  ],
+  "warnings": [],
   "message": "Automation created and enabled successfully",
   "safety_report": {
     "safe": true,
-    "issues": [
-      {
-        "severity": "warning",
-        "category": "availability",
-        "message": "Entity not found: scene.office_wled_before_pulse",
-        "details": {
-          "entity_id": "scene.office_wled_before_pulse",
-          "was_validated": false,
-          "suggestions": []
-        },
-        "recommendation": "Verify entity scene.office_wled_before_pulse exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
-      }
-    ],
+    "issues": [],
     "critical_issues": [],
-    "warnings": [
-      {
-        "severity": "warning",
-        "category": "availability",
-        "message": "Entity not found: scene.office_wled_before_pulse",
-        "details": {
-          "entity_id": "scene.office_wled_before_pulse",
-          "was_validated": false,
-          "suggestions": []
-        },
-        "recommendation": "Verify entity scene.office_wled_before_pulse exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
-      }
-    ],
+    "warnings": [],
     "info": [],
     "coverage": 1.0,
-    "message": "Validation passed with warnings"
+    "message": "Validation passed"
   },
   "safe": true
 }

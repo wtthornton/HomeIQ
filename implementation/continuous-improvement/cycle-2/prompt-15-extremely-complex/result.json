@@ -3,10 +3,10 @@
   "prompt_name": "Multi-Conditional with Choose",
   "prompt_text": "When any living room light changes state, check the time and the current brightness of the Office WLED. If it's daytime (6 AM to 6 PM) and the Office WLED is below 50%, turn it on to 70%. If it's nighttime (6 PM to 6 AM) and any living room light is above 60%, dim the Office WLED to 30%. If the Office WLED is already at the target brightness, do nothing. Wait 2 seconds between each check and action.",
   "complexity": "Extremely Complex",
-  "query_id": "query-94e8e3f7",
-  "suggestion_id": "ask-ai-ba56352d",
-  "automation_id": "automation.living_office_wled_brightness_follow_1763973187_e317e273",
-  "automation_yaml": "id: 'living_office_wled_brightness_follow'\nalias: Living Room to Office WLED Brightness Follow\ndescription: \"Basic brightness-following automation between the Living Room and the Office WLED.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\naction:\n  - delay: '00:00:02'\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '18:00:00'\n        sequence:\n          - variables:\n              office_brightness_pct: >-\n                {{ 0 if states('light.wled') != 'on'\n                   else ((state_attr('light.wled','brightness') or 0) / 255 * 100) | round(0) }}\n          - condition: template\n            value_template: \"{{ office_brightness_pct < 70 }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 70\n      - conditions:\n          - condition: or\n            conditions:\n              - condition: time\n                after: '18:00:00'\n              - condition: time\n                before: '06:00:00'\n        sequence:\n          - condition: state\n            entity_id: light.living_room_2\n            state: 'on'\n          - variables:\n              living_room_brightness_pct: >-\n                {{ ((state_attr('light.living_room_2','brightness') or 0) / 255 * 100) | round(0) }}\n          - condition: template\n            value_template: \"{{ living_room_brightness_pct > 60 }}\"\n          - variables:\n              office_brightness_pct: >-\n                {{ 0 if states('light.wled') != 'on'\n                   else ((state_attr('light.wled','brightness') or 0) / 255 * 100) | round(0) }}\n          - condition: template\n            value_template: \"{{ office_brightness_pct != 30 }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 30",
+  "query_id": "query-5a1eb82f",
+  "suggestion_id": "ask-ai-90399a3e",
+  "automation_id": null,
+  "automation_yaml": "id: 'office_wled_follow_living_room_brightness_time_based'\nalias: Office WLED \u2013 Follow Living Room Brightness by Time\ndescription: \"Straightforward brightness control for the Office WLED based on time of day and living room light state changes.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id:\n      # Replace these with your actual living room light entities, for example:\n      # - light.living_room_main\n      # - light.living_room_lamp\nconditions: []\naction:\n  - delay: \"00:00:02\"\n  - variables:\n      is_daytime: \"{{ 6 <= now().hour < 18 }}\"\n      office_bright_pct: >-\n        {% set b = state_attr('light.wled', 'brightness') %}\n        {% if b is number %}{{ (b / 255 * 100) | round(0) }}{% else %}0{% endif %}\n      trigger_bright_pct: >-\n        {% set b = state_attr(trigger.entity_id, 'brightness') %}\n        {% if b is number %}{{ (b / 255 * 100) | round(0) }}{% else %}0{% endif %}\n  - choose:\n      - conditions:\n          - condition: template\n            value_template: \"{{ is_daytime | bool }}\"\n          - condition: template\n            value_template: \"{{ office_bright_pct < 50 }}\"\n          - condition: template\n            value_template: \"{{ office_bright_pct != 70 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 70\n      - conditions:\n          - condition: template\n            value_template: \"{{ not (is_daytime | bool) }}\"\n          - condition: template\n            value_template: \"{{ trigger_bright_pct > 60 }}\"\n          - condition: template\n            value_template: \"{{ office_bright_pct != 30 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 30",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, target brightness, office wled, office, living_room",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: target brightness, living_room, office wled, office, living",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T00:32:45.453003"
+      "timestamp": "2025-11-24T02:18:00.949366"
     }
   ],
   "automation_score": 85.0,
@@ -59,5 +59,5 @@
   "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T00:32:44.094345"
+  "timestamp": "2025-11-24T02:17:59.388549"
 }

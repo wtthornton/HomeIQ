@@ -9,23 +9,41 @@ Correct: DELETE /api/config/automation/config/{id-from-attributes}
 Wrong:   DELETE /api/config/automation/config/{entity_id}
 """
 import asyncio
+import os
+import sys
+from dotenv import load_dotenv
 import aiohttp
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 async def main():
-    # Load config
-    env_vars = {}
-    with open(".env", encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                key, value = line.split("=", 1)
-                env_vars[key] = value
+    # Get Home Assistant configuration from environment variables
+    # Support both standardized and legacy variable names
+    url = (
+        os.getenv('HOME_ASSISTANT_URL') or 
+        os.getenv('HA_HTTP_URL') or 
+        os.getenv('HA_URL')
+    )
+    token = (
+        os.getenv('HOME_ASSISTANT_TOKEN') or 
+        os.getenv('HA_TOKEN')
+    )
     
-    url = env_vars.get("HA_HTTP_URL")
-    token = env_vars.get("HA_TOKEN")
+    # Validate configuration
+    if not url:
+        print("ERROR: Home Assistant URL not found in .env file")
+        print("Please set HOME_ASSISTANT_URL (or HA_HTTP_URL/HA_URL for legacy)")
+        sys.exit(1)
+    
+    if not token:
+        print("ERROR: Home Assistant token not found in .env file")
+        print("Please set HOME_ASSISTANT_TOKEN (or HA_TOKEN for legacy)")
+        sys.exit(1)
+    
+    # Normalize URL (remove trailing slash, ensure http/https)
+    url = url.rstrip('/').replace('ws://', 'http://').replace('wss://', 'https://')
     
     print(f"Connecting to {url}...")
     print()
@@ -33,10 +51,32 @@ async def main():
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     
     async with aiohttp.ClientSession() as session:
+        # Test connection first
+        try:
+            async with session.get(f"{url}/api/", headers=headers) as resp:
+                if resp.status == 401:
+                    print("ERROR: Authentication failed. Please check your token.")
+                    sys.exit(1)
+                elif resp.status != 200:
+                    print(f"ERROR: Connection failed with status {resp.status}")
+                    sys.exit(1)
+        except aiohttp.ClientError as e:
+            print(f"ERROR: Failed to connect to Home Assistant: {e}")
+            sys.exit(1)
+        
         # Get all automations
-        async with session.get(f"{url}/api/states", headers=headers) as resp:
-            states = await resp.json()
-            automations = [s for s in states if s.get('entity_id', '').startswith('automation.')]
+        try:
+            async with session.get(f"{url}/api/states", headers=headers) as resp:
+                if resp.status != 200:
+                    print(f"ERROR: Failed to fetch states (HTTP {resp.status})")
+                    text = await resp.text()
+                    print(f"Response: {text[:200]}")
+                    sys.exit(1)
+                states = await resp.json()
+                automations = [s for s in states if s.get('entity_id', '').startswith('automation.')]
+        except aiohttp.ClientError as e:
+            print(f"ERROR: Failed to fetch automations: {e}")
+            sys.exit(1)
         
         print(f"Found {len(automations)} automations")
         print()
@@ -103,6 +143,24 @@ async def main():
         print("=" * 60)
         print(f"Completed: {success} deleted, {failed} failed out of {len(automations)} total")
         print("=" * 60)
+        print()
+        
+        # Verify deletion by checking remaining automations
+        print("Verifying deletion...")
+        try:
+            async with session.get(f"{url}/api/states", headers=headers) as resp:
+                if resp.status == 200:
+                    states = await resp.json()
+                    remaining = [s for s in states if s.get('entity_id', '').startswith('automation.')]
+                    print(f"Remaining automations: {len(remaining)}")
+                    if len(remaining) == 0:
+                        print("*** ALL AUTOMATIONS DELETED SUCCESSFULLY! ***")
+                    else:
+                        print(f"WARNING: {len(remaining)} automations still remain")
+                        for auto in remaining:
+                            print(f"  - {auto.get('entity_id')}")
+        except Exception as e:
+            print(f"Warning: Could not verify deletion: {e}")
 
 
 if __name__ == "__main__":

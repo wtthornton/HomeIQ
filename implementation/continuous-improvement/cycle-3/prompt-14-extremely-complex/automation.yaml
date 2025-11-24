@@ -1,81 +1,55 @@
-id: 'office_wled_time_based_routine'
-alias: Office WLED Time-Based Routine
-description: "Time-based Office WLED routine that sets different brightness and white tones depending on morning, evening, or late night, then turns off all other lights after 5 seconds."
+id: 'office_wled_time_based_lighting'
+alias: Office WLED Time-Based Lighting
+description: "Time-based Office WLED schedule that adjusts brightness and tones, with a 5-second pause after each action."
 mode: single
 trigger:
-  - platform: event
-    event_type: office_wled_time_based_routine_run
+  - platform: time_pattern
+    minutes: "/5"
 conditions: []
 action:
-  - variables:
-      current_time: "{{ now().strftime('%H:%M:%S') }}"
   - choose:
       - conditions:
           - condition: time
-            after: '06:00:00'
-            before: '09:00:00'
+            after: "06:00:00"
+            before: "09:00:00"
         sequence:
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
               brightness_pct: 50
-              rgb_color: [255, 200, 150]
+              rgb_color:
+                - 255
+                - 180
+                - 100
+          - delay: "00:00:05"
       - conditions:
           - condition: time
-            after: '17:00:00'
-            before: '20:00:00'
+            after: "17:00:00"
+            before: "20:00:00"
         sequence:
-          - service: light.turn_on
-            target:
-              entity_id: light.living_room_2
-            data:
-              brightness_pct: 80
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
               brightness_pct: 100
-              rgb_color: [200, 220, 255]
+              rgb_color:
+                - 200
+                - 230
+                - 255
+          - delay: "00:00:05"
       - conditions:
           - condition: time
-            after: '21:00:00'
+            after: "21:00:00"
         sequence:
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
               brightness_pct: 20
+              rgb_color:
+                - 255
+                - 160
+                - 90
+          - delay: "00:00:05"
     default: []
-  - delay: '00:00:05'
-  - variables:
-      is_morning: "{{ now().hour >= 6 and now().hour < 9 }}"
-      is_evening: "{{ now().hour >= 17 and now().hour < 20 }}"
-      is_late: "{{ now().hour >= 21 }}"
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ is_morning }}"
-        sequence:
-          - service: light.turn_off
-            target:
-              entity_id:
-                - light.living_room_2
-      - conditions:
-          - condition: template
-            value_template: "{{ is_evening }}"
-        sequence: []
-      - conditions:
-          - condition: template
-            value_template: "{{ is_late }}"
-        sequence:
-          - service: light.turn_off
-            target:
-              entity_id:
-                - light.living_room_2
-    default:
-      - service: light.turn_off
-        target:
-          entity_id:
-            - light.living_room_2
-            - light.wled

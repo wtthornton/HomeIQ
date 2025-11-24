@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-08c84c32",
+  "query_id": "clarify-647e543b",
+  "status": "approved",
+  "automation_id": "automation.living_room_lights_80pct_evening_1763980026_57041fbf",
+  "automation_yaml": "id: 'living_room_lights_80pct_evening'\nalias: Living Room Lights 80% Between 6PM and 11PM\ndescription: \"Between 6:00 PM and 11:00 PM, set living room ceiling lights to 80% brightness\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.hue_lr_back_left_ceiling\n        - light.hue_color_downlight_1_4\n        - light.hue_color_downlight_1\n    data:\n      brightness_pct: 80",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

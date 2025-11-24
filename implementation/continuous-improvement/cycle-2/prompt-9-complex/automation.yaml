@@ -1,7 +1,7 @@
-id: 'office_wled_living_room_follow_on'
-alias: Office WLED - Stage Living Room Then Full Bright
-description: "When Office WLED turns on, bring Living Room to 70% then Office WLED to 100%."
-mode: single
+id: 'office_wled_living_room_sequence'
+alias: Office WLED – Living Room Sequence
+description: "When Office WLED turns on, stage Living Room and then set Office WLED to full brightness"
+mode: restart
 trigger:
   - platform: state
     entity_id: light.wled

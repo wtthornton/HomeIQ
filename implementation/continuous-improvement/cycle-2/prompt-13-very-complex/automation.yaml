@@ -1,10 +1,11 @@
-id: 'office_wled_living_room_linked_lighting'
-alias: Office WLED Snapshot with Living Room Lighting
-description: "When Office WLED turns on, snapshot its state, set Living Room to 80% for 10 minutes, then restore Office WLED and turn off Living Room"
-mode: restart
+id: 'office_wled_living_room_scene_restore'
+alias: Office WLED – Living Room 10-Min Scene
+description: "When Office WLED turns on, snapshot it, set Living Room to 80%, then after 10 minutes restore Office WLED and turn Living Room off."
+mode: single
 trigger:
   - platform: state
     entity_id: light.wled
+    from: 'off'
     to: 'on'
 conditions: []
 action:

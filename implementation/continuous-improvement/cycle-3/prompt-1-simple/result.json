@@ -3,10 +3,10 @@
   "prompt_name": "Simple Time-Based Light",
   "prompt_text": "Turn on the Office WLED every day at 7:00 AM",
   "complexity": "Simple",
-  "query_id": "query-5fd65c78",
-  "suggestion_id": "ask-ai-d3257e34",
-  "automation_id": "automation.office_wled_on_0700_1763947857_fbc8d202",
-  "automation_yaml": "id: 'office_wled_on_0700'\nalias: Office WLED on at 7 AM\ndescription: \"Turn on the Office WLED light every day at 7:00 AM.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '07:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
+  "query_id": "query-b6cc221f",
+  "suggestion_id": "ask-ai-a48a3329",
+  "automation_id": "automation.office_wled_7am_daily_1763979533_9fae5e3b",
+  "automation_yaml": "id: 'office_wled_7am_daily'\nalias: Office WLED On at 7 AM\ndescription: \"Turn on the Office WLED strip every day at 7:00 AM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '07:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -32,7 +32,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T17:30:44.803099"
+      "timestamp": "2025-11-24T02:18:40.150451"
     }
   ],
   "automation_score": 80.0,
@@ -40,5 +40,5 @@
   "total_score": 89.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T17:30:43.708653"
+  "timestamp": "2025-11-24T02:18:38.925439"
 }

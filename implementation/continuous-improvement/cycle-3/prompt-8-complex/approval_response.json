@@ -1,50 +1,20 @@
 {
-  "suggestion_id": "ask-ai-76d577c3",
-  "query_id": "clarify-00e48b0a",
-  "status": "yaml_generated",
-  "automation_id": null,
-  "automation_yaml": "id: 'after_sunset_living_room_office_wled_sequence'\nalias: After Sunset Living Room and Office WLED Sequence\ndescription: \"After sunset every day, turn on the Living Room light for 5 minutes, then turn on the Office WLED, wait 30 seconds, and finally turn off the Living Room light.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n  - delay: '00:05:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n  - delay: '00:00:30'\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2'",
-  "ready_to_deploy": false,
-  "safe": true,
+  "suggestion_id": "ask-ai-754367b2",
+  "query_id": "clarify-0ecd4808",
+  "status": "approved",
+  "automation_id": "automation.after_sunset_living_room_office_wled_sequence_1763979732_02f58c4c",
+  "automation_yaml": "id: 'after_sunset_living_room_office_wled_sequence'\nalias: After Sunset - Living Room then Office WLED\ndescription: \"After sunset every day, turn on the Living Room light for 5 minutes, then turn on Office WLED, wait 30 seconds, and finally turn off the Living Room light.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n  - delay: '00:05:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n  - delay: '00:00:30'\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
   "safety_report": {
     "safe": true,
-    "issues": [
-      {
-        "severity": "warning",
-        "category": "availability",
-        "message": "Entity not found: light.living_room_2'",
-        "details": {
-          "entity_id": "light.living_room_2'",
-          "was_validated": false,
-          "suggestions": []
-        },
-        "recommendation": "Verify entity light.living_room_2' exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
-      }
-    ],
+    "issues": [],
     "critical_issues": [],
-    "warnings": [
-      {
-        "severity": "warning",
-        "category": "availability",
-        "message": "Entity not found: light.living_room_2'",
-        "details": {
-          "entity_id": "light.living_room_2'",
-          "was_validated": false,
-          "suggestions": []
-        },
-        "recommendation": "Verify entity light.living_room_2' exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
-      }
-    ],
+    "warnings": [],
     "info": [],
     "coverage": 1.0,
-    "message": "Validation passed with warnings"
+    "message": "Validation passed"
   },
-  "message": "YAML generated but deployment failed: HTTP 400: Message malformed: not a valid value for dictionary value @ data['actions'][4]['target']['entity_id']",
-  "error_details": {
-    "type": "deployment_error",
-    "message": "HTTP 400: Message malformed: not a valid value for dictionary value @ data['actions'][4]['target']['entity_id']"
-  },
-  "warnings": [
-    "Deployment failed: HTTP 400: Message malformed: not a valid value for dictionary value @ data['actions'][4]['target']['entity_id']"
-  ]
+  "safe": true
 }

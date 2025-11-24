@@ -1,0 +1,20 @@
+id: 'living_room_lights_80pct_evening'
+alias: Living Room Lights 80% Between 6PM and 11PM
+description: "Between 6:00 PM and 11:00 PM, set living room ceiling lights to 80% brightness"
+mode: single
+trigger:
+  - platform: time
+    at: '18:00:00'
+conditions:
+  - condition: time
+    after: '18:00:00'
+    before: '23:00:00'
+action:
+  - service: light.turn_on
+    target:
+      entity_id:
+        - light.hue_lr_back_left_ceiling
+        - light.hue_color_downlight_1_4
+        - light.hue_color_downlight_1
+    data:
+      brightness_pct: 80

@@ -1,10 +1,13 @@
-id: 'living_room_auto_dim_after_8pm'
-alias: Living Room Auto Dim After 8 PM
-description: "Automatically dim the Living Room light to 40% brightness whenever it is turned on after 8 PM."
+id: 'living_room_lights_dim_after_8pm'
+alias: Living Room Lights - Dim After 8 PM
+description: "When any Living Room ceiling light is turned on after 8:00 PM, dim all Living Room ceiling lights to ~40% brightness"
 mode: single
 trigger:
   - platform: state
-    entity_id: light.living_room_2
+    entity_id:
+      - light.hue_lr_back_left_ceiling
+      - light.hue_color_downlight_1_4
+      - light.hue_color_downlight_1
     from: 'off'
     to: 'on'
 conditions:
@@ -13,6 +16,9 @@ conditions:
 action:
   - service: light.turn_on
     target:
-      entity_id: light.living_room_2
+      entity_id:
+        - light.hue_lr_back_left_ceiling
+        - light.hue_color_downlight_1_4
+        - light.hue_color_downlight_1
     data:
-      brightness_pct: 40
+      brightness: 100
