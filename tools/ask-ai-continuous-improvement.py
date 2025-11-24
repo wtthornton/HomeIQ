@@ -182,7 +182,7 @@ TARGET_PROMPTS = [
     {
         "id": "prompt-14-extremely-complex",
         "name": "Complex Conditional Logic",
-        "prompt": "Check the time. If it's between 6 AM and 9 AM, turn on the Office WLED to 50% with a warm white color. If it's between 5 PM and 8 PM, turn on all living room lights to 80% and set the Office WLED to 100% with a cool white color. If it's after 9 PM, only turn on the Office WLED to 20% brightness. Wait 5 seconds after any action, then turn off all other lights that weren't part of the selected time-based action.",
+        "prompt": "Check the time. If it's between 6 AM and 9 AM, turn on the Office WLED to 50% with a warm white color and turn off all living room lights. If it's between 5 PM and 8 PM, turn on all living room lights to 80% and set the Office WLED to 100% with a cool white color. If it's after 9 PM, turn on the Office WLED to 20% brightness and turn off all living room lights. Wait 5 seconds after any action.",
         "complexity": "Extremely Complex"
     },
     {
