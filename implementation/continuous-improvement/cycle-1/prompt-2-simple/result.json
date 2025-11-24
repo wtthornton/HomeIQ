@@ -3,10 +3,10 @@
   "prompt_name": "Simple Light Control",
   "prompt_text": "Turn off all living room lights at 11:00 PM every night",
   "complexity": "Simple",
-  "query_id": "query-606a2229",
-  "suggestion_id": "ask-ai-91f2aa7e",
-  "automation_id": "automation.living_room_lights_off_2300_1763969874_064dd0c6",
-  "automation_yaml": "id: 'living_room_lights_off_2300'\nalias: Turn Off Living Room Light at 11 PM\ndescription: \"Turn off the Living Room light every night at 11:00 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "query_id": "query-948a3bcd",
+  "suggestion_id": "ask-ai-66a6acc9",
+  "automation_id": "automation.living_room_lights_off_2300_1763972662_dd9a7ac8",
+  "automation_yaml": "id: 'living_room_lights_off_2300'\nalias: Living Room Lights Off at 11 PM\ndescription: \"Turn off the Living Room light every night at 11:00 PM.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T23:37:43.261215"
+      "timestamp": "2025-11-24T00:24:11.016960"
     }
   ],
   "automation_score": 80.0,
@@ -59,5 +59,5 @@
   "total_score": 89.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T23:37:41.991679"
+  "timestamp": "2025-11-24T00:24:09.647194"
 }

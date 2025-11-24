@@ -586,6 +586,77 @@ export const api = {
       body: JSON.stringify(data),
     });
   },
+
+  // Name Enhancement (Device Intelligence Service)
+  async getNameSuggestions(deviceId: string): Promise<{
+    device_id: string;
+    current_name: string;
+    suggestions: Array<{
+      name: string;
+      confidence: number;
+      source: string;
+      reasoning: string | null;
+    }>;
+  }> {
+    // Device Intelligence Service API (port 8019)
+    const DEVICE_INTELLIGENCE_API = import.meta.env.VITE_DEVICE_INTELLIGENCE_API || 'http://localhost:8019';
+    return fetchJSON(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/devices/${deviceId}/suggestions`);
+  },
+
+  async acceptNameSuggestion(deviceId: string, suggestedName: string, syncToHA: boolean = false): Promise<{
+    success: boolean;
+    device_id: string;
+    old_name: string;
+    new_name: string;
+  }> {
+    const DEVICE_INTELLIGENCE_API = import.meta.env.VITE_DEVICE_INTELLIGENCE_API || 'http://localhost:8019';
+    return fetchJSON(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/devices/${deviceId}/accept`, {
+      method: 'POST',
+      body: JSON.stringify({ suggested_name: suggestedName, sync_to_ha: syncToHA }),
+    });
+  },
+
+  async rejectNameSuggestion(deviceId: string, suggestedName: string, reason?: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const DEVICE_INTELLIGENCE_API = import.meta.env.VITE_DEVICE_INTELLIGENCE_API || 'http://localhost:8019';
+    const params = new URLSearchParams({ suggested_name: suggestedName });
+    if (reason) params.append('reason', reason);
+    return fetchJSON(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/devices/${deviceId}/reject?${params}`, {
+      method: 'POST',
+    });
+  },
+
+  async batchEnhanceNames(deviceIds: string[] | null = null, useAI: boolean = false, autoAccept: boolean = false): Promise<{
+    success: boolean;
+    job_id: string;
+    status: string;
+    estimated_duration: string;
+  }> {
+    const DEVICE_INTELLIGENCE_API = import.meta.env.VITE_DEVICE_INTELLIGENCE_API || 'http://localhost:8019';
+    return fetchJSON(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/batch-enhance`, {
+      method: 'POST',
+      body: JSON.stringify({
+        device_ids: deviceIds,
+        use_ai: useAI,
+        auto_accept_high_confidence: autoAccept
+      }),
+    });
+  },
+
+  async getEnhancementStatus(): Promise<{
+    total_suggestions: number;
+    by_status: Record<string, number>;
+    by_confidence: {
+      high: number;
+      medium: number;
+      low: number;
+    };
+  }> {
+    const DEVICE_INTELLIGENCE_API = import.meta.env.VITE_DEVICE_INTELLIGENCE_API || 'http://localhost:8019';
+    return fetchJSON(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/status`);
+  },
   };
 
 export default api;

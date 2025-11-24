@@ -1,5 +1,5 @@
 {
-  "query_id": "query-bef20241",
+  "query_id": "query-ab8f2570",
   "original_query": "After sunset every day, turn on the living room lights for 5 minutes, then turn on the Office WLED, wait 30 seconds, and turn off the living room lights",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -20,10 +20,10 @@
   ],
   "suggestions": [],
   "confidence": 0.4794479479417835,
-  "processing_time_ms": 1575,
-  "created_at": "2025-11-23T17:23:23.043130",
+  "processing_time_ms": 1319,
+  "created_at": "2025-11-24T00:25:51.542611",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-ade52366",
+  "clarification_session_id": "clarify-c2b30865",
   "questions": [
     {
       "id": "q1",

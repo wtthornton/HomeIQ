@@ -1,6 +1,6 @@
-id: 'morning_office_living_room_lights_0600'
-alias: Morning Office and Living Room Lights at 6 AM
-description: "At 6:00 AM every day, turn on the Office WLED to 50% and Living Room light to 30%."
+id: 'morning_office_livingroom_brightness_0600'
+alias: Morning Office and Living Room Brightness
+description: "At 6:00 AM every day, set Office WLED to 50% and Living Room light to 30% brightness."
 mode: single
 trigger:
   - platform: time

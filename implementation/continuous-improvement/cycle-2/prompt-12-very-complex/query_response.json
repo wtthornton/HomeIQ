@@ -1,5 +1,5 @@
 {
-  "query_id": "query-6b20c011",
+  "query_id": "query-eab56435",
   "original_query": "Every 15 mins choose a random effect on the Office WLED device. Play the effect for 15 secs. Choose random effect, random colors and brightness to 100%. At the end of the 15 sec the WLED light needs to return to exactly what it was before it started.",
   "parsed_intent": "general",
   "extracted_entities": [
@@ -13,10 +13,10 @@
   ],
   "suggestions": [],
   "confidence": 0.43135593941213346,
-  "processing_time_ms": 1466,
-  "created_at": "2025-11-23T17:28:52.427744",
+  "processing_time_ms": 1458,
+  "created_at": "2025-11-24T00:31:29.635139",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-42120bb5",
+  "clarification_session_id": "clarify-de554f7d",
   "questions": [
     {
       "id": "q1",

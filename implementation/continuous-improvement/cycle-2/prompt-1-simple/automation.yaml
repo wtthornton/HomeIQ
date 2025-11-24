@@ -1,5 +1,5 @@
 id: 'office_wled_7am_on'
-alias: Office WLED On at 7 AM
+alias: Office WLED on at 7 AM
 description: "Turn on the Office WLED every day at 7:00 AM"
 mode: single
 trigger:

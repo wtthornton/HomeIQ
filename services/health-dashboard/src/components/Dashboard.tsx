@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import { AlertBanner } from './AlertBanner';
 import { ErrorBoundary } from './ErrorBoundary';
+import { LoadingSpinner } from './LoadingSpinner';
 import * as Tabs from './tabs';
 
 // Tab configuration
@@ -41,19 +42,53 @@ const TAB_CONFIG = [
 export const Dashboard: React.FC = () => {
   const automationUiUrl = import.meta.env.VITE_AI_AUTOMATION_UI_URL;
   // State management
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    // Check localStorage for saved preference, or system preference
+    const saved = localStorage.getItem('darkMode');
+    if (saved !== null) return saved === 'true';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   const [selectedTimeRange, setSelectedTimeRange] = useState('1h');
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [selectedTab, setSelectedTab] = useState('overview');
+  const [selectedTab, setSelectedTab] = useState(() => {
+    // Restore from URL hash or default to overview
+    const hash = window.location.hash.slice(1);
+    return hash && TAB_COMPONENTS[hash] ? hash : 'overview';
+  });
   
-  // Apply theme to document
+  // Apply theme to document and persist preference
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('darkMode', 'true');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('darkMode', 'false');
     }
   }, [darkMode]);
+  
+  // Update URL hash when tab changes (for bookmarking/sharing)
+  useEffect(() => {
+    if (selectedTab && selectedTab !== 'overview') {
+      window.history.replaceState(null, '', `#${selectedTab}`);
+    } else {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [selectedTab]);
+  
+  // Listen for system theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      // Only auto-switch if user hasn't manually set preference
+      const saved = localStorage.getItem('darkMode');
+      if (saved === null) {
+        setDarkMode(e.matches);
+      }
+    };
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   // Handle custom navigation events from modals
   useEffect(() => {
@@ -83,8 +118,44 @@ export const Dashboard: React.FC = () => {
     }
   }, []);
 
-  // Get the current tab component
-  const TabComponent = TAB_COMPONENTS[selectedTab] || Tabs.OverviewTab;
+  // Memoize tab component to prevent unnecessary re-renders
+  const TabComponent = useMemo(() => {
+    return TAB_COMPONENTS[selectedTab] || Tabs.OverviewTab;
+  }, [selectedTab]);
+  
+  // Memoize tab change handler
+  const handleTabChange = useCallback((tabId: string) => {
+    setSelectedTab(tabId);
+    // Focus management for accessibility
+    const tabButton = document.querySelector(`[data-tab="${tabId}"]`) as HTMLElement;
+    if (tabButton) {
+      tabButton.focus();
+    }
+  }, []);
+  
+  // Keyboard navigation for tabs
+  const handleTabKeyDown = useCallback((e: React.KeyboardEvent, tabId: string, index: number) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const tabs = TAB_CONFIG;
+      const currentIndex = tabs.findIndex(t => t.id === tabId);
+      let nextIndex: number;
+      
+      if (e.key === 'ArrowRight') {
+        nextIndex = currentIndex === tabs.length - 1 ? 0 : currentIndex + 1;
+      } else {
+        nextIndex = currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
+      }
+      
+      handleTabChange(tabs[nextIndex].id);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      handleTabChange(TAB_CONFIG[0].id);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      handleTabChange(TAB_CONFIG[TAB_CONFIG.length - 1].id);
+    }
+  }, [handleTabChange]);
 
   return (
     <div data-testid="dashboard-root" className={`min-h-screen ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800' : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'} transition-all duration-500`}>
@@ -111,9 +182,10 @@ export const Dashboard: React.FC = () => {
               <button
                 data-testid="theme-toggle"
                 onClick={() => setDarkMode(!darkMode)}
-                className={`p-2.5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors duration-200`}
+                className={`p-2.5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
                 title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                 aria-label={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                aria-pressed={darkMode}
               >
                 {darkMode ? '☀️' : '🌙'}
               </button>
@@ -122,9 +194,10 @@ export const Dashboard: React.FC = () => {
               <button
                 data-testid="auto-refresh-toggle"
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`p-2.5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center ${autoRefresh ? (darkMode ? 'bg-green-700 hover:bg-green-600' : 'bg-green-100 hover:bg-green-200') : (darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200')} transition-colors duration-200`}
+                className={`p-2.5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center ${autoRefresh ? (darkMode ? 'bg-green-700 hover:bg-green-600' : 'bg-green-100 hover:bg-green-200') : (darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200')} transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
                 title={autoRefresh ? 'Auto Refresh: ON' : 'Auto Refresh: OFF'}
                 aria-label={autoRefresh ? 'Auto Refresh: ON' : 'Auto Refresh: OFF'}
+                aria-pressed={autoRefresh}
               >
                 {autoRefresh ? '🔄' : '⏸️'}
               </button>
@@ -134,7 +207,7 @@ export const Dashboard: React.FC = () => {
                 data-testid="time-range-selector"
                 value={selectedTimeRange}
                 onChange={(e) => setSelectedTimeRange(e.target.value)}
-                className={`px-2 sm:px-3 py-2 rounded-lg border text-sm min-h-[44px] ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} transition-colors duration-200`}
+                className={`px-2 sm:px-3 py-2 rounded-lg border text-sm min-h-[44px] ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                 aria-label="Select time range"
               >
                 <option value="15m">15m</option>
@@ -175,16 +248,21 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           
-          {/* Navigation Tabs - Mobile Optimized with enhanced styling */}
-          <div data-testid="tab-navigation" className="border-t border-gray-200 dark:border-gray-700 pt-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+          {/* Navigation Tabs - Mobile Optimized with enhanced styling and accessibility */}
+          <nav data-testid="tab-navigation" role="tablist" aria-label="Dashboard navigation tabs" className="border-t border-gray-200 dark:border-gray-700 pt-4 -mx-4 px-4 sm:mx-0 sm:px-0">
             <div className="flex space-x-2 sm:space-x-3 overflow-x-auto pb-2 scrollbar-hide">
-              {TAB_CONFIG.map((tab) => (
+              {TAB_CONFIG.map((tab, index) => (
                 <button
                   key={tab.id}
                   data-testid={`tab-${tab.id}`}
                   data-tab={tab.id}
-                  onClick={() => setSelectedTab(tab.id)}
-                  className={`flex-shrink-0 px-3 sm:px-4 py-2.5 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base min-h-[44px] transform hover:scale-105 active:scale-95 ${
+                  role="tab"
+                  aria-selected={selectedTab === tab.id}
+                  aria-controls={`tabpanel-${tab.id}`}
+                  tabIndex={selectedTab === tab.id ? 0 : -1}
+                  onClick={() => handleTabChange(tab.id)}
+                  onKeyDown={(e) => handleTabKeyDown(e, tab.id, index)}
+                  className={`flex-shrink-0 px-3 sm:px-4 py-2.5 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base min-h-[44px] transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                     selectedTab === tab.id
                       ? darkMode
                         ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg'
@@ -199,7 +277,7 @@ export const Dashboard: React.FC = () => {
                 </button>
               ))}
             </div>
-          </div>
+          </nav>
         </div>
       </div>
 
@@ -208,14 +286,24 @@ export const Dashboard: React.FC = () => {
         {/* Alert Banner (Epic 17.4) */}
         <AlertBanner darkMode={darkMode} />
         
-        {/* Tab Content - Wrapped with Error Boundary */}
+        {/* Tab Content - Wrapped with Error Boundary and Suspense for lazy loading */}
         <ErrorBoundary
           onError={(error, errorInfo) => {
             console.error('Tab rendering error:', error);
             console.error('Stack:', errorInfo.componentStack);
           }}
         >
-          <TabComponent darkMode={darkMode} />
+          <div
+            id={`tabpanel-${selectedTab}`}
+            role="tabpanel"
+            aria-labelledby={`tab-${selectedTab}`}
+            className="focus:outline-none"
+            tabIndex={0}
+          >
+            <Suspense fallback={<LoadingSpinner />}>
+              <TabComponent darkMode={darkMode} />
+            </Suspense>
+          </div>
         </ErrorBoundary>
       </main>
     </div>

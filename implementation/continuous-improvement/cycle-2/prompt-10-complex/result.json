@@ -3,10 +3,10 @@
   "prompt_name": "Time-Based Sequence",
   "prompt_text": "Every day at 5:00 PM, turn on the Office WLED to 80%, wait 1 minute, turn on all living room lights to 60%, wait 30 seconds, and dim the Office WLED to 40%",
   "complexity": "Complex",
-  "query_id": "query-75331e88",
-  "suggestion_id": "ask-ai-e03f0973",
-  "automation_id": "automation.office_livingroom_evening_routine_1763947715_73e02aeb",
-  "automation_yaml": "id: 'office_livingroom_evening_routine'\nalias: Evening Office and Living Room Lighting Routine\ndescription: \"At 5:00 PM brighten Office WLED to 80%, then Living Room to 60%, then dim Office to 40%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 204\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 153\n  - delay: '00:00:30'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 102",
+  "query_id": "query-92f266d8",
+  "suggestion_id": "ask-ai-f323cc62",
+  "automation_id": "automation.daily_5pm_office_living_room_fade_1763973073_c3f3523a",
+  "automation_yaml": "id: 'daily_5pm_office_living_room_fade'\nalias: Daily 5pm Office & Living Room fade\ndescription: \"Daily 5:00 PM routine: brighten the Office WLED to ~80%, then Living Room to ~60%, then dim Office to ~40%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 80\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 60\n  - delay: '00:00:30'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 40",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T17:28:20.787384"
+      "timestamp": "2025-11-24T00:30:55.477892"
     }
   ],
   "automation_score": 85.0,
@@ -59,5 +59,5 @@
   "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T17:28:19.404862"
+  "timestamp": "2025-11-24T00:30:54.037199"
 }

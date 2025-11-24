@@ -1,5 +1,5 @@
 {
-  "query_id": "query-bcb63577",
+  "query_id": "query-89b64ce0",
   "original_query": "When the Office WLED is turned on, save its current state. Then turn on all living room lights to 80%. After 10 minutes, restore the Office WLED to its saved state and turn off all living room lights",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -20,10 +20,10 @@
   ],
   "suggestions": [],
   "confidence": 0.4896426432588844,
-  "processing_time_ms": 1540,
-  "created_at": "2025-11-23T17:24:55.927498",
+  "processing_time_ms": 1756,
+  "created_at": "2025-11-24T00:27:38.948881",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-bc4819f3",
+  "clarification_session_id": "clarify-e5f6f450",
   "questions": [
     {
       "id": "q1",

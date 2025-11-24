@@ -103,7 +103,9 @@ export const Synergies: React.FC = () => {
             className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
           >
             <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {synergies.length}
+              {(filterType !== null || filterValidated !== null || minConfidence > 0)
+                ? synergies.length
+                : (stats?.total_synergies || 0)}
             </div>
             <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               {(filterType !== null || filterValidated !== null || minConfidence > 0)

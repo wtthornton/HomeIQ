@@ -3,10 +3,10 @@
   "prompt_name": "Basic Schedule",
   "prompt_text": "Turn on the Office WLED at 8:00 AM on weekdays only",
   "complexity": "Simple",
-  "query_id": "query-94c06988",
-  "suggestion_id": "ask-ai-637f62c1",
-  "automation_id": "automation.office_wled_weekday_morning_on_1763947338_88cac19a",
-  "automation_yaml": "id: 'office_wled_weekday_morning_on'\nalias: Office WLED Weekday 8AM On\ndescription: \"At 8:00 AM on weekdays, turn on the Office WLED at a consistent brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '08:00:00'\nconditions:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 70",
+  "query_id": "query-6ae50ac8",
+  "suggestion_id": "ask-ai-8fa209dd",
+  "automation_id": "automation.office_wled_weekday_morning_on_1763972678_19ab6d1f",
+  "automation_yaml": "id: 'office_wled_weekday_morning_on'\nalias: Office WLED Weekday 8 AM On\ndescription: \"Turn on the Office WLED at 8:00 AM on weekdays\"\nmode: single\ntrigger:\n  - platform: time\n    at: '08:00:00'\nconditions:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -32,7 +32,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T17:22:04.107750"
+      "timestamp": "2025-11-24T00:24:24.486370"
     }
   ],
   "automation_score": 80.0,
@@ -40,5 +40,5 @@
   "total_score": 89.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T17:22:02.800357"
+  "timestamp": "2025-11-24T00:24:23.397569"
 }

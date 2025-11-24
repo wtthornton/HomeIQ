@@ -1,12 +1,12 @@
 {
-  "suggestion_id": "ask-ai-cd375ef8",
-  "query_id": "clarify-42120bb5",
+  "suggestion_id": "ask-ai-4e245696",
+  "query_id": "clarify-de554f7d",
   "status": "approved",
-  "automation_id": "automation.office_wled_15min_random_burst_then_restore_1763947765_42cd4de6",
-  "automation_yaml": "id: 'office_wled_15min_random_burst_then_restore'\nalias: Office WLED - 15min Random Burst Then Restore\ndescription: \"Every 15 minutes, briefly take the Office WLED on a 15-second random party detour, then restore it exactly to its previous effect, color, and brightness.\"\nmode: restart\ntrigger:\n  - platform: time_pattern\n    minutes: \"/15\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_party_detour\n      snapshot_entities:\n        - light.wled\n  - variables:\n      effect_list: \"{{ state_attr('light.wled', 'effect_list') if state_attr('light.wled', 'effect_list') is not none else ['Solid','Blink','Breathe'] }}\"\n      new_effect: \"{{ effect_list | random }}\"\n      rand_r: \"{{ range(0, 256) | random }}\"\n      rand_g: \"{{ range(0, 256) | random }}\"\n      rand_b: \"{{ range(0, 256) | random }}\"\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      effect: \"{{ new_effect }}\"\n      rgb_color:\n        - \"{{ rand_r | int }}\"\n        - \"{{ rand_g | int }}\"\n        - \"{{ rand_b | int }}\"\n      brightness_pct: 100\n  - delay:\n      seconds: 15\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_party_detour",
+  "automation_id": "automation.office_wled_random_burst_every_15_1763973123_d3b25934",
+  "automation_yaml": "id: office_wled_random_burst_every_15\nalias: Office WLED - Random Burst Every 15 Minutes\ndescription: \"Every 15 minutes, temporarily take over the Office WLED for a 15-second random show at 100% brightness, then restore its previous state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: \"/15\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_burst\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      effect: \"Random\"\n  - delay: \"00:00:15\"\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_burst",
   "ready_to_deploy": true,
   "warnings": [
-    "Entity not found: scene.office_wled_before_party_detour"
+    "Entity not found: scene.office_wled_before_burst"
   ],
   "message": "Automation created and enabled successfully",
   "safety_report": {
@@ -15,13 +15,13 @@
       {
         "severity": "warning",
         "category": "availability",
-        "message": "Entity not found: scene.office_wled_before_party_detour",
+        "message": "Entity not found: scene.office_wled_before_burst",
         "details": {
-          "entity_id": "scene.office_wled_before_party_detour",
+          "entity_id": "scene.office_wled_before_burst",
           "was_validated": false,
           "suggestions": []
         },
-        "recommendation": "Verify entity scene.office_wled_before_party_detour exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+        "recommendation": "Verify entity scene.office_wled_before_burst exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
       }
     ],
     "critical_issues": [],
@@ -29,13 +29,13 @@
       {
         "severity": "warning",
         "category": "availability",
-        "message": "Entity not found: scene.office_wled_before_party_detour",
+        "message": "Entity not found: scene.office_wled_before_burst",
         "details": {
-          "entity_id": "scene.office_wled_before_party_detour",
+          "entity_id": "scene.office_wled_before_burst",
           "was_validated": false,
           "suggestions": []
         },
-        "recommendation": "Verify entity scene.office_wled_before_party_detour exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+        "recommendation": "Verify entity scene.office_wled_before_burst exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
       }
     ],
     "info": [],

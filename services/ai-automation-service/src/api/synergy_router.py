@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api/synergies", tags=["Synergies"])
 @router.get("/", include_in_schema=True)
 async def list_synergies(
     synergy_type: str | None = Query(default=None, description="Filter by synergy type"),
-    min_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum confidence"),
+    min_confidence: float = Query(default=0.0, ge=0.0, le=1.0, description="Minimum confidence"),
     validated_by_patterns: bool | None = Query(default=None, description="Filter by pattern validation (Phase 2)"),
     synergy_depth: int | None = Query(default=None, ge=2, le=5, description="Filter by chain depth (2=pair, 3=3-chain, 4=4-chain)"),
     limit: int = Query(default=100, ge=1, le=500, description="Maximum results"),
@@ -63,53 +63,84 @@ async def list_synergies(
         )
 
         # Convert to dict format for JSON response
+        # 2025 Enhancement: Generate explanations for synergies
+        from ..synergy_detection.explainable_synergy import ExplainableSynergyGenerator
+        explainer = ExplainableSynergyGenerator()
+        
         synergies_list = []
         for s in synergies:
-            # Phase 2: Filter by pattern validation if requested
-            # Use getattr with defaults in case Phase 2 columns don't exist
-            validated_by_patterns_value = getattr(s, 'validated_by_patterns', False)
-            if validated_by_patterns is not None and validated_by_patterns_value != validated_by_patterns:
-                continue
+                # Phase 2: Filter by pattern validation if requested
+                # Use getattr with defaults in case Phase 2 columns don't exist
+                validated_by_patterns_value = getattr(s, 'validated_by_patterns', False)
+                if validated_by_patterns is not None and validated_by_patterns_value != validated_by_patterns:
+                    continue
 
-            synergy_dict = {
-                'id': s.id,
-                'synergy_id': s.synergy_id,
-                'synergy_type': s.synergy_type,
-                'device_ids': s.device_ids,
-                'opportunity_metadata': s.opportunity_metadata,
-                'impact_score': s.impact_score,
-                'complexity': s.complexity,
-                'confidence': s.confidence,
-                'area': s.area,
-                'created_at': s.created_at.isoformat() if s.created_at else None
-            }
-
-            # Phase 2: Add pattern validation fields (use getattr with defaults)
-            synergy_dict['pattern_support_score'] = getattr(s, 'pattern_support_score', 0.0)
-            synergy_dict['validated_by_patterns'] = validated_by_patterns_value
-            supporting_pattern_ids_value = getattr(s, 'supporting_pattern_ids', None)
-            if supporting_pattern_ids_value:
-                import json
+                synergy_dict = {
+                    'id': s.id,
+                    'synergy_id': s.synergy_id,
+                    'synergy_type': s.synergy_type,
+                    'device_ids': s.device_ids,
+                    'opportunity_metadata': s.opportunity_metadata,
+                    'impact_score': s.impact_score,
+                    'complexity': s.complexity,
+                    'confidence': s.confidence,
+                    'area': s.area,
+                    'created_at': s.created_at.isoformat() if s.created_at else None
+                }
+                
+                # 2025 Enhancement: Add explainable AI data
                 try:
-                    synergy_dict['supporting_pattern_ids'] = json.loads(supporting_pattern_ids_value)
-                except:
+                    # Convert to dict format for explainer
+                    synergy_for_explanation = {
+                        'synergy_id': s.synergy_id,
+                        'trigger_entity': s.opportunity_metadata.get('trigger_entity') if isinstance(s.opportunity_metadata, dict) else None,
+                        'action_entity': s.opportunity_metadata.get('action_entity') if isinstance(s.opportunity_metadata, dict) else None,
+                        'trigger_name': s.opportunity_metadata.get('trigger_name') if isinstance(s.opportunity_metadata, dict) else None,
+                        'action_name': s.opportunity_metadata.get('action_name') if isinstance(s.opportunity_metadata, dict) else None,
+                        'relationship_type': s.synergy_type,
+                        'impact_score': s.impact_score,
+                        'confidence': s.confidence,
+                        'area': s.area,
+                        'complexity': s.complexity,
+                        'validated_by_patterns': validated_by_patterns_value,
+                        'pattern_support_score': getattr(s, 'pattern_support_score', 0.0)
+                    }
+                    explanation = explainer.generate_explanation(synergy_for_explanation)
+                    synergy_dict['explanation'] = explanation
+                    # Add rationale and explanation_breakdown for API contract
+                    synergy_dict['rationale'] = explanation.get('summary', '')
+                    synergy_dict['explanation_breakdown'] = explanation.get('score_breakdown', {})
+                except Exception as e:
+                    logger.warning(f"Failed to generate explanation for synergy {s.synergy_id}: {e}", exc_info=True)
+
+                # Phase 2: Add pattern validation fields (use getattr with defaults)
+                synergy_dict['pattern_support_score'] = getattr(s, 'pattern_support_score', 0.0)
+                synergy_dict['validated_by_patterns'] = validated_by_patterns_value
+                supporting_pattern_ids_value = getattr(s, 'supporting_pattern_ids', None)
+                if supporting_pattern_ids_value:
+                    import json
+                    try:
+                        synergy_dict['supporting_pattern_ids'] = json.loads(supporting_pattern_ids_value)
+                    except Exception as e:
+                        logger.debug(f"Failed to parse supporting_pattern_ids for {s.synergy_id}: {e}")
+                        synergy_dict['supporting_pattern_ids'] = []
+                else:
                     synergy_dict['supporting_pattern_ids'] = []
-            else:
-                synergy_dict['supporting_pattern_ids'] = []
 
-            # Epic AI-4: Add n-level synergy fields
-            synergy_dict['synergy_depth'] = getattr(s, 'synergy_depth', 2)
-            chain_devices_value = getattr(s, 'chain_devices', None)
-            if chain_devices_value:
-                import json
-                try:
-                    synergy_dict['chain_devices'] = json.loads(chain_devices_value)
-                except:
-                    synergy_dict['chain_devices'] = []
-            else:
-                synergy_dict['chain_devices'] = synergy_dict.get('device_ids', [])
+                # Epic AI-4: Add n-level synergy fields
+                synergy_dict['synergy_depth'] = getattr(s, 'synergy_depth', 2)
+                chain_devices_value = getattr(s, 'chain_devices', None)
+                if chain_devices_value:
+                    import json
+                    try:
+                        synergy_dict['chain_devices'] = json.loads(chain_devices_value)
+                    except Exception as e:
+                        logger.debug(f"Failed to parse chain_devices for {s.synergy_id}: {e}")
+                        synergy_dict['chain_devices'] = []
+                else:
+                    synergy_dict['chain_devices'] = synergy_dict.get('device_ids', [])
 
-            synergies_list.append(synergy_dict)
+                synergies_list.append(synergy_dict)
 
         return {
             'success': True,
@@ -227,9 +258,20 @@ async def detect_synergies_realtime(
 
         # Initialize detector
         data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        
+        # 2025 Enhancement: Initialize enrichment fetcher for multi-modal context
+        enrichment_fetcher = None
+        try:
+            from ..services.enrichment_context_fetcher import EnrichmentContextFetcher
+            if hasattr(data_api_client, 'influxdb_client') and data_api_client.influxdb_client:
+                enrichment_fetcher = EnrichmentContextFetcher(data_api_client.influxdb_client)
+        except Exception as e:
+            logger.warning(f"Failed to initialize enrichment fetcher: {e}")
+        
         detector = DeviceSynergyDetector(
             data_api_client=data_api_client,
-            ha_client=None  # Can be added if needed
+            ha_client=None,  # Can be added if needed
+            enrichment_fetcher=enrichment_fetcher  # 2025 Enhancement: Multi-modal context
         )
 
         # Detect synergies with timeout protection (max 100 seconds to leave buffer for nginx 120s timeout)

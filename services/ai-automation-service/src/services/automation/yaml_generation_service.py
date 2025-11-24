@@ -452,6 +452,39 @@ CRITICAL: When generating YAML, use the entity IDs above. For example, if you se
     return ""
 
 
+def _check_template_variables_in_entity_ids(yaml_data: dict) -> list[str]:
+    """
+    Check for template variables ({{ }}) in entity_id fields.
+    
+    Args:
+        yaml_data: Parsed YAML dictionary
+        
+    Returns:
+        List of template variables found in entity_id fields
+    """
+    template_vars = []
+    
+    def _check_value(value: Any, path: str = ""):
+        """Recursively check for template variables"""
+        if isinstance(value, str):
+            # Check if string contains template variable syntax
+            if '{{' in value and '}}' in value:
+                # Check if this is in an entity_id field
+                if 'entity_id' in path.lower():
+                    template_vars.append(f"{path}: {value}")
+        elif isinstance(value, dict):
+            for key, val in value.items():
+                new_path = f"{path}.{key}" if path else key
+                _check_value(val, new_path)
+        elif isinstance(value, list):
+            for i, item in enumerate(value):
+                new_path = f"{path}[{i}]" if path else f"[{i}]"
+                _check_value(item, new_path)
+    
+    _check_value(yaml_data)
+    return template_vars
+
+
 async def _validate_generated_yaml(
     yaml_content: str,
     ha_client: HomeAssistantClient | None,
@@ -462,12 +495,13 @@ async def _validate_generated_yaml(
     Unified validation function for generated YAML.
     
     Runs comprehensive multi-stage validation pipeline:
-    1. Syntax validation (YAML parsing)
-    2. Structure validation (HA format with auto-fixes)
-    3. Entity existence validation (if HA client available)
-    4. Logic validation (placeholder)
-    5. Safety checks (placeholder)
-    6. Optional Pydantic schema validation
+    1. Template variable detection (NEW: check for {{ }} in entity_id fields)
+    2. Syntax validation (YAML parsing)
+    3. Structure validation (HA format with auto-fixes)
+    4. Entity existence validation (if HA client available)
+    5. Logic validation (placeholder)
+    6. Safety checks (placeholder)
+    7. Optional Pydantic schema validation
     
     Args:
         yaml_content: YAML string to validate
@@ -481,6 +515,26 @@ async def _validate_generated_yaml(
         - validation_metadata: Dictionary with validation results
     """
     logger.info("[VALIDATION] Starting comprehensive YAML validation...")
+    
+    # Pre-validation: Check for template variables in entity_id fields
+    try:
+        parsed_yaml = yaml_lib.safe_load(yaml_content)
+        if parsed_yaml:
+            template_vars = _check_template_variables_in_entity_ids(parsed_yaml)
+            if template_vars:
+                error_msg = f"Template variables found in entity_id fields: {', '.join(template_vars)}"
+                logger.error(f"[ERROR] {error_msg}")
+                raise YAMLGenerationError(
+                    f"Generated YAML contains template variables in entity_id fields. "
+                    f"Always use explicit entity IDs from the validated list. "
+                    f"Found: {', '.join(template_vars)}"
+                )
+    except yaml_lib.YAMLError:
+        # YAML parsing will be caught by syntax validation stage
+        pass
+    except YAMLGenerationError:
+        # Re-raise template variable errors
+        raise
     
     # Initialize multi-stage validator
     validator = AutomationYAMLValidator(ha_client=ha_client)
@@ -845,16 +899,57 @@ Use this entity information to:
         example_entity_1 = '{ENTITY_1}'
         example_entity_2 = '{ENTITY_2}'
 
+    # Detect "turn off all other lights" pattern and provide explicit entity list
+    query_lower = original_query.lower()
+    needs_all_other_lights = any(phrase in query_lower for phrase in [
+        'turn off all other', 'turn off other', 'all other lights', 'other lights',
+        'all other devices', 'other devices', 'weren\'t part of', 'not part of'
+    ])
+    
+    # Build dynamic entity list text if needed
+    dynamic_entity_text = ""
+    if needs_all_other_lights and validated_entities:
+        # Get all light entities from validated_entities
+        all_light_entities = [eid for eid in validated_entities.values() if eid.startswith('light.')]
+        
+        # Get entities mentioned in the query (to exclude from "all other")
+        mentioned_entities = []
+        for name, eid in validated_entities.items():
+            if name.lower() in query_lower or eid.lower() in query_lower:
+                mentioned_entities.append(eid)
+        
+        # Compute "all other lights" = all lights except mentioned ones
+        other_lights = [eid for eid in all_light_entities if eid not in mentioned_entities]
+        
+        if other_lights:
+            dynamic_entity_text = f"""
+
+DYNAMIC ENTITY REQUIREMENTS - "ALL OTHER LIGHTS":
+The request mentions turning off "all other lights". Use this EXACT entity list:
+{chr(10).join([f"  - {eid}" for eid in other_lights])}
+
+Example usage in YAML:
+  - service: light.turn_off
+    target:
+      entity_id:
+{chr(10).join([f"        - {eid}" for eid in other_lights])}
+
+CRITICAL: Use the exact entity IDs above - DO NOT use template variables like {{ entities_to_turn_off }}.
+
+"""
+    
     prompt = f"""
 TASK: Generate Home Assistant 2025 automation YAML from this request.
 
 USER REQUEST: "{original_query}"
-
+{dynamic_entity_text}
 AUTOMATION SPECIFICATION:
 - Description: {suggestion.get('description', '')}
 - Trigger: {suggestion.get('trigger_summary', '')}
 - Action: {suggestion.get('action_summary', '')}
 - Devices: {', '.join(suggestion.get('devices_involved', []))}
+
+{validated_entities_text}
 
 {validated_entities_text}
 
@@ -1066,6 +1161,8 @@ Before generating YAML, verify ALL requirements:
 □ Service calls use target.entity_id structure
 □ Description quoted if contains colons, or uses dashes instead
 □ ALL Jinja2 templates ({{ }}, {% %}) are properly quoted in YAML strings
+□ CRITICAL: NEVER use template variables ({{ }}) in entity_id fields - always use explicit entity IDs from validated list
+□ If you need "all other lights", use explicit entity_id lists (e.g., [light.room1, light.room2]), NOT template variables
 □ If using scene entities (scene.xxx), MUST have scene.create service call BEFORE referencing the scene
 □ Scene ID in scene.create (e.g., "office_light_before_show") must match scene entity ID (e.g., "scene.office_light_before_show")
 □ State restoration pattern (scene.create + scene.turn_on) works for ANY entity type - not device-specific
@@ -1121,6 +1218,8 @@ Generate ONLY the YAML content:
                     "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
                     "You ALWAYS use Home Assistant format: trigger: (singular) with platform: fields, action: (singular) with service: fields. "
                     "You ALWAYS quote Jinja2 templates ({{ }}, {% %}) in YAML strings - unquoted templates break YAML syntax. "
+                    "CRITICAL: NEVER use template variables ({{ }}) in entity_id fields - always use explicit entity IDs from the validated list. "
+                    "If you need to turn off 'all other lights', use explicit entity_id lists, not template variables. "
                     "Return ONLY a SINGLE YAML document starting with 'id:' - NO markdown, NO explanations, NO document separators (---)."
                 ),
                 "user_prompt": prompt
@@ -1236,6 +1335,8 @@ Generate ONLY the YAML content:
                     "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
                     "You ALWAYS use Home Assistant format: trigger: (singular) with platform: fields, action: (singular) with service: fields. "
                     "You ALWAYS quote Jinja2 templates ({{ }}, {% %}) in YAML strings - unquoted templates break YAML syntax. "
+                    "CRITICAL: NEVER use template variables ({{ }}) in entity_id fields - always use explicit entity IDs from the validated list. "
+                    "If you need to turn off 'all other lights', use explicit entity_id lists, not template variables. "
                     "Return ONLY a SINGLE YAML document starting with 'id:' - NO markdown, NO explanations, NO document separators (---)."
                         )
                     },

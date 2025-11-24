@@ -646,12 +646,23 @@ class DailyAnalysisScheduler:
                 )
                 logger.info("   → HA client initialized for automation filtering")
 
+                # 2025 Enhancement: Initialize enrichment fetcher for multi-modal context
+                enrichment_fetcher = None
+                try:
+                    from ..services.enrichment_context_fetcher import EnrichmentContextFetcher
+                    if data_client.influxdb_client:
+                        enrichment_fetcher = EnrichmentContextFetcher(data_client.influxdb_client)
+                        logger.info("   → Enrichment context fetcher initialized for multi-modal scoring")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Failed to initialize enrichment fetcher: {e}")
+                
                 synergy_detector = DeviceSynergyDetector(
                     data_api_client=data_client,
                     ha_client=ha_client,  # Story AI4.3: Enable automation filtering!
                     influxdb_client=data_client.influxdb_client,  # Enable advanced scoring (Story AI3.2)
                     min_confidence=0.5,  # Lowered from 0.7 to be less restrictive
-                    same_area_required=False  # Relaxed requirement to find more opportunities
+                    same_area_required=False,  # Relaxed requirement to find more opportunities
+                    enrichment_fetcher=enrichment_fetcher  # 2025 Enhancement: Multi-modal context
                 )
 
                 logger.info("   → Calling detect_synergies() method...")

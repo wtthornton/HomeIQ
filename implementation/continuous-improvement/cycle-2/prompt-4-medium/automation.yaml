@@ -1,14 +1,11 @@
-id: 'living_room_evening_80_brightness'
-alias: Living Room Evening 80 Percent
-description: "Between 6 PM and 11 PM every day, set the Living Room light to 80% brightness."
+id: 'evening_living_room_80'
+alias: Evening Living Room 80%
+description: "Turn on Living Room light to 80% at 6 PM every day"
 mode: single
 trigger:
   - platform: time
     at: '18:00:00'
-conditions:
-  - condition: time
-    after: '18:00:00'
-    before: '23:00:00'
+conditions: []
 action:
   - service: light.turn_on
     target:

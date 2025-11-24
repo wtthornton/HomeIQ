@@ -1,5 +1,5 @@
 {
-  "query_id": "query-c43de0c5",
+  "query_id": "query-c6428d65",
   "original_query": "Turn off all living room lights at 11:00 PM every night",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -13,10 +13,10 @@
   ],
   "suggestions": [],
   "confidence": 0.42088809929103493,
-  "processing_time_ms": 1169,
-  "created_at": "2025-11-23T17:26:21.868557",
+  "processing_time_ms": 1329,
+  "created_at": "2025-11-24T00:28:55.144379",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-60e021e5",
+  "clarification_session_id": "clarify-bf3209d6",
   "questions": [
     {
       "id": "q1",
