@@ -1,5 +1,5 @@
 {
-  "query_id": "query-b6cc221f",
+  "query_id": "query-20c62566",
   "original_query": "Turn on the Office WLED every day at 7:00 AM",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -13,10 +13,10 @@
   ],
   "suggestions": [],
   "confidence": 0.633880436021217,
-  "processing_time_ms": 1163,
-  "created_at": "2025-11-24T02:18:40.133840",
+  "processing_time_ms": 1567,
+  "created_at": "2025-11-24T11:18:16.201877",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-2bec7815",
+  "clarification_session_id": "clarify-004c36c3",
   "questions": [
     {
       "id": "q1",

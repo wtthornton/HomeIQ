@@ -1,10 +1,11 @@
-id: 'living_room_lights_office_wled_pulse_9_11'
-alias: Living Room Lights - Pulse Office WLED 9-11 PM
-description: "When any living room light is turned on between 9 PM and 11 PM, briefly turn on the Office WLED at low brightness, wait 10 seconds, then turn it back off."
-mode: restart
+id: 'living_room_wled_pulse_21_23'
+alias: Living Room Lights - Office WLED Pulse 21-23
+description: "When Living Room light turns on between 21:00 and 23:00, briefly turn on Office WLED at low brightness, then off"
+mode: single
 trigger:
   - platform: state
-    entity_id: light.wled
+    entity_id: light.living_room_2
+    from: 'off'
     to: 'on'
 conditions:
   - condition: time
@@ -24,4 +25,4 @@ action:
   - delay: '00:00:10'
   - service: scene.turn_on
     target:
-      entity_id: scene.office_wled_before_pulse'
+      entity_id: scene.office_wled_before_pulse

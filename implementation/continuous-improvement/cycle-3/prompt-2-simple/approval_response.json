@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-47c8ec8c",
-  "query_id": "clarify-da187f9e",
+  "suggestion_id": "ask-ai-23d91036",
+  "query_id": "clarify-c4a14efe",
   "status": "approved",
-  "automation_id": "automation.living_room_light_off_2300_1763979561_925d5695",
-  "automation_yaml": "id: 'living_room_light_off_2300'\nalias: Turn Off LR Front Right Ceiling at 11 PM\ndescription: \"Turn off the LR Front Right Ceiling light every night at 11:00 PM.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.hue_color_downlight_1_4",
+  "automation_id": "automation.living_room_lights_off_23_00_1764011933_5a91c92c",
+  "automation_yaml": "id: 'living_room_lights_off_23_00'\nalias: Turn Off Living Room Light at 11 PM\ndescription: \"Turn off the Living Room light every night at 11:00 PM.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

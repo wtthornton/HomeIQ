@@ -1,6 +1,6 @@
-id: 'after_sunset_living_room_then_office_wled'
-alias: After Sunset - Living Room then Office WLED
-description: "After sunset turn on Living Room for 5 minutes, then Office WLED, wait 30 seconds, then turn off Living Room"
+id: 'after_sunset_living_room_office_wled_sequence'
+alias: After Sunset Living Room and Office WLED Sequence
+description: "After sunset every day, turn on the Living Room light for 5 minutes, then turn on the Office WLED, wait 30 seconds, and finally turn off the Living Room light."
 mode: single
 trigger:
   - platform: sun

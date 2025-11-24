@@ -1,48 +1,46 @@
-id: 'office_wled_follow_living_room_brightness_time_based'
-alias: Office WLED – Follow Living Room Brightness by Time
-description: "Straightforward brightness control for the Office WLED based on time of day and living room light state changes."
+id: 'office_wled_sync_with_living_room_by_time_of_day'
+alias: Office WLED – Sync with Living Room by Time of Day
+description: "When any living room light changes state, adjust the Office WLED brightness based on time of day and the living room brightness."
 mode: restart
 trigger:
   - platform: state
-    entity_id:
-      # Replace these with your actual living room light entities, for example:
-      # - light.living_room_main
-      # - light.living_room_lamp
+    entity_id: light.living_room_2
 conditions: []
 action:
   - delay: "00:00:02"
   - variables:
-      is_daytime: "{{ 6 <= now().hour < 18 }}"
-      office_bright_pct: >-
-        {% set b = state_attr('light.wled', 'brightness') %}
-        {% if b is number %}{{ (b / 255 * 100) | round(0) }}{% else %}0{% endif %}
-      trigger_bright_pct: >-
-        {% set b = state_attr(trigger.entity_id, 'brightness') %}
-        {% if b is number %}{{ (b / 255 * 100) | round(0) }}{% else %}0{% endif %}
+      office_brightness: "{{ state_attr('light.wled', 'brightness') | int(0) }}"
+      living_brightness: "{{ state_attr('light.living_room_2', 'brightness') | int(0) }}"
   - choose:
       - conditions:
+          - condition: time
+            after: "06:00:00"
+            before: "18:00:00"
           - condition: template
-            value_template: "{{ is_daytime | bool }}"
+            value_template: "{{ office_brightness < 128 }}"
           - condition: template
-            value_template: "{{ office_bright_pct < 50 }}"
-          - condition: template
-            value_template: "{{ office_bright_pct != 70 }}"
+            value_template: "{{ not (office_brightness >= 174 and office_brightness <= 184) }}"
         sequence:
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
-              brightness_pct: 70
+              brightness: 179
       - conditions:
+          - condition: or
+            conditions:
+              - condition: time
+                after: "18:00:00"
+              - condition: time
+                before: "06:00:00"
           - condition: template
-            value_template: "{{ not (is_daytime | bool) }}"
+            value_template: "{{ living_brightness > 153 }}"
           - condition: template
-            value_template: "{{ trigger_bright_pct > 60 }}"
-          - condition: template
-            value_template: "{{ office_bright_pct != 30 }}"
+            value_template: "{{ not (office_brightness >= 72 and office_brightness <= 82) }}"
         sequence:
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
-              brightness_pct: 30
+              brightness: 77
+  - delay: "00:00:02"

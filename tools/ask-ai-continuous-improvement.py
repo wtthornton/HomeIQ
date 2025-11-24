@@ -211,6 +211,10 @@ CLARIFICATION_PENALTY = 10.0
 AUTOMATION_SCORE_WEIGHT = 0.5
 YAML_SCORE_WEIGHT = 0.3
 CLARIFICATION_SCORE_WEIGHT = 0.2
+# Retry configuration
+MAX_RETRIES = 3
+RETRY_INITIAL_DELAY = 1.0
+RETRY_BACKOFF_MULTIPLIER = 2.0
 
 # API Key for authentication (read from environment or use default)
 API_KEY = os.getenv("AI_AUTOMATION_API_KEY", "hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR")
@@ -522,8 +526,6 @@ class Scorer:
                 # Only check entity_id field for 'wifi', not entire dict (avoids matching comments)
                 entity_id = t.get('entity_id', '')
                 if isinstance(entity_id, str) and 'wifi' in entity_id.lower():
-                    has_wifi_trigger = True
-                    break
                     has_wifi_trigger = True
                     break
         if has_wifi_trigger:
@@ -1340,33 +1342,100 @@ class AskAITester:
             TerminalOutput.print_info(f"  Clarification Rounds: {result.clarification_rounds}", indent=1)
             
         except Exception as e:
-            # IMPROVED: Retry logic for transient failures
-            error_str = str(e)
-            
-            # Check if error is retryable (transient failures)
-            retryable_errors = [
-                "No suggestions generated",
-                "Network error",
-                "Service disconnected",
-                "timeout",
-                "Connection",
-                "404"
-            ]
-            
-            is_retryable = any(err.lower() in error_str.lower() for err in retryable_errors)
-            max_retries = 3
-            
-            if is_retryable:
-                # Retry logic will be handled in the calling code
-                result.error = error_str
-                result.success = False
-                TerminalOutput.print_error(f"Workflow failed (retryable): {error_str}")
-            else:
-                result.error = error_str
-                result.success = False
-                TerminalOutput.print_error(f"Workflow failed: {error_str}")
+            # Store error for potential retry
+            result.error = str(e)
+            result.success = False
+            TerminalOutput.print_error(f"Workflow failed: {result.error}")
         
         return result, workflow_data
+    
+    async def run_full_workflow_with_retry(
+        self, 
+        query: str, 
+        prompt_id: str, 
+        prompt_name: str, 
+        prompt_text: str, 
+        complexity: str
+    ) -> tuple[PromptResult, dict[str, Any]]:
+        """
+        Run workflow with retry logic for transient failures.
+        Implements exponential backoff retry strategy.
+        """
+        retryable_errors = [
+            "No suggestions generated",
+            "Network error",
+            "Service disconnected",
+            "timeout",
+            "Connection",
+            "404",
+            "502",
+            "503",
+            "504"
+        ]
+        
+        last_error: Exception | None = None
+        delay = RETRY_INITIAL_DELAY
+        
+        for attempt in range(MAX_RETRIES):
+            try:
+                result, workflow_data = await self.run_full_workflow(
+                    query, prompt_id, prompt_name, prompt_text, complexity
+                )
+                
+                # If successful, return immediately
+                if result.success:
+                    if attempt > 0:
+                        TerminalOutput.print_success(f"Workflow succeeded on retry attempt {attempt + 1}")
+                    return result, workflow_data
+                
+                # Check if error is retryable
+                error_str = result.error or ""
+                is_retryable = any(err.lower() in error_str.lower() for err in retryable_errors)
+                
+                if not is_retryable or attempt == MAX_RETRIES - 1:
+                    # Non-retryable error or last attempt
+                    return result, workflow_data
+                
+                # Retryable error - wait and retry
+                TerminalOutput.print_warning(f"Retryable error detected (attempt {attempt + 1}/{MAX_RETRIES})")
+                TerminalOutput.print_info(f"  Waiting {delay:.1f}s before retry...", indent=1)
+                await asyncio.sleep(delay)
+                delay *= RETRY_BACKOFF_MULTIPLIER
+                
+            except Exception as e:
+                last_error = e
+                error_str = str(e)
+                is_retryable = any(err.lower() in error_str.lower() for err in retryable_errors)
+                
+                if not is_retryable or attempt == MAX_RETRIES - 1:
+                    # Create error result
+                    result = PromptResult(
+                        prompt_id=prompt_id,
+                        prompt_name=prompt_name,
+                        prompt_text=prompt_text,
+                        complexity=complexity,
+                        error=error_str,
+                        success=False
+                    )
+                    return result, {}
+                
+                # Retryable exception - wait and retry
+                TerminalOutput.print_warning(f"Retryable exception (attempt {attempt + 1}/{MAX_RETRIES}): {error_str}")
+                TerminalOutput.print_info(f"  Waiting {delay:.1f}s before retry...", indent=1)
+                await asyncio.sleep(delay)
+                delay *= RETRY_BACKOFF_MULTIPLIER
+        
+        # All retries exhausted
+        error_str = str(last_error) if last_error else "Unknown error after retries"
+        result = PromptResult(
+            prompt_id=prompt_id,
+            prompt_name=prompt_name,
+            prompt_text=prompt_text,
+            complexity=complexity,
+            error=f"Failed after {MAX_RETRIES} attempts: {error_str}",
+            success=False
+        )
+        return result, {}
 
 
 class CycleManager:
@@ -1431,33 +1500,55 @@ class CycleManager:
         logger.info(f"Cycle {cycle_num} data saved to {cycle_dir}")
     
     async def deploy_service(self) -> bool:
-        """Rebuild and restart the service"""
+        """Rebuild and restart the service using async subprocess"""
         logger.info("Deploying service...")
         try:
             # Build
             logger.info("Building service...")
-            build_result = subprocess.run(
-                ["docker-compose", "build", "ai-automation-service"],
-                capture_output=True,
-                text=True,
-                timeout=600
+            build_process = await asyncio.create_subprocess_exec(
+                "docker-compose", "build", "ai-automation-service",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
             
-            if build_result.returncode != 0:
-                logger.error(f"Build failed: {build_result.stderr}")
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    build_process.communicate(),
+                    timeout=600.0
+                )
+            except asyncio.TimeoutError:
+                build_process.kill()
+                await build_process.wait()
+                logger.error("Build timed out after 600 seconds")
+                return False
+            
+            if build_process.returncode != 0:
+                error_msg = stderr.decode() if stderr else "Unknown error"
+                logger.error(f"Build failed: {error_msg}")
                 return False
             
             # Restart
             logger.info("Restarting service...")
-            restart_result = subprocess.run(
-                ["docker-compose", "restart", "ai-automation-service"],
-                capture_output=True,
-                text=True,
-                timeout=120
+            restart_process = await asyncio.create_subprocess_exec(
+                "docker-compose", "restart", "ai-automation-service",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
             
-            if restart_result.returncode != 0:
-                logger.error(f"Restart failed: {restart_result.stderr}")
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    restart_process.communicate(),
+                    timeout=120.0
+                )
+            except asyncio.TimeoutError:
+                restart_process.kill()
+                await restart_process.wait()
+                logger.error("Restart timed out after 120 seconds")
+                return False
+            
+            if restart_process.returncode != 0:
+                error_msg = stderr.decode() if stderr else "Unknown error"
+                logger.error(f"Restart failed: {error_msg}")
                 return False
             
             # Wait for health check
@@ -1749,8 +1840,17 @@ async def cleanup_previous_automations():
         ) as resp:
             if resp.status != 200:
                 TerminalOutput.print_error(f"Failed to get automations: HTTP {resp.status}")
+                # Ensure cleanup before returning
+                if not use_project_client and session and not session.closed:
+                    await session.close()
                 return
             states = await resp.json()
+        
+        # Filter for automation entities
+        automations = [
+            s for s in states 
+            if s.get('entity_id', '').startswith('automation.')
+        ]
     
     except (ImportError, Exception) as e:
         # Fallback to direct API calls if import fails
@@ -1775,13 +1875,17 @@ async def cleanup_previous_automations():
             s for s in states 
             if s.get('entity_id', '').startswith('automation.')
         ]
-        
-        if not automations:
-            TerminalOutput.print_success("No automations found. Nothing to clean up.")
-            return
-        
-        TerminalOutput.print_info(f"Found {len(automations)} automation(s) in Home Assistant")
-        
+    
+    # Check if we have automations (common to both paths)
+    if not automations:
+        TerminalOutput.print_success("No automations found. Nothing to clean up.")
+        if not use_project_client and session and not session.closed:
+            await session.close()
+        return
+    
+    TerminalOutput.print_info(f"Found {len(automations)} automation(s) in Home Assistant")
+    
+    try:
         # Identify automations created by this script
         # Look for patterns that match Ask AI service automation naming:
         # - automation.*_*_*_* (with timestamps and hashes)
@@ -1848,7 +1952,7 @@ async def cleanup_previous_automations():
                 TerminalOutput.print_error(f"Failed: {entity_id} - {str(e)}", indent=1)
         
         TerminalOutput.print_info(f"Cleanup complete: {deleted} deleted, {failed} failed")
-        
+    
     except aiohttp.ClientError as e:
         TerminalOutput.print_error(f"Network error during cleanup: {e}")
     except Exception as e:
@@ -1900,8 +2004,8 @@ async def main():
                 TerminalOutput.print_info(f"Prompt: {prompt_text[:100]}...")
                 
                 try:
-                    # Run workflow for this prompt
-                    prompt_result, workflow_data = await tester.run_full_workflow(
+                    # Run workflow for this prompt with retry logic
+                    prompt_result, workflow_data = await tester.run_full_workflow_with_retry(
                         prompt_text, prompt_id, prompt_name, prompt_text, complexity
                     )
                     cycle_result.prompt_results.append(prompt_result)

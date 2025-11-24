@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-884670df",
-  "query_id": "clarify-94e5503d",
+  "suggestion_id": "ask-ai-c979ecfa",
+  "query_id": "clarify-1f17a01b",
   "status": "approved",
-  "automation_id": "automation.office_wled_sunset_warm_white_60_1763980050_fa7b9d7e",
-  "automation_yaml": "id: 'office_wled_sunset_warm_white_60'\nalias: Office WLED Sunset Warm White 60%\ndescription: \"At sunset, set the Office WLED strip to warm white solid at 60% brightness\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 60\n      rgb_color:\n        - 255\n        - 180\n        - 110\n      effect: Solid",
+  "automation_id": "automation.office_wled_sunset_warm_white_60pct_1764012327_c4f1bf70",
+  "automation_yaml": "id: 'office_wled_sunset_warm_white_60pct'\nalias: Office WLED Sunset Warm White 60%\ndescription: \"At sunset, set Office WLED to 60% brightness and warm white in one step\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 60\n      rgb_color:\n        - 255\n        - 195\n        - 160",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

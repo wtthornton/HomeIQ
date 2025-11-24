@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-ae043c30",
-  "query_id": "clarify-7439fac8",
+  "suggestion_id": "ask-ai-2133da48",
+  "query_id": "clarify-70f441e2",
   "status": "approved",
-  "automation_id": "automation.turn_off_living_room_lights_2300_1763979173_d76d4187",
-  "automation_yaml": "id: 'turn_off_living_room_lights_2300'\nalias: Turn Off Living Room Lights at 11 PM\ndescription: \"Turn off all Living Room ceiling lights every night at 11:00 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id:\n        - light.hue_color_downlight_1_4\n        - light.hue_color_downlight_1\n        - light.hue_lr_back_left_ceiling",
+  "automation_id": "automation.turn_off_living_room_light_23_00_1764011571_a54e7c4d",
+  "automation_yaml": "id: 'turn_off_living_room_light_23_00'\nalias: Turn off Living Room Light at 11 PM\ndescription: \"Turn off the Living Room light every night at 11:00 PM.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

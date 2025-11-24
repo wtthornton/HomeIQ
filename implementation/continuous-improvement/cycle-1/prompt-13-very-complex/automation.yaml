@@ -1,14 +1,13 @@
-id: 'office_wled_living_room_temporary_80'
-alias: Office WLED → Temporary Living Room Light at 80%
-description: Save Office WLED state, light up Living Room, then restore after 10 minutes
+id: 'office_wled_living_room_80_then_restore'
+alias: Office WLED → Living Room 80% then Restore
+description: "When Office WLED turns on, snapshot it, set Living Room to 80%, then after 10 minutes restore Office and turn Living Room off."
 mode: restart
 trigger:
   - platform: state
     entity_id: light.wled
     from: 'off'
     to: 'on'
-variables:
-  target_brightness: 204
+conditions: []
 action:
   - service: scene.create
     data:
@@ -19,7 +18,7 @@ action:
     target:
       entity_id: light.living_room_2
     data:
-      brightness: "{{ target_brightness }}"
+      brightness_pct: 80
   - delay: '00:10:00'
   - service: scene.turn_on
     target:

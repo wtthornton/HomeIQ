@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-c5c7cc85",
-  "query_id": "clarify-2d881075",
+  "suggestion_id": "ask-ai-8ddbc814",
+  "query_id": "clarify-b9315614",
   "status": "approved",
-  "automation_id": "automation.living_room_evening_dim_40_1763978904_572ddd24",
-  "automation_yaml": "id: 'living_room_evening_dim_40'\nalias: Living Room - Dim Ceiling Lights After 8 PM\ndescription: \"When Living Room ceiling lights are turned on after 20:00, dim them to ~40% brightness\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id:\n      - light.hue_lr_back_left_ceiling\n      - light.hue_color_downlight_1\n      - light.hue_color_downlight_1_4\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.hue_lr_back_left_ceiling\n        - light.hue_color_downlight_1\n        - light.hue_color_downlight_1_4\n    data:\n      brightness: 100",
+  "automation_id": "automation.living_room_dim_after_8pm_1764011316_4dc950fe",
+  "automation_yaml": "id: 'living_room_dim_after_8pm'\nalias: Dim Living Room Light After 8 PM\ndescription: \"Dim the Living Room light to 40% whenever it is turned on after 20:00.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 40",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

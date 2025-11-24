@@ -1,5 +1,5 @@
 {
-  "query_id": "query-3c34117b",
+  "query_id": "query-14d7453b",
   "original_query": "When the living room lights are turned on after 8 PM, automatically dim them to 40% brightness",
   "parsed_intent": "automation",
   "extracted_entities": [
@@ -13,10 +13,10 @@
   ],
   "suggestions": [],
   "confidence": 0.44165538359434353,
-  "processing_time_ms": 1592,
-  "created_at": "2025-11-24T02:20:49.944939",
+  "processing_time_ms": 1877,
+  "created_at": "2025-11-24T11:19:46.546233",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-ad6b81b9",
+  "clarification_session_id": "clarify-7ce1c3b1",
   "questions": [
     {
       "id": "q1",

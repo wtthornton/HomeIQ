@@ -1,6 +1,6 @@
-id: 'living_room_light_off_2300'
-alias: Turn Off LR Front Right Ceiling at 11 PM
-description: "Turn off the LR Front Right Ceiling light every night at 11:00 PM."
+id: 'living_room_lights_off_23_00'
+alias: Turn Off Living Room Light at 11 PM
+description: "Turn off the Living Room light every night at 11:00 PM."
 mode: single
 trigger:
   - platform: time
@@ -9,4 +9,4 @@ conditions: []
 action:
   - service: light.turn_off
     target:
-      entity_id: light.hue_color_downlight_1_4
+      entity_id: light.living_room_2

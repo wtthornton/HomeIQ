@@ -1,6 +1,6 @@
-id: 'office_wled_evening_sequence_170000'
-alias: 'Office WLED and Living Room Evening Routine'
-description: "At 5:00 PM brighten Office WLED to 80%, then Living Room to 60%, then dim Office WLED to 40%."
+id: 'daily_1700_office_wled_living_room_sequence'
+alias: Daily 5 PM Office and Living Room WLED Sequence
+description: "Daily 5:00 PM sequence that brightens the Office WLED, then Living Room, then dims Office."
 mode: single
 trigger:
   - platform: time

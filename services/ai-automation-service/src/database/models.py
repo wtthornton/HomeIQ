@@ -447,6 +447,15 @@ Index('idx_capabilities_integration', DeviceCapability.integration_type)
 Index('idx_feature_usage_device', DeviceFeatureUsage.device_id)
 Index('idx_feature_usage_configured', DeviceFeatureUsage.configured)
 
+# Foreign key indexes (Database Optimization - 2025)
+Index('idx_suggestions_pattern_id', Suggestion.pattern_id)
+Index('idx_user_feedback_suggestion_id', UserFeedback.suggestion_id)
+
+# Composite indexes for common query patterns (Database Optimization - 2025)
+Index('idx_suggestions_status_created', Suggestion.status, Suggestion.created_at.desc())
+Index('idx_patterns_type_confidence', Pattern.pattern_type, Pattern.confidence.desc())
+Index('idx_patterns_active_confidence', Pattern.deprecated, Pattern.confidence.desc())
+
 # Phase 1: Pattern history indexes
 Index('idx_pattern_history_pattern', PatternHistory.pattern_id, PatternHistory.recorded_at)
 Index('idx_pattern_history_recorded', PatternHistory.recorded_at.desc())
@@ -600,6 +609,7 @@ class AskAIQuery(Base):
     suggestions = Column(JSON, nullable=True)  # Generated suggestions array
     confidence = Column(Float, nullable=True)  # Overall confidence score
     processing_time_ms = Column(Integer, nullable=True)  # Time taken to process
+    failure_reason = Column(String, nullable=True)  # Quick Win 4: Track why suggestions failed (clarification_needed, entity_mapping_failed, empty_suggestions, validation_failed, pattern_fallback_used, success)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self):

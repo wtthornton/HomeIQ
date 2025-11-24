@@ -1,17 +1,17 @@
 {
-  "query_id": "query-534fad67",
+  "query_id": "query-a52e1fb9",
   "original_query": "After sunset every day, turn on the living room lights for 5 minutes, then turn on the Office WLED, wait 30 seconds, and turn off the living room lights",
   "parsed_intent": "control",
   "extracted_entities": [
     {
-      "name": "living_room",
+      "name": "office",
       "type": "area",
       "domain": "unknown",
       "confidence": 0.9,
       "extraction_method": "unified_pipeline"
     },
     {
-      "name": "office",
+      "name": "living_room",
       "type": "area",
       "domain": "unknown",
       "confidence": 0.9,
@@ -19,16 +19,16 @@
     }
   ],
   "suggestions": [],
-  "confidence": 0.5103306147054236,
-  "processing_time_ms": 1383,
-  "created_at": "2025-11-24T02:15:22.396045",
+  "confidence": 0.5263829300726269,
+  "processing_time_ms": 2090,
+  "created_at": "2025-11-24T11:14:28.927450",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-8a58e7f1",
+  "clarification_session_id": "clarify-abcbd205",
   "questions": [
     {
       "id": "q1",
       "category": "device",
-      "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, living_room, office",
+      "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, office, living_room",
       "question_type": "text",
       "options": null,
       "priority": 1,
@@ -52,5 +52,5 @@
       "cached_similarity": null
     }
   ],
-  "message": "I found some ambiguities in your request. I detected these locations: living_room, office. Please answer 2 question(s) to help me create the automation accurately."
+  "message": "I found some ambiguities in your request. I detected these locations: office, living_room. Please answer 2 question(s) to help me create the automation accurately."
 }

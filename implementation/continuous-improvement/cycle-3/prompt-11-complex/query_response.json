@@ -1,17 +1,17 @@
 {
-  "query_id": "query-c15e9543",
+  "query_id": "query-667a1306",
   "original_query": "When any living room light is turned on between 9 PM and 11 PM, turn on the Office WLED to 20% brightness, wait 10 seconds, then turn off the Office WLED",
   "parsed_intent": "control",
   "extracted_entities": [
     {
-      "name": "living_room",
+      "name": "office",
       "type": "area",
       "domain": "unknown",
       "confidence": 0.9,
       "extraction_method": "unified_pipeline"
     },
     {
-      "name": "office",
+      "name": "living_room",
       "type": "area",
       "domain": "unknown",
       "confidence": 0.9,
@@ -19,16 +19,16 @@
     }
   ],
   "suggestions": [],
-  "confidence": 0.5209736361671619,
-  "processing_time_ms": 1434,
-  "created_at": "2025-11-24T02:23:02.385636",
+  "confidence": 0.5386463316428525,
+  "processing_time_ms": 1811,
+  "created_at": "2025-11-24T11:21:20.247294",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-6c76989c",
+  "clarification_session_id": "clarify-c2cb0bc4",
   "questions": [
     {
       "id": "q1",
       "category": "device",
-      "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, living_room, office",
+      "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, office, living_room",
       "question_type": "text",
       "options": null,
       "priority": 1,
@@ -52,5 +52,5 @@
       "cached_similarity": null
     }
   ],
-  "message": "I found some ambiguities in your request. I detected these locations: living_room, office. Please answer 2 question(s) to help me create the automation accurately."
+  "message": "I found some ambiguities in your request. I detected these locations: office, living_room. Please answer 2 question(s) to help me create the automation accurately."
 }

@@ -3,10 +3,10 @@
   "prompt_name": "State Restoration with Conditions",
   "prompt_text": "Every 15 mins choose a random effect on the Office WLED device. Play the effect for 15 secs. Choose random effect, random colors and brightness to 100%. At the end of the 15 sec the WLED light needs to return to exactly what it was before it started.",
   "complexity": "Very Complex",
-  "query_id": "query-641b3168",
-  "suggestion_id": "ask-ai-841280a7",
-  "automation_id": "automation.office_wled_random_effect_15min_1763979835_701e9d15",
-  "automation_yaml": "id: 'office_wled_random_effect_15min'\nalias: Office WLED \u2013 Random 15s effect every 15min (with full restore)\ndescription: \"Every 15 minutes, play a random WLED effect for 15 seconds at 100% brightness, then restore the previous state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: \"/15\"\nconditions:\n  - condition: not\n    conditions:\n      - condition: state\n        entity_id: light.wled\n        state: \"unavailable\"\naction:\n  - variables:\n      wled_effect_list: \"{{ state_attr('light.wled', 'effect_list') or [] }}\"\n      wled_random_effect: >-\n        {% if wled_effect_list | count > 0 %}\n          {{ (wled_effect_list | list | random) }}\n        {% else %}\n          Solid\n        {% endif %}\n      wled_random_color: >-\n        {{ [\n          range(0,255)|random,\n          range(0,255)|random,\n          range(0,255)|random\n        ] }}\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random_show\n      snapshot_entities:\n        - light.wled\n  - choose:\n      - conditions:\n          - condition: state\n            entity_id: light.wled\n            state: \"on\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 255\n              rgb_color: \"{{ wled_random_color }}\"\n              effect: \"{{ wled_random_effect }}\"\n          - delay: \"00:00:15\"\n          - service: scene.turn_on\n            target:\n              entity_id: scene.office_wled_before_random_show\n    default:\n      - delay: \"00:00:01\"\n      - service: scene.turn_on\n        target:\n          entity_id: scene.office_wled_before_random_show",
+  "query_id": "query-770ad4f6",
+  "suggestion_id": "ask-ai-0583d3a3",
+  "automation_id": "automation.office_wled_random_effect_every_15_1764012133_739ecdc4",
+  "automation_yaml": "id: office_wled_random_effect_every_15\nalias: Office WLED \u2013 random 15s burst every 15 min\ndescription: \"Every 15 minutes, run a 15-second random full-brightness effect on Office WLED, then restore its previous state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: \"/15\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random\n      snapshot_entities:\n        - light.wled\n  - variables:\n      random_r: \"{{ range(0, 256) | random }}\"\n      random_g: \"{{ range(0, 256) | random }}\"\n      random_b: \"{{ range(0, 256) | random }}\"\n      effects:\n        - \"Solid\"\n        - \"Blink\"\n        - \"Breathe\"\n        - \"Color Wipe\"\n        - \"Rainbow\"\n      random_effect: \"{{ effects | random }}\"\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 255\n      rgb_color:\n        - \"{{ random_r }}\"\n        - \"{{ random_g }}\"\n        - \"{{ random_b }}\"\n      effect: \"{{ random_effect }}\"\n  - delay: \"00:00:15\"\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_random",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: end of, office",
+          "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: office, end of",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:23:19.965228"
+      "timestamp": "2025-11-24T11:21:38.724423"
     }
   ],
   "automation_score": 85.0,
@@ -59,5 +59,5 @@
   "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:23:18.399475"
+  "timestamp": "2025-11-24T11:21:36.915523"
 }

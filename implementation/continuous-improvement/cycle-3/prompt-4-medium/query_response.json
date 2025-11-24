@@ -1,5 +1,5 @@
 {
-  "query_id": "query-7b67daf5",
+  "query_id": "query-d2a9f851",
   "original_query": "Between 6 PM and 11 PM every day, turn on the living room lights to 80% brightness",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -13,10 +13,10 @@
   ],
   "suggestions": [],
   "confidence": 0.43381573790767436,
-  "processing_time_ms": 1213,
-  "created_at": "2025-11-24T02:19:47.915003",
+  "processing_time_ms": 1608,
+  "created_at": "2025-11-24T11:19:11.126248",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-4029c1fd",
+  "clarification_session_id": "clarify-077a20a2",
   "questions": [
     {
       "id": "q1",

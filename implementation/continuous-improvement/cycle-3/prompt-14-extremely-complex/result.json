@@ -3,10 +3,10 @@
   "prompt_name": "Complex Conditional Logic",
   "prompt_text": "Check the time. If it's between 6 AM and 9 AM, turn on the Office WLED to 50% with a warm white color and turn off all living room lights. If it's between 5 PM and 8 PM, turn on all living room lights to 80% and set the Office WLED to 100% with a cool white color. If it's after 9 PM, turn on the Office WLED to 20% brightness and turn off all living room lights. Wait 5 seconds after any action.",
   "complexity": "Extremely Complex",
-  "query_id": "query-bbb4f8b1",
-  "suggestion_id": "ask-ai-83bee6c1",
-  "automation_id": "automation.office_wled_time_based_lighting_1763979893_102102df",
-  "automation_yaml": "id: 'office_wled_time_based_lighting'\nalias: Office WLED Time-Based Lighting\ndescription: \"Time-based Office WLED schedule that adjusts brightness and tones, with a 5-second pause after each action.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: \"/5\"\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: time\n            after: \"06:00:00\"\n            before: \"09:00:00\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 50\n              rgb_color:\n                - 255\n                - 180\n                - 100\n          - delay: \"00:00:05\"\n      - conditions:\n          - condition: time\n            after: \"17:00:00\"\n            before: \"20:00:00\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 100\n              rgb_color:\n                - 200\n                - 230\n                - 255\n          - delay: \"00:00:05\"\n      - conditions:\n          - condition: time\n            after: \"21:00:00\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 20\n              rgb_color:\n                - 255\n                - 160\n                - 90\n          - delay: \"00:00:05\"\n    default: []",
+  "query_id": "query-50819398",
+  "suggestion_id": "ask-ai-67d62c0c",
+  "automation_id": "automation.office_wled_living_room_time_routine_1764012189_18a88a25",
+  "automation_yaml": "id: 'office_wled_living_room_time_routine'\nalias: Office WLED and Living Room Time Routine\ndescription: \"Time-based Office WLED and Living Room light routine with 5-second delay after actions\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/1'\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: template\n            value_template: \"{{ now().hour >= 6 and now().hour < 9 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 50\n              rgb_color:\n                - 255\n                - 160\n                - 80\n          - service: light.turn_off\n            target:\n              entity_id: light.living_room_2\n          - delay: '00:00:05'\n      - conditions:\n          - condition: template\n            value_template: \"{{ now().hour >= 17 and now().hour < 20 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.living_room_2\n            data:\n              brightness: 204\n              rgb_color:\n                - 200\n                - 220\n                - 255\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 100\n              rgb_color:\n                - 200\n                - 220\n                - 255\n          - delay: '00:00:05'\n      - conditions:\n          - condition: template\n            value_template: \"{{ now().hour >= 21 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 20\n              rgb_color:\n                - 255\n                - 120\n                - 40\n          - service: light.turn_off\n            target:\n              entity_id: light.living_room_2\n          - delay: '00:00:05'",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, living_room, office",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living, office, living_room",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-24T02:24:16.409706"
+      "timestamp": "2025-11-24T11:22:39.057001"
     }
   ],
   "automation_score": 55.0,
@@ -59,5 +59,5 @@
   "total_score": 76.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-24T02:24:15.112036"
+  "timestamp": "2025-11-24T11:22:33.491065"
 }

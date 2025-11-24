@@ -1,5 +1,5 @@
 {
-  "query_id": "query-a08be6b8",
+  "query_id": "query-0ba25c81",
   "original_query": "At sunset, turn on the Office WLED to 60% brightness and set it to a warm white color",
   "parsed_intent": "control",
   "extracted_entities": [
@@ -13,10 +13,10 @@
   ],
   "suggestions": [],
   "confidence": 0.6540161046194938,
-  "processing_time_ms": 1542,
-  "created_at": "2025-11-24T02:20:27.580305",
+  "processing_time_ms": 1694,
+  "created_at": "2025-11-24T11:19:27.973580",
   "clarification_needed": true,
-  "clarification_session_id": "clarify-302d0bd1",
+  "clarification_session_id": "clarify-1abbbada",
   "questions": [
     {
       "id": "q1",
