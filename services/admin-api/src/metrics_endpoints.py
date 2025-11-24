@@ -4,6 +4,7 @@ Epic 17.3: Essential Performance Metrics
 """
 
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
