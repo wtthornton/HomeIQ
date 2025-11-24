@@ -442,6 +442,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Phase 4.1 enhancements and Docker deployment fixes** (November 24, 2025)
 - **Fix prompt 14 in ask-ai-continuous-improvement.py - clarify light control logic for Home Assistant** (November 24, 2025)
 - **Fix prompt 14 in ask-ai-continuous-improvement.py - clarify light control logic for Home Assistant** (November 24, 2025)
 - **Fix admin-api service startup errors** (November 24, 2025)
