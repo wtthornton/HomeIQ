@@ -2814,6 +2814,77 @@ async def _run_unified_pipeline(
     return await pipeline.process(query)
 
 
+# Confidence boost metrics tracking
+_confidence_boost_metrics = {
+    "total_suggestions": 0,
+    "boosts_applied": 0,
+    "boost_amounts": [],  # List of boost amounts (0.0-0.15)
+    "base_confidences": [],  # List of base confidences before boost
+    "final_confidences": []  # List of final confidences after boost
+}
+
+def _boost_confidence_with_patterns(
+    suggestion: dict[str, Any],
+    validated_entities: dict[str, str],
+    pattern_context: list[dict[str, Any]] | None,
+    base_confidence: float
+) -> float:
+    """
+    Boost confidence if suggestion matches any patterns.
+    
+    Args:
+        suggestion: Suggestion dictionary
+        validated_entities: Dictionary mapping device names to entity IDs
+        pattern_context: List of pattern dictionaries from database
+        base_confidence: Original confidence score
+        
+    Returns:
+        Boosted confidence score (capped at 1.0)
+    """
+    # Track all suggestions
+    _confidence_boost_metrics["total_suggestions"] += 1
+    _confidence_boost_metrics["base_confidences"].append(base_confidence)
+    
+    if not pattern_context or not validated_entities:
+        _confidence_boost_metrics["final_confidences"].append(base_confidence)
+        return base_confidence
+    
+    # Get entity IDs from validated_entities
+    entity_ids = set(validated_entities.values())
+    
+    # Check if any pattern matches the suggestion's devices
+    max_boost = 0.0
+    matching_pattern = None
+    
+    for pattern in pattern_context:
+        pattern_device_id = pattern.get('device_id')
+        pattern_confidence = pattern.get('confidence', 0.0)
+        
+        # Check if pattern device matches any entity in suggestion
+        if pattern_device_id in entity_ids:
+            # Calculate boost: pattern confidence * 0.15 (max 15% boost)
+            boost = pattern_confidence * 0.15
+            if boost > max_boost:
+                max_boost = boost
+                matching_pattern = pattern
+    
+    if max_boost > 0:
+        boosted = min(1.0, base_confidence + max_boost)
+        # Track boost metrics
+        _confidence_boost_metrics["boosts_applied"] += 1
+        _confidence_boost_metrics["boost_amounts"].append(max_boost)
+        _confidence_boost_metrics["final_confidences"].append(boosted)
+        
+        logger.debug(
+            f"📈 Pattern confidence boost: {base_confidence:.2f} + {max_boost:.2f} = {boosted:.2f} "
+            f"(pattern: {matching_pattern.get('pattern_type') if matching_pattern else 'unknown'})"
+        )
+        return boosted
+    
+    _confidence_boost_metrics["final_confidences"].append(base_confidence)
+    return base_confidence
+
+
 def _convert_unified_context_to_entities(context: AutomationContext) -> list[dict[str, Any]]:
     """
     Convert AutomationContext to legacy entities list shape used by existing flows.
@@ -3569,13 +3640,67 @@ async def generate_suggestions_from_query(
             entity_context_json = ""
             enriched_data = {}  # Ensure enriched_data is empty on error
 
+        # Query patterns and synergies for context (NEW: Phase 0 + Phase 1-2)
+        pattern_context = None
+        synergy_context = None
+        if resolved_entity_ids and db_session:
+            try:
+                from ..services.pattern_context_service import PatternContextService
+                from ..services.synergy_context_service import SynergyContextService
+
+                pattern_service = PatternContextService()
+                synergy_service = SynergyContextService()
+
+                # Query patterns and synergies in parallel (non-blocking)
+                import asyncio
+                pattern_task = pattern_service.get_patterns_for_entities(
+                    db=db_session,
+                    entity_ids=set(resolved_entity_ids),
+                    min_confidence=0.6,
+                    limit=10
+                )
+                synergy_task = synergy_service.get_synergies_for_entities(
+                    db=db_session,
+                    entity_ids=set(resolved_entity_ids),
+                    min_confidence=0.7,
+                    limit=5
+                )
+
+                # Execute queries with timeout (fail gracefully)
+                try:
+                    pattern_context, synergy_context = await asyncio.wait_for(
+                        asyncio.gather(pattern_task, synergy_task, return_exceptions=True),
+                        timeout=0.2  # 200ms timeout
+                    )
+                    # Handle exceptions from gather
+                    if isinstance(pattern_context, Exception):
+                        logger.warning(f"⚠️ Pattern query failed: {pattern_context}")
+                        pattern_context = None
+                    if isinstance(synergy_context, Exception):
+                        logger.warning(f"⚠️ Synergy query failed: {synergy_context}")
+                        synergy_context = None
+                    
+                    if pattern_context:
+                        logger.info(f"✅ Retrieved {len(pattern_context)} patterns for context")
+                    if synergy_context:
+                        logger.info(f"✅ Retrieved {len(synergy_context)} synergies for context")
+                except asyncio.TimeoutError:
+                    logger.warning("⚠️ Pattern/synergy queries timed out (>200ms), continuing without context")
+                    pattern_context = None
+                    synergy_context = None
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to query patterns/synergies: {e}", exc_info=True)
+                # Continue without pattern/synergy context (non-critical)
+
         # Build unified prompt with device intelligence AND enriched entity context
         prompt_dict = await unified_builder.build_query_prompt(
             query=query,
             entities=entities,
             output_mode="suggestions",
             entity_context_json=entity_context_json,  # Pass enriched context
-            clarification_context=clarification_context  # NEW: Pass clarification Q&A
+            clarification_context=clarification_context,  # NEW: Pass clarification Q&A
+            pattern_context=pattern_context,  # NEW: Pass pattern context
+            synergy_context=synergy_context  # NEW: Pass synergy context
         )
 
         # Enforce token budget before API call (Phase 2)
@@ -4203,6 +4328,21 @@ async def generate_suggestions_from_query(
 
                 logger.info(f"✅ Suggestion {i+1} has {len(validated_entities)} validated entities - safe to save")
 
+                # Boost confidence if suggestion matches patterns (NEW: Phase 7)
+                base_confidence = suggestion['confidence']
+                boosted_confidence = _boost_confidence_with_patterns(
+                    suggestion=suggestion,
+                    validated_entities=validated_entities,
+                    pattern_context=pattern_context,
+                    base_confidence=base_confidence
+                )
+                if boosted_confidence > base_confidence:
+                    logger.info(
+                        f"📈 Boosted confidence for suggestion {i+1}: "
+                        f"{base_confidence:.2f} → {boosted_confidence:.2f} "
+                        f"(pattern match detected)"
+                    )
+
                 base_suggestion = {
                     'suggestion_id': f'ask-ai-{uuid.uuid4().hex[:8]}',
                     'description': suggestion['description'],
@@ -4212,7 +4352,7 @@ async def generate_suggestions_from_query(
                     'validated_entities': validated_entities,  # Save mapping for fast test execution - MUST NOT BE EMPTY
                     'enriched_entity_context': entity_context_json,  # Cache enrichment data to avoid re-enrichment
                     'capabilities_used': suggestion.get('capabilities_used', []),
-                    'confidence': suggestion['confidence'],
+                    'confidence': boosted_confidence,  # Use boosted confidence
                     'status': 'draft',
                     'created_at': datetime.now().isoformat()
                 }
@@ -8771,6 +8911,102 @@ async def get_model_comparison_metrics(
         }
     except Exception as e:
         logger.error(f"Error fetching model comparison metrics: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/pattern-synergy/metrics")
+async def get_pattern_synergy_metrics() -> dict[str, Any]:
+    """
+    Get pattern and synergy integration metrics for monitoring.
+    
+    Returns metrics for:
+    - Pattern query performance (latency, cache hit rate)
+    - Synergy query performance (latency, cache hit rate)
+    - Confidence boost statistics
+    
+    Example:
+        GET /api/v1/ask-ai/pattern-synergy/metrics
+        {
+            "patterns": {
+                "query_count": 150,
+                "cache_hit_rate": 65.3,
+                "avg_latency_ms": 45.2,
+                "p50_latency_ms": 38.1,
+                "p95_latency_ms": 89.5,
+                "p99_latency_ms": 125.3,
+                "avg_patterns_retrieved": 7.2,
+                "errors": 2
+            },
+            "synergies": {
+                "query_count": 150,
+                "cache_hit_rate": 62.7,
+                "avg_latency_ms": 78.4,
+                "p50_latency_ms": 65.2,
+                "p95_latency_ms": 145.8,
+                "p99_latency_ms": 198.3,
+                "avg_synergies_retrieved": 3.8,
+                "errors": 1
+            },
+            "confidence_boosts": {
+                "total_suggestions": 500,
+                "boosts_applied": 150,
+                "boost_rate": 30.0,
+                "avg_boost_amount": 0.092,
+                "avg_base_confidence": 0.78,
+                "avg_final_confidence": 0.85
+            }
+        }
+    """
+    try:
+        from ..services.pattern_context_service import PatternContextService
+        from ..services.synergy_context_service import SynergyContextService
+        
+        # Get pattern metrics
+        pattern_metrics = PatternContextService.get_metrics()
+        
+        # Get synergy metrics
+        synergy_metrics = SynergyContextService.get_metrics()
+        
+        # Calculate confidence boost metrics
+        boost_metrics = _confidence_boost_metrics.copy()
+        total_suggestions = boost_metrics["total_suggestions"]
+        
+        if total_suggestions > 0:
+            boost_rate = (boost_metrics["boosts_applied"] / total_suggestions) * 100
+            avg_boost = (
+                sum(boost_metrics["boost_amounts"]) / len(boost_metrics["boost_amounts"])
+                if boost_metrics["boost_amounts"] else 0.0
+            )
+            avg_base = (
+                sum(boost_metrics["base_confidences"]) / len(boost_metrics["base_confidences"])
+                if boost_metrics["base_confidences"] else 0.0
+            )
+            avg_final = (
+                sum(boost_metrics["final_confidences"]) / len(boost_metrics["final_confidences"])
+                if boost_metrics["final_confidences"] else 0.0
+            )
+        else:
+            boost_rate = 0.0
+            avg_boost = 0.0
+            avg_base = 0.0
+            avg_final = 0.0
+        
+        confidence_boost_stats = {
+            "total_suggestions": total_suggestions,
+            "boosts_applied": boost_metrics["boosts_applied"],
+            "boost_rate": round(boost_rate, 2),
+            "avg_boost_amount": round(avg_boost, 3),
+            "avg_base_confidence": round(avg_base, 3),
+            "avg_final_confidence": round(avg_final, 3)
+        }
+        
+        return {
+            "patterns": pattern_metrics,
+            "synergies": synergy_metrics,
+            "confidence_boosts": confidence_boost_stats
+        }
+    except Exception as e:
+        logger.error(f"Error getting pattern/synergy metrics: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

@@ -1,0 +1,80 @@
+{
+  "prompt_id": "prompt-6-medium",
+  "prompt_name": "Conditional Brightness",
+  "prompt_text": "When the living room lights are turned on after 8 PM, automatically dim them to 40% brightness",
+  "complexity": "Medium",
+  "query_id": "query-f6adb97e",
+  "suggestion_id": "ask-ai-c5e2935b",
+  "automation_id": "automation.living_room_light_auto_dim_after_8_pm_1763945372_80e46efd",
+  "automation_yaml": "id: 'living_room_light_auto_dim_after_8_pm'\nalias: Living Room Light - Auto Dim After 8 PM\ndescription: \"Dim the Living Room Light to 40% brightness when turned on after 8 PM\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    from: \"off\"\n    to: \"on\"\ncondition:\n  - condition: time\n    after: \"20:00:00\"\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 40",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: off, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q3",
+          "category": "timing",
+          "question_text": "Could you clarify: Timing sequence is unclear - should actions happen simultaneously or sequentially?",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Living Room Light",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q3",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T16:49:04.592315"
+    }
+  ],
+  "automation_score": 60.0,
+  "yaml_score": 100.0,
+  "total_score": 79.0,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T16:49:03.329110"
+}

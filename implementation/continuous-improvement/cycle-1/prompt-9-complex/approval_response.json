@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-d3cb1f8a",
-  "query_id": "clarify-0fef3a0c",
+  "suggestion_id": "ask-ai-6421557d",
+  "query_id": "clarify-15f72956",
   "status": "approved",
-  "automation_id": "automation.office_wled_living_room_follow_2025_1763941371_6218509d",
-  "automation_yaml": "id: 'office_wled_living_room_follow_2025'\nalias: Office WLED Living Room Follow\ndescription: \"When Office WLED turns on, stage living room and then brighten Office WLED\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:02'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 70\n  - delay: '00:00:03'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 255",
+  "automation_id": "automation.office_wled_living_room_sequence_1763944796_7d2d2e5a",
+  "automation_yaml": "id: 'office_wled_living_room_sequence'\nalias: Office WLED \u2013 Living Room Sequence\ndescription: \"When Office WLED turns on, stage Living Room and then brighten Office WLED\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:02'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 70\n  - delay: '00:00:03'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

@@ -1,0 +1,63 @@
+{
+  "prompt_id": "prompt-8-complex",
+  "prompt_name": "Sunset-Based Multi-Device Sequence",
+  "prompt_text": "After sunset every day, turn on the living room lights for 5 minutes, then turn on the Office WLED, wait 30 seconds, and turn off the living room lights",
+  "complexity": "Complex",
+  "query_id": "query-1838f20d",
+  "suggestion_id": "ask-ai-f389c098",
+  "automation_id": "automation.after_sunset_living_room_office_wled_sequence_1763945410_fdc06d8e",
+  "automation_yaml": "id: 'after_sunset_living_room_office_wled_sequence'\nalias: After Sunset Living Room and Office WLED Sequence\ndescription: \"After sunset every day, turn on the Living Room light for 5 minutes, then turn on the Office WLED light, wait 30 seconds, and finally turn off the Living Room light.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n  - delay: '00:05:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n  - delay: '00:00:30'\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Office Wled",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T16:49:52.379926"
+    }
+  ],
+  "automation_score": 85.0,
+  "yaml_score": 100.0,
+  "total_score": 91.5,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T16:49:51.022022"
+}

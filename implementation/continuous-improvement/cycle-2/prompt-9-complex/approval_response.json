@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-038e49c1",
+  "query_id": "clarify-e26f47c0",
+  "status": "approved",
+  "automation_id": "automation.office_wled_startup_sequence_with_living_room_1763945115_0ea6a0d5",
+  "automation_yaml": "id: 'office_wled_startup_sequence_with_living_room'\nalias: 'Office WLED start-up sequence with Living Room'\ndescription: \"When Office WLED is turned on, then run a staged brightness sequence with Living Room and Office.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:02'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 70\n  - delay: '00:00:03'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

@@ -1,0 +1,66 @@
+id: 'office_wled_time_based_control'
+alias: Office WLED Time-Based Control
+description: "Time-based Office WLED brightness and color control with cleanup of other lights"
+mode: single
+trigger:
+  - platform: event
+    event_type: office_wled_time_based_trigger
+conditions: []
+action:
+  - choose:
+      - conditions:
+          - condition: time
+            after: "06:00:00"
+            before: "09:00:00"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness: 128
+              rgb_color:
+                - 255
+                - 160
+                - 90
+      - conditions:
+          - condition: time
+            after: "17:00:00"
+            before: "20:00:00"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness: 255
+              rgb_color:
+                - 180
+                - 220
+                - 255
+          - service: light.turn_on
+            target:
+              entity_id: light.living_room_2
+            data:
+              brightness: 204
+      - conditions:
+          - condition: time
+            after: "21:00:00"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: light.wled
+            data:
+              brightness: 51
+              rgb_color:
+                - 255
+                - 140
+                - 60
+  - delay: '00:00:05'
+  - service: light.turn_off
+    target:
+      entity_id:
+        - light.living_room_2
+        - light.hue_go_1
+        - light.hue_color_downlight_1_6
+        - light.hue_color_downlight_2_2
+        - light.hue_office_back_left
+        - light.hue_color_downlight_1_7

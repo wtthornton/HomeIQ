@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-a89337f7",
+  "query_id": "clarify-9733c8a8",
+  "status": "approved",
+  "automation_id": "automation.office_wled_sunset_warm_white_60pct_1763945036_bac957a4",
+  "automation_yaml": "id: 'office_wled_sunset_warm_white_60pct'\nalias: 'Office WLED Sunset Warm White 60%'\ndescription: \"At sunset, automatically set the Office WLED to a cozy, warm white at 60% brightness.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 60\n      rgb_color:\n        - 255\n        - 200\n        - 150",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

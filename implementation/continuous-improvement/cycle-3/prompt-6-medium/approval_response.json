@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-c5e2935b",
+  "query_id": "clarify-fc636f55",
+  "status": "approved",
+  "automation_id": "automation.living_room_light_auto_dim_after_8_pm_1763945372_80e46efd",
+  "automation_yaml": "id: 'living_room_light_auto_dim_after_8_pm'\nalias: Living Room Light - Auto Dim After 8 PM\ndescription: \"Dim the Living Room Light to 40% brightness when turned on after 8 PM\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    from: \"off\"\n    to: \"on\"\ncondition:\n  - condition: time\n    after: \"20:00:00\"\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 40",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

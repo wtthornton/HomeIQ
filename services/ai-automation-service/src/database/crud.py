@@ -225,14 +225,15 @@ async def store_patterns(db: AsyncSession, patterns: list[dict]) -> int:
             existing_pattern = result.scalar_one_or_none()
 
             if existing_pattern:
-                # Update existing pattern
-                existing_pattern.confidence = pattern_data['confidence']
-                existing_pattern.occurrences = pattern_data['occurrences']
-                existing_pattern.pattern_metadata = pattern_data.get('metadata', {})
+                # Enhanced deduplication: Merge occurrences and update confidence
+                # Use max confidence (keep best), merge occurrences (additive)
+                existing_pattern.confidence = max(existing_pattern.confidence, pattern_data['confidence'])
+                existing_pattern.occurrences = existing_pattern.occurrences + pattern_data.get('occurrences', 1)
+                existing_pattern.pattern_metadata = pattern_data.get('metadata', existing_pattern.pattern_metadata)
                 existing_pattern.last_seen = now
                 existing_pattern.updated_at = now
                 pattern = existing_pattern
-                logger.debug(f"Updated existing pattern {pattern.id} for {pattern.device_id}")
+                logger.debug(f"Updated existing pattern {pattern.id} for {pattern.device_id} (merged occurrences: {existing_pattern.occurrences})")
             else:
                 # Create new pattern
                 pattern = Pattern(

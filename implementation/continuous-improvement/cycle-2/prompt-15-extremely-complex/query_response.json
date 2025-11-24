@@ -1,0 +1,56 @@
+{
+  "query_id": "query-1dc983f9",
+  "original_query": "When any living room light changes state, check the time and the current brightness of the Office WLED. If it's daytime (6 AM to 6 PM) and the Office WLED is below 50%, turn it on to 70%. If it's nighttime (6 PM to 6 AM) and any living room light is above 60%, dim the Office WLED to 30%. If the Office WLED is already at the target brightness, do nothing. Wait 2 seconds between each check and action.",
+  "parsed_intent": "general",
+  "extracted_entities": [
+    {
+      "name": "living_room",
+      "type": "area",
+      "domain": "unknown",
+      "confidence": 0.9,
+      "extraction_method": "unified_pipeline"
+    },
+    {
+      "name": "office",
+      "type": "area",
+      "domain": "unknown",
+      "confidence": 0.9,
+      "extraction_method": "unified_pipeline"
+    }
+  ],
+  "suggestions": [],
+  "confidence": 0.4877278030751539,
+  "processing_time_ms": 1364,
+  "created_at": "2025-11-23T16:47:11.404320",
+  "clarification_needed": true,
+  "clarification_session_id": "clarify-810490ca",
+  "questions": [
+    {
+      "id": "q1",
+      "category": "device",
+      "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, living_room, office wled, target brightness, office",
+      "question_type": "text",
+      "options": null,
+      "priority": 1,
+      "related_entities": [
+        "c0070ae3ca3271e5c18c37fc1beaf0e8"
+      ],
+      "cached_answer": null,
+      "cached_entities": null,
+      "cached_similarity": null
+    },
+    {
+      "id": "q2",
+      "category": "action",
+      "question_text": "Could you clarify: Action 'turn' is vague - missing details: brighten",
+      "question_type": "text",
+      "options": null,
+      "priority": 2,
+      "related_entities": null,
+      "cached_answer": null,
+      "cached_entities": null,
+      "cached_similarity": null
+    }
+  ],
+  "message": "I found some ambiguities in your request. I detected these locations: living_room, office. Please answer 2 question(s) to help me create the automation accurately."
+}

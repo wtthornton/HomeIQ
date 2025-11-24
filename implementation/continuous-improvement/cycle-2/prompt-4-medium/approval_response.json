@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-d8746ca4",
+  "query_id": "clarify-d0a7b6bf",
+  "status": "approved",
+  "automation_id": "automation.living_room_light_evening_80pct_1763945023_30cb48ee",
+  "automation_yaml": "id: 'living_room_light_evening_80pct'\nalias: Living Room Light Evening 80%\ndescription: \"Between 6:00 PM and 11:00 PM every day, turn on the Living Room light to 80% brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

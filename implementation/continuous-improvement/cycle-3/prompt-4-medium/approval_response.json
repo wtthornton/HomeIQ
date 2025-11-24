@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-70f8fbb4",
+  "query_id": "clarify-1b444485",
+  "status": "approved",
+  "automation_id": "automation.living_room_light_1800_2300_80pct_1763945325_816992bb",
+  "automation_yaml": "id: 'living_room_light_1800_2300_80pct'\nalias: Evening Living Room Light to 80%\ndescription: \"Between 6:00 PM and 11:00 PM every day, automatically turn on the Living Room Light to 80% brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 80",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

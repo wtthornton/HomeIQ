@@ -1,0 +1,18 @@
+id: 'office_wled_sunset_warm_white_60'
+alias: Office WLED Sunset Warm White 60%
+description: "At sunset every day, set the Office WLED strip to a cozy warm white at 60% brightness."
+mode: single
+trigger:
+  - platform: sun
+    event: sunset
+conditions: []
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.wled
+    data:
+      brightness_pct: 60
+      rgb_color:
+        - 255
+        - 180
+        - 100

@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-a1b069f5",
+  "query_id": "clarify-03b382e4",
+  "status": "approved",
+  "automation_id": "automation.office_living_room_evening_sequence_1763945447_87d78cd9",
+  "automation_yaml": "id: 'office_living_room_evening_sequence'\nalias: Office and Living Room Evening Sequence\ndescription: \"At 5:00 PM every day, brighten Office WLED to 80%, then Living Room to 60%, then dim Office WLED to 40%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 80\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 60\n  - delay: '00:00:30'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 40",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-bf457b68",
-  "query_id": "clarify-01a816cd",
+  "suggestion_id": "ask-ai-1af18b48",
+  "query_id": "clarify-adf366de",
   "status": "approved",
-  "automation_id": "automation.office_wled_weekday_morning_on_1763941242_268d25f4",
-  "automation_yaml": "id: 'office_wled_weekday_morning_on'\nalias: Office WLED Weekday 8AM On\ndescription: \"Turn on the Office WLED at 8:00 AM on weekdays only with consistent brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '08:00:00'\nconditions:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 70",
+  "automation_id": "automation.office_wled_weekday_morning_on_1763944647_44259a0e",
+  "automation_yaml": "id: 'office_wled_weekday_morning_on'\nalias: Office WLED Weekday 8AM On\ndescription: \"Turn on the Office WLED at 8:00 AM on weekdays at a consistent brightness level\"\nmode: single\ntrigger:\n  - platform: time\n    at: '08:00:00'\nconditions:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 65",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

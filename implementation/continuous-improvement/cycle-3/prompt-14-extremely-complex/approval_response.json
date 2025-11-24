@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-d139c8a5",
+  "query_id": "clarify-3524af60",
+  "status": "approved",
+  "automation_id": "automation.office_wled_time_based_routine_1763945547_101a080d",
+  "automation_yaml": "id: 'office_wled_time_based_routine'\nalias: Office WLED Time-Based Routine\ndescription: \"Time-based Office WLED routine that adjusts brightness and color temperature throughout the day, then turns off unrelated lights after 5 seconds.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '06:00:00'\n  - platform: time\n    at: '17:00:00'\n  - platform: time\n    at: '21:00:00'\n  - platform: time_pattern\n    minutes: '/10'\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '09:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 128\n              rgb_color:\n                - 255\n                - 200\n                - 150\n      - conditions:\n          - condition: time\n            after: '17:00:00'\n            before: '20:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 255\n              rgb_color:\n                - 200\n                - 220\n                - 255\n      - conditions:\n          - condition: time\n            after: '21:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness: 51\n              rgb_color:\n                - 255\n                - 170\n                - 120\n    default: []\n  - delay: '00:00:05'\n  - service: light.turn_off\n    target:\n      entity_id:\n        - light.hue_go_1\n        - light.hue_color_downlight_1_6\n        - light.hue_color_downlight_1_7\n        - light.hue_office_back_left\n        - light.hue_color_downlight_2_2\n        - light.living_room_2",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

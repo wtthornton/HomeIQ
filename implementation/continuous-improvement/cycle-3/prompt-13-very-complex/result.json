@@ -1,0 +1,63 @@
+{
+  "prompt_id": "prompt-13-very-complex",
+  "prompt_name": "Complex State Management",
+  "prompt_text": "When the Office WLED is turned on, save its current state. Then turn on all living room lights to 80%. After 10 minutes, restore the Office WLED to its saved state and turn off all living room lights",
+  "complexity": "Very Complex",
+  "query_id": "query-48b6fa14",
+  "suggestion_id": "ask-ai-be88190f",
+  "automation_id": null,
+  "automation_yaml": null,
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "device",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+          "question_type": "text",
+          "options": null,
+          "priority": 1,
+          "related_entities": [
+            "c0070ae3ca3271e5c18c37fc1beaf0e8"
+          ],
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        },
+        {
+          "id": "q2",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Office Wled",
+          "selected_entities": null
+        },
+        {
+          "question_id": "q2",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T16:51:32.661745"
+    }
+  ],
+  "automation_score": 0.0,
+  "yaml_score": 0.0,
+  "total_score": 0.0,
+  "error": "Approval failed: Automation contains invalid entity IDs that could not be auto-fixed (Type: invalid_entities). Details: Invalid entity IDs in YAML (after auto-fix attempt): light.living_room_2'",
+  "success": false,
+  "timestamp": "2025-11-23T16:51:31.206412"
+}

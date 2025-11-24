@@ -1,0 +1,44 @@
+{
+  "prompt_id": "prompt-1-simple",
+  "prompt_name": "Simple Time-Based Light",
+  "prompt_text": "Turn on the Office WLED every day at 7:00 AM",
+  "complexity": "Simple",
+  "query_id": "query-dcb3f7e8",
+  "suggestion_id": "ask-ai-1b6f11f1",
+  "automation_id": "automation.office_wled_morning_on_1763944983_9978280f",
+  "automation_yaml": "id: 'office_wled_morning_on'\nalias: Office WLED On at 7 AM\ndescription: \"Turn on the Office WLED every day at 7:00 AM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '07:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T16:42:49.602312"
+    }
+  ],
+  "automation_score": 80.0,
+  "yaml_score": 100.0,
+  "total_score": 89.0,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T16:42:48.245319"
+}

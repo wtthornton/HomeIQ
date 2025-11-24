@@ -1,0 +1,23 @@
+id: 'office_wled_startup_sequence_with_living_room'
+alias: 'Office WLED start-up sequence with Living Room'
+description: "When Office WLED is turned on, then run a staged brightness sequence with Living Room and Office."
+mode: single
+trigger:
+  - platform: state
+    entity_id: light.wled
+    from: 'off'
+    to: 'on'
+conditions: []
+action:
+  - delay: '00:00:02'
+  - service: light.turn_on
+    target:
+      entity_id: light.living_room_2
+    data:
+      brightness_pct: 70
+  - delay: '00:00:03'
+  - service: light.turn_on
+    target:
+      entity_id: light.wled
+    data:
+      brightness_pct: 100

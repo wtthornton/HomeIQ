@@ -1,0 +1,27 @@
+[
+  {
+    "round": 1,
+    "questions": [
+      {
+        "id": "q1",
+        "category": "action",
+        "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+        "question_type": "text",
+        "options": null,
+        "priority": 2,
+        "related_entities": null,
+        "cached_answer": null,
+        "cached_entities": null,
+        "cached_similarity": null
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "q1",
+        "answer_text": "Yes",
+        "selected_entities": null
+      }
+    ],
+    "timestamp": "2025-11-23T16:43:16.517266"
+  }
+]

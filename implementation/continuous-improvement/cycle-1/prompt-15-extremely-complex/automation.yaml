@@ -1,42 +1,40 @@
-id: 'office_wled_day_night_follow_living_room'
-alias: Office WLED reacts to living room lights by time of day
-description: "Automation 1 – Core brightness logic for Office WLED based on living room light changes and time."
+id: 'office_wled_living_room_time_sync'
+alias: Office WLED - Sync Brightness with Time and Living Room Activity
+description: "Keep the Office WLED brightness aligned with living room activity and time of day."
 mode: restart
 trigger:
   - platform: state
-    entity_id:
-      - light.wled
-conditions: []
+    entity_id: light.wled
 action:
-  - delay: "00:00:02"
+  - delay: '00:00:02'
   - variables:
       office_brightness: "{{ state_attr('light.wled', 'brightness') | int(0) }}"
-      office_percent: "{{ (office_brightness / 255 * 100) | round(0) }}"
-      now_hour: "{{ now().hour }}"
+      office_brightness_pct: "{{ (office_brightness / 255 * 100) | round(0) if office_brightness > 0 else 0 }}"
+      is_daytime: "{{ now().hour >= 6 and now().hour < 18 }}"
+      office_target_day: 70
+      office_target_night: 30
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ 6 <= now_hour < 18 }}"
+            value_template: "{{ is_daytime }}"
           - condition: template
-            value_template: "{{ office_percent < 50 }}"
+            value_template: "{{ office_brightness_pct < 50 }}"
         sequence:
           - condition: template
-            value_template: "{{ office_percent != 70 }}"
+            value_template: "{{ office_brightness_pct != office_target_day }}"
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
-              brightness: 178
+              brightness_pct: "{{ office_target_day }}"
       - conditions:
           - condition: template
-            value_template: "{{ now_hour >= 18 or now_hour < 6 }}"
-          - condition: template
-            value_template: "{{ office_percent > 60 }}"
+            value_template: "{{ not is_daytime }}"
         sequence:
           - condition: template
-            value_template: "{{ office_percent != 30 }}"
+            value_template: "{{ office_brightness_pct != office_target_night }}"
           - service: light.turn_on
             target:
               entity_id: light.wled
             data:
-              brightness: 77
+              brightness_pct: "{{ office_target_night }}"

@@ -199,7 +199,9 @@ Guidelines:
         entities: list[dict],
         output_mode: str = "suggestions",  # "suggestions" | "yaml"
         entity_context_json: str | None = None,  # Enriched entity context JSON
-        clarification_context: dict[str, Any] | None = None  # NEW: Clarification Q&A context
+        clarification_context: dict[str, Any] | None = None,  # NEW: Clarification Q&A context
+        pattern_context: list[dict[str, Any]] | None = None,  # NEW: Pattern context from database
+        synergy_context: list[dict[str, Any]] | None = None  # NEW: Synergy context from database
     ) -> dict[str, str]:
         """
         Build prompt for Ask AI query-based suggestion generation.
@@ -285,6 +287,56 @@ DO NOT:
 
         pattern_guidance = self._render_pattern_sections(pattern_ids)
 
+        # Add pattern context section if available
+        pattern_context_section = ""
+        if pattern_context:
+            pattern_lines = []
+            for pattern in pattern_context[:5]:  # Top 5 patterns
+                pattern_type = pattern.get('pattern_type', 'unknown')
+                device_id = pattern.get('device_id', 'unknown')
+                confidence = pattern.get('confidence', 0.0)
+                occurrences = pattern.get('occurrences', 0)
+                pattern_lines.append(
+                    f"- Pattern ({pattern_type}): Device {device_id} "
+                    f"(confidence: {confidence:.2f}, {occurrences} occurrences)"
+                )
+            if pattern_lines:
+                pattern_context_section = f"""
+
+PATTERN CONTEXT (Learned Device Behaviors):
+{chr(10).join(pattern_lines)}
+
+These patterns represent learned behaviors from historical usage. Consider incorporating similar patterns into your suggestions.
+"""
+
+        # Add synergy context section if available
+        synergy_context_section = ""
+        if synergy_context:
+            synergy_lines = []
+            for synergy in synergy_context[:3]:  # Top 3 synergies
+                synergy_type = synergy.get('synergy_type', 'unknown')
+                device_ids = synergy.get('device_ids', [])
+                impact = synergy.get('impact_score', 0.0)
+                validated = synergy.get('validated_by_patterns', False)
+                rationale = synergy.get('opportunity_metadata', {}).get('rationale', '')
+                validated_marker = "✓ Pattern-validated" if validated else ""
+                device_str = ', '.join(device_ids[:3])  # Show first 3 devices
+                if len(device_ids) > 3:
+                    device_str += f" (+{len(device_ids) - 3} more)"
+                synergy_lines.append(
+                    f"- {synergy_type}: {device_str} (impact: {impact:.2f}) {validated_marker}"
+                )
+                if rationale:
+                    synergy_lines.append(f"  Rationale: {rationale}")
+            if synergy_lines:
+                synergy_context_section = f"""
+
+SYNERGY OPPORTUNITIES (Cross-Device Automation Potential):
+{chr(10).join(synergy_lines)}
+
+These synergies represent detected opportunities for devices to work together. Consider suggesting automations that leverage these relationships.
+"""
+
         # Build creative query prompt with enhanced examples
         # If clarification context exists, the query should already be enriched
         # But we'll still show the original query structure for clarity
@@ -302,6 +354,10 @@ Available devices and capabilities:
 {enriched_context_section}
 
 {clarification_section}
+
+{pattern_context_section}
+
+{synergy_context_section}
 
 CAPABILITY-SPECIFIC AUTOMATION IDEAS:
 {capability_examples}

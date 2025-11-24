@@ -1,0 +1,44 @@
+{
+  "prompt_id": "prompt-3-simple",
+  "prompt_name": "Basic Schedule",
+  "prompt_text": "Turn on the Office WLED at 8:00 AM on weekdays only",
+  "complexity": "Simple",
+  "query_id": "query-944bd005",
+  "suggestion_id": "ask-ai-7f07a395",
+  "automation_id": "automation.office_wled_weekday_morning_on_1763945009_7b667f78",
+  "automation_yaml": "id: 'office_wled_weekday_morning_on'\nalias: Office WLED Weekday 8AM On\ndescription: \"Turn on the Office WLED strip at 8:00 AM on weekdays\"\nmode: single\ntrigger:\n  - platform: time\n    at: '08:00:00'\nconditions:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
+  "clarification_rounds": 1,
+  "clarification_log": [
+    {
+      "round": 1,
+      "questions": [
+        {
+          "id": "q1",
+          "category": "action",
+          "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+          "question_type": "text",
+          "options": null,
+          "priority": 2,
+          "related_entities": null,
+          "cached_answer": null,
+          "cached_entities": null,
+          "cached_similarity": null
+        }
+      ],
+      "answers": [
+        {
+          "question_id": "q1",
+          "answer_text": "Yes",
+          "selected_entities": null
+        }
+      ],
+      "timestamp": "2025-11-23T16:43:16.517266"
+    }
+  ],
+  "automation_score": 80.0,
+  "yaml_score": 100.0,
+  "total_score": 89.0,
+  "error": null,
+  "success": true,
+  "timestamp": "2025-11-23T16:43:15.382595"
+}
