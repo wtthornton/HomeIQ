@@ -1,0 +1,20 @@
+{
+  "suggestion_id": "ask-ai-1a9399e2",
+  "query_id": "clarify-5eb2fcd3",
+  "status": "approved",
+  "automation_id": "automation.living_room_wled_day_night_adjust_1763948103_50713ced",
+  "automation_yaml": "id: 'living_room_wled_day_night_adjust'\nalias: Living Room - Adjust Office WLED by Time of Day\ndescription: \"When Living Room light changes, adjust Office WLED brightness by time of day with 2s debounce\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\naction:\n  - delay: '00:00:02'\n  - variables:\n      office_brightness: \"{{ state_attr('light.wled', 'brightness') | int(0) }}\"\n      office_brightness_pct: \"{{ (office_brightness / 255 * 100) | round(0) if office_brightness > 0 else 0 }}\"\n      living_brightness: \"{{ state_attr('light.living_room_2', 'brightness') | int(0) }}\"\n      living_brightness_pct: \"{{ (living_brightness / 255 * 100) | round(0) if living_brightness > 0 else 0 }}\"\n      now_hour: \"{{ now().hour }}\"\n      is_daytime: \"{{ 6 <= now_hour < 18 }}\"\n      is_nighttime: \"{{ now_hour >= 18 or now_hour < 6 }}\"\n  - choose:\n      - conditions:\n          - condition: template\n            value_template: \"{{ is_daytime }}\"\n          - condition: template\n            value_template: \"{{ office_brightness_pct < 50 }}\"\n          - condition: template\n            value_template: \"{{ office_brightness_pct != 70 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 70\n      - conditions:\n          - condition: template\n            value_template: \"{{ is_nighttime }}\"\n          - condition: template\n            value_template: \"{{ living_brightness_pct > 60 }}\"\n          - condition: template\n            value_template: \"{{ office_brightness_pct != 30 }}\"\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 30",
+  "ready_to_deploy": true,
+  "warnings": [],
+  "message": "Automation created and enabled successfully",
+  "safety_report": {
+    "safe": true,
+    "issues": [],
+    "critical_issues": [],
+    "warnings": [],
+    "info": [],
+    "coverage": 1.0,
+    "message": "Validation passed"
+  },
+  "safe": true
+}

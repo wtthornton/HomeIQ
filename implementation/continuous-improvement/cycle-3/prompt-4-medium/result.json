@@ -3,10 +3,10 @@
   "prompt_name": "Time-Based Conditional Lighting",
   "prompt_text": "Between 6 PM and 11 PM every day, turn on the living room lights to 80% brightness",
   "complexity": "Medium",
-  "query_id": "query-4930d0e6",
-  "suggestion_id": "ask-ai-70f8fbb4",
-  "automation_id": "automation.living_room_light_1800_2300_80pct_1763945325_816992bb",
-  "automation_yaml": "id: 'living_room_light_1800_2300_80pct'\nalias: Evening Living Room Light to 80%\ndescription: \"Between 6:00 PM and 11:00 PM every day, automatically turn on the Living Room Light to 80% brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 80",
+  "query_id": "query-5d6c6ceb",
+  "suggestion_id": "ask-ai-88b2a454",
+  "automation_id": "automation.living_room_evening_brightness_80_1763947902_d693072e",
+  "automation_yaml": "id: 'living_room_evening_brightness_80'\nalias: Living Room Evening Auto Brightness 80%\ndescription: \"Between 6:00 PM and 11:00 PM, set Living Room light to 80% brightness whenever it turns on.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    to: 'on'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 204",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -68,13 +68,13 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T16:48:18.784420"
+      "timestamp": "2025-11-23T17:31:29.015808"
     }
   ],
-  "automation_score": 80.0,
+  "automation_score": 60.0,
   "yaml_score": 100.0,
-  "total_score": 89.0,
+  "total_score": 79.0,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T16:48:17.624348"
+  "timestamp": "2025-11-23T17:31:27.620465"
 }

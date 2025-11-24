@@ -1,8 +1,8 @@
 {
   "cycle_number": 1,
-  "overall_score": 88.0,
+  "overall_score": 88.33333333333333,
   "all_successful": true,
-  "timestamp": "2025-11-23T16:36:11.724212",
+  "timestamp": "2025-11-23T17:21:30.336333",
   "prompt_results": [
     {
       "prompt_id": "prompt-1-simple",
@@ -32,7 +32,7 @@
       "prompt_id": "prompt-4-medium",
       "prompt_name": "Time-Based Conditional Lighting",
       "complexity": "Medium",
-      "total_score": 89.0,
+      "total_score": 99.0,
       "success": true,
       "error": null
     },
@@ -96,7 +96,7 @@
       "prompt_id": "prompt-12-very-complex",
       "prompt_name": "State Restoration with Conditions",
       "complexity": "Very Complex",
-      "total_score": 86.5,
+      "total_score": 81.5,
       "success": true,
       "error": null
     },

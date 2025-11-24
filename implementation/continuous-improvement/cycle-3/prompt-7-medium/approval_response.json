@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-0ccf73f1",
-  "query_id": "clarify-3a2c95ab",
+  "suggestion_id": "ask-ai-f80e6f34",
+  "query_id": "clarify-76047280",
   "status": "approved",
-  "automation_id": "automation.morning_office_living_room_lights_0600_1763945390_13c9a6de",
-  "automation_yaml": "id: 'morning_office_living_room_lights_0600'\nalias: Morning Office and Living Room Lights at 6 AM\ndescription: \"At 6:00 AM every day, gently set the Office WLED strip to 50% brightness and turn on the Living Room light to 30% brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '06:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 50\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 30",
+  "automation_id": "automation.morning_office_livingroom_lights_0600_1763947942_c13f495f",
+  "automation_yaml": "id: 'morning_office_livingroom_lights_0600'\nalias: Morning Office and Living Room lights at 6 AM\ndescription: \"At 6:00 AM every day, set the Office Wled to 50% brightness and the Living Room light to 30% brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '06:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 50\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 30",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

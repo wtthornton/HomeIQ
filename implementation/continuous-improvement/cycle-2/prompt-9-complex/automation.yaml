@@ -1,7 +1,7 @@
-id: 'office_wled_startup_sequence_with_living_room'
-alias: 'Office WLED start-up sequence with Living Room'
-description: "When Office WLED is turned on, then run a staged brightness sequence with Living Room and Office."
-mode: single
+id: 'office_wled_living_room_followup'
+alias: Office WLED Living Room Follow-Up Brightness
+description: "When Office WLED turns on, set Living Room to 70% after 2s, then Office to 100% after 3s"
+mode: restart
 trigger:
   - platform: state
     entity_id: light.wled

@@ -1,20 +1,46 @@
 {
-  "suggestion_id": "ask-ai-097a71f3",
-  "query_id": "clarify-9763063c",
+  "suggestion_id": "ask-ai-33c67d30",
+  "query_id": "clarify-a46c5efa",
   "status": "approved",
-  "automation_id": "automation.office_wled_random_burst_15min_1763944875_5f1fe299",
-  "automation_yaml": "id: 'office_wled_random_burst_15min'\nalias: Office WLED random effect every 15 minutes\ndescription: \"Every 15 minutes, run a 15-second random WLED effect on Office at 100% brightness, then restore previous state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/15'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random_burst\n      snapshot_entities:\n        - light.wled\n  - variables:\n      effect_source: >-\n        {{ state_attr('light.wled', 'effect_list')\n           if state_attr('light.wled', 'effect_list') is not none\n           else state_attr('light.wled', 'effect_list_summary') }}\n      random_effect: >-\n        {% if effect_source is string %}\n        {{ effect_source.split(', ') | random }}\n        {% else %}\n        {{ effect_source | random }}\n        {% endif %}\n      random_r: \"{{ range(0, 256) | random }}\"\n      random_g: \"{{ range(0, 256) | random }}\"\n      random_b: \"{{ range(0, 256) | random }}\"\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 255\n      rgb_color:\n        - \"{{ random_r }}\"\n        - \"{{ random_g }}\"\n        - \"{{ random_b }}\"\n      effect: \"{{ random_effect }}\"\n  - delay: '00:00:15'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_random_burst",
+  "automation_id": "automation.office_wled_random_15s_pulse_full_restore_1763947494_2d94ca57",
+  "automation_yaml": "id: 'office_wled_random_15s_pulse_full_restore'\nalias: Office WLED - Random 15s Pulse with Full Restore\ndescription: \"Every 15 minutes, play a random WLED effect at 100% brightness for 15 seconds, then restore previous Office state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: \"/15\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_pre_pulse_state\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 255\n      effect: random\n      rgb_color:\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n  - delay: \"00:00:15\"\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_pre_pulse_state",
   "ready_to_deploy": true,
-  "warnings": [],
+  "warnings": [
+    "Entity not found: scene.office_wled_pre_pulse_state"
+  ],
   "message": "Automation created and enabled successfully",
   "safety_report": {
     "safe": true,
-    "issues": [],
+    "issues": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_pre_pulse_state",
+        "details": {
+          "entity_id": "scene.office_wled_pre_pulse_state",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_pre_pulse_state exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
     "critical_issues": [],
-    "warnings": [],
+    "warnings": [
+      {
+        "severity": "warning",
+        "category": "availability",
+        "message": "Entity not found: scene.office_wled_pre_pulse_state",
+        "details": {
+          "entity_id": "scene.office_wled_pre_pulse_state",
+          "was_validated": false,
+          "suggestions": []
+        },
+        "recommendation": "Verify entity scene.office_wled_pre_pulse_state exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+      }
+    ],
     "info": [],
     "coverage": 1.0,
-    "message": "Validation passed"
+    "message": "Validation passed with warnings"
   },
   "safe": true
 }

@@ -1,18 +1,14 @@
 id: 'office_wled_time_based_routine'
 alias: Office WLED Time-Based Routine
-description: "Time-based Office WLED routine that adjusts brightness and color temperature throughout the day, then turns off unrelated lights after 5 seconds."
+description: "Time-based Office WLED routine that sets different brightness and white tones depending on morning, evening, or late night, then turns off all other lights after 5 seconds."
 mode: single
 trigger:
-  - platform: time
-    at: '06:00:00'
-  - platform: time
-    at: '17:00:00'
-  - platform: time
-    at: '21:00:00'
-  - platform: time_pattern
-    minutes: '/10'
+  - platform: event
+    event_type: office_wled_time_based_routine_run
 conditions: []
 action:
+  - variables:
+      current_time: "{{ now().strftime('%H:%M:%S') }}"
   - choose:
       - conditions:
           - condition: time
@@ -23,11 +19,8 @@ action:
             target:
               entity_id: light.wled
             data:
-              brightness: 128
-              rgb_color:
-                - 255
-                - 200
-                - 150
+              brightness_pct: 50
+              rgb_color: [255, 200, 150]
       - conditions:
           - condition: time
             after: '17:00:00'
@@ -35,13 +28,15 @@ action:
         sequence:
           - service: light.turn_on
             target:
+              entity_id: light.living_room_2
+            data:
+              brightness_pct: 80
+          - service: light.turn_on
+            target:
               entity_id: light.wled
             data:
-              brightness: 255
-              rgb_color:
-                - 200
-                - 220
-                - 255
+              brightness_pct: 100
+              rgb_color: [200, 220, 255]
       - conditions:
           - condition: time
             after: '21:00:00'
@@ -50,19 +45,37 @@ action:
             target:
               entity_id: light.wled
             data:
-              brightness: 51
-              rgb_color:
-                - 255
-                - 170
-                - 120
+              brightness_pct: 20
     default: []
   - delay: '00:00:05'
-  - service: light.turn_off
-    target:
-      entity_id:
-        - light.hue_go_1
-        - light.hue_color_downlight_1_6
-        - light.hue_color_downlight_1_7
-        - light.hue_office_back_left
-        - light.hue_color_downlight_2_2
-        - light.living_room_2
+  - variables:
+      is_morning: "{{ now().hour >= 6 and now().hour < 9 }}"
+      is_evening: "{{ now().hour >= 17 and now().hour < 20 }}"
+      is_late: "{{ now().hour >= 21 }}"
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ is_morning }}"
+        sequence:
+          - service: light.turn_off
+            target:
+              entity_id:
+                - light.living_room_2
+      - conditions:
+          - condition: template
+            value_template: "{{ is_evening }}"
+        sequence: []
+      - conditions:
+          - condition: template
+            value_template: "{{ is_late }}"
+        sequence:
+          - service: light.turn_off
+            target:
+              entity_id:
+                - light.living_room_2
+    default:
+      - service: light.turn_off
+        target:
+          entity_id:
+            - light.living_room_2
+            - light.wled

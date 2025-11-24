@@ -5,7 +5,7 @@
       {
         "id": "q1",
         "category": "device",
-        "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+        "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, office, living",
         "question_type": "text",
         "options": null,
         "priority": 1,
@@ -41,6 +41,6 @@
         "selected_entities": null
       }
     ],
-    "timestamp": "2025-11-23T16:51:32.661745"
+    "timestamp": "2025-11-23T17:33:47.653578"
   }
 ]

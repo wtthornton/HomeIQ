@@ -1,11 +1,10 @@
-id: 'office_wled_living_room_scene_return'
-alias: Office WLED - Living Room 10 Minute Scene Return
-description: "When Office WLED turns on, save state, set Living Room to 80%, then after 10 minutes restore Office and turn off Living Room"
-mode: restart
+id: 'office_wled_living_room_linked_scene_restore'
+alias: Office WLED – Living Room 10 Minute Scene Restore
+description: "When Office WLED turns on, snapshot it, set Living Room to 80%, then after 10 minutes restore Office WLED and turn off Living Room"
+mode: single
 trigger:
   - platform: state
     entity_id: light.wled
-    from: 'off'
     to: 'on'
 conditions: []
 action:

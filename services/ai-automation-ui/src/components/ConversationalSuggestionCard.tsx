@@ -20,6 +20,43 @@ interface DeviceInfo {
   selected?: boolean; // Whether this device is selected for inclusion in automation
 }
 
+interface EnergySavings {
+  daily_savings_kwh?: number;
+  daily_savings_usd?: number;
+  monthly_savings_usd?: number;
+  currency?: string;
+  device_power_watts?: number;
+  cheapest_hours?: number[];
+  optimization_potential?: 'high' | 'medium' | 'low';
+}
+
+interface SuggestionContext {
+  energy?: {
+    current_price?: number;
+    currency?: string;
+    peak_period?: boolean;
+    cheapest_hours?: number[];
+  };
+  historical?: {
+    total_events?: number;
+    usage_frequency?: number;
+    avg_daily_usage?: number;
+    most_common_hour?: number;
+    most_common_day?: string;
+    avg_duration_minutes?: number;
+    usage_trend?: 'increasing' | 'decreasing' | 'stable';
+  };
+  weather?: {
+    temperature?: number;
+    humidity?: number;
+    condition?: string;
+  };
+  carbon?: {
+    current_intensity?: number;
+    is_low_carbon?: boolean;
+  };
+}
+
 interface ConversationalSuggestion {
   id: number;
   description_only: string;
@@ -28,6 +65,14 @@ interface ConversationalSuggestion {
   confidence: number;
   status: 'draft' | 'refining' | 'yaml_generated' | 'deployed' | 'rejected';
   refinement_count: number;
+  source_type?: 'pattern' | 'predictive' | 'cascade' | 'feature' | 'synergy'; // Phase 1 improvement
+  energy_savings?: EnergySavings; // Phase 2 - Energy savings data
+  estimated_monthly_savings?: number; // Phase 2 - Quick access
+  context?: SuggestionContext; // Phase 2 - Full context data
+  user_preference_match?: number; // Phase 3 - User preference score (0.0-1.0)
+  user_preference_badge?: { score: number; label: string }; // Phase 3 - Badge data
+  weighted_score?: number; // Phase 3 - Final weighted score
+  metadata?: Record<string, any>; // Full metadata
   conversation_history: Array<{
     timestamp: string;
     user_input: string;
@@ -116,6 +161,18 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
       convenience: '✨',
     };
     return icons[suggestion.category as keyof typeof icons] || '✨';
+  };
+
+  const getSourceTypeBadge = () => {
+    const sourceType = suggestion.source_type || 'pattern';
+    const badges = {
+      pattern: { icon: '🔍', label: 'Pattern', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+      predictive: { icon: '🔮', label: 'Predictive', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+      cascade: { icon: '⚡', label: 'Cascade', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+      feature: { icon: '💎', label: 'Feature', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+      synergy: { icon: '🔗', label: 'Synergy', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' },
+    };
+    return badges[sourceType] || badges.pattern;
   };
 
   const handleRefine = async () => {
@@ -227,6 +284,16 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
             
             {/* Status Badge */}
             <div className="flex gap-1.5 items-center flex-wrap">
+              {/* Source Type Badge (NEW - Phase 1 improvement) */}
+              {suggestion.source_type && (() => {
+                const sourceBadge = getSourceTypeBadge();
+                return (
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${sourceBadge.color}`} title={`Suggestion source: ${sourceBadge.label}`}>
+                    {sourceBadge.icon} {sourceBadge.label}
+                  </span>
+                );
+              })()}
+              
               {suggestion.category && (
                 <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor()}`}>
                   {getCategoryIcon()} {suggestion.category}
@@ -305,6 +372,46 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   }}
                 />
               )}
+              
+              {/* Energy Savings Badge (Phase 2) */}
+              {suggestion.estimated_monthly_savings && suggestion.estimated_monthly_savings > 0 && (
+                <span 
+                  className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  title={`Estimated monthly savings: $${suggestion.estimated_monthly_savings.toFixed(2)}`}
+                >
+                  💰 Save ${suggestion.estimated_monthly_savings.toFixed(2)}/mo
+                </span>
+              )}
+              
+              {/* Historical Usage Context Badge (Phase 2) */}
+              {suggestion.context?.historical && suggestion.context.historical.usage_frequency && (
+                <span 
+                  className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                  title={`Based on ${suggestion.context.historical.total_events || 0} events over 30 days`}
+                >
+                  📊 {suggestion.context.historical.usage_frequency.toFixed(1)}x/day avg
+                </span>
+              )}
+              
+              {/* Carbon-Aware Badge (Phase 2) */}
+              {suggestion.context?.carbon && suggestion.context.carbon.is_low_carbon && (
+                <span 
+                  className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
+                  title="Low carbon intensity period - eco-friendly timing"
+                >
+                  🌱 Low Carbon
+                </span>
+              )}
+              
+              {/* User Preference Badge (Phase 3) */}
+              {suggestion.user_preference_badge && suggestion.user_preference_match && suggestion.user_preference_match > 0.7 && (
+                <span 
+                  className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
+                  title={`${Math.round(suggestion.user_preference_match * 100)}% match with your preferences`}
+                >
+                  👤 {suggestion.user_preference_badge.label}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -316,6 +423,32 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           color: '#cbd5e1'
         }}>
           {suggestion.description_only || 'No description available'}
+          
+          {/* Phase 2: Historical Usage Context */}
+          {suggestion.context?.historical && (
+            <div className="mt-2 pt-2 border-t border-gray-600 text-xs opacity-80">
+              <span className="text-gray-400">
+                📈 Based on your usage: {suggestion.context.historical.usage_frequency?.toFixed(1)} times/day average
+                {suggestion.context.historical.most_common_hour !== undefined && (
+                  <span>, most common at {suggestion.context.historical.most_common_hour}:00</span>
+                )}
+              </span>
+            </div>
+          )}
+          
+          {/* Phase 2: Energy Savings Info */}
+          {suggestion.energy_savings && suggestion.energy_savings.monthly_savings_usd && suggestion.energy_savings.monthly_savings_usd > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-600 text-xs">
+              <span className="text-green-400 font-medium">
+                💰 Potential savings: ${suggestion.energy_savings.monthly_savings_usd.toFixed(2)}/month
+                {suggestion.energy_savings.cheapest_hours && suggestion.energy_savings.cheapest_hours.length > 0 && (
+                  <span className="text-gray-400 ml-2">
+                    (Best times: {suggestion.energy_savings.cheapest_hours.map((h: number) => `${h}:00`).join(', ')})
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
         </div>
         
         {/* Device Information Buttons - Selectable */}

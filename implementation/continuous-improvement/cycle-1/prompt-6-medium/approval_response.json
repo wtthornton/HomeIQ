@@ -1,9 +1,9 @@
 {
-  "suggestion_id": "ask-ai-4eb99c6f",
-  "query_id": "clarify-dec90396",
+  "suggestion_id": "ask-ai-cb7fbb9d",
+  "query_id": "clarify-3fdb6b63",
   "status": "approved",
-  "automation_id": "automation.living_room_lights_dim_after_8pm_1763944726_b86e5fc1",
-  "automation_yaml": "id: 'living_room_lights_dim_after_8pm'\nalias: Dim Living Room Lights After 8 PM\ndescription: \"When the Living Room light is turned on after 8:00 PM, dim it to about 40% brightness.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 40",
+  "automation_id": "automation.living_room_evening_auto_dim_40_1763947386_96337f01",
+  "automation_yaml": "id: 'living_room_evening_auto_dim_40'\nalias: Living Room - Dim to 40% After 8 PM\ndescription: \"When the Living Room Light is turned on after 8:00 PM, automatically dim it to 40% brightness.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 40",
   "ready_to_deploy": true,
   "warnings": [],
   "message": "Automation created and enabled successfully",

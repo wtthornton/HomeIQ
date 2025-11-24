@@ -1,12 +1,12 @@
 {
-  "suggestion_id": "ask-ai-515c45c3",
-  "query_id": "clarify-2668f387",
+  "suggestion_id": "ask-ai-3733ad46",
+  "query_id": "clarify-bc4819f3",
   "status": "approved",
-  "automation_id": "automation.office_wled_living_room_scene_return_1763944916_de60bd62",
-  "automation_yaml": "id: 'office_wled_living_room_scene_return'\nalias: Office WLED - Temporary Living Room Lighting\ndescription: \"When Office WLED turns on, set Living Room to 80% for 10 minutes, then restore Office and turn Living Room off\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_80\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_80\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+  "automation_id": "automation.office_wled_living_room_boost_restore_1763947512_9ee11452",
+  "automation_yaml": "id: 'office_wled_living_room_boost_restore'\nalias: Office WLED \u2013 Temporary Living Room Boost\ndescription: \"When Office WLED turns on, boost Living Room light for 10 minutes, then restore Office WLED and turn Living Room off\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_boost\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_boost\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
   "ready_to_deploy": true,
   "warnings": [
-    "Entity not found: scene.office_wled_before_living_room_80"
+    "Entity not found: scene.office_wled_before_living_room_boost"
   ],
   "message": "Automation created and enabled successfully",
   "safety_report": {
@@ -15,13 +15,13 @@
       {
         "severity": "warning",
         "category": "availability",
-        "message": "Entity not found: scene.office_wled_before_living_room_80",
+        "message": "Entity not found: scene.office_wled_before_living_room_boost",
         "details": {
-          "entity_id": "scene.office_wled_before_living_room_80",
+          "entity_id": "scene.office_wled_before_living_room_boost",
           "was_validated": false,
           "suggestions": []
         },
-        "recommendation": "Verify entity scene.office_wled_before_living_room_80 exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+        "recommendation": "Verify entity scene.office_wled_before_living_room_boost exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
       }
     ],
     "critical_issues": [],
@@ -29,13 +29,13 @@
       {
         "severity": "warning",
         "category": "availability",
-        "message": "Entity not found: scene.office_wled_before_living_room_80",
+        "message": "Entity not found: scene.office_wled_before_living_room_boost",
         "details": {
-          "entity_id": "scene.office_wled_before_living_room_80",
+          "entity_id": "scene.office_wled_before_living_room_boost",
           "was_validated": false,
           "suggestions": []
         },
-        "recommendation": "Verify entity scene.office_wled_before_living_room_80 exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
+        "recommendation": "Verify entity scene.office_wled_before_living_room_boost exists in Home Assistant. This entity was not validated during generation - consider using a validated entity instead."
       }
     ],
     "info": [],

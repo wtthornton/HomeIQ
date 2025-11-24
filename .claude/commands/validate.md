@@ -356,27 +356,87 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "Phase 5.1: E2E - Complete Setup Workflow"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Testing complete deployment and setup workflow from documentation"
+echo ""
+echo "This phase tests the complete user journey from QUICK_START.md and USER_MANUAL.md:"
+echo "  1. Deployment wizard workflow (optional)"
+echo "  2. Home Assistant connection validation"
+echo "  3. Deployment verification"
+echo "  4. First-time setup validation"
+echo ""
 
-# Test deployment verification script
-echo "Running deployment verification script..."
-if [ -f "./scripts/verify-deployment.sh" ]; then
-  output=$(bash ./scripts/verify-deployment.sh 2>&1)
-  exit_code=$?
-  echo "$output" | tail -20
-  if [ $exit_code -eq 0 ]; then
-    echo "✅ Deployment verification passed"
+# Test 1: Home Assistant Connection Validation (from validate-ha-connection.sh)
+echo "Test 1: Home Assistant Connection Validation"
+if [ -f "./scripts/validate-ha-connection.sh" ]; then
+  echo "  Running validate-ha-connection.sh..."
+  if bash ./scripts/validate-ha-connection.sh -q 2>&1 | grep -q "✅\|PASS"; then
+    echo "  ✅ Home Assistant connection validated"
   else
-    echo "⚠️  Deployment verification had issues (review output above)"
+    echo "  ⚠️  Home Assistant connection validation had issues"
+    echo "  Note: This may be expected if HA is not configured. Run manually:"
+    echo "    ./scripts/validate-ha-connection.sh"
   fi
 else
-  echo "⚠️  verify-deployment.sh not found"
+  echo "  ⚠️  validate-ha-connection.sh not found"
 fi
 
-# Test Home Assistant connection validation (if script exists)
-if [ -f "./scripts/validate-ha-connection.sh" ]; then
-  echo "Running Home Assistant connection validation..."
-  bash ./scripts/validate-ha-connection.sh || echo "⚠️  HA connection validation had issues"
+# Test 2: Deployment Verification (from verify-deployment.sh)
+echo ""
+echo "Test 2: Deployment Verification"
+if [ -f "./scripts/verify-deployment.sh" ]; then
+  echo "  Running verify-deployment.sh..."
+  output=$(bash ./scripts/verify-deployment.sh 2>&1)
+  exit_code=$?
+  if [ $exit_code -eq 0 ]; then
+    echo "  ✅ Deployment verification passed"
+  else
+    echo "  ⚠️  Deployment verification had issues (review output above)"
+    echo "  Last 10 lines of output:"
+    echo "$output" | tail -10
+  fi
+else
+  echo "  ⚠️  verify-deployment.sh not found"
 fi
+
+# Test 3: Environment Configuration Check
+echo ""
+echo "Test 3: Environment Configuration"
+ENV_FILE="${ENV_FILE:-infrastructure/.env}"
+if [ -f "$ENV_FILE" ]; then
+  echo "  ✅ Environment file found: $ENV_FILE"
+  # Check for critical variables (without exposing values)
+  if grep -q "HA_HTTP_URL\|HOME_ASSISTANT_URL" "$ENV_FILE" 2>/dev/null; then
+    echo "  ✅ Home Assistant URL configured"
+  else
+    echo "  ⚠️  Home Assistant URL not found in $ENV_FILE"
+  fi
+  if grep -q "HA_TOKEN\|HOME_ASSISTANT_TOKEN" "$ENV_FILE" 2>/dev/null; then
+    echo "  ✅ Home Assistant token configured"
+  else
+    echo "  ⚠️  Home Assistant token not found in $ENV_FILE"
+  fi
+else
+  echo "  ⚠️  Environment file not found: $ENV_FILE"
+  echo "  Note: Create from infrastructure/env.example if needed"
+fi
+
+# Test 4: Docker Compose Configuration
+echo ""
+echo "Test 4: Docker Compose Configuration"
+if [ -f "docker-compose.yml" ]; then
+  echo "  ✅ docker-compose.yml found"
+  # Validate docker-compose syntax
+  if docker compose config >/dev/null 2>&1; then
+    echo "  ✅ Docker Compose configuration is valid"
+  else
+    echo "  ❌ Docker Compose configuration has errors"
+    docker compose config 2>&1 | head -20
+  fi
+else
+  echo "  ⚠️  docker-compose.yml not found"
+fi
+
+echo ""
+echo "✅ Setup workflow validation complete"
 ```
 
 ### 5.2 E2E Test: Health Dashboard Access & Functionality
@@ -457,6 +517,14 @@ echo "✅ Data API E2E test passed"
 
 ### 5.4 E2E Test: Complete AI Automation Workflow (User Journey from Docs)
 
+**This test validates the complete conversational AI automation workflow from USER_MANUAL.md:**
+- User opens AI Automation UI (http://localhost:3001)
+- User types natural language request in "Ask AI" tab
+- System generates automation suggestion
+- User reviews and refines (optional)
+- User approves and deploys
+- Automation verified in Home Assistant
+
 ```bash
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Phase 5.4: E2E - Complete AI Automation Workflow"
@@ -492,8 +560,10 @@ else
 fi
 
 # Step 4: Test natural language generation (User types "Turn on kitchen light at 7 AM")
-echo -n "Step 4: Natural language generation... "
+# This tests the "Ask AI" conversational workflow from USER_MANUAL.md
+echo -n "Step 4: Natural language generation (Ask AI workflow)... "
 API_KEY="${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}"
+# Test the conversational endpoint (from docs/CONVERSATIONAL_UI_USER_GUIDE.md)
 generate_response=$(curl -s -X POST "http://localhost:8024/api/nl/generate" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $API_KEY" \

@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
+from ..clients.data_enrichment_client import DataEnrichmentClient
 from ..config import settings
 from ..database import (
     can_trigger_manual_refresh,
@@ -26,6 +27,8 @@ from ..database import (
 from ..llm.openai_client import OpenAIClient
 from ..prompt_building.unified_prompt_builder import UnifiedPromptBuilder
 from ..services.model_comparison_service import ModelComparisonService
+from ..services.suggestion_context_enricher import SuggestionContextEnricher
+from ..services.learning.user_profile_builder import UserProfileBuilder
 from ..validation.device_validator import DeviceValidator, ValidationResult
 
 logger = logging.getLogger(__name__)
@@ -41,6 +44,18 @@ prompt_builder = UnifiedPromptBuilder()
 
 # Initialize Data API client for fetching device metadata
 data_api_client = DataAPIClient(base_url="http://data-api:8006")
+
+# Initialize Data Enrichment client for context data
+enrichment_client = DataEnrichmentClient()
+
+# Initialize Context Enricher (Phase 2 improvement)
+context_enricher = SuggestionContextEnricher(
+    data_api_client=data_api_client,
+    enrichment_client=enrichment_client
+)
+
+# Initialize User Profile Builder (Phase 3 improvement)
+user_profile_builder = UserProfileBuilder()
 
 # Initialize Device Validator for validating suggestions
 device_validator = DeviceValidator(data_api_client)
@@ -392,6 +407,11 @@ async def generate_suggestions(
                 # Store predictive suggestions
                 for pred_sugg in predictive_suggestions:
                     try:
+                        # Add source_type to metadata for tracking
+                        metadata = pred_sugg.get('metadata', {})
+                        metadata['source_type'] = 'predictive'
+                        metadata['suggestion_type'] = pred_sugg.get('type', 'repetitive_action')
+                        
                         suggestion_data = {
                             'pattern_id': None,
                             'title': pred_sugg.get('title', 'Predictive Automation'),
@@ -405,9 +425,21 @@ async def generate_suggestions(
                             'device1': pred_sugg.get('device1'),
                             'device2': pred_sugg.get('device2'),
                             'devices_involved': pred_sugg.get('devices') or pred_sugg.get('device_ids'),
-                            'metadata': pred_sugg.get('metadata', {}),
+                            'metadata': metadata,
                             'device_info': pred_sugg.get('device_info')
                         }
+                        
+                        # Phase 2: Enrich with context
+                        try:
+                            entity_id = pred_sugg.get('device_id') if pred_sugg.get('device_id') and '.' in pred_sugg.get('device_id') else None
+                            suggestion_data = await context_enricher.enrich_suggestion(
+                                suggestion_data,
+                                device_id=pred_sugg.get('device_id') if pred_sugg.get('device_id') and '.' not in pred_sugg.get('device_id') else None,
+                                entity_id=entity_id
+                            )
+                        except Exception as e:
+                            logger.warning(f"Context enrichment failed for predictive suggestion: {e}")
+                        
                         stored = await store_suggestion(db, suggestion_data)
                         suggestions_stored.append(stored)
                         suggestions_generated += 1
@@ -473,6 +505,12 @@ async def generate_suggestions(
 
                     # Store cascade suggestions (store first level, others as alternatives)
                     for cascade_sugg in cascade_suggestions[:1]:  # Store first level for now
+                        # Add source_type to metadata for tracking
+                        cascade_metadata = cascade_sugg.get('metadata', {})
+                        cascade_metadata['source_type'] = 'cascade'
+                        cascade_metadata['cascade_level'] = cascade_sugg.get('level', 1)
+                        cascade_metadata['complexity'] = cascade_sugg.get('complexity', 'simple')
+                        
                         cascade_data = {
                             'pattern_id': pattern.id,
                             'title': cascade_sugg.get('title', ''),
@@ -486,10 +524,22 @@ async def generate_suggestions(
                             'device1': cascade_sugg.get('device1') or pattern_dict.get('device1'),
                             'device2': cascade_sugg.get('device2') or pattern_dict.get('device2'),
                             'devices_involved': cascade_sugg.get('devices_involved'),
-                            'metadata': cascade_sugg.get('metadata', {}),
+                            'metadata': cascade_metadata,
                             'device_capabilities': cascade_sugg.get('device_capabilities'),
                             'device_info': cascade_sugg.get('device_info')
                         }
+                        
+                        # Phase 2: Enrich with context
+                        try:
+                            entity_id = cascade_data['device_id'] if cascade_data['device_id'] and '.' in cascade_data['device_id'] else None
+                            cascade_data = await context_enricher.enrich_suggestion(
+                                cascade_data,
+                                device_id=cascade_data['device_id'] if cascade_data['device_id'] and '.' not in cascade_data['device_id'] else None,
+                                entity_id=entity_id
+                            )
+                        except Exception as e:
+                            logger.warning(f"Context enrichment failed for cascade suggestion: {e}")
+                        
                         stored = await store_suggestion(db, cascade_data)
                         suggestions_stored.append(stored)
                         suggestions_generated += 1
@@ -576,6 +626,12 @@ async def generate_suggestions(
                 if device_info_entries:
                     device_capabilities['devices'] = device_info_entries
 
+                # Add source_type to metadata for tracking
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                metadata['source_type'] = 'pattern'
+                metadata['pattern_type'] = pattern.pattern_type
+                
                 # Store in database
                 suggestion_data = {
                     'pattern_id': pattern.id,
@@ -594,6 +650,18 @@ async def generate_suggestions(
                     'device_capabilities': device_capabilities if device_capabilities else None,
                     'device_info': device_info_entries or None
                 }
+
+                # Phase 2: Enrich with context (energy, historical, weather, carbon)
+                try:
+                    entity_id = pattern.device_id if '.' in pattern.device_id else None
+                    suggestion_data = await context_enricher.enrich_suggestion(
+                        suggestion_data,
+                        device_id=pattern.device_id if '.' not in pattern.device_id else None,
+                        entity_id=entity_id
+                    )
+                    logger.info(f"✅ Enriched suggestion with context data")
+                except Exception as e:
+                    logger.warning(f"Context enrichment failed (continuing without): {e}")
 
                 stored_suggestion = await store_suggestion(db, suggestion_data)
                 suggestions_stored.append(stored_suggestion)
@@ -665,6 +733,14 @@ async def list_suggestions(
         fetch_limit = max(limit * 10, 500)
         raw_suggestions = await get_suggestions(db, status=status_filter, limit=fetch_limit)
 
+        # Phase 3: Build user profile for personalization
+        user_profile = None
+        try:
+            user_profile = await user_profile_builder.build_user_profile(db, user_id='default')
+            logger.debug(f"Built user profile: {len(user_profile.get('preferred_categories', {}))} categories, {len(user_profile.get('preferred_devices', {}))} devices")
+        except Exception as e:
+            logger.warning(f"Failed to build user profile (continuing without personalization): {e}")
+
         suggestions_list = []
         for s in raw_suggestions:
             device_capabilities = s.device_capabilities or {}
@@ -688,6 +764,42 @@ async def list_suggestions(
                 )
                 continue
 
+            # Extract source_type and context from metadata for UI display
+            source_type = 'pattern'  # Default
+            suggestion_metadata = s.metadata if isinstance(s.metadata, dict) else {}
+            if isinstance(s.metadata, dict):
+                source_type = suggestion_metadata.get('source_type', 'pattern')
+            
+            # Extract context data (Phase 2 improvement)
+            context_data = suggestion_metadata.get('context', {})
+            energy_savings = suggestion_metadata.get('energy_savings', {})
+            estimated_monthly_savings = suggestion_metadata.get('estimated_monthly_savings', 0)
+            
+            # Phase 3: Calculate user preference match
+            user_preference_match = 0.0
+            user_preference_badge = None
+            if user_profile and isinstance(user_profile, dict):
+                suggestion_dict_for_match = {
+                    'category': s.category,
+                    'device_id': s.device_id,
+                    'priority': s.priority,
+                    'metadata': suggestion_metadata
+                }
+                try:
+                    user_preference_match = user_profile_builder.calculate_preference_match(
+                        suggestion_dict_for_match,
+                        user_profile
+                    )
+                    
+                    # Add badge if high match (>0.7)
+                    if user_preference_match > 0.7:
+                        user_preference_badge = {
+                            'score': user_preference_match,
+                            'label': 'Matches your preferences'
+                        }
+                except Exception as e:
+                    logger.debug(f"Failed to calculate preference match: {e}")
+            
             suggestion_dict = {
                 "id": s.id,
                 "pattern_id": s.pattern_id,
@@ -699,6 +811,12 @@ async def list_suggestions(
                 "confidence": s.confidence,
                 "category": s.category,
                 "priority": s.priority,
+                "source_type": source_type,  # Phase 1: For UI badges
+                "energy_savings": energy_savings,  # Phase 2: Energy savings data
+                "estimated_monthly_savings": estimated_monthly_savings,  # Phase 2: Quick access
+                "context": context_data,  # Phase 2: Full context
+                "user_preference_match": user_preference_match,  # Phase 3: User preference score
+                "user_preference_badge": user_preference_badge,  # Phase 3: Badge data
                 "conversation_history": s.conversation_history or [],
                 "refinement_count": s.refinement_count or 0,
                 "device_capabilities": device_capabilities,
@@ -706,8 +824,19 @@ async def list_suggestions(
                 "ha_automation_id": s.ha_automation_id,
                 "yaml_generated_at": s.yaml_generated_at.isoformat() if s.yaml_generated_at else None,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
-                "deployed_at": s.deployed_at.isoformat() if s.deployed_at else None
+                "deployed_at": s.deployed_at.isoformat() if s.deployed_at else None,
+                "metadata": suggestion_metadata  # Include full metadata for advanced features
             }
+            
+            # Phase 3: Adjust weighted score with user preference
+            if user_preference_match > 0 and hasattr(s, 'weighted_score'):
+                try:
+                    # Add user preference boost to weighted score (15% weight)
+                    base_score = float(s.weighted_score) if s.weighted_score else float(s.confidence)
+                    s.weighted_score = base_score + (user_preference_match * 0.15)
+                    suggestion_dict['weighted_score'] = s.weighted_score
+                except Exception as e:
+                    logger.debug(f"Failed to adjust weighted score: {e}")
 
             suggestions_list.append(suggestion_dict)
             if len(suggestions_list) >= limit:

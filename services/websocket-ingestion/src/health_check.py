@@ -74,14 +74,24 @@ class HealthCheckHandler:
                     }
 
                     # Calculate event rate (events per minute)
+                    # Use session events for rate calculation (current activity)
+                    session_events = sub_status.get("total_events_received", 0)
                     event_rate = 0
-                    if sub_status.get("last_event_time") and sub_status.get("subscription_start_time"):
+                    
+                    # Calculate rate based on session events and subscription duration
+                    if sub_status.get("subscription_start_time"):
                         try:
-                            last_event = datetime.fromisoformat(sub_status["last_event_time"])
                             start_time = datetime.fromisoformat(sub_status["subscription_start_time"])
-                            duration_minutes = (last_event - start_time).total_seconds() / 60
+                            # Use last event time if available, otherwise use current time
+                            if sub_status.get("last_event_time"):
+                                end_time = datetime.fromisoformat(sub_status["last_event_time"])
+                            else:
+                                # If no events yet, use current time to show 0 rate (correct behavior)
+                                end_time = datetime.now()
+                            
+                            duration_minutes = (end_time - start_time).total_seconds() / 60
                             if duration_minutes > 0:
-                                event_rate = sub_status.get("total_events_received", 0) / duration_minutes
+                                event_rate = session_events / duration_minutes
                         except Exception:
                             pass
                     # Always set event_rate_per_minute, default to 0

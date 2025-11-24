@@ -1,8 +1,8 @@
 {
   "cycle_number": 2,
-  "overall_score": 87.5,
+  "overall_score": 87.0,
   "all_successful": true,
-  "timestamp": "2025-11-23T16:42:48.012781",
+  "timestamp": "2025-11-23T17:26:06.449074",
   "prompt_results": [
     {
       "prompt_id": "prompt-1-simple",
@@ -112,7 +112,7 @@
       "prompt_id": "prompt-14-extremely-complex",
       "prompt_name": "Complex Conditional Logic",
       "complexity": "Extremely Complex",
-      "total_score": 91.5,
+      "total_score": 89.0,
       "success": true,
       "error": null
     },
@@ -120,7 +120,7 @@
       "prompt_id": "prompt-15-extremely-complex",
       "prompt_name": "Multi-Conditional with Choose",
       "complexity": "Extremely Complex",
-      "total_score": 96.5,
+      "total_score": 91.5,
       "success": true,
       "error": null
     }

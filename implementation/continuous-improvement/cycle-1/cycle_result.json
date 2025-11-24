@@ -6,10 +6,10 @@
       "prompt_name": "Simple Time-Based Light",
       "prompt_text": "Turn on the Office WLED every day at 7:00 AM",
       "complexity": "Simple",
-      "query_id": "query-a1102321",
-      "suggestion_id": "ask-ai-f92d294e",
-      "automation_id": "automation.office_wled_morning_on_1763944600_295c3761",
-      "automation_yaml": "id: 'office_wled_morning_on'\nalias: Office WLED On at 7 AM\ndescription: \"Turn on the Office WLED strip every day at 7:00 AM without changing its current color or brightness\"\nmode: single\ntrigger:\n  - platform: time\n    at: '07:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
+      "query_id": "query-0d4f1e0c",
+      "suggestion_id": "ask-ai-74bcf3cd",
+      "automation_id": "automation.office_wled_turn_on_0700_1763947308_96d10398",
+      "automation_yaml": "id: 'office_wled_turn_on_0700'\nalias: Office WLED On at 7 AM\ndescription: \"Turn on the Office WLED every day at 7:00 AM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '07:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -35,7 +35,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:36:13.541793"
+          "timestamp": "2025-11-23T17:21:35.825136"
         }
       ],
       "automation_score": 80.0,
@@ -43,17 +43,17 @@
       "total_score": 89.0,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:36:11.991568"
+      "timestamp": "2025-11-23T17:21:30.562785"
     },
     {
       "prompt_id": "prompt-2-simple",
       "prompt_name": "Simple Light Control",
       "prompt_text": "Turn off all living room lights at 11:00 PM every night",
       "complexity": "Simple",
-      "query_id": "query-0595e069",
-      "suggestion_id": "ask-ai-018ba49d",
-      "automation_id": "automation.living_room_light_off_2300_1763944621_b63079bb",
-      "automation_yaml": "id: 'living_room_light_off_2300'\nalias: Living Room Light Off at 11 PM\ndescription: \"Turn off the Living Room Light every night at 11:00 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+      "query_id": "query-7fe56033",
+      "suggestion_id": "ask-ai-91cf4da9",
+      "automation_id": "automation.living_room_lights_off_2300_1763947322_5c80a58c",
+      "automation_yaml": "id: 'living_room_lights_off_2300'\nalias: Living Room Light Off at 11 PM\ndescription: \"Turn off the Living Room light every night at 11:00 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '23:00:00'\nconditions: []\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -62,7 +62,7 @@
             {
               "id": "q1",
               "category": "device",
-              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, 11",
+              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: 11, living_room, living",
               "question_type": "text",
               "options": null,
               "priority": 1,
@@ -98,7 +98,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:36:41.597314"
+          "timestamp": "2025-11-23T17:21:50.324338"
         }
       ],
       "automation_score": 80.0,
@@ -106,17 +106,17 @@
       "total_score": 89.0,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:36:40.371025"
+      "timestamp": "2025-11-23T17:21:49.011382"
     },
     {
       "prompt_id": "prompt-3-simple",
       "prompt_name": "Basic Schedule",
       "prompt_text": "Turn on the Office WLED at 8:00 AM on weekdays only",
       "complexity": "Simple",
-      "query_id": "query-c43c4033",
-      "suggestion_id": "ask-ai-1af18b48",
-      "automation_id": "automation.office_wled_weekday_morning_on_1763944647_44259a0e",
-      "automation_yaml": "id: 'office_wled_weekday_morning_on'\nalias: Office WLED Weekday 8AM On\ndescription: \"Turn on the Office WLED at 8:00 AM on weekdays at a consistent brightness level\"\nmode: single\ntrigger:\n  - platform: time\n    at: '08:00:00'\nconditions:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 65",
+      "query_id": "query-94c06988",
+      "suggestion_id": "ask-ai-637f62c1",
+      "automation_id": "automation.office_wled_weekday_morning_on_1763947338_88cac19a",
+      "automation_yaml": "id: 'office_wled_weekday_morning_on'\nalias: Office WLED Weekday 8AM On\ndescription: \"At 8:00 AM on weekdays, turn on the Office WLED at a consistent brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '08:00:00'\nconditions:\n  - condition: time\n    weekday:\n      - mon\n      - tue\n      - wed\n      - thu\n      - fri\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 70",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -142,7 +142,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:37:02.818635"
+          "timestamp": "2025-11-23T17:22:04.107750"
         }
       ],
       "automation_score": 80.0,
@@ -150,17 +150,17 @@
       "total_score": 89.0,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:37:01.551034"
+      "timestamp": "2025-11-23T17:22:02.800357"
     },
     {
       "prompt_id": "prompt-4-medium",
       "prompt_name": "Time-Based Conditional Lighting",
       "prompt_text": "Between 6 PM and 11 PM every day, turn on the living room lights to 80% brightness",
       "complexity": "Medium",
-      "query_id": "query-7455857a",
-      "suggestion_id": "ask-ai-6d6bcf38",
-      "automation_id": "automation.living_room_evening_80_brightness_1763944674_4c03000a",
-      "automation_yaml": "id: 'living_room_evening_80_brightness'\nalias: Living Room Evening 80 Percent\ndescription: \"Between 6:00 PM and 11:00 PM every day, set Living Room light to 80% brightness at 6 PM\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\nconditions:\n  - condition: time\n    after: '18:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80",
+      "query_id": "query-b825a3ea",
+      "suggestion_id": "ask-ai-d4ce0331",
+      "automation_id": "automation.living_room_80pct_evening_1763947356_d55985f0",
+      "automation_yaml": "id: 'living_room_80pct_evening'\nalias: Living Room 80% Between 6 PM and 11 PM\ndescription: \"Turn on Living Room light to 80% at 18:00 and turn off at 23:00 daily\"\nmode: single\ntrigger:\n  - platform: time\n    at: '18:00:00'\n    id: start\n  - platform: time\n    at: '23:00:00'\n    id: end\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: trigger\n            id: start\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.living_room_2\n            data:\n              brightness_pct: 80\n      - conditions:\n          - condition: trigger\n            id: end\n        sequence:\n          - service: light.turn_off\n            target:\n              entity_id: light.living_room_2",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -222,25 +222,25 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:37:29.274226"
+          "timestamp": "2025-11-23T17:22:19.665568"
         }
       ],
-      "automation_score": 80.0,
+      "automation_score": 100.0,
       "yaml_score": 100.0,
-      "total_score": 89.0,
+      "total_score": 99.0,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:37:28.092854"
+      "timestamp": "2025-11-23T17:22:18.153803"
     },
     {
       "prompt_id": "prompt-5-medium",
       "prompt_name": "Time-Based Multi-Light",
       "prompt_text": "At sunset, turn on the Office WLED to 60% brightness and set it to a warm white color",
       "complexity": "Medium",
-      "query_id": "query-a7497fdc",
-      "suggestion_id": "ask-ai-b32397ff",
-      "automation_id": "automation.office_wled_sunset_warm_white_60pct_1763944700_3bb9c5f1",
-      "automation_yaml": "id: 'office_wled_sunset_warm_white_60pct'\nalias: Office WLED Sunset Warm White 60%\ndescription: \"At sunset, set the Office WLED strip to 60% brightness with a warm white appearance.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 60\n      rgb_color:\n        - 255\n        - 200\n        - 150",
+      "query_id": "query-88d0a4f7",
+      "suggestion_id": "ask-ai-8469ab37",
+      "automation_id": "automation.office_wled_sunset_warm_white_1763947370_7d1fe544",
+      "automation_yaml": "id: 'office_wled_sunset_warm_white'\nalias: Office WLED Sunset Warm White\ndescription: \"At sunset, set the Office WLED strip to a warm white at 60% brightness in one step.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 60\n      rgb_color:\n        - 255\n        - 180\n        - 120",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -283,7 +283,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:37:56.311321"
+          "timestamp": "2025-11-23T17:22:38.007564"
         }
       ],
       "automation_score": 80.0,
@@ -291,17 +291,17 @@
       "total_score": 89.0,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:37:54.732885"
+      "timestamp": "2025-11-23T17:22:36.733786"
     },
     {
       "prompt_id": "prompt-6-medium",
       "prompt_name": "Conditional Brightness",
       "prompt_text": "When the living room lights are turned on after 8 PM, automatically dim them to 40% brightness",
       "complexity": "Medium",
-      "query_id": "query-9d82f86b",
-      "suggestion_id": "ask-ai-4eb99c6f",
-      "automation_id": "automation.living_room_lights_dim_after_8pm_1763944726_b86e5fc1",
-      "automation_yaml": "id: 'living_room_lights_dim_after_8pm'\nalias: Dim Living Room Lights After 8 PM\ndescription: \"When the Living Room light is turned on after 8:00 PM, dim it to about 40% brightness.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 40",
+      "query_id": "query-97dca259",
+      "suggestion_id": "ask-ai-cb7fbb9d",
+      "automation_id": "automation.living_room_evening_auto_dim_40_1763947386_96337f01",
+      "automation_yaml": "id: 'living_room_evening_auto_dim_40'\nalias: Living Room - Dim to 40% After 8 PM\ndescription: \"When the Living Room Light is turned on after 8:00 PM, automatically dim it to 40% brightness.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    from: 'off'\n    to: 'on'\nconditions:\n  - condition: time\n    after: '20:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 40",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -363,7 +363,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:38:22.012950"
+          "timestamp": "2025-11-23T17:22:51.753114"
         }
       ],
       "automation_score": 60.0,
@@ -371,17 +371,17 @@
       "total_score": 79.0,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:38:20.506759"
+      "timestamp": "2025-11-23T17:22:50.334905"
     },
     {
       "prompt_id": "prompt-7-medium",
       "prompt_name": "Multi-Area Lighting",
       "prompt_text": "At 6:00 AM, turn on the Office WLED to 50% and turn on all living room lights to 30%",
       "complexity": "Medium",
-      "query_id": "query-8ad68325",
-      "suggestion_id": "ask-ai-cc4c00ff",
-      "automation_id": "automation.morning_office_livingroom_lights_0600_1763944749_e67354e6",
-      "automation_yaml": "id: 'morning_office_livingroom_lights_0600'\nalias: Morning Office and Living Room Lights at 6AM\ndescription: \"At 6:00 AM every day, set the Office Wled to 50% brightness and the Living Room light to 30% brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '06:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 128\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 77",
+      "query_id": "query-9cdf9b72",
+      "suggestion_id": "ask-ai-dd6c23a4",
+      "automation_id": "automation.morning_office_living_room_lights_0600_1763947401_2c2aba96",
+      "automation_yaml": "id: 'morning_office_living_room_lights_0600'\nalias: Morning Office and Living Room Lights at 6 AM\ndescription: \"At 6:00 AM every day, turn on the Office WLED to 50% and Living Room light to 30%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '06:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 50\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 30",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -390,7 +390,7 @@
             {
               "id": "q1",
               "category": "device",
-              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, office, living",
               "question_type": "text",
               "options": null,
               "priority": 1,
@@ -426,7 +426,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:38:49.209320"
+          "timestamp": "2025-11-23T17:23:08.072684"
         }
       ],
       "automation_score": 85.0,
@@ -434,17 +434,17 @@
       "total_score": 91.5,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:38:47.036400"
+      "timestamp": "2025-11-23T17:23:06.635660"
     },
     {
       "prompt_id": "prompt-8-complex",
       "prompt_name": "Sunset-Based Multi-Device Sequence",
       "prompt_text": "After sunset every day, turn on the living room lights for 5 minutes, then turn on the Office WLED, wait 30 seconds, and turn off the living room lights",
       "complexity": "Complex",
-      "query_id": "query-e9ae4d86",
-      "suggestion_id": "ask-ai-303e821b",
-      "automation_id": "automation.after_sunset_living_room_then_office_wled_1763944770_f06ee63c",
-      "automation_yaml": "id: 'after_sunset_living_room_then_office_wled'\nalias: After Sunset - Living Room then Office WLED\ndescription: \"After sunset every day, turn on the Living Room light for 5 minutes, then turn on the Office WLED, wait 30 seconds, and finally turn off the Living Room light.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n  - delay: '00:05:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n  - delay: '00:00:30'\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
+      "query_id": "query-bef20241",
+      "suggestion_id": "ask-ai-0a08fada",
+      "automation_id": null,
+      "automation_yaml": "id: 'after_sunset_living_room_office_wled_sequence'\nalias: After Sunset - Living Room then Office WLED\ndescription: \"After sunset every day, turn on the Living Room light for 5 minutes, then turn on the Office WLED, wait 30 seconds, and finally turn off the Living Room light.\"\nmode: single\ntrigger:\n  - platform: sun\n    event: sunset\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n  - delay: '00:05:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n  - delay: '00:00:30'\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2'",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -453,7 +453,7 @@
             {
               "id": "q1",
               "category": "device",
-              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, office, living",
               "question_type": "text",
               "options": null,
               "priority": 1,
@@ -489,7 +489,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:39:10.630523"
+          "timestamp": "2025-11-23T17:23:23.058127"
         }
       ],
       "automation_score": 85.0,
@@ -497,17 +497,17 @@
       "total_score": 91.5,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:39:09.160648"
+      "timestamp": "2025-11-23T17:23:21.461205"
     },
     {
       "prompt_id": "prompt-9-complex",
       "prompt_name": "Sequential Actions",
       "prompt_text": "When the Office WLED is turned on, wait 2 seconds, then turn on all living room lights to 70%, wait another 3 seconds, and set the Office WLED to 100% brightness",
       "complexity": "Complex",
-      "query_id": "query-826b5d96",
-      "suggestion_id": "ask-ai-6421557d",
-      "automation_id": "automation.office_wled_living_room_sequence_1763944796_7d2d2e5a",
-      "automation_yaml": "id: 'office_wled_living_room_sequence'\nalias: Office WLED \u2013 Living Room Sequence\ndescription: \"When Office WLED turns on, stage Living Room and then brighten Office WLED\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:02'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 70\n  - delay: '00:00:03'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 100",
+      "query_id": "query-e56f4f06",
+      "suggestion_id": "ask-ai-c40ffd78",
+      "automation_id": "automation.office_wled_living_room_sequence_1763947434_438cc5a2",
+      "automation_yaml": "id: 'office_wled_living_room_sequence'\nalias: Office WLED \u2013 Living Room Sequence\ndescription: \"When Office WLED turns on, sequence living room and office brightness\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    to: 'on'\nconditions: []\naction:\n  - delay: '00:00:02'\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 179\n  - delay: '00:00:03'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 255",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -516,7 +516,7 @@
             {
               "id": "q1",
               "category": "device",
-              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, office, living",
               "question_type": "text",
               "options": null,
               "priority": 1,
@@ -552,7 +552,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:39:31.820530"
+          "timestamp": "2025-11-23T17:23:40.703429"
         }
       ],
       "automation_score": 65.0,
@@ -560,17 +560,17 @@
       "total_score": 81.5,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:39:30.420631"
+      "timestamp": "2025-11-23T17:23:39.156566"
     },
     {
       "prompt_id": "prompt-10-complex",
       "prompt_name": "Time-Based Sequence",
       "prompt_text": "Every day at 5:00 PM, turn on the Office WLED to 80%, wait 1 minute, turn on all living room lights to 60%, wait 30 seconds, and dim the Office WLED to 40%",
       "complexity": "Complex",
-      "query_id": "query-5c835d63",
-      "suggestion_id": "ask-ai-dc59b4c8",
-      "automation_id": "automation.office_wled_evening_routine_1763944817_408205e0",
-      "automation_yaml": "id: 'office_wled_evening_routine'\nalias: Office WLED Evening Routine\ndescription: \"Every day at 5:00 PM, smoothly brighten the Office WLED to 80% brightness, then after 1 minute dim it down to a relaxed 40%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 204\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 102",
+      "query_id": "query-a0f88a85",
+      "suggestion_id": "ask-ai-0a7e0490",
+      "automation_id": "automation.office_wled_evening_sequence_1700000000_1763947451_42bb5c73",
+      "automation_yaml": "id: 'office_wled_evening_sequence_1700000000'\nalias: Office WLED and Living Room Evening Sequence\ndescription: \"At 5:00 PM, set Office WLED to 80%, then Living Room to 60%, then dim Office WLED to 40%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '17:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.wled\n    data:\n      brightness_pct: 80\n  - delay: '00:01:00'\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.living_room_2\n    data:\n      brightness_pct: 60\n  - delay: '00:00:30'\n  - service: light.turn_on\n    target:\n      entity_id:\n        - light.wled\n    data:\n      brightness_pct: 40",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -579,7 +579,7 @@
             {
               "id": "q1",
               "category": "device",
-              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, office, living",
               "question_type": "text",
               "options": null,
               "priority": 1,
@@ -615,7 +615,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:39:57.924918"
+          "timestamp": "2025-11-23T17:23:56.622182"
         }
       ],
       "automation_score": 85.0,
@@ -623,17 +623,17 @@
       "total_score": 91.5,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:39:56.544424"
+      "timestamp": "2025-11-23T17:23:54.902993"
     },
     {
       "prompt_id": "prompt-11-complex",
       "prompt_name": "Conditional Chain",
       "prompt_text": "When any living room light is turned on between 9 PM and 11 PM, turn on the Office WLED to 20% brightness, wait 10 seconds, then turn off the Office WLED",
       "complexity": "Complex",
-      "query_id": "query-169a9375",
-      "suggestion_id": "ask-ai-4e828416",
-      "automation_id": null,
-      "automation_yaml": "id: 'living_room_lights_pulse_office_wled'\nalias: Living Room Lights - Pulse Office WLED 20 Percent\ndescription: \"When any living room light turns on between 21:00 and 23:00, briefly pulse the Office WLED at 20% brightness, then turn it back off.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id:\n      # Placeholder for living room lights; replace with actual living room light entity_ids\n      # Example:\n      # - light.living_room_main\n      # - light.living_room_lamp\n    to: 'on'\nconditions:\n  - condition: time\n    after: '21:00:00'\n    before: '23:00:00'\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_pulse\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 20\n  - delay: '00:00:10'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_pulse",
+      "query_id": "query-3b86dbdf",
+      "suggestion_id": "ask-ai-1bdc0f47",
+      "automation_id": "automation.living_room_wled_notifier_21_23_1763947465_fb9078dc",
+      "automation_yaml": "id: 'living_room_wled_notifier_21_23'\nalias: Living Room Evening Office WLED Pulse\ndescription: \"When the Living Room light is turned on between 9:00 PM and 11:00 PM, briefly turn on the Office WLED at 20% brightness for 10 seconds, then turn it back off.\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\n    to: 'on'\nconditions:\n  - condition: time\n    after: '21:00:00'\n    before: '23:00:00'\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 20\n  - delay: '00:00:10'\n  - service: light.turn_off\n    target:\n      entity_id: light.wled",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -642,7 +642,7 @@
             {
               "id": "q1",
               "category": "device",
-              "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living_room, living, office",
+              "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living_room, office, living",
               "question_type": "text",
               "options": null,
               "priority": 1,
@@ -678,7 +678,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:40:19.503230"
+          "timestamp": "2025-11-23T17:24:13.749247"
         }
       ],
       "automation_score": 65.0,
@@ -686,17 +686,17 @@
       "total_score": 81.5,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:40:17.944673"
+      "timestamp": "2025-11-23T17:24:12.254713"
     },
     {
       "prompt_id": "prompt-12-very-complex",
       "prompt_name": "State Restoration with Conditions",
       "prompt_text": "Every 15 mins choose a random effect on the Office WLED device. Play the effect for 15 secs. Choose random effect, random colors and brightness to 100%. At the end of the 15 sec the WLED light needs to return to exactly what it was before it started.",
       "complexity": "Very Complex",
-      "query_id": "query-e67ada5d",
-      "suggestion_id": "ask-ai-097a71f3",
-      "automation_id": "automation.office_wled_random_burst_15min_1763944875_5f1fe299",
-      "automation_yaml": "id: 'office_wled_random_burst_15min'\nalias: Office WLED random effect every 15 minutes\ndescription: \"Every 15 minutes, run a 15-second random WLED effect on Office at 100% brightness, then restore previous state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/15'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_random_burst\n      snapshot_entities:\n        - light.wled\n  - variables:\n      effect_source: >-\n        {{ state_attr('light.wled', 'effect_list')\n           if state_attr('light.wled', 'effect_list') is not none\n           else state_attr('light.wled', 'effect_list_summary') }}\n      random_effect: >-\n        {% if effect_source is string %}\n        {{ effect_source.split(', ') | random }}\n        {% else %}\n        {{ effect_source | random }}\n        {% endif %}\n      random_r: \"{{ range(0, 256) | random }}\"\n      random_g: \"{{ range(0, 256) | random }}\"\n      random_b: \"{{ range(0, 256) | random }}\"\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 255\n      rgb_color:\n        - \"{{ random_r }}\"\n        - \"{{ random_g }}\"\n        - \"{{ random_b }}\"\n      effect: \"{{ random_effect }}\"\n  - delay: '00:00:15'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_random_burst",
+      "query_id": "query-011fff8e",
+      "suggestion_id": "ask-ai-33c67d30",
+      "automation_id": "automation.office_wled_random_15s_pulse_full_restore_1763947494_2d94ca57",
+      "automation_yaml": "id: 'office_wled_random_15s_pulse_full_restore'\nalias: Office WLED - Random 15s Pulse with Full Restore\ndescription: \"Every 15 minutes, play a random WLED effect at 100% brightness for 15 seconds, then restore previous Office state.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: \"/15\"\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_pre_pulse_state\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 255\n      effect: random\n      rgb_color:\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n        - \"{{ range(0, 256) | random }}\"\n  - delay: \"00:00:15\"\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_pre_pulse_state",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -741,70 +741,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:40:41.030380"
-        }
-      ],
-      "automation_score": 75.0,
-      "yaml_score": 100.0,
-      "total_score": 86.5,
-      "error": null,
-      "success": true,
-      "timestamp": "2025-11-23T16:40:39.417536"
-    },
-    {
-      "prompt_id": "prompt-13-very-complex",
-      "prompt_name": "Complex State Management",
-      "prompt_text": "When the Office WLED is turned on, save its current state. Then turn on all living room lights to 80%. After 10 minutes, restore the Office WLED to its saved state and turn off all living room lights",
-      "complexity": "Very Complex",
-      "query_id": "query-c3f5c89e",
-      "suggestion_id": "ask-ai-515c45c3",
-      "automation_id": "automation.office_wled_living_room_scene_return_1763944916_de60bd62",
-      "automation_yaml": "id: 'office_wled_living_room_scene_return'\nalias: Office WLED - Temporary Living Room Lighting\ndescription: \"When Office WLED turns on, set Living Room to 80% for 10 minutes, then restore Office and turn Living Room off\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_80\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_80\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
-      "clarification_rounds": 1,
-      "clarification_log": [
-        {
-          "round": 1,
-          "questions": [
-            {
-              "id": "q1",
-              "category": "device",
-              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
-              "question_type": "text",
-              "options": null,
-              "priority": 1,
-              "related_entities": [
-                "c0070ae3ca3271e5c18c37fc1beaf0e8"
-              ],
-              "cached_answer": null,
-              "cached_entities": null,
-              "cached_similarity": null
-            },
-            {
-              "id": "q2",
-              "category": "action",
-              "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
-              "question_type": "text",
-              "options": null,
-              "priority": 2,
-              "related_entities": null,
-              "cached_answer": null,
-              "cached_entities": null,
-              "cached_similarity": null
-            }
-          ],
-          "answers": [
-            {
-              "question_id": "q1",
-              "answer_text": "Office Wled",
-              "selected_entities": null
-            },
-            {
-              "question_id": "q2",
-              "answer_text": "Yes",
-              "selected_entities": null
-            }
-          ],
-          "timestamp": "2025-11-23T16:41:17.626017"
+          "timestamp": "2025-11-23T17:24:27.451379"
         }
       ],
       "automation_score": 65.0,
@@ -812,17 +749,17 @@
       "total_score": 81.5,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:41:16.108593"
+      "timestamp": "2025-11-23T17:24:25.879860"
     },
     {
-      "prompt_id": "prompt-14-extremely-complex",
-      "prompt_name": "Complex Conditional Logic",
-      "prompt_text": "Check the time. If it's between 6 AM and 9 AM, turn on the Office WLED to 50% with a warm white color. If it's between 5 PM and 8 PM, turn on all living room lights to 80% and set the Office WLED to 100% with a cool white color. If it's after 9 PM, only turn on the Office WLED to 20% brightness. Wait 5 seconds after any action, then turn off all other lights that weren't part of the selected time-based action.",
-      "complexity": "Extremely Complex",
-      "query_id": "query-e4b02bea",
-      "suggestion_id": "ask-ai-4fcfc430",
-      "automation_id": "automation.time_based_office_wled_control_1763944943_423e26c7",
-      "automation_yaml": "id: 'time_based_office_wled_control'\nalias: Time-Based Office WLED and Cleanup\ndescription: \"Time-based Office WLED brightness and color control with automatic cleanup of other lights.\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/5'\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '09:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 50\n              rgb_color:\n                - 255\n                - 200\n                - 150\n      - conditions:\n          - condition: time\n            after: '17:00:00'\n            before: '20:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 100\n              rgb_color:\n                - 200\n                - 220\n                - 255\n          - service: light.turn_on\n            target:\n              entity_id: light.living_room_2\n            data:\n              brightness_pct: 80\n      - conditions:\n          - condition: time\n            after: '21:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 20\n  - delay: '00:00:05'\n  - service: light.turn_off\n    target:\n      entity_id:\n        - light.living_room_2\n        - light.hue_go_1\n        - light.hue_color_downlight_1_6\n        - light.hue_color_downlight_2_2\n        - light.hue_office_back_left\n        - light.hue_color_downlight_1_7",
+      "prompt_id": "prompt-13-very-complex",
+      "prompt_name": "Complex State Management",
+      "prompt_text": "When the Office WLED is turned on, save its current state. Then turn on all living room lights to 80%. After 10 minutes, restore the Office WLED to its saved state and turn off all living room lights",
+      "complexity": "Very Complex",
+      "query_id": "query-bcb63577",
+      "suggestion_id": "ask-ai-3733ad46",
+      "automation_id": "automation.office_wled_living_room_boost_restore_1763947512_9ee11452",
+      "automation_yaml": "id: 'office_wled_living_room_boost_restore'\nalias: Office WLED \u2013 Temporary Living Room Boost\ndescription: \"When Office WLED turns on, boost Living Room light for 10 minutes, then restore Office WLED and turn Living Room off\"\nmode: single\ntrigger:\n  - platform: state\n    entity_id: light.wled\n    from: 'off'\n    to: 'on'\nconditions: []\naction:\n  - service: scene.create\n    data:\n      scene_id: office_wled_before_living_room_boost\n      snapshot_entities:\n        - light.wled\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 80\n  - delay: '00:10:00'\n  - service: scene.turn_on\n    target:\n      entity_id: scene.office_wled_before_living_room_boost\n  - service: light.turn_off\n    target:\n      entity_id: light.living_room_2",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -831,7 +768,7 @@
             {
               "id": "q1",
               "category": "device",
-              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office, selected time",
+              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, office, living",
               "question_type": "text",
               "options": null,
               "priority": 1,
@@ -867,25 +804,25 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:41:57.567519"
+          "timestamp": "2025-11-23T17:24:55.948785"
         }
       ],
-      "automation_score": 100.0,
+      "automation_score": 65.0,
       "yaml_score": 100.0,
-      "total_score": 99.0,
+      "total_score": 81.5,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:41:56.178577"
+      "timestamp": "2025-11-23T17:24:54.375183"
     },
     {
-      "prompt_id": "prompt-15-extremely-complex",
-      "prompt_name": "Multi-Conditional with Choose",
-      "prompt_text": "When any living room light changes state, check the time and the current brightness of the Office WLED. If it's daytime (6 AM to 6 PM) and the Office WLED is below 50%, turn it on to 70%. If it's nighttime (6 PM to 6 AM) and any living room light is above 60%, dim the Office WLED to 30%. If the Office WLED is already at the target brightness, do nothing. Wait 2 seconds between each check and action.",
+      "prompt_id": "prompt-14-extremely-complex",
+      "prompt_name": "Complex Conditional Logic",
+      "prompt_text": "Check the time. If it's between 6 AM and 9 AM, turn on the Office WLED to 50% with a warm white color. If it's between 5 PM and 8 PM, turn on all living room lights to 80% and set the Office WLED to 100% with a cool white color. If it's after 9 PM, only turn on the Office WLED to 20% brightness. Wait 5 seconds after any action, then turn off all other lights that weren't part of the selected time-based action.",
       "complexity": "Extremely Complex",
-      "query_id": "query-cd7dc197",
-      "suggestion_id": "ask-ai-31cd05b9",
-      "automation_id": "automation.office_wled_living_room_time_sync_1763944965_4f402a81",
-      "automation_yaml": "id: 'office_wled_living_room_time_sync'\nalias: Office WLED - Sync Brightness with Time and Living Room Activity\ndescription: \"Keep the Office WLED brightness aligned with living room activity and time of day.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.wled\naction:\n  - delay: '00:00:02'\n  - variables:\n      office_brightness: \"{{ state_attr('light.wled', 'brightness') | int(0) }}\"\n      office_brightness_pct: \"{{ (office_brightness / 255 * 100) | round(0) if office_brightness > 0 else 0 }}\"\n      is_daytime: \"{{ now().hour >= 6 and now().hour < 18 }}\"\n      office_target_day: 70\n      office_target_night: 30\n  - choose:\n      - conditions:\n          - condition: template\n            value_template: \"{{ is_daytime }}\"\n          - condition: template\n            value_template: \"{{ office_brightness_pct < 50 }}\"\n        sequence:\n          - condition: template\n            value_template: \"{{ office_brightness_pct != office_target_day }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: \"{{ office_target_day }}\"\n      - conditions:\n          - condition: template\n            value_template: \"{{ not is_daytime }}\"\n        sequence:\n          - condition: template\n            value_template: \"{{ office_brightness_pct != office_target_night }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: \"{{ office_target_night }}\"",
+      "query_id": "query-a6d5978b",
+      "suggestion_id": "ask-ai-4321393f",
+      "automation_id": "automation.time_based_office_wled_living_routine_1763947542_69fb2511",
+      "automation_yaml": "id: 'time_based_office_wled_living_routine'\nalias: Time-Based Office WLED and Living Room Routine\ndescription: \"Time-based Office WLED and Living Room routine with cleanup\"\nmode: single\ntrigger:\n  - platform: time_pattern\n    minutes: '/1'\nconditions: []\naction:\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '09:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 50\n              rgb_color:\n                - 255\n                - 180\n                - 120\n          - delay:\n              seconds: 5\n          - service: light.turn_off\n            target:\n              entity_id:\n                - light.living_room_2\n                - light.hue_office_back_left\n                - light.hue_color_downlight_1_6\n                - light.hue_color_downlight_1_7\n                - light.hue_color_downlight_2_2\n      - conditions:\n          - condition: time\n            after: '17:00:00'\n            before: '20:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.living_room_2\n            data:\n              brightness_pct: 80\n              rgb_color:\n                - 200\n                - 220\n                - 255\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 100\n              rgb_color:\n                - 200\n                - 220\n                - 255\n          - delay:\n              seconds: 5\n          - service: light.turn_off\n            target:\n              entity_id:\n                - light.hue_office_back_left\n                - light.hue_color_downlight_1_6\n                - light.hue_color_downlight_1_7\n                - light.hue_color_downlight_2_2\n      - conditions:\n          - condition: time\n            after: '21:00:00'\n        sequence:\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 20\n              rgb_color:\n                - 255\n                - 200\n                - 150\n          - delay:\n              seconds: 5\n          - service: light.turn_off\n            target:\n              entity_id:\n                - light.living_room_2\n                - light.hue_office_back_left\n                - light.hue_color_downlight_1_6\n                - light.hue_color_downlight_1_7\n                - light.hue_color_downlight_2_2",
       "clarification_rounds": 1,
       "clarification_log": [
         {
@@ -894,7 +831,70 @@
             {
               "id": "q1",
               "category": "device",
-              "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, living_room, office wled, target brightness, office",
+              "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: selected time, living_room, office, living",
+              "question_type": "text",
+              "options": null,
+              "priority": 1,
+              "related_entities": [
+                "c0070ae3ca3271e5c18c37fc1beaf0e8"
+              ],
+              "cached_answer": null,
+              "cached_entities": null,
+              "cached_similarity": null
+            },
+            {
+              "id": "q2",
+              "category": "action",
+              "question_text": "Could you clarify: Action 'turn' is vague - missing details: dim, brighten",
+              "question_type": "text",
+              "options": null,
+              "priority": 2,
+              "related_entities": null,
+              "cached_answer": null,
+              "cached_entities": null,
+              "cached_similarity": null
+            }
+          ],
+          "answers": [
+            {
+              "question_id": "q1",
+              "answer_text": "Office Wled",
+              "selected_entities": null
+            },
+            {
+              "question_id": "q2",
+              "answer_text": "Yes",
+              "selected_entities": null
+            }
+          ],
+          "timestamp": "2025-11-23T17:25:13.875598"
+        }
+      ],
+      "automation_score": 100.0,
+      "yaml_score": 100.0,
+      "total_score": 99.0,
+      "error": null,
+      "success": true,
+      "timestamp": "2025-11-23T17:25:12.524634"
+    },
+    {
+      "prompt_id": "prompt-15-extremely-complex",
+      "prompt_name": "Multi-Conditional with Choose",
+      "prompt_text": "When any living room light changes state, check the time and the current brightness of the Office WLED. If it's daytime (6 AM to 6 PM) and the Office WLED is below 50%, turn it on to 70%. If it's nighttime (6 PM to 6 AM) and any living room light is above 60%, dim the Office WLED to 30%. If the Office WLED is already at the target brightness, do nothing. Wait 2 seconds between each check and action.",
+      "complexity": "Extremely Complex",
+      "query_id": "query-5843553f",
+      "suggestion_id": "ask-ai-2589ed95",
+      "automation_id": "automation.office_wled_living_room_time_based_brightness_1763947563_8aaac889",
+      "automation_yaml": "id: 'office_wled_living_room_time_based_brightness'\nalias: Office WLED \u2013 Time-based brightness from Living Room\ndescription: \"Keeps the Office WLED at a comfortable brightness based on time of day whenever the Living Room light changes.\"\nmode: restart\ntrigger:\n  - platform: state\n    entity_id: light.living_room_2\nconditions: []\naction:\n  - delay: '00:00:02'\n  - choose:\n      - conditions:\n          - condition: time\n            after: '06:00:00'\n            before: '18:00:00'\n        sequence:\n          - variables:\n              office_brightness_pct: \"{{ iif(is_state('light.wled','on') and state_attr('light.wled','brightness') is not none, (state_attr('light.wled','brightness') | float(0) / 255 * 100), 0) }}\"\n          - condition: template\n            value_template: \"{{ office_brightness_pct < 50 and (office_brightness_pct | round(0)) != 70 }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 70\n      - conditions:\n          - condition: or\n            conditions:\n              - condition: time\n                after: '18:00:00'\n                before: '23:59:59'\n              - condition: time\n                after: '00:00:00'\n                before: '06:00:00'\n        sequence:\n          - variables:\n              living_room_brightness_pct: \"{{ iif(is_state('light.living_room_2','on') and state_attr('light.living_room_2','brightness') is not none, (state_attr('light.living_room_2','brightness') | float(0) / 255 * 100), 0) }}\"\n              office_brightness_pct: \"{{ iif(is_state('light.wled','on') and state_attr('light.wled','brightness') is not none, (state_attr('light.wled','brightness') | float(0) / 255 * 100), 0) }}\"\n          - condition: template\n            value_template: \"{{ living_room_brightness_pct > 60 and (office_brightness_pct | round(0)) != 30 }}\"\n          - service: light.turn_on\n            target:\n              entity_id: light.wled\n            data:\n              brightness_pct: 30",
+      "clarification_rounds": 1,
+      "clarification_log": [
+        {
+          "round": 1,
+          "questions": [
+            {
+              "id": "q1",
+              "category": "device",
+              "question_text": "Which device did you mean? Device 'light' matches devices in wrong location. You mentioned: living, target brightness, office wled, office, living_room",
               "question_type": "text",
               "options": null,
               "priority": 1,
@@ -930,7 +930,7 @@
               "selected_entities": null
             }
           ],
-          "timestamp": "2025-11-23T16:42:25.513846"
+          "timestamp": "2025-11-23T17:25:43.887428"
         }
       ],
       "automation_score": 85.0,
@@ -938,10 +938,10 @@
       "total_score": 91.5,
       "error": null,
       "success": true,
-      "timestamp": "2025-11-23T16:42:23.679299"
+      "timestamp": "2025-11-23T17:25:42.328994"
     }
   ],
-  "overall_score": 88.0,
+  "overall_score": 88.33333333333333,
   "all_successful": true,
-  "timestamp": "2025-11-23T16:36:11.724212"
+  "timestamp": "2025-11-23T17:21:30.336333"
 }

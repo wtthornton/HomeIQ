@@ -3,10 +3,10 @@
   "prompt_name": "Multi-Area Lighting",
   "prompt_text": "At 6:00 AM, turn on the Office WLED to 50% and turn on all living room lights to 30%",
   "complexity": "Medium",
-  "query_id": "query-8ad68325",
-  "suggestion_id": "ask-ai-cc4c00ff",
-  "automation_id": "automation.morning_office_livingroom_lights_0600_1763944749_e67354e6",
-  "automation_yaml": "id: 'morning_office_livingroom_lights_0600'\nalias: Morning Office and Living Room Lights at 6AM\ndescription: \"At 6:00 AM every day, set the Office Wled to 50% brightness and the Living Room light to 30% brightness.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '06:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness: 128\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness: 77",
+  "query_id": "query-9cdf9b72",
+  "suggestion_id": "ask-ai-dd6c23a4",
+  "automation_id": "automation.morning_office_living_room_lights_0600_1763947401_2c2aba96",
+  "automation_yaml": "id: 'morning_office_living_room_lights_0600'\nalias: Morning Office and Living Room Lights at 6 AM\ndescription: \"At 6:00 AM every day, turn on the Office WLED to 50% and Living Room light to 30%.\"\nmode: single\ntrigger:\n  - platform: time\n    at: '06:00:00'\nconditions: []\naction:\n  - service: light.turn_on\n    target:\n      entity_id: light.wled\n    data:\n      brightness_pct: 50\n  - service: light.turn_on\n    target:\n      entity_id: light.living_room_2\n    data:\n      brightness_pct: 30",
   "clarification_rounds": 1,
   "clarification_log": [
     {
@@ -15,7 +15,7 @@
         {
           "id": "q1",
           "category": "device",
-          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, living, office",
+          "question_text": "Which device did you mean? Device 'lights' matches devices in wrong location. You mentioned: living_room, office, living",
           "question_type": "text",
           "options": null,
           "priority": 1,
@@ -51,7 +51,7 @@
           "selected_entities": null
         }
       ],
-      "timestamp": "2025-11-23T16:38:49.209320"
+      "timestamp": "2025-11-23T17:23:08.072684"
     }
   ],
   "automation_score": 85.0,
@@ -59,5 +59,5 @@
   "total_score": 91.5,
   "error": null,
   "success": true,
-  "timestamp": "2025-11-23T16:38:47.036400"
+  "timestamp": "2025-11-23T17:23:06.635660"
 }

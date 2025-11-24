@@ -1,6 +1,6 @@
 id: 'living_room_lights_off_2300'
 alias: Turn Off Living Room Light at 11 PM
-description: "Turn off the Living Room Light every night at 11:00 PM."
+description: "Turn off the Living Room light every night at 11:00 PM"
 mode: single
 trigger:
   - platform: time

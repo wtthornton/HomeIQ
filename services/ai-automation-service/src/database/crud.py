@@ -590,7 +590,42 @@ async def get_suggestions(
 
         approval_weight = func.coalesce(feedback_summary.c.approvals, 0)
         rejection_weight = func.coalesce(feedback_summary.c.rejections, 0)
-        weighted_score = Suggestion.confidence + (approval_weight * 0.1) - (rejection_weight * 0.1)
+        
+        # Enhanced multi-factor ranking (Phase 1 + Phase 3 improvements)
+        # Base confidence (20%) + User feedback (20%) + Category (15%) + Priority (10%) + User preference (15%) + Time relevance (10%) + Historical success (10%)
+        base_score = Suggestion.confidence * 0.20
+        feedback_score = (approval_weight * 0.15 - rejection_weight * 0.15) * 0.20
+        
+        # Category-based priority boost (energy/security get higher priority)
+        from sqlalchemy import case
+        category_boost = case(
+            (Suggestion.category == 'energy', 0.15),
+            (Suggestion.category == 'security', 0.12),
+            (Suggestion.category == 'comfort', 0.08),
+            else_=0.05
+        )
+        
+        # Priority boost
+        priority_boost = case(
+            (Suggestion.priority == 'high', 0.10),
+            (Suggestion.priority == 'medium', 0.05),
+            else_=0.02
+        )
+        
+        # Phase 3: User preference boost (will be calculated in Python for each suggestion)
+        # For now, use a placeholder that will be enhanced in the Python layer
+        user_preference_boost = 0.0  # Will be calculated per-suggestion in get_suggestions
+        
+        # Time relevance boost (suggestions created recently get slight boost)
+        from datetime import datetime, timedelta, timezone
+        recent_threshold = datetime.now(timezone.utc) - timedelta(days=7)
+        time_relevance_boost = case(
+            (Suggestion.created_at >= recent_threshold, 0.05),
+            else_=0.0
+        )
+        
+        # Combine base factors (user preference added in Python layer)
+        weighted_score = base_score + feedback_score + category_boost + priority_boost + time_relevance_boost
 
         query = (
             select(

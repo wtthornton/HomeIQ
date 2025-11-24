@@ -1,6 +1,6 @@
-id: 'daily_office_wled_1700_brightness_sequence'
-alias: Daily 5 PM Office WLED Brighten Then Dim
-description: "At 5:00 PM, set Office WLED to ~80%, wait 1 minute, then dim to ~40%"
+id: 'office_livingroom_evening_routine'
+alias: Evening Office and Living Room Lighting Routine
+description: "At 5:00 PM brighten Office WLED to 80%, then Living Room to 60%, then dim Office to 40%."
 mode: single
 trigger:
   - platform: time
@@ -13,6 +13,12 @@ action:
     data:
       brightness: 204
   - delay: '00:01:00'
+  - service: light.turn_on
+    target:
+      entity_id: light.living_room_2
+    data:
+      brightness: 153
+  - delay: '00:00:30'
   - service: light.turn_on
     target:
       entity_id: light.wled
