@@ -32,6 +32,7 @@ from ..services.suggestion_context_enricher import SuggestionContextEnricher
 from ..services.learning.user_profile_builder import UserProfileBuilder
 from ..synergy_detection.relationship_analyzer import HomeAssistantAutomationChecker
 from ..validation.device_validator import DeviceValidator, ValidationResult
+from ..automation_templates.device_templates import DeviceTemplateGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,9 @@ user_profile_builder = UserProfileBuilder()
 
 # Initialize Device Validator for validating suggestions
 device_validator = DeviceValidator(data_api_client)
+
+# Phase 2.2: Initialize Device Template Generator
+device_template_generator = DeviceTemplateGenerator()
 
 # Phase 4.1: Initialize Home Assistant Automation Checker (if HA is configured)
 automation_checker: HomeAssistantAutomationChecker | None = None
@@ -738,6 +742,83 @@ async def generate_suggestions(
                 errors.append(error_msg)
                 # Continue with next pattern
 
+        # Phase 2.2: Generate device-specific template suggestions (Enhanced 2025)
+        logger.info("→ Generating device-specific automation suggestions (template-first)...")
+        try:
+            # Get devices with device_type from data-api (returns list directly)
+            devices = await data_api_client.fetch_devices(limit=100)
+            
+            # Get all entities for template-based entity resolution
+            all_entities = []
+            try:
+                all_entities = await data_api_client.fetch_entities(limit=1000)
+            except Exception as e:
+                logger.debug(f"Failed to fetch all entities: {e}")
+            
+            device_suggestions_count = 0
+            for device in devices:
+                device_type = device.get("device_type")
+                device_id = device.get("device_id")
+                
+                if not device_type or not device_id:
+                    continue
+                
+                # Get entities for this device (returns list directly)
+                try:
+                    entities = await data_api_client.fetch_entities(device_id=device_id)
+                except Exception as e:
+                    logger.debug(f"Failed to fetch entities for device {device_id}: {e}")
+                    entities = []
+                
+                # Enhanced 2025: Use template-first generation with scoring
+                template_suggestions = device_template_generator.suggest_device_automations(
+                    device_id=device_id,
+                    device_type=device_type,
+                    device_entities=entities,
+                    all_entities=all_entities,
+                    max_suggestions=5  # Top 5 templates per device
+                )
+                
+                # Store each template suggestion
+                for template_sugg in template_suggestions:
+                    # Check if similar automation already exists
+                    if not await _check_and_filter_duplicate_automations(template_sugg, "device_template"):
+                        logger.debug(f"Skipping device template - duplicate exists: {template_sugg.get('title')}")
+                        continue
+                    
+                    # Enhanced 2025: Use template score and metadata
+                    suggestion_data = {
+                        'pattern_id': None,
+                        'title': template_sugg.get('title'),
+                        'description': template_sugg.get('description'),
+                        'automation_yaml': template_sugg.get('automation_yaml'),  # Template-first YAML
+                        'confidence': template_sugg.get('template_score', template_sugg.get('confidence', 0.8)),
+                        'category': template_sugg.get('category', 'device_specific'),
+                        'priority': _map_complexity_to_priority(template_sugg.get('complexity', 'simple')),
+                        'status': 'draft',
+                        'device_id': device_id,
+                        'devices_involved': [device_id],
+                        'metadata': {
+                            'source_type': 'device_template',
+                            'device_type': device_type,
+                            'template_score': template_sugg.get('template_score', 0.8),
+                            'template_match_quality': template_sugg.get('template_match_quality', 1.0),
+                            'complexity': template_sugg.get('complexity', 'simple'),
+                            'variants': template_sugg.get('variants', ['simple']),
+                            'entity_mapping': template_sugg.get('entity_mapping', {})
+                        }
+                    }
+                    
+                    stored = await store_suggestion(db, suggestion_data)
+                    suggestions_stored.append(stored)
+                    device_suggestions_count += 1
+                    suggestions_generated += 1
+            
+            if device_suggestions_count > 0:
+                logger.info(f"   ✅ Generated {device_suggestions_count} device-specific template suggestions")
+        except Exception as e:
+            logger.warning(f"Device-specific template generation failed: {e}")
+
         # Step 3: Get usage stats
         usage_stats = openai_client.get_usage_stats()
 
@@ -996,6 +1077,23 @@ async def reset_usage_stats() -> dict[str, Any]:
 
 
 # ==== Helper Functions ====
+
+def _map_complexity_to_priority(complexity: str) -> str:
+    """
+    Map template complexity to suggestion priority.
+    
+    Args:
+        complexity: Template complexity (simple, standard, advanced)
+        
+    Returns:
+        Priority string (low, medium, high)
+    """
+    mapping = {
+        "simple": "low",
+        "standard": "medium",
+        "advanced": "high"
+    }
+    return mapping.get(complexity, "medium")
 
 async def _check_and_filter_duplicate_automations(suggestion_data: dict[str, Any], suggestion_type: str = "pattern") -> bool:
     """
