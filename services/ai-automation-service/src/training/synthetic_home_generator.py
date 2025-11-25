@@ -1,10 +1,10 @@
 """
 Synthetic Home Generator
 
-Generate synthetic homes using LLM (OpenAI/Gemini) for training home type classifier.
+Generate synthetic homes using template-based approach for training home type classifier.
 Follows home-assistant-datasets generation pattern.
 
-Phase 1: Synthetic Data Generation
+Template-based generation using predefined distributions and templates.
 """
 
 import json
@@ -13,15 +13,14 @@ import random
 from pathlib import Path
 from typing import Any
 
-from ..llm.openai_client import OpenAIClient
-
 logger = logging.getLogger(__name__)
 
 
 class SyntheticHomeGenerator:
     """
-    Generate synthetic homes using LLM (OpenAI/Gemini).
+    Generate synthetic homes using template-based approach.
     
+    Uses predefined distributions and templates to generate homes without LLM calls.
     Follows home-assistant-datasets generation pattern.
     """
     
@@ -45,17 +44,13 @@ class SyntheticHomeGenerator:
         'extra_large': (60, 100, 10)
     }
     
-    def __init__(self, openai_client: OpenAIClient):
+    def __init__(self):
         """
         Initialize synthetic home generator.
-        
-        Args:
-            openai_client: OpenAI client for LLM generation
         """
-        self.llm = openai_client
-        logger.info("SyntheticHomeGenerator initialized")
+        logger.info("SyntheticHomeGenerator initialized (template-based generation)")
     
-    async def generate_homes(
+    def generate_homes(
         self,
         target_count: int = 100,
         home_types: list[str] | None = None
@@ -112,7 +107,7 @@ class SyntheticHomeGenerator:
             
             for i in range(count):
                 try:
-                    home = await self._generate_single_home(
+                    home = self._generate_single_home(
                         home_type=home_type,
                         home_index=i + 1,
                         total_for_type=count
@@ -126,14 +121,14 @@ class SyntheticHomeGenerator:
         logger.info(f"✅ Generated {len(homes)} synthetic homes total")
         return homes
     
-    async def _generate_single_home(
+    def _generate_single_home(
         self,
         home_type: str,
         home_index: int,
         total_for_type: int
     ) -> dict[str, Any]:
         """
-        Generate a single synthetic home.
+        Generate a single synthetic home using template-based approach.
         
         Args:
             home_type: Type of home (e.g., 'single_family_house', 'apartment')
@@ -145,58 +140,8 @@ class SyntheticHomeGenerator:
         """
         # Select size category based on distribution
         size_category = self._select_size_category()
-        device_count_range = self.SIZE_DISTRIBUTION[size_category][0:2]
         
-        # Build prompt for home generation
-        prompt = self._build_home_generation_prompt(
-            home_type=home_type,
-            size_category=size_category,
-            device_count_range=device_count_range
-        )
-        
-        # Call LLM to generate home description
-        response = await self.llm.generate_with_unified_prompt(
-            prompt_dict={
-                "system_prompt": (
-                    "You are a home automation expert creating realistic synthetic home configurations. "
-                    "Generate detailed home descriptions that include realistic device counts, room layouts, "
-                    "and home automation characteristics. Return JSON format only."
-                ),
-                "user_prompt": prompt
-            },
-            temperature=0.8,  # Higher creativity for diverse homes
-            max_tokens=1500,
-            output_format="json"
-        )
-        
-        # Extract home data
-        home_data = {
-            'home_type': home_type,
-            'size_category': size_category,
-            'home_index': home_index,
-            'metadata': response,
-            'generated_at': self._get_timestamp()
-        }
-        
-        return home_data
-    
-    def _build_home_generation_prompt(
-        self,
-        home_type: str,
-        size_category: str,
-        device_count_range: tuple[int, int]
-    ) -> str:
-        """
-        Build prompt for home generation.
-        
-        Args:
-            home_type: Type of home
-            size_category: Size category (small, medium, large, extra_large)
-            device_count_range: Target device count range (min, max)
-        
-        Returns:
-            Prompt string
-        """
+        # Generate home metadata without LLM
         home_type_descriptions = {
             'single_family_house': 'a single-family house with multiple bedrooms, living areas, and outdoor spaces',
             'apartment': 'an apartment in a multi-unit building with limited space',
@@ -208,60 +153,28 @@ class SyntheticHomeGenerator:
             'ranch_house': 'a single-level ranch-style house'
         }
         
-        home_desc = home_type_descriptions.get(home_type, home_type)
+        home_description = home_type_descriptions.get(home_type, f'a {home_type} home')
         
-        prompt = f"""Generate a detailed synthetic home configuration for {home_desc}.
-
-Requirements:
-- Home Type: {home_type}
-- Size Category: {size_category}
-- Target Device Count: {device_count_range[0]}-{device_count_range[1]} devices
-- Include realistic room/area layout
-- Include device types appropriate for this home type
-- Consider security, climate control, lighting, and smart home features
-
-Return a JSON object with this structure:
-{{
-    "home": {{
-        "name": "Home name",
-        "type": "{home_type}",
-        "size_category": "{size_category}",
-        "description": "Brief description of the home"
-    }},
-    "areas": [
-        {{
-            "name": "Area name",
-            "type": "indoor|outdoor",
-            "description": "Area description"
-        }}
-    ],
-    "device_categories": {{
-        "security": {{
-            "count": <number>,
-            "devices": ["device types"]
-        }},
-        "climate": {{
-            "count": <number>,
-            "devices": ["device types"]
-        }},
-        "lighting": {{
-            "count": <number>,
-            "devices": ["device types"]
-        }},
-        "appliances": {{
-            "count": <number>,
-            "devices": ["device types"]
-        }},
-        "monitoring": {{
-            "count": <number>,
-            "devices": ["device types"]
-        }}
-    }},
-    "smart_home_features": ["feature1", "feature2"],
-    "integrations": ["integration1", "integration2"]
-}}"""
+        # Create basic metadata structure
+        metadata = {
+            'home': {
+                'name': f"{home_type.replace('_', ' ').title()} {home_index}",
+                'type': home_type,
+                'size_category': size_category,
+                'description': home_description
+            }
+        }
         
-        return prompt
+        # Extract home data
+        home_data = {
+            'home_type': home_type,
+            'size_category': size_category,
+            'home_index': home_index,
+            'metadata': metadata,
+            'generated_at': self._get_timestamp()
+        }
+        
+        return home_data
     
     def _select_size_category(self) -> str:
         """
@@ -285,7 +198,7 @@ Return a JSON object with this structure:
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
     
-    async def save_homes(
+    def save_homes(
         self,
         homes: list[dict[str, Any]],
         output_dir: Path | str

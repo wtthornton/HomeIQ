@@ -1,25 +1,21 @@
 """
 Synthetic Area Generator
 
-Generate areas (rooms/spaces) for synthetic homes based on home type and description.
+Generate areas (rooms/spaces) for synthetic homes based on home type using templates.
 """
 
 import logging
+import random
 from typing import Any
-
-from ..llm.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
 
 
 class SyntheticAreaGenerator:
     """
-    Generate areas and rooms for synthetic homes.
+    Generate areas and rooms for synthetic homes using templates.
     
-    Pipeline:
-    1. Generate areas (rooms/spaces) from home description
-    2. Assign area types (indoor/outdoor)
-    3. Create area hierarchy if needed
+    Uses predefined area templates for each home type with randomization.
     """
     
     # Common area types by home type
@@ -56,22 +52,18 @@ class SyntheticAreaGenerator:
         ]
     }
     
-    def __init__(self, openai_client: OpenAIClient):
+    def __init__(self):
         """
         Initialize area generator.
-        
-        Args:
-            openai_client: OpenAI client for LLM generation
         """
-        self.llm = openai_client
         logger.info("SyntheticAreaGenerator initialized")
     
-    async def generate_areas(
+    def generate_areas(
         self,
         home_data: dict[str, Any]
     ) -> list[dict[str, Any]]:
         """
-        Generate areas for a synthetic home.
+        Generate areas for a synthetic home using templates.
         
         Args:
             home_data: Home data from synthetic home generator
@@ -81,90 +73,77 @@ class SyntheticAreaGenerator:
         """
         home_type = home_data.get('home_type', 'single_family_house')
         home_metadata = home_data.get('metadata', {})
-        home_desc = home_metadata.get('home', {}).get('description', '')
         
-        # Try to extract areas from LLM response if available
+        # Try to extract areas from metadata if available (for backward compatibility)
         if 'areas' in home_metadata:
             areas = home_metadata['areas']
             logger.info(f"Using areas from home metadata: {len(areas)} areas")
             return areas
         
-        # Fallback: Generate areas from template
+        # Generate areas from template with randomization
         logger.info(f"Generating areas for {home_type} home...")
-        areas = await self._generate_from_template(home_type, home_desc)
+        areas = self._generate_from_template(home_type)
         
         return areas
     
-    async def _generate_from_template(
+    def _generate_from_template(
         self,
-        home_type: str,
-        home_description: str
+        home_type: str
     ) -> list[dict[str, Any]]:
         """
-        Generate areas from template with LLM enhancement.
+        Generate areas from template with randomization.
         
         Args:
             home_type: Type of home
-            home_description: Home description
         
         Returns:
             List of area dictionaries
         """
-        template_areas = self.AREA_TEMPLATES.get(home_type, self.AREA_TEMPLATES['single_family_house'])
+        # Get template areas, fallback to single_family_house if home_type not found
+        template_areas = self.AREA_TEMPLATES.get(
+            home_type,
+            self.AREA_TEMPLATES.get('single_family_house', ['Living Room', 'Kitchen', 'Bedroom', 'Bathroom'])
+        )
         
-        # Use LLM to enhance and customize areas
-        prompt = f"""Generate realistic areas/rooms for a {home_type} home.
-
-Home Description: {home_description}
-
-Base Areas: {', '.join(template_areas)}
-
-Return a JSON array of areas with this structure:
-[
-    {{
-        "name": "Area name",
-        "type": "indoor|outdoor",
-        "description": "Brief description of the area"
-    }}
-]
-
-Requirements:
-- Include all base areas
-- Add 2-3 additional realistic areas if appropriate
-- Mark outdoor areas (yard, balcony, porch) as type "outdoor"
-- All other areas should be type "indoor"
-- Keep descriptions concise (1-2 sentences)
-"""
+        # Create base areas from template
+        areas = self._create_areas_from_template(template_areas)
         
-        try:
-            response = await self.llm.generate_with_unified_prompt(
-                prompt_dict={
-                    "system_prompt": (
-                        "You are a home automation expert generating realistic room/area layouts. "
-                        "Return JSON arrays only."
-                    ),
-                    "user_prompt": prompt
-                },
-                temperature=0.7,
-                max_tokens=800,
-                output_format="json"
-            )
-            
-            # Ensure response is a list
-            if isinstance(response, list):
-                areas = response
-            elif isinstance(response, dict) and 'areas' in response:
-                areas = response['areas']
-            else:
-                # Fallback to template
-                areas = self._create_areas_from_template(template_areas)
-            
-            logger.info(f"✅ Generated {len(areas)} areas")
-            return areas
-            
-        except Exception as e:
-            logger.warning(f"LLM area generation failed, using template: {e}")
-            return self._create_areas_from_template(template_areas)
+        # Add 0-2 optional areas based on home type for variation
+        optional_areas_by_type = {
+            'single_family_house': ['Office', 'Laundry Room', 'Pantry'],
+            'apartment': ['Storage', 'Entryway'],
+            'condo': ['Office', 'Storage'],
+            'townhouse': ['Office', 'Laundry Room'],
+            'cottage': ['Shed', 'Workshop'],
+            'studio': ['Entryway'],
+            'multi_story': ['Office', 'Laundry Room', 'Pantry', 'Library'],
+            'ranch_house': ['Office', 'Laundry Room', 'Pantry']
+        }
+        
+        optional_areas = optional_areas_by_type.get(home_type, [])
+        if optional_areas and random.random() < 0.6:  # 60% chance to add optional areas
+            num_optional = random.randint(0, min(2, len(optional_areas)))
+            if num_optional > 0:
+                selected_optional = random.sample(optional_areas, num_optional)
+                optional_area_dicts = self._create_areas_from_template(selected_optional)
+                areas.extend(optional_area_dicts)
+        
+        # Vary area names slightly for diversity
+        for area in areas:
+            if random.random() < 0.2:  # 20% chance to vary name
+                name_variations = {
+                    'Living Room': ['Family Room', 'Great Room', 'Living Space'],
+                    'Kitchen': ['Kitchen Area', 'Cooking Space'],
+                    'Master Bedroom': ['Primary Bedroom', 'Main Bedroom'],
+                    'Bedroom 2': ['Guest Bedroom', 'Second Bedroom'],
+                    'Bathroom': ['Full Bath', 'Bathroom'],
+                    'Master Bathroom': ['Primary Bathroom', 'Ensuite Bathroom']
+                }
+                if area['name'] in name_variations:
+                    area['name'] = random.choice(name_variations[area['name']])
+        
+        logger.info(f"✅ Generated {len(areas)} areas")
+        return areas
     
     def _create_areas_from_template(
         self,
