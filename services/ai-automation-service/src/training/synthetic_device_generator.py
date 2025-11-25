@@ -1,14 +1,12 @@
 """
 Synthetic Device Generator
 
-Generate devices for synthetic homes based on home type, areas, and device categories.
+Generate devices for synthetic homes based on home type, areas, and device categories using templates.
 """
 
 import logging
 import random
 from typing import Any
-
-from ..llm.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
 
@@ -60,23 +58,19 @@ class SyntheticDeviceGenerator:
         ]
     }
     
-    def __init__(self, openai_client: OpenAIClient):
+    def __init__(self):
         """
         Initialize device generator.
-        
-        Args:
-            openai_client: OpenAI client for LLM generation
         """
-        self.llm = openai_client
         logger.info("SyntheticDeviceGenerator initialized")
     
-    async def generate_devices(
+    def generate_devices(
         self,
         home_data: dict[str, Any],
         areas: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """
-        Generate devices for a synthetic home.
+        Generate devices for a synthetic home using templates.
         
         Args:
             home_data: Home data from synthetic home generator
@@ -88,38 +82,42 @@ class SyntheticDeviceGenerator:
         home_type = home_data.get('home_type', 'single_family_house')
         home_metadata = home_data.get('metadata', {})
         device_categories = home_metadata.get('device_categories', {})
+        size_category = home_data.get('size_category', 'medium')
         
-        # Try to extract devices from LLM response if available
+        # If device_categories exist in metadata, use them but map to templates
         if device_categories:
-            devices = await self._generate_from_categories(
+            devices = self._generate_from_categories(
                 device_categories,
                 areas,
-                home_type
+                home_type,
+                size_category
             )
         else:
-            # Generate devices based on home type and areas
-            devices = await self._generate_from_template(
+            # Generate devices based on home type, areas, and size
+            devices = self._generate_from_template(
                 home_type,
                 areas,
-                home_data.get('size_category', 'medium')
+                size_category
             )
         
         logger.info(f"✅ Generated {len(devices)} devices")
         return devices
     
-    async def _generate_from_categories(
+    def _generate_from_categories(
         self,
         device_categories: dict[str, Any],
         areas: list[dict[str, Any]],
-        home_type: str
+        home_type: str,
+        size_category: str
     ) -> list[dict[str, Any]]:
         """
-        Generate devices from category specifications.
+        Generate devices from category specifications using templates.
         
         Args:
-            device_categories: Device category specifications from LLM
+            device_categories: Device category specifications
             areas: List of areas
-            home_type: Type of home
+            home_type: Type of home (unused, kept for API compatibility)
+            size_category: Size category (unused, kept for API compatibility)
         
         Returns:
             List of device dictionaries
@@ -135,35 +133,53 @@ class SyntheticDeviceGenerator:
                 continue
             
             # Distribute devices across areas
-            devices_per_area = max(1, count // len(area_names)) if area_names else count
-            
             for i in range(count):
                 area = random.choice(area_names) if area_names else 'Unknown'
                 
-                # Select device type
+                # Select device type - map to template if needed
                 if device_types:
-                    device_type_str = random.choice(device_types)
+                    # Try to find matching template device
+                    device_type_str = None
+                    template = self.DEVICE_TEMPLATES.get(category, [])
+                    for template_device in template:
+                        if template_device['device_type'] in device_types:
+                            device_type_str = template_device['device_type']
+                            device_class = template_device.get('device_class')
+                            name_template = template_device.get('name', 'Device')
+                            break
+                    
+                    # If no match, use first device type from list or fallback
+                    if device_type_str is None:
+                        device_type_str = device_types[0] if device_types else 'sensor'
+                        device_class = None
+                        name_template = 'Device'
                 else:
                     # Use template
                     template = self.DEVICE_TEMPLATES.get(category, [])
                     if template:
                         device_template = random.choice(template)
                         device_type_str = device_template['device_type']
+                        device_class = device_template.get('device_class')
+                        name_template = device_template.get('name', 'Device')
                     else:
                         device_type_str = 'sensor'
+                        device_class = None
+                        name_template = 'Device'
                 
                 # Create device
                 device = self._create_device(
                     device_type_str=device_type_str,
                     category=category,
                     area=area,
-                    index=i + 1
+                    index=i + 1,
+                    device_class=device_class,
+                    name_template=name_template
                 )
                 devices.append(device)
         
         return devices
     
-    async def _generate_from_template(
+    def _generate_from_template(
         self,
         home_type: str,
         areas: list[dict[str, Any]],

@@ -13,13 +13,12 @@ from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import settings
-from llm.openai_client import OpenAIClient
-from training.synthetic_area_generator import SyntheticAreaGenerator
-from training.synthetic_device_generator import SyntheticDeviceGenerator
-from training.synthetic_event_generator import SyntheticEventGenerator
-from training.synthetic_home_generator import SyntheticHomeGenerator
+from src.training.synthetic_area_generator import SyntheticAreaGenerator
+from src.training.synthetic_device_generator import SyntheticDeviceGenerator
+from src.training.synthetic_event_generator import SyntheticEventGenerator
+from src.training.synthetic_home_generator import SyntheticHomeGenerator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,32 +50,22 @@ async def main():
     parser.add_argument(
         '--days',
         type=int,
-        default=7,
-        help='Number of days of events to generate per home (default: 7)'
+        default=90,
+        help='Number of days of events to generate per home (default: 90)'
     )
     
     args = parser.parse_args()
     
-    # Initialize OpenAI client
-    if not settings.openai_api_key:
-        logger.error("❌ OPENAI_API_KEY not set in environment")
-        return 1
-    
-    openai_client = OpenAIClient(
-        api_key=settings.openai_api_key,
-        model='gpt-4o-mini'  # Use cheaper model for generation
-    )
-    
-    # Initialize generators
-    home_generator = SyntheticHomeGenerator(openai_client)
-    area_generator = SyntheticAreaGenerator(openai_client)
-    device_generator = SyntheticDeviceGenerator(openai_client)
+    # Initialize generators (template-based, no LLM required)
+    home_generator = SyntheticHomeGenerator()
+    area_generator = SyntheticAreaGenerator()
+    device_generator = SyntheticDeviceGenerator()
     event_generator = SyntheticEventGenerator()
     
-    logger.info(f"🚀 Starting synthetic home generation: {args.count} homes")
+    logger.info(f"🚀 Starting synthetic home generation (template-based): {args.count} homes")
     
     # Generate homes
-    homes = await home_generator.generate_homes(
+    homes = home_generator.generate_homes(
         target_count=args.count,
         home_types=args.home_types
     )
@@ -92,15 +81,15 @@ async def main():
         logger.info(f"Processing home {i+1}/{len(homes)}: {home['home_type']}")
         
         try:
-            # Generate areas
-            areas = await area_generator.generate_areas(home)
+            # Generate areas (template-based)
+            areas = area_generator.generate_areas(home)
             home['areas'] = areas
             
-            # Generate devices
-            devices = await device_generator.generate_devices(home, areas)
+            # Generate devices (template-based)
+            devices = device_generator.generate_devices(home, areas)
             home['devices'] = devices
             
-            # Generate events
+            # Generate events (local computation)
             events = await event_generator.generate_events(devices, days=args.days)
             home['events'] = events
             
@@ -113,7 +102,7 @@ async def main():
     
     # Save homes
     output_path = Path(args.output)
-    await home_generator.save_homes(complete_homes, output_path)
+    home_generator.save_homes(complete_homes, output_path)
     
     logger.info(f"✅ Generation complete: {len(complete_homes)} homes saved to {output_path}")
     

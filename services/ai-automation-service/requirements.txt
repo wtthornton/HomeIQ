@@ -60,6 +60,7 @@ apscheduler>=3.10.0,<4.0.0  # Stable task scheduler
 python-dotenv>=1.0.0,<2.0.0  # Stable environment variable loader
 tenacity>=8.2.0,<9.0.0  # Stable retry library
 pyyaml>=6.0.1,<7.0.0  # Stable YAML parser
+synthetic-home>=4.1.0,<5.0.0  # Home Assistant synthetic home generator library
 deprecated>=1.2.13,<2.0.0  # Stable deprecation warnings
 rapidfuzz>=3.10.0,<4.0.0  # Stable fuzzy string matching
 langchain>=0.3.0,<1.0.0  # Stable LangChain (November 2025)
