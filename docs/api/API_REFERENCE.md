@@ -1,9 +1,9 @@
 # API Reference - Complete Endpoint Documentation
 
 **Last Updated:** January 20, 2025  
-**API Version:** v4.4  
+**API Version:** v4.5  
 **Status:** ✅ Production Ready  
-**Recent Updates:** Unique automation ID generation (prevents duplicate updates), 4-level synergy chain detection (Epic AI-4), entity resolution enhancements (fuzzy matching, blocking, user aliases)
+**Recent Updates:** Device Database enhancements (health monitoring, classification, setup assistant, recommendations), device-specific automation templates, HA API-only capability discovery
 
 > **📌 This is the SINGLE SOURCE OF TRUTH for all HA Ingestor API documentation.**  
 > **Supersedes:** API_DOCUMENTATION.md, API_COMPREHENSIVE_REFERENCE.md, API_ENDPOINTS_REFERENCE.md
@@ -513,6 +513,91 @@ Real-time data updates.
 - `game_update` - Sports game status changes
 - `alert` - New system alerts
 - `metric_update` - Real-time metrics
+
+---
+
+### Device Database Endpoints (NEW - January 2025)
+
+#### GET /api/devices/{device_id}/health
+Get health report for a device.
+
+**Response:**
+```json
+{
+  "device_id": "device_abc123",
+  "device_name": "Living Room Light",
+  "timestamp": "2025-01-20T12:00:00Z",
+  "overall_status": "healthy",
+  "response_time_ms": 45.2,
+  "battery_level": null,
+  "last_seen": "2025-01-20T11:59:30Z",
+  "power_consumption_w": 8.5,
+  "power_anomaly": false,
+  "issues": [],
+  "maintenance_recommendations": []
+}
+```
+
+#### GET /api/devices/health-summary
+Get overall health summary for all devices.
+
+**Response:**
+```json
+{
+  "total_devices": 45,
+  "healthy_devices": 42,
+  "warning_devices": 2,
+  "error_devices": 1,
+  "timestamp": "2025-01-20T12:00:00Z"
+}
+```
+
+#### GET /api/devices/maintenance-alerts
+Get maintenance alerts for devices needing attention.
+
+**Query Parameters:**
+- `limit` (default: 50): Maximum number of alerts (1-200)
+
+#### POST /api/devices/{device_id}/classify
+Classify a device based on its entities.
+
+#### GET /api/devices/{device_id}/setup-guide
+Get setup guide for a device.
+
+#### GET /api/devices/{device_id}/setup-issues
+Get detected setup issues for a device.
+
+#### POST /api/devices/{device_id}/setup-complete
+Mark device setup as complete.
+
+#### GET /api/devices/{device_id}/power-analysis
+Get power consumption analysis for a device.
+
+#### GET /api/devices/{device_id}/efficiency
+Get efficiency report for a device.
+
+#### GET /api/devices/power-anomalies
+Get devices with power consumption anomalies.
+
+#### POST /api/devices/{device_id}/discover-capabilities
+Discover device capabilities from HA API.
+
+#### GET /api/devices/recommendations
+Get device recommendations.
+
+**Query Parameters:**
+- `device_type` (required): Device type (fridge, light, sensor, etc.)
+
+#### GET /api/devices/compare
+Compare devices side-by-side.
+
+**Query Parameters:**
+- `device_ids` (required): Comma-separated device IDs (minimum 2)
+
+#### GET /api/devices/similar/{device_id}
+Find similar devices.
+
+**See:** [Device Database Enhancements Documentation](../DEVICE_DATABASE_ENHANCEMENTS.md) for detailed endpoint documentation.
 
 ---
 

@@ -2,7 +2,8 @@
 
 **Purpose:** Complete reference for all device, entity, and event data fields captured from Home Assistant  
 **Last Updated:** January 20, 2025  
-**Status:** ✅ FULLY OPERATIONAL - All data collection active
+**Status:** ✅ FULLY OPERATIONAL - All data collection active  
+**Enhancements:** Device Database fields added (Phase 1.1 - January 2025)
 
 ---
 
@@ -41,6 +42,17 @@ The system captures three types of data from Home Assistant:
 | `integration` | String | No | ✅ Yes | Home Assistant integration source | `"hue"`, `"mqtt"`, `"zwave"` |
 | `entry_type` | String | No | No | Entry type (service, config_entry, etc.) | `"config_entry"`, `"service"` |
 | `configuration_url` | String | No | No | URL for device configuration page | `"https://example.com/config"` |
+| `device_type` | String | No | ✅ Yes | Device classification (Phase 1.1) | `"fridge"`, `"light"`, `"sensor"`, `"thermostat"` |
+| `device_category` | String | No | ✅ Yes | Device category (Phase 1.1) | `"appliance"`, `"lighting"`, `"security"`, `"climate"` |
+| `power_consumption_idle_w` | Float | No | No | Standby power consumption (Phase 1.1) | `2.5` |
+| `power_consumption_active_w` | Float | No | No | Active power consumption (Phase 1.1) | `10.0` |
+| `power_consumption_max_w` | Float | No | No | Peak power consumption (Phase 1.1) | `15.0` |
+| `infrared_codes_json` | Text | No | No | IR codes if applicable (Phase 1.1) | JSON string |
+| `setup_instructions_url` | String | No | No | Link to setup guide (Phase 1.1) | `"https://..."` |
+| `troubleshooting_notes` | Text | No | No | Common issues and solutions (Phase 1.1) | Text |
+| `device_features_json` | Text | No | No | Structured capabilities (Phase 1.1) | JSON string |
+| `community_rating` | Float | No | No | Rating from Device Database (Phase 1.1) | `4.5` |
+| `last_capability_sync` | DateTime | No | No | When capabilities were last updated (Phase 1.1) | `"2025-01-20T12:00:00Z"` |
 | `last_seen` | DateTime | No | No | Last time device was active | `"2025-10-18T14:30:00Z"` |
 | `created_at` | DateTime | No | No | When device was first discovered | `"2025-01-15T08:00:00Z"` |
 | `entities` | Relationship | - | - | List of entities belonging to this device | (see Entity Data) |
@@ -64,6 +76,8 @@ GET http://localhost:8006/api/devices/{device_id}
 - `model` - Filter by model
 - `area_id` - Filter by room/area
 - `platform` - Filter by integration platform
+- `device_type` - Filter by device type (Phase 1.1)
+- `device_category` - Filter by device category (Phase 1.1)
 
 ### Example Device Record
 

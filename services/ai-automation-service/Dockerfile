@@ -75,6 +75,13 @@ ENV PATH=/root/.local/bin:$PATH \
 RUN mkdir -p /app/data /app/models \
  && rm -rf /root/.cache/huggingface
 
+# Copy pre-trained home type classifier model (if available)
+# Model should be trained locally before building Docker image using:
+#   python scripts/train_home_type_classifier.py --synthetic-homes tests/datasets/synthetic_homes --output models/home_type_classifier.pkl
+# Note: If model file doesn't exist, the COPY will fail. To make it optional, uncomment the RUN command below
+# and comment out the COPY, or ensure the model file exists before building.
+COPY services/ai-automation-service/models/home_type_classifier*.pkl /app/models/
+
 # Pre-download Phase 1 models (optional - can also lazy-load on first use)
 # Uncomment to pre-download during build (increases build time but faster first run)
 # COPY services/ai-automation-service/scripts/download-models.py ./scripts/

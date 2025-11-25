@@ -1,11 +1,12 @@
 """
 Device Model for SQLite Storage
 Story 22.2 - Simple device registry
+Phase 1.1: Enhanced with device intelligence fields
 """
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, String
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, String, Text
 from sqlalchemy.orm import relationship
 
 from ..database import Base
@@ -35,6 +36,19 @@ class Device(Base):
     config_entry_id = Column(String, index=True)  # Config entry ID (source tracking)
     via_device = Column(String, ForeignKey("devices.device_id"), index=True)  # Parent device (self-referential FK)
 
+    # Phase 1.1: Device intelligence fields
+    device_type = Column(String, index=True)  # Device classification: "fridge", "light", "sensor", "thermostat", etc.
+    device_category = Column(String, index=True)  # Category: "appliance", "lighting", "security", "climate"
+    power_consumption_idle_w = Column(Float)  # Standby power consumption
+    power_consumption_active_w = Column(Float)  # Active power consumption
+    power_consumption_max_w = Column(Float)  # Peak power consumption
+    infrared_codes_json = Column(Text)  # IR codes if applicable (stored as JSON string)
+    setup_instructions_url = Column(String)  # Link to setup guide
+    troubleshooting_notes = Column(Text)  # Common issues and solutions
+    device_features_json = Column(Text)  # Structured capabilities (stored as JSON string)
+    community_rating = Column(Float)  # Rating from Device Database (if available)
+    last_capability_sync = Column(DateTime)  # When capabilities were last updated
+
     # Timestamps
     last_seen = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -55,4 +69,7 @@ Index('idx_device_integration', Device.integration)
 Index('idx_device_manufacturer', Device.manufacturer)
 Index('idx_device_config_entry', Device.config_entry_id)
 Index('idx_device_via_device', Device.via_device)
+# Phase 1.1: Device intelligence indexes
+Index('idx_device_type', Device.device_type)
+Index('idx_device_category', Device.device_category)
 

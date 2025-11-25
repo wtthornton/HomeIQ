@@ -884,6 +884,8 @@ services:
       - ML_SERVICE_URL=http://ml-service:8020
       - AI_CORE_SERVICE_URL=http://ai-core-service:8018
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
+      # Dataset testing
+      - DATASET_ROOT=/app/datasets/home-assistant-datasets/datasets
     depends_on:
       data-api:
         condition: service_healthy
@@ -900,6 +902,9 @@ services:
     volumes:
       - ai_automation_data:/app/data
       - ai_automation_models:/app/models  # Phase 1: OpenVINO model cache
+      - ./services/tests/datasets:/app/datasets:ro  # Dataset testing (separate location)
+      - ./services/ai-automation-service/tests:/app/tests:ro  # Test files
+      - ./services/tests/datasets:/app/tests/datasets:ro  # Dataset testing
     networks:
       - homeiq-network
     deploy:
@@ -1151,6 +1156,309 @@ services:
         max-file: "3"
         labels: "service=device-intelligence,environment=production"
 
+  device-health-monitor:
+    build:
+      context: .
+      dockerfile: services/device-health-monitor/Dockerfile
+    container_name: homeiq-device-health-monitor
+    restart: unless-stopped
+    ports:
+      - "8019:8019"
+    env_file:
+      - .env
+    environment:
+      - DEVICE_HEALTH_MONITOR_PORT=${DEVICE_HEALTH_MONITOR_PORT:-8019}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8019/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-health-monitor,environment=production"
+
+  device-context-classifier:
+    build:
+      context: .
+      dockerfile: services/device-context-classifier/Dockerfile
+    container_name: homeiq-device-context-classifier
+    restart: unless-stopped
+    ports:
+      - "8032:8020"  # External port 8032, internal 8020 (8020 already used by openai-service)
+    env_file:
+      - .env
+    environment:
+      - DEVICE_CONTEXT_CLASSIFIER_PORT=${DEVICE_CONTEXT_CLASSIFIER_PORT:-8020}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-context-classifier,environment=production"
+
+  device-setup-assistant:
+    build:
+      context: .
+      dockerfile: services/device-setup-assistant/Dockerfile
+    container_name: homeiq-device-setup-assistant
+    restart: unless-stopped
+    ports:
+      - "8021:8021"
+    env_file:
+      - .env
+    environment:
+      - DEVICE_SETUP_ASSISTANT_PORT=${DEVICE_SETUP_ASSISTANT_PORT:-8021}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8021/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-setup-assistant,environment=production"
+
+  device-database-client:
+    build:
+      context: .
+      dockerfile: services/device-database-client/Dockerfile
+    container_name: homeiq-device-database-client
+    restart: unless-stopped
+    ports:
+      - "8022:8022"
+    env_file:
+      - .env
+    environment:
+      - DEVICE_DATABASE_CLIENT_PORT=${DEVICE_DATABASE_CLIENT_PORT:-8022}
+      - DEVICE_DATABASE_API_URL=${DEVICE_DATABASE_API_URL:-}
+      - DEVICE_DATABASE_API_KEY=${DEVICE_DATABASE_API_KEY:-}
+      - DEVICE_CACHE_DIR=${DEVICE_CACHE_DIR:-data/device_cache}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    volumes:
+      - device_cache_data:/app/data/device_cache
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8022/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-database-client,environment=production"
+
+  device-recommender:
+    build:
+      context: .
+      dockerfile: services/device-recommender/Dockerfile
+    container_name: homeiq-device-recommender
+    restart: unless-stopped
+    ports:
+      - "8023:8023"
+    env_file:
+      - .env
+    environment:
+      - DEVICE_RECOMMENDER_PORT=${DEVICE_RECOMMENDER_PORT:-8023}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - DEVICE_DATABASE_API_URL=${DEVICE_DATABASE_API_URL:-}
+      - DEVICE_DATABASE_API_KEY=${DEVICE_DATABASE_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8023/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-recommender,environment=production"
+
+  # Home Assistant Test Container (Optional - use --profile test)
+  home-assistant-test:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeiq-ha-test
+    restart: unless-stopped
+    ports:
+      - "8124:8123"  # Web UI (different port from production)
+    volumes:
+      - ha_test_config:/config
+      - ha_test_data:/data
+    environment:
+      - TZ=${TZ:-America/Los_Angeles}
+    networks:
+      - homeiq-network
+    profiles:
+      - test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/api/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ha-test,environment=test"
+
+  # WebSocket Ingestion Test Service (Optional - use --profile test)
+  websocket-ingestion-test:
+    build:
+      context: .
+      dockerfile: services/websocket-ingestion/Dockerfile
+    container_name: homeiq-websocket-test
+    restart: unless-stopped
+    ports:
+      - "8002:8001"  # Different port from production (8001)
+    env_file:
+      - .env
+    environment:
+      - DOCKER_CONTAINER=true
+      # Home Assistant Test Configuration
+      - HA_HTTP_URL=http://home-assistant-test:8123
+      - HA_WS_URL=http://home-assistant-test:8123/api/websocket
+      - HA_TOKEN=${HA_TEST_TOKEN:-}
+      # Data API Configuration
+      - DATA_API_URL=http://data-api:8006
+      - WEBSOCKET_INGESTION_PORT=8001
+      - ENABLE_HOME_ASSISTANT=true
+      # InfluxDB Test Configuration
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_USERNAME=admin
+      - INFLUXDB_PASSWORD=admin123
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=home_assistant_events_test
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
+      - LOG_FORMAT=json
+      - LOG_OUTPUT=both
+      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      # WebSocket Retry Configuration
+      - WEBSOCKET_MAX_RETRIES=${WEBSOCKET_MAX_RETRIES:--1}
+      - WEBSOCKET_MAX_RETRY_DELAY=${WEBSOCKET_MAX_RETRY_DELAY:-300}
+      # Device storage configuration
+      - STORE_DEVICE_HISTORY_IN_INFLUXDB=${STORE_DEVICE_HISTORY_IN_INFLUXDB:-false}
+    depends_on:
+      home-assistant-test:
+        condition: service_healthy
+      data-api:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    profiles:
+      - test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=websocket-ingestion-test,environment=test"
+    volumes:
+      - homeiq_logs:/var/log/homeiq
+
 volumes:
   influxdb_data:
   influxdb_config:
@@ -1162,6 +1470,9 @@ volumes:
   ai_automation_models:  # Phase 1: Persistent model cache (OpenVINO INT8 models)
   automation_miner_data:  # Epic AI-4: Community automation corpus
   device_intelligence_data:  # Device Intelligence Service data
+  device_cache_data:  # Device Database Client cache
+  ha_test_config:  # Home Assistant test container configuration
+  ha_test_data:  # Home Assistant test container data
 
 networks:
   homeiq-network:

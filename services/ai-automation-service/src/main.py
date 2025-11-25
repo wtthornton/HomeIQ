@@ -58,6 +58,7 @@ from .api import (
     suggestion_management_router,
     suggestion_router,
 )
+from .api.home_type_router import router as home_type_router
 from .api.analysis_router import set_scheduler
 from .api.community_pattern_router import router as community_pattern_router
 from .api.health import set_capability_listener
@@ -388,6 +389,7 @@ app.include_router(learning_router)  # Q&A Learning Enhancement Plan
 app.include_router(validation_router)  # Validation wall endpoint
 app.include_router(ranking_router)  # Heuristic ranking endpoint
 app.include_router(mcp_router)  # MCP Code Execution Tools
+app.include_router(home_type_router)  # Home Type Categorization
 
 # v2 API routers (Phase 3 - New API Routers)
 app.include_router(conversation_router_v2)  # Conversation API v2

@@ -4,7 +4,7 @@
 
 This document provides a comprehensive overview of all services in the HomeIQ system with complete data flows and integrations.
 
-**Last Updated:** October 25, 2025
+**Last Updated:** January 20, 2025
 
 **Reference:** See [COMPLETE_DATA_FLOW_CALL_TREE.md](../implementation/analysis/COMPLETE_DATA_FLOW_CALL_TREE.md) for detailed call trees.
 
@@ -1025,6 +1025,200 @@ AI Core Service (Port 8018)
 
 ---
 
+## 🏠 Device Intelligence Services (NEW - January 2025)
+
+### Device Health Monitor Service
+**Port:** 8019 (external)  
+**Technology:** Python 3.11, FastAPI  
+**Purpose:** Device health monitoring and maintenance insights
+
+**Data Flow:**
+```
+Home Assistant State API
+    ↓
+Device Health Monitor
+    ├─ Response time analysis
+    ├─ Battery level checking
+    ├─ Last seen monitoring
+    ├─ Power anomaly detection
+    └─ Health report generation
+    ↓
+Data API (endpoints)
+```
+
+**Key Features:**
+- Monitor device response times from HA State API
+- Check battery levels from entity attributes
+- Track last_seen timestamps
+- Detect power consumption anomalies
+- Generate health reports with severity levels
+- Provide maintenance recommendations
+
+**Endpoints (via Data API):**
+- `GET /api/devices/{device_id}/health` - Device health report
+- `GET /api/devices/health-summary` - Overall health summary
+- `GET /api/devices/maintenance-alerts` - Devices needing attention
+
+**Health Check:** `http://localhost:8019/health`
+
+**README:** [services/device-health-monitor/README.md](../services/device-health-monitor/README.md)
+
+---
+
+### Device Context Classifier Service
+**Port:** 8032 (external) → 8020 (internal)  
+**Technology:** Python 3.11, FastAPI  
+**Purpose:** Device type classification from entity patterns
+
+**Data Flow:**
+```
+Home Assistant Entity Registry API
+    ↓
+Device Context Classifier
+    ├─ Pattern matching
+    ├─ Device type inference
+    ├─ Category assignment
+    └─ Classification storage
+    ↓
+Data API (Device model update)
+```
+
+**Key Features:**
+- Analyze entities to infer device types (fridge, car, 3D printer, etc.)
+- Group related entities into logical devices
+- Extract device context metadata
+- Store classifications in Device model
+
+**Device Patterns:**
+- Fridge: temperature sensors + door sensor + light
+- Car: location + battery + charging status
+- 3D Printer: temperature + progress + status
+- Thermostat: temperature + humidity + mode
+- (Extensible pattern library)
+
+**Endpoints (via Data API):**
+- `POST /api/devices/{device_id}/classify` - Classify device and update model
+
+**Health Check:** `http://localhost:8020/health`
+
+**README:** [services/device-context-classifier/README.md](../services/device-context-classifier/README.md)
+
+---
+
+### Device Setup Assistant Service
+**Port:** 8021 (external)  
+**Technology:** Python 3.11, FastAPI  
+**Purpose:** Setup guides and issue detection for new devices
+
+**Data Flow:**
+```
+Home Assistant Device/Entity Registry API
+    ↓
+Device Setup Assistant
+    ├─ Setup guide generation
+    ├─ Issue detection
+    ├─ Troubleshooting tips
+    └─ Setup completion tracking
+    ↓
+Data API (endpoints)
+```
+
+**Key Features:**
+- Generate step-by-step setup instructions for new devices
+- Detect common setup issues:
+  - Device not responding (no events in 24h)
+  - Missing expected entities
+  - Incorrect area assignment
+  - Integration configuration errors
+- Provide troubleshooting tips
+- Link to Device Database setup instructions (when available)
+
+**Endpoints (via Data API):**
+- `GET /api/devices/{device_id}/setup-guide` - Setup instructions
+- `GET /api/devices/{device_id}/setup-issues` - Detected problems
+- `POST /api/devices/{device_id}/setup-complete` - Mark setup complete
+
+**Health Check:** `http://localhost:8021/health`
+
+**README:** [services/device-setup-assistant/README.md](../services/device-setup-assistant/README.md)
+
+---
+
+### Device Database Client Service
+**Port:** 8022 (external)  
+**Technology:** Python 3.11, FastAPI  
+**Purpose:** External Device Database integration with local caching
+
+**Data Flow:**
+```
+Device Database API (optional)
+    ↓
+Device Database Client
+    ├─ API query
+    ├─ Local caching
+    ├─ Fallback to local intelligence
+    └─ Device enrichment
+    ↓
+Data API (Device model update)
+```
+
+**Key Features:**
+- Query external Device Database API (when available)
+- Cache device information locally (24h TTL)
+- Fallback to local intelligence if Device Database unavailable
+- Sync device capabilities periodically
+- Update Device model with enriched data
+
+**Data Sources Priority:**
+1. Local cache (if fresh)
+2. Device Database API (if available)
+3. Local device intelligence (HA API inference)
+
+**Configuration:**
+- `DEVICE_DATABASE_API_URL` - Device Database API URL (optional)
+- `DEVICE_DATABASE_API_KEY` - API key (optional)
+
+**Health Check:** `http://localhost:8022/health`
+
+**README:** [services/device-database-client/README.md](../services/device-database-client/README.md)
+
+---
+
+### Device Recommender Service
+**Port:** 8023 (external)  
+**Technology:** Python 3.11, FastAPI  
+**Purpose:** Device recommendations and comparisons
+
+**Data Flow:**
+```
+Device Database API + User Devices
+    ↓
+Device Recommender
+    ├─ Recommendation engine
+    ├─ Comparison engine
+    ├─ Similarity matching
+    └─ Rating aggregation
+    ↓
+Data API (endpoints)
+```
+
+**Key Features:**
+- Recommend devices based on user requirements
+- Compare devices in user's home
+- Find similar devices
+- Provide device ratings and reviews (from Device Database)
+
+**Endpoints (via Data API):**
+- `GET /api/devices/recommendations?device_type={type}` - Device recommendations
+- `GET /api/devices/compare?device_ids={ids}` - Compare devices
+- `GET /api/devices/similar/{device_id}` - Find similar devices
+
+**Health Check:** `http://localhost:8023/health`
+
+**README:** [services/device-recommender/README.md](../services/device-recommender/README.md)
+
+---
+
 ## 📚 Additional Documentation
 
 - **[Complete Data Flow Call Tree](../implementation/analysis/COMPLETE_DATA_FLOW_CALL_TREE.md)** - Detailed call trees and data flows
@@ -1042,10 +1236,14 @@ AI Core Service (Port 8018)
 
 **Health Checks:**
 - Websocket Ingestion: http://localhost:8001/health
-- Enrichment Pipeline: http://localhost:8002/health
 - Admin API: http://localhost:8003/health
 - Sports Data: http://localhost:8005/health
 - Data API: http://localhost:8006/health
+- Device Health Monitor: http://localhost:8019/health
+- Device Context Classifier: http://localhost:8032/health
+- Device Setup Assistant: http://localhost:8021/health
+- Device Database Client: http://localhost:8022/health
+- Device Recommender: http://localhost:8023/health
 - Health Dashboard: http://localhost:3000
 - InfluxDB: http://localhost:8086
 
