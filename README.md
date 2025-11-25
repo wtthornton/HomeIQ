@@ -63,6 +63,17 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 - **Smart Recommendations**: Context-aware automation suggestions with priority scoring
 - **Self-Healing YAML**: Automatic entity ID correction during refinement
 - **Configurable Fallbacks**: Tune guardrail models and soft prompt thresholds directly from the Settings UI (persisted server-side)
+- **Device-Specific Templates**: Pre-built automation templates for common device types (fridge, car, 3D printer, thermostat)
+
+### 🏠 Device Intelligence & Database
+
+- **Device Health Monitoring**: Real-time health analysis with battery levels, response times, and maintenance alerts
+- **Device Classification**: Automatic device type inference (fridge, car, light, sensor, etc.) from entity patterns
+- **Power Consumption Intelligence**: Compare actual vs. expected power usage with anomaly detection
+- **Device Setup Assistant**: Step-by-step setup guides and issue detection for new devices
+- **Capability Discovery**: Infer device capabilities from Home Assistant API (HA API-only, no direct protocol access)
+- **Device Recommendations**: Get device recommendations based on requirements and compare similar devices
+- **Device Database Integration**: Optional integration with external Device Database for enriched metadata
 
 ### 📊 Enterprise Analytics
 
@@ -180,9 +191,16 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 
 ## 🏗️ Architecture
 
-### System Overview (Epic 31 Architecture - 24 Active Microservices)
+### System Overview (Epic 31 Architecture - 29 Active Microservices)
 
-**Note:** Plus InfluxDB infrastructure = 25 total containers in production
+**Note:** Plus InfluxDB infrastructure = 30 total containers in production
+
+**New Services (Device Database Enhancements):**
+- Device Health Monitor (Port 8019)
+- Device Context Classifier (Port 8032)
+- Device Setup Assistant (Port 8021)
+- Device Database Client (Port 8022)
+- Device Recommender (Port 8023)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -234,6 +252,13 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │  ├─ Energy Correlator                   :8017               │
 │  ├─ Log Aggregator                      :8015               │
 │  └─ HA Setup Service                    :8027→8020          │
+├─────────────────────────────────────────────────────────────┤
+│  Device Intelligence (5 services - NEW)                     │
+│  ├─ Device Health Monitor               :8019               │
+│  ├─ Device Context Classifier           :8032               │
+│  ├─ Device Setup Assistant              :8021               │
+│  ├─ Device Database Client              :8022               │
+│  └─ Device Recommender                  :8023               │
 ├─────────────────────────────────────────────────────────────┤
 │  Dev/External (not HomeIQ services)                         │
 │  ├─ HA Simulator (dev only)             :8123 (not deployed)│
@@ -303,6 +328,11 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 | **Smart Meter** | Energy consumption | 8014 | 8014 | Python, FastAPI | ✅ Active |
 | **Energy Correlator** | Energy analysis | 8017 | 8017 | Python, FastAPI | ✅ Active |
 | **Log Aggregator** | Centralized logging | 8015 | 8015 | Python, FastAPI | ✅ Active |
+| **Device Health Monitor** | Device health & maintenance | 8019 | 8019 | Python, FastAPI | ✅ Active |
+| **Device Context Classifier** | Device type classification | 8032 | 8020 | Python, FastAPI | ✅ Active |
+| **Device Setup Assistant** | Setup guides & issue detection | 8021 | 8021 | Python, FastAPI | ✅ Active |
+| **Device Database Client** | External Device Database integration | 8022 | 8022 | Python, FastAPI | ✅ Active |
+| **Device Recommender** | Device recommendations & comparisons | 8023 | 8023 | Python, FastAPI | ✅ Active |
 | **InfluxDB** | Time-series database | 8086 | 8086 | InfluxDB 2.7 | ✅ Active |
 | **HA Simulator** | Dev environment HA instance | 8123 | 8123 | Python, FastAPI | 🚧 Dev only |
 | **External MQTT Broker** | MQTT messaging (not HomeIQ) | 1883 | 1883 | Eclipse Mosquitto | ℹ️ External |
@@ -316,6 +346,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 - [Quick Start Guide](docs/QUICK_START.md)
 - [User Manual](docs/USER_MANUAL.md)
 - [API Reference](docs/api/API_REFERENCE.md)
+- [Device Database Enhancements](docs/DEVICE_DATABASE_ENHANCEMENTS.md)
 - [Troubleshooting Guide](docs/TROUBLESHOOTING_GUIDE.md)
 - [Soft Prompt Training Guide](docs/current/operations/soft-prompt-training.md)
 
@@ -442,7 +473,20 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Home Type Categorization System** (November 2025)
+  - ML-based home type classification using RandomForest classifier
+  - Synthetic data generation for training (100-120 homes)
+  - Production profiling and classification API endpoints
+  - Event categorization based on home type
+  - Integration with suggestion filtering
 - **Implement Quick Wins for Ask AI: Fix 54% failure rate** (November 24, 2025)
+- **Device Database Enhancements** (January 20, 2025)
+  - Device health monitoring with battery levels and response time analysis   
+  - Automatic device classification (fridge, car, light, etc.) from entity patterns                                                                           
+  - Device-specific automation templates for common device types
+  - Setup assistant with step-by-step guides and issue detection
+  - Device recommendations and comparison features
+  - HA API-only capability discovery (no direct protocol access)
 - **Phase 4.1 enhancements and Docker deployment fixes** (November 24, 2025)
 - **Fix prompt 14 in ask-ai-continuous-improvement.py - clarify light control logic for Home Assistant** (November 24, 2025)
 - **Fix prompt 14 in ask-ai-continuous-improvement.py - clarify light control logic for Home Assistant** (November 24, 2025)
@@ -556,7 +600,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## 📊 Project Stats
 
-- **Services**: 24 active microservices (+ InfluxDB infrastructure = 25 containers)
+- **Services**: 29 active microservices (+ InfluxDB infrastructure = 30 containers)
 - **Deployment**: Single NUC (Intel NUC or similar), Docker Compose
 - **Languages**: Python 3.11+ (backend), TypeScript/React 18 (frontend)
 - **Databases**: InfluxDB 2.7 (time-series) + 5 SQLite databases (metadata)
