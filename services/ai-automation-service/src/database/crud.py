@@ -625,32 +625,32 @@ async def get_suggestions(
         approval_weight = func.coalesce(feedback_summary.c.approvals, 0)
         rejection_weight = func.coalesce(feedback_summary.c.rejections, 0)
         
-        # Enhanced multi-factor ranking (Phase 1 + Phase 3 improvements)
-        # Base confidence (20%) + User feedback (20%) + Category (15%) + Priority (10%) + User preference (15%) + Time relevance (10%) + Historical success (10%)
-        base_score = Suggestion.confidence * 0.20
-        feedback_score = (approval_weight * 0.15 - rejection_weight * 0.15) * 0.20
+        # Enhanced multi-factor ranking (2025 - from ai_automation_suggester)
+        # Template match (30%) + Success rate (25%) + Preferences (15%) + Energy (10%) + Utilization (15%) + Time (5%)
         
-        # Category-based priority boost (energy/security get higher priority)
-        # Note: 'case' is already imported at top of file, don't re-import here
-        category_boost = case(
-            (Suggestion.category == 'energy', 0.15),
-            (Suggestion.category == 'security', 0.12),
-            (Suggestion.category == 'comfort', 0.08),
-            else_=0.05
+        # 1. Template match score (30% weight) - from template_score in metadata
+        # For SQLite, we'll use confidence as proxy (template_score extracted in Python layer)
+        # Base confidence includes template_score if available in metadata
+        template_match_score = Suggestion.confidence * 0.30
+        
+        # 2. Success rate (25% weight) - from historical success (approvals vs rejections)
+        # Calculate success rate: approvals / (approvals + rejections + 1)
+        total_feedback = approval_weight + rejection_weight + 1
+        success_rate = (approval_weight / total_feedback) * 0.25
+        
+        # 3. Preferences (15% weight) - will be calculated in Python layer per suggestion
+        preference_boost = 0.0  # Calculated per-suggestion in Python
+        
+        # 4. Energy impact (10% weight) - boost for energy category
+        energy_boost = case(
+            (Suggestion.category == 'energy', 0.10),
+            else_=0.0
         )
         
-        # Priority boost
-        priority_boost = case(
-            (Suggestion.priority == 'high', 0.10),
-            (Suggestion.priority == 'medium', 0.05),
-            else_=0.02
-        )
+        # 5. Utilization (15% weight) - based on device usage (will be calculated in Python)
+        utilization_boost = 0.0  # Calculated per-suggestion in Python
         
-        # Phase 3: User preference boost (will be calculated in Python for each suggestion)
-        # For now, use a placeholder that will be enhanced in the Python layer
-        user_preference_boost = 0.0  # Will be calculated per-suggestion in get_suggestions
-        
-        # Time relevance boost (suggestions created recently get slight boost)
+        # 6. Time relevance (5% weight) - recent suggestions get boost
         from datetime import datetime, timedelta, timezone
         recent_threshold = datetime.now(timezone.utc) - timedelta(days=7)
         time_relevance_boost = case(
@@ -658,8 +658,13 @@ async def get_suggestions(
             else_=0.0
         )
         
-        # Combine base factors (user preference added in Python layer)
-        weighted_score = base_score + feedback_score + category_boost + priority_boost + time_relevance_boost
+        # Combine base factors (preferences and utilization added in Python layer)
+        weighted_score = (
+            template_match_score +
+            success_rate +
+            energy_boost +
+            time_relevance_boost
+        )
 
         query = (
             select(
