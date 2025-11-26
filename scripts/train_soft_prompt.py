@@ -10,10 +10,16 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sqlite3
+import sys
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict
+
+# Suppress TRANSFORMERS_CACHE deprecation warnings
+warnings.filterwarnings("ignore", category=FutureWarning, message=".*TRANSFORMERS_CACHE.*")
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +77,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=2,
-        help="Per-device batch size (kept small for CPU training)",
+        default=1,
+        help="Per-device batch size (NUC-optimized: 1 for minimal memory)",
     )
     parser.add_argument(
         "--target-max-tokens",
@@ -236,7 +242,30 @@ def main():
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
     from peft import LoraConfig, get_peft_model
 
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model)
+    # Use cached model if available (set via HF_HOME environment variable)
+    # Note: TRANSFORMERS_CACHE is deprecated, use HF_HOME only
+    cache_dir = os.environ.get('HF_HOME') or None
+    if cache_dir is None:
+        # Fallback to TRANSFORMERS_CACHE only if HF_HOME not set (for backward compatibility)
+        cache_dir = os.environ.get('TRANSFORMERS_CACHE')
+    logger.info(f"Loading model from cache: {cache_dir if cache_dir else 'default location'}")
+
+    # Try to load from cache first, fall back to download if needed
+    try:
+        logger.info(f"Attempting to load model from cache: {cache_dir}")
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.base_model,
+            cache_dir=cache_dir,
+            local_files_only=True  # Use cache only
+        )
+        logger.info("Tokenizer loaded from cache")
+    except Exception as e:
+        logger.warning(f"Failed to load tokenizer from cache: {e}, downloading...")
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.base_model,
+            cache_dir=cache_dir,
+            local_files_only=False
+        )
 
     dataset = prepare_dataset(
         tokenizer,
@@ -245,7 +274,21 @@ def main():
         max_target_tokens=args.target_max_tokens,
     )
 
-    model = AutoModelForSeq2SeqLM.from_pretrained(args.base_model)
+    try:
+        logger.info("Loading model from cache...")
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            args.base_model,
+            cache_dir=cache_dir,
+            local_files_only=True  # Use cache only
+        )
+        logger.info("Model loaded from cache successfully")
+    except Exception as e:
+        logger.warning(f"Failed to load model from cache: {e}, downloading...")
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            args.base_model,
+            cache_dir=cache_dir,
+            local_files_only=False
+        )
 
     lora_config = LoraConfig(
         r=args.lora_r,
@@ -256,6 +299,9 @@ def main():
         task_type="SEQ_2_SEQ_LM",
     )
     model = get_peft_model(model, lora_config)
+    
+    # Enable training mode (PEFT automatically marks LoRA parameters as trainable)
+    model.train()
 
     if args.resume_from:
         logger.info("Resuming from adapter at %s", args.resume_from)
@@ -268,24 +314,29 @@ def main():
     training_args = TrainingArguments(
         output_dir=str(run_dir),
         per_device_train_batch_size=args.batch_size,
-        gradient_accumulation_steps=4,
+        gradient_accumulation_steps=2,  # Reduced from 4 for NUC memory constraints
         num_train_epochs=args.epochs,
         learning_rate=args.learning_rate,
         logging_dir=str(run_dir / "logs"),
         logging_steps=10,
         save_strategy="epoch",
-        evaluation_strategy="no",
+        eval_strategy="no",  # Changed from evaluation_strategy in transformers >= 4.21
         report_to=["none"],
         dataloader_drop_last=False,
         bf16=False,
         fp16=False,
+        gradient_checkpointing=False,  # Disabled: incompatible with PEFT/LoRA (causes grad_fn errors)
+        dataloader_num_workers=0,  # Disable multiprocessing to save memory
+        remove_unused_columns=False,  # Keep all columns to avoid extra processing
+        disable_tqdm=True,  # Disable progress bars to save memory (NUC optimization - no GUI needed)
+        dataloader_pin_memory=False,  # Disable pin_memory (no GPU, saves memory)
     )
 
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=dataset,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,  # Updated from tokenizer (deprecated in v5.0)
     )
 
     train_result = trainer.train()
