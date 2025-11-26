@@ -34,6 +34,8 @@ scikit-learn>=1.5.0,<2.0.0  # Stable scikit-learn 1.5.x (November 2025)
 scipy>=1.14.0,<2.0.0  # Stable SciPy for statistical operations (Phase 3: Uncertainty Quantification)
 tabpfn>=0.1.0,<1.0.0  # TabPFN for correlation prediction (Epic 36 - 100-1000x faster)
 river>=0.22.0,<1.0.0  # River for streaming statistics (Epic 36 - O(1) real-time updates)
+faiss-cpu>=1.7.4,<2.0.0  # FAISS for vector similarity search (Epic 37 - 2025: CPU-only, flat index for single-home)
+optuna>=3.6.0,<4.0.0  # Optuna for hyperparameter optimization (Epic 37 - AutoML foundation)
 
 # LLM Integration - Multi-Model Entity Extraction
 openai>=1.54.0,<2.0.0  # Stable OpenAI Python SDK (November 2025 - supports GPT-5.1)

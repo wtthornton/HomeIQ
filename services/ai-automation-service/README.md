@@ -2,10 +2,12 @@
 
 AI-powered Home Assistant automation discovery and recommendation system with device intelligence.
 
-**Port:** 8018 (internal), exposed as 8024 (external)
-**Technology:** Python 3.11+, FastAPI 0.121, OpenAI GPT-4o-mini, OpenVINO
-**Container:** `homeiq-ai-automation-service`
-**Database:** SQLite (ai_automation.db - 13 tables)
+**Deployment:** Single-home Home Assistant application running on Intel NUC (i3/i5, 8-16GB RAM)  
+**Port:** 8018 (internal), exposed as 8024 (external)  
+**Technology:** Python 3.11+, FastAPI 0.121, OpenAI GPT-4o-mini, OpenVINO  
+**Container:** `homeiq-ai-automation-service`  
+**Database:** SQLite (ai_automation.db - 13 tables)  
+**Scale:** Optimized for ~50-100 devices (single-home, not multi-home)
 
 ## Recent Updates (November 2025)
 
@@ -94,12 +96,25 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - 🌙 Nightly analysis coordination
 - 🛡️ Synergy guardrails (when enabled)
 
+## Deployment Context
+
+**This service is designed for a single-home Home Assistant deployment on Intel NUC hardware:**
+
+- **Hardware**: Intel NUC i3/i5, 8-16GB RAM
+- **Scale**: Single-home with ~50-100 devices (not multi-home or enterprise)
+- **Resource Constraints**: CPU-only (no GPU), optimized for NUC memory limits
+- **Architecture**: Lightweight, resource-efficient patterns (2025 best practices)
+- **Not Designed For**: Multi-home deployments, enterprise scale, or GPU-accelerated workloads
+
+All components are optimized for this deployment context.
+
 ## Quick Start
 
 ### Prerequisites
 
+- **Intel NUC** (i3/i5, 8-16GB RAM) running Home Assistant
 - Python 3.11+
-- Home Assistant with MQTT integration
+- Home Assistant with MQTT integration (single-home setup)
 - OpenAI API key
 - Data API service running (port 8006)
 - Device Intelligence Service (port 8028)

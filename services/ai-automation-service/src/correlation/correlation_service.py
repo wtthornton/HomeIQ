@@ -2,23 +2,32 @@
 Unified Correlation Service
 
 Epic 36, Story 36.6: Unified Correlation Service
-Orchestrates TabPFN, streaming tracker, feature extractor, and cache
+Epic 37, Story 37.2: Vector Database Integration
+Orchestrates TabPFN, streaming tracker, feature extractor, cache, and vector database
 to provide unified correlation analysis API.
 
 Single-home NUC optimized:
-- Memory: <60MB total (all components)
+- Memory: <90MB total (all components including vector DB)
 - Performance: 100-1000x faster than O(n²) matrix
+- Similarity search: Fast vector search for <10k correlations
 - Real-time updates: O(1) per event
 """
 
 import logging
-from typing import Optional
+from typing import Optional, List, Tuple
+import numpy as np
 from datetime import datetime
 
 from .tabpfn_predictor import TabPFNCorrelationPredictor
 from .streaming_tracker import StreamingCorrelationTracker
 from .feature_extractor import CorrelationFeatureExtractor
 from .correlation_cache import CorrelationCache
+
+try:
+    from .vector_db import CorrelationVectorDatabase, FAISS_AVAILABLE
+except ImportError:
+    CorrelationVectorDatabase = None
+    FAISS_AVAILABLE = False
 
 from shared.logging_config import get_logger
 
@@ -34,11 +43,13 @@ class CorrelationService:
     - Streaming tracker (real-time O(1) updates)
     - Feature extractor (with external data)
     - Correlation cache (avoids redundant computation)
+    - Vector database (similarity search for <10k correlations)
     
     Single-home optimization:
     - Lightweight components
     - SQLite-backed cache (no Redis needed)
     - In-memory streaming statistics
+    - FAISS flat index for vector search (CPU-only, simple)
     """
     
     def __init__(
@@ -46,7 +57,8 @@ class CorrelationService:
         cache_db_path: Optional[str] = None,
         data_api_client: Optional[object] = None,
         enable_tabpfn: bool = True,
-        enable_streaming: bool = True
+        enable_streaming: bool = True,
+        enable_vector_db: bool = True
     ):
         """
         Initialize correlation service.
@@ -56,6 +68,7 @@ class CorrelationService:
             data_api_client: Optional data API client for external data
             enable_tabpfn: Enable TabPFN predictor (default: True)
             enable_streaming: Enable streaming tracker (default: True)
+            enable_vector_db: Enable vector database for similarity search (default: True)
         """
         # Initialize components
         self.tabpfn_predictor = TabPFNCorrelationPredictor(device_only=True) if enable_tabpfn else None
@@ -63,11 +76,30 @@ class CorrelationService:
         self.feature_extractor = CorrelationFeatureExtractor(data_api_client)
         self.cache = CorrelationCache(cache_db_path)
         
+        # Vector database (Epic 37)
+        if enable_vector_db and FAISS_AVAILABLE and CorrelationVectorDatabase:
+            try:
+                self.vector_db = CorrelationVectorDatabase(vector_dim=32)
+                self.enable_vector_db = True
+            except Exception as e:
+                logger.warning("Failed to initialize vector database: %s", e)
+                self.vector_db = None
+                self.enable_vector_db = False
+        else:
+            self.vector_db = None
+            self.enable_vector_db = False
+        
         self.enable_tabpfn = enable_tabpfn
         self.enable_streaming = enable_streaming
         
-        logger.info("CorrelationService initialized (tabpfn=%s, streaming=%s)",
-                   enable_tabpfn, enable_streaming)
+        # Hyperparameter optimization support (Epic 37)
+        self._tabpfn_threshold = 0.5  # Default threshold
+        self._feature_weights = None  # Feature weights (set by optimizer)
+        
+        logger.info(
+            "CorrelationService initialized (tabpfn=%s, streaming=%s, vector_db=%s)",
+            enable_tabpfn, enable_streaming, self.enable_vector_db
+        )
     
     def update_correlation(
         self,
@@ -99,6 +131,22 @@ class CorrelationService:
         
         # Invalidate cache (correlation changed)
         self.cache.invalidate(entity1_id, entity2_id)
+        
+        # Update vector database with feature vector (Epic 37)
+        if self.enable_vector_db and self.vector_db and entity1_metadata and entity2_metadata:
+            try:
+                # Extract feature vector
+                features = self.feature_extractor.extract_pair_features(
+                    entity1_metadata, entity2_metadata, timestamp=timestamp
+                )
+                # Convert features dict to numpy array (32-dim vector)
+                feature_vector = self._features_to_vector(features)
+                if feature_vector is not None:
+                    self.vector_db.add_correlation_vector(
+                        entity1_id, entity2_id, feature_vector
+                    )
+            except Exception as e:
+                logger.debug("Failed to update vector database: %s", e)
         
         logger.debug("Updated correlation: %s <-> %s", entity1_id, entity2_id)
     
@@ -144,7 +192,7 @@ class CorrelationService:
         self,
         entities: list[dict],
         usage_stats: Optional[dict] = None,
-        threshold: float = 0.5,
+        threshold: Optional[float] = None,
         max_predictions: Optional[int] = None
     ) -> list[tuple[dict, dict, float]]:
         """
@@ -156,7 +204,7 @@ class CorrelationService:
         Args:
             entities: List of entity metadata dicts
             usage_stats: Optional usage statistics
-            threshold: Minimum prediction probability
+            threshold: Minimum prediction probability (uses optimized threshold if None)
             max_predictions: Maximum number of predictions
         
         Returns:
@@ -165,7 +213,12 @@ class CorrelationService:
         if not self.enable_tabpfn or not self.tabpfn_predictor:
             # Fallback: return all pairs (no prediction)
             logger.warning("TabPFN not enabled, returning all pairs")
+            threshold = threshold or self._tabpfn_threshold
             return self._get_all_pairs(entities, threshold)
+        
+        # Use optimized threshold if not specified
+        if threshold is None:
+            threshold = self._tabpfn_threshold
         
         # Generate all pairs
         pairs = []
@@ -189,7 +242,7 @@ class CorrelationService:
     def get_all_correlations(
         self,
         entity_ids: Optional[list[str]] = None,
-        min_correlation: float = 0.3,
+        min_correlation: Optional[float] = None,
         use_cache: bool = True
     ) -> dict[tuple[str, str], float]:
         """
@@ -197,13 +250,19 @@ class CorrelationService:
         
         Args:
             entity_ids: Optional list of entity IDs (None = all)
-            min_correlation: Minimum correlation threshold
+            min_correlation: Minimum correlation threshold (uses optimized if None)
             use_cache: Whether to use cache
         
         Returns:
             Dict mapping (entity1_id, entity2_id) -> correlation
         """
         if self.enable_streaming and self.streaming_tracker:
+            # Use optimized min_correlation if available
+            if min_correlation is None and hasattr(self.streaming_tracker, '_optimized_min_correlation'):
+                min_correlation = self.streaming_tracker._optimized_min_correlation
+            elif min_correlation is None:
+                min_correlation = 0.3  # Default
+            
             # Get from streaming tracker
             correlations = self.streaming_tracker.get_all_correlations(
                 entity_ids,
@@ -262,6 +321,94 @@ class CorrelationService:
             self.streaming_tracker.clear_cache()
         logger.info("Correlation cache cleared")
     
+    def search_similar_correlations(
+        self,
+        entity1_id: str,
+        entity2_id: str,
+        entity1_metadata: Optional[dict] = None,
+        entity2_metadata: Optional[dict] = None,
+        k: int = 10,
+        min_similarity: Optional[float] = None
+    ) -> List[Tuple[str, str, float]]:
+        """
+        Search for correlations similar to a given entity pair (Epic 37).
+        
+        Uses vector similarity search instead of linear search for better performance.
+        
+        Args:
+            entity1_id: Entity 1 ID
+            entity2_id: Entity 2 ID
+            entity1_metadata: Optional entity 1 metadata
+            entity2_metadata: Optional entity 2 metadata
+            k: Number of similar correlations to return
+            min_similarity: Optional minimum similarity threshold (L2 distance)
+        
+        Returns:
+            List of (entity1_id, entity2_id, distance) tuples
+        """
+        if not self.enable_vector_db or not self.vector_db:
+            logger.debug("Vector database not enabled, returning empty results")
+            return []
+        
+        try:
+            # Extract feature vector for query
+            if entity1_metadata and entity2_metadata:
+                features = self.feature_extractor.extract_pair_features(
+                    entity1_metadata, entity2_metadata
+                )
+                query_vector = self._features_to_vector(features)
+                if query_vector is not None:
+                    # Search for similar correlations
+                    return self.vector_db.search_similar_correlations(
+                        query_vector, k=k, min_similarity=min_similarity
+                    )
+        except Exception as e:
+            logger.debug("Failed to search similar correlations: %s", e)
+        
+        return []
+    
+    def _features_to_vector(self, features: dict) -> Optional[np.ndarray]:
+        """
+        Convert features dict to numpy array (32-dim vector).
+        
+        Args:
+            features: Features dict from feature extractor
+        
+        Returns:
+            32-dim numpy array or None if conversion fails
+        """
+        try:
+            # Select 32 key features (or pad/truncate as needed)
+            feature_list = [
+                features.get('same_area', 0.0),
+                features.get('same_domain', 0.0),
+                features.get('same_device_type', 0.0),
+                features.get('entity1_domain_encoded', 0.0),
+                features.get('entity2_domain_encoded', 0.0),
+                features.get('usage_frequency_1', 0.0),
+                features.get('usage_frequency_2', 0.0),
+                features.get('co_occurrence_count', 0.0),
+                features.get('temperature', 0.0),
+                features.get('humidity', 0.0),
+                features.get('carbon_intensity', 0.0),
+                features.get('electricity_price', 0.0),
+                features.get('air_quality_index', 0.0),
+                features.get('hour_of_day', 0.0),
+                features.get('day_of_week', 0.0),
+                features.get('is_weekend', 0.0),
+                # Add more features or pad to 32
+            ]
+            
+            # Pad or truncate to 32 dimensions
+            while len(feature_list) < 32:
+                feature_list.append(0.0)
+            feature_list = feature_list[:32]
+            
+            return np.array(feature_list, dtype=np.float32)
+        except Exception as e:
+            logger.debug("Failed to convert features to vector: %s", e)
+            return None
+    
     def get_memory_usage_mb(self) -> float:
         """Get total memory usage in MB"""
         total = 0.0
@@ -279,6 +426,10 @@ class CorrelationService:
         
         # Cache: <20MB (SQLite + memory)
         total += 20.0
+        
+        # Vector database: ~30MB (Epic 37)
+        if self.enable_vector_db and self.vector_db:
+            total += self.vector_db.get_memory_usage_mb()
         
         return total
     
@@ -301,5 +452,7 @@ class CorrelationService:
     def close(self) -> None:
         """Close service and cleanup resources"""
         self.cache.close()
+        if self.enable_vector_db and self.vector_db:
+            self.vector_db.clear()  # Clear vector database on close
         logger.info("CorrelationService closed")
 
