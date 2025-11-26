@@ -1736,15 +1736,45 @@ export const AskAI: React.FC = () => {
                                 });
                               }
                             
-                            // 6. Try extracted_entities from message
+                            // 6. Try extracted_entities from message - ONLY if they're in validated_entities or entity_id_annotations
+                            // This prevents adding ALL entities to every suggestion
                             if (extractedEntities && Array.isArray(extractedEntities)) {
+                              // Build set of validated entity IDs for this suggestion
+                              const validatedEntityIds = new Set<string>();
+                              
+                              // Add entity IDs from validated_entities
+                              if (suggestion.validated_entities && 
+                                  typeof suggestion.validated_entities === 'object' && 
+                                  !Array.isArray(suggestion.validated_entities)) {
+                                Object.values(suggestion.validated_entities).forEach((entityId: any) => {
+                                  if (typeof entityId === 'string') {
+                                    validatedEntityIds.add(entityId);
+                                  }
+                                });
+                              }
+                              
+                              // Add entity IDs from entity_id_annotations
+                              if (suggestion.entity_id_annotations && 
+                                  typeof suggestion.entity_id_annotations === 'object' && 
+                                  !Array.isArray(suggestion.entity_id_annotations)) {
+                                Object.values(suggestion.entity_id_annotations).forEach((annotation: any) => {
+                                  if (annotation?.entity_id && typeof annotation.entity_id === 'string') {
+                                    validatedEntityIds.add(annotation.entity_id);
+                                  }
+                                });
+                              }
+                              
+                              // Only add entities that are validated for THIS suggestion
                               extractedEntities.forEach((entity: any) => {
                                 const entityId = entity.entity_id || entity.id;
-                                if (entityId) {
-                                  const friendlyName = entity.name || entity.friendly_name || 
-                                    (entityId.includes('.') ? entityId.split('.')[1]?.split('_').map((word: string) => 
-                                      word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : entityId);
-                                  addDevice(friendlyName, entityId, entity.domain);
+                                if (entityId && validatedEntityIds.has(entityId)) {
+                                  // Only add if not already added (check seenEntityIds)
+                                  if (!seenEntityIds.has(entityId)) {
+                                    const friendlyName = entity.name || entity.friendly_name || 
+                                      (entityId.includes('.') ? entityId.split('.')[1]?.split('_').map((word: string) => 
+                                        word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : entityId);
+                                    addDevice(friendlyName, entityId, entity.domain);
+                                  }
                                 }
                               });
                             }
@@ -1981,14 +2011,45 @@ export const AskAI: React.FC = () => {
                                 });
                               }
                               
+                              // 6. Try extracted_entities from message - ONLY if they're in validated_entities or entity_id_annotations
+                              // This prevents adding ALL entities to every suggestion
                               if (extractedEntities && Array.isArray(extractedEntities)) {
+                                // Build set of validated entity IDs for this suggestion
+                                const validatedEntityIds = new Set<string>();
+                                
+                                // Add entity IDs from validated_entities
+                                if (suggestion.validated_entities && 
+                                    typeof suggestion.validated_entities === 'object' && 
+                                    !Array.isArray(suggestion.validated_entities)) {
+                                  Object.values(suggestion.validated_entities).forEach((entityId: any) => {
+                                    if (typeof entityId === 'string') {
+                                      validatedEntityIds.add(entityId);
+                                    }
+                                  });
+                                }
+                                
+                                // Add entity IDs from entity_id_annotations
+                                if (suggestion.entity_id_annotations && 
+                                    typeof suggestion.entity_id_annotations === 'object' && 
+                                    !Array.isArray(suggestion.entity_id_annotations)) {
+                                  Object.values(suggestion.entity_id_annotations).forEach((annotation: any) => {
+                                    if (annotation?.entity_id && typeof annotation.entity_id === 'string') {
+                                      validatedEntityIds.add(annotation.entity_id);
+                                    }
+                                  });
+                                }
+                                
+                                // Only add entities that are validated for THIS suggestion
                                 extractedEntities.forEach((entity: any) => {
                                   const entityId = entity.entity_id || entity.id;
-                                  if (entityId) {
-                                    const friendlyName = entity.name || entity.friendly_name || 
-                                      (entityId.includes('.') ? entityId.split('.')[1]?.split('_').map((word: string) => 
-                                        word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : entityId);
-                                    addDevice(friendlyName, entityId, entity.domain);
+                                  if (entityId && validatedEntityIds.has(entityId)) {
+                                    // Only add if not already added (check seenEntityIds)
+                                    if (!seenEntityIds.has(entityId)) {
+                                      const friendlyName = entity.name || entity.friendly_name || 
+                                        (entityId.includes('.') ? entityId.split('.')[1]?.split('_').map((word: string) => 
+                                          word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : entityId);
+                                      addDevice(friendlyName, entityId, entity.domain);
+                                    }
                                   }
                                 });
                               }

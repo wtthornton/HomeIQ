@@ -87,7 +87,7 @@ export const Synergies: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
       >
         <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          🔮 Automation Opportunities
+          🔮 Device Synergies
         </h1>
         <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
           Discover what your smart home devices could do together

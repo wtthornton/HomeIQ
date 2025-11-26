@@ -5,7 +5,7 @@
  * Matches the styling of the suggestions page.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,11 @@ import {
   getAdminOverview,
   getTrainingRuns,
   triggerTrainingRun,
+  getGNNTrainingRuns,
+  triggerGNNTrainingRun,
+  getGNNTrainingStatus,
+  deleteTrainingRun,
+  clearOldTrainingRuns,
   type TrainingRunRecord,
 } from '../api/admin';
 
@@ -28,6 +33,8 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 export const Admin: React.FC = () => {
   const { darkMode } = useAppStore();
   const queryClient = useQueryClient();
+  const [expandedErrorRunId, setExpandedErrorRunId] = useState<number | null>(null);
+  const [errorModalRun, setErrorModalRun] = useState<TrainingRunRecord | null>(null);
 
   const {
     data: overview,
@@ -59,6 +66,24 @@ export const Admin: React.FC = () => {
     refetchInterval: 60_000,
   });
 
+  const {
+    data: gnnTrainingRuns,
+    isLoading: gnnTrainingRunsLoading,
+    isFetching: gnnTrainingRunsFetching,
+  } = useQuery({
+    queryKey: ['gnn-training-runs'],
+    queryFn: () => getGNNTrainingRuns(25),
+    refetchInterval: 60_000,
+  });
+
+  const {
+    data: gnnTrainingStatus,
+  } = useQuery({
+    queryKey: ['gnn-training-status'],
+    queryFn: getGNNTrainingStatus,
+    refetchInterval: 30_000,
+  });
+
   const trainingMutation = useMutation({
     mutationFn: triggerTrainingRun,
     onSuccess: () => {
@@ -68,6 +93,46 @@ export const Admin: React.FC = () => {
     },
     onError: (error: unknown) => {
       const message = error instanceof Error ? error.message : 'Failed to trigger training';
+      toast.error(`❌ ${message}`);
+    },
+  });
+
+  const deleteTrainingMutation = useMutation({
+    mutationFn: deleteTrainingRun,
+    onSuccess: () => {
+      toast.success('✅ Training run deleted')
+      queryClient.invalidateQueries({ queryKey: ['training-runs'] })
+      queryClient.invalidateQueries({ queryKey: ['gnn-training-runs'] })
+    },
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Failed to delete training run'
+      toast.error(`❌ ${message}`)
+    },
+  })
+
+  const clearOldRunsMutation = useMutation({
+    mutationFn: (params: { trainingType?: string; olderThanDays?: number; keepRecent?: number }) =>
+      clearOldTrainingRuns(params.trainingType, params.olderThanDays, params.keepRecent),
+    onSuccess: (data) => {
+      toast.success(`✅ Deleted ${data.deleted_count} old training run(s)`)
+      queryClient.invalidateQueries({ queryKey: ['training-runs'] })
+      queryClient.invalidateQueries({ queryKey: ['gnn-training-runs'] })
+    },
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Failed to clear old runs'
+      toast.error(`❌ ${message}`)
+    },
+  })
+
+  const gnnTrainingMutation = useMutation({
+    mutationFn: () => triggerGNNTrainingRun(),
+    onSuccess: () => {
+      toast.success('✅ GNN training job started');
+      queryClient.invalidateQueries({ queryKey: ['gnn-training-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['gnn-training-status'] });
+    },
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Failed to trigger GNN training';
       toast.error(`❌ ${message}`);
     },
   });
@@ -121,6 +186,11 @@ export const Admin: React.FC = () => {
   const hasActiveTrainingRun = useMemo(
     () => trainingRuns?.some((run) => run.status === 'running') ?? false,
     [trainingRuns],
+  );
+
+  const hasActiveGNNTrainingRun = useMemo(
+    () => gnnTrainingRuns?.some((run) => run.status === 'running') ?? false,
+    [gnnTrainingRuns],
   );
 
   const configItems = useMemo(() => ([
@@ -310,22 +380,44 @@ export const Admin: React.FC = () => {
               Manage local soft prompt fine-tuning jobs and review previous runs.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => trainingMutation.mutate()}
-            disabled={trainingMutation.isPending || hasActiveTrainingRun}
-            className={`px-4 py-2 text-xs rounded-lg font-bold shadow transition-colors ${
-              darkMode
-                ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {trainingMutation.isPending
-              ? '🚧 Starting…'
-              : hasActiveTrainingRun
-                ? '⏳ Training In Progress'
-                : '🚀 Start Training'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    'Delete training runs older than 30 days (keeping the 10 most recent)? This action cannot be undone.'
+                  )
+                ) {
+                  clearOldRunsMutation.mutate({ trainingType: 'soft_prompt', olderThanDays: 30, keepRecent: 10 })
+                }
+              }}
+              disabled={clearOldRunsMutation.isPending}
+              className={`px-3 py-1.5 text-xs rounded ${
+                darkMode
+                  ? 'bg-yellow-900/30 text-yellow-300 hover:bg-yellow-900/50 disabled:opacity-50'
+                  : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 disabled:opacity-50'
+              }`}
+              title="Clear old training runs (keeps 10 most recent)"
+            >
+              🧹 Clear Old
+            </button>
+            <button
+              type="button"
+              onClick={() => trainingMutation.mutate()}
+              disabled={trainingMutation.isPending || hasActiveTrainingRun}
+              className={`px-4 py-2 text-xs rounded-lg font-bold shadow transition-colors ${
+                darkMode
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {trainingMutation.isPending
+                ? '🚧 Starting…'
+                : hasActiveTrainingRun
+                  ? '⏳ Training In Progress'
+                  : '🚀 Start Training'}
+            </button>
+          </div>
         </div>
 
         <div className={`rounded-lg border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -345,6 +437,7 @@ export const Admin: React.FC = () => {
                     <th className="px-4 py-2 text-left">Started</th>
                     <th className="px-4 py-2 text-left">Finished</th>
                     <th className="px-4 py-2 text-left">Notes</th>
+                    <th className="px-4 py-2 text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -372,7 +465,54 @@ export const Admin: React.FC = () => {
                       <td className="px-4 py-2">{run.startedAt ? new Date(run.startedAt).toLocaleString() : '—'}</td>
                       <td className="px-4 py-2">{run.finishedAt ? new Date(run.finishedAt).toLocaleString() : '—'}</td>
                       <td className="px-4 py-2 text-xs">
-                        {run.errorMessage ? run.errorMessage.slice(-160) : run.baseModel ?? '—'}
+                        {run.errorMessage ? (
+                          <div className="space-y-1">
+                            <div className={`${darkMode ? 'text-red-300' : 'text-red-600'} font-mono text-[10px] break-words`}>
+                              {expandedErrorRunId === run.id 
+                                ? run.errorMessage 
+                                : run.errorMessage.length > 160 
+                                  ? `${run.errorMessage.slice(0, 160)}...` 
+                                  : run.errorMessage}
+                            </div>
+                            {run.errorMessage.length > 160 && (
+                              <button
+                                onClick={() => setExpandedErrorRunId(expandedErrorRunId === run.id ? null : run.id)}
+                                className={`text-xs underline ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}
+                              >
+                                {expandedErrorRunId === run.id ? 'Show less' : 'Show full error'}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setErrorModalRun(run)}
+                              className={`text-xs underline ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}
+                              title="View full error in modal"
+                            >
+                              📋 View in modal
+                            </button>
+                          </div>
+                        ) : (
+                          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                            {run.baseModel ?? '—'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete training run "${run.runIdentifier ?? `run-${run.id}`}"?`)) {
+                              deleteTrainingMutation.mutate(run.id)
+                            }
+                          }}
+                          disabled={deleteTrainingMutation.isPending || run.status === 'running'}
+                          className={`px-2 py-1 text-xs rounded ${
+                            darkMode
+                              ? 'bg-red-900/30 text-red-300 hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed'
+                              : 'bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed'
+                          }`}
+                          title={run.status === 'running' ? 'Cannot delete running training job' : 'Delete this training run'}
+                        >
+                          🗑️
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -385,6 +525,118 @@ export const Admin: React.FC = () => {
             </div>
           )}
           {trainingRunsFetching && !trainingRunsLoading && (
+            <div className={`p-3 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Refreshing…
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* GNN Synergy Training Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className={`rounded-lg p-6 border ${
+          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              🧠 GNN Synergy Training
+            </h2>
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Train Graph Neural Network model for synergy detection from {gnnTrainingStatus?.modelInfo?.training_date ? 'existing' : 'available'} synergies.
+            </p>
+            {gnnTrainingStatus?.modelExists && (
+              <p className={`text-xs mt-1 ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
+                ✓ Model exists at {gnnTrainingStatus.modelPath.split('/').pop()}
+                {gnnTrainingStatus.modelInfo?.training_date && ` (trained: ${new Date(gnnTrainingStatus.modelInfo.training_date).toLocaleDateString()})`}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => gnnTrainingMutation.mutate()}
+            disabled={gnnTrainingMutation.isPending || hasActiveGNNTrainingRun}
+            className={`px-4 py-2 text-xs rounded-lg font-bold shadow transition-colors ${
+              darkMode
+                ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                : 'bg-purple-500 hover:bg-purple-600 text-white'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {gnnTrainingMutation.isPending
+              ? '🚧 Starting…'
+              : hasActiveGNNTrainingRun
+                ? '⏳ Training In Progress'
+                : '🚀 Start GNN Training'}
+          </button>
+        </div>
+
+        <div className={`rounded-lg border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          {gnnTrainingRunsLoading ? (
+            <div className={`p-4 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Loading GNN training history…
+            </div>
+          ) : gnnTrainingRuns && gnnTrainingRuns.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className={`min-w-full text-sm ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                <thead className={darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}>
+                  <tr>
+                    <th className="px-4 py-2 text-left">Run</th>
+                    <th className="px-4 py-2 text-left">Status</th>
+                    <th className="px-4 py-2 text-left">Pairs</th>
+                    <th className="px-4 py-2 text-left">Val Loss</th>
+                    <th className="px-4 py-2 text-left">Val Acc</th>
+                    <th className="px-4 py-2 text-left">Started</th>
+                    <th className="px-4 py-2 text-left">Finished</th>
+                    <th className="px-4 py-2 text-left">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gnnTrainingRuns.map((run: TrainingRunRecord) => (
+                    <tr
+                      key={run.id}
+                      className={darkMode ? 'odd:bg-gray-800 even:bg-gray-900/40' : 'odd:bg-white even:bg-gray-50'}
+                    >
+                      <td className="px-4 py-2 font-medium">{run.runIdentifier ?? `gnn-run-${run.id}`}</td>
+                      <td className="px-4 py-2">
+                        <span
+                          className={`px-2 py-1 rounded text-xs ${
+                            run.status === 'completed'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                              : run.status === 'running'
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          }`}
+                        >
+                          {run.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">{run.datasetSize ?? '—'}</td>
+                      <td className="px-4 py-2">{run.finalLoss != null ? run.finalLoss.toFixed(4) : '—'}</td>
+                      <td className="px-4 py-2">—</td>
+                      <td className="px-4 py-2">{run.startedAt ? new Date(run.startedAt).toLocaleString() : '—'}</td>
+                      <td className="px-4 py-2">{run.finishedAt ? new Date(run.finishedAt).toLocaleString() : '—'}</td>
+                      <td className="px-4 py-2 text-xs">
+                        {run.errorMessage ? (
+                          <span className="text-red-500">{run.errorMessage.slice(-80)}</span>
+                        ) : (
+                          run.baseModel ?? '—'
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className={`p-4 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              No GNN training runs recorded yet.
+            </div>
+          )}
+          {gnnTrainingRunsFetching && !gnnTrainingRunsLoading && (
             <div className={`p-3 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Refreshing…
             </div>
@@ -412,6 +664,76 @@ export const Admin: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Error Message Modal */}
+      {errorModalRun && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setErrorModalRun(null)}
+        >
+          <div 
+            className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] flex flex-col`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Training Run Error Details
+              </h2>
+              <button
+                onClick={() => setErrorModalRun(null)}
+                className={`text-2xl leading-none ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4 overflow-auto flex-1">
+              <div className="space-y-4">
+                <div>
+                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Run Information
+                  </h3>
+                  <div className={`text-xs space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <div><strong>Run ID:</strong> {errorModalRun.runIdentifier ?? `run-${errorModalRun.id}`}</div>
+                    <div><strong>Status:</strong> {errorModalRun.status}</div>
+                    <div><strong>Started:</strong> {errorModalRun.startedAt ? new Date(errorModalRun.startedAt).toLocaleString() : '—'}</div>
+                    <div><strong>Finished:</strong> {errorModalRun.finishedAt ? new Date(errorModalRun.finishedAt).toLocaleString() : '—'}</div>
+                    <div><strong>Base Model:</strong> {errorModalRun.baseModel ?? '—'}</div>
+                    <div><strong>Samples:</strong> {errorModalRun.datasetSize ?? '—'}</div>
+                    <div><strong>Final Loss:</strong> {errorModalRun.finalLoss != null ? errorModalRun.finalLoss.toFixed(4) : '—'}</div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Error Message
+                  </h3>
+                  <pre className={`text-xs p-3 rounded overflow-auto max-h-96 ${darkMode ? 'bg-gray-900 text-red-300' : 'bg-gray-100 text-red-700'} font-mono whitespace-pre-wrap break-words`}>
+                    {errorModalRun.errorMessage || 'No error message available'}
+                  </pre>
+                </div>
+              </div>
+            </div>
+            <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex justify-end`}>
+              <button
+                onClick={() => {
+                  if (errorModalRun.errorMessage) {
+                    navigator.clipboard.writeText(errorModalRun.errorMessage);
+                    toast.success('Error message copied to clipboard');
+                  }
+                }}
+                className={`px-4 py-2 rounded text-sm ${darkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                📋 Copy Error
+              </button>
+              <button
+                onClick={() => setErrorModalRun(null)}
+                className={`ml-2 px-4 py-2 rounded text-sm ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
