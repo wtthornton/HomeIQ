@@ -937,9 +937,15 @@ async def list_suggestions(
 
             # Extract source_type and context from metadata for UI display
             source_type = 'pattern'  # Default
-            suggestion_metadata = s.suggestion_metadata if isinstance(s.suggestion_metadata, dict) else {}
-            if isinstance(s.suggestion_metadata, dict):
-                source_type = suggestion_metadata.get('source_type', 'pattern')
+            # Handle missing suggestion_metadata column gracefully
+            try:
+                suggestion_metadata = s.suggestion_metadata if isinstance(s.suggestion_metadata, dict) else {}
+                if isinstance(s.suggestion_metadata, dict):
+                    source_type = suggestion_metadata.get('source_type', 'pattern')
+            except AttributeError:
+                # Column doesn't exist in database yet
+                suggestion_metadata = {}
+                source_type = 'pattern'
             
             # Extract context data (Phase 2 improvement)
             context_data = suggestion_metadata.get('context', {})

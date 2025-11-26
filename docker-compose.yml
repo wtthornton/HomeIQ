@@ -905,14 +905,16 @@ services:
       - ./services/tests/datasets:/app/datasets:ro  # Dataset testing (separate location)
       - ./services/ai-automation-service/tests:/app/tests:ro  # Test files
       - ./services/tests/datasets:/app/tests/datasets:ro  # Dataset testing
+      - ./services/ai-automation-service/src:/app/src:ro  # Source code (mounted for development, no rebuild needed)
+      - ./services/ai-automation-service/scripts:/app/scripts:ro  # Scripts (mounted for development, no rebuild needed)
     networks:
       - homeiq-network
     deploy:
       resources:
         limits:
-          memory: 512M  # Reduced since models are in separate containers
+          memory: 2G  # Increased for training runs (model loading + training needs ~1.5GB)
         reservations:
-          memory: 256M
+          memory: 512M  # Increased base reservation
     logging:
       driver: "json-file"
       options:
