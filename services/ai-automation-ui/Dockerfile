@@ -34,6 +34,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy source code
 COPY services/ai-automation-ui/ .
 
+# Clean any existing build artifacts and cache
+RUN rm -rf dist node_modules/.cache .vite 2>/dev/null || true
+
 # Build production bundle
 RUN npm run build
 

@@ -23,6 +23,7 @@ export interface AdminConfig {
 
 export interface TrainingRunRecord {
   id: number
+  trainingType?: string
   status: string
   startedAt: string
   finishedAt: string | null
@@ -34,6 +35,14 @@ export interface TrainingRunRecord {
   errorMessage: string | null
   metadataPath: string | null
   triggeredBy: string
+}
+
+export interface GNNTrainingStatus {
+  hasActiveRun: boolean
+  activeRun: TrainingRunRecord | null
+  modelExists: boolean
+  modelPath: string
+  modelInfo: Record<string, any>
 }
 
 const ADMIN_BASE = '/api/v1/admin'
@@ -132,5 +141,98 @@ export async function triggerTrainingRun(): Promise<TrainingRunRecord> {
   })
 
   return handleResponse<TrainingRunRecord>(response)
+}
+
+export async function getGNNTrainingRuns(limit = 20): Promise<TrainingRunRecord[]> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
+  const response = await fetch(`${ADMIN_BASE}/training/gnn/runs?limit=${limit}`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  })
+
+  return handleResponse<TrainingRunRecord[]>(response)
+}
+
+export async function triggerGNNTrainingRun(epochs?: number, force = false): Promise<TrainingRunRecord> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  });
+
+  const params = new URLSearchParams()
+  if (epochs) params.append('epochs', epochs.toString())
+  if (force) params.append('force', 'true')
+
+  const response = await fetch(`${ADMIN_BASE}/training/gnn/trigger?${params.toString()}`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+  })
+
+  return handleResponse<TrainingRunRecord>(response)
+}
+
+export async function getGNNTrainingStatus(): Promise<GNNTrainingStatus> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  });
+
+  const response = await fetch(`${ADMIN_BASE}/training/gnn/status`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  })
+
+  return handleResponse<GNNTrainingStatus>(response)
+}
+
+export async function deleteTrainingRun(runId: number): Promise<void> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+  })
+
+  const response = await fetch(`${ADMIN_BASE}/training/runs/${runId}`, {
+    method: 'DELETE',
+    headers,
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to delete training run' }))
+    throw new Error(error.detail || 'Failed to delete training run')
+  }
+}
+
+export interface ClearOldRunsResponse {
+  deleted_count: number
+  message: string
+}
+
+export async function clearOldTrainingRuns(
+  trainingType?: string,
+  olderThanDays = 30,
+  keepRecent = 10
+): Promise<ClearOldRunsResponse> {
+  const headers = withAuthHeaders({
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  })
+
+  const params = new URLSearchParams()
+  if (trainingType) params.append('training_type', trainingType)
+  params.append('older_than_days', olderThanDays.toString())
+  params.append('keep_recent', keepRecent.toString())
+
+  const response = await fetch(`${ADMIN_BASE}/training/runs?${params.toString()}`, {
+    method: 'DELETE',
+    headers,
+    credentials: 'include',
+  })
+
+  return handleResponse<ClearOldRunsResponse>(response)
 }
 
