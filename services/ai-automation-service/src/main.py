@@ -88,12 +88,13 @@ from .scheduler import DailyAnalysisScheduler
 mqtt_client = None
 capability_parser = None
 capability_listener = None
+home_type_client = None
 
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize service on startup and cleanup on shutdown"""
-    global mqtt_client, capability_parser, capability_listener
+    global mqtt_client, capability_parser, capability_listener, home_type_client
 
     logger.info("=" * 60)
     logger.info("AI Automation Service Starting Up")
@@ -221,6 +222,19 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ ActionExecutor startup failed: {e}")
         # Continue without ActionExecutor - will fall back to old method
 
+    # Initialize Home Type Client (Home Type Integration - Phase 1)
+    try:
+        from .clients.home_type_client import HomeTypeClient
+        home_type_client = HomeTypeClient(
+            base_url="http://ai-automation-service:8018",
+            api_key=settings.ai_automation_api_key
+        )
+        await home_type_client.startup()  # Pre-fetch home type on startup
+        logger.info("✅ Home Type Client initialized and pre-fetched")
+    except Exception as e:
+        logger.warning(f"⚠️ Home Type Client initialization failed: {e}, continuing without home type")
+        home_type_client = None
+
     logger.info("✅ AI Automation Service ready")
 
     yield
@@ -237,6 +251,14 @@ async def lifespan(app: FastAPI):
             logger.info("✅ ActionExecutor shutdown complete")
     except Exception as e:
         logger.error(f"❌ ActionExecutor shutdown failed: {e}")
+
+    # Close home type client
+    if home_type_client:
+        try:
+            await home_type_client.close()
+            logger.info("✅ Home Type Client closed")
+        except Exception as e:
+            logger.error(f"❌ Home Type Client shutdown failed: {e}")
 
     # Close device intelligence client
     try:

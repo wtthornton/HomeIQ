@@ -159,6 +159,23 @@ class DailyAnalysisScheduler:
             logger.info("=" * 80)
             logger.info(f"Timestamp: {start_time.isoformat()}")
 
+            # Get home type for threshold adjustment (Home Type Integration)
+            home_type = None
+            try:
+                from ..clients.home_type_client import HomeTypeClient
+                from ..config import settings
+                home_type_client = HomeTypeClient(
+                    base_url="http://ai-automation-service:8018",
+                    api_key=settings.ai_automation_api_key
+                )
+                home_type_data = await home_type_client.get_home_type(use_cache=True)
+                home_type = home_type_data.get('home_type', 'standard_home')
+                logger.info(f"🏠 Home type detected: {home_type} (confidence: {home_type_data.get('confidence', 0.0):.2f})")
+                await home_type_client.close()
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to get home type: {e}, using default thresholds")
+                home_type = None
+
             if getattr(settings, "enable_pdl_workflows", False):
                 try:
                     from ..pdl.runtime import PDLExecutionError, PDLInterpreter
@@ -448,12 +465,25 @@ class DailyAnalysisScheduler:
 
             # Contextual patterns (Story AI5.8: Monthly aggregation enabled)
             logger.info("    → Running contextual detector (monthly aggregates)...")
+            # Adjust thresholds based on home type (Home Type Integration)
+            if home_type:
+                from ..home_type.integration_helpers import adjust_pattern_thresholds
+                context_min_confidence, context_min_occurrences = adjust_pattern_thresholds(
+                    home_type,
+                    base_min_confidence=0.6,
+                    base_min_occurrences=5
+                )
+                logger.debug(f"   Adjusted thresholds for {home_type}: confidence={context_min_confidence:.2f}, occurrences={context_min_occurrences}")
+            else:
+                context_min_confidence = 0.6
+                context_min_occurrences = 5
+            
             contextual_detector = ContextualDetector(
                 weather_weight=0.3,
                 presence_weight=0.4,
                 time_weight=0.3,
-                min_context_occurrences=5,  # Quality: decreased from 10 to 5 for more patterns
-                min_confidence=0.6,  # Quality: decreased from 0.7 to 0.6 for more patterns
+                min_context_occurrences=context_min_occurrences,
+                min_confidence=context_min_confidence,
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.8: Pass aggregate client for monthly aggregates
             )
@@ -476,9 +506,22 @@ class DailyAnalysisScheduler:
 
             # Room-based patterns (Story AI5.3: Incremental processing enabled)
             logger.info("    → Running room-based detector (incremental)...")
+            # Adjust thresholds based on home type (Home Type Integration)
+            if home_type:
+                from ..home_type.integration_helpers import adjust_pattern_thresholds
+                room_min_confidence, room_min_occurrences = adjust_pattern_thresholds(
+                    home_type,
+                    base_min_confidence=0.7,
+                    base_min_occurrences=10
+                )
+                logger.debug(f"   Adjusted thresholds for {home_type}: confidence={room_min_confidence:.2f}, occurrences={room_min_occurrences}")
+            else:
+                room_min_confidence = 0.7
+                room_min_occurrences = 10
+            
             room_detector = RoomBasedDetector(
-                min_room_occurrences=10,  # Increased from 5 to 10 for better quality
-                min_confidence=0.7,
+                min_room_occurrences=room_min_occurrences,
+                min_confidence=room_min_confidence,
                 enable_incremental=self.enable_incremental,
                 aggregate_client=aggregate_client  # Story AI5.4: Pass aggregate client
             )
@@ -770,6 +813,53 @@ class DailyAnalysisScheduler:
                                 )
                 except Exception as e:
                     logger.warning(f"⚠️ Confidence calibration failed: {e}, continuing with uncalibrated patterns")
+
+            # Quality Framework Enhancement: Score and filter patterns by quality
+            if all_patterns and settings.enable_quality_filtering:
+                logger.info("🎯 Quality Framework: Scoring and filtering patterns...")
+                try:
+                    from ..services.learning.ensemble_quality_scorer import EnsembleQualityScorer
+                    ensemble_scorer = EnsembleQualityScorer()
+                    
+                    scored_patterns = []
+                    for pattern in all_patterns:
+                        try:
+                            quality_result = ensemble_scorer.calculate_ensemble_quality(pattern)
+                            pattern['quality_score'] = quality_result['quality_score']
+                            pattern['quality_breakdown'] = quality_result.get('breakdown', {})
+                            scored_patterns.append(pattern)
+                        except Exception as e:
+                            logger.debug(f"   Failed to score pattern: {e}")
+                            # Fallback to confidence as quality score
+                            pattern['quality_score'] = pattern.get('confidence', 0.5)
+                            scored_patterns.append(pattern)
+                    
+                    # Filter by quality threshold
+                    min_quality = settings.pattern_min_quality_score
+                    filtered_patterns = [
+                        p for p in scored_patterns 
+                        if p.get('quality_score', 0.0) >= min_quality
+                    ]
+                    
+                    filtered_count = len(scored_patterns) - len(filtered_patterns)
+                    if filtered_count > 0:
+                        logger.info(f"   ✅ Quality filtering: {filtered_count} patterns filtered (below {min_quality:.2f} threshold)")
+                        quality_scores = [p.get('quality_score', 0) for p in scored_patterns]
+                        if quality_scores:
+                            logger.info(f"   📊 Quality score range: {min(quality_scores):.3f} - {max(quality_scores):.3f}")
+                            logger.info(f"   📊 Average quality: {sum(quality_scores) / len(quality_scores):.3f}")
+                    
+                    all_patterns = filtered_patterns
+                    logger.info(f"   ✅ {len(all_patterns)} patterns passed quality filter (from {len(scored_patterns)} scored)")
+                    
+                    # Store quality metrics
+                    job_result['patterns_scored'] = len(scored_patterns)
+                    job_result['patterns_filtered'] = filtered_count
+                    job_result['patterns_after_quality_filter'] = len(all_patterns)
+                    
+                except Exception as e:
+                    logger.warning(f"⚠️ Quality framework filtering failed: {e}, continuing with all patterns")
+                    job_result['quality_filtering_error'] = str(e)
 
             # Store patterns (don't fail if no patterns)
             if all_patterns:
@@ -1098,8 +1188,10 @@ class DailyAnalysisScheduler:
             device_intel_client = DeviceIntelligenceClient(settings.device_intelligence_url)
             unified_builder = UnifiedPromptBuilder(device_intelligence_client=device_intel_client)
 
-            # Initialize OpenAI client
-            openai_client = OpenAIClient(api_key=settings.openai_api_key)
+            # Initialize OpenAI client with classification model (Phase 1: gpt-5.1-mini for 80% cost savings)
+            from ..config import settings
+            classification_model = getattr(settings, 'classification_model', 'gpt-5.1-mini')
+            openai_client = OpenAIClient(api_key=settings.openai_api_key, model=classification_model)
 
             # Phase 4: Pre-fetch device contexts for caching (parallel)
             logger.info("🔍 Phase 4.5/7: Pre-fetching device contexts...")
@@ -1202,8 +1294,20 @@ class DailyAnalysisScheduler:
                     return None
 
             if all_patterns:
-                sorted_patterns = sorted(all_patterns, key=lambda p: p['confidence'], reverse=True)
+                # Quality Framework Enhancement: Sort by quality score if available, otherwise by confidence
+                if any(p.get('quality_score') is not None for p in all_patterns):
+                    sorted_patterns = sorted(all_patterns, key=lambda p: p.get('quality_score', p.get('confidence', 0.0)), reverse=True)
+                    logger.info(f"     → Sorting patterns by quality score")
+                else:
+                    sorted_patterns = sorted(all_patterns, key=lambda p: p.get('confidence', 0.0), reverse=True)
+                    logger.info(f"     → Sorting patterns by confidence (quality scores not available)")
+                
                 top_patterns = sorted_patterns[:10]
+                
+                if top_patterns and any(p.get('quality_score') is not None for p in top_patterns):
+                    quality_scores = [p.get('quality_score', 0) for p in top_patterns if p.get('quality_score') is not None]
+                    if quality_scores:
+                        logger.info(f"     → Top pattern quality scores: {[f'{q:.2f}' for q in quality_scores[:3]]}")
 
                 logger.info(f"     Processing top {len(top_patterns)} patterns (parallel)")
 
@@ -1310,6 +1414,46 @@ class DailyAnalysisScheduler:
                             'rationale': (synergy.opportunity_metadata or {}).get('rationale', '')
                         }
                         synergy_dicts.append(synergy_dict)
+                    
+                    # Quality Framework Enhancement: Score and filter synergies by quality
+                    if settings.enable_quality_filtering:
+                        logger.info(f"     🎯 Quality Framework: Scoring {len(synergy_dicts)} synergies...")
+                        try:
+                            from ..testing.synergy_quality_scorer import SynergyQualityScorer
+                            synergy_quality_scorer = SynergyQualityScorer()
+                            
+                            scored_synergies = []
+                            for synergy_dict in synergy_dicts:
+                                try:
+                                    quality_result = synergy_quality_scorer.calculate_quality_score(synergy_dict)
+                                    synergy_dict['quality_score'] = quality_result['quality_score']
+                                    synergy_dict['quality_breakdown'] = quality_result.get('breakdown', {})
+                                    scored_synergies.append(synergy_dict)
+                                except Exception as e:
+                                    logger.debug(f"     Failed to score synergy: {e}")
+                                    # Fallback to confidence as quality score
+                                    synergy_dict['quality_score'] = synergy_dict.get('confidence', 0.6)
+                                    scored_synergies.append(synergy_dict)
+                            
+                            # Filter by quality threshold
+                            min_synergy_quality = settings.synergy_min_quality_score
+                            filtered_synergies = [
+                                s for s in scored_synergies 
+                                if s.get('quality_score', 0.0) >= min_synergy_quality
+                            ]
+                            
+                            synergy_filtered_count = len(scored_synergies) - len(filtered_synergies)
+                            if synergy_filtered_count > 0:
+                                logger.info(f"     ✅ Quality filtering: {synergy_filtered_count} synergies filtered (below {min_synergy_quality:.2f} threshold)")
+                                quality_scores = [s.get('quality_score', 0) for s in scored_synergies]
+                                if quality_scores:
+                                    logger.info(f"     📊 Synergy quality score range: {min(quality_scores):.3f} - {max(quality_scores):.3f}")
+                            
+                            synergy_dicts = filtered_synergies
+                            logger.info(f"     ✅ {len(synergy_dicts)} synergies passed quality filter (from {len(scored_synergies)} scored)")
+                            
+                        except Exception as e:
+                            logger.warning(f"     ⚠️ Quality framework filtering for synergies failed: {e}, continuing with all synergies")
 
                     synergy_generator = SynergySuggestionGenerator(
                         llm_client=openai_client

@@ -78,14 +78,37 @@ RUN mkdir -p /app/data /app/models \
 # Copy pre-trained home type classifier model (if available)
 # Model should be trained locally before building Docker image using:
 #   python scripts/train_home_type_classifier.py --synthetic-homes tests/datasets/synthetic_homes --output models/home_type_classifier.pkl
-# Note: If model file doesn't exist, the COPY will fail. To make it optional, uncomment the RUN command below
-# and comment out the COPY, or ensure the model file exists before building.
-COPY services/ai-automation-service/models/home_type_classifier*.pkl /app/models/
+    # Note: Model file is optional - will be created during training phase
+    # Using RUN to make it optional (won't fail if file doesn't exist)
+    RUN mkdir -p /app/models && \
+        (cp services/ai-automation-service/models/home_type_classifier*.pkl /app/models/ 2>/dev/null || echo "Model file not found, will be created during training")
 
-# Pre-download Phase 1 models (optional - can also lazy-load on first use)
-# Uncomment to pre-download during build (increases build time but faster first run)
-# COPY services/ai-automation-service/scripts/download-models.py ./scripts/
-# RUN python scripts/download-models.py || echo "Model download failed, will retry on startup"
+# Pre-download soft prompt training model (google/flan-t5-small)
+# This prevents training jobs from timing out during model download
+# Note: This downloads the full model including weights (~308MB)
+RUN python - <<'PY' || echo "Soft prompt model download skipped, will download on first training run"
+import os
+import sys
+os.environ['HF_HOME'] = '/app/models'
+# Note: TRANSFORMERS_CACHE is deprecated, using HF_HOME only
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+print("Pre-downloading google/flan-t5-small for soft prompt training...")
+print("This may take a few minutes (308MB model)...")
+try:
+    tokenizer = AutoTokenizer.from_pretrained('google/flan-t5-small', cache_dir='/app/models')
+    print("✓ Tokenizer downloaded")
+    model = AutoModelForSeq2SeqLM.from_pretrained('google/flan-t5-small', cache_dir='/app/models')
+    print("✓ Model weights downloaded")
+    # Verify model file exists
+    import glob
+    safetensors = glob.glob('/app/models/**/model.safetensors', recursive=True)
+    if safetensors:
+        print(f"✓ Model verified: {safetensors[0]}")
+    print("Model pre-downloaded successfully")
+except Exception as e:
+    print(f"Error during pre-download: {e}", file=sys.stderr)
+    raise
+PY
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
@@ -94,6 +117,6 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 # Expose port
 EXPOSE 8018
 
-# Run migrations and start service
-CMD ["sh", "-c", "alembic upgrade head || echo 'Migration skipped' && python -m uvicorn src.main:app --host 0.0.0.0 --port 8018"]
+# Run migrations, ensure model cache, and start service
+CMD ["sh", "-c", "alembic upgrade head || echo 'Migration skipped' && python scripts/ensure_model_cache.py && python -m uvicorn src.main:app --host 0.0.0.0 --port 8018"]
 

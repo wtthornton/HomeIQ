@@ -189,6 +189,9 @@ class Suggestion(Base):
     priority = Column(String, nullable=True)  # high, medium, low
     confidence = Column(Float, nullable=False)
 
+    # ===== Metadata (JSON) - renamed from 'metadata' to avoid SQLAlchemy reserved name conflict =====
+    suggestion_metadata = Column(JSON, nullable=True)  # Flexible metadata (source_type, pattern_type, etc.)
+
     # ===== Timestamps =====
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -944,11 +947,12 @@ class ModelComparisonMetrics(Base):
 
 
 class TrainingRun(Base):
-    """Record of soft prompt training jobs."""
+    """Record of training jobs (soft prompt, GNN, etc.)."""
 
     __tablename__ = 'training_runs'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    training_type = Column(String(20), nullable=False, default='soft_prompt')  # soft_prompt, gnn_synergy
     status = Column(String(20), nullable=False, default='queued')  # queued, running, completed, failed
     started_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     finished_at = Column(DateTime, nullable=True)
