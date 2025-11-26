@@ -32,6 +32,8 @@ numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (compatible with pandas and openvin
 # Machine Learning
 scikit-learn>=1.5.0,<2.0.0  # Stable scikit-learn 1.5.x (November 2025)
 scipy>=1.14.0,<2.0.0  # Stable SciPy for statistical operations (Phase 3: Uncertainty Quantification)
+tabpfn>=0.1.0,<1.0.0  # TabPFN for correlation prediction (Epic 36 - 100-1000x faster)
+river>=0.22.0,<1.0.0  # River for streaming statistics (Epic 36 - O(1) real-time updates)
 
 # LLM Integration - Multi-Model Entity Extraction
 openai>=1.54.0,<2.0.0  # Stable OpenAI Python SDK (November 2025 - supports GPT-5.1)
