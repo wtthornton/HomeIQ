@@ -1,0 +1,21 @@
+---
+category: heat-pump
+tests:
+- device: Pool Heater
+  area: Infinity Pool Terrace
+  device_id: pool_heater
+  entity_id: climate.pool_heater
+  sentences:
+  - Please turn on the pool heater
+  - Turn on the pool heater
+  - Turn on the heater on the terrace
+  - Heat up the pool
+- device: Pool Heater
+  area: Infinity Pool Terrace
+  device_id: pool_heater
+  entity_id: climate.pool_heater
+  sentences:
+  - Please turn off the pool heater
+  - Turn off the pool heater
+  - Turn off the heater on the terrace
+  - Turn off the pool heater

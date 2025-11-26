@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-11-25T00:33:05.242700+00:00",
+  "total_homes_tested": 1,
+  "homes_with_metrics": 1,
+  "total_devices": 14,
+  "total_events_injected": 1267,
+  "total_patterns_detected": 11,
+  "avg_precision": 0.09090909090909091,
+  "avg_recall": 0.2,
+  "avg_f1": 0.0,
+  "individual_results": [
+    {
+      "home": "home1-us",
+      "dataset": "devices-v2",
+      "devices": 14,
+      "areas": 9,
+      "events_per_day": 189,
+      "events_per_device_per_day": 13.5,
+      "area_multiplier": 1.8,
+      "events_generated": 1267,
+      "events_injected": 1267,
+      "events_fetched": 5565,
+      "patterns_detected": 11,
+      "tod_patterns_detected": 0,
+      "expected_patterns": 5,
+      "expected_synergies": 1,
+      "metrics": {
+        "precision": 0.09090909090909091,
+        "recall": 0.2,
+        "f1_score": 0.12500000000000003,
+        "true_positives": 1,
+        "false_positives": 10,
+        "false_negatives": 4,
+        "total_detected": 11,
+        "total_ground_truth": 5,
+        "matches": [
+          {
+            "detected": {
+              "pattern_type": "co_occurrence",
+              "device_id": "binary_sensor.living_room_motion_sensor+light.living_room_light",
+              "device1": "binary_sensor.living_room_motion_sensor",
+              "device2": "light.living_room_light",
+              "occurrences": 296,
+              "total_events": 5227,
+              "confidence": 0.7935656836461126,
+              "metadata": {
+                "window_minutes": 5,
+                "support": 0.05662904151520949,
+                "device1_count": 811,
+                "device2_count": 373,
+                "avg_time_delta_seconds": 158.32769256756757,
+                "time_variance_minutes": 127.60447848553062,
+                "time_std_minutes": 1.4583351151543245,
+                "thresholds": {
+                  "required_support": 5,
+                  "required_confidence": 0.7,
+                  "domain1": "binary_sensor",
+                  "domain2": "light"
+                }
+              }
+            },
+            "ground_truth": {
+              "pattern_type": "co_occurrence",
+              "device1": "light.living_room_light",
+              "device2": "binary_sensor.living_room_motion_sensor",
+              "area": "Living Room",
+              "confidence": 0.8,
+              "description": "Co-occurrence: light.living_room_light and binary_sensor.living_room_motion_sensor in Living Room"
+            },
+            "similarity_score": 0.8
+          }
+        ],
+        "match_threshold": 0.8
+      },
+      "timestamp": "2025-11-25T00:33:05.236759+00:00"
+    }
+  ]
+}

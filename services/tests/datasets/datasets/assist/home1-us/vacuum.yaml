@@ -1,0 +1,50 @@
+---
+category: vacuum
+tests:
+  - sentences:
+      - Start Roborock Downstairs
+      - Start Roborock Downstairs vacuum
+      - Start Roborock
+      - Start vacuuming
+      - Vacuum downstairs
+      - Clean the living room
+    setup:
+      vacuum.roborock_downstairs:
+        state: "off"
+    expect_changes:
+      vacuum.roborock_downstairs:
+        state: cleaning
+  - sentences:
+      - Start the vacuum
+      - Please start cleaning
+      - Turn on the vacuum
+    context_device: nest_hub
+    setup:
+      vacuum.roborock_downstairs:
+        state: "off"
+    expect_changes:
+      vacuum.roborock_downstairs:
+        state: cleaning
+
+  - sentences:
+      - Return Roborock Downstairs to base
+      - Roborock Downstairs return to base
+      - Roborock return to base
+      - Vacuum return to base
+    setup:
+      vacuum.roborock_downstairs:
+        state: cleaning
+    expect_changes:
+      vacuum.roborock_downstairs:
+        state: returning
+  - sentences:
+      - Stop Roborock Downstairs
+      - Stop the vacuum
+      - Stop vacuuming
+      - Stop the downstairs vacuum
+    setup:
+      vacuum.roborock_downstairs:
+        state: cleaning
+    expect_changes:
+      vacuum.roborock_downstairs:
+        state: returning

@@ -1,0 +1,38 @@
+---
+category: smart-speaker
+tests:
+- device: Smart Speaker
+  area: Living Room
+  device_id: smart_speaker
+  entity_id: media_player.smart_speaker
+  sentences:
+  - Please pause the music
+  - Pause
+- device: Smart Speaker
+  area: Living Room
+  device_id: smart_speaker
+  entity_id: media_player.smart_speaker
+  sentences:
+  - Please resume the music
+  - Unpause
+- device: Smart Speaker
+  area: Living Room
+  device_id: smart_speaker
+  entity_id: media_player.smart_speaker
+  sentences:
+  - Set volume to 50%
+  - Set volume to 10
+- device: Smart Speaker
+  area: Living Room
+  device_id: smart_speaker
+  entity_id: media_player.smart_speaker
+  sentences:
+  - Play next song
+  - Skip to next
+- device: Smart Speaker
+  area: Living Room
+  device_id: smart_speaker
+  entity_id: media_player.smart_speaker
+  sentences:
+  - Play previous song
+  - Go back to previous song

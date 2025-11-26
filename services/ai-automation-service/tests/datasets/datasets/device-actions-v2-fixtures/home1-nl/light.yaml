@@ -1,0 +1,71 @@
+---
+category: light
+tests:
+- device: Kitchen Light
+  area: Kitchen
+  device_id: kitchen_light
+  entity_id: light.kitchen_light
+  sentences:
+  - Please turn on the kitchen light
+  - Turn on the kitchen light
+  - Switch the kitchen light on
+- device: Kitchen Light
+  area: Kitchen
+  device_id: kitchen_light
+  entity_id: light.kitchen_light
+  sentences:
+  - Please turn off the kitchen light
+  - Turn off the kitchen light
+  - Switch the kitchen light off
+- device: Bathroom Light
+  area: Bathroom
+  device_id: bathroom_light
+  entity_id: light.bathroom_light
+  sentences:
+  - Turn on the bathroom light
+  - Please turn on the bathroom light
+  - Can you please turn on the bathroom light
+  - I want the bathroom light on
+  - Bathroom light on
+- device: Bathroom Light
+  area: Bathroom
+  device_id: bathroom_light
+  entity_id: light.bathroom_light
+  sentences:
+  - Turn off the bathroom light
+  - Please turn off the bathroom light
+  - Can you please turn off the bathroom light
+  - I want the bathroom light off
+  - Bathroom light off
+- device: Courtyard Light
+  area: Shared Courtyard
+  device_id: courtyard_light
+  entity_id: light.courtyard_light
+  sentences:
+  - Please turn on the courtyard light
+  - Turn on the courtyard light
+  - Can you please switch on the courtyard light
+- device: Courtyard Light
+  area: Shared Courtyard
+  device_id: courtyard_light
+  entity_id: light.courtyard_light
+  sentences:
+  - Please turn off the courtyard light
+  - Turn off the courtyard light
+  - Please switch off the courtyard light
+- device: Balcony Light
+  area: Balcony
+  device_id: balcony_light
+  entity_id: light.balcony_light
+  sentences:
+  - Turn on the balcony light
+  - Please turn on the balcony light
+  - Balcony light on
+- device: Balcony Light
+  area: Balcony
+  device_id: balcony_light
+  entity_id: light.balcony_light
+  sentences:
+  - Turn off the balcony light
+  - Please turn off the balcony light
+  - Balcony light off

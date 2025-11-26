@@ -1,0 +1,28 @@
+---
+category: water-valve
+tests:
+- device: Smart Shower
+  area: Bathroom
+  device_id: smart_shower
+  entity_id: valve.smart_shower
+  sentences:
+  - Open the shower
+  - Turn on the shower
+  - Shower on
+- device: Smart Shower
+  area: Bathroom
+  device_id: smart_shower
+  entity_id: valve.smart_shower
+  sentences:
+  - Close the shower
+  - Turn off the shower
+  - Shower off
+- device: Smart Shower
+  area: Bathroom
+  device_id: smart_shower
+  entity_id: valve.smart_shower
+  sentences:
+  - Set shower to [position]
+  - Shower [position]
+  - Open the shower [position]
+  - Close the shower [position]

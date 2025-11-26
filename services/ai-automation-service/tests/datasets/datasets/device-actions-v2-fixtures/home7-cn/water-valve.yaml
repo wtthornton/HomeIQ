@@ -1,0 +1,28 @@
+---
+category: water-valve
+tests:
+- device: Water Valve
+  area: Master Bathroom
+  device_id: water_valve
+  entity_id: valve.water_valve
+  sentences:
+  - Please open the master bathroom water valve
+  - Open the master bathroom water valve
+  - Master bathroom water valve open
+- device: Water Valve
+  area: Master Bathroom
+  device_id: water_valve
+  entity_id: valve.water_valve
+  sentences:
+  - Please close the master bathroom water valve
+  - Close the master bathroom water valve
+  - Master bathroom water valve close
+- device: Water Valve
+  area: Master Bathroom
+  device_id: water_valve
+  entity_id: valve.water_valve
+  sentences:
+  - Please set the master bathroom water valve to 50%
+  - Set the master bathroom water valve to 50%
+  - Master bathroom water valve 50%
+  - Master bathroom water valve position 50%

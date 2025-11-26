@@ -1,0 +1,38 @@
+---
+category:
+  - weather
+  - question
+tests:
+  - sentences:
+      - What is the temperature outside?
+    setup:
+      weather.weather_service:
+        attributes:
+          native_temperature: "30"
+          native_temperature_unit: °C
+          condition: "sunny"
+    expect_response:
+      - 30
+
+  - sentences:
+      - Is today sunny or cloudy?
+    setup:
+      weather.weather_service:
+        attributes:
+          native_temperature: "62"
+          native_temperature_unit: °F
+          condition: "cloudy"
+    expect_response:
+      - cloudy
+
+
+  - sentences:
+      - Will the weather today be sunny or cloudy?
+    setup:
+      weather.weather_service:
+        attributes:
+          native_temperature: "75"
+          native_temperature_unit: °F
+          condition: "sunny"
+    expect_response:
+      - sunny
