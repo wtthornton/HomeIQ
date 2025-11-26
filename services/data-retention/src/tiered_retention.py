@@ -1,6 +1,9 @@
 """
 Tiered Data Retention Manager
 Implements hot/warm/cold/archive storage tiers
+
+NOTE: This module requires InfluxDB 3.0+ with SQL support.
+For InfluxDB 2.7, these operations are disabled to prevent SSL errors.
 """
 
 import logging
@@ -8,9 +11,16 @@ import os
 from datetime import datetime, timedelta
 from typing import Any
 
-from influxdb_client_3 import InfluxDBClient3, Point
-
 logger = logging.getLogger(__name__)
+
+# Try to import InfluxDB 3.0 client, but don't fail if not available
+try:
+    from influxdb_client_3 import InfluxDBClient3, Point
+    INFLUXDB3_AVAILABLE = True
+except ImportError:
+    INFLUXDB3_AVAILABLE = False
+    InfluxDBClient3 = None
+    Point = None
 
 
 class TieredRetentionManager:
@@ -22,7 +32,8 @@ class TieredRetentionManager:
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
 
-        self.client: InfluxDBClient3 = None
+        self.client = None
+        self.enabled = False
 
         # Storage tiers configuration
         self.tiers = {
@@ -33,16 +44,39 @@ class TieredRetentionManager:
         }
 
     def initialize(self):
-        """Initialize InfluxDB client"""
-        self.client = InfluxDBClient3(
-            host=self.influxdb_url,
-            token=self.influxdb_token,
-            database=self.influxdb_bucket,
-            org=self.influxdb_org
-        )
+        """Initialize InfluxDB client - disabled for InfluxDB 2.7"""
+        if not INFLUXDB3_AVAILABLE:
+            logger.warning("InfluxDB 3.0 client not available. Tiered retention disabled (requires InfluxDB 3.0+ with SQL support).")
+            self.enabled = False
+            return
+        
+        # Check if we're using InfluxDB 2.7 (HTTP) vs 3.0 (gRPC)
+        # InfluxDB 2.7 uses HTTP, so if URL starts with http://, skip initialization
+        if self.influxdb_url.startswith('http://') or self.influxdb_url.startswith('https://'):
+            logger.warning("Tiered retention requires InfluxDB 3.0+ with gRPC. InfluxDB 2.7 detected - feature disabled.")
+            logger.warning("To use tiered retention, upgrade to InfluxDB 3.0 or use InfluxDB Cloud.")
+            self.enabled = False
+            return
+        
+        try:
+            self.client = InfluxDBClient3(
+                host=self.influxdb_url,
+                token=self.influxdb_token,
+                database=self.influxdb_bucket,
+                org=self.influxdb_org
+            )
+            self.enabled = True
+            logger.info("Tiered retention manager initialized with InfluxDB 3.0")
+        except Exception as e:
+            logger.error(f"Failed to initialize InfluxDB 3.0 client: {e}")
+            self.enabled = False
 
     async def downsample_hot_to_warm(self) -> dict[str, Any]:
         """Downsample raw data (7+ days old) to hourly aggregates"""
+
+        if not self.enabled:
+            logger.debug("Tiered retention disabled - skipping hot to warm downsampling")
+            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
 
         logger.info("Starting hot to warm downsampling (raw → hourly)...")
 
@@ -105,6 +139,10 @@ class TieredRetentionManager:
 
     async def downsample_warm_to_cold(self) -> dict[str, Any]:
         """Downsample hourly data (90+ days old) to daily aggregates"""
+
+        if not self.enabled:
+            logger.debug("Tiered retention disabled - skipping warm to cold downsampling")
+            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
 
         logger.info("Starting warm to cold downsampling (hourly → daily)...")
 

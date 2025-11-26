@@ -49,6 +49,9 @@ class EventFilter(BaseModel):
     # Epic 23.4: Entity classification filtering
     entity_category: str | None = None
     exclude_category: str | None = None
+    # Home Type Integration: Event category filtering
+    event_category: str | None = None  # Filter by event category (security, climate, lighting, etc.)
+    home_type: str | None = None  # Use home type for category mapping
 
 
 class EventSearch(BaseModel):
@@ -75,6 +78,27 @@ class EventsEndpoints:
 
         # IMPORTANT: Register specific routes BEFORE parameterized routes
         # to prevent path parameter matching issues
+
+        @self.router.get("/events/categories", response_model=dict[str, Any])
+        async def get_event_categories(
+            home_type: str | None = Query(None, description="Home type for category mapping"),
+            hours: int = Query(24, description="Hours of history to analyze")
+        ):
+            """
+            Get event categories with counts.
+            
+            Uses home type to determine category mappings.
+            Returns category distribution for the specified time period.
+            """
+            try:
+                categories = await self._get_event_categories(home_type, hours)
+                return categories
+            except Exception as e:
+                logger.error(f"Error getting event categories: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to get event categories"
+                ) from e
 
         @self.router.get("/events/stats", response_model=dict[str, Any])
         async def get_events_stats(
@@ -224,7 +248,10 @@ class EventsEndpoints:
             area_id: str | None = Query(None, description="Filter by area ID (room)"),
             # Epic 23.4: Entity classification filtering
             entity_category: str | None = Query(None, description="Filter by entity category (config, diagnostic)"),
-            exclude_category: str | None = Query(None, description="Exclude entity category (config, diagnostic)")
+            exclude_category: str | None = Query(None, description="Exclude entity category (config, diagnostic)"),
+            # Home Type Integration: Event category filtering
+            event_category: str | None = Query(None, description="Filter by event category (security, climate, lighting, etc.)"),
+            home_type: str | None = Query(None, description="Home type for category mapping")
         ):
             """
             Get recent events with optional filtering
@@ -236,6 +263,10 @@ class EventsEndpoints:
             Epic 23.4: Supports filtering by entity_category to show/hide diagnostic and config entities
             - entity_category: Include only entities with this category
             - exclude_category: Exclude entities with this category (commonly 'diagnostic')
+            
+            Home Type Integration: Supports filtering by event_category based on home type
+            - event_category: Filter by event category (security, climate, lighting, appliance, monitoring, general)
+            - home_type: Use home type for category mapping
             """
             try:
                 # Build filter
@@ -247,7 +278,9 @@ class EventsEndpoints:
                     device_id=device_id,
                     area_id=area_id,
                     entity_category=entity_category,
-                    exclude_category=exclude_category
+                    exclude_category=exclude_category,
+                    event_category=event_category,
+                    home_type=home_type
                 )
 
                 if service and service in self.service_urls:
@@ -724,6 +757,82 @@ from(bucket: "{influxdb_bucket}")
 
         return stream_data
 
+    async def _get_event_categories(self, home_type: str | None, hours: int) -> dict[str, Any]:
+        """
+        Get event categories with counts.
+        
+        Args:
+            home_type: Optional home type for category mapping
+            hours: Hours of history to analyze
+            
+        Returns:
+            Dictionary with category counts and distribution
+        """
+        try:
+            from influxdb_client import InfluxDBClient
+            
+            influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+            influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
+            influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
+            influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
+            
+            client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+            query_api = client.query_api()
+            
+            # Query event categories from InfluxDB
+            query = f'''
+            from(bucket: "{influxdb_bucket}")
+              |> range(start: -{hours}h)
+              |> filter(fn: (r) => r._measurement == "home_assistant_events")
+              |> filter(fn: (r) => exists r.event_category)
+              |> group(columns: ["event_category"])
+              |> count()
+              |> sort(columns: ["_value"], desc: true)
+            '''
+            
+            result = query_api.query(query)
+            
+            categories = {}
+            total = 0
+            
+            for table in result:
+                for record in table.records:
+                    category = record.values.get("event_category", "general")
+                    count = record.get_value()
+                    categories[category] = count
+                    total += count
+            
+            # Calculate percentages
+            distribution = {
+                category: {
+                    "count": count,
+                    "percentage": round((count / total * 100) if total > 0 else 0, 2)
+                }
+                for category, count in categories.items()
+            }
+            
+            client.close()
+            
+            return {
+                "home_type": home_type or "unknown",
+                "period_hours": hours,
+                "total_events": total,
+                "categories": distribution,
+                "category_count": len(categories)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting event categories: {e}", exc_info=True)
+            # Return default structure on error
+            return {
+                "home_type": home_type or "unknown",
+                "period_hours": hours,
+                "total_events": 0,
+                "categories": {},
+                "category_count": 0,
+                "error": str(e)
+            }
+
     def _format_flux_time(self, value: datetime) -> str:
         """Format datetime for Flux queries in UTC."""
         if value.tzinfo is None:
@@ -865,6 +974,11 @@ from(bucket: "{influxdb_bucket}")
             if event_filter.exclude_category:
                 exclude_safe = sanitize_flux_value(event_filter.exclude_category)
                 query += f'  |> filter(fn: (r) => r.entity_category != "{exclude_safe}")\n'
+
+            # Home Type Integration: Add event_category filtering - SANITIZED
+            if event_filter.event_category:
+                category_safe = sanitize_flux_value(event_filter.event_category)
+                query += f'  |> filter(fn: (r) => r.event_category == "{category_safe}")\n'
 
             # Group all tag-based series together, then get distinct records
             query += '  |> group()\n'
