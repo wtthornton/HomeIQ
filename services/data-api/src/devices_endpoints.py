@@ -148,17 +148,33 @@ async def list_devices(
             logger.debug(f"Cache hit for {cache_key}")
             return cached_result
         # Build query with entity count
+        # SQLAlchemy 2.0: When using group_by with aggregates, select specific columns
+        # Only select columns that exist in the current database schema
+        # Phase 1.1 columns (device_type, device_category, etc.) may not exist yet
+        device_columns = [
+            Device.device_id,
+            Device.name,
+            Device.manufacturer,
+            Device.model,
+            Device.integration,
+            Device.sw_version,
+            Device.area_id,
+            Device.config_entry_id,
+            Device.via_device,
+            Device.last_seen
+        ]
+        
         if platform:
             # Join with entities to filter by platform
-            query = select(Device, func.count(Entity.entity_id).label('entity_count'))\
+            query = select(*device_columns, func.count(Entity.entity_id).label('entity_count'))\
                 .join(Entity, Device.device_id == Entity.device_id)\
                 .where(Entity.platform == platform)\
-                .group_by(Device.device_id)
+                .group_by(*device_columns)
         else:
             # Standard query without platform filter
-            query = select(Device, func.count(Entity.entity_id).label('entity_count'))\
+            query = select(*device_columns, func.count(Entity.entity_id).label('entity_count'))\
                 .outerjoin(Entity, Device.device_id == Entity.device_id)\
-                .group_by(Device.device_id)
+                .group_by(*device_columns)
 
         # Apply additional filters (simple WHERE clauses)
         if manufacturer:
@@ -180,32 +196,33 @@ async def list_devices(
         result = await db.execute(query)
         rows = result.all()
 
-        # Convert to response (Phase 1.1: include device intelligence fields)
+        # Convert to response
+        # Current schema: 10 device columns + entity_count (Phase 1.1 columns not in DB yet)
         device_responses = [
             DeviceResponse(
-                device_id=device.device_id,
-                name=device.name,
-                manufacturer=device.manufacturer or "Unknown",
-                model=device.model or "Unknown",
-                integration=device.integration,
-                sw_version=device.sw_version,
-                area_id=device.area_id,
-                config_entry_id=device.config_entry_id,
-                via_device=device.via_device,
-                device_type=device.device_type,
-                device_category=device.device_category,
-                power_consumption_idle_w=device.power_consumption_idle_w,
-                power_consumption_active_w=device.power_consumption_active_w,
-                power_consumption_max_w=device.power_consumption_max_w,
-                setup_instructions_url=device.setup_instructions_url,
-                troubleshooting_notes=device.troubleshooting_notes,
-                device_features_json=device.device_features_json,
-                community_rating=device.community_rating,
-                last_capability_sync=device.last_capability_sync.isoformat() if device.last_capability_sync else None,
-                entity_count=entity_count,
-                timestamp=device.last_seen.isoformat() if device.last_seen else datetime.now().isoformat()
+                device_id=row[0],  # device_id
+                name=row[1],  # name
+                manufacturer=row[2] or "Unknown",  # manufacturer
+                model=row[3] or "Unknown",  # model
+                integration=row[4],  # integration
+                sw_version=row[5],  # sw_version
+                area_id=row[6],  # area_id
+                config_entry_id=row[7],  # config_entry_id
+                via_device=row[8],  # via_device
+                device_type=None,  # Phase 1.1: not in current schema
+                device_category=None,  # Phase 1.1: not in current schema
+                power_consumption_idle_w=None,  # Phase 1.1: not in current schema
+                power_consumption_active_w=None,  # Phase 1.1: not in current schema
+                power_consumption_max_w=None,  # Phase 1.1: not in current schema
+                setup_instructions_url=None,  # Phase 1.1: not in current schema
+                troubleshooting_notes=None,  # Phase 1.1: not in current schema
+                device_features_json=None,  # Phase 1.1: not in current schema
+                community_rating=None,  # Phase 1.1: not in current schema
+                last_capability_sync=None,  # Phase 1.1: not in current schema
+                entity_count=row[10],  # entity_count (last column)
+                timestamp=row[9].isoformat() if row[9] else datetime.now().isoformat()  # last_seen
             )
-            for device, entity_count in rows
+            for row in rows
         ]
 
         result = DevicesListResponse(
@@ -220,7 +237,10 @@ async def list_devices(
         return result
 
     except Exception as e:
-        logger.error(f"Error listing devices from SQLite: {e}")
+        logger.error(f"Error listing devices from SQLite: {e}", exc_info=True)
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"Full traceback: {error_details}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve devices: {str(e)}"
@@ -232,7 +252,7 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
     """Get device by ID (SQLite) - Story 22.2"""
     try:
         # Simple SELECT with entity count (including Phase 1.1 device intelligence fields)
-        query = select(
+        device_columns = [
             Device.device_id,
             Device.name,
             Device.manufacturer,
@@ -252,12 +272,13 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             Device.device_features_json,
             Device.community_rating,
             Device.last_capability_sync,
-            Device.last_seen,
-            func.count(Entity.entity_id).label('entity_count')
-        )\
+            Device.last_seen
+        ]
+        
+        query = select(*device_columns, func.count(Entity.entity_id).label('entity_count'))\
             .outerjoin(Entity, Device.device_id == Entity.device_id)\
             .where(Device.device_id == device_id)\
-            .group_by(Device.device_id)
+            .group_by(*device_columns)
 
         result = await db.execute(query)
         row = result.first()
