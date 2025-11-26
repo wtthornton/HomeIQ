@@ -163,6 +163,11 @@ workflow:
 
         Reference: .bmad-core/data/bmad-kb.md#IDE Development Workflow
 
+  # SVG diagram can be added here or referenced externally
+  # svg_diagram: |
+  #   <svg>...</svg>
+  # svg_diagram_file: "workflows/diagrams/greenfield-fullstack.svg"
+  
   flow_diagram: |
     ```mermaid
     graph TD

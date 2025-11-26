@@ -114,6 +114,32 @@ devLoadAlwaysFiles:
 devDebugLog: .ai/debug-log.md
 devStoryLocation: docs/stories
 slashPrefix: BMad
+workflow:
+  track: "bmad-method"  # "quick-flow" | "bmad-method" | "enterprise"
+  selected_workflow: "brownfield-fullstack.yaml"
+  initialized_at: "2025-11-25T00:00:00Z"
+  initialized_by: "bmad-master"
+  recommendation_reason: |
+    Project Analysis Results:
+    - Type: Brownfield full-stack enhancement (production system)
+    - Scale: Enterprise-grade (29 microservices, hybrid databases)
+    - Complexity: High (AI/ML services, multiple integrations, complex architecture)
+    - Documentation: Extensive (PRD, architecture, stories, epics already exist)
+    - Development Pattern: Story-driven with epic organization and QA gates
+    
+    Track Selection: "bmad-method"
+    - Standard development workflow fits ongoing enhancements
+    - Full PRD + Architecture + UX when needed
+    - Story-driven development cycle
+    - Comprehensive QA validation
+    - Not Quick Flow (too complex for bug-fix workflow)
+    - Not Enterprise track (good practices already established)
+    
+    Workflow Selection: "brownfield-fullstack.yaml"
+    - Perfect for enhancing existing full-stack applications
+    - Handles feature additions, modernization, integrations
+    - Supports story creation from existing documentation
+    - Safe integration patterns for production system
 context7:
   enabled: true
   defaultTokenLimit: 3000

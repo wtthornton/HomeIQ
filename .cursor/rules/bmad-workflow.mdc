@@ -1,107 +1,152 @@
 ---
-description: BMAD workflow integration and process guidelines
+alwaysApply: true
+description: BMAD workflow integration and process guidelines - Updated for Phase 1 features
 ---
 
 # BMAD Workflow Integration
 
-This rule helps integrate BMAD methodology into development workflows.
+This rule provides guidance on BMAD workflows and the new Phase 1 features optimized for Cursor.
 
-## Workflow Phases
+## Workflow Initialization (NEW - Phase 1)
 
-### 1. Planning Phase (Web Agents Recommended)
-- Use `@analyst` for market research and competitor analysis
-- Use `@pm` for PRD creation and product strategy
-- Use `@ux-expert` for frontend specifications
-- Use `@architect` for system architecture design (with Context7 integration for technology decisions)
-- Use `@qa` for early test strategy and risk assessment (with Context7 integration for library risks)
+### Quick Start
+```bash
+@bmad-master *workflow-init
+```
 
-### 2. Development Phase (IDE Agents)
-- Use `@po` for story management and prioritization
-- Use `@sm` for process management and sprint planning
-- Use `@dev` for implementation and coding (with Context7 integration for library implementations)
-- Use `@qa` for quality gates and testing (with Context7 integration for library risk assessments)
+This command:
+- Analyzes your project automatically
+- Recommends one of three workflow tracks:
+  - ⚡ **Quick Flow** (< 5 min) - Bug fixes, small features
+  - 📋 **BMad Method** (< 15 min) - Standard development
+  - 🏢 **Enterprise** (< 30 min) - Compliance, complex projects
+- Updates `.bmad-core/core-config.yaml` with selection
 
-## Document Management
+### Workflow Tracks
 
-### PRD Management
-- Main PRD: [docs/prd.md](mdc:docs/prd.md)
-- Sharded PRD: [docs/prd/](mdc:docs/prd/)
-- Use `*shard-prd` command to break down large PRDs
+#### Quick Flow Track
+**Use for:** Bug fixes, small features, hotfixes
+- Minimal planning overhead
+- Direct to implementation
+- Optional tech spec
+- Quick QA review
+- **Workflow:** `quick-fix.yaml`
 
-### Architecture Management
-- Main Architecture: [docs/architecture.md](mdc:docs/architecture.md)
-- Sharded Architecture: [docs/architecture/](mdc:docs/architecture/)
-- Use `*shard-doc` command to break down large documents
+#### BMad Method Track (Standard)
+**Use for:** New features, standard development
+- Full PRD + Architecture + UX (if needed)
+- Story-driven development
+- Comprehensive QA
+- **Workflows:** `greenfield-*.yaml` or `brownfield-*.yaml`
 
-### Story Management
-- Stories Location: [docs/stories/](mdc:docs/stories/)
-- Follow naming convention: `story-{epic}-{number}-{slug}.md`
-- Use `*create-story` for new stories
-- Use `*validate-story` for story validation
+#### Enterprise Track
+**Use for:** Enterprise apps, compliance, complex projects
+- Full governance suite
+- Enhanced documentation
+- Compliance checkpoints
+- Risk assessment mandatory
+- Extended QA gates
 
-## Quality Gates
+## Agent Customization (NEW - Phase 1)
 
-### QA Process
-- QA Results: [docs/qa/](mdc:docs/qa/)
-- Gate Files: `{epic}.{story}-{slug}.yml`
-- Use `*review` command for comprehensive story review
-- Use `*gate` command for quality gate decisions
+### Create Customizations
+Create `.bmad-core/customizations/{agent-id}-custom.yaml` to customize agents:
 
-### Checklist Usage
-- Use `*execute-checklist` for process validation
-- Available checklists in [.bmad-core/checklists/](mdc:.bmad-core/checklists/)
-- Story DoD: [story-dod-checklist.md](mdc:.bmad-core/checklists/story-dod-checklist.md)
+```yaml
+agent_id: dev
+persona_overrides:
+  additional_principles:
+    - "Always use type hints in Python"
+  communication_style:
+    tone: "technical"
+project_context:
+  always_load:
+    - "docs/architecture/performance-patterns.md"
+```
 
-## Agent Commands
+### Cursor Integration
+- Customizations are automatically loaded on agent activation
+- Use `mdc:.bmad-core/customizations/` for file references
+- Customizations persist through BMAD updates (gitignored)
 
-All BMAD agents use `*` prefix for commands:
-- `*help` - Show available commands
-- `*exit` - Exit agent persona
-- `*yolo` - Toggle Yolo mode (skip confirmations)
+See [.bmad-core/customizations/README.md](mdc:.bmad-core/customizations/README.md) for full guide.
 
-## File References
+## Enhanced Document Sharding (NEW - Phase 1)
 
-When referencing BMAD files, use the format:
-- `[filename](mdc:path/to/file)` for relative paths
-- Always reference from workspace root
+### Features
+- **90% token savings** through intelligent section loading
+- **Cross-reference detection** - automatic relationship mapping
+- **`.cross-refs.json`** metadata for intelligent loading
+- **Enhanced index files** with cross-references
 
-## Process Integration
+### Usage
+```bash
+@bmad-master *shard-doc docs/prd.md docs/prd
+```
 
-1. **Story Creation**: Use `@po` or `@pm` to create stories
-2. **Architecture Review**: Use `@architect` for design decisions (with Context7 for technology research)
-3. **Development**: Use `@dev` for implementation (with Context7 for library documentation)
-4. **Quality Assurance**: Use `@qa` for testing and review (with Context7 for library risk assessment)
-5. **Documentation**: Use `@bmad-master` for document management (with Context7 commands available)
+**Output:**
+- Sharded sections in `docs/prd/`
+- `index.md` with cross-references
+- `.cross-refs.json` with section relationships
+- Token savings report
 
-## Context7 Integration
+## Quick Fix Workflow (NEW - Phase 1)
 
-### Available Commands
-- `*context7-resolve {library}` - Resolve library name to Context7-compatible library ID
-- `*context7-docs {library} {topic}` - Get focused documentation (KB-first, then Context7)
-- `*context7-help` - Show Context7 usage examples and best practices
-- `*context7-kb-status` - Show knowledge base statistics and hit rates
-- `*context7-kb-search {query}` - Search local knowledge base
-- `*context7-kb-cleanup` - Clean up old/unused cached documentation
-- `*context7-kb-rebuild` - Rebuild knowledge base index
-- `*context7-kb-analytics` - Show detailed KB usage analytics
+### When to Use
+- Bug fixes in existing code
+- Small features (< 5 files typically)
+- Hotfixes and urgent patches
+- Minor enhancements
+- Single service/module changes
 
-### Usage in Workflows
-- **Architecture Phase**: Use KB-first Context7 for technology selection and design decisions
-- **Development Phase**: Use KB-first Context7 for library implementation guidance
-- **QA Phase**: Use KB-first Context7 for library risk assessment and testing strategies
+### Workflow Steps
+1. Analyze change scope
+2. Optional: Create brief tech spec
+3. Implement fix
+4. Optional: Quick QA review
+5. Verify and complete
 
-### Knowledge Base Features
-- **KB-First Lookup**: Check local cache before Context7 API calls
-- **Fuzzy Matching**: Handle library/topic name variants intelligently
-- **Cross-References**: Find related documentation across libraries and topics
-- **Usage Analytics**: Track cache hit rates and performance metrics
-- **Automatic Cleanup**: Remove old/unused cached content automatically
+### Time Estimates
+- Simple fix: < 30 minutes
+- With spec: < 1 hour
+- With QA: < 2 hours
 
-### Best Practices
-- Use KB-first approach for all Context7 operations
-- Always specify relevant topics to limit documentation scope
-- Leverage fuzzy matching for better cache hit rates
-- Monitor KB performance with `*context7-kb-status`
-- Regular maintenance with `*context7-kb-cleanup`
-- Search intelligently with `*context7-kb-search`
-- Use Context7 to supplement, not replace, local knowledge
+**Workflow file:** [.bmad-core/workflows/quick-fix.yaml](mdc:.bmad-core/workflows/quick-fix.yaml)
+
+## Visual Workflow Diagrams (NEW - Phase 1)
+
+Workflows now support SVG diagrams for better visualization:
+- Add `svg_diagram:` field to workflow YAML (inline)
+- Or `svg_diagram_file:` to reference external SVG
+- See [.bmad-core/utils/svg-workflow-generator.md](mdc:.bmad-core/utils/svg-workflow-generator.md) for generation guide
+
+## Cursor-Specific Optimizations
+
+### File References
+- Use `mdc:` prefix for file references in Cursor rules
+- Example: `[file](mdc:.bmad-core/agents/bmad-master.md)`
+
+### Agent Activation
+- Use `@agent-name` to activate agents in Cursor
+- Agents automatically load customizations if present
+- Workflow-init works seamlessly with Cursor's file system access
+
+### Context Management
+- Enhanced sharding reduces token usage by 90%
+- Load only needed sections using cross-references
+- Use `.cross-refs.json` to find related sections
+
+## Best Practices for Cursor
+
+1. **Start with Workflow Init**: Run `*workflow-init` for new projects
+2. **Use Quick Fix**: For small changes, use quick-fix workflow
+3. **Customize Agents**: Create customizations for your team's style
+4. **Leverage Sharding**: Shard large docs for better performance
+5. **Check Cross-References**: Use `.cross-refs.json` for related sections
+
+## Reference
+
+- **User Guide**: [.bmad-core/user-guide.md](mdc:.bmad-core/user-guide.md)
+- **Workflows**: [.bmad-core/workflows/](mdc:.bmad-core/workflows/)
+- **Customizations**: [.bmad-core/customizations/README.md](mdc:.bmad-core/customizations/README.md)
+- **Phase 1 Summary**: [implementation/PHASE1_IMPLEMENTATION_COMPLETE.md](mdc:implementation/PHASE1_IMPLEMENTATION_COMPLETE.md)
