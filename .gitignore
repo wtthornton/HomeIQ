@@ -93,6 +93,11 @@ data/*.db-wal
 data/webhooks.db-*
 !data/.gitkeep
 
+# Service runtime database files
+services/*/data/*.db
+services/*/data/*.db-shm
+services/*/data/*.db-wal
+
 # Test results and coverage reports
 test-results/
 coverage/
@@ -124,3 +129,7 @@ ha_events.log
 embedding_test_env/
 embedding_tests/
 embedding_test_output.log
+
+# BMAD Agent Customizations (user-specific, update-safe)
+.bmad-core/customizations/
+!.bmad-core/customizations/README.md
