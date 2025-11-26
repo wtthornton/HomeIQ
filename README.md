@@ -486,6 +486,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ### Recent Updates
 - **Update performance docs with Context7 patterns and NUC optimizations** (November 26, 2025)
+- **Update performance docs with Context7 patterns and NUC optimizations** (November 26, 2025)
 - **Update story-35.4 and migration file** (November 26, 2025)
 - **Home Type Categorization System** (November 25, 2025)
   - ML-based home type classification using RandomForest classifier
