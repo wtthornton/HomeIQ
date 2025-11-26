@@ -159,6 +159,61 @@ class TestCorrelationService:
         
         memory_mb = service.get_memory_usage_mb()
         
-        # Should be reasonable (<60MB as per Epic 36 spec)
-        assert memory_mb < 60.0
+        # Should be reasonable (<90MB as per Epic 37 spec with vector DB)
+        assert memory_mb < 90.0
+    
+    def test_vector_database_integration(self):
+        """Test vector database integration (Epic 37)"""
+        try:
+            from src.correlation import FAISS_AVAILABLE
+            if not FAISS_AVAILABLE:
+                pytest.skip("FAISS not available")
+        except ImportError:
+            pytest.skip("Vector database not available")
+        
+        service = CorrelationService(enable_vector_db=True)
+        
+        # Check if vector database is enabled
+        assert service.enable_vector_db == (service.vector_db is not None)
+        
+        if service.vector_db:
+            # Test that vector database is initialized
+            assert service.vector_db.get_size() == 0
+    
+    def test_search_similar_correlations(self):
+        """Test similarity search (Epic 37)"""
+        try:
+            from src.correlation import FAISS_AVAILABLE
+            if not FAISS_AVAILABLE:
+                pytest.skip("FAISS not available")
+        except ImportError:
+            pytest.skip("Vector database not available")
+        
+        service = CorrelationService(enable_vector_db=True)
+        
+        if not service.enable_vector_db or not service.vector_db:
+            pytest.skip("Vector database not enabled")
+        
+        # Add some correlations with metadata
+        entity1_meta = {'domain': 'light', 'area_id': 'living_room', 'entity_id': 'light.living'}
+        entity2_meta = {'domain': 'binary_sensor', 'area_id': 'living_room', 'entity_id': 'binary_sensor.motion'}
+        
+        # Update correlation (should add to vector DB)
+        service.update_correlation(
+            'light.living', 'binary_sensor.motion',
+            0.5, 0.6,
+            entity1_metadata=entity1_meta,
+            entity2_metadata=entity2_meta
+        )
+        
+        # Search for similar correlations
+        results = service.search_similar_correlations(
+            'light.living', 'binary_sensor.motion',
+            entity1_metadata=entity1_meta,
+            entity2_metadata=entity2_meta,
+            k=5
+        )
+        
+        # Should return results (may be empty if vector DB not populated yet)
+        assert isinstance(results, list)
 

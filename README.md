@@ -18,7 +18,7 @@ Transform your Home Assistant into an intelligent automation powerhouse with con
 
 ## 🎯 What is HomeIQ?
 
-HomeIQ is an **enterprise-grade intelligence layer** for Home Assistant that adds:
+**HomeIQ is a single-home Home Assistant intelligence application running on an Intel NUC.** Designed specifically for a single-home deployment on resource-constrained NUC hardware (i3/i5, 8-16GB RAM), it adds:
 
 - 🤖 **Conversational AI Automation** - Create automations by chatting, no YAML required
 - 🔍 **Smart Pattern Detection** - AI discovers automation opportunities from your usage patterns
@@ -75,12 +75,13 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 - **Device Recommendations**: Get device recommendations based on requirements and compare similar devices
 - **Device Database Integration**: Optional integration with external Device Database for enriched metadata
 
-### 📊 Enterprise Analytics
+### 📊 Single-Home Analytics
 
 - **Hybrid Database**: InfluxDB (time-series) + SQLite (metadata)
-- **5-10x Faster Queries**: Optimized data structures
+- **5-10x Faster Queries**: Optimized for single-home scale (~50-100 devices)
 - **Real-Time Metrics**: Live system health monitoring
 - **Historical Analysis**: Deep dive into past events and patterns
+- **NUC-Optimized**: Lightweight, resource-efficient for Intel NUC deployment
 
 ### 🌐 Rich Data Enrichment
 
@@ -105,14 +106,24 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 
 ### Prerequisites
 
-- **Home Assistant** instance (any version) running on local network (e.g., `192.168.1.86:8123`)
-- **Docker** & **Docker Compose** (Docker Compose v2.0+)
-- **Single NUC or dedicated machine** with:
-  - **4GB RAM minimum** (8GB+ recommended for full stack)
+**⚠️ Deployment Context: Single-Home Home Assistant on Intel NUC**
+
+**HomeIQ is designed exclusively for a single-home Home Assistant deployment running on an Intel NUC.** This is not a multi-home or enterprise solution.
+
+**Required:**
+- **Home Assistant** instance running on local network (e.g., `192.168.1.86:8123`)
+  - Single-home deployment (~50-100 devices)
+  - Running on the same NUC or accessible via local network
+- **Intel NUC** (recommended: i3/i5, 8-16GB RAM) or similar small form factor PC
+  - **8GB RAM minimum** (16GB recommended for full stack)
   - **20GB+ free disk space** (for InfluxDB data retention)
-  - **Network access** to Home Assistant instance
+  - **Single-home deployment** - optimized for one home, not multi-home
+- **Docker** & **Docker Compose** (Docker Compose v2.0+)
+- **Network access** to Home Assistant instance
 - **Node.js 20+** (for development only)
 - **Python 3.11+** (for development only)
+
+**Important:** This application is optimized for a single-home Home Assistant deployment on resource-constrained NUC hardware. It is **not designed for multi-home or enterprise-scale deployments**. All services run on a single NUC, and the architecture is optimized for this use case.
 
 ### Installation
 
@@ -274,7 +285,8 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
                    │  WebSocket API  │
                    │  (External)     │
                    └─────────────────┘
-                   Single NUC Deployment
+        Single-Home Home Assistant on Intel NUC
+        (i3/i5, 8-16GB RAM, ~50-100 devices)
 ```
 
 ### 🤖 Phase 1 AI Services (Containerized)
@@ -402,7 +414,7 @@ AIRNOW_API_KEY=your-airnow-key  # AirNow API key (optional)
 
 ### Local Development Setup (Single NUC)
 
-**Note:** This project is designed for single-machine deployment on a NUC. All services run in Docker containers on the same host.
+**Note:** This project is designed for **single-home Home Assistant deployment on an Intel NUC**. All services run in Docker containers on the same NUC host. This is a single-home application, not a multi-home or enterprise solution.
 
 ```bash
 # Backend (Python services) - Development mode
@@ -607,7 +619,9 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ## 📊 Project Stats
 
 - **Services**: 29 active microservices (+ InfluxDB infrastructure = 30 containers)
-- **Deployment**: Single NUC (Intel NUC or similar), Docker Compose
+- **Deployment**: Single-home Home Assistant on Intel NUC (i3/i5, 8-16GB RAM)
+- **Scale**: Optimized for ~50-100 devices (single-home, not multi-home)
+- **Hardware**: Intel NUC i3/i5, 8-16GB RAM, 20GB+ disk space
 - **Languages**: Python 3.11+ (backend), TypeScript/React 18 (frontend)
 - **Databases**: InfluxDB 2.7 (time-series) + 5 SQLite databases (metadata)
 - **APIs**: RESTful (FastAPI), WebSocket (Home Assistant), MQTT (external broker)
@@ -617,7 +631,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 - **Testing**: Legacy suites removed (November 2025); new targeted coverage TBD
 - **Lines of Code**: 50,000+ (reviewed November 2025)
 - **Shared Libraries**: 3,947 lines across 11 core modules
-- **System Requirements**: 4GB RAM minimum, 8GB+ recommended, 20GB+ disk space
+- **Resource Constraints**: Optimized for NUC hardware, CPU-only (no GPU required)
 
 ---
 
