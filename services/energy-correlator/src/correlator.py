@@ -5,7 +5,7 @@ Analyzes relationships between HA events and power consumption changes
 
 import logging
 from bisect import bisect_left
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from influxdb_client import Point
@@ -469,9 +469,19 @@ class EnergyEventCorrelator:
         start_time = min(timestamps) - timedelta(seconds=self.power_lookup_padding_seconds)
         end_time = max(timestamps) + timedelta(seconds=self.power_lookup_padding_seconds)
 
+        # Format times for Flux query - ensure UTC timezone and proper ISO format
+        # Flux requires time() function with ISO 8601 format string
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+        
+        start_iso = start_time.isoformat().replace('+00:00', 'Z')
+        end_iso = end_time.isoformat().replace('+00:00', 'Z')
+
         flux_query = f'''
         from(bucket: "{self.influxdb_bucket}")
-          |> range(start: {start_time.isoformat()}Z, stop: {end_time.isoformat()}Z)
+          |> range(start: time(v: "{start_iso}"), stop: time(v: "{end_iso}"))
           |> filter(fn: (r) => r["_measurement"] == "smart_meter")
           |> filter(fn: (r) => r["_field"] == "total_power_w")
           |> sort(columns: ["_time"])

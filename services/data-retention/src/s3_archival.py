@@ -1,6 +1,9 @@
 """
 S3 Archival Manager
 Handles long-term archival to AWS S3 Glacier
+
+NOTE: This module requires InfluxDB 3.0+ with SQL support.
+For InfluxDB 2.7, these operations are disabled to prevent SSL errors.
 """
 
 import logging
@@ -13,9 +16,17 @@ import boto3
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from influxdb_client_3 import InfluxDBClient3, Point
 
 logger = logging.getLogger(__name__)
+
+# Try to import InfluxDB 3.0 client, but don't fail if not available
+try:
+    from influxdb_client_3 import InfluxDBClient3, Point
+    INFLUXDB3_AVAILABLE = True
+except ImportError:
+    INFLUXDB3_AVAILABLE = False
+    InfluxDBClient3 = None
+    Point = None
 
 
 class S3ArchivalManager:
@@ -31,8 +42,9 @@ class S3ArchivalManager:
         self.s3_bucket = os.getenv('S3_ARCHIVE_BUCKET', '')
         self.aws_region = os.getenv('AWS_REGION', 'us-east-1')
 
-        self.influxdb_client: InfluxDBClient3 = None
+        self.influxdb_client = None
         self.s3_client = None
+        self.enabled = False
 
         # Only initialize S3 if configured
         if self.s3_bucket:
@@ -44,16 +56,37 @@ class S3ArchivalManager:
             )
 
     def initialize(self):
-        """Initialize InfluxDB client"""
-        self.influxdb_client = InfluxDBClient3(
-            host=self.influxdb_url,
-            token=self.influxdb_token,
-            database=self.influxdb_bucket,
-            org=self.influxdb_org
-        )
+        """Initialize InfluxDB client - disabled for InfluxDB 2.7"""
+        if not INFLUXDB3_AVAILABLE:
+            logger.warning("InfluxDB 3.0 client not available. S3 archival disabled (requires InfluxDB 3.0+ with SQL support).")
+            self.enabled = False
+            return
+        
+        # Check if we're using InfluxDB 2.7 (HTTP) vs 3.0 (gRPC)
+        if self.influxdb_url.startswith('http://') or self.influxdb_url.startswith('https://'):
+            logger.warning("S3 archival requires InfluxDB 3.0+ with gRPC. InfluxDB 2.7 detected - feature disabled.")
+            self.enabled = False
+            return
+        
+        try:
+            self.influxdb_client = InfluxDBClient3(
+                host=self.influxdb_url,
+                token=self.influxdb_token,
+                database=self.influxdb_bucket,
+                org=self.influxdb_org
+            )
+            self.enabled = True
+            logger.info("S3 archival manager initialized with InfluxDB 3.0")
+        except Exception as e:
+            logger.error(f"Failed to initialize InfluxDB 3.0 client: {e}")
+            self.enabled = False
 
     async def archive_to_s3(self) -> dict[str, Any]:
         """Archive 365+ day old daily aggregates to S3"""
+
+        if not self.enabled:
+            logger.debug("S3 archival disabled - skipping archival")
+            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
 
         if not self.s3_bucket or not self.s3_client:
             logger.warning("S3 not configured, skipping archival")

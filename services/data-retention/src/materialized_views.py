@@ -1,6 +1,9 @@
 """
 Materialized Views Manager
 Creates and manages pre-computed aggregates for fast queries
+
+NOTE: This module requires InfluxDB 3.0+ with SQL support.
+For InfluxDB 2.7, these operations are disabled to prevent SSL errors.
 """
 
 import logging
@@ -8,9 +11,15 @@ import os
 from datetime import datetime
 from typing import Any
 
-from influxdb_client_3 import InfluxDBClient3
-
 logger = logging.getLogger(__name__)
+
+# Try to import InfluxDB 3.0 client, but don't fail if not available
+try:
+    from influxdb_client_3 import InfluxDBClient3
+    INFLUXDB3_AVAILABLE = True
+except ImportError:
+    INFLUXDB3_AVAILABLE = False
+    InfluxDBClient3 = None
 
 
 class MaterializedViewManager:
@@ -22,19 +31,41 @@ class MaterializedViewManager:
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
 
-        self.client: InfluxDBClient3 = None
+        self.client = None
+        self.enabled = False
 
     def initialize(self):
-        """Initialize InfluxDB client"""
-        self.client = InfluxDBClient3(
-            host=self.influxdb_url,
-            token=self.influxdb_token,
-            database=self.influxdb_bucket,
-            org=self.influxdb_org
-        )
+        """Initialize InfluxDB client - disabled for InfluxDB 2.7"""
+        if not INFLUXDB3_AVAILABLE:
+            logger.warning("InfluxDB 3.0 client not available. Materialized views disabled (requires InfluxDB 3.0+ with SQL support).")
+            self.enabled = False
+            return
+        
+        # Check if we're using InfluxDB 2.7 (HTTP) vs 3.0 (gRPC)
+        if self.influxdb_url.startswith('http://') or self.influxdb_url.startswith('https://'):
+            logger.warning("Materialized views require InfluxDB 3.0+ with gRPC. InfluxDB 2.7 detected - feature disabled.")
+            self.enabled = False
+            return
+        
+        try:
+            self.client = InfluxDBClient3(
+                host=self.influxdb_url,
+                token=self.influxdb_token,
+                database=self.influxdb_bucket,
+                org=self.influxdb_org
+            )
+            self.enabled = True
+            logger.info("Materialized views manager initialized with InfluxDB 3.0")
+        except Exception as e:
+            logger.error(f"Failed to initialize InfluxDB 3.0 client: {e}")
+            self.enabled = False
 
     async def create_daily_energy_view(self):
         """Create materialized view for daily energy by device"""
+
+        if not self.enabled:
+            logger.debug("Materialized views disabled - skipping daily energy view creation")
+            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
 
         logger.info("Creating daily energy by device view...")
 
@@ -77,6 +108,10 @@ class MaterializedViewManager:
 
     async def create_hourly_room_activity_view(self):
         """Create materialized view for hourly room activity"""
+        
+        if not self.enabled:
+            logger.debug("Materialized views disabled - skipping hourly room activity view creation")
+            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
 
         logger.info("Creating hourly room activity view...")
 
@@ -114,6 +149,10 @@ class MaterializedViewManager:
 
     async def create_daily_carbon_summary_view(self):
         """Create materialized view for daily carbon summary"""
+        
+        if not self.enabled:
+            logger.debug("Materialized views disabled - skipping daily carbon summary view creation")
+            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
 
         logger.info("Creating daily carbon summary view...")
 
@@ -148,6 +187,14 @@ class MaterializedViewManager:
 
     async def refresh_all_views(self):
         """Refresh all materialized views"""
+        
+        if not self.enabled:
+            logger.debug("Materialized views disabled - skipping refresh")
+            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
+        
+        if not self.enabled:
+            logger.debug("Materialized views disabled - skipping refresh")
+            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
 
         logger.info("Refreshing all materialized views...")
 
@@ -178,6 +225,10 @@ class MaterializedViewManager:
 
     async def query_view(self, view_name: str, filters: dict[str, Any] = None) -> list[dict]:
         """Query materialized view (fast)"""
+        
+        if not self.enabled:
+            logger.debug("Materialized views disabled - cannot query view")
+            return []
 
         query = f"SELECT * FROM {view_name}"
 

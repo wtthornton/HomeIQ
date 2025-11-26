@@ -25,6 +25,7 @@ services/enrichment-pipeline/src/influxdb_wrapper.py (Line 180-257)
 Last Updated: October 18, 2025
 """
 
+import json
 import logging
 import re
 from datetime import datetime
@@ -64,6 +65,8 @@ class InfluxDBSchema:
         self.TAG_AREA_ID = "area_id"
         # Epic 23.4: Entity classification
         self.TAG_ENTITY_CATEGORY = "entity_category"
+        # Home Type Integration: Event category tagging
+        self.TAG_EVENT_CATEGORY = "event_category"
 
         # Field keys for data storage (Epic 23 Enhanced)
         self.FIELD_STATE = "state_value"
@@ -249,7 +252,52 @@ class InfluxDBSchema:
         if location:
             point = point.tag(self.TAG_LOCATION, location)
 
+        # Home Type Integration: Add event category tag
+        event_category = self._categorize_event(event_data)
+        if event_category:
+            point = point.tag(self.TAG_EVENT_CATEGORY, event_category)
+
         return point
+
+    def _categorize_event(self, event_data: dict[str, Any]) -> str | None:
+        """
+        Categorize event based on entity domain and device class.
+        
+        Returns event category (security, climate, lighting, appliance, monitoring, general)
+        or None if categorization is not possible.
+        """
+        try:
+            entity_id = event_data.get("entity_id", "")
+            domain = entity_id.split('.')[0] if '.' in entity_id else ""
+            attributes = event_data.get("attributes", {})
+            device_class = attributes.get("device_class", "")
+            
+            # Security category
+            if domain in ["alarm_control_panel", "lock"] or device_class in ["door", "window", "motion", "lock"]:
+                return "security"
+            
+            # Climate category
+            if domain == "climate" or device_class in ["temperature", "humidity"]:
+                return "climate"
+            
+            # Lighting category
+            if domain == "light" or device_class == "light":
+                return "lighting"
+            
+            # Appliance category
+            if domain in ["switch", "fan", "vacuum"] or device_class in ["power", "energy"]:
+                return "appliance"
+            
+            # Monitoring category
+            if domain == "sensor" and device_class not in ["temperature", "humidity"]:
+                return "monitoring"
+            
+            # Default to general
+            return "general"
+            
+        except Exception as e:
+            logger.debug(f"Error categorizing event: {e}")
+            return None
 
     def _add_event_fields(self, point: Point, event_data: dict[str, Any]) -> Point:
         """Add fields to event point"""

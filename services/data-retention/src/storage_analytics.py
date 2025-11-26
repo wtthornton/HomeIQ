@@ -1,6 +1,9 @@
 """
 Storage Analytics
 Track storage usage, retention operations, and cost savings
+
+NOTE: This module requires InfluxDB 3.0+ with SQL support.
+For InfluxDB 2.7, these operations are disabled to prevent SSL errors.
 """
 
 import logging
@@ -8,9 +11,16 @@ import os
 from datetime import datetime
 from typing import Any
 
-from influxdb_client_3 import InfluxDBClient3, Point
-
 logger = logging.getLogger(__name__)
+
+# Try to import InfluxDB 3.0 client, but don't fail if not available
+try:
+    from influxdb_client_3 import InfluxDBClient3, Point
+    INFLUXDB3_AVAILABLE = True
+except ImportError:
+    INFLUXDB3_AVAILABLE = False
+    InfluxDBClient3 = None
+    Point = None
 
 
 class StorageAnalytics:
@@ -22,19 +32,41 @@ class StorageAnalytics:
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
 
-        self.client: InfluxDBClient3 = None
+        self.client = None
+        self.enabled = False
 
     def initialize(self):
-        """Initialize InfluxDB client"""
-        self.client = InfluxDBClient3(
-            host=self.influxdb_url,
-            token=self.influxdb_token,
-            database=self.influxdb_bucket,
-            org=self.influxdb_org
-        )
+        """Initialize InfluxDB client - disabled for InfluxDB 2.7"""
+        if not INFLUXDB3_AVAILABLE:
+            logger.warning("InfluxDB 3.0 client not available. Storage analytics disabled (requires InfluxDB 3.0+ with SQL support).")
+            self.enabled = False
+            return
+        
+        # Check if we're using InfluxDB 2.7 (HTTP) vs 3.0 (gRPC)
+        if self.influxdb_url.startswith('http://') or self.influxdb_url.startswith('https://'):
+            logger.warning("Storage analytics requires InfluxDB 3.0+ with gRPC. InfluxDB 2.7 detected - feature disabled.")
+            self.enabled = False
+            return
+        
+        try:
+            self.client = InfluxDBClient3(
+                host=self.influxdb_url,
+                token=self.influxdb_token,
+                database=self.influxdb_bucket,
+                org=self.influxdb_org
+            )
+            self.enabled = True
+            logger.info("Storage analytics initialized with InfluxDB 3.0")
+        except Exception as e:
+            logger.error(f"Failed to initialize InfluxDB 3.0 client: {e}")
+            self.enabled = False
 
     async def calculate_storage_metrics(self) -> dict[str, Any]:
         """Calculate current storage metrics"""
+
+        if not self.enabled:
+            logger.debug("Storage analytics disabled - skipping metrics calculation")
+            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
 
         logger.info("Calculating storage metrics...")
 
