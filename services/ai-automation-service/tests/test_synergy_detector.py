@@ -112,15 +112,17 @@ async def test_same_area_motion_light_detection(mock_data_api_client, mock_ha_cl
     synergies = await detector.detect_synergies()
 
     # Find bedroom synergy
-    bedroom_synergies = [s for s in synergies if s['area'] == 'bedroom']
+    bedroom_synergies = [s for s in synergies if s.get('area') == 'bedroom']
     assert len(bedroom_synergies) > 0
 
-    motion_light = [s for s in bedroom_synergies if s['relationship'] == 'motion_to_light'][0]
-    assert motion_light['trigger_entity'] == 'binary_sensor.bedroom_motion'
-    assert motion_light['action_entity'] == 'light.bedroom_ceiling'
-    assert motion_light['impact_score'] > 0.0
-    assert motion_light['complexity'] == 'low'
-    assert motion_light['confidence'] >= 0.7
+    motion_light = [s for s in bedroom_synergies if s.get('relationship') == 'motion_to_light']
+    assert len(motion_light) > 0, "No motion_to_light synergy found in bedroom"
+    motion_light = motion_light[0]
+    assert motion_light.get('trigger_entity') == 'binary_sensor.bedroom_motion'
+    assert motion_light.get('action_entity') == 'light.bedroom_ceiling'
+    assert motion_light.get('impact_score', 0) > 0.0
+    assert motion_light.get('complexity') == 'low'
+    assert motion_light.get('confidence', 0) >= 0.7
 
 
 @pytest.mark.asyncio
@@ -134,13 +136,13 @@ async def test_temp_climate_detection(mock_data_api_client, mock_ha_client):
     synergies = await detector.detect_synergies()
 
     # Find living room temp → climate synergy
-    living_room_synergies = [s for s in synergies if s['area'] == 'living_room']
+    living_room_synergies = [s for s in synergies if s.get('area') == 'living_room']
 
     if living_room_synergies:
-        temp_climate = [s for s in living_room_synergies if s['relationship'] == 'temp_to_climate']
+        temp_climate = [s for s in living_room_synergies if s.get('relationship') == 'temp_to_climate']
         if temp_climate:
-            assert temp_climate[0]['complexity'] == 'medium'
-            assert temp_climate[0]['trigger_entity'] == 'sensor.outdoor_temperature'
+            assert temp_climate[0].get('complexity') == 'medium'
+            assert temp_climate[0].get('trigger_entity') == 'sensor.outdoor_temperature'
 
 
 @pytest.mark.asyncio
