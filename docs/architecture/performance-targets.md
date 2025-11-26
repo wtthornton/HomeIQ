@@ -1,7 +1,9 @@
 # Performance Targets & SLAs
 
-**Last Updated:** October 24, 2025  
-**Purpose:** Performance targets and service level agreements for HomeIQ
+**Last Updated:** January 2025  
+**Purpose:** Performance targets and service level agreements for HomeIQ  
+**Target Platform:** Home Assistant single-home deployment on NUC (Next Unit of Computing)  
+**Context7 Patterns:** Integrated throughout
 
 ## Response Time Targets
 
@@ -14,23 +16,38 @@
 | Dashboard full load | <2s | <5s | >10s |
 | Webhook delivery | <1s | <3s | >5s |
 
-## Throughput Targets
+## Throughput Targets (Single-Home NUC)
 
 | Metric | Minimum | Target | Peak |
 |--------|---------|--------|------|
-| Event processing | 100/sec | 500/sec | 1000+/sec |
-| API requests | 10/sec | 50/sec | 100/sec |
-| WebSocket connections | 1 | 1-3 | 5 |
-| Batch writes (InfluxDB) | 10/min | 60/min | 120/min |
+| Event processing | 50/sec | 200/sec | 500/sec |
+| API requests | 5/sec | 20/sec | 50/sec |
+| WebSocket connections | 1 | 1 | 1 |
+| Batch writes (InfluxDB) | 10/min | 30/min | 60/min |
+| Home Assistant events | 50/sec | 150/sec | 400/sec |
 
-## Resource Utilization Targets
+**Single-Home Context:**
+- Lower event volumes (1 home vs multi-tenant)
+- Single WebSocket connection to Home Assistant
+- Reduced API request targets (single user)
+- More conservative peak targets for NUC stability
+
+## Resource Utilization Targets (NUC-Optimized)
 
 | Resource | Normal | Warning | Critical |
 |----------|--------|---------|----------|
-| CPU (per service) | <20% | 50-80% | >80% |
+| CPU (per service) | <30% | 50-70% | >70% |
 | Memory (per service) | <60% of limit | 60-80% | >80% |
+| Total system memory | <70% | 70-85% | >85% |
 | Disk usage | <70% | 70-85% | >85% |
-| InfluxDB memory | <400MB | 400-480MB | >480MB |
+| InfluxDB memory | <256MB | 256-320MB | >320MB |
+| SQLite cache | <32MB | 32-48MB | >48MB |
+
+**NUC-Specific Notes:**
+- Lower CPU thresholds due to limited cores (2-4 typical)
+- Reduced InfluxDB memory target for NUC constraints
+- SQLite cache reduced to 32MB (vs 64MB for larger systems)
+- Total system memory monitoring critical on NUC
 
 ## Availability Targets
 
@@ -62,26 +79,29 @@
 
 ## Service-Specific Targets
 
-### WebSocket Ingestion Service
-- **Event Processing:** 1000+ events/sec peak
-- **Batch Size:** 100 events per batch
-- **Batch Timeout:** 5 seconds
-- **Memory Limit:** 512MB
+### WebSocket Ingestion Service (NUC-Optimized)
+- **Event Processing:** 500 events/sec peak (single-home)
+- **Batch Size:** 50-100 events per batch
+- **Batch Timeout:** 3-5 seconds
+- **Memory Limit:** 256MB (NUC constraint)
 - **Health Check:** <10ms response
+- **Context7 Telemetry:** Structured logging with correlation IDs
 
-### Data API Service
+### Data API Service (NUC-Optimized)
 - **Device Queries:** <10ms (SQLite)
 - **Event Queries:** <100ms (InfluxDB)
-- **Concurrent Requests:** 100+
-- **Memory Limit:** 256MB
+- **Concurrent Requests:** 50+ (single-home)
+- **Memory Limit:** 128MB (NUC constraint)
 - **Health Check:** <10ms response
+- **Context7 Patterns:** Pydantic settings, lifespan context managers
 
-### Admin API Service
+### Admin API Service (NUC-Optimized)
 - **Health Checks:** <10ms
 - **Statistics:** <50ms
 - **Docker Management:** <200ms
-- **Memory Limit:** 256MB
+- **Memory Limit:** 128MB (NUC constraint)
 - **Health Check:** <10ms response
+- **Context7 Patterns:** Global state with setter pattern for telemetry
 
 ### Health Dashboard
 - **Initial Load:** <2s
@@ -148,24 +168,31 @@
 
 ## Performance Budget
 
-### Memory Budget (per service)
-- **WebSocket Ingestion:** 512MB (event buffering)
-- **Data API:** 256MB (query processing)
-- **Admin API:** 256MB (monitoring)
-- **Health Dashboard:** 128MB (React app)
-- **Total System:** 2GB maximum
+### Memory Budget (NUC-Optimized)
+- **WebSocket Ingestion:** 256MB (event buffering, reduced for NUC)
+- **Data API:** 128MB (query processing, reduced for NUC)
+- **Admin API:** 128MB (monitoring, reduced for NUC)
+- **Health Dashboard:** 64MB (React app, reduced for NUC)
+- **InfluxDB:** 256MB (reduced from 400MB)
+- **SQLite:** 32MB cache (reduced from 64MB)
+- **Total System:** 1GB maximum (NUC constraint)
+- **Reserve:** 512MB for OS and Home Assistant
 
-### CPU Budget (per service)
-- **Normal Operation:** <20% CPU
-- **Peak Load:** <50% CPU
-- **Sustained Load:** <30% CPU
-- **Background Tasks:** <10% CPU
+### CPU Budget (NUC-Optimized)
+- **Normal Operation:** <30% CPU per service
+- **Peak Load:** <60% CPU per service
+- **Sustained Load:** <40% CPU per service
+- **Background Tasks:** <15% CPU
+- **Total System:** <80% CPU (reserve for Home Assistant)
+- **Context7 Overhead:** <2% CPU (telemetry and structured logging)
 
-### Network Budget
-- **Inbound Events:** 1000 events/sec
-- **Outbound Webhooks:** 100 webhooks/sec
-- **API Requests:** 100 requests/sec
-- **Dashboard Traffic:** 50 concurrent users
+### Network Budget (Single-Home NUC)
+- **Inbound Events:** 500 events/sec (single-home)
+- **Outbound Webhooks:** 50 webhooks/sec (single-home)
+- **API Requests:** 50 requests/sec (single user)
+- **Dashboard Traffic:** 1-3 concurrent users (single home)
+- **Home Assistant WebSocket:** 1 connection (persistent)
+- **Context7 Telemetry:** <1% bandwidth (structured logs)
 
 ## Performance Documentation
 

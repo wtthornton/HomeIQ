@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -18,15 +19,48 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+# Global OpenAI client
+openai_client = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for service initialization and cleanup
+    
+    Context7 Pattern: Modern FastAPI lifespan management
+    Replaces deprecated @app.on_event("startup") and @app.on_event("shutdown")
+    """
+    global openai_client
+    
+    # Startup: Initialize OpenAI client
+    try:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            logger.warning("No OpenAI API key provided, service will be disabled")
+        else:
+            openai_client = AsyncOpenAI(api_key=api_key)
+            logger.info("OpenAI client initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize OpenAI client: {e}")
+    
+    yield
+    
+    # Shutdown: Cleanup resources
+    global openai_client
+    if openai_client:
+        # OpenAI client doesn't require explicit cleanup, but we can clear the reference
+        openai_client = None
+        logger.info("OpenAI client cleaned up")
+
+
+# Initialize FastAPI app with lifespan
 app = FastAPI(
     title="OpenAI Client Service",
     description="OpenAI API client for complex entity extraction",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
-
-# Global OpenAI client
-openai_client = None
 
 class OpenAIExtractionRequest(BaseModel):
     query: str
@@ -40,21 +74,6 @@ class OpenAIExtractionResponse(BaseModel):
     model_used: str
     tokens_used: int
     cost_usd: float
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize OpenAI client on startup"""
-    global openai_client
-    try:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            logger.warning("No OpenAI API key provided, service will be disabled")
-            return
-
-        openai_client = AsyncOpenAI(api_key=api_key)
-        logger.info("OpenAI client initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize OpenAI client: {e}")
 
 @app.get("/health")
 async def health_check():

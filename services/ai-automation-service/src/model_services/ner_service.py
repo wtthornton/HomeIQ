@@ -5,6 +5,7 @@ Provides NER-based entity extraction as a microservice
 
 import logging
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -15,15 +16,46 @@ from transformers import pipeline
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+# Global NER pipeline (loaded once at startup)
+ner_pipeline = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for service initialization and cleanup
+    
+    Context7 Pattern: Modern FastAPI lifespan management
+    Replaces deprecated @app.on_event("startup") and @app.on_event("shutdown")
+    """
+    global ner_pipeline
+    
+    # Startup: Load NER model
+    try:
+        logger.info("Loading NER model: dslim/bert-base-NER")
+        ner_pipeline = pipeline("ner", model="dslim/bert-base-NER")
+        logger.info("NER model loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load NER model: {e}")
+        raise
+    
+    yield
+    
+    # Shutdown: Cleanup resources
+    global ner_pipeline
+    if ner_pipeline:
+        # Transformers pipeline doesn't require explicit cleanup, but we can clear the reference
+        ner_pipeline = None
+        logger.info("NER model cleaned up")
+
+
+# Initialize FastAPI app with lifespan
 app = FastAPI(
     title="NER Model Service",
     description="Pre-trained NER model for entity extraction",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
-
-# Global NER pipeline (loaded once at startup)
-ner_pipeline = None
 
 class EntityExtractionRequest(BaseModel):
     query: str
@@ -34,18 +66,6 @@ class EntityExtractionResponse(BaseModel):
     processing_time: float
     model_used: str
     confidence_scores: list[float]
-
-@app.on_event("startup")
-async def startup_event():
-    """Load NER model on startup"""
-    global ner_pipeline
-    try:
-        logger.info("Loading NER model: dslim/bert-base-NER")
-        ner_pipeline = pipeline("ner", model="dslim/bert-base-NER")
-        logger.info("NER model loaded successfully")
-    except Exception as e:
-        logger.error(f"Failed to load NER model: {e}")
-        raise
 
 @app.get("/health")
 async def health_check():

@@ -1,7 +1,9 @@
 # Performance Anti-Patterns
 
-**Last Updated:** October 24, 2025  
-**Purpose:** Common performance anti-patterns to avoid in HomeIQ development
+**Last Updated:** January 2025  
+**Purpose:** Common performance anti-patterns to avoid in HomeIQ development  
+**Target Platform:** Home Assistant single-home deployment on NUC (Next Unit of Computing)  
+**Context7 Patterns:** Anti-patterns related to Context7 best practices
 
 ## Database Anti-Patterns
 
@@ -409,6 +411,161 @@ if response_time > config.PERFORMANCE_THRESHOLD:
     alert("Slow response")
 ```
 
+## Context7 Anti-Patterns
+
+### Anti-Pattern 21: Using Deprecated FastAPI Event Handlers
+
+**BAD:**
+```python
+# Deprecated pattern
+@app.on_event("startup")
+async def startup():
+    initialize_services()
+
+@app.on_event("shutdown")
+async def shutdown():
+    cleanup_services()
+```
+
+**GOOD:**
+```python
+# Context7 Pattern: Lifespan context manager
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    initialize_services()
+    yield
+    # Shutdown
+    cleanup_services()
+
+app = FastAPI(lifespan=lifespan)
+```
+
+### Anti-Pattern 22: Not Using Pydantic Settings Pattern
+
+**BAD:**
+```python
+# Hard-coded or manual env var reading
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "100"))
+```
+
+**GOOD:**
+```python
+# Context7 Pattern: Pydantic settings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from functools import lru_cache
+
+class Settings(BaseSettings):
+    batch_size: int = 100
+    batch_timeout: float = 5.0
+    
+    model_config = SettingsConfigDict(env_file=".env")
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
+```
+
+### Anti-Pattern 23: Missing Correlation IDs in Logging
+
+**BAD:**
+```python
+# No correlation ID tracking
+logger.info("Processing request")
+```
+
+**GOOD:**
+```python
+# Context7 Pattern: Structured logging with correlation IDs
+from contextvars import ContextVar
+from shared.logging_config import get_logger
+
+correlation_id: ContextVar[str] = ContextVar('correlation_id', default=None)
+logger = get_logger(__name__)
+
+# Set at request start
+correlation_id.set(request_id)
+
+# Automatically included in structured logs
+logger.info("Processing request", extra={"endpoint": "/api/events"})
+```
+
+### Anti-Pattern 24: Not Using Global State Setter Pattern
+
+**BAD:**
+```python
+# Circular dependencies, hard to test
+from services.metrics import MetricsCollector
+metrics = MetricsCollector()
+```
+
+**GOOD:**
+```python
+# Context7 Pattern: Global state with setter
+_metrics_collector = None
+
+def set_metrics_collector(collector):
+    global _metrics_collector
+    _metrics_collector = collector
+
+def get_metrics_collector():
+    return _metrics_collector
+```
+
+## NUC-Specific Anti-Patterns
+
+### Anti-Pattern 25: Over-Provisioning Memory
+
+**BAD:**
+```python
+# Too much memory for NUC
+PRAGMA cache_size=-128000  # 128MB (too large for NUC)
+```
+
+**GOOD:**
+```python
+# NUC-optimized memory
+PRAGMA cache_size=-32000  # 32MB (appropriate for NUC)
+```
+
+### Anti-Pattern 26: Ignoring Single-Home Context
+
+**BAD:**
+```python
+# Multi-tenant batch sizes
+batch_size = 1000  # Too large for single-home
+```
+
+**GOOD:**
+```python
+# Single-home optimized
+batch_size = 50-100  # Appropriate for single-home NUC
+```
+
+### Anti-Pattern 27: Not Monitoring NUC Resource Constraints
+
+**BAD:**
+```python
+# No resource monitoring
+async def process_events(events):
+    await process(events)  # Could exhaust NUC resources
+```
+
+**GOOD:**
+```python
+# NUC resource-aware
+import psutil
+
+async def process_events(events):
+    cpu_percent = psutil.cpu_percent(interval=1)
+    if cpu_percent > 70:  # NUC threshold
+        logger.warning("High CPU usage, throttling", extra={"cpu": cpu_percent})
+        await asyncio.sleep(0.1)  # Throttle
+    await process(events)
+```
+
 ## Prevention Strategies
 
 ### Code Review Checklist
@@ -420,6 +577,9 @@ if response_time > config.PERFORMANCE_THRESHOLD:
 - [ ] Timeouts configured for all external calls
 - [ ] Batch operations used instead of loops
 - [ ] Memory usage bounded (deque maxlen, cache size)
+- [ ] Context7 patterns used (lifespan, Pydantic settings, correlation IDs)
+- [ ] NUC resource constraints considered (memory, CPU limits)
+- [ ] Single-home optimizations applied (batch sizes, event volumes)
 
 ### Automated Detection
 - **Linting Rules:** ESLint rules for React performance
@@ -446,6 +606,12 @@ if response_time > config.PERFORMANCE_THRESHOLD:
 - ❌ Excessive logging
 - ❌ Manual validation
 - ❌ No performance monitoring
+- ❌ `@app.on_event` instead of lifespan context manager (Context7)
+- ❌ Missing Pydantic settings pattern (Context7)
+- ❌ No correlation IDs in logging (Context7)
+- ❌ Over-provisioning memory for NUC
+- ❌ Multi-tenant batch sizes for single-home
+- ❌ Ignoring NUC resource constraints
 
 ### Green Flags to Look For
 - ✅ `aiohttp` for async HTTP
@@ -458,3 +624,10 @@ if response_time > config.PERFORMANCE_THRESHOLD:
 - ✅ Minimal, meaningful logging
 - ✅ Pydantic validation
 - ✅ Performance monitoring decorators
+- ✅ Lifespan context managers (Context7)
+- ✅ Pydantic settings with `@lru_cache` (Context7)
+- ✅ Correlation IDs in structured logs (Context7)
+- ✅ Global state with setter pattern (Context7)
+- ✅ NUC-optimized memory settings
+- ✅ Single-home batch sizes
+- ✅ NUC resource monitoring
