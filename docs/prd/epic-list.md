@@ -359,11 +359,56 @@ Reduce technical debt and improve code maintainability by refactoring high-compl
 
 ---
 
+## Synthetic External Data & Correlation Analysis Epics (33-38)
+
+**Epic 33: Foundation External Data Generation** 📋 PLANNING
+Generate realistic weather and carbon intensity data that correlates with device usage patterns to support correlation analysis training. **Timeline:** 3-4 weeks. **Story Points:** 25-35. **Status:** Planning.
+
+**Epic 34: Advanced External Data Generation** 📋 PLANNING
+Generate realistic electricity pricing and calendar data that correlates with device usage and presence patterns to support advanced correlation analysis training. **Timeline:** 3-4 weeks. **Story Points:** 28-38. **Depends on:** Epic 33.
+
+**Epic 35: External Data Integration & Correlation** 📋 PLANNING
+Unify all external data generators into a cohesive system with intelligent correlation engine that ensures realistic relationships between external data and device events. **Timeline:** 1-2 weeks. **Story Points:** 16-22. **Depends on:** Epic 33-34. **Feeds into:** Epic 36-38.
+
+**Epic 36: Correlation Analysis Foundation (Phase 1 Quick Wins)** 📋 PLANNING
+Implement foundational correlation analysis capabilities using 2025 state-of-the-art ML techniques (TabPFN, Streaming Continual Learning) to achieve 100-1000x performance improvements and enable real-time correlation updates. **Timeline:** 6-10 days. **Story Points:** 25-35. **ROI:** 3.0-4.5. **Depends on:** Epic 33-35.
+
+**Epic 37: Correlation Analysis Optimization (Phase 2)** 📋 PLANNING
+Optimize correlation analysis with vector database similarity search, state history integration for long-term patterns, and AutoML hyperparameter optimization. **Timeline:** 10-14 days. **Story Points:** 30-40. **ROI:** 1.6-2.67. **Depends on:** Epic 36.
+
+**Epic 38: Correlation Analysis Advanced Features (Phase 3)** 📋 PLANNING
+Implement advanced correlation analysis features including calendar integration, Wide & Deep Learning (optional for NUC), and Augmented Analytics. **Timeline:** 2-3 weeks. **Story Points:** 35-50. **ROI:** 1.29-1.6. **Depends on:** Epic 36-37.
+
+---
+
+## Architecture & Refactoring Epics (39)
+
+**Epic 39: AI Automation Service Modularization & Performance Optimization** 📋 PLANNING
+Refactor the monolithic AI Automation Service into a modular architecture with independent scaling, improved maintainability, and optimized performance. **Timeline:** 4-6 weeks. **Story Points:** 40-60. **Type:** Brownfield Enhancement. **Approach:** Hybrid gradual extraction (Training → Pattern → Query/Automation split). **Depends on:** None (can start immediately).
+
+---
+
+## Deployment & Infrastructure Epics (40)
+
+**Epic 40: Dual Deployment Configuration (Test & Production)** 📋 PLANNING ⭐ **MUST BE LAST**
+Create completely isolated test and production deployment configurations with full database separation, container isolation, and clear deployment commands. Test deployment uses only synthetic/mock data creation, disables external API feeds, but keeps all AI services operational. Production deployment explicitly blocks data generation services. **Timeline:** 4-6 weeks. **Story Points:** 40-55. **Type:** Infrastructure & Deployment. **Depends on:** Epic 33-35 (Synthetic External Data Generation) - **Must be implemented LAST**.
+
+**Key Features:**
+- ✅ Separate InfluxDB instances (test on port 8087, production on 8086)
+- ✅ Separate SQLite databases and Docker networks
+- ✅ Test deployment disables external APIs (weather, carbon, etc.)
+- ✅ Test deployment keeps AI services enabled (OpenAI, patterns, Ask AI)
+- ✅ Production deployment blocks data generation services
+- ✅ Clear deployment commands: `deploy to test` / `deploy to prod`
+- ✅ HA test container integrated into test deployment
+
+---
+
 ## Summary
 
-- **Total Epics**: 32 (26 infrastructure + 4 AI enhancement + 4 setup service + 1 architecture + 1 code quality)
+- **Total Epics**: 40 (26 infrastructure + 4 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration)
 - **Completed**: 32 (26 infrastructure + 4 AI + 4 setup service + 1 architecture + 1 code quality) ✅ **100% COMPLETE** 🎉
-- **Planned**: 0
+- **Planned**: 8 (Epic 33-40: Synthetic External Data, Correlation Analysis, Service Modularization, Dual Deployment) 📋
 - **In Progress**: 0
 - **Draft/Planned**: 0
 - **Active Services**: 21 total (18 microservices + InfluxDB infrastructure)
@@ -396,7 +441,7 @@ Reduce technical debt and improve code maintainability by refactoring high-compl
 
 **Latest Epic Executed**: ✅ **Epic 31** - Weather API Service Migration (500 lines in 2 hours using simple pattern)
 
-**Project Completion**: 🚀 **100% (33/33 epics)** 🚀  
-**Status**: **PRODUCTION READY - ALL EPICS COMPLETE**  
-**Next Steps**: Deploy and monitor in production environment
+**Project Completion**: 🚀 **84% (32/38 epics complete, 6 planned)** 🚀  
+**Status**: **PRODUCTION READY - Core features complete, correlation analysis epics planned**  
+**Next Steps**: Begin Epic 33 (Foundation External Data Generation) to enable correlation analysis capabilities
 
