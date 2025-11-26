@@ -126,8 +126,7 @@ async def main():
     area_generator = SyntheticAreaGenerator()
     device_generator = SyntheticDeviceGenerator()
     event_generator = SyntheticEventGenerator()
-    weather_generator = SyntheticWeatherGenerator()
-    carbon_generator = SyntheticCarbonIntensityGenerator()
+    external_data_generator = SyntheticExternalDataGenerator()
     
     # Initialize home generator with optional OpenAI enhancement
     if args.enable_openai:
@@ -215,54 +214,64 @@ async def main():
             events = await event_generator.generate_events(devices, days=args.days)
             home['events'] = events
             
-            # Generate weather and carbon intensity data
+            # Generate external data (weather, carbon, pricing, calendar)
             from datetime import datetime, timedelta, timezone
             start_date = datetime.now(timezone.utc) - timedelta(days=args.days)
             
-            # Generate weather data
-            weather_data = weather_generator.generate_weather(
-                home,
-                start_date,
-                args.days
+            # Generate unified external data
+            external_data = await external_data_generator.generate_external_data(
+                home=home,
+                start_date=start_date,
+                days=args.days,
+                enable_weather=args.enable_weather,
+                enable_carbon=args.enable_carbon,
+                enable_pricing=args.enable_pricing,
+                enable_calendar=args.enable_calendar
             )
             
-            # Generate carbon intensity data
-            carbon_data = carbon_generator.generate_carbon_intensity(
-                home,
-                start_date,
-                args.days
-            )
+            # Apply correlations to events (if weather/carbon data available)
+            final_events = events
+            if args.enable_weather and external_data.get('weather'):
+                from src.training.synthetic_weather_generator import SyntheticWeatherGenerator
+                weather_gen = SyntheticWeatherGenerator()
+                final_events = weather_gen.correlate_with_hvac(
+                    external_data['weather'],
+                    final_events,
+                    devices
+                )
+                final_events = weather_gen.correlate_with_windows(
+                    external_data['weather'],
+                    final_events,
+                    devices
+                )
             
-            # Correlate weather with HVAC and windows
-            weather_correlated_events = weather_generator.correlate_with_hvac(
-                weather_data,
-                events,
-                devices
-            )
-            weather_correlated_events = weather_generator.correlate_with_windows(
-                weather_data,
-                weather_correlated_events,
-                devices
-            )
-            
-            # Correlate carbon with energy devices
-            final_events = carbon_generator.correlate_with_energy_devices(
-                carbon_data,
-                weather_correlated_events,
-                devices
-            )
+            if args.enable_carbon and external_data.get('carbon_intensity'):
+                from src.training.synthetic_carbon_intensity_generator import SyntheticCarbonIntensityGenerator
+                carbon_gen = SyntheticCarbonIntensityGenerator()
+                final_events = carbon_gen.correlate_with_energy_devices(
+                    external_data['carbon_intensity'],
+                    final_events,
+                    devices
+                )
             
             # Update events with correlations
             home['events'] = final_events
             
-            # Add external_data section to home
-            home['external_data'] = {
-                'weather': weather_data,
-                'carbon_intensity': carbon_data
-            }
+            # Add external_data section to home (all four data types)
+            home['external_data'] = external_data
             
             complete_homes.append(home)
-            logger.info(f"✅ Completed home {i+1}/{len(homes)}: {len(devices)} devices, {len(final_events)} events, {len(weather_data)} weather points, {len(carbon_data)} carbon points")
+            
+            # Log external data summary
+            weather_count = len(external_data.get('weather', []))
+            carbon_count = len(external_data.get('carbon_intensity', []))
+            pricing_count = len(external_data.get('pricing', []))
+            calendar_count = len(external_data.get('calendar', []))
+            
+            logger.info(
+                f"✅ Completed home {i+1}/{len(homes)}: {len(devices)} devices, {len(final_events)} events, "
+                f"weather={weather_count}, carbon={carbon_count}, pricing={pricing_count}, calendar={calendar_count}"
+            )
             
         except Exception as e:
             logger.error(f"❌ Failed to process home {i+1}: {e}")
@@ -296,11 +305,15 @@ async def main():
     total_events = sum(len(h.get('events', [])) for h in complete_homes)
     total_weather_points = sum(len(h.get('external_data', {}).get('weather', [])) for h in complete_homes)
     total_carbon_points = sum(len(h.get('external_data', {}).get('carbon_intensity', [])) for h in complete_homes)
+    total_pricing_points = sum(len(h.get('external_data', {}).get('pricing', [])) for h in complete_homes)
+    total_calendar_points = sum(len(h.get('external_data', {}).get('calendar', [])) for h in complete_homes)
     
     print(f"\nTotal devices: {total_devices}")
     print(f"Total events: {total_events}")
     print(f"Total weather data points: {total_weather_points}")
     print(f"Total carbon intensity data points: {total_carbon_points}")
+    print(f"Total pricing data points: {total_pricing_points}")
+    print(f"Total calendar events: {total_calendar_points}")
     
     # OpenAI enhancement summary
     if args.enable_openai and home_generator.openai_generator:
