@@ -16,9 +16,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.training.synthetic_area_generator import SyntheticAreaGenerator
+from src.training.synthetic_carbon_intensity_generator import SyntheticCarbonIntensityGenerator
 from src.training.synthetic_device_generator import SyntheticDeviceGenerator
 from src.training.synthetic_event_generator import SyntheticEventGenerator
 from src.training.synthetic_home_generator import SyntheticHomeGenerator
+from src.training.synthetic_weather_generator import SyntheticWeatherGenerator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,22 +55,95 @@ async def main():
         default=90,
         help='Number of days of events to generate per home (default: 90)'
     )
+    parser.add_argument(
+        '--enable-openai',
+        action='store_true',
+        help='Enable OpenAI enhancement (20%% enhanced, 80%% template-based)'
+    )
+    parser.add_argument(
+        '--enhancement-percentage',
+        type=float,
+        default=0.20,
+        help='Percentage of homes to generate with OpenAI (default: 0.20)'
+    )
+    parser.add_argument(
+        '--validate-percentage',
+        type=float,
+        default=0.10,
+        help='Percentage of template homes to validate with OpenAI (default: 0.10)'
+    )
     
     args = parser.parse_args()
     
-    # Initialize generators (template-based, no LLM required)
-    home_generator = SyntheticHomeGenerator()
+    # Initialize generators
     area_generator = SyntheticAreaGenerator()
     device_generator = SyntheticDeviceGenerator()
     event_generator = SyntheticEventGenerator()
+    weather_generator = SyntheticWeatherGenerator()
+    carbon_generator = SyntheticCarbonIntensityGenerator()
     
-    logger.info(f"🚀 Starting synthetic home generation (template-based): {args.count} homes")
-    
-    # Generate homes
-    homes = home_generator.generate_homes(
-        target_count=args.count,
-        home_types=args.home_types
-    )
+    # Initialize home generator with optional OpenAI enhancement
+    if args.enable_openai:
+        from src.llm.openai_client import OpenAIClient
+        from src.config import settings
+        
+        if not settings.openai_api_key:
+            logger.error("❌ OpenAI API key not configured. Set OPENAI_API_KEY in .env")
+            return 1
+        
+        logger.info("🚀 Starting synthetic home generation (hybrid: OpenAI-enhanced)")
+        
+        openai_client = OpenAIClient(
+            api_key=settings.openai_api_key,
+            model=settings.openai_model
+        )
+        
+        home_generator = SyntheticHomeGenerator(
+            enable_openai_enhancement=True,
+            openai_client=openai_client
+        )
+        
+        # Generate homes using hybrid approach
+        homes = await home_generator.generate_homes_hybrid(
+            target_count=args.count,
+            home_types=args.home_types,
+            enhancement_percentage=args.enhancement_percentage,
+            validate_percentage=args.validate_percentage
+        )
+        
+        # Log OpenAI usage stats
+        if home_generator.openai_generator:
+            stats = home_generator.openai_generator.get_stats()
+            logger.info(f"OpenAI Generation Stats: {stats}")
+            
+            # Calculate costs (approximate)
+            input_tokens = openai_client.total_input_tokens
+            output_tokens = openai_client.total_output_tokens
+            total_tokens = openai_client.total_tokens_used
+            
+            # GPT-5.1 pricing (approximate - adjust based on actual pricing)
+            input_cost_per_1k = 0.15 / 1000  # $0.15 per 1M tokens
+            output_cost_per_1k = 0.60 / 1000  # $0.60 per 1M tokens
+            
+            estimated_cost = (input_tokens * input_cost_per_1k) + (output_tokens * output_cost_per_1k)
+            
+            logger.info(f"OpenAI Token Usage:")
+            logger.info(f"  - Input tokens: {input_tokens:,}")
+            logger.info(f"  - Output tokens: {output_tokens:,}")
+            logger.info(f"  - Total tokens: {total_tokens:,}")
+            logger.info(f"  - Estimated cost: ${estimated_cost:.4f}")
+            if len(homes) > 0:
+                logger.info(f"  - Cost per home: ${estimated_cost / len(homes):.4f}")
+    else:
+        logger.info(f"🚀 Starting synthetic home generation (template-based): {args.count} homes")
+        
+        home_generator = SyntheticHomeGenerator()
+        
+        # Generate homes using template-only approach
+        homes = home_generator.generate_homes(
+            target_count=args.count,
+            home_types=args.home_types
+        )
     
     if not homes:
         logger.error("❌ No homes generated")
@@ -93,8 +168,54 @@ async def main():
             events = await event_generator.generate_events(devices, days=args.days)
             home['events'] = events
             
+            # Generate weather and carbon intensity data
+            from datetime import datetime, timedelta, timezone
+            start_date = datetime.now(timezone.utc) - timedelta(days=args.days)
+            
+            # Generate weather data
+            weather_data = weather_generator.generate_weather(
+                home,
+                start_date,
+                args.days
+            )
+            
+            # Generate carbon intensity data
+            carbon_data = carbon_generator.generate_carbon_intensity(
+                home,
+                start_date,
+                args.days
+            )
+            
+            # Correlate weather with HVAC and windows
+            weather_correlated_events = weather_generator.correlate_with_hvac(
+                weather_data,
+                events,
+                devices
+            )
+            weather_correlated_events = weather_generator.correlate_with_windows(
+                weather_data,
+                weather_correlated_events,
+                devices
+            )
+            
+            # Correlate carbon with energy devices
+            final_events = carbon_generator.correlate_with_energy_devices(
+                carbon_data,
+                weather_correlated_events,
+                devices
+            )
+            
+            # Update events with correlations
+            home['events'] = final_events
+            
+            # Add external_data section to home
+            home['external_data'] = {
+                'weather': weather_data,
+                'carbon_intensity': carbon_data
+            }
+            
             complete_homes.append(home)
-            logger.info(f"✅ Completed home {i+1}/{len(homes)}: {len(devices)} devices, {len(events)} events")
+            logger.info(f"✅ Completed home {i+1}/{len(homes)}: {len(devices)} devices, {len(final_events)} events, {len(weather_data)} weather points, {len(carbon_data)} carbon points")
             
         except Exception as e:
             logger.error(f"❌ Failed to process home {i+1}: {e}")
@@ -126,9 +247,36 @@ async def main():
     # Device and event totals
     total_devices = sum(len(h.get('devices', [])) for h in complete_homes)
     total_events = sum(len(h.get('events', [])) for h in complete_homes)
+    total_weather_points = sum(len(h.get('external_data', {}).get('weather', [])) for h in complete_homes)
+    total_carbon_points = sum(len(h.get('external_data', {}).get('carbon_intensity', [])) for h in complete_homes)
     
     print(f"\nTotal devices: {total_devices}")
     print(f"Total events: {total_events}")
+    print(f"Total weather data points: {total_weather_points}")
+    print(f"Total carbon intensity data points: {total_carbon_points}")
+    
+    # OpenAI enhancement summary
+    if args.enable_openai and home_generator.openai_generator:
+        stats = home_generator.openai_generator.get_stats()
+        input_tokens = home_generator.openai_client.total_input_tokens
+        output_tokens = home_generator.openai_client.total_output_tokens
+        total_tokens = home_generator.openai_client.total_tokens_used
+        
+        # GPT-5.1 pricing (approximate)
+        input_cost_per_1k = 0.15 / 1000
+        output_cost_per_1k = 0.60 / 1000
+        estimated_cost = (input_tokens * input_cost_per_1k) + (output_tokens * output_cost_per_1k)
+        
+        print("\nOpenAI Enhancement Summary:")
+        print(f"  - Enhanced homes: {stats.get('success_count', 0)}")
+        print(f"  - Failed attempts: {stats.get('failure_count', 0)}")
+        print(f"  - Total tokens: {total_tokens:,}")
+        print(f"  - Input tokens: {input_tokens:,}")
+        print(f"  - Output tokens: {output_tokens:,}")
+        print(f"  - Estimated cost: ${estimated_cost:.4f}")
+        if len(complete_homes) > 0:
+            print(f"  - Cost per home: ${estimated_cost / len(complete_homes):.4f}")
+    
     print("="*60)
     
     return 0
