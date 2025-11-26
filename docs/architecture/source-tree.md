@@ -30,11 +30,12 @@ homeiq/
 │   ├── analysis/                  # Technical analysis and diagnosis
 │   ├── verification/              # Test and verification results
 │   └── archive/                   # Old/superseded implementation notes
-├── services/                      # 19 Microservices (Alpine-based)
-│   ├── admin-api/                 # System monitoring & control API (Port 8003 external → 8004 internal) [Epic 13]
+├── services/                      # 29 Active Microservices (Alpine-based)
+│   ├── admin-api/                 # System monitoring & control API (Port 8003) [Epic 13]
 │   ├── data-api/                  # Feature data hub API (Port 8006) [Epic 13]
-│   ├── ha-setup-service/          # HA Setup & Recommendation Service (Port 8027 external, 8020 internal) [Epic 27-30] ✨ NEW
-│   ├── health-dashboard/          # React frontend (13 tabs, Port 3000) - Added Setup tab
+│   ├── ha-setup-service/          # HA Setup & Recommendation Service (Port 8027 external, 8020 internal) [Epic 27-30]
+│   ├── health-dashboard/          # React frontend (13 tabs, Port 3000)
+│   ├── ai-automation-ui/          # AI automation UI (Port 3001)
 │   ├── websocket-ingestion/       # WebSocket client service (Port 8001)
 │   ├── ❌ enrichment-pipeline/    # DEPRECATED (Port 8002) - Epic 31: Direct writes to InfluxDB
 │   ├── data-retention/            # Data lifecycle management (Port 8080)
@@ -45,16 +46,22 @@ homeiq/
 │   ├── air-quality-service/       # Air quality (Port 8012)
 │   ├── smart-meter-service/       # Smart meter (Port 8014)
 │   ├── energy-correlator/         # Energy correlation analysis (Port 8017)
+│   ├── calendar-service/          # Calendar integration service
 │   ├── ai-automation-service/     # AI automation suggestions (Port 8024 external, 8018 internal) [📖 Complete call tree: implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md]
 │   ├── device-intelligence-service/ # Device capability discovery (Port 8028 external, 8019 internal)
 │   ├── ai-core-service/           # AI orchestration (Port 8018)
 │   ├── openvino-service/          # OpenVINO models (Port 8026 external, 8019 internal)
 │   ├── ml-service/                # ML algorithms (Port 8025 external, 8020 internal)
-│   ├── ner-service/               # Named Entity Recognition (Port 8019)
+│   ├── ner-service/               # Named Entity Recognition (Port 8031)
 │   ├── openai-service/            # GPT-4o-mini client (Port 8020)
+│   ├── ai-code-executor/          # AI code execution service
 │   ├── automation-miner/          # Automation mining (Port 8029 external, 8019 internal)
-│   ├── ha-setup-service/          # HA Setup & Recommendation Service (Port 8027 external, 8020 internal)
-│   └── ha-simulator/              # Test event generator
+│   ├── ha-simulator/              # Test event generator
+│   ├── device-health-monitor/     # Device health monitoring
+│   ├── device-context-classifier/ # Device context classification
+│   ├── device-setup-assistant/     # Device setup assistant
+│   ├── device-database-client/    # Device database client
+│   └── device-recommender/         # Device recommendation service
 ├── shared/                        # Shared Python utilities
 │   ├── logging_config.py          # ⭐ Structured logging + correlation IDs
 │   ├── correlation_middleware.py # Request tracking middleware
@@ -323,21 +330,21 @@ infrastructure/
 ## Current System Status (October 17, 2025)
 
 ### ✅ **FULLY OPERATIONAL**
-- **All Services**: 20/20 healthy and running
+- **All Services**: 29 active microservices healthy and running
 - **Web Interfaces**: localhost:3000 (Dashboard), localhost:3001 (AI UI)
-- **API Services**: All ports 8001-8018 responding correctly
+- **API Services**: All ports responding correctly (8001-8031 range)
 - **MQTT Integration**: Connected to 192.168.1.86:1883
 - **Home Assistant**: Connected to 192.168.1.86:8123
 - **Databases**: InfluxDB (8086) and SQLite working optimally
+- **AI Services**: Containerized AI microservices operational (OpenVINO, ML, NER, OpenAI)
 - **AI Automation**: Daily 3 AM job running (~$0.50/year cost) [📖 Docs](../../implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md)
 
-### **Recent Major Fixes**
-- **Documentation Audit** (Oct 19): Comprehensive review, corrected service count (17→20), moved 4 misplaced files
-- **MQTT Connection**: Fixed IP configuration (was 172.18.0.1, now 192.168.1.86)
-- **Health Checks**: Corrected all service health check endpoints
-- **Data API**: Fixed health check to use localhost:8006
-- **Energy Correlator**: Corrected health check port (8017)
-- **Documentation**: Updated all docs with correct IP addresses
+### **Recent Major Updates (November 2025)**
+- **Service Count**: 29 active microservices (including containerized AI services)
+- **AI Containerization**: Phase 1 complete - OpenVINO, ML, NER services containerized
+- **Rate Limiting**: Enhanced middleware with internal network detection
+- **Synergy Detection**: Energy and event context synergies enabled
+- **Documentation**: Comprehensive architecture updates and service structure documentation
 
 ### When to Use Each
 

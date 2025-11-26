@@ -4,31 +4,31 @@ This is the DEFINITIVE technology selection for the entire Home Assistant Ingest
 
 | Category | Technology | Version | Purpose | Rationale |
 |----------|------------|---------|---------|-----------|
-| **Frontend Language** | TypeScript | 5.2.2 | Type-safe frontend development | Type safety for shared data models and React components |
-| **Frontend Framework** | React | 18.2.0 | Admin dashboard UI | Simple, proven UI framework with excellent ecosystem |
-| **UI Component Library** | TailwindCSS | 3.4.0 | Utility-first CSS framework | Modern, responsive design system with excellent developer experience |
+| **Frontend Language** | TypeScript | 5.6.3 | Type-safe frontend development | Type safety for shared data models and React components |
+| **Frontend Framework** | React | 18.3.1 | Admin dashboard UI | Simple, proven UI framework with excellent ecosystem |
+| **UI Component Library** | TailwindCSS | 3.4.13 | Utility-first CSS framework | Modern, responsive design system with excellent developer experience |
 | **Icons** | Heroicons | 2.2.0 | Icon library | Consistent with TailwindCSS ecosystem |
-| **State Management** | React Context + Hooks | 18.2.0 | Frontend state management | Built-in React state management for current scale |
+| **State Management** | React Context + Hooks / Zustand | 18.3.1 / 4.5.0 | Frontend state management | Built-in React state management + Zustand for AI UI |
 | **Backend Language** | Python | 3.11 | WebSocket client and data processing | Simple, proven async support with excellent libraries |
-| **Backend Framework (API)** | FastAPI | 0.104.1 | REST API for admin interface | High performance, automatic OpenAPI docs, excellent async support |
-| **Backend Framework (WebSocket)** | aiohttp | 3.9.1 | WebSocket client + async HTTP | Native async WebSocket + simple HTTP API for real-time streaming |
-| **Fine-Tuning Library** | PEFT | 0.13.2 | Soft prompt / LoRA training pipeline | Lightweight adapter tuning compatible with CPU-only NUC deployments |
+| **Backend Framework (API)** | FastAPI | 0.121.2 | REST API for admin interface | High performance, automatic OpenAPI docs, excellent async support |
+| **Backend Framework (WebSocket)** | aiohttp | 3.13.2 | WebSocket client + async HTTP | Native async WebSocket + simple HTTP API for real-time streaming |
+| **Fine-Tuning Library** | PEFT | 0.12.0+ | Soft prompt / LoRA training pipeline | Lightweight adapter tuning compatible with CPU-only NUC deployments |
 | **Docker SDK** | docker-py | 7.1.0 | Container management & log aggregation | Modern Python Docker SDK with full urllib3 v2.x support (2025) |
 | **API Style** | REST + WebSocket | - | Admin API + Real-time streaming | REST for admin interface, WebSocket for real-time data |
 | **Database (Time-Series)** | InfluxDB | 2.7 | Time-series data storage | Purpose-built for time-series data and Home Assistant events |
 | **Database (Metadata)** | SQLite | 3.45+ | Metadata and registry storage | Lightweight relational DB for devices, entities, webhooks (Epic 22) |
-| **ORM** | SQLAlchemy | 2.0.25 | Async database access | Modern async ORM for SQLite with excellent FastAPI integration |
-| **SQLite Driver** | aiosqlite | 0.20.0 | Async SQLite driver | Async database driver for SQLAlchemy with SQLite |
-| **Migrations** | Alembic | 1.13.1 | Schema migrations | Standard migration tool for SQLAlchemy schemas |
+| **ORM** | SQLAlchemy | 2.0.44 | Async database access | Modern async ORM for SQLite with excellent FastAPI integration |
+| **SQLite Driver** | aiosqlite | 0.21.0 | Async SQLite driver | Async database driver for SQLAlchemy with SQLite |
+| **Migrations** | Alembic | 1.17.2 | Schema migrations | Standard migration tool for SQLAlchemy schemas |
 | **File Storage** | Local Docker Volumes | - | Persistent data storage | Simple local storage with Docker Compose |
 | **Authentication** | Long-lived Access Tokens | - | Home Assistant authentication | HA's standard auth method for WebSocket connections |
 | **Home Assistant IP** | 192.168.1.86 | - | HA server connection | Fixed IP for API (8123) and MQTT (1883) connections |
-| **Frontend Testing** | Vitest | 3.2.4 | Frontend component testing | Fast, Vite-native testing with excellent TypeScript support (upgraded from 1.0.4) |
-| **Backend Testing** | pytest | 7.4.3+ | Backend service testing | Simple, comprehensive testing for Python services |
-| **E2E Testing** | Playwright | 1.56.0 | End-to-end testing | Modern, reliable E2E testing for full application |
+| **Frontend Testing** | Vitest | 3.2.4 | Frontend component testing | Fast, Vite-native testing with excellent TypeScript support |
+| **Backend Testing** | pytest | 8.3.3 | Backend service testing | Simple, comprehensive testing for Python services |
+| **E2E Testing** | Playwright | 1.48.2 | End-to-end testing | Modern, reliable E2E testing for full application |
 | **Visual Testing** | Puppeteer | Latest | Browser automation & visual verification | Chrome/Chromium automation for UI testing and screenshot verification |
 | **Build Tool** | Docker | 24+ | Containerization | Standard deployment with multi-stage builds |
-| **Bundler** | Vite | 5.0.8 | Frontend build tool | Fast, simple build tool with excellent TypeScript support |
+| **Bundler** | Vite | 5.4.8 | Frontend build tool | Fast, simple build tool with excellent TypeScript support |
 | **Orchestration** | Docker Compose | 2.20+ | Service orchestration | Simple orchestration for local deployment |
 | **CI/CD** | GitHub Actions | - | Automated testing | Free CI/CD with Docker support |
 | **Monitoring** | Python logging | - | Application logging | Built-in logging with structured JSON format |
@@ -57,9 +57,9 @@ This is the DEFINITIVE technology selection for the entire Home Assistant Ingest
 - **Docker Volumes**: Simple, reliable local storage for development and production
 
 ### Testing Strategy
-- **Vitest 3.2.4**: Fast, modern testing for React components with TypeScript support and enhanced performance (major upgrade from 1.0.4)
-- **pytest 7.4+**: Comprehensive testing framework for Python services
-- **Playwright 1.56.0**: Reliable E2E testing across multiple browsers with latest features
+- **Vitest 3.2.4**: Fast, modern testing for React components with TypeScript support and enhanced performance
+- **pytest 8.3.3**: Comprehensive testing framework for Python services with async support
+- **Playwright 1.48.2**: Reliable E2E testing across multiple browsers with latest features
 - **Puppeteer**: Browser automation for visual testing, screenshot verification, and UI regression testing
   - Comprehensive test suite: `tests/visual/test-all-pages.js` validates all pages against design specifications
   - Quick check tool: `tests/visual/test-quick-check.js` for fast single-page validation
@@ -179,13 +179,14 @@ The AI Automation Service includes rate limiting middleware to prevent API abuse
 ## System Status (October 19, 2025)
 
 ### ✅ **CURRENT STATUS: FULLY OPERATIONAL**
-- **All Services**: 17/17 healthy and running (including log-aggregator)
+- **All Services**: 29 active microservices healthy and running
 - **MQTT Integration**: Connected and functional
 - **Web Interfaces**: Both dashboards accessible (3000, 3001)
-- **API Services**: All endpoints responding correctly (71 total endpoints)
+- **API Services**: All endpoints responding correctly
 - **Database**: InfluxDB and SQLite working optimally
 - **HA Setup Service**: Health monitoring active, score 94/100
-- **Log Aggregation**: Active and collecting logs from all containers (2150+ entries)
+- **Log Aggregation**: Active and collecting logs from all containers
+- **AI Services**: Containerized AI microservices operational (OpenVINO, ML, NER, OpenAI)
 - **Success Rate**: 100% - No critical issues
 
 ### **Recent Fixes Applied (November 2025)**
@@ -225,9 +226,49 @@ The AI Automation Service includes rate limiting middleware to prevent API abuse
 - **Energy Correlator**: Corrected health check port (8017)
 - **Documentation**: Updated all docs with correct IP addresses
 
+## AI/ML Technology Stack (Containerized Services)
+
+**Phase 1 AI Containerization** (November 2025):
+- **OpenVINO Service**: INT8 optimized models (all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small)
+- **ML Service**: Classical ML (K-Means clustering, Isolation Forest)
+- **NER Service**: Named Entity Recognition (BERT-based)
+- **OpenAI Service**: GPT-4o-mini API client
+- **Transformers**: 4.40.0+ with optimum-intel 1.21.0+ for OpenVINO integration
+- **PyTorch**: 2.4.0+ CPU-only for NUC deployments
+- **LangChain**: 0.3.0+ for LLM orchestration
+- **Synthetic Home**: 4.1.0+ for training data generation
+
+## Context7 Knowledge Base Coverage
+
+**Status:** 64% coverage (16/25 technologies cached)
+
+**Cached Technologies:**
+- Frontend: TypeScript, React, TailwindCSS, Heroicons, Vite, Vitest, Playwright, Puppeteer
+- Backend: FastAPI, aiohttp, pytest, Alembic
+- Database: InfluxDB, SQLite
+- AI/ML: Transformers, sentence-transformers
+- Infrastructure: Docker, Home Assistant
+
+**Missing Documentation (36%):**
+- **Critical:** SQLAlchemy, Pydantic, aiosqlite, Zustand
+- **AI/ML:** PyTorch, PEFT, LangChain, OpenVINO, optimum-intel
+- **Utilities:** docker-py
+
+**Fetch Plan:** See `docs/kb/TECH_STACK_KB_FETCH_PLAN.md` for commands to fetch missing documentation.
+
+**To fetch missing docs:**
+```bash
+@bmad-master
+*context7-docs sqlalchemy async-orm
+*context7-docs pydantic v2-migration
+*context7-docs aiosqlite async-patterns
+*context7-docs zustand state-management
+# ... (see fetch plan for complete list)
+```
+
 ## Future Technology Considerations
 
-- **State Management**: Consider Redux Toolkit if state complexity grows
+- **State Management**: Zustand already integrated for AI UI, Redux Toolkit if complexity grows further
 - **Database**: Current hybrid architecture (InfluxDB + SQLite) excellent for current scale
 - **PostgreSQL**: Consider if need multi-server writes or >10k devices
 - **Caching**: Redis could be added for API response caching if needed
