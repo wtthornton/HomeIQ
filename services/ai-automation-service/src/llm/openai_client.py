@@ -26,9 +26,9 @@ import logging
 import re
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, APIError, RateLimitError
 from pydantic import BaseModel, Field
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential, wait_fixed
 
 from ..utils.token_counter import count_message_tokens, get_token_breakdown
 from .cost_tracker import CostTracker
@@ -408,9 +408,9 @@ actions:
         logger.info("Usage statistics reset")
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(5),  # Increased attempts for rate limits
+        wait=wait_exponential(multiplier=2, min=4, max=60),  # Longer waits for rate limits
+        retry=retry_if_exception_type((RateLimitError, APIError)),  # Only retry on API errors
         reraise=True
     )
     async def generate_with_unified_prompt(
@@ -633,6 +633,36 @@ actions:
                 # Parse structured description response
                 return self._parse_description_response(content.strip())
 
+        except RateLimitError as e:
+            # Rate limit error - check if it's quota or rate limit
+            error_body = getattr(e, 'body', {}) or {}
+            if isinstance(error_body, str):
+                import json
+                try:
+                    error_body = json.loads(error_body)
+                except:
+                    error_body = {}
+            error_type = error_body.get('error', {}).get('type', '') if isinstance(error_body, dict) else ''
+            error_code = error_body.get('error', {}).get('code', '') if isinstance(error_body, dict) else ''
+            
+            if error_type == 'insufficient_quota' or error_code == 'insufficient_quota':
+                logger.error(
+                    f"❌ OpenAI API quota exceeded. Please check your billing and quota at "
+                    f"https://platform.openai.com/account/billing. Error: {e}"
+                )
+                raise APIError(
+                    message="Insufficient quota. Please add credits to your OpenAI account.",
+                    body=error_body,
+                    request=getattr(e, 'request', None)
+                ) from e
+            else:
+                # Rate limit (not quota) - will be retried by tenacity
+                logger.warning(f"⚠️ OpenAI API rate limit hit, will retry with exponential backoff: {e}")
+                raise
+        except APIError as e:
+            # Other API errors
+            logger.error(f"❌ OpenAI API error: {e}")
+            raise
         except Exception as e:
             logger.error(f"❌ Unified prompt generation error: {e}")
             import traceback

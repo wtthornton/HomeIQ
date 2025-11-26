@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     # Scheduling
     analysis_schedule: str = "0 3 * * *"  # 3 AM daily (cron format)
 
+    # Quality Framework Filtering (Quality Framework Enhancement 2025)
+    pattern_min_quality_score: float = 0.5  # Minimum quality score for pattern acceptance (0.0-1.0)
+    synergy_min_quality_score: float = 0.6  # Minimum quality score for synergy acceptance (0.0-1.0)
+    enable_quality_filtering: bool = True  # Enable quality-based filtering for patterns and synergies
+
     # Pattern detection thresholds (single-home tuning)
     time_of_day_min_occurrences: int = 10
     time_of_day_base_confidence: float = 0.7
@@ -124,11 +129,12 @@ class Settings(BaseSettings):
 
     # Model Selection Configuration (Optimized for Cost/Quality Balance - 2025)
     # GPT-5.1: Best quality with 50% cost savings vs GPT-4o
-    # Using GPT-5.1 for all tasks (not mini) as per user request for consistent quality
+    # GPT-5.1-mini: 80% cost savings with 90-95% quality for well-defined tasks
+    # Phase 1: Switched low-risk tasks to GPT-5.1-mini for 80% cost savings
     suggestion_generation_model: str = "gpt-5.1"  # Best quality suggestions with 50% cost savings
     yaml_generation_model: str = "gpt-5.1"  # Best quality YAML generation (50% cheaper than GPT-4o)
-    classification_model: str = "gpt-5.1"  # Best quality classification
-    entity_extraction_model: str = "gpt-5.1"  # Best quality entity extraction
+    classification_model: str = "gpt-5.1-mini"  # Phase 1: 80% cost savings, 95% quality for classification
+    entity_extraction_model: str = "gpt-5.1-mini"  # Phase 1: 80% cost savings, 95% quality for extraction
 
     # Token Budget Configuration (Phase 2)
     max_entity_context_tokens: int = 7_000  # Limit entity context size to reduce input tokens (reduced from 10_000 for optimization)
@@ -141,6 +147,13 @@ class Settings(BaseSettings):
     entity_cache_ttl_seconds: int = 300  # 5-minute TTL for enriched entity data cache
     enable_prompt_caching: bool = True  # Enable OpenAI native prompt caching (90% discount)
     conversation_history_max_turns: int = 3  # Keep only last N conversation turns
+
+    # Synthetic Home Generation OpenAI Enhancement
+    synthetic_enable_openai: bool = False  # Enable OpenAI enhancement
+    synthetic_enhancement_percentage: float = 0.20  # 20% OpenAI-enhanced
+    synthetic_validation_percentage: float = 0.10  # 10% validation
+    synthetic_openai_model: str = "gpt-5.1"  # Model for synthetic generation
+    synthetic_openai_temperature: float = 0.3  # Temperature for structured outputs
 
     # Soft Prompt Fallback (single-home tuning)
     soft_prompt_enabled: bool = True
@@ -401,6 +414,28 @@ class Settings(BaseSettings):
     When enabled, the service will attempt to match suggestions to blueprints
     before falling back to AI generation. Set to False to disable blueprint matching.
     """
+
+    # GNN Synergy Detection Configuration
+    gnn_hidden_dim: int = 64
+    """Hidden dimension size for GNN model (default: 64)"""
+
+    gnn_num_layers: int = 2
+    """Number of GNN layers (default: 2, start conservative)"""
+
+    gnn_learning_rate: float = 0.001
+    """Learning rate for GNN training (default: 0.001)"""
+
+    gnn_batch_size: int = 32
+    """Batch size for GNN training (default: 32)"""
+
+    gnn_epochs: int = 30
+    """Number of training epochs (default: 30, start conservative)"""
+
+    gnn_early_stopping_patience: int = 5
+    """Early stopping patience in epochs (default: 5)"""
+
+    gnn_model_path: str = "/app/models/gnn_synergy_detector.pth"
+    """Path to save/load GNN model (default: /app/models/gnn_synergy_detector.pth)"""
 
     model_config = ConfigDict(
         env_file="infrastructure/env.ai-automation",

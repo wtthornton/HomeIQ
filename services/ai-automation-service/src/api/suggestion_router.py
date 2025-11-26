@@ -22,6 +22,7 @@ from ..database import (
     get_db,
     get_patterns,
     get_suggestions,
+    get_suggestions_with_home_type,
     record_manual_refresh,
     store_suggestion,
 )
@@ -873,7 +874,35 @@ async def list_suggestions(
     """
     try:
         fetch_limit = max(limit * 10, 500)
-        raw_suggestions = await get_suggestions(db, status=status_filter, limit=fetch_limit)
+        
+        # Get home type for suggestion ranking (Home Type Integration)
+        home_type = None
+        try:
+            from ..clients.home_type_client import HomeTypeClient
+            from ..config import settings
+            home_type_client = HomeTypeClient(
+                base_url="http://ai-automation-service:8018",
+                api_key=settings.ai_automation_api_key
+            )
+            home_type_data = await home_type_client.get_home_type(use_cache=True)
+            home_type = home_type_data.get('home_type')
+            await home_type_client.close()
+            if home_type:
+                logger.debug(f"Using home type '{home_type}' for suggestion ranking")
+        except Exception as e:
+            logger.debug(f"Home type unavailable, using default ranking: {e}")
+            home_type = None
+        
+        # Use home type-aware ranking if available
+        if home_type:
+            raw_suggestions = await get_suggestions_with_home_type(
+                db, 
+                status=status_filter, 
+                limit=fetch_limit,
+                home_type=home_type
+            )
+        else:
+            raw_suggestions = await get_suggestions(db, status=status_filter, limit=fetch_limit)
 
         # Phase 3: Build user profile for personalization
         user_profile = None
@@ -908,8 +937,8 @@ async def list_suggestions(
 
             # Extract source_type and context from metadata for UI display
             source_type = 'pattern'  # Default
-            suggestion_metadata = s.metadata if isinstance(s.metadata, dict) else {}
-            if isinstance(s.metadata, dict):
+            suggestion_metadata = s.suggestion_metadata if isinstance(s.suggestion_metadata, dict) else {}
+            if isinstance(s.suggestion_metadata, dict):
                 source_type = suggestion_metadata.get('source_type', 'pattern')
             
             # Extract context data (Phase 2 improvement)

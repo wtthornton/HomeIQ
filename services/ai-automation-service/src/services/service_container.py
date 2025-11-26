@@ -137,7 +137,7 @@ class ServiceContainer:
                 # Keep deprecated params for backward compatibility
                 openai_api_key=settings.openai_api_key,
                 ner_model=settings.ner_model,
-                openai_model=settings.openai_model
+                openai_model=getattr(settings, 'entity_extraction_model', settings.openai_model)  # Phase 1: Use entity_extraction_model
             )
             logger.info("✅ EntityExtractor initialized (using UnifiedExtractionPipeline)")
         return self._entity_extractor

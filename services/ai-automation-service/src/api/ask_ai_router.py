@@ -617,8 +617,8 @@ async def search_entities(
             search_lower = search_term.lower()
             entities = [
                 e for e in entities
-                if search_lower in e.get('entity_id', '').lower() or
-                   search_lower in e.get('friendly_name', '').lower()
+                if search_lower in (e.get('entity_id') or '').lower() or
+                   search_lower in (e.get('friendly_name') or '').lower()
             ]
 
         # Limit results
@@ -874,7 +874,14 @@ async def get_clarification_services(db: AsyncSession = None):
 
         _clarification_detector = ClarificationDetector(rag_client=rag_client)
     if _question_generator is None and openai_client:
-        _question_generator = QuestionGenerator(openai_client)
+        # Phase 1: Use classification model for question generation (80% cost savings)
+        from ..config import settings
+        classification_model = getattr(settings, 'classification_model', 'gpt-5.1-mini')
+        if classification_model != openai_client.model:
+            question_client = OpenAIClient(api_key=openai_client.api_key, model=classification_model)
+        else:
+            question_client = openai_client
+        _question_generator = QuestionGenerator(question_client)
     if _answer_validator is None:
         _answer_validator = AnswerValidator()
     if _confidence_calculator is None:
@@ -1359,7 +1366,7 @@ async def map_devices_to_entities(
                 # Extract location from Q&A answers
                 qa_list = clarification_context.get('questions_and_answers', [])
                 for qa in qa_list:
-                    answer_text = qa.get('answer', '').lower()
+                    answer_text = (qa.get('answer') or '').lower()
                     # Look for location mentions (office, living room, etc.)
                     if not context_location:
                         # Simple location extraction (can be enhanced)
@@ -1612,11 +1619,11 @@ async def map_devices_to_entities(
                             # Skip if this entity is already mapped to another device (unless it's an exact match)
                             if entity_id in matched_entity_ids:
                                 # Still allow exact matches even if entity is already mapped (might be a group)
-                                friendly_name = entity_data.get('friendly_name', '').lower()
+                                friendly_name = (entity_data.get('friendly_name') or '').lower()
                                 if device_name_lower != friendly_name:
                                     continue  # Skip already-matched entities for non-exact matches
 
-                            friendly_name = entity_data.get('friendly_name', '').lower()
+                            friendly_name = (entity_data.get('friendly_name') or '').lower()
                             entity_name_part = entity_id.split('.')[-1].lower() if '.' in entity_id else ''
 
                             # Calculate match score (higher = better)
@@ -1745,7 +1752,7 @@ def _pre_consolidate_device_names(
         # Check Q&A answers for device mentions
         qa_list = clarification_context.get('questions_and_answers', [])
         for qa in qa_list:
-            answer_text = qa.get('answer', '').lower()
+            answer_text = (qa.get('answer') or '').lower()
             # Extract potential device names from answers
             # Look for terms that match devices_involved
             for device in devices_involved:
@@ -1755,7 +1762,7 @@ def _pre_consolidate_device_names(
                     logger.debug(f"🔍 Preserving '{device}' - mentioned in clarification: '{answer_text[:50]}...'")
         
         # Also check original query (preserve terms mentioned by user in their original request)
-        original_query = clarification_context.get('original_query', '').lower()
+        original_query = (clarification_context.get('original_query') or '').lower()
         for device in devices_involved:
             device_lower = device.lower()
             if device_lower in original_query:
@@ -2016,7 +2023,7 @@ async def enhance_suggestion_with_entity_ids(
 
         # Track where this device is mentioned
         for field in ['description', 'trigger_summary', 'action_summary']:
-            text = enhanced.get(field, '').lower()
+            text = (enhanced.get(field) or '').lower()
             if friendly_name.lower() in text:
                 entity_id_annotations[friendly_name]['mentioned_in'].append(field)
 
@@ -2075,6 +2082,11 @@ async def simplify_query_for_test(suggestion: dict[str, Any], openai_client) -> 
     """
     Simplify automation description to test core behavior using AI.
     
+    Phase 1: Uses classification_model (gpt-5.1-mini) for 80% cost savings.
+    """
+    """
+    Simplify automation description to test core behavior using AI.
+    
     Uses OpenAI to intelligently extract just the core action without conditions.
     
     Examples:
@@ -2102,6 +2114,15 @@ async def simplify_query_for_test(suggestion: dict[str, Any], openai_client) -> 
         # Fallback to regex if OpenAI not available
         logger.warning("OpenAI not available, using fallback simplification")
         return fallback_simplify(suggestion.get('description', ''))
+    
+    # Phase 1: Use classification model for command simplification (80% cost savings)
+    from ..config import settings
+    classification_model = getattr(settings, 'classification_model', 'gpt-5.1-mini')
+    if classification_model != openai_client.model:
+        # Create temporary client with classification model
+        simplify_client = OpenAIClient(api_key=openai_client.api_key, model=classification_model)
+    else:
+        simplify_client = openai_client
 
     description = suggestion.get('description', '')
     trigger = suggestion.get('trigger_summary', '')
@@ -2157,8 +2178,8 @@ CONSTRAINTS:
 
     try:
         logger.info(" About to call OpenAI API")
-        response = await openai_client.client.chat.completions.create(
-            model=openai_client.model,
+        response = await simplify_client.client.chat.completions.create(
+            model=simplify_client.model,
             messages=[
                 {
                     "role": "system",
@@ -2227,7 +2248,7 @@ async def resolve_entities_to_specific_devices(
 
     for entity in entities:
         entity_type = entity.get('type', '')
-        entity_name = entity.get('name', '').lower()
+        entity_name = (entity.get('name') or '').lower()
 
         if entity_type == 'area':
             mentioned_locations.append(entity.get('name', ''))
@@ -2244,7 +2265,7 @@ async def resolve_entities_to_specific_devices(
                 mentioned_domains.add('light')  # Hue lights are light domain
 
             # Check if entity has domain already
-            domain = entity.get('domain', '').lower()
+            domain = (entity.get('domain') or '').lower()
             if domain and domain != 'unknown':
                 mentioned_domains.add(domain)
 
@@ -2258,6 +2279,8 @@ async def resolve_entities_to_specific_devices(
     # Query HA for specific devices in each location
     resolved_devices = []
     for location in mentioned_locations:
+        if not location or not isinstance(location, str):
+            continue
         for domain in mentioned_domains:
             try:
                 # Normalize location name (try both formats)
@@ -2293,7 +2316,7 @@ async def resolve_entities_to_specific_devices(
                         # Check if this device is already in entities (avoid duplicates)
                         already_exists = any(
                             e.get('type') == 'device' and
-                            (e.get('name', '').lower() == friendly_name.lower() or
+                            ((e.get('name') or '').lower() == friendly_name.lower() or
                              e.get('entity_id') == entity_id)
                             for e in entities
                         )
@@ -2323,16 +2346,16 @@ async def resolve_entities_to_specific_devices(
 
         # Create updated entities list
         updated_entities = []
-        generic_device_names = {e.get('name', '').lower() for e in device_entities}
+        generic_device_names = {(e.get('name') or '').lower() for e in device_entities}
 
         for entity in entities:
             # If this is a generic device entity that was resolved, skip it (we'll add specific ones)
             if entity.get('type') == 'device':
-                entity_name_lower = entity.get('name', '').lower()
+                entity_name_lower = (entity.get('name') or '').lower()
                 # Check if this generic device name was resolved
                 was_resolved = any(
-                    entity_name_lower in resolved_dev.get('resolved_from', '').lower() or
-                    resolved_dev.get('resolved_from', '').lower() in entity_name_lower
+                    entity_name_lower in (resolved_dev.get('resolved_from') or '').lower() or
+                    (resolved_dev.get('resolved_from') or '').lower() in entity_name_lower
                     for resolved_dev in resolved_devices
                 )
                 if was_resolved:
@@ -2473,9 +2496,9 @@ async def generate_technical_prompt(
 
     # Extract trigger entities from suggestion
     trigger_entities = []
-    trigger_summary = suggestion.get('trigger_summary', '').lower()
-    action_summary = suggestion.get('action_summary', '').lower()
-    description = suggestion.get('description', '').lower()
+    trigger_summary = (suggestion.get('trigger_summary') or '').lower()
+    action_summary = (suggestion.get('action_summary') or '').lower()
+    description = (suggestion.get('description') or '').lower()
 
     # Classify entities as triggers or actions based on domain and summary
     for device_name, entity_id in validated_entities.items():
@@ -2799,7 +2822,7 @@ async def _score_entities_by_relevance(
     if clarification_context and clarification_context.get('questions_and_answers'):
         qa_list = clarification_context['questions_and_answers']
         for qa in qa_list:
-            answer = qa.get('answer', '').lower()
+            answer = (qa.get('answer') or '').lower()
             clarification_keywords.update(answer.split())
             
             # Extract entities from selected_entities
@@ -2831,6 +2854,8 @@ async def _score_entities_by_relevance(
             entity_area_id = (enriched.get('area_id') or '').lower()
             entity_area_name = (enriched.get('area_name') or '').lower()
             for location in mentioned_locations:
+                if not location or not isinstance(location, str):
+                    continue
                 location_lower = location.lower().replace('_', ' ')
                 if (location_lower in entity_area_id or
                     entity_area_id in location_lower or
@@ -3328,7 +3353,7 @@ async def generate_suggestions_from_query(
                     if clarification_context:
                         qa_list = clarification_context.get('questions_and_answers', [])
                         for qa in qa_list:
-                            answer = qa.get('answer', '').lower()
+                            answer = (qa.get('answer') or '').lower()
                             for keyword in location_keywords:
                                 if keyword in answer:
                                     normalized = keyword.replace(' ', '_')
@@ -3351,7 +3376,7 @@ async def generate_suggestions_from_query(
                     
                     if entities:
                         for entity in entities:
-                            domain = entity.get('domain', '').lower()
+                            domain = (entity.get('domain') or '').lower()
                             if domain and domain != 'unknown':
                                 mentioned_domains.add(domain)
                             # Also check name for domain hints using fuzzy matching
@@ -3567,6 +3592,8 @@ async def generate_suggestions_from_query(
                             # CRITICAL: Only match if entity has an area_id or area_name (empty strings match everything with 'in' operator)
                             if entity_area_id or entity_area_name:
                                 for location in mentioned_locations:
+                                    if not location or not isinstance(location, str):
+                                        continue
                                     location_lower = location.lower().replace('_', ' ')
                                     # Check area_id and area_name
                                     if (location_lower in entity_area_id or
@@ -3587,7 +3614,7 @@ async def generate_suggestions_from_query(
 
                     # Step 2: Further filter by device name if specific names are mentioned (SECONDARY)
                     if entities:
-                        extracted_device_names = [e.get('name', '').lower().strip() for e in entities if e.get('name')]
+                        extracted_device_names = [(e.get('name') or '').lower().strip() for e in entities if e.get('name')]
                         if extracted_device_names:
                             # Check if extracted names are generic domain terms
                             specific_names = [name for name in extracted_device_names if name not in generic_terms]
@@ -3639,7 +3666,7 @@ async def generate_suggestions_from_query(
                                             break
 
                                     # Also check if entity domain matches mentioned domains
-                                    entity_domain = enriched.get('domain', '').lower()
+                                    entity_domain = (enriched.get('domain') or '').lower()
                                     if entity_domain in mentioned_domains:
                                         device_name_filtered.add(entity_id)
 
@@ -4359,6 +4386,29 @@ async def generate_suggestions_from_query(
                             f"({before_consolidation_count - len(consolidated_devices)} redundant entries removed)"
                         )
                     devices_involved = consolidated_devices
+                    
+                    # CRITICAL: Filter devices_involved to ONLY include devices that are in validated_entities
+                    # This prevents unmatched devices from appearing in the UI
+                    # Note: Consolidation may keep some devices that aren't in validated_entities (edge case),
+                    # so we filter them out here as a safety measure
+                    validated_device_names = set(validated_entities.keys())
+                    filtered_devices = [d for d in devices_involved if d in validated_device_names]
+                    if len(filtered_devices) < len(devices_involved):
+                        removed_devices = [d for d in devices_involved if d not in validated_device_names]
+                        logger.warning(
+                            f"⚠️ FILTERED devices_involved for suggestion {i+1}: "
+                            f"Removed {len(devices_involved) - len(filtered_devices)} unmatched devices: {removed_devices[:5]}"
+                        )
+                        devices_involved = filtered_devices
+                    
+                    # Additional safety check: Ensure we don't have an empty devices_involved if validated_entities exists
+                    if not devices_involved and validated_entities:
+                        # Fallback: Use device names from validated_entities keys
+                        logger.warning(
+                            f"⚠️ devices_involved is empty but validated_entities has {len(validated_entities)} entries. "
+                            f"Using validated_entities keys as fallback."
+                        )
+                        devices_involved = list(validated_entities.keys())[:10]  # Limit to first 10 to avoid UI clutter
 
                 # Create base suggestion
                 # FINAL CHECK: Ensure no duplicates in devices_involved before storing
@@ -4636,6 +4686,13 @@ async def process_natural_language_query(
     """
     start_time = datetime.now()
     query_id = f"query-{uuid.uuid4().hex[:8]}"
+
+    # Validate query is not None or empty
+    if not request.query or not isinstance(request.query, str) or not request.query.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Query is required and must be a non-empty string"
+        )
 
     logger.info(f"🤖 Processing Ask AI query: {request.query}")
 
@@ -5657,7 +5714,7 @@ async def _re_enrich_entities_from_qa(
                     selected_entity_names.append(entity_ref)
 
         # NEW: Check for "all X lights in Y area" patterns
-        answer_text = qa.get('answer', '').lower()
+        answer_text = (qa.get('answer') or '').lower()
 
         # Pattern: "all four lights in office", "all 4 lights in office", "all the lights in office"
         # Try patterns in order of specificity
@@ -5735,8 +5792,8 @@ async def _re_enrich_entities_from_qa(
 
     # Create entity lookup from existing entities
     entity_by_id = {e.get('entity_id'): e for e in entities if e.get('entity_id')}
-    entity_by_name = {e.get('name', '').lower(): e for e in entities if e.get('name')}
-    entity_by_friendly_name = {e.get('friendly_name', '').lower(): e for e in entities if e.get('friendly_name')}
+    entity_by_name = {(e.get('name') or '').lower(): e for e in entities if e.get('name')}
+    entity_by_friendly_name = {(e.get('friendly_name') or '').lower(): e for e in entities if e.get('friendly_name')}
 
     # Add selected entities that aren't already in the list
     new_entities = []
@@ -5779,8 +5836,8 @@ async def _re_enrich_entities_from_qa(
             # Try to find by partial match
             found = False
             for existing_entity in entities:
-                existing_name = existing_entity.get('name', '').lower()
-                existing_friendly = existing_entity.get('friendly_name', '').lower()
+                existing_name = (existing_entity.get('name') or '').lower()
+                existing_friendly = (existing_entity.get('friendly_name') or '').lower()
                 if (entity_name_lower in existing_name or
                     entity_name_lower in existing_friendly or
                     existing_name in entity_name_lower):
@@ -5808,8 +5865,8 @@ async def _re_enrich_entities_from_qa(
 
         # Mark entities that were explicitly selected
         entity_id = entity.get('entity_id', '')
-        entity_name = entity.get('name', '').lower()
-        entity_friendly = entity.get('friendly_name', '').lower()
+        entity_name = (entity.get('name') or '').lower()
+        entity_friendly = (entity.get('friendly_name') or '').lower()
 
         for qa in qa_list:
             selected = qa.get('selected_entities', [])
@@ -7635,8 +7692,19 @@ class TestResultAnalyzer:
     """
 
     def __init__(self, openai_client: OpenAIClient):
-        """Initialize analyzer with OpenAI client"""
-        self.client = openai_client
+        """
+        Initialize analyzer with OpenAI client.
+        
+        Phase 1: Uses classification_model (gpt-5.1-mini) for 80% cost savings.
+        """
+        # Phase 1: Use classification model for test analysis (80% cost savings)
+        from ..config import settings
+        classification_model = getattr(settings, 'classification_model', 'gpt-5.1-mini')
+        if classification_model != openai_client.model:
+            # Create client with classification model
+            self.client = OpenAIClient(api_key=openai_client.api_key, model=classification_model)
+        else:
+            self.client = openai_client
 
     async def analyze_test_execution(
         self,
@@ -8193,6 +8261,8 @@ async def restore_stripped_components(
     """
     Restore components that were stripped during testing.
     
+    Phase 1: Uses classification_model (gpt-5.1-mini) for 80% cost savings.
+    
     Task 1.4 + Task 2.5: Explicit Component Restoration with Enhanced Support
     
     Task 2.5 Enhancements:
@@ -8209,6 +8279,14 @@ async def restore_stripped_components(
     Returns:
         Updated suggestion with restoration log
     """
+    # Phase 1: Use classification model for component restoration (80% cost savings)
+    from ..config import settings
+    classification_model = getattr(settings, 'classification_model', 'gpt-5.1-mini')
+    if classification_model != openai_client.model:
+        # Create temporary client with classification model
+        restore_client = OpenAIClient(api_key=openai_client.api_key, model=classification_model)
+    else:
+        restore_client = openai_client
     # Extract stripped components from test result if available
     stripped_components = []
     if test_result and 'stripped_components' in test_result:
@@ -8234,7 +8312,7 @@ async def restore_stripped_components(
         }
 
     # Use OpenAI to intelligently restore components with context
-    if not openai_client:
+    if not restore_client:
         logger.warning("OpenAI client not available, skipping intelligent restoration")
         # Preserve all original suggestion data including validated_entities
         return {
@@ -8311,8 +8389,8 @@ Response format: ONLY JSON, no other text:
 }}"""
 
     try:
-        response = await openai_client.client.chat.completions.create(
-            model=openai_client.model,
+        response = await restore_client.client.chat.completions.create(
+            model=restore_client.model,
             messages=[
                 {
                     "role": "system",

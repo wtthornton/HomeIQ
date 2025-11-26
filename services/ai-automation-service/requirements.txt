@@ -27,7 +27,7 @@ influxdb-client>=1.40.0,<2.0.0  # Stable InfluxDB client
 
 # Data Processing
 pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (November 2025)
-numpy>=1.26.0,<2.0.0  # Stable NumPy 1.x (compatible with pandas and openvino)
+numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (compatible with pandas and openvino, excludes 2.x to avoid OpenVINO conflict)
 
 # Machine Learning
 scikit-learn>=1.5.0,<2.0.0  # Stable scikit-learn 1.5.x (November 2025)
@@ -49,6 +49,7 @@ transformers>=4.40.0,<5.0.0  # Stable Transformers (compatible with optimum-inte
 # Note: torch CPU-only version must be installed from PyTorch index (see --extra-index-url above)
 # Using version range without +cpu label (pip will resolve from CPU index)
 torch>=2.4.0,<3.0.0  # Stable PyTorch 2.4.x CPU-only (November 2025)
+torch-geometric>=2.5.0,<3.0.0  # Stable PyTorch Geometric for GNN (CPU-compatible, November 2025)
 openvino>=2024.4.0,<2025.0.0  # Stable OpenVINO 2024.x (November 2025)
 optimum-intel>=1.21.0,<2.0.0  # Stable OpenVINO integration with Transformers
 peft>=0.12.0,<1.0.0  # Stable LoRA fine-tuning support
