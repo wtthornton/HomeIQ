@@ -14,8 +14,9 @@ from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from home_type.home_type_classifier import FineTunedHomeTypeClassifier
+from src.home_type.home_type_classifier import FineTunedHomeTypeClassifier
 
 logging.basicConfig(
     level=logging.INFO,

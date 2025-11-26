@@ -105,7 +105,11 @@ class PatternContextService:
         # Recency score: patterns seen in last 7 days get full score
         # Older patterns get diminishing score
         if pattern.last_seen:
-            days_old = (datetime.now(timezone.utc) - pattern.last_seen).days
+            # Ensure timezone-aware datetime for subtraction
+            last_seen = pattern.last_seen
+            if last_seen.tzinfo is None:
+                last_seen = last_seen.replace(tzinfo=timezone.utc)
+            days_old = (datetime.now(timezone.utc) - last_seen).days
             if days_old <= 7:
                 recency = 1.0
             elif days_old <= 30:

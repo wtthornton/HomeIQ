@@ -266,18 +266,31 @@ class UserProfileBuilder:
         """Determine user's automation style (conservative, balanced, aggressive)."""
         try:
             # Analyze approval rate and suggestion types
-            # Extract source_type from JSON metadata field
-            source_type_expr = func.json_extract(Suggestion.metadata, '$.source_type').label('source_type')
-            
-            query = (
-                select(
-                    UserFeedback.action,
-                    source_type_expr,
-                    func.count(UserFeedback.id).label('count')
+            # Extract source_type from JSON suggestion_metadata field (renamed from metadata to avoid SQLAlchemy conflict)
+            # Handle case where suggestion_metadata column doesn't exist yet (graceful fallback)
+            try:
+                source_type_expr = func.json_extract(Suggestion.suggestion_metadata, '$.source_type').label('source_type')
+                query = (
+                    select(
+                        UserFeedback.action,
+                        source_type_expr,
+                        func.count(UserFeedback.id).label('count')
+                    )
+                    .join(Suggestion, UserFeedback.suggestion_id == Suggestion.id)
+                    .group_by(UserFeedback.action, source_type_expr)
                 )
-                .join(Suggestion, UserFeedback.suggestion_id == Suggestion.id)
-                .group_by(UserFeedback.action, source_type_expr)
-            )
+            except (AttributeError, Exception) as col_error:
+                # Column doesn't exist yet - use default 'pattern' for all suggestions
+                logger.debug(f"suggestion_metadata column not found, using default source_type: {col_error}")
+                query = (
+                    select(
+                        UserFeedback.action,
+                        func.literal('pattern').label('source_type'),  # Default to pattern
+                        func.count(UserFeedback.id).label('count')
+                    )
+                    .join(Suggestion, UserFeedback.suggestion_id == Suggestion.id)
+                    .group_by(UserFeedback.action)
+                )
 
             result = await db.execute(query)
             rows = result.all()
