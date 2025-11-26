@@ -16,26 +16,55 @@ Implement calendar → presence correlation, implement presence → device corre
 
 ## Acceptance Criteria
 
-- [ ] Calendar → presence correlation implemented
-- [ ] Presence → device correlation implemented
-- [ ] Validation logic added
-- [ ] All correlations validated
+- [x] Calendar → presence correlation implemented
+- [x] Presence → device correlation implemented
+- [x] Validation logic added
+- [x] All correlations validated
 
 ## Implementation Tasks
 
-- [ ] Implement calendar-presence correlation
-- [ ] Implement presence-device correlation
-- [ ] Add validation logic
-- [ ] Create unit tests
+- [x] Implement calendar-presence correlation
+- [x] Implement presence-device correlation
+- [x] Add validation logic
+- [x] Create unit tests
 
 ## Definition of Done
 
-- [ ] Calendar-presence correlation implemented
-- [ ] Presence-device correlation implemented
-- [ ] Validation working
-- [ ] All tests passing
+- [x] Calendar-presence correlation implemented
+- [x] Presence-device correlation implemented
+- [x] Validation working
+- [x] All tests passing
 
 ---
 
-**Created**: November 25, 2025
+## Dev Agent Record
+
+### Agent Model Used
+Claude Sonnet 4.5 (via Cursor)
+
+### Completion Notes
+- ✅ Extended `SyntheticCorrelationEngine` with calendar-presence-device correlation
+- ✅ Implemented calendar → presence correlation (away/home/work detection)
+- ✅ Implemented presence → device correlation rules:
+  - Away → Security on, lights off
+  - Home → Comfort settings, lights on
+  - Work → Reduced device activity
+- ✅ Added comprehensive validation logic with correlation scores
+- ✅ Created unit tests (5 new tests, 14 total tests, all passing)
+- ✅ Integrated calendar-presence validation into `validate_all_correlations()`
+- ✅ NUC-optimized: Lightweight rule-based validation
+
+### File List
+- `services/ai-automation-service/src/training/synthetic_correlation_engine.py` (modified)
+- `services/ai-automation-service/tests/training/test_synthetic_correlation_engine.py` (modified)
+
+### Change Log
+- 2025-11-25: Added `validate_calendar_presence_correlation()` method
+- 2025-11-25: Extended `validate_all_correlations()` to include calendar-presence validation
+- 2025-11-25: Added 5 new unit tests for calendar-presence correlation
+
+---
+
+**Created**: November 25, 2025  
+**Completed**: November 25, 2025
 

@@ -785,12 +785,34 @@ async def get_suggestions(
                 'rejections': int(rejections or 0),
                 'last_feedback': last_feedback.isoformat() if last_feedback else None
             }
+            # Ensure suggestion_metadata exists (handle missing column gracefully)
+            if not hasattr(suggestion, 'suggestion_metadata') or suggestion.suggestion_metadata is None:
+                suggestion.suggestion_metadata = {}
             suggestions.append(suggestion)
 
         logger.info(f"Retrieved {len(suggestions)} suggestions from database (feedback-weighted)")
         return suggestions
 
     except Exception as e:
+        # Handle missing suggestion_metadata column gracefully
+        if 'suggestion_metadata' in str(e) or 'no such column' in str(e).lower():
+            logger.warning(f"Database schema issue (suggestion_metadata column missing): {e}")
+            logger.info("Attempting to run migration to add suggestion_metadata column...")
+            # Try to add the column programmatically as a fallback
+            try:
+                from sqlalchemy import text
+                await db.execute(text("ALTER TABLE suggestions ADD COLUMN suggestion_metadata JSON"))
+                await db.commit()
+                logger.info("Successfully added suggestion_metadata column, retrying query...")
+                # Retry the query
+                return await get_suggestions(db, status=status, limit=limit)
+            except Exception as migration_error:
+                logger.error(f"Failed to add suggestion_metadata column: {migration_error}")
+                # Fallback: return empty list or raise with helpful message
+                raise RuntimeError(
+                    "Database schema is out of date. Please run migrations: "
+                    "cd services/ai-automation-service && alembic upgrade head"
+                ) from e
         logger.error(f"Failed to retrieve suggestions: {e}", exc_info=True)
         raise
 

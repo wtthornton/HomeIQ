@@ -16,11 +16,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.training.synthetic_area_generator import SyntheticAreaGenerator
-from src.training.synthetic_carbon_intensity_generator import SyntheticCarbonIntensityGenerator
 from src.training.synthetic_device_generator import SyntheticDeviceGenerator
 from src.training.synthetic_event_generator import SyntheticEventGenerator
+from src.training.synthetic_external_data_generator import SyntheticExternalDataGenerator
 from src.training.synthetic_home_generator import SyntheticHomeGenerator
-from src.training.synthetic_weather_generator import SyntheticWeatherGenerator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,6 +70,54 @@ async def main():
         type=float,
         default=0.10,
         help='Percentage of template homes to validate with OpenAI (default: 0.10)'
+    )
+    parser.add_argument(
+        '--enable-weather',
+        action='store_true',
+        default=True,
+        help='Enable weather data generation (default: True)'
+    )
+    parser.add_argument(
+        '--disable-weather',
+        action='store_false',
+        dest='enable_weather',
+        help='Disable weather data generation'
+    )
+    parser.add_argument(
+        '--enable-carbon',
+        action='store_true',
+        default=True,
+        help='Enable carbon intensity data generation (default: True)'
+    )
+    parser.add_argument(
+        '--disable-carbon',
+        action='store_false',
+        dest='enable_carbon',
+        help='Disable carbon intensity data generation'
+    )
+    parser.add_argument(
+        '--enable-pricing',
+        action='store_true',
+        default=True,
+        help='Enable electricity pricing data generation (default: True)'
+    )
+    parser.add_argument(
+        '--disable-pricing',
+        action='store_false',
+        dest='enable_pricing',
+        help='Disable electricity pricing data generation'
+    )
+    parser.add_argument(
+        '--enable-calendar',
+        action='store_true',
+        default=True,
+        help='Enable calendar data generation (default: True)'
+    )
+    parser.add_argument(
+        '--disable-calendar',
+        action='store_false',
+        dest='enable_calendar',
+        help='Disable calendar data generation'
     )
     
     args = parser.parse_args()
