@@ -4,7 +4,7 @@
 
 This document provides a comprehensive overview of all services in the HomeIQ system with complete data flows and integrations.
 
-**Last Updated:** January 20, 2025
+**Last Updated:** November 25, 2025
 
 **Reference:** See [COMPLETE_DATA_FLOW_CALL_TREE.md](../implementation/analysis/COMPLETE_DATA_FLOW_CALL_TREE.md) for detailed call trees.
 
@@ -308,9 +308,9 @@ Health Dashboard (React SPA)
 
 ---
 
-### 10. ⚠️ DEPRECATED: Calendar Service
-**Port:** 8013 (REMOVED)
-**Status:** ❌ Deprecated (October 2025)
+### 10. ⏸️ DISABLED: Calendar Service
+**Port:** 8013 (Commented out in docker-compose.yml)
+**Status:** ⏸️ Disabled (October 2025 - commented out, not removed)
 **Technology:** Python 3.12, aiohttp
 **Purpose:** Home Assistant calendar integration for occupancy prediction
 
@@ -732,7 +732,7 @@ TABLE webhook_deliveries (
 - ❌ **Sports API** (8015) - Epic 11: Replaced by sports-data
 
 ### Overall System
-- **Total Active Services:** 25 (24 microservices + InfluxDB)
+- **Total Active Services:** 29 active microservices (+ InfluxDB infrastructure = 30 total containers)
 - **Microservices:** 24 custom services
 - **Frontend Apps:** 2 (Health Dashboard, AI Automation UI)
 - **AI Services:** 6 (Phase 1 containerization complete)

@@ -1,9 +1,9 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** January 20, 2025  
-**API Version:** v4.5  
+**Last Updated:** November 25, 2025  
+**API Version:** v4.6  
 **Status:** ✅ Production Ready  
-**Recent Updates:** Device Database enhancements (health monitoring, classification, setup assistant, recommendations), device-specific automation templates, HA API-only capability discovery
+**Recent Updates:** Home Type Categorization System (ML-based classification, November 2025), Device Database enhancements (health monitoring, classification, setup assistant, recommendations), device-specific automation templates, HA API-only capability discovery
 
 > **📌 This is the SINGLE SOURCE OF TRUTH for all HA Ingestor API documentation.**  
 > **Supersedes:** API_DOCUMENTATION.md, API_COMPREHENSIVE_REFERENCE.md, API_ENDPOINTS_REFERENCE.md
@@ -1305,6 +1305,127 @@ List all aliases for a user, grouped by entity_id.
 {
   "light.bedroom_1": ["sleepy light", "bedroom main"],
   "light.living_room_1": ["living room lamp"]
+```
+
+---
+
+### Home Type Categorization (November 2025)
+
+The Home Type Categorization System uses ML-based classification (RandomForest) to categorize homes and enhance automation suggestions based on home characteristics.
+
+#### GET /api/home-type/profile
+Get current home type profile with comprehensive home characteristics.
+
+**Query Parameters:**
+- `home_id` (optional, default: "default"): Home identifier
+
+**Response:**
+```json
+{
+  "status": "success",
+  "home_id": "default",
+  "profile": {
+    "device_composition": {
+      "total_devices": 45,
+      "by_domain": {
+        "light": 12,
+        "sensor": 18,
+        "switch": 8,
+        "climate": 4,
+        "cover": 3
+      }
+    },
+    "event_patterns": {
+      "events_per_day": 1250,
+      "peak_hours": [6, 7, 18, 19, 20],
+      "most_active_domain": "light"
+    },
+    "spatial_layout": {
+      "areas": 8,
+      "rooms": 6,
+      "devices_per_area": 5.6
+    },
+    "behavior_patterns": {
+      "automation_count": 23,
+      "manual_interventions": 45
+    }
+  }
+}
+```
+
+#### GET /api/home-type/classify
+Classify home type using pre-trained RandomForest model.
+
+**Query Parameters:**
+- `home_id` (optional, default: "default"): Home identifier
+
+**Response:**
+```json
+{
+  "status": "success",
+  "home_id": "default",
+  "classification": {
+    "home_type": "smart_home_enthusiast",
+    "confidence": 0.87,
+    "method": "ml_model",
+    "model_version": "1.0",
+    "categories": {
+      "security": 0.15,
+      "climate": 0.20,
+      "lighting": 0.35,
+      "appliance": 0.15,
+      "monitoring": 0.10,
+      "general": 0.05
+    }
+  }
+}
+```
+
+**Home Types:**
+- `smart_home_enthusiast` - High device count, extensive automation
+- `basic_automation` - Standard automation with common devices
+- `security_focused` - Security devices and monitoring emphasis
+- `energy_efficient` - Climate and energy monitoring focus
+- `minimal` - Few devices, basic functionality
+
+#### GET /api/home-type/model-info
+Get model metadata and training information.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "model_info": {
+    "is_loaded": true,
+    "model_version": "1.0",
+    "training_date": "2025-11-20",
+    "class_names": [
+      "smart_home_enthusiast",
+      "basic_automation",
+      "security_focused",
+      "energy_efficient",
+      "minimal"
+    ],
+    "feature_names": [
+      "device_count",
+      "automation_count",
+      "events_per_day",
+      "area_count",
+      "climate_device_ratio",
+      "security_device_ratio",
+      ...
+    ],
+    "algorithm": "RandomForestClassifier",
+    "training_samples": 120
+  }
+}
+```
+
+**Integration Notes:**
+- Home type classification is automatically used in suggestion ranking (10% weight boost)
+- Event categorization maps events to categories based on home type preferences
+- Classification results are cached for 24 hours
+- Graceful fallback to default home type if classification fails
 }
 ```
 

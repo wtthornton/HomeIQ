@@ -193,7 +193,7 @@ docker-compose ps
 | Service | Reason | Deprecated | Migration Path |
 |---------|--------|------------|----------------|
 | **enrichment-pipeline** | Epic 31 - Direct writes to InfluxDB | Oct 2025 | Integration services write directly |
-| **calendar-service** | Low usage, complexity | Oct 2025 | Removed |
+| **calendar-service** | Low usage, complexity | Oct 2025 | Disabled (commented out in docker-compose.yml) |
 | **sports-api** | Replaced by HA sensors | Oct 2025 | Team Tracker + NHL HACS integrations |
 | **sports-data** | Replaced by HA sensors | Oct 2025 | Team Tracker + NHL HACS integrations |
 

@@ -199,7 +199,8 @@ graph TB
     CARBON[Carbon Intensity<br/>localhost:8010] -->|Direct Writes| INFLUX
     PRICING[Electricity Pricing<br/>localhost:8011] -->|Direct Writes| INFLUX
     AIRQ[Air Quality<br/>localhost:8012] -->|Direct Writes| INFLUX
-    CAL[Calendar<br/>localhost:8013] -->|Direct Writes| INFLUX
+    %% Calendar service commented out in docker-compose.yml
+    %% CAL[Calendar<br/>localhost:8013 ⏸️ Disabled] -->|Direct Writes| INFLUX
     METER[Smart Meter<br/>localhost:8014] -->|Direct Writes| INFLUX
     
     %% AI Services
@@ -292,7 +293,7 @@ graph TB
 | **carbon-intensity-service** | Python/FastAPI | 8010 | Carbon intensity data from National Grid | ✅ Active |
 | **electricity-pricing-service** | Python/FastAPI | 8011 | Real-time electricity pricing (Octopus, etc.) | ✅ Active |
 | **air-quality-service** | Python/FastAPI | 8012 | Air quality index and pollutant levels | ✅ Active |
-| **calendar-service** | Python/aiohttp | 8013 | Home Assistant calendar integration, occupancy prediction | ✅ Active |
+| **calendar-service** | Python/aiohttp | 8013 | Home Assistant calendar integration, occupancy prediction | ⏸️ Disabled |
 | **smart-meter-service** | Python/FastAPI | 8014 | Smart meter data (SMETS2, P1, etc.) | ✅ Active |
 | **energy-correlator** | Python/aiohttp | 8017 | Energy consumption correlation analysis | ✅ Active |
 | **log-aggregator** | Python/aiohttp | 8015 | Centralized log collection and analysis | ✅ Active |
@@ -329,6 +330,26 @@ NEW (Epic 31):     HA → websocket-ingestion → InfluxDB (direct)
 - ✅ **Simplified debugging** with direct data flow
 
 ## Recent Updates
+
+### November 2025 - Home Type Categorization System
+- **Added**: ML-based home type classification using RandomForest classifier
+- **Feature**: Synthetic data generation for training (100-120 homes)
+- **Feature**: Production profiling and classification API endpoints (`/api/home-type/profile`, `/api/home-type/classify`, `/api/home-type/model-info`)
+- **Feature**: Event categorization based on home type (security, climate, lighting, appliance, monitoring, general)
+- **Integration**: Home type boost (10% weight) applied to automation suggestions for improved ranking
+- **Impact**: +15-20% suggestion acceptance rate improvement expected
+- **Implementation**: 
+  - RandomForestClassifier model trained on synthetic home data
+  - Production profiler extracts device composition, event patterns, spatial layout
+  - Home type client with 24-hour caching and graceful fallback
+  - Integrated into suggestion ranking and pattern detection
+
+### November 2025 - Automation Improvements
+- **Ask AI Enhancements**: Fixed 54% failure rate with clarification flow improvements
+- **Automation Templates**: Device-specific templates for common device types (fridge, car, 3D printer, thermostat)
+- **Suggestions Engine**: Phase 1-3 improvements with multi-factor ranking and context enrichment
+- **Device Detection**: Two-stage matching system for improved entity resolution
+- **YAML Validation**: Enhanced multi-stage validation pipeline
 
 ### November 2025 - Critical Fixes
 - **WebSocket URL Fix**: Fixed WebSocket connection issue where `/api/websocket` path was not automatically appended to WebSocket URLs. The service now correctly handles both `ws://host:port` and `ws://host:port/api/websocket` formats.
@@ -420,8 +441,8 @@ cd services/health-dashboard && npm test
 
 ---
 
-**Last Updated**: October 2025  
-**Version**: 4.0  
+**Last Updated**: November 25, 2025  
+**Version**: 4.1  
 **Status**: Production Ready
 
 **For complete details, see the [Architecture Documentation Index](architecture/index.md)**

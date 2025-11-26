@@ -1,6 +1,6 @@
 # 📚 Documentation Index
 
-**Last Updated:** November 25, 2025
+**Last Updated:** November 25, 2025 - Updated with Home Type Categorization System and recent automation improvements
 **Status:** ✅ Recently Cleaned & Organized + Phase 1 AI Containerization Complete
 
 > **🎉 Documentation Cleanup Complete!** (October 20, 2025)  
@@ -63,6 +63,21 @@
 - **[architecture.md](architecture.md)** - Updated with Phase 1 AI Services section
 - **[SERVICES_OVERVIEW.md](SERVICES_OVERVIEW.md)** - Added AI services documentation
 - **[README.md](../README.md)** - Updated with containerized AI services
+
+#### 2b. Home Type Categorization System (NEW - November 2025)
+**Location:** `docs/architecture/`  
+**Status:** ✅ Complete (November 25, 2025)
+
+- **[home-type-categorization.md](architecture/home-type-categorization.md)** - **NEW ARCHITECTURE DOCUMENT**
+  - ML-based home classification using RandomForest
+  - API endpoints for profiling and classification
+  - Integration with suggestion ranking and pattern detection
+  - Event categorization system
+
+**Updated Documentation:**
+- **[architecture.md](architecture.md)** - Added Home Type Categorization section
+- **[architecture/index.md](architecture/index.md)** - Added to architecture index
+- **[API_REFERENCE.md](api/API_REFERENCE.md)** - Added Home Type API endpoints
 
 ---
 

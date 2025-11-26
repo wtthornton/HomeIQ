@@ -75,3 +75,64 @@ is enabled—and adapters are reloaded automatically without a restart.
 Both endpoints power the Admin UI dashboard and can be used for automation or
 monitoring.
 
+## Troubleshooting
+
+### Common Issues
+
+#### Training Run Fails Immediately
+
+**Symptoms:** Training run fails within 10-30 seconds, status shows "failed"
+
+**Possible Causes:**
+1. **No training data available**: The database has no labelled Ask AI queries
+   - **Solution**: Ensure you have approved suggestions in the database. Check with:
+     ```sql
+     SELECT COUNT(*) FROM ask_ai_queries WHERE suggestions IS NOT NULL;
+     ```
+
+2. **Model not cached and network unavailable**: The script tries to download the model but fails
+   - **Solution**: Ensure network connectivity to HuggingFace Hub, or pre-download the model
+
+3. **Missing dependencies**: Required packages not installed
+   - **Solution**: Verify `transformers`, `torch`, and `peft` are installed:
+     ```bash
+     pip list | grep -E "(transformers|torch|peft)"
+     ```
+
+4. **Memory constraints**: Out of memory during model loading or dataset preparation
+   - **Solution**: Reduce `--max-samples` or `--batch-size` parameters
+
+#### Error Messages
+
+- **Full error details** are available in the Admin UI:
+  - Click "Show full error" to expand truncated messages
+  - Click "📋 View in modal" to see complete error with copy functionality
+- **Error logs** are also captured in the backend service logs
+- **Training script output** (stdout/stderr) is stored in `training_runs.error_message` (up to 5000 chars)
+
+#### Model Loading Issues
+
+The training script will:
+1. First attempt to load from cache (configured via `HF_HOME` environment variable)
+2. If not found, automatically download from HuggingFace Hub
+3. Cache the model for future runs
+
+**Cache location**: Set via `HF_HOME` environment variable (defaults to `~/.cache/huggingface/`)
+
+### Debugging Failed Runs
+
+1. **Check the error message** in the Admin UI Notes column
+2. **View full error** using the "View in modal" button
+3. **Check backend logs** for detailed error output:
+   ```bash
+   docker logs ai-automation-service | grep -A 50 "Training script failed"
+   ```
+4. **Run training manually** to reproduce:
+   ```bash
+   python scripts/train_soft_prompt.py \
+     --db-path data/ai_automation.db \
+     --output-dir data/ask_ai_soft_prompt \
+     --max-samples 10 \
+     --epochs 1
+   ```
+

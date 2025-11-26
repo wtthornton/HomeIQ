@@ -115,6 +115,7 @@ This directory contains the comprehensive architectural documentation for the Ho
 
 - **[Core Workflows](core-workflows.md)** - Primary system workflows and data flow diagrams
 - **[AI Automation System](ai-automation-system.md)** - AI-powered automation generation with safety validation ✨ NEW
+- **[Home Type Categorization](home-type-categorization.md)** - ML-based home classification system for context-aware suggestions ✨ NEW (November 2025)
 - **[HA Connection Management](ha-connection-management.md)** - Enhanced HA connection manager with circuit breaker and fallback support ✨ NEW
 - **[Deployment Architecture](deployment-architecture.md)** - Deployment patterns and infrastructure setup
 - **[Source Tree](source-tree.md)** - Project structure and file organization
