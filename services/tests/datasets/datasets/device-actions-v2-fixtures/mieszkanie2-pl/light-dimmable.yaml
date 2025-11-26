@@ -1,0 +1,57 @@
+---
+category: light-dimmable
+tests:
+- device: Lamp
+  area: Living Room
+  device_id: lamp
+  entity_id: light.lamp
+  sentences:
+  - Please turn on the lamp in the living room
+  - Turn on the lamp in the living room
+  - Living room lamp on
+- device: Lamp
+  area: Living Room
+  device_id: lamp
+  entity_id: light.lamp
+  sentences:
+  - Please turn off the lamp in the living room
+  - Turn off the lamp in the living room
+  - Living room lamp off
+- device: Lamp
+  area: Living Room
+  device_id: lamp
+  entity_id: light.lamp
+  sentences:
+  - Set the brightness of the living room lamp to 50%
+  - Set the living room lamp to 50% brightness
+  - Living room lamp brightness 50%
+  - Make the living room lamp brighter
+  - Make the living room lamp dimmer
+  - Dim the living room lamp
+  - Brighten the living room lamp
+- device: Balcony Light
+  area: Balcony
+  device_id: balcony_light
+  entity_id: light.balcony_light
+  sentences:
+  - Please turn on the balcony light
+  - Turn on the light on the balcony
+  - Balcony light on
+- device: Balcony Light
+  area: Balcony
+  device_id: balcony_light
+  entity_id: light.balcony_light
+  sentences:
+  - Please turn off the balcony light
+  - Turn off the light on the balcony
+  - Balcony light off
+- device: Balcony Light
+  area: Balcony
+  device_id: balcony_light
+  entity_id: light.balcony_light
+  sentences:
+  - Please set the balcony light to 50% brightness
+  - Set the balcony light brightness to 50%
+  - Balcony light 50% brightness
+  - Make the balcony light brighter
+  - Make the balcony light dimmer

@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-11-25T00:14:27.097817+00:00",
+  "total_homes_tested": 1,
+  "homes_with_metrics": 1,
+  "total_devices": 14,
+  "total_events_injected": 350,
+  "total_patterns_detected": 0,
+  "avg_precision": 0.0,
+  "avg_recall": 0.0,
+  "avg_f1": 0.0,
+  "individual_results": [
+    {
+      "home": "home1-us",
+      "dataset": "devices-v2",
+      "devices": 14,
+      "areas": 9,
+      "events_generated": 350,
+      "events_injected": 350,
+      "events_fetched": 1050,
+      "patterns_detected": 0,
+      "tod_patterns_detected": 0,
+      "expected_patterns": 5,
+      "expected_synergies": 1,
+      "metrics": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 5,
+        "total_detected": 0,
+        "total_ground_truth": 5,
+        "matches": []
+      },
+      "timestamp": "2025-11-25T00:14:27.090514+00:00"
+    }
+  ]
+}

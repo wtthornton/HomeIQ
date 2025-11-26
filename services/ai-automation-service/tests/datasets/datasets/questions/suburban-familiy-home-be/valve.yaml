@@ -1,0 +1,24 @@
+---
+category:
+  - valve
+  - question
+tests:
+  - sentences:
+      - Are the sprinklers on?
+    setup:
+      valve.sprinklers:
+        state: "open"
+    expect_response:
+      - "yes"
+      - "on"
+      - open
+
+  - sentences:
+      - Please tell me, are the sprinklers on?
+    setup:
+      valve.sprinklers:
+        state: "closed"
+    expect_response:
+      - "no"
+      - "off"
+      - closed

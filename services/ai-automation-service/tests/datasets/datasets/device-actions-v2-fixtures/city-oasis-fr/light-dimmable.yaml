@@ -1,0 +1,33 @@
+---
+category: light-dimmable
+tests:
+- device: Kitchenette Light
+  area: Kitchenette
+  device_id: kitchenette_light
+  entity_id: light.kitchenette_light
+  sentences:
+  - Please turn on the kitchenette light
+  - Turn on the kitchenette light
+  - Kitchenette light on
+- device: Kitchenette Light
+  area: Kitchenette
+  device_id: kitchenette_light
+  entity_id: light.kitchenette_light
+  sentences:
+  - Please turn off the kitchenette light
+  - Turn off the kitchenette light
+  - Kitchenette light off
+- device: Kitchenette Light
+  area: Kitchenette
+  device_id: kitchenette_light
+  entity_id: light.kitchenette_light
+  sentences:
+  - Set the kitchenette light to 50%
+  - Dim the kitchenette light to 50%
+  - Kitchenette light brightness 50%
+  - Set the kitchenette light to 75%
+  - Dim the kitchenette light to 75%
+  - Kitchenette light brightness 75%
+  - Set the kitchenette light to 100%
+  - Dim the kitchenette light to 100%
+  - Kitchenette light brightness 100%
