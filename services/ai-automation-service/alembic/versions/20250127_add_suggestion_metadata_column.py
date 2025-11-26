@@ -20,13 +20,12 @@ def upgrade():
     # Add suggestion_metadata column to suggestions table
     # This column stores flexible metadata (source_type, pattern_type, etc.)
     # Check if column exists first to avoid errors on re-run
-    with op.batch_alter_table('suggestions', schema=None) as batch_op:
-        # Check if column already exists
-        connection = op.get_bind()
-        inspector = sa.inspect(connection)
-        columns = [col['name'] for col in inspector.get_columns('suggestions')]
-        
-        if 'suggestion_metadata' not in columns:
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    columns = [col['name'] for col in inspector.get_columns('suggestions')]
+    
+    if 'suggestion_metadata' not in columns:
+        with op.batch_alter_table('suggestions', schema=None) as batch_op:
             batch_op.add_column(sa.Column('suggestion_metadata', sa.JSON(), nullable=True))
 
 
