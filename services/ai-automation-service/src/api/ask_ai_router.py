@@ -1228,6 +1228,8 @@ def detect_device_types_fuzzy(
             logger.debug(f"🔍 Fuzzy device type matches: {[(dt, f'{s:.2f}') for dt, s in matches]}")
     else:
         # Fallback to simple substring matching if rapidfuzz unavailable
+        if not text or not isinstance(text, str):
+            return []
         text_lower = text.lower()
         for device_type, aliases in device_type_aliases.items():
             for alias in aliases:
@@ -2815,6 +2817,9 @@ async def _score_entities_by_relevance(
     scores: dict[str, float] = {}
     
     # Build enriched query from original + clarification answers
+    # Fix: Handle None query gracefully
+    if not query or not isinstance(query, str):
+        query = ''
     enriched_query = query.lower()
     clarification_entities = set()
     clarification_keywords = set()
@@ -3321,6 +3326,8 @@ async def generate_suggestions_from_query(
                     # ========================================================================
                     # Extract locations mentioned in query and clarification context
                     mentioned_locations = set()
+                    if not query or not isinstance(query, str):
+                        query = ''
                     query_lower = query.lower()
 
                     # PRIORITY: Use area_filter if provided (most reliable source)
@@ -6012,13 +6019,16 @@ async def provide_clarification(
                 for validated_answer in validated_answers:
                     question = next((q for q in session.questions if q.id == validated_answer.question_id), None)
                     if question:
-                        await preference_learner.learn_user_preference(
-                            db=db,
-                            user_id=request.user_id or "anonymous",
-                            question_category=getattr(question, 'category', 'unknown'),
-                            question_pattern=question.question_text.lower().strip(),
-                            answer_pattern=validated_answer.answer_text.lower().strip()
-                        )
+                        question_text = (question.question_text or '').lower().strip() if question.question_text else ''
+                        answer_text = (validated_answer.answer_text or '').lower().strip() if validated_answer.answer_text else ''
+                        if question_text and answer_text:  # Only learn if both are non-empty
+                            await preference_learner.learn_user_preference(
+                                db=db,
+                                user_id=request.user_id or "anonymous",
+                                question_category=getattr(question, 'category', 'unknown'),
+                                question_pattern=question_text,
+                                answer_pattern=answer_text
+                            )
                 
                 logger.debug(f"✅ Learned preferences from {len(validated_answers)} answers")
         except Exception as e:
@@ -7108,7 +7118,7 @@ async def provide_clarification(
                 )
 
             # NEW: Track which questions have already been asked to prevent duplicates
-            asked_question_texts = {q.question_text.lower().strip() for q in session.questions}
+            asked_question_texts = {(q.question_text or '').lower().strip() for q in session.questions if q.question_text}
 
             # Generate new questions if needed
             new_questions = []
@@ -7125,6 +7135,8 @@ async def provide_clarification(
                 # Filter out questions that are too similar to already-asked questions
                 filtered_new_questions = []
                 for new_q in new_questions:
+                    if not new_q.question_text:
+                        continue  # Skip questions without text
                     new_q_text_lower = new_q.question_text.lower().strip()
                     # Check if this question is too similar to an already-asked question
                     is_duplicate = False
@@ -7330,6 +7342,8 @@ def _detects_timing_requirement(query: str) -> bool:
     Returns:
         True if query mentions timing requirements (e.g., "for X seconds", "every", "repeat")
     """
+    if not query or not isinstance(query, str):
+        return False
     query_lower = query.lower()
     timing_keywords = [
         r'for \d+ (second|sec|secs|minute|min|mins)',  # "for 10 seconds", "for 10 secs"

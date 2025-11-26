@@ -332,4 +332,288 @@ class TestSyntheticCorrelationEngine:
         assert 'overall_score' in result
         assert isinstance(result['overall_score'], float)
         assert 0.0 <= result['overall_score'] <= 1.0
+    
+    def test_validate_calendar_presence_correlation_away_security_on(self):
+        """Test calendar-presence correlation: away → security on, lights off."""
+        engine = SyntheticCorrelationEngine()
+        
+        # Away calendar event
+        calendar_data = [
+            {
+                'timestamp': '2025-06-15T10:00:00+00:00',
+                'event_type': 'away',
+                'summary': 'Vacation',
+                'start': '2025-06-15T10:00:00+00:00',
+                'end': '2025-06-20T10:00:00+00:00'
+            }
+        ]
+        
+        # Devices
+        devices = [
+            {
+                'entity_id': 'alarm_control_panel.home',
+                'device_type': 'alarm_control_panel',
+                'device_class': 'security'
+            },
+            {
+                'entity_id': 'light.living_room',
+                'device_type': 'light',
+                'device_class': 'light'
+            }
+        ]
+        
+        # Security on, lights off (correct)
+        device_events = [
+            {
+                'timestamp': '2025-06-15T10:00:00+00:00',
+                'entity_id': 'alarm_control_panel.home',
+                'state': 'armed',
+                'event_type': 'state_changed'
+            },
+            {
+                'timestamp': '2025-06-15T10:00:00+00:00',
+                'entity_id': 'light.living_room',
+                'state': 'off',
+                'event_type': 'state_changed'
+            }
+        ]
+        
+        result = engine.validate_calendar_presence_correlation(
+            calendar_data=calendar_data,
+            device_events=device_events,
+            devices=devices
+        )
+        
+        assert result['valid'] is True
+        assert result['correlation_score'] >= 0.9
+        assert len(result['violations']) == 0
+    
+    def test_validate_calendar_presence_correlation_away_lights_on_violation(self):
+        """Test calendar-presence correlation: away but lights on (violation)."""
+        engine = SyntheticCorrelationEngine()
+        
+        # Away calendar event
+        calendar_data = [
+            {
+                'timestamp': '2025-06-15T10:00:00+00:00',
+                'event_type': 'away',
+                'summary': 'Vacation',
+                'start': '2025-06-15T10:00:00+00:00',
+                'end': '2025-06-20T10:00:00+00:00'
+            }
+        ]
+        
+        # Devices
+        devices = [
+            {
+                'entity_id': 'light.living_room',
+                'device_type': 'light',
+                'device_class': 'light'
+            }
+        ]
+        
+        # Lights on (violation)
+        device_events = [
+            {
+                'timestamp': '2025-06-15T10:00:00+00:00',
+                'entity_id': 'light.living_room',
+                'state': 'on',
+                'event_type': 'state_changed'
+            }
+        ]
+        
+        result = engine.validate_calendar_presence_correlation(
+            calendar_data=calendar_data,
+            device_events=device_events,
+            devices=devices
+        )
+        
+        assert result['valid'] is False
+        assert len(result['violations']) > 0
+        assert 'lights' in result['violations'][0].lower()
+    
+    def test_validate_calendar_presence_correlation_home_comfort_lights(self):
+        """Test calendar-presence correlation: home → comfort settings, lights on."""
+        engine = SyntheticCorrelationEngine()
+        
+        # Home calendar event
+        calendar_data = [
+            {
+                'timestamp': '2025-06-15T18:00:00+00:00',
+                'event_type': 'home',
+                'summary': 'Home',
+                'start': '2025-06-15T18:00:00+00:00',
+                'end': '2025-06-15T22:00:00+00:00'
+            }
+        ]
+        
+        # Devices
+        devices = [
+            {
+                'entity_id': 'climate.thermostat',
+                'device_type': 'climate',
+                'device_class': 'thermostat'
+            },
+            {
+                'entity_id': 'light.living_room',
+                'device_type': 'light',
+                'device_class': 'light'
+            }
+        ]
+        
+        # Comfort active, lights on (correct)
+        device_events = [
+            {
+                'timestamp': '2025-06-15T18:00:00+00:00',
+                'entity_id': 'climate.thermostat',
+                'state': 'heat',
+                'event_type': 'state_changed'
+            },
+            {
+                'timestamp': '2025-06-15T18:00:00+00:00',
+                'entity_id': 'light.living_room',
+                'state': 'on',
+                'event_type': 'state_changed'
+            }
+        ]
+        
+        result = engine.validate_calendar_presence_correlation(
+            calendar_data=calendar_data,
+            device_events=device_events,
+            devices=devices
+        )
+        
+        assert result['valid'] is True
+        assert result['correlation_score'] >= 0.9
+    
+    def test_validate_calendar_presence_correlation_work_reduced_activity(self):
+        """Test calendar-presence correlation: work → reduced device activity."""
+        engine = SyntheticCorrelationEngine()
+        
+        # Work calendar event
+        calendar_data = [
+            {
+                'timestamp': '2025-06-15T09:00:00+00:00',
+                'event_type': 'work',
+                'summary': 'Work',
+                'start': '2025-06-15T09:00:00+00:00',
+                'end': '2025-06-15T17:00:00+00:00'
+            }
+        ]
+        
+        # Devices
+        devices = [
+            {
+                'entity_id': 'light.living_room',
+                'device_type': 'light',
+                'device_class': 'light'
+            },
+            {
+                'entity_id': 'switch.coffee_maker',
+                'device_type': 'switch',
+                'device_class': 'switch'
+            }
+        ]
+        
+        # Minimal device activity (correct)
+        device_events = [
+            {
+                'timestamp': '2025-06-15T09:00:00+00:00',
+                'entity_id': 'light.living_room',
+                'state': 'off',
+                'event_type': 'state_changed'
+            }
+        ]
+        
+        result = engine.validate_calendar_presence_correlation(
+            calendar_data=calendar_data,
+            device_events=device_events,
+            devices=devices
+        )
+        
+        assert result['valid'] is True
+        assert result['correlation_score'] >= 0.9
+    
+    def test_validate_all_correlations_with_calendar(self):
+        """Test validate_all_correlations with calendar data."""
+        engine = SyntheticCorrelationEngine()
+        
+        # External data with calendar
+        external_data = {
+            'weather': [
+                {
+                    'timestamp': '2025-06-15T12:00:00+00:00',
+                    'temperature': 28.0,
+                    'condition': 'sunny'
+                }
+            ],
+            'carbon_intensity': [
+                {
+                    'timestamp': '2025-06-15T12:00:00+00:00',
+                    'intensity': 200.0,
+                    'renewable_percentage': 0.5
+                }
+            ],
+            'pricing': [
+                {
+                    'timestamp': '2025-06-15T12:00:00+00:00',
+                    'price_per_kwh': 0.20,
+                    'pricing_tier': 'mid-peak',
+                    'region': 'california_tou'
+                }
+            ],
+            'calendar': [
+                {
+                    'timestamp': '2025-06-15T12:00:00+00:00',
+                    'event_type': 'home',
+                    'summary': 'Home',
+                    'start': '2025-06-15T12:00:00+00:00',
+                    'end': '2025-06-15T18:00:00+00:00'
+                }
+            ]
+        }
+        
+        # Devices
+        devices = [
+            {
+                'entity_id': 'climate.thermostat',
+                'device_type': 'climate',
+                'device_class': 'thermostat'
+            },
+            {
+                'entity_id': 'light.living_room',
+                'device_type': 'light',
+                'device_class': 'light'
+            }
+        ]
+        
+        # Device events
+        device_events = [
+            {
+                'timestamp': '2025-06-15T12:00:00+00:00',
+                'entity_id': 'climate.thermostat',
+                'state': 'cool',
+                'event_type': 'state_changed'
+            },
+            {
+                'timestamp': '2025-06-15T12:00:00+00:00',
+                'entity_id': 'light.living_room',
+                'state': 'on',
+                'event_type': 'state_changed'
+            }
+        ]
+        
+        result = engine.validate_all_correlations(
+            external_data=external_data,
+            device_events=device_events,
+            devices=devices
+        )
+        
+        assert 'weather_hvac' in result
+        assert 'energy' in result
+        assert 'calendar_presence' in result
+        assert 'overall_valid' in result
+        assert 'overall_score' in result
+        assert isinstance(result['overall_score'], float)
+        assert 0.0 <= result['overall_score'] <= 1.0
 
