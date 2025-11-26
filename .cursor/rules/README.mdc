@@ -10,7 +10,7 @@ This project includes comprehensive Cursor rules to enhance development workflow
 ## Available Rules
 
 ### BMAD Agent Rules (`.cursor/rules/bmad/`)
-- **bmad-master.mdc** - Universal task executor and BMAD method expert
+- **bmad-master.mdc** - Universal task executor and BMAD method expert (NEW: workflow-init, customizations)
 - **architect.mdc** - System architecture and design specialist
 - **dev.mdc** - Full-stack development and implementation
 - **pm.mdc** - Product management and PRD creation
@@ -24,7 +24,7 @@ This project includes comprehensive Cursor rules to enhance development workflow
 ### Project Rules
 - **project-structure.mdc** - Project structure and file organization guidelines
 - **code-quality.mdc** - Code quality standards and best practices
-- **bmad-workflow.mdc** - BMAD workflow integration and process guidelines
+- **bmad-workflow.mdc** - BMAD workflow integration and process guidelines (UPDATED: Phase 1 features)
 - **development-environment.mdc** - Development environment setup and configuration
 - **documentation-standards.mdc** - Documentation standards and formatting guidelines
 - **security-best-practices.mdc** - Security best practices and guidelines
@@ -33,7 +33,23 @@ This project includes comprehensive Cursor rules to enhance development workflow
 ## How to Use
 
 ### Activating BMAD Agents
-Use `@agent-name` to activate specific BMAD agents:
+
+**In Cursor IDE, use one of these methods:**
+
+1. **Type and Select (Recommended):**
+   - Type `@agent-name` (e.g., `@bmad-master`)
+   - When autocomplete appears, press **Enter** or **Tab** to select the first option
+   - Or click on the desired file from the dropdown list
+
+2. **Use Agent Dropdown:**
+   - Click the **"Agent"** dropdown (infinity icon) in the chat interface
+   - Select the agent from the list
+
+3. **Type and Send Immediately:**
+   - Type `@agent-name` and immediately press **Enter** to send
+   - This bypasses autocomplete selection
+
+**Available Agents:**
 ```
 @bmad-master    # Universal task executor
 @architect      # System architecture and design
@@ -46,16 +62,41 @@ Use `@agent-name` to activate specific BMAD agents:
 @analyst       # Business analysis
 ```
 
+**Note:** If autocomplete clears your input, press **Escape** first, then type `@agent-name` and press **Enter**.
+
+### BMad Master Commands (NEW - Phase 1)
+- `*workflow-init` - Analyze project and recommend workflow track (Quick Flow / BMad Method / Enterprise)
+- All existing commands plus new workflow initialization
+
 ### QA Agent Commands
-- `*unit-tests` - Run the project's unified unit testing framework
 - `*gate {story}` - Execute quality gate decision
+- `*nfr-assess {story}` - Validate non-functional requirements
 - `*review {story}` - Comprehensive story review
+- `*review-task {story} {task_number}` - Progressive task-level code review
+- `*risk-profile {story}` - Generate risk assessment matrix
 - `*test-design {story}` - Create test scenarios
 - `*trace {story}` - Map requirements to tests
 
-### Context7 KB Integration Commands (BMad Master)
+### Phase 1 Features (NEW)
+- **Scale-Adaptive Intelligence**: `*workflow-init` command for automatic workflow selection
+- **Agent Customization**: Customize agents via `.bmad-core/customizations/{agent-id}-custom.yaml` (gitignored, update-safe)
+- **Enhanced Sharding**: 90% token savings with cross-references and intelligent section loading
+- **Quick Fix Workflow**: Streamlined workflow for bug fixes and small features
+- **Visual Diagrams**: SVG workflow diagram support
+- **Context7 KB Integration**: All agents support KB-first documentation lookup with intelligent caching
+- **Progressive Code Review**: Task-level reviews during development (QA agent)
+- **Auto-Refresh Queue**: Background processing of stale KB cache entries
+
+See [bmad-workflow.mdc](mdc:.cursor/rules/bmad-workflow.mdc) for details.
+
+### Context7 KB Integration Commands (All Agents)
+**Available across all BMAD agents** - Each agent has Context7 KB integration for domain-specific documentation:
 - `*context7-resolve {library}` - Resolve library name to Context7-compatible library ID
-- `*context7-docs {library} {topic}` - Get focused documentation (KB-first, then Context7)
+- `*context7-docs {library} {topic}` - Get KB-first documentation (checks cache, then Context7 API)
+- `*context7-kb-refresh` - Check and refresh stale cache entries
+- `*context7-kb-process-queue` - Process queued background refreshes
+
+**BMad Master additional commands:**
 - `*context7-help` - Show Context7 usage examples and best practices
 - `*context7-kb-status` - Show knowledge base statistics and hit rates
 - `*context7-kb-search {query}` - Search local knowledge base
@@ -63,6 +104,16 @@ Use `@agent-name` to activate specific BMAD agents:
 - `*context7-kb-rebuild` - Rebuild knowledge base index
 - `*context7-kb-analytics` - Show detailed KB usage analytics
 - `*context7-kb-test` - Test KB integration and cache functionality
+
+**Agent-Specific Usage:**
+- **@dev** - Library implementation patterns and testing frameworks
+- **@architect** - Technology selection and architecture patterns
+- **@qa** - Testing libraries and quality tools
+- **@pm** - Technology feasibility research
+- **@analyst** - Competitive technology analysis
+- **@ux-expert** - UI libraries and design systems
+- **@po** - Technical validation and complexity assessment
+- **@sm** - Technical story preparation
 
 ### File References
 When referencing files in rules, use the format:
@@ -96,8 +147,10 @@ Rules with `description` can be manually invoked:
 4. **Document Everything**: Keep documentation up-to-date
 5. **Test Thoroughly**: Write tests for all new functionality
 6. **Run Unit Tests**: Use `python scripts/simple-unit-tests.py` before committing changes
-7. **Leverage Context7 KB**: Use Context7 KB cache for up-to-date library documentation with intelligent caching
+7. **Leverage Context7 KB**: All agents automatically use KB-first approach - check cache before API calls
 8. **Know the Architecture**: Understand Epic 31 changes (enrichment-pipeline deprecated, direct InfluxDB writes)
+9. **Customize Agents**: Create customizations in `.bmad-core/customizations/` for team-specific preferences
+10. **Progressive Reviews**: Use `*review-task` during development for early feedback (QA agent)
 
 ## Getting Help
 

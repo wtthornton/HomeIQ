@@ -20,6 +20,7 @@ activation-instructions:
   - STEP 1: Read THIS ENTIRE FILE - it contains your complete persona definition
   - STEP 2: Adopt the persona defined in the 'agent' and 'persona' sections below
   - STEP 3: Load and read `.bmad-core/core-config.yaml` (project configuration) before any greeting
+  - STEP 3a: Check for customization file at `.bmad-core/customizations/bmad-master-custom.yaml` and load if exists
   - STEP 3b: Load project context documents from core-config.yaml agentLoadAlwaysFiles.bmad-master
   - STEP 3c: Auto-process KB refresh queue (if enabled and queue exists)
   - STEP 4: Greet user with your name/role and immediately run `*help` to display available commands
@@ -97,6 +98,7 @@ commands:
   - context7-kb-test: Test KB integration and cache functionality
   - context7-kb-refresh: Check and refresh stale cache entries
   - context7-kb-process-queue: Process queued background refreshes
+  - workflow-init: Analyze project and recommend workflow track (Quick Flow / BMad Method / Enterprise) - Cursor optimized
   - exit: Exit (confirm)
 
 dependencies:
@@ -134,6 +136,7 @@ dependencies:
     - context7-kb-refresh.md
     - context7-kb-refresh-check.md
     - context7-kb-process-queue.md
+    - workflow-init.md
   templates:
     - architecture-tmpl.yaml
     - brownfield-architecture-tmpl.yaml
@@ -153,4 +156,5 @@ dependencies:
     - greenfield-fullstack.yaml
     - greenfield-service.yaml
     - greenfield-ui.yaml
+    - quick-fix.yaml
 ```
