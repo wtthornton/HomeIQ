@@ -11,7 +11,11 @@ import json
 import logging
 import random
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .synthetic_home_openai_generator import SyntheticHomeOpenAIGenerator
+    from ..llm.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +48,52 @@ class SyntheticHomeGenerator:
         'extra_large': (60, 100, 10)
     }
     
-    def __init__(self):
+    def __init__(
+        self,
+        enable_openai_enhancement: bool = False,
+        openai_client: "OpenAIClient | None" = None
+    ):
         """
         Initialize synthetic home generator.
+        
+        Args:
+            enable_openai_enhancement: Enable OpenAI enhancement (default: False)
+            openai_client: OpenAI client instance (optional, loads from settings if not provided)
         """
-        logger.info("SyntheticHomeGenerator initialized (template-based generation)")
+        self.enable_openai_enhancement = enable_openai_enhancement
+        self.openai_client = openai_client
+        self.openai_generator = None
+        
+        if enable_openai_enhancement:
+            if not openai_client:
+                try:
+                    from ..llm.openai_client import OpenAIClient
+                    from ..config import settings
+                    
+                    if not settings.openai_api_key:
+                        logger.warning("⚠️ OpenAI API key not configured, disabling OpenAI enhancement")
+                        self.enable_openai_enhancement = False
+                    else:
+                        self.openai_client = OpenAIClient(
+                            api_key=settings.openai_api_key,
+                            model=settings.openai_model
+                        )
+                        from .synthetic_home_openai_generator import SyntheticHomeOpenAIGenerator
+                        self.openai_generator = SyntheticHomeOpenAIGenerator(
+                            openai_client=self.openai_client
+                        )
+                        logger.info("SyntheticHomeGenerator initialized with OpenAI enhancement")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to initialize OpenAI enhancement: {e}")
+                    self.enable_openai_enhancement = False
+            else:
+                from .synthetic_home_openai_generator import SyntheticHomeOpenAIGenerator
+                self.openai_generator = SyntheticHomeOpenAIGenerator(
+                    openai_client=openai_client
+                )
+                logger.info("SyntheticHomeGenerator initialized with OpenAI enhancement")
+        else:
+            logger.info("SyntheticHomeGenerator initialized (template-based generation)")
     
     def generate_homes(
         self,
@@ -120,6 +165,136 @@ class SyntheticHomeGenerator:
         
         logger.info(f"✅ Generated {len(homes)} synthetic homes total")
         return homes
+    
+    async def generate_homes_hybrid(
+        self,
+        target_count: int = 100,
+        home_types: list[str] | None = None,
+        enhancement_percentage: float = 0.20,
+        validate_percentage: float = 0.10
+    ) -> list[dict[str, Any]]:
+        """
+        Generate synthetic homes using hybrid approach (template + OpenAI).
+        
+        Args:
+            target_count: Total number of homes to generate (default: 100)
+            home_types: Optional list of specific home types to generate
+            enhancement_percentage: Percentage of homes to generate with OpenAI (default: 0.20)
+            validate_percentage: Percentage of template homes to validate (default: 0.10)
+        
+        Returns:
+            List of synthetic home dictionaries
+        """
+        if not self.enable_openai_enhancement or not self.openai_generator:
+            logger.warning("⚠️ OpenAI enhancement not enabled, falling back to template-only generation")
+            return self.generate_homes(target_count=target_count, home_types=home_types)
+        
+        logger.info(f"Generating {target_count} synthetic homes (hybrid: {enhancement_percentage*100:.0f}% OpenAI-enhanced)...")
+        
+        # Calculate counts
+        template_count = int(target_count * (1 - enhancement_percentage))
+        enhanced_count = target_count - template_count
+        
+        logger.info(f"  - Template-based: {template_count} homes")
+        logger.info(f"  - OpenAI-enhanced: {enhanced_count} homes")
+        
+        # Generate template-based homes
+        template_homes = self.generate_homes(target_count=template_count, home_types=home_types)
+        
+        # Generate OpenAI-enhanced homes
+        enhanced_homes = []
+        if enhanced_count > 0:
+            logger.info(f"Generating {enhanced_count} OpenAI-enhanced homes...")
+            
+            # Determine home type distribution for enhanced homes
+            if home_types:
+                enhanced_type_counts = {ht: enhanced_count // len(home_types) for ht in home_types}
+                remainder = enhanced_count % len(home_types)
+                for i, ht in enumerate(home_types[:remainder]):
+                    enhanced_type_counts[ht] = enhanced_type_counts.get(ht, 0) + 1
+            else:
+                # Use default distribution scaled to enhanced_count
+                total_default = sum(self.HOME_TYPE_DISTRIBUTION.values())
+                enhanced_type_counts = {
+                    ht: int((count / total_default) * enhanced_count)
+                    for ht, count in self.HOME_TYPE_DISTRIBUTION.items()
+                }
+                current_total = sum(enhanced_type_counts.values())
+                if current_total < enhanced_count:
+                    enhanced_type_counts['single_family_house'] += (enhanced_count - current_total)
+            
+            for home_type, count in enhanced_type_counts.items():
+                if count == 0:
+                    continue
+                
+                for i in range(count):
+                    try:
+                        size_category = self._select_size_category()
+                        enhanced_home = await self.openai_generator.generate_enhanced_home(
+                            home_type=home_type,
+                            size_category=size_category,
+                            home_index=i + 1
+                        )
+                        enhanced_homes.append(enhanced_home)
+                        logger.info(f"✅ Generated enhanced home {len(enhanced_homes)}/{enhanced_count}: {home_type} #{i+1}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to generate enhanced {home_type} home #{i+1}: {e}")
+                        # Fallback to template generation
+                        try:
+                            fallback_home = self._generate_single_home(
+                                home_type=home_type,
+                                home_index=i + 1,
+                                total_for_type=count
+                            )
+                            enhanced_homes.append(fallback_home)
+                            logger.info(f"✅ Fallback to template for {home_type} #{i+1}")
+                        except Exception as fallback_error:
+                            logger.error(f"❌ Fallback also failed: {fallback_error}")
+                            continue
+        
+        # Validate sample of template homes
+        validated_count = 0
+        if validate_percentage > 0 and template_homes:
+            validate_count = max(1, int(len(template_homes) * validate_percentage))
+            logger.info(f"Validating {validate_count} template homes...")
+            
+            # Import area and device generators for validation
+            from .synthetic_area_generator import SyntheticAreaGenerator
+            from .synthetic_device_generator import SyntheticDeviceGenerator
+            
+            area_generator = SyntheticAreaGenerator()
+            device_generator = SyntheticDeviceGenerator()
+            
+            # Sample homes to validate
+            import random
+            homes_to_validate = random.sample(template_homes, min(validate_count, len(template_homes)))
+            
+            for home in homes_to_validate:
+                try:
+                    # Generate areas and devices for validation
+                    areas = area_generator.generate_areas(home)
+                    devices = device_generator.generate_devices(home, areas)
+                    
+                    # Validate with OpenAI
+                    validation_result = await self.openai_generator.validate_home(home, areas, devices)
+                    
+                    if not validation_result.get('is_realistic', True):
+                        logger.warning(f"⚠️ Home {home.get('home_type')} validation issues: {validation_result.get('issues', [])}")
+                    
+                    validated_count += 1
+                except Exception as e:
+                    logger.warning(f"⚠️ Validation failed for home: {e}")
+                    continue
+        
+        # Combine all homes
+        all_homes = template_homes + enhanced_homes
+        
+        logger.info(f"✅ Generated {len(all_homes)} synthetic homes total")
+        logger.info(f"  - Template-based: {len(template_homes)}")
+        logger.info(f"  - OpenAI-enhanced: {len(enhanced_homes)}")
+        logger.info(f"  - Validated: {validated_count}")
+        
+        return all_homes
     
     def _generate_single_home(
         self,
@@ -243,4 +418,78 @@ class SyntheticHomeGenerator:
         
         logger.info(f"✅ Saved {len(homes)} homes to {output_path}")
         return output_path
+    
+    def enrich_with_external_data(
+        self,
+        homes: list[dict[str, Any]],
+        days: int = 7,
+        enable_pricing: bool = True,
+        enable_calendar: bool = True
+    ) -> list[dict[str, Any]]:
+        """
+        Enrich homes with external data (Epic 34 - Story 34.11).
+        
+        Adds electricity pricing and calendar data to homes.
+        
+        Args:
+            homes: List of synthetic home dictionaries
+            days: Number of days of external data to generate
+            enable_pricing: Enable electricity pricing generation
+            enable_calendar: Enable calendar event generation
+        
+        Returns:
+            List of homes enriched with external_data section
+        """
+        from datetime import datetime, timedelta, timezone
+        
+        logger.info(f"Enriching {len(homes)} homes with external data (pricing: {enable_pricing}, calendar: {enable_calendar})...")
+        
+        enriched_homes = []
+        start_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        if enable_pricing:
+            from .synthetic_electricity_pricing_generator import SyntheticElectricityPricingGenerator
+            pricing_generator = SyntheticElectricityPricingGenerator()
+        
+        if enable_calendar:
+            from .synthetic_calendar_generator import SyntheticCalendarGenerator
+            calendar_generator = SyntheticCalendarGenerator()
+        
+        for home in homes:
+            enriched_home = home.copy()
+            
+            # Initialize external_data section
+            if 'external_data' not in enriched_home:
+                enriched_home['external_data'] = {}
+            
+            # Generate electricity pricing
+            if enable_pricing:
+                try:
+                    pricing_data = pricing_generator.generate_pricing(
+                        home=home,
+                        start_date=start_date,
+                        days=days
+                    )
+                    enriched_home['external_data']['electricity_pricing'] = pricing_data
+                    logger.debug(f"Added {len(pricing_data)} pricing data points to home")
+                except Exception as e:
+                    logger.warning(f"Failed to generate pricing data: {e}")
+            
+            # Generate calendar events
+            if enable_calendar:
+                try:
+                    calendar_events = calendar_generator.generate_calendar(
+                        home=home,
+                        start_date=start_date,
+                        days=days
+                    )
+                    enriched_home['external_data']['calendar'] = calendar_events
+                    logger.debug(f"Added {len(calendar_events)} calendar events to home")
+                except Exception as e:
+                    logger.warning(f"Failed to generate calendar data: {e}")
+            
+            enriched_homes.append(enriched_home)
+        
+        logger.info(f"✅ Enriched {len(enriched_homes)} homes with external data")
+        return enriched_homes
 
