@@ -1,7 +1,9 @@
 # Performance Patterns Guide
 
-**Last Updated:** October 24, 2025  
-**Purpose:** Core performance patterns for HomeIQ development
+**Last Updated:** January 2025  
+**Purpose:** Core performance patterns for HomeIQ development  
+**Target Platform:** Home Assistant single-home deployment on NUC (Next Unit of Computing)  
+**Context7 Patterns:** Integrated throughout
 
 ## Core Performance Principles
 
@@ -10,8 +12,11 @@
 3. **Batch Over Individual** - Batch database writes, API calls, event processing
 4. **Cache Intelligently** - Cache expensive operations with appropriate TTLs
 5. **Fail Fast, Recover Gracefully** - Use timeouts, retries, circuit breakers
-6. **Memory Over CPU** - Use in-memory caching and data structures
+6. **Memory Over CPU** - Use in-memory caching and data structures (critical for NUC)
 7. **Profile Production Reality** - Test with real HA event volumes
+8. **Resource-Aware Design** - Optimize for NUC constraints (limited CPU/memory)
+9. **Context7 Telemetry** - Structured logging and observability patterns
+10. **Single-Home Optimization** - Scale for 1 home, not multi-tenant
 
 ## Architecture Performance Patterns
 
@@ -161,20 +166,66 @@ max_retries = 3                  # Retry on network errors
 
 ## API Performance Patterns
 
-### FastAPI Best Practices
+### FastAPI Best Practices (Context7 Patterns)
 
-**Response Time Targets:**
+**Response Time Targets (NUC-Optimized):**
 - Health checks: <10ms
 - Device/Entity queries: <10ms (SQLite)
 - Event queries: <100ms (InfluxDB)
 - AI operations: <5s (OpenAI API)
 
-**Key Patterns:**
-1. **Async Dependencies** - Use async database sessions
-2. **Background Tasks** - Use FastAPI BackgroundTasks for slow operations
-3. **Request Validation** - Use Pydantic models
-4. **Connection Pooling** - Reuse HTTP client sessions
-5. **Correlation IDs** - Track requests across services
+**Context7 Key Patterns:**
+
+1. **Lifespan Context Managers** - Modern FastAPI pattern
+```python
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize services
+    health_services["checker"] = HealthChecker()
+    yield
+    # Shutdown: Clean up resources
+    health_services.clear()
+
+app = FastAPI(lifespan=lifespan)
+```
+
+2. **Pydantic Settings Pattern** - Type-validated configuration
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+    batch_size: int = 100
+    batch_timeout: float = 5.0
+    
+    model_config = SettingsConfigDict(env_file=".env")
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
+```
+
+3. **Global State with Setter Pattern** - Context7 telemetry pattern
+```python
+_metrics_collector = None
+
+def set_metrics_collector(collector):
+    """Set metrics collector for telemetry"""
+    global _metrics_collector
+    _metrics_collector = collector
+
+def get_metrics_collector():
+    """Get metrics collector instance"""
+    return _metrics_collector
+```
+
+4. **Async Dependencies** - Use async database sessions
+5. **Background Tasks** - Use FastAPI BackgroundTasks for slow operations
+6. **Request Validation** - Use Pydantic models
+7. **Connection Pooling** - Reuse HTTP client sessions
+8. **Correlation IDs** - Track requests across services (Context7 structured logging)
 
 ## Caching Strategies
 
@@ -229,9 +280,24 @@ class BatchProcessor:
 3. **Virtualization** - For long lists (1000+ items)
 4. **Debouncing** - For search inputs
 
-## Performance Monitoring
+## Performance Monitoring (Context7 Telemetry Patterns)
 
-### Metrics Collection
+### Structured Logging with Correlation IDs
+```python
+from shared.logging_config import get_logger
+from contextvars import ContextVar
+
+correlation_id: ContextVar[str] = ContextVar('correlation_id', default=None)
+logger = get_logger(__name__)
+
+# Set correlation ID at request start
+correlation_id.set(request_id)
+
+# Log with correlation ID (automatically included in JSON logs)
+logger.info("Processing event", extra={"event_id": event.id})
+```
+
+### Metrics Collection (Context7 Pattern)
 ```python
 from shared.metrics_collector import get_metrics_collector
 
@@ -248,11 +314,55 @@ with metrics.timer("database_query"):
     result = await db.execute(query)
 ```
 
-### Key Metrics to Track
+### NUC-Specific Resource Monitoring
+```python
+# Monitor NUC resource constraints
+metrics.set_gauge("cpu_percent", psutil.cpu_percent(interval=1))
+metrics.set_gauge("memory_mb", psutil.virtual_memory().used / 1024 / 1024)
+metrics.set_gauge("disk_usage_percent", psutil.disk_usage('/').percent)
+
+# Alert thresholds for NUC (more conservative)
+if cpu_percent > 70:  # Lower threshold for NUC
+    logger.warning("High CPU usage", extra={"cpu_percent": cpu_percent})
+```
+
+### Key Metrics to Track (Single-Home NUC)
 1. **Throughput:** requests_per_minute, events_per_minute, batch_size
 2. **Latency:** response_time_ms, query_duration_ms, processing_duration_ms
-3. **Resource:** cpu_percent, memory_mb, queue_size
+3. **Resource (NUC):** cpu_percent, memory_mb, queue_size, disk_usage_percent
 4. **Error:** error_count, retry_count, error_rate_percent
+5. **Home Assistant:** websocket_connection_status, event_rate_per_second
+6. **Context7 Telemetry:** correlation_id_tracking, structured_log_rate
+
+## NUC-Specific Optimizations
+
+### Resource Constraints
+- **CPU:** Typically 2-4 cores (Intel NUC) - optimize for single-threaded performance
+- **Memory:** 4-16GB RAM - prioritize memory efficiency
+- **Storage:** SSD recommended for SQLite WAL and InfluxDB
+- **Network:** Single home = lower event volume (100-500 events/sec typical)
+
+### NUC-Optimized Settings
+```python
+# SQLite for NUC (conservative memory)
+PRAGMA cache_size=-32000  # 32MB (vs 64MB for larger systems)
+PRAGMA temp_store=MEMORY  # Use RAM for temp tables
+
+# InfluxDB batch settings for NUC
+batch_size = 500          # Smaller batches (vs 1000)
+batch_timeout = 3.0       # Faster flush (vs 5.0)
+
+# Service memory limits (NUC)
+websocket-ingestion: 256MB  # Reduced from 512MB
+data-api: 128MB            # Reduced from 256MB
+admin-api: 128MB           # Reduced from 256MB
+```
+
+### Single-Home Event Volume
+- **Typical:** 100-500 events/sec (vs 1000+ for multi-home)
+- **Peak:** 1000 events/sec (device discovery, bulk updates)
+- **Batch Size:** 50-100 events (vs 100-200 for multi-home)
+- **Batch Timeout:** 3-5 seconds (faster response for single user)
 
 ## Common Anti-Patterns to Avoid
 
@@ -261,10 +371,13 @@ with metrics.timer("database_query"):
 3. **Unbounded Queries** - Always use LIMIT clauses
 4. **Not Using Connection Pooling** - Reuse HTTP sessions
 5. **Inefficient Frontend Re-renders** - Use useMemo, selective subscriptions
-6. **Logging Too Much** - Batch log statements
+6. **Logging Too Much** - Batch log statements (Context7 structured logging)
 7. **Not Setting Timeouts** - Always configure timeouts
+8. **Ignoring NUC Constraints** - Over-provisioning memory/CPU
+9. **Missing Correlation IDs** - Context7 telemetry requirement
+10. **Synchronous Operations** - Blocking calls in async functions
 
-## Performance Targets
+## Performance Targets (NUC Single-Home)
 
 | Endpoint Type | Target | Acceptable | Investigation |
 |---------------|--------|------------|---------------|
@@ -272,6 +385,14 @@ with metrics.timer("database_query"):
 | Device queries | <10ms | <50ms | >100ms |
 | Event queries | <100ms | <200ms | >500ms |
 | Dashboard load | <2s | <5s | >10s |
+| WebSocket events | <50ms | <100ms | >200ms |
+| AI suggestions | <5s | <10s | >15s |
+
+**NUC Resource Targets:**
+- CPU per service: <30% normal, <60% peak
+- Memory per service: <60% of limit
+- Total system memory: <80% of available
+- Disk I/O: <70% utilization
 
 ## Quick Reference Commands
 
