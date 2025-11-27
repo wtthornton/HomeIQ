@@ -33,4 +33,24 @@ influx bucket create \
   --token "${INFLUXDB_TOKEN:-homeiq-token}" \
   --host http://localhost:8086
 
+# Create test organization and bucket if DEPLOYMENT_MODE is test or if test bucket doesn't exist
+if [ "${DEPLOYMENT_MODE:-production}" = "test" ] || [ -n "${CREATE_TEST_BUCKET:-}" ]; then
+  echo "Setting up test organization and bucket..."
+  
+  influx org create \
+    --name "homeiq-test" \
+    --description "Home Assistant Test Data Organization" \
+    --token "homeiq-test-token" \
+    --host http://localhost:8086 || echo "Test org may already exist"
+  
+  influx bucket create \
+    --name "home_assistant_events_test" \
+    --org "homeiq-test" \
+    --retention 7d \
+    --token "homeiq-test-token" \
+    --host http://localhost:8086 || echo "Test bucket may already exist"
+  
+  echo "Test bucket initialization complete!"
+fi
+
 echo "InfluxDB initialization complete!"
