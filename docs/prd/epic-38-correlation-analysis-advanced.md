@@ -110,16 +110,24 @@ ai-automation-service/src/correlation/
 ```
 Correlation Service (Epic 36-37)
     ↓
-Calendar Integration (presence patterns)
+Calendar Integration (presence patterns) [NEW - Story 38.1-38.2]
     ↓
-Wide & Deep Learning (higher accuracy, optional)
+Wide & Deep Learning (higher accuracy, optional) [NEW - Story 38.3-38.4]
     ↓
-Augmented Analytics (automated insights)
+Augmented Analytics (automated insights) [NEW - Story 38.5-38.6]
     ↓
 Advanced Correlation Insights
     ↓
 Pattern/Synergy Detection (enhanced with explanations)
 ```
+
+**Smooth Upgrade Path from Epic 37:**
+- ✅ **Backward Compatible**: All Epic 38 features extend existing Epic 36-37 services without breaking changes
+- ✅ **Async Patterns**: Consistent async/await patterns match Epic 37 implementation
+- ✅ **Type Safety**: Full type hints ensure compile-time compatibility
+- ✅ **Dependency Injection**: Uses same FastAPI dependency patterns as Epic 37
+- ✅ **Error Handling**: Consistent HTTPException patterns for API responses
+- ✅ **Resource Management**: Async context managers match Epic 37 patterns
 
 ### File Locations
 

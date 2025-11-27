@@ -7,33 +7,33 @@
 # ============================================================================
 
 # Sentence Transformers - Embedding generation
-sentence-transformers==3.3.2
+sentence-transformers>=3.3.1,<4.0.0  # Latest stable (2025)
 
 # HuggingFace Transformers - Model loading and inference
-transformers==4.46.1
+transformers>=4.46.1,<5.0.0  # Latest stable (2025)
 
 # Optimum Intel - OpenVINO optimization and INT8 quantization
-optimum[openvino,intel]==1.21.0
+optimum[openvino,intel]>=1.21.0,<2.0.0  # Latest stable (2025)
 
 # OpenVINO Runtime - Inference engine
-openvino==2024.6.0
+openvino>=2024.5.0,<2025.0.0  # Latest stable 2024.x (2025)
 
 # PyTorch - Model runtime (CPU-only for OpenVINO)
-torch==2.3.1
-torchvision==0.18.1
+torch>=2.4.0,<3.0.0  # Stable PyTorch 2.4.x CPU-only (November 2025)
+torchvision>=0.19.0,<0.20.0  # Compatible with PyTorch 2.4.x
 
 # ============================================================================
 # Data Processing
 # ============================================================================
 
 # Numpy - Array operations
-numpy==2.0.1
+numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (CPU-only, compatible with OpenVINO)
 
 # Pandas - Data manipulation (optional, for analysis)
-pandas==2.2.3
+pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (2025)
 
 # SciPy - Scientific computing (for similarity metrics)
-scipy==1.14.0
+scipy>=1.16.3,<2.0.0  # Latest stable (2025)
 
 # ============================================================================
 # Utilities

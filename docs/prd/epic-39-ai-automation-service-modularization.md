@@ -106,7 +106,7 @@ ai-automation-service (Port 8018)
 - ✅ All existing functionality maintained
 - ✅ Performance requirements met (<500ms query latency)
 - ✅ Database connection pooling optimized
-- ✅ Shared Redis cache for entity/pattern data
+- ✅ SQLite-based cache for entity/pattern data (existing CorrelationCache)
 - ✅ Independent scaling capabilities enabled
 - ✅ Zero breaking changes to external APIs
 
@@ -128,7 +128,7 @@ ai-automation-service (Port 8018)
 - ✅ All existing functionality maintained
 - ✅ Performance requirements met (<500ms query latency)
 - ✅ Database connection pooling optimized (max 20 connections per service)
-- ✅ Shared Redis cache for entity/pattern data
+- ✅ SQLite-based cache for entity/pattern data (existing CorrelationCache)
 - ✅ Independent scaling capabilities enabled
 - ✅ Zero breaking changes to external APIs
 - ✅ All tests passing (unit, integration, E2E)
@@ -166,10 +166,10 @@ ai-automation-service (Port 8018)
         ┌─────────────────┼─────────────────┐
         ▼                 ▼                 ▼
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│ ai-automation│  │ Shared       │  │ Shared       │
-│ -service     │  │ SQLite DB    │  │ Redis Cache  │
-│ (Port 8021)  │  │ (Connection  │  │ (Entity/     │
-│              │  │ Pooling)     │  │ Pattern)     │
+│ ai-automation│  │ Shared       │  │ SQLite-based │
+│ -service     │  │ SQLite DB    │  │ Cache        │
+│ (Port 8021)  │  │ (Connection  │  │ (Correlation │
+│              │  │ Pooling)     │  │ Cache)       │
 │ - Suggestion │  │              │  │              │
 │   Generation │  │              │  │              │
 │ - YAML Gen   │  │              │  │              │
@@ -186,9 +186,12 @@ ai-automation-service (Port 8018)
 - Migration strategy for gradual extraction
 
 **Caching:**
-- Redis for entity/pattern cache
-- Shared cache keys across services
-- TTL: 5 minutes for entity data
+- SQLite-based CorrelationCache (existing implementation)
+- Two-tier: In-memory LRU + SQLite persistence
+- Shared cache database across services (optional)
+- TTL: 1 hour for correlations, configurable per cache type
+- Memory footprint: <20MB for SQLite cache
+- Optimized for single-home NUC deployment (no Redis needed)
 
 **Message Queue (Optional):**
 - RabbitMQ or MQTT for async communication
@@ -349,9 +352,9 @@ ai-automation-service (Port 8018)
 - **Story Points**: 5
 - **Priority**: P0
 - **Effort**: 4-6 hours
-- **Description**: Set up Redis cache, configure shared database connection pooling, implement service-to-service communication
+- **Description**: Configure shared SQLite-based cache (CorrelationCache), configure shared database connection pooling, implement service-to-service communication
 - **Acceptance Criteria**:
-  - ✅ Redis cache configured
+  - ✅ SQLite-based cache configured and shared across services
   - ✅ Database connection pooling optimized
   - ✅ Service communication working
   - ✅ Cache hit rate >80%
@@ -416,7 +419,7 @@ ai-automation-service (Port 8018)
 ## Dependencies
 
 ### External Dependencies
-- Redis (for shared caching) - Can use existing or add to docker-compose
+- SQLite-based cache (CorrelationCache) - Already implemented, no additional infrastructure needed
 - Docker Compose (for service orchestration) - Already in use
 - Shared database (SQLite) - Already in use
 
@@ -481,7 +484,7 @@ ai-automation-service (Port 8018)
 - [ ] All existing functionality maintained
 - [ ] Performance requirements met (<500ms query latency)
 - [ ] Database connection pooling optimized (max 20 connections per service)
-- [ ] Shared Redis cache for entity/pattern data
+- [ ] SQLite-based cache for entity/pattern data (existing CorrelationCache)
 - [ ] Independent scaling capabilities enabled
 - [ ] Zero breaking changes to external APIs
 - [ ] All tests passing (unit, integration, E2E)
@@ -497,7 +500,7 @@ ai-automation-service (Port 8018)
 - [ ] All services operational and tested
 - [ ] Performance targets met
 - [ ] Database connection pooling optimized
-- [ ] Redis cache operational
+- [ ] SQLite-based cache operational and shared across services
 - [ ] All tests passing (>80% coverage)
 - [ ] Documentation complete
 - [ ] Deployment guide complete

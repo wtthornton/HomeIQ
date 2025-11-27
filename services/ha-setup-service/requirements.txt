@@ -1,6 +1,6 @@
 # FastAPI and core dependencies
-fastapi==0.121.2
-uvicorn[standard]==0.38.0
+fastapi>=0.115.0,<0.116.0  # Stable 0.115.x series (November 2025)
+uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 pydantic==2.12.4
 pydantic-settings==2.12.0
 
@@ -15,7 +15,7 @@ alembic==1.17.2
 # Testing
 pytest==8.3.3
 pytest-asyncio==0.23.0
-httpx==0.27.2
+httpx>=0.28.1,<0.29.0  # Latest stable (November 2025)
 
 # Shared utilities (from parent project)
 python-dotenv==1.2.1

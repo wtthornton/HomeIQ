@@ -9,17 +9,17 @@ beautifulsoup4>=4.14.2
 lxml>=6.0.2
 
 # Data Validation (Context7 validated: BaseModel, field validators)
-pydantic>=2.8.2
-pydantic-settings>=2.4.0
+pydantic>=2.9.0,<3.0.0  # Latest stable (2025 - Epic 41)
+pydantic-settings>=2.5.0,<3.0.0  # Latest stable (2025 - Epic 41)
 
 # API Framework
-fastapi>=0.121.0
-uvicorn[standard]>=0.38.0
+fastapi>=0.115.0,<0.116.0  # Stable 0.115.x series (November 2025)
+uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 
 # Database (Context7 validated: async ORM)
-sqlalchemy[asyncio]>=2.0.0
-aiosqlite>=0.20.0
-alembic>=1.13.0
+sqlalchemy[asyncio]>=2.0.35,<3.0.0  # Latest stable (2025 - Epic 41)
+aiosqlite>=0.20.0,<0.21.0  # Latest stable (2025 - Epic 41)
+alembic>=1.13.0,<2.0.0  # Latest stable (2025 - Epic 41)
 
 # Job Scheduling (Context7 validated: AsyncScheduler, CronTrigger)
 apscheduler>=3.10.0

@@ -33,6 +33,10 @@ from .hyperparameter_optimization import (
     CorrelationHyperparameterOptimizer,
     create_validation_data_from_correlations
 )
+from .calendar_integration import CalendarCorrelationIntegration
+from .presence_aware_correlations import PresenceAwareCorrelationAnalyzer
+from .augmented_analytics import AugmentedCorrelationAnalytics
+from .automated_insights import AutomatedCorrelationInsights
 
 __all__ = [
     'TabPFNCorrelationPredictor',
@@ -49,6 +53,10 @@ __all__ = [
     'AutoMLCorrelationOptimizer',
     'HyperparameterConfig',
     'CorrelationHyperparameterOptimizer',
-    'create_validation_data_from_correlations'
+    'create_validation_data_from_correlations',
+    'CalendarCorrelationIntegration',
+    'PresenceAwareCorrelationAnalyzer',
+    'AugmentedCorrelationAnalytics',
+    'AutomatedCorrelationInsights'
 ]
 

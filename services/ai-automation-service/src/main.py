@@ -51,6 +51,7 @@ from .api import (
     devices_router,
     health_router,
     learning_router,
+    model_comparison_router,
     nl_generation_router,
     pattern_router,
     set_device_intelligence_client,
@@ -404,6 +405,7 @@ app.include_router(deployment_router)
 app.include_router(nl_generation_router)  # Story AI1.21: Natural Language
 app.include_router(conversational_router)  # Story AI1.23: Conversational Refinement (Phase 1: Stubs)
 app.include_router(ask_ai_router)  # Ask AI Tab: Natural Language Query Interface
+app.include_router(model_comparison_router)  # Epic 39.13: Model Comparison endpoints (extracted from ask_ai_router)
 app.include_router(devices_router)  # Devices endpoint
 app.include_router(settings_router)  # System settings management
 app.include_router(admin_router)  # Admin dashboard endpoints

@@ -18,7 +18,7 @@
 4. [Admin API](#admin-api) (Port 8003)
 5. [Data API](#data-api) (Port 8006)
 6. [Sports Data Service](#sports-data-service) (Port 8005)
-7. [AI Automation Service](#ai-automation-service) (Port 8018)
+7. [AI Automation Services](#ai-automation-services-epic-39-modularization) (Ports 8016-8018, 8021)
 8. [Statistics API](#statistics-api)
 9. [Error Handling](#error-handling)
 10. [Integration Examples](#integration-examples)
@@ -702,12 +702,29 @@ Unregister a webhook.
 
 ---
 
-## AI Automation Service
+## AI Automation Services (Epic 39 Modularization)
+
+**Status:** ✅ Modularized (January 2025)
+
+The AI Automation Service has been split into focused microservices for better scalability and maintainability:
+
+- **ai-training-service** (Port 8017) - Model training and synthetic data generation
+- **ai-pattern-service** (Port 8016) - Pattern detection and daily analysis
+- **ai-query-service** (Port 8018) - Low-latency query processing
+- **ai-automation-service-new** (Port 8021) - Suggestion generation and deployment
+
+**Note:** The original monolithic `ai-automation-service` (Port 8018) still exists during migration.
+
+**See:** [Epic 39 Microservices Architecture](../architecture/epic-39-microservices-architecture.md) for complete architecture details.
+
+---
+
+## AI Automation Service (Monolithic - Legacy)
 
 **Base URL:** `http://localhost:8018`  
 **Purpose:** AI-powered Home Assistant automation discovery and recommendation system  
 **Version:** 2.0.0  
-**Status:** ✅ Production Ready
+**Status:** ⚠️ Being Refactored (Epic 39)
 
 ### Overview
 

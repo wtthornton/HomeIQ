@@ -56,6 +56,7 @@ class CorrelationService:
         self,
         cache_db_path: Optional[str] = None,
         data_api_client: Optional[object] = None,
+        calendar_integration: Optional[object] = None,
         enable_tabpfn: bool = True,
         enable_streaming: bool = True,
         enable_vector_db: bool = True
@@ -66,6 +67,7 @@ class CorrelationService:
         Args:
             cache_db_path: Path to SQLite cache database
             data_api_client: Optional data API client for external data
+            calendar_integration: Optional calendar integration for presence features (Epic 38)
             enable_tabpfn: Enable TabPFN predictor (default: True)
             enable_streaming: Enable streaming tracker (default: True)
             enable_vector_db: Enable vector database for similarity search (default: True)
@@ -73,8 +75,12 @@ class CorrelationService:
         # Initialize components
         self.tabpfn_predictor = TabPFNCorrelationPredictor(device_only=True) if enable_tabpfn else None
         self.streaming_tracker = StreamingCorrelationTracker() if enable_streaming else None
-        self.feature_extractor = CorrelationFeatureExtractor(data_api_client)
+        self.feature_extractor = CorrelationFeatureExtractor(
+            data_api_client,
+            calendar_integration=calendar_integration
+        )
         self.cache = CorrelationCache(cache_db_path)
+        self.calendar_integration = calendar_integration
         
         # Vector database (Epic 37)
         if enable_vector_db and FAISS_AVAILABLE and CorrelationVectorDatabase:
@@ -97,8 +103,9 @@ class CorrelationService:
         self._feature_weights = None  # Feature weights (set by optimizer)
         
         logger.info(
-            "CorrelationService initialized (tabpfn=%s, streaming=%s, vector_db=%s)",
-            enable_tabpfn, enable_streaming, self.enable_vector_db
+            "CorrelationService initialized (tabpfn=%s, streaming=%s, vector_db=%s, calendar=%s)",
+            enable_tabpfn, enable_streaming, self.enable_vector_db,
+            "enabled" if calendar_integration else "disabled"
         )
     
     def update_correlation(
