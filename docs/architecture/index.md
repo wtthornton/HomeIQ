@@ -115,6 +115,7 @@ This directory contains the comprehensive architectural documentation for the Ho
 
 - **[Core Workflows](core-workflows.md)** - Primary system workflows and data flow diagrams
 - **[AI Automation System](ai-automation-system.md)** - AI-powered automation generation with safety validation ✨ NEW
+- **[Epic 39 Microservices Architecture](epic-39-microservices-architecture.md)** - Modularized AI Automation microservices architecture ✨ NEW (January 2025)
 - **[Home Type Categorization](home-type-categorization.md)** - ML-based home classification system for context-aware suggestions ✨ NEW (November 2025)
 - **[HA Connection Management](ha-connection-management.md)** - Enhanced HA connection manager with circuit breaker and fallback support ✨ NEW
 - **[Deployment Architecture](deployment-architecture.md)** - Deployment patterns and infrastructure setup
@@ -156,7 +157,7 @@ This directory contains the comprehensive architectural documentation for the Ho
 | Service | Technology | Port | Purpose |
 |---------|-----------|------|---------|
 | **websocket-ingestion** | Python/aiohttp | 8001 | Home Assistant WebSocket client |
-| **enrichment-pipeline** | Python/FastAPI | 8002 | Data validation and multi-source enrichment |
+| ❌ **enrichment-pipeline** | Python/FastAPI | 8002 | **DEPRECATED** (Epic 31 - Direct writes to InfluxDB) |
 | **admin-api** | Python/FastAPI | 8003→8004 | System monitoring, health checks, Docker management |
 | **data-api** | Python/FastAPI | 8006 | **Feature data hub** (events, devices, sports, analytics, alerts) |
 | **data-retention** | Python/FastAPI | 8080 | Data lifecycle and cleanup management |
@@ -184,7 +185,7 @@ This directory contains the comprehensive architectural documentation for the Ho
 ### Data Flow
 
 ```
-Home Assistant → WebSocket Ingestion → Enrichment Pipeline → InfluxDB
+Home Assistant → WebSocket Ingestion → InfluxDB (Direct - Epic 31)
                                            ↑
                                     Weather API + External Data Services
 
@@ -295,7 +296,7 @@ This architecture documentation should be updated whenever:
 
 ---
 
-**Last Updated**: November 1, 2025  
-**Version**: 5.1 (Enhanced with AI Automation + Entity Sanitization)  
+**Last Updated**: November 26, 2025  
+**Version**: 5.2 (Documentation updates - Epic 31 architecture, service count standardization)  
 **Status**: Production Ready  
 **Maintained By**: HA Ingestor Team

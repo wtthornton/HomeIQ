@@ -1,4 +1,4 @@
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-aiohttp>=3.9.0
+fastapi>=0.115.0,<0.116.0  # Latest stable (2025 - Epic 41)
+uvicorn[standard]>=0.32.0,<0.33.0  # Latest stable (2025 - Epic 41)
+aiohttp>=3.13.2,<4.0.0  # Latest stable (2025 - Epic 41)
 

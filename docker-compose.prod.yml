@@ -3,7 +3,7 @@
 
 services:
   influxdb:
-    image: influxdb:2.7
+    image: influxdb:2.7.12
     container_name: homeiq-influxdb
     restart: unless-stopped
     ports:

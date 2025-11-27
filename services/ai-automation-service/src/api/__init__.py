@@ -15,6 +15,7 @@ from .settings_router import router as settings_router
 from .suggestion_management_router import router as suggestion_management_router
 from .suggestion_router import router as suggestion_router
 from .learning_router import router as learning_router
+from .ask_ai.model_comparison_router import router as model_comparison_router
 
 __all__ = [
     'health_router',
@@ -31,6 +32,7 @@ __all__ = [
     'settings_router',
     'admin_router',
     'learning_router',  # Q&A Learning Enhancement Plan
-    'set_device_intelligence_client'
+    'set_device_intelligence_client',
+    'model_comparison_router'  # Epic 39.13: Router Modularization
 ]
 

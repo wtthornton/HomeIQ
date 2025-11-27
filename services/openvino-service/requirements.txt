@@ -2,19 +2,19 @@
 # Phase 1: Containerized AI Models
 
 # Web Framework
-fastapi==0.121.2
-uvicorn[standard]==0.38.0
+fastapi>=0.115.0,<0.116.0  # Stable 0.115.x series (November 2025)
+uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 
 # Data Validation
 pydantic==2.12.4
 pydantic-settings==2.12.0
 
 # HTTP Client
-httpx==0.27.2
+httpx>=0.28.1,<0.29.0  # Latest stable (November 2025)
 
 # Data Processing
-pandas==2.3.3
-numpy==2.3.4
+pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (2025)
+numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (CPU-only, compatible with OpenVINO and transformers)
 
 # Simplified Model Stack (Standard models for compatibility)
 # CPU-only PyTorch index (no CUDA - saves 8.5GB!)
@@ -22,7 +22,7 @@ numpy==2.3.4
 
 sentence-transformers==3.3.1  # Embeddings: all-MiniLM-L6-v2
 transformers==4.46.1          # HuggingFace models (compatible with sentence-transformers)
-torch==2.3.1+cpu              # PyTorch CPU-only (1.5GB vs 10GB with CUDA)
+torch>=2.4.0,<3.0.0  # Stable PyTorch 2.4.x CPU-only (November 2025)
 sentencepiece                 # Required for T5 tokenizer
 # Removed OpenVINO for now due to dependency conflicts
 

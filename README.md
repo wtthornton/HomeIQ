@@ -216,8 +216,8 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        HomeIQ Stack                          │
-│                  24 Active Microservices                     │
-│              (+ InfluxDB = 25 total containers)              │
+│                  29 Active Microservices                     │
+│              (+ InfluxDB = 30 total containers)              │
 ├─────────────────────────────────────────────────────────────┤
 │  Web Layer (2 services)                                      │
 │  ├─ Health Dashboard (React)            :3000 → nginx       │
@@ -686,7 +686,7 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 **Latest Code Review:** November 26, 2025
 
 See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](docs/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) for detailed findings including:
-- Complete service inventory (24 active microservices)
+- Complete service inventory (29 active microservices)
 - Database architecture analysis (5 SQLite + InfluxDB)
 - Shared libraries documentation (3,947 lines, 11 modules)
 - Infrastructure and deployment patterns

@@ -4,9 +4,9 @@
 **Title:** Dual Deployment Configuration (Test & Production)  
 **Status:** Planning  
 **Priority:** High  
-**Complexity:** High  
-**Timeline:** 4-6 weeks  
-**Story Points:** 40-55  
+**Complexity:** Medium  
+**Timeline:** 1-2 weeks  
+**Story Points:** 15-20  
 **Type:** Infrastructure & Deployment  
 **Depends on:** Epic 33-35 (Synthetic External Data Generation) - Must be implemented LAST
 
@@ -14,7 +14,7 @@
 
 ## Epic Goal
 
-Create completely isolated test and production deployment configurations with full database separation, container isolation, and clear deployment commands. Test deployment uses only synthetic/mock data creation, disables external API feeds, but keeps all AI services operational. Production deployment explicitly blocks data generation services.
+Create simple test and production deployment separation using Docker Compose profiles with database separation. Test deployment uses only synthetic/mock data creation, disables external API feeds, but keeps all AI services operational. Production deployment explicitly blocks data generation services. Simplified approach optimized for single-home NUC deployment.
 
 ## Epic Description
 
@@ -36,47 +36,45 @@ Create completely isolated test and production deployment configurations with fu
 
 ### Solution
 
-**Dual Deployment Architecture (NUC-Optimized):**
-1. **Test Deployment** (`docker-compose.test.yml`):
-   - **Option A (Recommended)**: Separate InfluxDB bucket in same instance (lighter, 8GB NUC-friendly)
-   - **Option B**: Separate InfluxDB instance on port 8087 (for version upgrade testing, requires 16GB NUC)
-   - Separate SQLite databases
-   - Separate Docker networks
-   - HA test container integration
-   - External API services disabled (weather, carbon, electricity, air-quality, calendar, smart-meter, sports-data)
+**Simplified Deployment Architecture (NUC-Optimized):**
+1. **Test Deployment** (Docker Compose `test` profile):
+   - Separate InfluxDB bucket in same instance (lighter, 8GB NUC-friendly)
+   - Separate SQLite database
+   - Same Docker network (simplified for single-home NUC)
+   - HA test container integration (already exists with profile: test)
+   - External API services disabled via `DEPLOYMENT_MODE=test` (weather, carbon, electricity, air-quality, calendar, smart-meter, sports-data)
    - OpenAI/AI services enabled (patterns, Ask AI, all downstream AI)
    - Synthetic data generators enabled
    - Mock data creation services enabled
    - Environment variable: `DEPLOYMENT_MODE=test`
    - Resource limits optimized for NUC (memory/CPU constraints)
 
-2. **Production Deployment** (`docker-compose.prod.yml`):
+2. **Production Deployment** (Default, no profile):
    - All external API services enabled
    - OpenAI/AI services enabled
    - Data generation services explicitly disabled/blocked
    - Production HA connection only
    - Environment variable: `DEPLOYMENT_MODE=production`
-   - Validation checks prevent test services from starting
-   - Resource limits for NUC deployment
+   - Simple validation to prevent test services from starting
 
 **Important: NUC Resource Constraints:**
 - **Test and Production are MUTUALLY EXCLUSIVE** - cannot run both simultaneously on 8GB NUC
-- **16GB NUC**: Can optionally run both with careful resource management (not recommended for daily use)
-- **Resource-efficient**: Separate buckets preferred over separate instances for 8GB NUC
+- **Resource-efficient**: Separate bucket approach (single InfluxDB instance, different buckets)
 
 **Deployment Commands:**
-- `./scripts/deploy.sh test` - Deploy to test environment
-- `./scripts/deploy.sh production` or `./scripts/deploy.sh prod` - Deploy to production
-- Commands handle all environment setup, validation, and service orchestration
+- `docker-compose --profile test up -d` - Start test environment
+- `docker-compose down` - Stop current deployment
+- `docker-compose up -d` - Start production environment (default)
+- Services automatically read `DEPLOYMENT_MODE` environment variable
 
 ### Existing System Context
 
 **Current Deployment Files:**
-- `docker-compose.yml` - Main production file (all services)
+- `docker-compose.yml` - Main file (all services, supports profiles)
 - `docker-compose.dev.yml` - Development with ha-simulator
-- `docker-compose.prod.yml` - Production overrides
+- `docker-compose.prod.yml` - Production overrides (existing)
 - `docker-compose.minimal.yml` - Minimal services
-- Test profile already exists for HA test container
+- Test profile already exists for HA test container and websocket-ingestion-test
 
 **HA Test Container (Already Implemented):**
 - `home-assistant-test` service in `docker-compose.yml` (profile: test)
@@ -111,28 +109,27 @@ Create completely isolated test and production deployment configurations with fu
 
 - **Safe Testing**: Complete isolation allows testing without production risk
 - **Cost Savings**: No external API quota consumption during testing
-- **Version Upgrade Testing**: Separate InfluxDB instance enables safe upgrade testing
+- **Safe Testing**: Separate buckets enable safe testing without production risk
 - **Production Safety**: Explicit blocks prevent accidental data generation in production
 - **Development Velocity**: Faster iteration with synthetic data vs waiting for real APIs
 - **Reproducibility**: Test environment is consistent and reproducible
-- **CI/CD Ready**: Test deployment can be used in automated pipelines
+- **Development Velocity**: Faster iteration with isolated test environment
 
 ## Success Criteria
 
-- ✅ Test deployment completely isolated from production
-- ✅ Separate InfluxDB buckets (default) or instances (optional) for test and production
+- ✅ Test deployment isolated from production using separate buckets/databases
+- ✅ Separate InfluxDB bucket (`home_assistant_events_test`) for test environment
 - ✅ Separate SQLite databases for metadata
 - ✅ External API services disabled in test mode (saves ~500MB memory)
 - ✅ AI services operational in both environments
 - ✅ Production deployment blocks data generation services
-- ✅ Clear deployment commands (`deploy to test`, `deploy to prod`)
-- ✅ Environment detection and validation
-- ✅ HA test container integrated into test deployment
+- ✅ Simple deployment commands using Docker Compose profiles
+- ✅ Environment detection via `DEPLOYMENT_MODE` variable
+- ✅ HA test container integrated into test deployment (existing profile)
 - ✅ Resource limits configured for NUC constraints (memory/CPU)
-- ✅ Documentation updated with deployment instructions
-- ✅ Validation scripts prevent misconfiguration
-- ✅ NUC resource constraints documented (8GB vs 16GB options)
-- ✅ Mutually exclusive deployment pattern clarified (test/prod don't run simultaneously)
+- ✅ Basic documentation for deployment usage
+- ✅ Simple validation to prevent misconfiguration
+- ✅ Mutually exclusive deployment pattern documented
 
 ## Technical Architecture
 
@@ -145,39 +142,34 @@ Create completely isolated test and production deployment configurations with fu
 - **Constraint**: Running both test and production simultaneously would require ~8GB+ RAM
 
 **Design Decision:**
-- **Option A (8GB NUC)**: Separate buckets in same InfluxDB instance (lightweight, ~2GB total)
-- **Option B (16GB NUC)**: Separate InfluxDB instances (enables version upgrade testing, ~4GB total)
+- **Separate buckets in same InfluxDB instance** (lightweight, ~2GB total, NUC-optimized)
 - **Mutually Exclusive**: Test and production deployments should not run simultaneously on NUC
 - **Resource Limits**: All services have memory/CPU limits to prevent NUC overload
+- **Simple Approach**: Use Docker Compose profiles instead of separate compose files
 
 ### Deployment Architecture
 
 **Test Deployment (DEPLOYMENT_MODE=test):**
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Test Deployment - NUC Optimized                             │
+│ Test Deployment - NUC Optimized (Docker Compose --profile test) │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│ Option A: Shared InfluxDB Instance (Port 8086) ⭐          │
+│ Shared InfluxDB Instance (Port 8086)                        │
 │   - Bucket: home_assistant_events_test (separate bucket)    │
-│   - Memory: ~2GB (shared with production when switching)    │
+│   - Memory: ~2GB (shared instance)                          │
 │   - Lightweight, NUC-friendly                               │
-│                                                             │
-│ Option B: Separate InfluxDB Instance (Port 8087)           │
-│   - Bucket: home_assistant_events_test                      │
-│   - Memory: ~2GB (separate instance, 16GB NUC only)        │
-│   - Enables version upgrade testing                         │
 │                                                             │
 │ SQLite Test Database                                        │
 │   - Location: ./data/test/metadata.db                       │
 │   - Memory: <50MB                                           │
 │                                                             │
-│ HA Test Container (Port 8124)                              │
-│   └─> websocket-ingestion-test (Port 8002)                 │
-│       └─> InfluxDB Test Bucket/Instance                     │
+│ HA Test Container (Port 8124) - Profile: test              │
+│   └─> websocket-ingestion-test (Port 8002) - Profile: test │
+│       └─> InfluxDB Test Bucket                              │
 │                                                             │
 │ External API Services: DISABLED ❌                          │
-│   - Saves ~500MB memory (6 services disabled)              │
+│   - Saves ~500MB memory (disabled via DEPLOYMENT_MODE)      │
 │                                                             │
 │ AI Services: ENABLED ✅                                     │
 │   - Memory: ~1-2GB (same as production)                    │
@@ -185,14 +177,14 @@ Create completely isolated test and production deployment configurations with fu
 │ Data Generation: ENABLED ✅                                 │
 │   - Memory: ~200-500MB (synthetic generators)              │
 │                                                             │
-│ Network: homeiq-network-test                                │
+│ Network: homeiq-network (shared with production)            │
 │ Resource Limits: Memory <6GB, CPU <4 cores                  │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 
 Production Deployment (DEPLOYMENT_MODE=production):
 ┌─────────────────────────────────────────────────────────────┐
-│ Production Deployment - NUC Optimized                       │
+│ Production Deployment - NUC Optimized (Default, no profile) │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │ InfluxDB Production Instance (Port 8086)                    │
@@ -214,7 +206,7 @@ Production Deployment (DEPLOYMENT_MODE=production):
 │   - Memory: ~1-2GB                                          │
 │                                                             │
 │ Data Generation: BLOCKED ❌                                 │
-│   - Validation prevents data generation services            │
+│   - Simple validation prevents data generation services      │
 │                                                             │
 │ Network: homeiq-network                                     │
 │ Resource Limits: Memory <6GB, CPU <4 cores                  │
@@ -222,14 +214,13 @@ Production Deployment (DEPLOYMENT_MODE=production):
 └─────────────────────────────────────────────────────────────┘
 
 ⚠️ IMPORTANT: Test and Production are MUTUALLY EXCLUSIVE on NUC
-   - Switch between deployments (stop one, start other)
+   - Switch between deployments: `docker-compose down` then `docker-compose --profile test up`
    - Cannot run both simultaneously on 8GB NUC
-   - 16GB NUC: Can optionally run both (not recommended)
 ```
 
 ### Resource Usage Breakdown (Single Home NUC)
 
-**Test Deployment (Option A - Separate Bucket):**
+**Test Deployment (Separate Bucket):**
 - InfluxDB: ~2GB (shared instance, test bucket)
 - Services: ~2-3GB (AI services, websocket, etc.)
 - Test containers: ~500MB (HA test, test ingestion)
@@ -240,15 +231,13 @@ Production Deployment (DEPLOYMENT_MODE=production):
 - Services: ~3-4GB (all services including external APIs)
 - **Total**: ~5-6GB (fits 8GB NUC ✅)
 
-**Both Running Simultaneously (16GB NUC only):**
-- **Total**: ~9-11GB (requires 16GB NUC, not recommended)
+**Note:** Test and production are mutually exclusive - cannot run both simultaneously on 8GB NUC
 
 ### File Structure
 
 ```
-docker-compose.yml              # Main production (all services)
-docker-compose.test.yml         # NEW: Complete test deployment
-docker-compose.prod.yml         # Production overrides (existing, enhanced)
+docker-compose.yml              # Main file (supports profiles: test, dev, etc.)
+docker-compose.prod.yml         # Production overrides (existing)
 docker-compose.dev.yml          # Development (existing, unchanged)
 
 infrastructure/
@@ -256,17 +245,16 @@ infrastructure/
   env.production                # Production environment
   env.test                      # NEW: Test environment template
 
-scripts/
-  deploy.sh                     # Enhanced with test/prod commands
-  deploy-test.sh                # NEW: Test deployment script
-  deploy-prod.sh                # NEW: Production deployment script
-  validate-deployment.sh        # NEW: Deployment validation
-
 data/
   metadata.db                   # Production SQLite
   test/
     metadata.db                 # NEW: Test SQLite database
 ```
+
+**Deployment Approach:**
+- Use Docker Compose profiles: `docker-compose --profile test up -d` for test mode
+- Production: `docker-compose up -d` (default, no profile needed)
+- Services read `DEPLOYMENT_MODE` environment variable from `.env` file
 
 ### Environment Variables
 
@@ -274,19 +262,11 @@ data/
 ```bash
 DEPLOYMENT_MODE=test
 
-# InfluxDB Test Configuration (Option A: Separate Bucket, Option B: Separate Instance)
-# Option A (Default - 8GB NUC): Use shared instance with separate bucket
+# InfluxDB Test Configuration (Separate Bucket in Shared Instance)
 INFLUXDB_URL=http://influxdb:8086
 INFLUXDB_ORG=homeiq-test
 INFLUXDB_BUCKET=home_assistant_events_test
 INFLUXDB_TOKEN=homeiq-test-token
-
-# Option B (Optional - 16GB NUC): Use separate instance for version upgrade testing
-# INFLUXDB_URL=http://influxdb-test:8087
-# INFLUXDB_ORG=homeiq-test
-# INFLUXDB_BUCKET=home_assistant_events_test
-# INFLUXDB_TOKEN=homeiq-test-token
-# USE_SEPARATE_INFLUXDB_INSTANCE=true
 
 # HA Test Container
 HA_TEST_URL=http://home-assistant-test:8123
@@ -354,54 +334,50 @@ ENABLE_MOCK_DATA_CREATION=false
 
 ## Stories
 
-### Story 40.1: Test Deployment Docker Compose Configuration
-- **Story Points**: 8
-- **Priority**: P0
-- **Effort**: 6-8 hours
-- **Description**: Create `docker-compose.test.yml` with complete test environment setup including separate InfluxDB instance, test HA container integration, disabled external API services, and enabled AI services
-- **Acceptance Criteria**:
-  - ✅ `docker-compose.test.yml` created with all test services
-  - ✅ Separate InfluxDB test instance on port 8087
-  - ✅ HA test container and websocket-ingestion-test integrated
-  - ✅ External API services excluded or disabled
-  - ✅ AI services included and configured
-  - ✅ Separate Docker network (homeiq-network-test)
-  - ✅ Separate volumes for test data isolation
-  - ✅ Environment variable `DEPLOYMENT_MODE=test` set
-
-### Story 40.2: Production Deployment Safeguards
-- **Story Points**: 5
-- **Priority**: P0
-- **Effort**: 3-4 hours
-- **Description**: Enhance `docker-compose.prod.yml` with explicit blocks for data generation services and validation checks to prevent test services from starting in production
-- **Acceptance Criteria**:
-  - ✅ Production compose file explicitly excludes data generation services
-  - ✅ Validation script prevents data generation services in production
-  - ✅ Environment variable validation on startup
-  - ✅ Clear error messages if misconfiguration detected
-  - ✅ Production deployment blocks test profile services
-  - ✅ Documentation of production safeguards
-
-### Story 40.3: InfluxDB Test Configuration (Separate Bucket or Instance)
+### Story 40.1: Test Deployment Using Docker Compose Profiles
 - **Story Points**: 5
 - **Priority**: P0
 - **Effort**: 4-5 hours
-- **Description**: Configure InfluxDB for test environment with two options: (A) Separate bucket in shared instance (8GB NUC-friendly) or (B) Separate instance on port 8087 (16GB NUC, enables version upgrade testing). Default to Option A for NUC compatibility.
+- **Description**: Configure test deployment using Docker Compose profiles (leveraging existing `test` profile for HA container). Add profile support for test services, configure separate InfluxDB bucket, and integrate with existing test HA container setup.
 - **Acceptance Criteria**:
-  - ✅ Option A: Test bucket (`home_assistant_events_test`) in shared InfluxDB instance (default)
-  - ✅ Option B: Separate InfluxDB test instance on port 8087 (configurable, 16GB NUC only)
-  - ✅ Separate initialization with test org/bucket/token
-  - ✅ Separate Docker volume for test InfluxDB data (Option B)
-  - ✅ Version can be changed independently for upgrade testing (Option B)
-  - ✅ Test services connect to test InfluxDB bucket/instance
-  - ✅ Production services never connect to test bucket/instance
-  - ✅ Resource limits configured for NUC constraints
-  - ✅ Documentation explains both options and when to use each
+  - ✅ Test services configured with `profiles: ["test"]` in docker-compose.yml
+  - ✅ Separate InfluxDB bucket (`home_assistant_events_test`) configured for test
+  - ✅ HA test container (existing) and websocket-ingestion-test (existing) integrated
+  - ✅ External API services excluded or disabled when DEPLOYMENT_MODE=test
+  - ✅ AI services included and configured
+  - ✅ Environment variable `DEPLOYMENT_MODE=test` set for test profile
+  - ✅ Test can be started with `docker-compose --profile test up -d`
 
-### Story 40.4: Test Environment Configuration Files
+### Story 40.2: Production Deployment Safeguards
 - **Story Points**: 3
 - **Priority**: P0
 - **Effort**: 2-3 hours
+- **Description**: Enhance production deployment with explicit blocks for data generation services and simple validation to prevent test services from starting in production
+- **Acceptance Criteria**:
+  - ✅ Production compose file explicitly excludes data generation services
+  - ✅ Simple validation prevents data generation services in production mode
+  - ✅ Environment variable `DEPLOYMENT_MODE=production` validated on startup
+  - ✅ Clear error messages if misconfiguration detected
+  - ✅ Production deployment blocks test profile services
+  - ✅ Basic documentation of production safeguards
+
+### Story 40.3: InfluxDB Test Bucket Configuration
+- **Story Points**: 3
+- **Priority**: P0
+- **Effort**: 2-3 hours
+- **Description**: Configure InfluxDB test bucket in shared instance for test environment. Separate bucket provides isolation without separate instance overhead.
+- **Acceptance Criteria**:
+  - ✅ Test bucket (`home_assistant_events_test`) in shared InfluxDB instance
+  - ✅ Separate initialization with test org/bucket/token
+  - ✅ Test services connect to test InfluxDB bucket
+  - ✅ Production services never connect to test bucket
+  - ✅ Resource limits configured for NUC constraints
+  - ✅ Documentation explains bucket separation approach
+
+### Story 40.4: Test Environment Configuration Files
+- **Story Points**: 2
+- **Priority**: P0
+- **Effort**: 1-2 hours
 - **Description**: Create `infrastructure/env.test` template file with all test environment variables configured (disabled external APIs, enabled AI services, test database paths)
 - **Acceptance Criteria**:
   - ✅ `infrastructure/env.test` template created
@@ -409,26 +385,11 @@ ENABLE_MOCK_DATA_CREATION=false
   - ✅ AI services enabled and configured
   - ✅ Test database paths configured
   - ✅ Test HA container connection configured
-  - ✅ Documentation for test environment setup
 
-### Story 40.5: Deployment Script Enhancement
-- **Story Points**: 8
+### Story 40.5: Service Environment Detection
+- **Story Points**: 3
 - **Priority**: P0
-- **Effort**: 6-8 hours
-- **Description**: Enhance `scripts/deploy.sh` with test and production deployment commands, environment validation, and service orchestration logic
-- **Acceptance Criteria**:
-  - ✅ `./scripts/deploy.sh test` command works
-  - ✅ `./scripts/deploy.sh production` or `./scripts/deploy.sh prod` works
-  - ✅ Environment validation before deployment
-  - ✅ Automatic environment file selection (.env.test vs .env.production)
-  - ✅ Service health checks after deployment
-  - ✅ Clear output showing which environment is deploying
-  - ✅ Error handling and rollback on failure
-
-### Story 40.6: Service Environment Detection
-- **Story Points**: 5
-- **Priority**: P0
-- **Effort**: 4-5 hours
+- **Effort**: 3-4 hours
 - **Description**: Add environment detection logic to services to automatically configure behavior based on `DEPLOYMENT_MODE` environment variable (disable external APIs in test, block data generation in production)
 - **Acceptance Criteria**:
   - ✅ Services read `DEPLOYMENT_MODE` environment variable
@@ -438,56 +399,16 @@ ENABLE_MOCK_DATA_CREATION=false
   - ✅ Logging shows deployment mode on startup
   - ✅ Health checks reflect deployment mode
 
-### Story 40.7: Test Deployment Integration Tests
-- **Story Points**: 5
+### Story 40.6: Basic Documentation
+- **Story Points**: 2
 - **Priority**: P1
-- **Effort**: 4-5 hours
-- **Description**: Create integration tests that validate test deployment isolation, service configuration, and that external APIs are properly disabled
+- **Effort**: 1-2 hours
+- **Description**: Create basic documentation for test vs production deployment usage, environment configuration, and simple deployment commands
 - **Acceptance Criteria**:
-  - ✅ Integration test for test deployment startup
-  - ✅ Test validates external API services are disabled
-  - ✅ Test validates AI services are enabled
-  - ✅ Test validates separate databases are used
-  - ✅ Test validates test HA container connection
-  - ✅ Test validates production deployment blocks data generation
-
-### Story 40.8: Production Deployment Validation Scripts
-- **Story Points**: 3
-- **Priority**: P1
-- **Effort**: 2-3 hours
-- **Description**: Create validation scripts that run before production deployment to ensure no test services are included, data generation is blocked, and all required production services are present
-- **Acceptance Criteria**:
-  - ✅ `scripts/validate-deployment.sh` created
-  - ✅ Validates no test services in production compose
-  - ✅ Validates data generation services are blocked
-  - ✅ Validates required production services present
-  - ✅ Validates environment variables are correct
-  - ✅ Clear error messages for validation failures
-
-### Story 40.9: Documentation & Deployment Guide
-- **Story Points**: 3
-- **Priority**: P1
-- **Effort**: 2-3 hours
-- **Description**: Update deployment documentation with test vs production deployment instructions, environment configuration, and troubleshooting guide
-- **Acceptance Criteria**:
-  - ✅ `docs/DEPLOYMENT_GUIDE.md` updated with test/prod sections
-  - ✅ Quick start guide for test deployment
-  - ✅ Production deployment checklist
-  - ✅ Environment variable reference updated
-  - ✅ Troubleshooting section for common issues
-  - ✅ Architecture diagram showing test vs production
-
-### Story 40.10: CI/CD Integration (Optional)
-- **Story Points**: 5
-- **Priority**: P2
-- **Effort**: 4-5 hours
-- **Description**: Integrate test deployment into CI/CD pipeline for automated testing, validation, and smoke tests
-- **Acceptance Criteria**:
-  - ✅ GitHub Actions workflow uses test deployment
-  - ✅ Automated smoke tests run in test environment
-  - ✅ Test deployment validates before merge
-  - ✅ Production deployment validates before release
-  - ✅ CI/CD documentation updated
+  - ✅ Basic deployment guide with test/prod commands
+  - ✅ Environment variable reference
+  - ✅ Simple troubleshooting notes
+  - ✅ Deployment command examples
 
 ## Dependencies
 
@@ -581,26 +502,22 @@ services:
    - **Mitigation**: Mutually exclusive deployments, resource limits, clear documentation
    - **Context7**: Use Docker Compose resource limits and monitoring
 
-2. **Database Configuration Complexity**: Separate buckets vs instances
-   - **Mitigation**: Default to separate buckets (lighter), document instance option for 16GB NUC
-   - **Context7**: Follow Docker volume management patterns
-
-3. **Service Configuration Conflicts**: Services may have hardcoded assumptions
-   - **Mitigation**: Comprehensive testing and validation scripts
+2. **Service Configuration Conflicts**: Services may have hardcoded assumptions
+   - **Mitigation**: Environment variable detection, simple validation checks
    - **Context7**: Use environment variable detection patterns
 
 **Medium Risk Areas:**
-1. **Network Isolation**: Separate networks need proper service discovery
-   - **Mitigation**: Use Docker Compose service names for internal communication
-   - **Context7**: Follow Docker network configuration patterns
-
-2. **Data Synchronization**: Test data may need to match production patterns
+1. **Data Synchronization**: Test data may need to match production patterns
    - **Mitigation**: Synthetic data generators provide realistic test data
    - **Context7**: Follow synthetic data generation patterns from Epic 33-35
 
-3. **Resource Limits**: Too restrictive limits may cause service failures
+2. **Resource Limits**: Too restrictive limits may cause service failures
    - **Mitigation**: Start with conservative limits, monitor and adjust
    - **Context7**: Monitor actual usage and adjust limits based on NUC capabilities
+
+3. **Profile Configuration**: Ensuring profiles work correctly with existing services
+   - **Mitigation**: Test profile activation, validate service isolation
+   - **Context7**: Follow Docker Compose profile patterns
 
 ## Testing Strategy
 
@@ -610,45 +527,35 @@ services:
 - Service startup behavior based on DEPLOYMENT_MODE
 
 ### Integration Tests
-- Test deployment full startup
-- Production deployment validation
+- Basic smoke tests for test deployment startup
+- Basic smoke tests for production deployment
 - Service isolation verification
 - Database separation validation
-
-### End-to-End Tests
-- Complete test deployment workflow
-- Complete production deployment workflow
-- Service health checks in both environments
-- Data isolation verification
 
 ## Implementation Notes
 
 **Key Design Decisions:**
-1. **InfluxDB Configuration (NUC-Optimized)**:
-   - **Default (8GB NUC)**: Separate buckets in shared instance (~2GB memory)
-   - **Optional (16GB NUC)**: Separate instances for version upgrade testing (~4GB memory)
-   - Allows flexibility based on hardware constraints
+1. **InfluxDB Configuration (NUC-Optimized)**: Separate buckets in shared instance (~2GB memory) - simple and efficient
 2. **Mutually Exclusive Deployments**: Test and production cannot run simultaneously on 8GB NUC
 3. **Resource Limits**: All services have memory/CPU constraints for NUC safety
 4. **Environment Variable Based**: Simple detection without complex configuration files
 5. **Explicit Blocks**: Production explicitly blocks data generation (fail-safe)
-6. **Command-Based Deployment**: Simple commands (`deploy to test`, `deploy to prod`) for clarity
-7. **Separate Networks**: Complete network isolation between test and production
+6. **Docker Compose Profiles**: Use profiles instead of separate compose files for simplicity
+7. **Shared Network**: Same Docker network for both test and production (simplified for single-home NUC)
 
 **Patterns to Follow:**
-- Use existing Docker Compose patterns from `docker-compose.dev.yml`
+- Use existing Docker Compose patterns and profiles from `docker-compose.yml`
 - Follow environment variable patterns from `infrastructure/env.example`
-- Leverage existing HA test container configuration
-- Use validation scripts similar to existing deployment scripts
+- Leverage existing HA test container configuration (already has `profile: test`)
 - **Context7 KB**: Docker Compose resource limits, volume management, profile-based conditional services
 - **NUC Constraints**: Resource limits, memory optimization, single-home deployment patterns
 
 **NUC-Specific Considerations:**
 - Memory limits on all services (prevents NUC overload)
 - CPU limits for resource-constrained environments
-- Docker Compose profiles for conditional service activation
+- Docker Compose profiles for conditional service activation (simpler than separate files)
 - Volume management for efficient storage use
-- Network isolation without excessive resource overhead
+- Shared network approach (single-home deployment doesn't need network isolation)
 
 ---
 

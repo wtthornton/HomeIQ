@@ -2,7 +2,7 @@
 # Multi-stage build for production-optimized React app
 
 # Stage 1: Dependencies
-FROM node:18-alpine AS deps
+FROM node:20.11.0-alpine AS deps
 WORKDIR /app
 
 # Copy dependency files

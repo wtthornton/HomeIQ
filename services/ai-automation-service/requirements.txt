@@ -19,8 +19,8 @@ alembic>=1.13.0,<2.0.0  # Stable database migration tool
 paho-mqtt>=1.6.1,<2.0.0  # Stable MQTT client
 
 # HTTP Client
-httpx>=0.27.0,<0.28.0  # Stable async HTTP client
-aiohttp>=3.10.0,<4.0.0  # Stable async HTTP framework
+httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
+aiohttp>=3.13.2,<4.0.0  # Latest stable (2025 - Epic 41)
 
 # InfluxDB Client
 influxdb-client>=1.40.0,<2.0.0  # Stable InfluxDB client
@@ -31,7 +31,7 @@ numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (compatible with pandas and openvin
 
 # Machine Learning
 scikit-learn>=1.5.0,<2.0.0  # Stable scikit-learn 1.5.x (November 2025)
-scipy>=1.14.0,<2.0.0  # Stable SciPy for statistical operations (Phase 3: Uncertainty Quantification)
+scipy>=1.16.3,<2.0.0  # Latest stable (2025) - statistical operations
 tabpfn>=0.1.0,<1.0.0  # TabPFN for correlation prediction (Epic 36 - 100-1000x faster)
 river>=0.22.0,<1.0.0  # River for streaming statistics (Epic 36 - O(1) real-time updates)
 faiss-cpu>=1.7.4,<2.0.0  # FAISS for vector similarity search (Epic 37 - 2025: CPU-only, flat index for single-home)
@@ -48,14 +48,14 @@ tiktoken>=0.8.0,<1.0.0  # Stable token counting for OpenAI models (November 2025
 # Use CPU-only torch wheel to avoid NVIDIA dependencies
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-sentence-transformers>=3.0.0,<4.0.0  # Stable embeddings library
-transformers>=4.40.0,<5.0.0  # Stable Transformers (compatible with optimum-intel 1.21+)
+sentence-transformers>=3.3.1,<4.0.0  # Latest stable (2025 - Epic 41)
+transformers>=4.46.1,<5.0.0  # Latest stable (2025 - Epic 41)
 # Note: torch CPU-only version must be installed from PyTorch index (see --extra-index-url above)
 # Using version range without +cpu label (pip will resolve from CPU index)
 torch>=2.4.0,<3.0.0  # Stable PyTorch 2.4.x CPU-only (November 2025)
 torch-geometric>=2.5.0,<3.0.0  # Stable PyTorch Geometric for GNN (CPU-compatible, November 2025)
-openvino>=2024.4.0,<2025.0.0  # Stable OpenVINO 2024.x (November 2025)
-optimum-intel>=1.21.0,<2.0.0  # Stable OpenVINO integration with Transformers
+openvino>=2024.5.0,<2025.0.0  # Latest stable 2024.x (2025 - Epic 41)
+optimum-intel>=1.21.0,<2.0.0  # Latest stable (2025 - Epic 41)
 peft>=0.12.0,<1.0.0  # Stable LoRA fine-tuning support
 
 # Scheduling

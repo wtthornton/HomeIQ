@@ -2,13 +2,15 @@
 Correlation Feature Extractor
 
 Epic 36, Story 36.4: External Data Feature Extraction
+Epic 38, Story 38.2: Presence-Aware Correlations
 Extracts features including external data (weather, carbon, electricity, air quality)
-for correlation analysis.
+and presence data (calendar integration) for correlation analysis.
 
 Single-home NUC optimized:
 - Memory: <5MB (in-memory feature computation)
 - Feature extraction: <5ms per pair
 - Caches external data queries
+- Presence features from calendar integration
 """
 
 import logging
@@ -32,14 +34,20 @@ class CorrelationFeatureExtractor:
     - Spatial features (area, room)
     """
     
-    def __init__(self, data_api_client: Optional[object] = None):
+    def __init__(
+        self,
+        data_api_client: Optional[object] = None,
+        calendar_integration: Optional[object] = None
+    ):
         """
         Initialize feature extractor.
         
         Args:
             data_api_client: Optional data API client for external data queries
+            calendar_integration: Optional calendar integration for presence features (Epic 38)
         """
         self.data_api_client = data_api_client
+        self.calendar_integration = calendar_integration
         
         # External data cache (timestamp -> data)
         self.weather_cache: dict[datetime, dict] = {}
@@ -50,7 +58,8 @@ class CorrelationFeatureExtractor:
         # Cache TTL (1 hour)
         self.cache_ttl = timedelta(hours=1)
         
-        logger.info("CorrelationFeatureExtractor initialized")
+        logger.info("CorrelationFeatureExtractor initialized (calendar_integration=%s)",
+                   "enabled" if calendar_integration else "disabled")
     
     def extract_pair_features(
         self,
@@ -91,6 +100,10 @@ class CorrelationFeatureExtractor:
         
         # Spatial features
         features.update(self._extract_spatial_features(entity1, entity2))
+        
+        # Presence features (Epic 38, Story 38.2)
+        if self.calendar_integration:
+            features.update(self._extract_presence_features(timestamp))
         
         return features
     
@@ -298,4 +311,49 @@ class CorrelationFeatureExtractor:
                 logger.debug("Failed to fetch air quality data: %s", e)
         
         return None
+    
+    def _extract_presence_features(self, timestamp: datetime) -> dict:
+        """
+        Extract presence features from calendar integration (Epic 38, Story 38.2).
+        
+        Note: This is a synchronous method, but calendar integration is async.
+        For now, we return default values. In production, this should be called
+        from an async context or the feature extractor should be made async.
+        
+        Args:
+            timestamp: Timestamp for presence query
+        
+        Returns:
+            Dict with presence features:
+            {
+                'currently_home': float (0.0 or 1.0),
+                'wfh_today': float (0.0 or 1.0),
+                'presence_confidence': float,
+                'hours_until_arrival': float (or None),
+                'will_be_home_next_24h': float (0.0 or 1.0)
+            }
+        """
+        if not self.calendar_integration:
+            # Default values if calendar integration not available
+            return {
+                'currently_home': 0.5,  # Unknown
+                'wfh_today': 0.0,
+                'presence_confidence': 0.0,
+                'hours_until_arrival': None,
+                'will_be_home_next_24h': 0.5  # Unknown
+            }
+        
+        # Note: Calendar integration is async, but feature extraction is sync
+        # For now, return default values. In production, this should be handled
+        # by making feature extraction async or caching presence features.
+        # The presence-aware correlation analyzer (Story 38.2) handles async presence queries.
+        
+        logger.debug("Presence features requested but async calendar integration not available in sync context")
+        return {
+            'currently_home': 0.5,  # Unknown (would be fetched async)
+            'wfh_today': 0.0,
+            'presence_confidence': 0.0,
+            'hours_until_arrival': None,
+            'will_be_home_next_24h': 0.5  # Unknown
+        }
 

@@ -1,6 +1,6 @@
 # Performance Patterns Guide
 
-**Last Updated:** January 2025  
+**Last Updated:** November 2025  
 **Purpose:** Core performance patterns for HomeIQ development  
 **Target Platform:** Home Assistant single-home deployment on NUC (Next Unit of Computing)  
 **Context7 Patterns:** Integrated throughout

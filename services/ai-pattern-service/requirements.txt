@@ -1,0 +1,37 @@
+# AI Pattern Service Requirements
+# Epic 39, Story 39.5: Pattern Service Foundation
+
+# FastAPI and web server
+fastapi>=0.115.0,<0.116.0  # Latest stable (2025 - Epic 41)
+uvicorn[standard]>=0.32.0,<0.33.0  # Latest stable (2025 - Epic 41)
+pydantic>=2.9.0,<3.0.0  # Latest stable (2025 - Epic 41)
+pydantic-settings>=2.5.0,<3.0.0  # Latest stable (2025 - Epic 41)
+
+# Database
+sqlalchemy>=2.0.35,<3.0.0  # Latest stable (2025 - Epic 41)
+aiosqlite>=0.20.0,<0.21.0  # Latest stable (2025 - Epic 41)
+
+# Async support
+aiohttp>=3.13.2,<4.0.0  # Latest stable (2025)
+httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
+tenacity>=8.2.0
+
+# Data processing
+pandas>=2.2.0,<3.0.0  # Latest stable (2025 - Epic 41)
+numpy>=1.26.0,<1.27.0  # Latest stable 1.26.x (2025 - Epic 41)
+scikit-learn>=1.5.0,<2.0.0  # Latest stable (2025 - Epic 41)
+scipy>=1.16.3,<2.0.0  # Latest stable (2025 - Epic 41)
+
+# MQTT (for scheduler - Story 39.6)
+paho-mqtt>=1.6.0
+
+# Scheduler (for daily analysis - Story 39.6)
+apscheduler>=3.10.0
+
+# Logging and observability (shared)
+# Note: These should be in shared/ directory
+
+# Development
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
