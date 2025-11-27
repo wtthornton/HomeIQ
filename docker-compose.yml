@@ -51,6 +51,8 @@ services:
     environment:
       # Docker container detection for SSL context
       - DOCKER_CONTAINER=true
+      # Deployment Mode Configuration (Epic 40)
+      - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
       # Home Assistant Configuration (consolidated)
       - HA_HTTP_URL=${HA_HTTP_URL:-}
       - HA_WS_URL=${HA_WS_URL:-}
@@ -196,13 +198,15 @@ services:
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - DATABASE_URL=sqlite+aiosqlite:///./data/metadata.db
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/metadata.db}
       - SQLITE_TIMEOUT=30
       - SQLITE_CACHE_SIZE=-64000
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - ENABLE_AUTH=true
       - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
       - CORS_ORIGINS=http://localhost:3000,http://localhost
+      # Deployment Mode Configuration (Epic 40)
+      - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
     volumes:
       - sqlite-data:/app/data
     depends_on:
@@ -326,6 +330,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    profiles:
+      - production
+      # Excluded from test profile to save resources and prevent API quota usage
 
   electricity-pricing:
     build:
@@ -369,6 +376,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    profiles:
+      - production
+      # Excluded from test profile to save resources and prevent API quota usage
 
   air-quality:
     build:
@@ -415,6 +425,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    profiles:
+      - production
+      # Excluded from test profile to save resources and prevent API quota usage
 
   weather-api:
     build:
@@ -460,6 +473,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    profiles:
+      - production
+      # Excluded from test profile to save resources and prevent API quota usage
 
   # calendar:
   #   build:
@@ -560,6 +576,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    profiles:
+      - production
+      # Excluded from test profile to save resources and prevent API quota usage
 
   energy-correlator:
     build:
@@ -967,6 +986,136 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=ai-code-executor,environment=production"
+
+  # AI Training Service - Epic 39, Story 39.1: Training Service Foundation
+  ai-training-service:
+    build:
+      context: .
+      dockerfile: services/ai-training-service/Dockerfile
+    container_name: ai-training-service
+    restart: unless-stopped
+    ports:
+      - "8022:8022"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
+      - DATABASE_PATH=/app/data/ai_automation.db
+      - TRAINING_SCRIPT_PATH=/app/scripts/train_soft_prompt.py
+      - SOFT_PROMPT_MODEL_DIR=/app/models/soft_prompts
+      - MODEL_STORAGE_DIR=/app/models
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ai_automation_data:/app/data  # Shared database
+      - ai_automation_models:/app/models  # Shared model storage
+      - ./services/ai-automation-service/scripts:/app/scripts:ro  # Training scripts
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8022/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-training,environment=production"
+
+  ai-pattern-service:
+    build:
+      context: .
+      dockerfile: services/ai-pattern-service/Dockerfile
+    container_name: ai-pattern-service
+    restart: unless-stopped
+    ports:
+      - "8020:8020"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
+      - DATABASE_PATH=/app/data/ai_automation.db
+      - DATA_API_URL=http://data-api:8006
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MQTT_BROKER=${MQTT_BROKER:-}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+    volumes:
+      - ai_automation_data:/app/data  # Shared database
+    networks:
+      - homeiq-network
+    depends_on:
+      data-api:
+        condition: service_healthy
+
+  ai-query-service:
+    build:
+      context: .
+      dockerfile: services/ai-query-service/Dockerfile
+    container_name: ai-query-service
+    restart: unless-stopped
+    ports:
+      - "8018:8018"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
+      - DATABASE_PATH=/app/data/ai_automation.db
+      - DATA_API_URL=http://data-api:8006
+      - HA_URL=${HA_HTTP_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8023
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - QUERY_TIMEOUT=${QUERY_TIMEOUT:-5.0}
+      - ENABLE_CACHING=${ENABLE_CACHING:-True}
+    volumes:
+      - ai_automation_data:/app/data  # Shared database
+      - ai_automation_models:/app/models  # Shared model storage
+    networks:
+      - homeiq-network
+    depends_on:
+      data-api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8018/health/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8022/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-training-service,environment=production"
 
   ai-automation-ui:
     build:
@@ -1404,6 +1553,8 @@ services:
       - .env
     environment:
       - DOCKER_CONTAINER=true
+      # Deployment Mode Configuration (Epic 40)
+      - DEPLOYMENT_MODE=test
       # Home Assistant Test Configuration
       - HA_HTTP_URL=http://home-assistant-test:8123
       - HA_WS_URL=http://home-assistant-test:8123/api/websocket
@@ -1412,13 +1563,13 @@ services:
       - DATA_API_URL=http://data-api:8006
       - WEBSOCKET_INGESTION_PORT=8001
       - ENABLE_HOME_ASSISTANT=true
-      # InfluxDB Test Configuration
+      # InfluxDB Test Configuration (Epic 40 - Separate Test Bucket)
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_USERNAME=admin
       - INFLUXDB_PASSWORD=admin123
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_ORG=homeiq-test
       - INFLUXDB_BUCKET=home_assistant_events_test
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=homeiq-test-token
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json

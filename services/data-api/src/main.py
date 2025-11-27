@@ -216,6 +216,17 @@ data_api_service = DataAPIService()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application lifecycle"""
+    # Epic 40: Deployment mode validation and logging
+    try:
+        from shared.deployment_validation import log_deployment_info, get_deployment_mode
+        log_deployment_info("data-api")
+        logger.info(f"Deployment Mode: {get_deployment_mode()}")
+    except ImportError:
+        # Fallback if shared module not available
+        import os
+        deployment_mode = os.getenv("DEPLOYMENT_MODE", "production")
+        logger.info(f"Data API starting in {deployment_mode} mode")
+    
     # Startup
     # Ensure data directory exists
     pathlib.Path("./data").mkdir(exist_ok=True)
