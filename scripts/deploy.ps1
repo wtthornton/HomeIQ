@@ -337,7 +337,6 @@ function Show-Status {
     Write-Info "Service URLs:"
     Write-Host "  - InfluxDB: http://localhost:8086"
     Write-Host "  - WebSocket Ingestion: http://localhost:8001"
-    Write-Host "  - Enrichment Pipeline: http://localhost:8002"
     Write-Host "  - Admin API: http://localhost:8003"
     Write-Host "  - Data Retention: http://localhost:8080"
     Write-Host "  - Health Dashboard: http://localhost:3000"

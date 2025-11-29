@@ -1060,7 +1060,7 @@ services:
     container_name: ai-query-service
     restart: unless-stopped
     ports:
-      - "8018:8018"
+      - "8035:8018"  # Changed external port to avoid conflict with ai-core-service
     env_file:
       - .env
     environment:

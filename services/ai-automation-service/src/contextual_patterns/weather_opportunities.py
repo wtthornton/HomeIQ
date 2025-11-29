@@ -18,7 +18,7 @@ class WeatherOpportunityDetector:
     """
     Detects weather-aware automation opportunities.
     
-    Uses weather data from InfluxDB (already flowing via enrichment-pipeline)
+    Uses weather data from InfluxDB (written directly by weather-api service)
     to suggest climate automations like frost protection, pre-heating/cooling.
     
     Story AI3.5: Weather Context Integration

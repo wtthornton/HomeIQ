@@ -286,7 +286,7 @@ Intelligent performance optimization system analyzing Home Assistant environment
 - **In Progress**: 0
 - **Planned**: 0
 - **Active Services**: 18 total (17 microservices + InfluxDB infrastructure)
-- **Microservices**: 17 custom services (admin-api, data-api, websocket-ingestion, enrichment-pipeline, data-retention, sports-data, log-aggregator, weather-api, carbon-intensity, electricity-pricing, air-quality, calendar, smart-meter, energy-correlator, ai-automation, ha-setup-service, **automation-miner**)
+- **Microservices**: 16 custom services (admin-api, data-api, websocket-ingestion, data-retention, sports-data, log-aggregator, weather-api, carbon-intensity, electricity-pricing, air-quality, calendar, smart-meter, energy-correlator, ai-automation, ha-setup-service, **automation-miner**) - Note: enrichment-pipeline deprecated in Epic 31
 - **API Endpoints**: ~79 (22 admin-api + 40 data-api + 9 setup-service + 8 automation-miner)
 - **Dashboard Tabs**: 12 (Overview, Services, Dependencies, Devices, Events, Logs, Sports, Data Sources, Energy, Analytics, Alerts, Configuration)
 - **AI UI Tabs**: 5 (Suggestions, Patterns, Synergies, Deployed, **Discovery**)
@@ -465,7 +465,7 @@ Implement a Home Assistant-aligned tiered statistics model that automatically ag
 - **In Progress**: 0
 - **Draft/Planned**: 0
 - **Active Services**: 21 total (18 microservices + InfluxDB infrastructure)
-- **Microservices**: 18 custom services (admin-api, data-api, websocket-ingestion, enrichment-pipeline, data-retention, sports-data, log-aggregator, **weather-api**, carbon-intensity, electricity-pricing, air-quality, calendar, smart-meter, energy-correlator, ai-automation, ha-setup-service, automation-miner, ai-ui)
+- **Microservices**: 17 custom services (admin-api, data-api, websocket-ingestion, data-retention, sports-data, log-aggregator, **weather-api**, carbon-intensity, electricity-pricing, air-quality, calendar, smart-meter, energy-correlator, ai-automation, ha-setup-service, automation-miner, ai-ui) - Note: enrichment-pipeline deprecated in Epic 31
 - **API Endpoints**: ~84 total (22 admin-api + 40 data-api + 9 setup-service + 8 automation-miner + 3 weather-api + 2 other)
 - **Dashboard Tabs**: 12 (Overview, Services, Dependencies, Devices, Events, Logs, Sports, Data Sources, Energy, Analytics, Alerts, Configuration)
 - **AI UI Tabs**: 5 (Suggestions, Patterns, Synergies, Deployed, Discovery)

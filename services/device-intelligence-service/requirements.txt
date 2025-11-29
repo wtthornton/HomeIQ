@@ -16,6 +16,7 @@ alembic==1.17.2
 # HTTP client for external APIs
 httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
 aiohttp==3.13.2
+tenacity>=8.0.0  # Retry logic for API calls
 
 # WebSocket client
 websockets==12.0

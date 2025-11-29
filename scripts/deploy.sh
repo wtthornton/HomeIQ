@@ -294,7 +294,6 @@ show_status() {
     log_info "Service URLs:"
     echo "  - InfluxDB: http://localhost:8086"
     echo "  - WebSocket Ingestion: http://localhost:8001"
-    echo "  - Enrichment Pipeline: http://localhost:8002"
     echo "  - Admin API: http://localhost:8003"
     echo "  - Data Retention: http://localhost:8080"
     echo "  - Health Dashboard: http://localhost:3000"
