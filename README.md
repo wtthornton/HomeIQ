@@ -486,6 +486,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ### Recent Updates
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (November 29, 2025)
+- **Epic 40 - Dual Deployment Configuration (Test & Production)** (November 29, 2025)
 - **Update performance docs with Context7 patterns and NUC optimizations** (November 26, 2025)
 - **Update performance docs with Context7 patterns and NUC optimizations** (November 26, 2025)
 - **Update story-35.4 and migration file** (November 26, 2025)
