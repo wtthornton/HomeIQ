@@ -13,14 +13,23 @@ from ..config import settings
 logger = logging.getLogger(__name__)
 
 # Create async engine with connection pooling
-engine = create_async_engine(
-    settings.database_url,
-    poolclass=StaticPool,
-    pool_size=settings.database_pool_size,
-    max_overflow=settings.database_max_overflow,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
-    echo=False,
-)
+# SQLite doesn't support pool_size/max_overflow - use StaticPool only
+if "sqlite" in settings.database_url:
+    # SQLite configuration (no pool_size/max_overflow)
+    engine = create_async_engine(
+        settings.database_url,
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+        echo=False,
+    )
+else:
+    # PostgreSQL/MySQL configuration (supports pooling)
+    engine = create_async_engine(
+        settings.database_url,
+        pool_size=settings.database_pool_size,
+        max_overflow=settings.database_max_overflow,
+        echo=False,
+    )
 
 # Create session factory
 async_session_maker = async_sessionmaker(
@@ -49,9 +58,10 @@ async def get_db() -> AsyncSession:
 async def init_db():
     """Initialize database connection and verify connectivity."""
     try:
+        from sqlalchemy import text
         async with engine.begin() as conn:
             # Test connection
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         logger.info("✅ Database connection initialized")
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}")

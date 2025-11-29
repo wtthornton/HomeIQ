@@ -149,7 +149,6 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   
   // Extract metrics from the actual API response structure
   const websocketMetrics = statistics?.metrics?.['websocket-ingestion'];
-  const enrichmentMetrics = statistics?.metrics?.['enrichment-pipeline'];
   
   // Only show loading if we don't have ANY data yet (first load)
   // If we have partial data (health but no stats), show the data we have

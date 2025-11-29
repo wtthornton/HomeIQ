@@ -447,14 +447,27 @@ def run_smoke_tests(output_dir: Path) -> tuple[bool, dict]:
         return False, {}
 
 
-async def generate_test_data(count: int = 100, days: int = 90, quick: bool = False) -> bool:
-    """Generate synthetic test data."""
+async def generate_test_data(count: int = 100, days: int = 90, quick: bool = False, force: bool = False) -> bool:
+    """Generate synthetic test data. Only generates if data doesn't exist unless force=True."""
     logger.info("="*80)
     logger.info("STEP 4: Generating Test Data")
     logger.info("="*80)
     
     output_dir = ai_service_dir / "tests" / "datasets" / "synthetic_homes"
     output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Check if test data already exists
+    existing_home_files = list(output_dir.glob("home_*.json"))
+    
+    if existing_home_files and not force:
+        logger.info(f"✅ Test data already exists: {len(existing_home_files)} synthetic home files found")
+        logger.info(f"   Location: {output_dir}")
+        logger.info("   Skipping data generation (use --force-regenerate to regenerate)")
+        return True
+    
+    if existing_home_files and force:
+        logger.info(f"⚠️  Existing test data found: {len(existing_home_files)} files")
+        logger.info("   Force regeneration enabled - will regenerate data")
     
     if quick:
         logger.info("Quick mode: Using smaller dataset (10 homes, 7 days)")
@@ -1020,6 +1033,7 @@ async def main():
     parser.add_argument('--output-dir', type=str, help='Custom output directory for reports')
     parser.add_argument('--skip-validation', action='store_true', help='Skip pre-flight dependency validation (advanced users only)')
     parser.add_argument('--allow-low-quality', action='store_true', help='Allow models that don\'t meet quality thresholds to proceed (advanced users only)')
+    parser.add_argument('--force-regenerate', action='store_true', help='Force regeneration of test data even if it already exists')
     
     args = parser.parse_args()
     
@@ -1093,11 +1107,11 @@ async def main():
             # Custom count/days specified
             count = args.count if args.count else (10 if args.quick else 100)
             days = args.days if args.days else (7 if args.quick else 90)
-            results['data_generation'] = await generate_test_data(count=count, days=days, quick=False)
+            results['data_generation'] = await generate_test_data(count=count, days=days, quick=False, force=args.force_regenerate)
         elif args.quick:
-            results['data_generation'] = await generate_test_data(count=10, days=7, quick=True)
+            results['data_generation'] = await generate_test_data(count=10, days=7, quick=True, force=args.force_regenerate)
         else:
-            results['data_generation'] = await generate_test_data(count=100, days=90, quick=False)
+            results['data_generation'] = await generate_test_data(count=100, days=90, quick=False, force=args.force_regenerate)
     else:
         logger.info("Skipping test data generation")
         results['data_generation'] = True

@@ -3,26 +3,25 @@ InfluxDB Schema Design and Data Models
 
 IMPORTANT SCHEMA NOTE:
 ----------------------
-This schema defines the ORIGINAL DESIGN for Home Assistant events. However, the 
-ACTUAL PRODUCTION SCHEMA used by the enrichment-pipeline is different:
+This schema defines the PRODUCTION SCHEMA for Home Assistant events.
 
-- This schema (websocket-ingestion): Used for direct writes and fallback scenarios
-- Enrichment pipeline schema: PRIMARY writer with flattened attributes (attr_* fields)
+Current Architecture (Epic 31 - October 2025):
+- websocket-ingestion: PRIMARY writer with inline normalization
+- All normalization happens inline (enrichment-pipeline deprecated)
+- Direct writes to InfluxDB for improved latency and reliability
 
-Key Differences:
-- This: state_value, previous_state, attributes (JSON)
-- Enrichment: state, old_state, attr_* (150+ flattened fields)
+Schema Details:
+- State values: state_value, previous_state
+- Attributes: attributes (JSON format)
+- Normalized fields added inline during processing
 
 This schema IS actively used for:
+- home_assistant_events measurement (primary)
 - weather_data measurement
 - sports_data measurement  
 - system_metrics measurement
-- Fallback/direct writes when enrichment is bypassed
 
-For Home Assistant events (home_assistant_events measurement), see:
-services/enrichment-pipeline/src/influxdb_wrapper.py (Line 180-257)
-
-Last Updated: October 18, 2025
+Last Updated: October 2025 (Epic 31 - enrichment-pipeline removed)
 """
 
 import json

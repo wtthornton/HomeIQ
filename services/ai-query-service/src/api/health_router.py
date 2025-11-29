@@ -5,7 +5,7 @@ Epic 39, Story 39.9: Query Service Foundation
 """
 
 import logging
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.get("/health", status_code=status.HTTP_200_OK)
-async def health_check(db: AsyncSession = None):
+async def health_check():
     """Basic health check endpoint."""
     return {
         "status": "ok",
@@ -27,14 +27,9 @@ async def health_check(db: AsyncSession = None):
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)
-async def readiness_check(db: AsyncSession = None):
+async def readiness_check(db: AsyncSession = Depends(get_db)):
     """Readiness check with database connectivity verification."""
     try:
-        if db is None:
-            async for session in get_db():
-                db = session
-                break
-        
         # Test database connection
         await db.execute(text("SELECT 1"))
         

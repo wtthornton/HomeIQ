@@ -235,52 +235,9 @@ export const ServiceDependencyGraph: React.FC<ServiceDependencyGraphProps> = ({
             </div>
           </div>
 
-          {/* Arrows from External Services to Enrichment Pipeline */}
-          <div className="flex justify-center mb-8">
-            <div className="flex items-center gap-4">
-              <div className={`text-2xl ${getConnectionOpacity('weather-api', 'enrichment-pipeline')}`}>↘</div>
-              <div className={`text-2xl ${getConnectionOpacity('carbon-intensity-service', 'enrichment-pipeline')}`}>↓</div>
-              <div className={`text-2xl ${getConnectionOpacity('electricity-pricing-service', 'enrichment-pipeline')}`}>↓</div>
-              <div className={`text-2xl ${getConnectionOpacity('air-quality-service', 'enrichment-pipeline')}`}>↓</div>
-              <div className={`text-2xl ${getConnectionOpacity('calendar-service', 'enrichment-pipeline')}`}>↓</div>
-              <div className={`text-2xl ${getConnectionOpacity('smart-meter-service', 'enrichment-pipeline')}`}>↙</div>
-            </div>
-          </div>
-
-          {/* Main Data Flow Arrow */}
+          {/* Main Data Flow Arrow - Direct from WebSocket Ingestion to InfluxDB (Epic 31) */}
           <div className="flex justify-center mb-4">
-            <div className={`text-4xl ${getConnectionOpacity('websocket-ingestion', 'enrichment-pipeline')}`}>↓</div>
-          </div>
-
-          {/* Enrichment Pipeline - Centered */}
-          <div className="flex justify-center mb-8">
-            <div
-              onClick={() => handleNodeClick('enrichment-pipeline')}
-              onMouseEnter={() => setHoveredNode('enrichment-pipeline')}
-              onMouseLeave={() => setHoveredNode(null)}
-              className={`relative px-6 py-4 rounded-lg border-2 cursor-pointer transition-all ${
-                getStatusColor('enrichment-pipeline')
-              } ${isNodeHighlighted('enrichment-pipeline') ? 'ring-4 ring-blue-500 scale-110' : 'hover:scale-105'}`}
-            >
-              <div className="flex flex-col items-center">
-                <div className="text-3xl mb-2">🔄</div>
-                <div className={`text-sm font-medium text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Enrichment<br/>Pipeline
-                </div>
-              </div>
-              {hoveredNode === 'enrichment-pipeline' && (
-                <div className={`absolute top-full mt-2 left-1/2 transform -translate-x-1/2 z-10 px-3 py-2 rounded shadow-lg whitespace-nowrap ${
-                  darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
-                }`}>
-                  <div className="text-xs">Combines all data sources</div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Arrow Down */}
-          <div className="flex justify-center mb-4">
-            <div className={`text-4xl ${getConnectionOpacity('enrichment-pipeline', 'influxdb')}`}>↓</div>
+            <div className={`text-4xl ${getConnectionOpacity('websocket-ingestion', 'influxdb')}`}>↓</div>
           </div>
 
           {/* Storage and Services Row - Spread horizontally */}

@@ -123,7 +123,7 @@ This document describes the complete event flow from Home Assistant through the 
 
 **Source:** WebSocket Ingestion Service's `EventProcessor.extract_event_data()`  
 **Format:** Flattened JSON structure with top-level fields  
-**Transport:** HTTP POST to `http://enrichment-pipeline:8002/events`
+**Note:** Events are processed inline and written directly to InfluxDB (Epic 31)
 
 ```json
 {
@@ -250,7 +250,7 @@ ValidationResult(
   "_normalized": {
     "timestamp": "2025-10-13T02:30:00.500000+00:00",
     "version": "1.0.0",
-    "source": "enrichment-pipeline"
+    "source": "websocket-ingestion"
   }
 }
 ```
@@ -262,9 +262,9 @@ ValidationResult(
 - Entity metadata extraction
 - Data quality validation
 
-### Stage 5: InfluxDB Point
+### Stage 3: InfluxDB Point
 
-**Source:** Enrichment Pipeline's InfluxDB Writer  
+**Source:** WebSocket Ingestion Service's InfluxDB Writer (inline normalization - Epic 31)  
 **Format:** InfluxDB Line Protocol
 
 ```
@@ -279,30 +279,18 @@ home_assistant_events,entity_id=sensor.living_room_temperature,domain=sensor sta
 
 ## Service Communication Patterns
 
-### WebSocket → Enrichment Pipeline
+### WebSocket Ingestion → InfluxDB (Direct Write - Epic 31)
 
-**Protocol:** HTTP POST  
-**Endpoint:** `http://enrichment-pipeline:8002/events`  
-**Content-Type:** `application/json`  
-**Timeout:** 5 seconds  
-**Retry Policy:** 2 retries with exponential backoff  
-**Circuit Breaker:** Opens after 5 consecutive failures, resets after 30 seconds
+**Protocol:** Direct InfluxDB Write (Inline Processing)  
+**Method:** Batch writes via InfluxDB Client  
+**Timeout:** Configurable via `BATCH_TIMEOUT` (default: 5.0 seconds)  
+**Batch Size:** Configurable via `BATCH_SIZE` (default: 100 events)  
+**Retry Policy:** Automatic retries with exponential backoff via InfluxDB client
 
-**Success Response:**
-```json
-{
-  "status": "success",
-  "event_id": "evt_abc123"
-}
-```
-
-**Failure Response:**
-```json
-{
-  "status": "failed",
-  "reason": "processing_failed"
-}
-```
+**Current Architecture (Epic 31):**
+- All normalization happens inline in websocket-ingestion
+- No intermediate HTTP service calls
+- Direct writes to InfluxDB for improved latency and reliability
 
 ### Error Handling Flow
 
@@ -419,24 +407,25 @@ ERROR → STARTING | STOPPED | RUNNING
 
 ## Migration Notes
 
-### October 2025 Fix
+### Epic 31 (October 2025) - Enrichment Pipeline Deprecation
 
-**Problem:** Enrichment Pipeline validator expected `entity_id` in state objects
+**Change:** Enrichment-pipeline service was deprecated and removed
 
-**Solution:** Updated validator to:
-1. Extract `entity_id` from top level, not `event['data']['entity_id']`
-2. Remove `entity_id` from required state object fields
-3. Validate `entity_id` only at event level
+**Reason:** Simplified architecture, reduced latency, fewer failure points
+
+**Solution:** 
+- All normalization now happens inline in websocket-ingestion service
+- Direct writes to InfluxDB from websocket-ingestion
+- External services (weather-api, etc.) write directly to InfluxDB
 
 **Files Modified:**
-- `services/enrichment-pipeline/src/data_validator.py`
-- `services/enrichment-pipeline/src/data_normalizer.py`
-- `services/enrichment-pipeline/src/main.py`
+- `services/websocket-ingestion/src/main.py` - Added inline normalization
+- All normalization logic moved from enrichment-pipeline into websocket-ingestion
 
 **Documentation:**
-- Added this architecture document
-- Updated API documentation with correct event structure
-- Updated data models with ProcessedEvent specification
+- Updated architecture documentation to reflect direct write pattern
+- Updated API documentation with current event flow
+- All external services follow standalone pattern (fetch → write → query)
 
 ## Testing the Event Flow
 
@@ -446,30 +435,20 @@ ERROR → STARTING | STOPPED | RUNNING
 # 1. Check WebSocket service health
 curl http://localhost:8001/health
 
-# 2. Check Enrichment Pipeline health
-curl http://localhost:8002/health
+# 2. Verify events are flowing from Home Assistant
+# Events are automatically ingested via WebSocket connection
 
-# 3. Send test event to Enrichment Pipeline
-curl -X POST http://localhost:8002/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "event_type": "state_changed",
-    "entity_id": "sensor.test",
-    "domain": "sensor",
-    "new_state": {
-      "state": "100",
-      "attributes": {},
-      "last_changed": "2025-10-13T00:00:00Z",
-      "last_updated": "2025-10-13T00:00:00Z"
-    }
-  }'
+# 3. Verify events in InfluxDB (via data-api)
+curl http://localhost:8006/api/v1/events?entity_id=sensor.test&limit=10
 
-# 4. Verify event in InfluxDB
+# 4. Or query InfluxDB directly
 docker exec homeiq-influxdb influx query \
   'from(bucket:"home_assistant_events") 
    |> range(start: -1h) 
    |> filter(fn: (r) => r.entity_id == "sensor.test")'
 ```
+
+**Note:** Events flow automatically from Home Assistant through websocket-ingestion to InfluxDB. No manual event submission needed for normal operation.
 
 ### Validation Test
 

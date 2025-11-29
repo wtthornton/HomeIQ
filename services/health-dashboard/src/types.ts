@@ -91,13 +91,6 @@ export interface Statistics {
       connection_attempts: number;
       total_events_received: number;
     };
-    'enrichment-pipeline': {
-      events_per_minute: number;
-      error_rate: number;
-      response_time_ms: number;
-      connection_attempts: number;
-      total_events_received: number;
-    };
   };
   trends: {
     [key: string]: any;

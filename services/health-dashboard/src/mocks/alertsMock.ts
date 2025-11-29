@@ -31,15 +31,6 @@ export const getMockAlerts = (): Alert[] => {
       acknowledgedAt: new Date(Date.now() - 1.5 * 3600000).toISOString()
     },
     {
-      id: '2',
-      timestamp: new Date(Date.now() - 3.5 * 3600000).toISOString(),
-      severity: 'info',
-      service: 'enrichment-pipeline',
-      title: 'Service Restart',
-      message: 'Enrichment pipeline restarted successfully',
-      acknowledged: false
-    },
-    {
       id: '3',
       timestamp: new Date(Date.now() - 5 * 3600000).toISOString(),
       severity: 'error',

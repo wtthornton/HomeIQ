@@ -44,7 +44,6 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         },
         response_times: {
           'websocket-ingestion': Math.random() * 100 + 10,
-          'enrichment-pipeline': Math.random() * 50 + 5,
           'data-retention': Math.random() * 200 + 20,
           'admin-api': Math.random() * 30 + 5,
         }

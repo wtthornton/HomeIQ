@@ -1,6 +1,6 @@
 {
   "version": "1.0.1",
-  "training_date": "2025-11-29T20:13:38.359767+00:00",
+  "training_date": "2025-11-28T23:23:29.613223+00:00",
   "training_data_stats": {
     "sample_count": 200,
     "unique_devices": 200,
@@ -12,7 +12,7 @@
     "precision": 1.0,
     "recall": 1.0,
     "f1_score": 1.0,
-    "evaluated_at": "2025-11-29T20:13:38.568437+00:00"
+    "evaluated_at": "2025-11-28T23:23:29.774293+00:00"
   },
   "scikit_learn_version": "1.7.2",
   "feature_columns": [
@@ -36,7 +36,7 @@
     "random_state": 42
   },
   "data_source": "sample",
-  "training_duration_seconds": 0.219026,
+  "training_duration_seconds": 0.168572,
   "validation": {
     "valid": true,
     "reason": "All validation checks passed",
