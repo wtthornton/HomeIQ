@@ -12,6 +12,12 @@ import asyncio
 import json
 from pathlib import Path
 
+# Import progress indicator from same directory
+_scripts_dir = Path(__file__).parent
+if str(_scripts_dir) not in sys.path:
+    sys.path.insert(0, str(_scripts_dir))
+from progress_indicator import Spinner, ProgressBar, StatusUpdater, print_step_header
+
 # Service URLs
 SERVICES = {
     "influxdb": "http://localhost:8086",
@@ -45,45 +51,60 @@ class Phase1Deployment:
     
     async def wait_for_services(self, max_wait: int = 300):
         """Wait for all services to be healthy"""
-        print("🔄 Waiting for services to be healthy...")
+        status = StatusUpdater("Waiting for services to be healthy")
         
         start_time = time.time()
+        check_count = 0
         while time.time() - start_time < max_wait:
             all_healthy = True
+            healthy_count = 0
             for service_name, url in SERVICES.items():
-                if not await self.check_service_health(service_name, url):
+                if await self.check_service_health(service_name, url):
+                    healthy_count += 1
+                else:
                     all_healthy = False
-                    break
+            
+            elapsed = time.time() - start_time
+            status.update(f"Checking services... ({healthy_count}/{len(SERVICES)} healthy, {elapsed:.0f}s)")
             
             if all_healthy:
-                print("✅ All services are healthy!")
+                status.finish(success=True, message="All services are healthy")
                 return True
             
-            print("⏳ Waiting for services...")
+            check_count += 1
             await asyncio.sleep(10)
         
-        print("❌ Timeout waiting for services to be healthy")
+        status.finish(success=False, message="Timeout waiting for services to be healthy")
         return False
     
-    def run_docker_compose(self, command: str):
+    def run_docker_compose(self, command: str, show_output: bool = False):
         """Run docker-compose command"""
         try:
-            result = subprocess.run(
-                ["docker-compose"] + command.split(),
-                cwd=self.project_root,
-                capture_output=True,
-                text=True,
-                timeout=300
-            )
-            
-            if result.returncode == 0:
-                print(f"✅ Docker-compose {command} succeeded")
-                return True
+            if show_output:
+                # Show output in real-time for long-running commands
+                result = subprocess.run(
+                    ["docker-compose"] + command.split(),
+                    cwd=self.project_root,
+                    text=True,
+                    timeout=300
+                )
+                return result.returncode == 0
             else:
-                print(f"❌ Docker-compose {command} failed")
-                print(f"STDOUT: {result.stdout}")
-                print(f"STDERR: {result.stderr}")
-                return False
+                result = subprocess.run(
+                    ["docker-compose"] + command.split(),
+                    cwd=self.project_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+                
+                if result.returncode == 0:
+                    return True
+                else:
+                    print(f"❌ Docker-compose {command} failed")
+                    print(f"STDOUT: {result.stdout}")
+                    print(f"STDERR: {result.stderr}")
+                    return False
                 
         except subprocess.TimeoutExpired:
             print(f"❌ Docker-compose {command} timed out")
@@ -94,7 +115,7 @@ class Phase1Deployment:
     
     def build_services(self):
         """Build all Phase 1 services"""
-        print("🔨 Building Phase 1 services...")
+        print_step_header(1, 3, "Building Phase 1 Services")
         
         services_to_build = [
             "openvino-service",
@@ -105,48 +126,73 @@ class Phase1Deployment:
             "ai-automation-service"
         ]
         
-        for service in services_to_build:
-            print(f"Building {service}...")
-            if not self.run_docker_compose(f"build {service}"):
-                return False
+        progress = ProgressBar(len(services_to_build), "Building services")
         
-        print("✅ All services built successfully")
+        for idx, service in enumerate(services_to_build, 1):
+            progress.update(idx - 1)
+            with Spinner(f"Building {service}") as spinner:
+                if not self.run_docker_compose(f"build {service}", show_output=True):
+                    spinner.stop(success=False, message=f"{service} build failed")
+                    return False
+                spinner.stop(success=True, message=f"{service} built")
+        
+        progress.finish(message="All services built successfully")
         return True
     
     def start_services(self):
         """Start all services in dependency order"""
-        print("🚀 Starting Phase 1 services...")
+        print_step_header(2, 3, "Starting Phase 1 Services")
         
         # Start base services first
-        print("Starting base services...")
-        if not self.run_docker_compose("up -d influxdb data-api"):
+        status = StatusUpdater("Starting base services")
+        status.update("Starting influxdb and data-api...")
+        if not self.run_docker_compose("up -d influxdb data-api", show_output=True):
+            status.finish(success=False, message="Failed to start base services")
             return False
+        status.finish(success=True, message="Base services started")
         
-        print("Waiting for base services...")
-        time.sleep(30)
+        # Wait for base services
+        status = StatusUpdater("Waiting for base services")
+        for i in range(6):  # 30 seconds / 5 second intervals
+            status.update(f"Waiting... ({i*5}/30 seconds)")
+            time.sleep(5)
+        status.finish(success=True, message="Base services ready")
         
         # Start model services
-        print("Starting model services...")
-        if not self.run_docker_compose("up -d ner-service openai-service openvino-service ml-service"):
+        status = StatusUpdater("Starting model services")
+        status.update("Starting ner-service, openai-service, openvino-service, ml-service...")
+        if not self.run_docker_compose("up -d ner-service openai-service openvino-service ml-service", show_output=True):
+            status.finish(success=False, message="Failed to start model services")
             return False
+        status.finish(success=True, message="Model services started")
         
-        print("Waiting for model services...")
-        time.sleep(60)
+        # Wait for model services
+        status = StatusUpdater("Waiting for model services")
+        for i in range(12):  # 60 seconds / 5 second intervals
+            status.update(f"Waiting... ({i*5}/60 seconds)")
+            time.sleep(5)
+        status.finish(success=True, message="Model services ready")
         
         # Start orchestrator services
-        print("Starting orchestrator services...")
-        if not self.run_docker_compose("up -d ai-core-service ai-automation-service"):
+        status = StatusUpdater("Starting orchestrator services")
+        status.update("Starting ai-core-service and ai-automation-service...")
+        if not self.run_docker_compose("up -d ai-core-service ai-automation-service", show_output=True):
+            status.finish(success=False, message="Failed to start orchestrator services")
             return False
+        status.finish(success=True, message="Orchestrator services started")
         
-        print("Waiting for orchestrator services...")
-        time.sleep(30)
+        # Wait for orchestrator services
+        status = StatusUpdater("Waiting for orchestrator services")
+        for i in range(6):  # 30 seconds / 5 second intervals
+            status.update(f"Waiting... ({i*5}/30 seconds)")
+            time.sleep(5)
+        status.finish(success=True, message="All services started")
         
-        print("✅ All services started")
         return True
     
     async def test_services(self):
         """Test all services"""
-        print("🧪 Testing Phase 1 services...")
+        print_step_header(3, 3, "Testing Phase 1 Services")
         
         # Wait for services to be healthy
         if not await self.wait_for_services():
@@ -154,48 +200,42 @@ class Phase1Deployment:
         
         # Test individual services
         test_results = {}
+        services_to_test = [
+            ('openvino', 'OpenVINO Service', lambda client: client.post(
+                f"{SERVICES['openvino']}/embeddings",
+                json={"texts": ["test pattern"], "normalize": True}
+            )),
+            ('ml', 'ML Service', lambda client: client.post(
+                f"{SERVICES['ml']}/cluster",
+                json={"data": [[1, 2], [3, 4]], "algorithm": "kmeans", "n_clusters": 2}
+            )),
+            ('ai_core', 'AI Core Service', lambda client: client.post(
+                f"{SERVICES['ai_core']}/analyze",
+                json={
+                    "data": [{"description": "test pattern"}],
+                    "analysis_type": "pattern_detection"
+                }
+            ))
+        ]
         
-        # Test OpenVINO Service
-        print("Testing OpenVINO Service...")
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{SERVICES['openvino']}/embeddings",
-                    json={"texts": ["test pattern"], "normalize": True}
-                )
-                test_results["openvino"] = response.status_code == 200
-        except Exception as e:
-            print(f"OpenVINO test failed: {e}")
-            test_results["openvino"] = False
+        progress = ProgressBar(len(services_to_test), "Testing services")
         
-        # Test ML Service
-        print("Testing ML Service...")
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{SERVICES['ml']}/cluster",
-                    json={"data": [[1, 2], [3, 4]], "algorithm": "kmeans", "n_clusters": 2}
-                )
-                test_results["ml"] = response.status_code == 200
-        except Exception as e:
-            print(f"ML test failed: {e}")
-            test_results["ml"] = False
+        async with httpx.AsyncClient() as client:
+            for idx, (key, name, test_func) in enumerate(services_to_test, 1):
+                progress.update(idx - 1)
+                with Spinner(f"Testing {name}") as spinner:
+                    try:
+                        response = await test_func(client)
+                        test_results[key] = response.status_code == 200
+                        if test_results[key]:
+                            spinner.stop(success=True, message=f"{name} test passed")
+                        else:
+                            spinner.stop(success=False, message=f"{name} test failed (status {response.status_code})")
+                    except Exception as e:
+                        test_results[key] = False
+                        spinner.stop(success=False, message=f"{name} test failed: {str(e)[:50]}")
         
-        # Test AI Core Service
-        print("Testing AI Core Service...")
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{SERVICES['ai_core']}/analyze",
-                    json={
-                        "data": [{"description": "test pattern"}],
-                        "analysis_type": "pattern_detection"
-                    }
-                )
-                test_results["ai_core"] = response.status_code == 200
-        except Exception as e:
-            print(f"AI Core test failed: {e}")
-            test_results["ai_core"] = False
+        progress.finish(message="Service testing completed")
         
         # Print test results
         print("\n📊 Test Results:")
@@ -224,8 +264,9 @@ class Phase1Deployment:
     
     async def run_full_deployment(self):
         """Run complete deployment and testing"""
-        print("🚀 Phase 1 Containerized AI Services Deployment")
-        print("=" * 60)
+        print("\n" + "="*80)
+        print("Phase 1 Containerized AI Services Deployment")
+        print("="*80 + "\n")
         
         # Step 1: Build services
         if not self.build_services():

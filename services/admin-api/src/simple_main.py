@@ -11,8 +11,16 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
+# Add parent directory to path so we can import shared module
+# In container: /app/shared exists, so add /app to path
+# In dev: ../../../shared exists, so add parent to path
+if os.path.exists('/app/shared'):
+    sys.path.insert(0, '/app')
+else:
+    # Fallback for local development
+    parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    if os.path.exists(os.path.join(parent_dir, 'shared')):
+        sys.path.insert(0, parent_dir)
 
 from shared.endpoints import create_integration_router, simple_health_router
 from src.config_manager import config_manager

@@ -15,7 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db_session
-from ...models.database import Device, DeviceEntity, NameSuggestion
+from ...models.database import Device, DeviceEntity
+from ...models.name_enhancement import NameSuggestion
 from .name_generator import DeviceNameGenerator
 
 logger = logging.getLogger(__name__)

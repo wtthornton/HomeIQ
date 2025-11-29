@@ -161,6 +161,7 @@ services:
     command: ["python", "src/simple_main.py"]
     volumes:
       - ./services/admin-api:/app
+      - ./shared:/app/shared
       - /app/__pycache__
     depends_on:
       data-api:

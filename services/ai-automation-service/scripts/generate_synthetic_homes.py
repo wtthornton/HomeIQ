@@ -197,67 +197,101 @@ async def main():
     
     # Generate areas, devices, and events for each home
     complete_homes = []
+    total_homes = len(homes)
+    
+    logger.info(f"📊 Starting generation for {total_homes} homes ({args.days} days each)")
+    logger.info("="*80)
+    
+    import time
+    generation_start_time = time.time()
     
     for i, home in enumerate(homes):
-        logger.info(f"Processing home {i+1}/{len(homes)}: {home['home_type']}")
+        home_num = i + 1
+        logger.info(f"🏠 [{home_num}/{total_homes}] Processing home: {home['home_type']}")
         
         try:
             # Generate areas (template-based)
+            logger.debug(f"   [{home_num}/{total_homes}] Generating areas...")
             areas = area_generator.generate_areas(home)
             home['areas'] = areas
+            logger.debug(f"   [{home_num}/{total_homes}] Generated {len(areas)} areas")
             
             # Generate devices (template-based)
+            logger.debug(f"   [{home_num}/{total_homes}] Generating devices...")
             devices = device_generator.generate_devices(home, areas)
             home['devices'] = devices
+            logger.debug(f"   [{home_num}/{total_homes}] Generated {len(devices)} devices")
             
             # Generate events (local computation)
-            events = await event_generator.generate_events(devices, days=args.days)
+            logger.info(f"   [{home_num}/{total_homes}] Generating {args.days} days of events for {len(devices)} devices... (this may take a while)")
+            
+            # Progress callback for event generation (show at INFO level for visibility)
+            def event_progress(device_num, total_devices, days_processed, total_days):
+                device_pct = (device_num / total_devices) * 100
+                day_pct = (days_processed / total_days) * 100
+                # Log at INFO level for important milestones, DEBUG for frequent updates
+                if device_num == total_devices or days_processed == total_days or (device_num % 10 == 0 and days_processed % 10 == 0):
+                    logger.info(f"      [{home_num}/{total_homes}] Events progress: {device_num}/{total_devices} devices ({device_pct:.0f}%), {days_processed}/{total_days} days ({day_pct:.0f}%)")
+                else:
+                    logger.debug(f"      [{home_num}/{total_homes}] Events: {device_num}/{total_devices} devices ({device_pct:.0f}%), {days_processed}/{total_days} days ({day_pct:.0f}%)")
+            
+            events = await event_generator.generate_events(devices, days=args.days, progress_callback=event_progress)
             home['events'] = events
+            logger.info(f"   [{home_num}/{total_homes}] Generated {len(events)} events")
             
-            # Generate external data (weather, carbon, pricing, calendar)
-            from datetime import datetime, timedelta, timezone
-            start_date = datetime.now(timezone.utc) - timedelta(days=args.days)
-            
-            # Generate unified external data
-            external_data = await external_data_generator.generate_external_data(
-                home=home,
-                start_date=start_date,
-                days=args.days,
-                enable_weather=args.enable_weather,
-                enable_carbon=args.enable_carbon,
-                enable_pricing=args.enable_pricing,
-                enable_calendar=args.enable_calendar
-            )
-            
-            # Apply correlations to events (if weather/carbon data available)
+            # Generate external data only if at least one is enabled
             final_events = events
-            if args.enable_weather and external_data.get('weather'):
-                from src.training.synthetic_weather_generator import SyntheticWeatherGenerator
-                weather_gen = SyntheticWeatherGenerator()
-                final_events = weather_gen.correlate_with_hvac(
-                    external_data['weather'],
-                    final_events,
-                    devices
-                )
-                final_events = weather_gen.correlate_with_windows(
-                    external_data['weather'],
-                    final_events,
-                    devices
-                )
+            external_data = {}
             
-            if args.enable_carbon and external_data.get('carbon_intensity'):
-                from src.training.synthetic_carbon_intensity_generator import SyntheticCarbonIntensityGenerator
-                carbon_gen = SyntheticCarbonIntensityGenerator()
-                final_events = carbon_gen.correlate_with_energy_devices(
-                    external_data['carbon_intensity'],
-                    final_events,
-                    devices
+            if args.enable_weather or args.enable_carbon or args.enable_pricing or args.enable_calendar:
+                from datetime import datetime, timedelta, timezone
+                start_date = datetime.now(timezone.utc) - timedelta(days=args.days)
+                
+                # Generate unified external data (generator always generates all types)
+                external_data = external_data_generator.generate_external_data(
+                    home=home,
+                    start_date=start_date,
+                    days=args.days
                 )
+                
+                # Filter external data based on enable flags
+                if not args.enable_weather:
+                    external_data['weather'] = []
+                if not args.enable_carbon:
+                    external_data['carbon_intensity'] = []
+                if not args.enable_pricing:
+                    external_data['pricing'] = []
+                if not args.enable_calendar:
+                    external_data['calendar'] = []
+                
+                # Apply correlations to events (if weather/carbon data available)
+                if args.enable_weather and external_data.get('weather'):
+                    from src.training.synthetic_weather_generator import SyntheticWeatherGenerator
+                    weather_gen = SyntheticWeatherGenerator()
+                    final_events = weather_gen.correlate_with_hvac(
+                        external_data['weather'],
+                        final_events,
+                        devices
+                    )
+                    final_events = weather_gen.correlate_with_windows(
+                        external_data['weather'],
+                        final_events,
+                        devices
+                    )
+                
+                if args.enable_carbon and external_data.get('carbon_intensity'):
+                    from src.training.synthetic_carbon_intensity_generator import SyntheticCarbonIntensityGenerator
+                    carbon_gen = SyntheticCarbonIntensityGenerator()
+                    final_events = carbon_gen.correlate_with_energy_devices(
+                        external_data['carbon_intensity'],
+                        final_events,
+                        devices
+                    )
             
             # Update events with correlations
             home['events'] = final_events
             
-            # Add external_data section to home (all four data types)
+            # Add external_data section to home
             home['external_data'] = external_data
             
             complete_homes.append(home)
@@ -269,12 +303,34 @@ async def main():
             calendar_count = len(external_data.get('calendar', []))
             
             logger.info(
-                f"✅ Completed home {i+1}/{len(homes)}: {len(devices)} devices, {len(final_events)} events, "
+                f"✅ [{home_num}/{total_homes}] Completed: {len(devices)} devices, {len(final_events)} events, "
                 f"weather={weather_count}, carbon={carbon_count}, pricing={pricing_count}, calendar={calendar_count}"
             )
             
+            # Progress update every 10 homes or on last home (more frequent for smaller runs)
+            progress_interval = 10 if total_homes >= 50 else 5
+            if home_num % progress_interval == 0 or home_num == total_homes:
+                progress_pct = (home_num / total_homes) * 100
+                elapsed_msg = ""
+                if home_num > 0:
+                    elapsed_time = time.time() - generation_start_time
+                    if elapsed_time > 0:
+                        avg_time_per_home = elapsed_time / home_num
+                        remaining_homes = total_homes - home_num
+                        estimated_remaining = avg_time_per_home * remaining_homes
+                        elapsed_min = elapsed_time / 60
+                        remaining_min = estimated_remaining / 60
+                        elapsed_msg = f" | Elapsed: {elapsed_min:.1f} min | ETA: {remaining_min:.1f} min"
+                logger.info(f"📈 Progress: {home_num}/{total_homes} homes ({progress_pct:.1f}%){elapsed_msg}")
+            
+            # Flush output to ensure real-time visibility
+            import sys
+            sys.stdout.flush()
+            
         except Exception as e:
-            logger.error(f"❌ Failed to process home {i+1}: {e}")
+            logger.error(f"❌ [{home_num}/{total_homes}] Failed to process home: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
             continue
     
     # Save homes

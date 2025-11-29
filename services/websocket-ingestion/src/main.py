@@ -60,6 +60,7 @@ from shared.logging_config import (
 from .async_event_processor import AsyncEventProcessor
 from .batch_processor import BatchProcessor
 from .connection_manager import ConnectionManager
+from .entity_filter import EntityFilter  # Epic 45.2
 from .event_queue import EventQueue
 from .health_check import HealthCheckHandler
 from .historical_event_counter import HistoricalEventCounter
@@ -127,9 +128,40 @@ class WebSocketIngestionService:
         # Historical event counter for persistent totals
         self.historical_counter = None
 
+        # Epic 45.2: Entity filter for event capture
+        self.entity_filter: EntityFilter | None = None
+        self._init_entity_filter()
+
         # Note: HA connection validation is now handled by ha_connection_manager
         # The service will check for available connections during startup
         # Note: Weather enrichment is handled by standalone weather-api service (Epic 31)
+
+    def _init_entity_filter(self):
+        """Initialize entity filter from environment or config file (Epic 45.2)"""
+        try:
+            # Load filter config from environment variable (JSON string)
+            filter_config_json = os.getenv('ENTITY_FILTER_CONFIG')
+            if filter_config_json:
+                filter_config = json.loads(filter_config_json)
+                self.entity_filter = EntityFilter(filter_config)
+                logger.info("Entity filter initialized from ENTITY_FILTER_CONFIG environment variable")
+                return
+            
+            # Try loading from config file
+            config_file = os.getenv('ENTITY_FILTER_CONFIG_FILE', 'config/entity_filter.json')
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    filter_config = json.load(f)
+                    self.entity_filter = EntityFilter(filter_config)
+                    logger.info(f"Entity filter initialized from {config_file}")
+                    return
+            
+            # Default: No filtering (include all entities)
+            logger.info("Entity filter not configured - all entities will be included")
+            self.entity_filter = None
+        except Exception as e:
+            logger.warning(f"Failed to initialize entity filter: {e}. Continuing without filtering.")
+            self.entity_filter = None
 
     @performance_monitor("service_startup")
     async def start(self):
@@ -447,6 +479,17 @@ class WebSocketIngestionService:
         )
 
         try:
+            # Epic 45.2: Apply entity filter before adding to batch
+            if self.entity_filter and not self.entity_filter.should_include(processed_event):
+                log_with_context(
+                    logger, "DEBUG", "Event filtered by entity filter",
+                    operation="entity_filtering",
+                    correlation_id=corr_id,
+                    event_type=event_type,
+                    entity_id=entity_id
+                )
+                return  # Skip filtered events
+            
             # Add to batch processor for high-volume processing
             if self.batch_processor:
                 await self.batch_processor.add_event(processed_event)
@@ -756,6 +799,24 @@ async def create_app():
             }, status=500)
 
     app.router.add_post('/api/v1/discovery/trigger', trigger_discovery_handler)
+
+    # Epic 45.2: Add entity filter statistics endpoint
+    async def filter_stats_handler(request):
+        """Endpoint to get entity filter statistics"""
+        service = request.app['service']
+        if not service.entity_filter:
+            return web.json_response({
+                "enabled": False,
+                "message": "Entity filter not configured"
+            })
+        
+        stats = service.entity_filter.get_statistics()
+        return web.json_response({
+            "enabled": True,
+            "statistics": stats
+        })
+    
+    app.router.add_get('/api/v1/filter/stats', filter_stats_handler)
 
     # Add WebSocket endpoint
     app.router.add_get('/ws', websocket_handler)

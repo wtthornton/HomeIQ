@@ -42,7 +42,6 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown: Cleanup resources
-    global ner_pipeline
     if ner_pipeline:
         # Transformers pipeline doesn't require explicit cleanup, but we can clear the reference
         ner_pipeline = None

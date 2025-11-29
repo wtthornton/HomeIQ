@@ -420,11 +420,48 @@ Extend vector database capabilities beyond correlation analysis to optimize answ
 
 ---
 
+## Production Readiness Improvements Epics (42-43)
+
+**Epic 42: Production Readiness Improvements - Status Reporting & Validation** 📋 PLANNING
+Improve production readiness script with clear status reporting (critical vs optional components), comprehensive pre-flight validation, and enhanced error messages with actionable fix instructions. Addresses lessons learned from production readiness testing to eliminate confusion and improve user experience.
+
+**Epic 43: Production Readiness Improvements - Model Quality & Documentation** 📋 PLANNING
+Implement model quality validation with defined thresholds and improve component documentation to clarify purpose and dependencies. Ensures training produces high-quality models and provides clear guidance on system components for single-house NUC deployments.
+
+## Development Experience Improvements Epics (44)
+
+**Epic 44: Development Experience Improvements - Build-Time Validation** 📋 PLANNING
+Add static type checking (mypy), import validation at build time, and service startup tests in CI/CD to catch errors early. Prevents runtime import failures and improves development velocity for single-house NUC deployments.
+
+## Database Architecture Enhancement Epics (45)
+
+**Epic 45: Tiered Statistics Model - Home Assistant Alignment** 📋 PLANNING
+Implement a Home Assistant-aligned tiered statistics model that automatically aggregates raw events into short-term (5-minute) and long-term (hourly) statistics, enabling efficient long-term trend analysis while reducing storage by 80-90%. Includes entity filtering, statistics metadata tracking, and smart query routing for optimal performance.
+
+**Key Features:**
+- Short-term statistics: 5-minute aggregates (30 days retention)
+- Long-term statistics: Hourly aggregates (indefinite retention)
+- Statistics metadata tracking (SQLite table)
+- Entity filtering system (exclude low-value entities)
+- Smart query routing (automatic data source selection)
+- 80-90% storage reduction for long-term data
+
+**Stories:**
+- 45.1: Statistics Metadata Tracking & Entity Eligibility Detection (3-4 hours)
+- 45.2: Entity Filtering System for Event Capture (2-3 hours)
+- 45.3: Short-Term Statistics Aggregation (5-Minute) (4-5 hours)
+- 45.4: Long-Term Statistics Aggregation (Hourly) (3-4 hours)
+- 45.5: Smart Query Routing & Retention Policy Optimization (2-3 hours)
+
+**Total Effort:** 12-16 hours estimated
+
+---
+
 ## Summary
 
-- **Total Epics**: 41 (26 infrastructure + 4 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization)
+- **Total Epics**: 45 (26 infrastructure + 4 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement)
 - **Completed**: 32 (26 infrastructure + 4 AI + 4 setup service + 1 architecture + 1 code quality) ✅ **100% COMPLETE** 🎉
-- **Planned**: 8 (Epic 33-40: Synthetic External Data, Correlation Analysis, Service Modularization, Dual Deployment) 📋
+- **Planned**: 12 (Epic 33-45: Synthetic External Data, Correlation Analysis, Service Modularization, Dual Deployment, Production Readiness Improvements, Development Experience Improvements, Tiered Statistics Model) 📋
 - **In Progress**: 0
 - **Draft/Planned**: 0
 - **Active Services**: 21 total (18 microservices + InfluxDB infrastructure)

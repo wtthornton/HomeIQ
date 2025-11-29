@@ -1,12 +1,72 @@
-# Home Assistant Automation Management Scripts
+# HomeIQ Scripts
 
 ## Overview
 
-Scripts for managing Home Assistant automations via API.
+Scripts for managing HomeIQ system operations, including automation management, testing, training, and production deployment.
 
 ---
 
 ## Scripts Available
+
+### `prepare_for_production.py` ⭐ NEW
+**Purpose:** Complete production readiness pipeline - builds, deploys, tests, generates data, trains models, and prepares for production
+
+**Usage:**
+```bash
+# Full pipeline
+python scripts/prepare_for_production.py
+
+# Quick mode (smaller dataset)
+python scripts/prepare_for_production.py --quick
+
+# Skip specific steps
+python scripts/prepare_for_production.py --skip-build --skip-deploy
+
+# Verbose output
+python scripts/prepare_for_production.py --verbose
+```
+
+**Features:**
+- **Pre-flight validation** (Epic 42): Validates dependencies, environment variables, and services before starting
+- Builds all Docker images
+- Deploys all services
+- Runs comprehensive smoke tests
+- Generates synthetic test data (100 homes, 90 days by default)
+  - **Progress reporting:** Shows "X of Y homes" progress with ETA during generation
+  - **Real-time output:** Streams progress updates as data is generated
+- Trains all ML models (home type classifier, device intelligence, GNN synergy, soft prompt)
+  - **Critical vs Optional classification** (Epic 42): Clear distinction between required and enhancement models
+- Saves and verifies trained models
+- Generates production readiness report with enhanced status reporting
+- **Enhanced error messages** (Epic 42): What/Why/How to Fix format with actionable instructions
+
+**Options:**
+- `--skip-build` - Skip Docker build step
+- `--skip-deploy` - Skip deployment step
+- `--skip-smoke` - Skip smoke tests
+- `--skip-generation` - Skip test data generation
+- `--skip-training` - Skip model training
+- `--skip-validation` - Skip pre-flight dependency validation (advanced users only)
+- `--quick` - Use smaller dataset (10 homes, 7 days)
+- `--count N` - Number of synthetic homes to generate (overrides default/quick)
+- `--days N` - Number of days of events per home (overrides default/quick)
+- `--verbose` - Enable detailed logging
+- `--output-dir` - Custom output directory for reports
+
+**Output:**
+- Production readiness report: `implementation/production_readiness_report_{timestamp}.md`
+- Smoke test results: `test-results/smoke_test_results_{timestamp}.json`
+- Model manifest: `test-results/model_manifest_{timestamp}.json`
+
+**Requirements:**
+- Docker and Docker Compose (validated before execution)
+- Python 3.10+
+- All service dependencies installed (validated before execution)
+- Environment variables configured (validated before execution)
+  - Required: `HA_HTTP_URL`, `HA_TOKEN`
+  - Optional: `OPENAI_API_KEY` (for GNN synergy and soft prompt models)
+
+---
 
 ### `delete_all_automations.py` ⭐
 **Purpose:** Delete ALL automations from Home Assistant using the API
@@ -130,8 +190,19 @@ HA_TOKEN=your_long_lived_access_token_here
 
 ---
 
+## Related Scripts
+
+### Testing and Training
+- `run_full_test_and_training.py` - Test data generation and model training pipeline
+- `simple-unit-tests.py` - Unit test runner
+
+### Deployment
+- `deploy.sh` - Production deployment script
+- `deploy-with-validation.sh` - Deployment with validation checks
+
 ## Files
 
+- `prepare_for_production.py` - Production readiness orchestration script
 - `delete_all_automations.py` - Main script to delete all automations
 - `HOME_ASSISTANT_AUTOMATION_API_RESEARCH.md` - Detailed research findings
 - `README.md` - This file
@@ -146,6 +217,7 @@ HA_TOKEN=your_long_lived_access_token_here
 
 ---
 
-**Last Updated:** October 20, 2025  
-**Status:** ✅ Verified and Working
+**Last Updated:** November 28, 2025  
+**Status:** ✅ Verified and Working  
+**Epic 42:** Enhanced with pre-flight validation, critical/optional classification, and improved error messages
 

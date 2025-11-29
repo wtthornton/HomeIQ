@@ -1,0 +1,33 @@
+{
+  "model_version": "1.0",
+  "training_date": "2025-11-28T23:23:25.457531+00:00",
+  "feature_names": [
+    "total_devices",
+    "security_ratio",
+    "climate_ratio",
+    "lighting_ratio",
+    "appliance_ratio",
+    "monitoring_ratio",
+    "device_count_light",
+    "device_count_binary_sensor",
+    "device_count_sensor",
+    "device_count_switch",
+    "device_count_climate",
+    "total_events",
+    "events_per_day",
+    "peak_hour_1",
+    "peak_hour_2",
+    "peak_hour_3",
+    "area_count",
+    "indoor_ratio",
+    "devices_per_area",
+    "pattern_count",
+    "avg_pattern_confidence",
+    "diversity_ratio"
+  ],
+  "class_names": [
+    "apartment",
+    "standard_home"
+  ],
+  "is_trained": true
+}

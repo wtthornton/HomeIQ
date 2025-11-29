@@ -1,0 +1,77 @@
+{
+  "accuracy": 0.9626168224299065,
+  "precision": 0.9631058855056444,
+  "recall": 0.9626168224299065,
+  "f1_score": 0.9625169030315546,
+  "cv_accuracy_mean": 0.9788235294117648,
+  "cv_accuracy_std": 0.026201244060376567,
+  "classification_report": {
+    "apartment": {
+      "precision": 0.9777777777777777,
+      "recall": 0.9361702127659575,
+      "f1-score": 0.9565217391304348,
+      "support": 47.0
+    },
+    "standard_home": {
+      "precision": 0.9516129032258065,
+      "recall": 0.9833333333333333,
+      "f1-score": 0.9672131147540983,
+      "support": 60.0
+    },
+    "accuracy": 0.9626168224299065,
+    "macro avg": {
+      "precision": 0.9646953405017922,
+      "recall": 0.9597517730496454,
+      "f1-score": 0.9618674269422666,
+      "support": 107.0
+    },
+    "weighted avg": {
+      "precision": 0.9631058855056444,
+      "recall": 0.9626168224299065,
+      "f1-score": 0.9625169030315546,
+      "support": 107.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      44,
+      3
+    ],
+    [
+      1,
+      59
+    ]
+  ],
+  "feature_names": [
+    "total_devices",
+    "security_ratio",
+    "climate_ratio",
+    "lighting_ratio",
+    "appliance_ratio",
+    "monitoring_ratio",
+    "device_count_light",
+    "device_count_binary_sensor",
+    "device_count_sensor",
+    "device_count_switch",
+    "device_count_climate",
+    "total_events",
+    "events_per_day",
+    "peak_hour_1",
+    "peak_hour_2",
+    "peak_hour_3",
+    "area_count",
+    "indoor_ratio",
+    "devices_per_area",
+    "pattern_count",
+    "avg_pattern_confidence",
+    "diversity_ratio"
+  ],
+  "class_names": [
+    "apartment",
+    "standard_home"
+  ],
+  "training_samples": 425,
+  "test_samples": 107,
+  "model_version": "1.0",
+  "training_date": "2025-11-28T23:23:25.457531+00:00"
+}
