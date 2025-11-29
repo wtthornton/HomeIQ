@@ -86,7 +86,8 @@ class SyntheticEventGenerator:
     async def generate_events(
         self,
         devices: list[dict[str, Any]],
-        days: int = 7
+        days: int = 7,
+        progress_callback=None
     ) -> list[dict[str, Any]]:
         """
         Generate synthetic events for devices.
@@ -94,16 +95,19 @@ class SyntheticEventGenerator:
         Args:
             devices: List of device dictionaries
             days: Number of days of events to generate
+            progress_callback: Optional callback function(device_num, total_devices, days_processed, total_days)
         
         Returns:
             List of event dictionaries
         """
-        logger.info(f"Generating events for {len(devices)} devices over {days} days...")
+        total_devices = len(devices)
+        logger.info(f"Generating events for {total_devices} devices over {days} days...")
         
         events = []
         start_time = datetime.now(timezone.utc) - timedelta(days=days)
         
-        for device in devices:
+        for device_idx, device in enumerate(devices):
+            device_num = device_idx + 1
             device_type = device.get('device_type', 'sensor')
             entity_id = device.get('entity_id', 'unknown.entity')
             area = device.get('area', 'unknown')
@@ -114,6 +118,12 @@ class SyntheticEventGenerator:
             # Generate events for each day
             for day in range(days):
                 day_start = start_time + timedelta(days=day)
+                
+                # Progress update every 10 devices or every 10 days (more frequent for long runs)
+                progress_interval = 10 if days <= 30 else 5
+                if (device_num % progress_interval == 0 or device_num == total_devices) and (day == 0 or day % progress_interval == 0 or day == days - 1):
+                    if progress_callback:
+                        progress_callback(device_num, total_devices, day + 1, days)
                 
                 # Distribute events throughout the day
                 num_events = int(events_per_day)
@@ -148,6 +158,10 @@ class SyntheticEventGenerator:
                     }
                     
                     events.append(event)
+            
+            # Progress update after each device (for longer runs)
+            if days >= 30 and (device_num % 5 == 0 or device_num == total_devices):
+                logger.debug(f"   Processed {device_num}/{total_devices} devices, {len(events)} events so far...")
         
         # Sort events by timestamp
         events.sort(key=lambda e: e['timestamp'])

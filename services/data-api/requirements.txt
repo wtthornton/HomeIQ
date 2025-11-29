@@ -25,6 +25,7 @@ python-dotenv==1.2.1
 # Utilities
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
+psutil>=5.9.0,<6.0.0
 
 # Testing (development)
 pytest==8.3.3

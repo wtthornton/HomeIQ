@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from ..clients.ha_client import HAArea, HADevice, HAEntity
 from ..clients.mqtt_client import MQTTClient, ZigbeeDevice, ZigbeeGroup
 from ..config import Settings
@@ -567,7 +569,8 @@ class DiscoveryService:
             return
 
         try:
-            from ..models.database import Device, DeviceEntity, NameSuggestion
+            from ..models.database import Device, DeviceEntity
+            from ..models.name_enhancement import NameSuggestion
             from sqlalchemy import select
 
             suggestions_created = 0

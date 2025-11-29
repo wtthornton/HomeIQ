@@ -21,6 +21,7 @@ from .retention_endpoints import RetentionEndpoints
 from .retention_policy import RetentionPeriod, RetentionPolicy, RetentionPolicyManager
 from .s3_archival import S3ArchivalManager
 from .scheduler import RetentionScheduler
+from .statistics_aggregator import StatisticsAggregator  # Epic 45.3
 from .storage_analytics import StorageAnalytics
 from .storage_monitor import StorageMonitor
 from .tiered_retention import TieredRetentionManager
@@ -49,6 +50,9 @@ class DataRetentionService:
         self.analytics: StorageAnalytics | None = None
         self.scheduler: RetentionScheduler | None = None
         self.retention_endpoints: RetentionEndpoints | None = None
+        
+        # Epic 45.3: Statistics aggregator
+        self.statistics_aggregator: StatisticsAggregator | None = None
 
         # Configuration
         self.cleanup_interval_hours = int(os.getenv('CLEANUP_INTERVAL_HOURS', '24'))
@@ -82,6 +86,9 @@ class DataRetentionService:
         self.analytics = StorageAnalytics()
         self.analytics.initialize()
 
+        # Epic 45.3: Initialize statistics aggregator
+        self.statistics_aggregator = StatisticsAggregator()
+
         # Initialize scheduler
         self.scheduler = RetentionScheduler()
 
@@ -91,6 +98,12 @@ class DataRetentionService:
         self.scheduler.schedule_daily(3, 0, self.archival_manager.archive_to_s3, "S3 Archival")
         self.scheduler.schedule_daily(4, 0, self.view_manager.refresh_all_views, "Refresh Views")
         self.scheduler.schedule_daily(5, 0, self.analytics.calculate_storage_metrics, "Calculate Metrics")
+        
+        # Epic 45.3: Schedule short-term statistics aggregation (every 5 minutes)
+        self.scheduler.schedule_periodic(5, self.statistics_aggregator.aggregate_short_term, "Short-Term Statistics Aggregation")
+        
+        # Epic 45.4: Schedule long-term statistics aggregation (every hour)
+        self.scheduler.schedule_periodic(60, self.statistics_aggregator.aggregate_long_term, "Long-Term Statistics Aggregation")
 
         # Start scheduler in background
         asyncio.create_task(self.scheduler.run_scheduler())

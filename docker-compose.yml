@@ -992,7 +992,7 @@ services:
     container_name: ai-training-service
     restart: unless-stopped
     ports:
-      - "8022:8022"
+      - "8033:8022"
     env_file:
       - .env
     environment:
@@ -1035,7 +1035,7 @@ services:
     container_name: ai-pattern-service
     restart: unless-stopped
     ports:
-      - "8020:8020"
+      - "8034:8020"
     env_file:
       - .env
     environment:

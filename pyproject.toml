@@ -55,13 +55,13 @@ indent-style = "space"
 "scripts/**/*.py" = ["T201"]  # Allow print in scripts
 
 # ============================================
-# mypy Configuration
+# mypy Configuration (Epic 44.1: Static Type Checking)
 # ============================================
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false  # Start lenient, tighten over time
+disallow_untyped_defs = false  # Start lenient, tighten over time (gradual adoption)
 disallow_incomplete_defs = false
 check_untyped_defs = true
 no_implicit_optional = true
@@ -72,12 +72,27 @@ strict_equality = true
 ignore_missing_imports = false
 namespace_packages = true  # Fix duplicate module "src" error - treat as namespace packages
 
+# Async/await support for Python 3.11+
+show_error_codes = true
+warn_unreachable = true
+warn_unused_coroutines = true
+
 # Per-module options
 [[tool.mypy.overrides]]
 module = [
     "tests.*",
     "alembic.*",
     "*.tests.*",
+    "scripts.*",  # Scripts can be less strict initially
 ]
 ignore_errors = true
 ignore_missing_imports = true
+
+# Critical services that had import errors (Epic 44.1: Start with these)
+[[tool.mypy.overrides]]
+module = [
+    "services.device-intelligence-service.*",
+    "services.websocket-ingestion.*",
+]
+disallow_untyped_defs = false  # Will tighten over time
+ignore_missing_imports = false

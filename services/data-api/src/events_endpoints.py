@@ -841,6 +841,51 @@ from(bucket: "{influxdb_bucket}")
             value = value.astimezone(timezone.utc)
         return value.isoformat().replace("+00:00", "Z")
 
+    def _determine_data_source(self, event_filter: EventFilter) -> tuple[str, str]:
+        """
+        Determine which data source to use based on time range (Epic 45.5).
+        
+        Returns:
+            Tuple of (measurement_name, field_name)
+            - Last 10 days: ("home_assistant_events", "context_id")
+            - 10-30 days: ("statistics_short_term", "mean")
+            - Beyond 30 days: ("statistics", "mean")
+        """
+        now = datetime.now(timezone.utc)
+        
+        # Determine time range
+        if event_filter.start_time:
+            start_dt = event_filter.start_time
+            if start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            else:
+                start_dt = start_dt.astimezone(timezone.utc)
+        else:
+            start_dt = now - timedelta(hours=24)  # Default: last 24 hours
+        
+        if event_filter.end_time:
+            end_dt = event_filter.end_time
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            else:
+                end_dt = end_dt.astimezone(timezone.utc)
+        else:
+            end_dt = now
+        
+        # Calculate days ago
+        days_ago = (now - start_dt).days
+        
+        # Route based on time range
+        if days_ago <= 10:
+            # Last 10 days: Use raw events
+            return ("home_assistant_events", "context_id")
+        elif days_ago <= 30:
+            # 10-30 days: Use short-term statistics
+            return ("statistics_short_term", "mean")
+        else:
+            # Beyond 30 days: Use long-term statistics
+            return ("statistics", "mean")
+
     async def _get_events_from_influxdb(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
         """
         Retrieve and transform events from InfluxDB using Flux query language.
@@ -913,6 +958,10 @@ from(bucket: "{influxdb_bucket}")
             client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
             query_api = client.query_api()
 
+            # Epic 45.5: Smart query routing - determine data source based on time range
+            measurement, field_name = self._determine_data_source(event_filter)
+            use_statistics = measurement != "home_assistant_events"
+            
             # Build Flux query - SIMPLIFIED APPROACH (Context7 KB Pattern)
             # Context7 KB: /websites/influxdata-influxdb-v2
             # KEY INSIGHT: entity_id and event_type are TAGS (not fields)
@@ -944,9 +993,10 @@ from(bucket: "{influxdb_bucket}")
                   |> range(start: -24h)
                 '''
 
-            query += '''
-              |> filter(fn: (r) => r._measurement == "home_assistant_events")
-              |> filter(fn: (r) => r._field == "context_id")
+            # Epic 45.5: Use appropriate measurement and field based on time range
+            query += f'''
+              |> filter(fn: (r) => r._measurement == "{measurement}")
+              |> filter(fn: (r) => r._field == "{field_name}")
             '''
 
             # Add tag-based filters (these are indexed and efficient) - SANITIZED

@@ -13,6 +13,8 @@ import os
 import sys
 import subprocess
 import time
+import json
+import re
 from pathlib import Path
 from datetime import datetime
 
@@ -26,10 +28,11 @@ class SimpleUnitTestRunner:
     def __init__(self):
         self.project_root = project_root
         self.results = {
-            'python': {'passed': 0, 'failed': 0, 'total': 0},
-            'typescript': {'passed': 0, 'failed': 0, 'total': 0},
-            'start_time': datetime.now(),
-            'duration': 0
+            'python': {'passed': 0, 'failed': 0, 'total': 0, 'coverage': 0},
+            'typescript': {'passed': 0, 'failed': 0, 'total': 0, 'coverage': 0},
+            'start_time': datetime.now().isoformat(),
+            'end_time': None,
+            'duration_seconds': 0
         }
         
         # Create results directory
@@ -43,7 +46,13 @@ class SimpleUnitTestRunner:
         print("=" * 80)
         print("HomeIQ Unit Testing Framework")
         print("=" * 80)
-        print(f"Started: {self.results['start_time'].strftime('%Y-%m-%d %H:%M:%S')}")
+        start_time_str = self.results['start_time']
+        if isinstance(start_time_str, str):
+            # Parse ISO format and format it nicely
+            start_dt = datetime.fromisoformat(start_time_str)
+            print(f"Started: {start_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        else:
+            print(f"Started: {start_time_str.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Results: {self.results_dir}")
         print("=" * 80)
     
@@ -85,25 +94,48 @@ class SimpleUnitTestRunner:
                 timeout=600  # 10 minute timeout
             )
             
-            # Parse results
-            if result.returncode == 0:
-                self.print_progress("Python tests completed successfully", "SUCCESS")
-                # Extract test counts from output
-                lines = result.stdout.split('\n')
-                for line in lines:
-                    if 'passed' in line and 'failed' in line:
-                        parts = line.split()
-                        for i, part in enumerate(parts):
-                            if part == 'passed':
-                                self.results['python']['passed'] = int(parts[i-1])
-                            elif part == 'failed':
-                                self.results['python']['failed'] = int(parts[i-1])
-                        break
-            else:
-                self.print_progress("Python tests had failures", "WARNING")
-                self.results['python']['failed'] = 1
+            # Parse results from stdout
+            output = result.stdout + result.stderr
+            lines = output.split('\n')
             
-            self.results['python']['total'] = self.results['python']['passed'] + self.results['python']['failed']
+            # Look for pytest summary line (e.g., "5 passed, 3 failed in 2.34s")
+            passed_count = 0
+            failed_count = 0
+            for line in lines:
+                # Match patterns like "X passed", "X failed", "X error"
+                if 'passed' in line.lower() or 'failed' in line.lower() or 'error' in line.lower():
+                    # Try to extract numbers
+                    passed_matches = re.findall(r'(\d+)\s+passed', line, re.IGNORECASE)
+                    failed_matches = re.findall(r'(\d+)\s+failed', line, re.IGNORECASE)
+                    error_matches = re.findall(r'(\d+)\s+error', line, re.IGNORECASE)
+                    
+                    if passed_matches:
+                        passed_count = int(passed_matches[0])
+                    if failed_matches:
+                        failed_count = int(failed_matches[0])
+                    if error_matches:
+                        failed_count += int(error_matches[0])
+            
+            # If we couldn't parse, check return code
+            if passed_count == 0 and failed_count == 0:
+                if result.returncode == 0:
+                    # Try to find "X passed" pattern
+                    for line in lines:
+                        match = re.search(r'(\d+)\s+passed', line, re.IGNORECASE)
+                        if match:
+                            passed_count = int(match.group(1))
+                            break
+                else:
+                    failed_count = 1
+            
+            self.results['python']['passed'] = passed_count
+            self.results['python']['failed'] = failed_count
+            self.results['python']['total'] = passed_count + failed_count
+            
+            if result.returncode == 0 and failed_count == 0:
+                self.print_progress(f"Python tests completed: {passed_count} passed", "SUCCESS")
+            else:
+                self.print_progress(f"Python tests had failures: {passed_count} passed, {failed_count} failed", "WARNING")
             
         except subprocess.TimeoutExpired:
             self.print_progress("Python tests timed out after 10 minutes", "ERROR")
@@ -173,9 +205,91 @@ class SimpleUnitTestRunner:
             self.results['typescript']['failed'] = 1
             self.results['typescript']['total'] = 1
     
+    def save_results(self):
+        """Save results to JSON and generate HTML report"""
+        self.results['end_time'] = datetime.now().isoformat()
+        start_time = datetime.fromisoformat(self.results['start_time'])
+        end_time = datetime.fromisoformat(self.results['end_time'])
+        self.results['duration_seconds'] = (end_time - start_time).total_seconds()
+        
+        # Save JSON results
+        json_file = self.results_dir / "unit-test-results.json"
+        with open(json_file, 'w') as f:
+            json.dump(self.results, f, indent=2)
+        self.print_progress(f"Results saved to: {json_file}", "SUCCESS")
+        
+        # Generate HTML report
+        html_report = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>HomeIQ Unit Test Results</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }}
+        .header {{ background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        .summary {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }}
+        .card {{ background: white; border: 1px solid #ddd; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        .python {{ border-left: 4px solid #3776ab; }}
+        .typescript {{ border-left: 4px solid #3178c6; }}
+        .success {{ color: #28a745; font-weight: bold; }}
+        .failure {{ color: #dc3545; font-weight: bold; }}
+        .coverage {{ color: #007bff; }}
+        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }}
+        h1 {{ margin: 0 0 10px 0; }}
+        h2 {{ margin-top: 0; }}
+        .overall {{ background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧪 HomeIQ Unit Test Results</h1>
+        <p><strong>Generated:</strong> {self.results['end_time']}</p>
+        <p><strong>Duration:</strong> {self.results['duration_seconds']:.1f} seconds</p>
+    </div>
+    
+    <div class="summary">
+        <div class="card python">
+            <h2>🐍 Python Unit Tests</h2>
+            <p><strong>Total:</strong> {self.results['python']['total']}</p>
+            <p class="success"><strong>Passed:</strong> {self.results['python']['passed']}</p>
+            <p class="failure"><strong>Failed:</strong> {self.results['python']['failed']}</p>
+            <p class="coverage"><strong>Coverage:</strong> {self.results['python']['coverage']}%</p>
+        </div>
+        
+        <div class="card typescript">
+            <h2>📘 TypeScript Unit Tests</h2>
+            <p><strong>Total:</strong> {self.results['typescript']['total']}</p>
+            <p class="success"><strong>Passed:</strong> {self.results['typescript']['passed']}</p>
+            <p class="failure"><strong>Failed:</strong> {self.results['typescript']['failed']}</p>
+            <p class="coverage"><strong>Coverage:</strong> {self.results['typescript']['coverage']}%</p>
+        </div>
+    </div>
+    
+    <div class="overall">
+        <h2>📊 Overall Summary</h2>
+        <p><strong>Total Tests:</strong> {self.results['python']['total'] + self.results['typescript']['total']}</p>
+        <p><strong>Total Passed:</strong> {self.results['python']['passed'] + self.results['typescript']['passed']}</p>
+        <p><strong>Total Failed:</strong> {self.results['python']['failed'] + self.results['typescript']['failed']}</p>
+        <p><strong>Success Rate:</strong> {((self.results['python']['passed'] + self.results['typescript']['passed']) / max(1, self.results['python']['total'] + self.results['typescript']['total']) * 100):.1f}%</p>
+    </div>
+    
+    <div class="footer">
+        <p>Coverage reports available in test-results/coverage/</p>
+        <p>Detailed results in test-results/unit-test-results.json</p>
+    </div>
+</body>
+</html>"""
+        
+        html_file = self.results_dir / "unit-test-report.html"
+        with open(html_file, 'w', encoding='utf-8') as f:
+            f.write(html_report)
+        self.print_progress(f"HTML report generated: {html_file}", "SUCCESS")
+    
     def print_summary(self):
         """Print final summary with visual indicators"""
-        self.results['duration'] = (datetime.now() - self.results['start_time']).total_seconds()
+        self.results['end_time'] = datetime.now().isoformat()
+        start_time = datetime.fromisoformat(self.results['start_time'])
+        end_time = datetime.fromisoformat(self.results['end_time'])
+        self.results['duration_seconds'] = (end_time - start_time).total_seconds()
         
         print("\n" + "=" * 80)
         print("UNIT TEST SUMMARY")
@@ -215,7 +329,7 @@ class SimpleUnitTestRunner:
                 print(f"[WARN] Overall: {total_passed}/{total_tests} passed ({overall_rate:.1f}%)")
                 print(f"[WARN] {total_failed} test(s) failed")
         
-        print(f"Duration: {self.results['duration']:.1f} seconds")
+        print(f"Duration: {self.results['duration_seconds']:.1f} seconds")
         print("=" * 80)
         
         # Coverage reports
@@ -237,6 +351,9 @@ class SimpleUnitTestRunner:
         # Run TypeScript tests
         if not python_only:
             self.run_typescript_tests()
+        
+        # Save results and generate reports
+        self.save_results()
         
         # Print summary
         success = self.print_summary()

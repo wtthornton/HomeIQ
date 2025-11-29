@@ -16,7 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db_session
-from ..models.database import Device, DeviceEntity, NameSuggestion
+from ..models.database import Device, DeviceEntity
+from ..models.name_enhancement import NameSuggestion
 from ..services.name_enhancement import DeviceNameGenerator, NameUniquenessValidator
 from ..config import Settings
 
@@ -174,14 +175,14 @@ async def accept_suggested_name(
                 from ..api.discovery import get_discovery_service
                 discovery_service = await get_discovery_service()
                 if discovery_service and hasattr(discovery_service, 'preference_learner') and discovery_service.preference_learner:
-                # Get primary entity
-                entity_result = await session.execute(
-                    select(DeviceEntity).where(
-                        DeviceEntity.device_id == device_id
-                    ).limit(1)
-                )
-                entity = entity_result.scalar_one_or_none()
-                
+                    # Get primary entity
+                    entity_result = await session.execute(
+                        select(DeviceEntity).where(
+                            DeviceEntity.device_id == device_id
+                        ).limit(1)
+                    )
+                    entity = entity_result.scalar_one_or_none()
+                    
                     await discovery_service.preference_learner.learn_from_customization(
                         original_name=suggestion.original_name,
                         user_customized_name=request.suggested_name,

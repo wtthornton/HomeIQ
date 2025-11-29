@@ -13,7 +13,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...models.database import Device, DeviceEntity, NamePreference
+from ...models.database import Device, DeviceEntity
+from ...models.name_enhancement import NamePreference
 from .name_generator import NameSuggestion
 
 logger = logging.getLogger(__name__)

@@ -47,7 +47,6 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown: Cleanup resources
-    global openai_client
     if openai_client:
         # OpenAI client doesn't require explicit cleanup, but we can clear the reference
         openai_client = None
