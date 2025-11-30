@@ -5,7 +5,47 @@ All notable changes to the HA-Ingestor project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-11-29
+## [Unreleased] - 2025-11-30
+
+### Added
+
+- **Epic 40 - Dual Deployment Configuration (Test & Production)** (28c04eb) - wtthornton
+- **Update performance docs with Context7 patterns and NUC optimizations** (e45277d) - wtthornton
+- **feat(training): Add correlation engine and additional test infrastructure** (4c6b275) - wtthornton
+- **feat(scripts): Add analysis, deployment, and utility scripts** (49a513e) - wtthornton
+- **feat(ui): Enhance admin panel and AskAI interface** (d20bca0) - wtthornton
+- **feat(data-services): Enhance data API and retention services** (3fdf742) - wtthornton
+- **feat(device-intelligence): Add device database and intelligence services** (0af813e) - wtthornton
+- **feat(ai-automation): Enhance API endpoints and core service functionality** (03d54c0) - wtthornton
+- **feat(ai-automation): Add home type categorization integration** (cdfb1a0) - wtthornton
+- **feat(ai-automation): Enhance GNN synergy detection and quality framework** (b8590d3) - wtthornton
+- **feat(training): Implement synthetic external data generators** (9747169) - wtthornton
+- **feat(bmad): Add Context7 KB integration to all BMAD agents** (397f9e5) - wtthornton
+- **feat(bmad): Add Phase 1 features - workflow-init and quick-fix workflow** (a2394c8) - wtthornton
+- **Implement Home Type Categorization System** (d3c38c6) - wtthornton
+- **Implement automation template enhancements (quick wins)** (7757a66) - wtthornton
+- **Implement Quick Wins for Ask AI: Fix 54% failure rate** (eee53e3) - wtthornton
+- **Phase 4.1 enhancements and Docker deployment fixes** (42eeac4) - wtthornton
+- **Reduce clarification questions while maintaining 100% pass rate** (912ff27) - wtthornton
+
+### Changed
+
+- **Update: Pattern synergy fixes, health dashboard improvements, and verification scripts** (a413090) - wtthornton
+- **Update continuous improvement cycles and related files** (ff6a6fa) - wtthornton
+- **Update continuous improvement cycles, synergy detection enhancements, and name enhancement features** (80bf25c) - wtthornton
+
+### Removed
+
+- **Remove enrichment-pipeline references from documentation and deployment** (9399701) - wtthornton
+
+### Fixed
+
+- **Update story-35.4 and migration file** (3dd02f5) - wtthornton
+- **Update generate_synthetic_homes and suggestion_router** (20fa1e6) - wtthornton
+- **Update story documentation and add suggestion metadata migration** (61959ab) - wtthornton
+- **Fix prompt 14 in ask-ai-continuous-improvement.py - clarify light control logic for Home Assistant** (8b6c5a0) - wtthornton
+- **Fix admin-api service startup errors** (1e254a3) - wtthornton
+
 
 ### Added
 
