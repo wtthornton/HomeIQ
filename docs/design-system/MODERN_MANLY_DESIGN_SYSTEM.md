@@ -1,8 +1,8 @@
 # Modern & Manly Design System
 
-**Date:** November 1, 2025  
+**Date:** November 30, 2025  
 **Status:** ✅ Active Design Standard  
-**Version:** 1.0.0
+**Version:** 2.0.0 - Enhanced with 2025 Modern Patterns
 
 ## Overview
 
@@ -470,7 +470,148 @@ transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 
 ---
 
+## 2025 Modern Design Patterns (NEW)
+
+### Collapsible Sections
+
+**Pattern**: Space-efficient sections that can be collapsed/expanded
+
+**Implementation**:
+```tsx
+// Header with toggle button
+<motion.button
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+  className="bg-gradient-to-r from-blue-600 to-purple-600 
+    text-white shadow-lg shadow-blue-500/30"
+>
+  <motion.span animate={{ rotate: isOpen ? 180 : 0 }}>
+    {isOpen ? '▲' : '▼'}
+  </motion.span>
+</motion.button>
+
+// Collapsible content with smooth animation
+<AnimatePresence>
+  {isOpen && (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+    >
+      {/* Content */}
+    </motion.div>
+  )}
+</AnimatePresence>
+```
+
+### Glassmorphism Effects
+
+**Pattern**: Frosted glass appearance with backdrop blur
+
+```css
+/* Dark Mode */
+.glass-dark {
+  background: rgba(15, 23, 42, 0.4);  /* slate-900/40 */
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(59, 130, 246, 0.2);  /* blue-500/20 */
+}
+
+/* Light Mode */
+.glass-light {
+  background: rgba(255, 255, 255, 0.6);  /* white/60 */
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(59, 130, 246, 0.2);  /* blue-200/50 */
+}
+```
+
+### Enhanced Gradient System
+
+**Card Gradients**:
+```css
+/* Dark Mode Card */
+.card-gradient-dark {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.95) 0%,      /* slate-900/95 */
+    rgba(30, 58, 138, 0.2) 50%,     /* blue-900/20 */
+    rgba(88, 28, 135, 0.2) 100%    /* purple-900/20 */
+  );
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(59, 130, 246, 0.2),
+    0 0 100px rgba(59, 130, 246, 0.1);
+}
+
+/* Light Mode Card */
+.card-gradient-light {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(239, 246, 255, 0.5) 50%,   /* blue-50/50 */
+    rgba(250, 245, 255, 0.5) 100%   /* purple-50/50 */
+  );
+  border: 1px solid rgba(191, 219, 254, 0.5);  /* blue-200/50 */
+  box-shadow: 
+    0 20px 25px -5px rgba(59, 130, 246, 0.1),
+    0 10px 10px -5px rgba(59, 130, 246, 0.04);
+}
+```
+
+**Button Gradients**:
+```css
+.btn-gradient-primary {
+  background: linear-gradient(to right, #3b82f6, #9333ea);
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+}
+
+.btn-gradient-primary:hover {
+  background: linear-gradient(to right, #2563eb, #7e22ce);
+  box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.4);
+}
+```
+
+### Modern Animation System
+
+**Smooth Transitions**:
+```css
+/* Standard smooth transition */
+.transition-smooth {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Height animation for collapsible */
+.animate-height {
+  transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+```
+
+**Framer Motion Patterns**:
+```tsx
+// Hover effects
+<motion.div
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+>
+
+// Rotating icons
+<motion.span
+  animate={{ rotate: isOpen ? 180 : 0 }}
+  transition={{ duration: 0.3, ease: "easeInOut" }}
+>
+
+// Stagger animations
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ delay: index * 0.1 }}
+>
+```
+
 ## Version History
 
+- **2.0.0** (Nov 30, 2025): Enhanced with 2025 modern patterns (collapsible sections, glassmorphism, enhanced gradients)
 - **1.0.0** (Nov 1, 2025): Initial design system extracted from ReverseEngineeringLoader
 

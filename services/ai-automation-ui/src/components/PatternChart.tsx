@@ -43,20 +43,51 @@ export const PatternTypeChart: React.FC<PatternChartProps> = ({ patterns, darkMo
     return acc;
   }, {} as Record<string, number>);
 
+  // Pattern type name mapping for better display
+  const typeNameMap: Record<string, string> = {
+    'time_of_day': 'Time-of-Day',
+    'co_occurrence': 'Co-Occurrence',
+    'sequence': 'Sequence',
+    'contextual': 'Contextual',
+    'room_based': 'Room-Based',
+    'session': 'Session',
+    'duration': 'Duration',
+    'day_type': 'Day-Type',
+    'seasonal': 'Seasonal',
+    'anomaly': 'Anomaly',
+  };
+
+  const sortedTypes = Object.entries(typeCounts)
+    .sort(([, a], [, b]) => b - a);
+
   const data = {
-    labels: Object.keys(typeCounts).map(t => t.replace('_', ' ')),
+    labels: sortedTypes.map(([type]) => typeNameMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())),
     datasets: [{
       label: 'Pattern Count',
-      data: Object.values(typeCounts),
+      data: sortedTypes.map(([, count]) => count),
       backgroundColor: [
         'rgba(99, 102, 241, 0.8)',
         'rgba(139, 92, 246, 0.8)',
         'rgba(236, 72, 153, 0.8)',
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(245, 158, 11, 0.8)',
+        'rgba(239, 68, 68, 0.8)',
+        'rgba(168, 85, 247, 0.8)',
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(236, 72, 153, 0.8)',
+        'rgba(251, 146, 60, 0.8)',
       ],
       borderColor: [
         'rgba(99, 102, 241, 1)',
         'rgba(139, 92, 246, 1)',
         'rgba(236, 72, 153, 1)',
+        'rgba(16, 185, 129, 1)',
+        'rgba(245, 158, 11, 1)',
+        'rgba(239, 68, 68, 1)',
+        'rgba(168, 85, 247, 1)',
+        'rgba(59, 130, 246, 1)',
+        'rgba(236, 72, 153, 1)',
+        'rgba(251, 146, 60, 1)',
       ],
       borderWidth: 2,
     }]
@@ -66,26 +97,42 @@ export const PatternTypeChart: React.FC<PatternChartProps> = ({ patterns, darkMo
     responsive: true,
     plugins: {
       legend: {
-        labels: {
-          color: darkMode ? '#e5e7eb' : '#374151'
-        }
+        display: false
       },
       title: {
         display: true,
         text: 'Patterns by Type',
         color: darkMode ? '#ffffff' : '#111827',
-        font: { size: 16, weight: 'bold' as const }
+        font: { size: 18, weight: 'bold' as const }
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            const label = context.label || '';
+            const value = context.parsed.y || 0;
+            const total = patterns.length;
+            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+            return `${label}: ${value} patterns (${percentage}% of total)`;
+          }
+        }
       }
     },
     scales: {
       y: {
         beginAtZero: true,
-        ticks: { color: darkMode ? '#9ca3af' : '#6b7280' },
+        ticks: { 
+          color: darkMode ? '#9ca3af' : '#6b7280',
+          stepSize: 1
+        },
         grid: { color: darkMode ? '#374151' : '#e5e7eb' }
       },
       x: {
-        ticks: { color: darkMode ? '#9ca3af' : '#6b7280' },
-        grid: { color: darkMode ? '#374151' : '#e5e7eb' }
+        ticks: { 
+          color: darkMode ? '#9ca3af' : '#6b7280',
+          maxRotation: 45,
+          minRotation: 0
+        },
+        grid: { display: false }
       }
     }
   };

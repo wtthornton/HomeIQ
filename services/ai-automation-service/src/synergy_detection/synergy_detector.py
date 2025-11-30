@@ -287,7 +287,7 @@ class DeviceSynergyDetector:
             # Step 6: Filter by confidence threshold
             pairwise_synergies = [
                 s for s in ranked_synergies
-                if s['confidence'] >= self.min_confidence
+                if s.get('confidence', 0.7) >= self.min_confidence
             ]
 
             # Step 7: Detect 3-device chains (Phase 3)
@@ -723,6 +723,9 @@ class DeviceSynergyDetector:
                 # Create scored synergy with advanced impact
                 scored_synergy = synergy.copy()
                 scored_synergy['impact_score'] = advanced_impact
+                # Ensure confidence is set (required for filtering at line 290)
+                if 'confidence' not in scored_synergy:
+                    scored_synergy['confidence'] = 0.9 if scored_synergy.get('area') else 0.7
                 scored_synergies.append(scored_synergy)
 
             except Exception as e:

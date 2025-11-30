@@ -4,10 +4,11 @@
  * Enhanced Dependencies tab showing animated data flow in real-time.
  * Uses SVG animations and CSS for smooth, performant visualizations.
  * 
- * Architecture: Epic 31 (October 2025)
+ * Architecture: Epic 31 (October 2025) - Current as of November 2025
  * - enrichment-pipeline DEPRECATED - all normalization now inline in websocket-ingestion
- * - Direct write path: websocket-ingestion → InfluxDB
- * - External services write directly to InfluxDB
+ * - Weather enrichment REMOVED from websocket-ingestion - now standalone weather-api service (port 8009)
+ * - Direct write path: websocket-ingestion → InfluxDB (no intermediate services)
+ * - External services (weather-api, sports-data, etc.) write directly to InfluxDB
  * - AI Automation reads from InfluxDB (via data-api or direct query)
  * 
  * Research from Context7 KB:
@@ -110,7 +111,7 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
   const getServiceIcon = (serviceName: string): string => {
     if (serviceName.includes('admin') || serviceName.includes('data-api')) {
       return 'bg-blue-500'; // Core services
-    } else if (serviceName.includes('websocket') || serviceName.includes('enrichment')) {
+    } else if (serviceName.includes('websocket')) {
       return 'bg-green-500'; // Ingestion services
     } else if (serviceName.includes('weather') || serviceName.includes('sports') || serviceName.includes('air-quality')) {
       return 'bg-purple-500'; // External APIs
@@ -126,72 +127,84 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
   };
 
   // Define service nodes with optimized spacing to prevent line crossings
+  // Epic 31 Architecture: Direct writes, no enrichment-pipeline
   const nodes: ServiceNode[] = [
     // Layer 1: External Sources (Spread horizontally across top)
-    { id: 'external-apis', name: 'External APIs', icon: '🌐', type: 'external', position: { x: 80, y: 60 }, layer: 1, description: 'Air quality, carbon, pricing' },
-    { id: 'espn-api', name: 'ESPN API', icon: '🏈🏒', type: 'external', position: { x: 200, y: 60 }, layer: 1, description: 'NFL/NHL game data' },
-    { id: 'home-assistant', name: 'Home Assistant', icon: '🏠', type: 'source', position: { x: 320, y: 60 }, layer: 1, description: 'External event source' },
-    { id: 'openweather', name: 'OpenWeather', icon: '☁️', type: 'external', position: { x: 440, y: 60 }, layer: 1, description: 'Weather enrichment' },
+    { id: 'external-apis', name: 'External APIs', icon: '🌐', type: 'external', position: { x: 60, y: 50 }, layer: 1, description: 'Air quality, carbon, pricing, electricity' },
+    { id: 'espn-api', name: 'ESPN API', icon: '🏈🏒', type: 'external', position: { x: 180, y: 50 }, layer: 1, description: 'NFL/NHL game data' },
+    { id: 'home-assistant', name: 'Home Assistant', icon: '🏠', type: 'source', position: { x: 300, y: 50 }, layer: 1, description: 'External event source (192.168.1.86:8123)' },
+    { id: 'openweather', name: 'OpenWeather', icon: '☁️', type: 'external', position: { x: 420, y: 50 }, layer: 1, description: 'OpenWeatherMap API (external)' },
     
-    // Layer 2: Ingestion (Spread horizontally, second row)
-    { id: 'external-services', name: 'External Services', icon: '🔌', type: 'processor', position: { x: 80, y: 180 }, layer: 2, description: 'Periodic external data fetch' },
-    { id: 'sports-data', name: 'Sports Data', icon: '⚡', type: 'processor', position: { x: 200, y: 180 }, layer: 2, description: 'ESPN cache + persistence' },
-    { id: 'websocket-ingestion', name: 'WebSocket Ingestion', icon: '📡', type: 'processor', position: { x: 320, y: 180 }, layer: 2, description: 'Event capture + inline weather' },
+    // Layer 2: Ingestion Services (Spread horizontally, second row)
+    { id: 'external-services', name: 'External Services', icon: '🔌', type: 'processor', position: { x: 60, y: 160 }, layer: 2, description: 'Periodic external data fetch & write' },
+    { id: 'sports-data', name: 'Sports Data', icon: '⚡', type: 'processor', position: { x: 180, y: 160 }, layer: 2, description: 'ESPN cache + persistence (port 8005)' },
+    { id: 'websocket-ingestion', name: 'WebSocket Ingestion', icon: '📡', type: 'processor', position: { x: 300, y: 160 }, layer: 2, description: 'Event capture + inline normalization (Epic 31 - weather enrichment removed)' },
+    { id: 'weather-api', name: 'Weather API', icon: '☁️', type: 'processor', position: { x: 420, y: 160 }, layer: 2, description: 'Standalone weather service (port 8009) - Epic 31' },
     
-    // Layer 3: Processing (Center, better horizontal spacing)
-    // NOTE: enrichment-pipeline removed (deprecated in Epic 31 - all normalization now inline in websocket-ingestion)
-    { id: 'ai-automation-service', name: 'AI Automation', icon: '🤖', type: 'processor', position: { x: 500, y: 180 }, layer: 3, description: 'Pattern detection + suggestions' },
+    // Layer 3: AI Processing (Right side)
+    { id: 'ai-automation-service', name: 'AI Automation', icon: '🤖', type: 'processor', position: { x: 540, y: 160 }, layer: 3, description: 'Pattern detection + automation suggestions' },
     
-    // Layer 4: AI Models (Right side, better vertical spacing for arcs)
-    { id: 'openai-gpt4', name: 'OpenAI GPT-4o-mini', icon: '🧠', type: 'external', position: { x: 500, y: 300 }, layer: 4, description: 'Natural language generation' },
-    { id: 'openvino-models', name: 'OpenVINO Models', icon: '⚡', type: 'processor', position: { x: 500, y: 420 }, layer: 4, description: 'Local ML: embeddings, reranking, classification' },
+    // Layer 4: AI Models (Right side, vertical stack)
+    { id: 'openai-gpt4', name: 'OpenAI GPT-4o-mini', icon: '🧠', type: 'external', position: { x: 540, y: 280 }, layer: 4, description: 'Natural language generation' },
+    { id: 'openvino-models', name: 'OpenVINO Models', icon: '⚡', type: 'processor', position: { x: 540, y: 400 }, layer: 4, description: 'Local ML: embeddings, reranking, classification' },
     
-    // Layer 5: Storage (Spread horizontally across bottom)
-    { id: 'influxdb', name: 'InfluxDB', icon: '🗄️', type: 'storage', position: { x: 200, y: 380 }, layer: 5, description: 'Time-series events' },
-    { id: 'sqlite', name: 'SQLite', icon: '💾', type: 'storage', position: { x: 400, y: 380 }, layer: 5, description: 'Metadata & AI suggestions' },
+    // Layer 5: Storage (Spread horizontally, center-bottom)
+    { id: 'influxdb', name: 'InfluxDB', icon: '🗄️', type: 'storage', position: { x: 180, y: 360 }, layer: 5, description: 'Time-series events (port 8086)' },
+    { id: 'sqlite', name: 'SQLite', icon: '💾', type: 'storage', position: { x: 420, y: 360 }, layer: 5, description: 'Metadata & AI suggestions' },
     
-    // Layer 6: API Gateway (Spread horizontally, second from bottom)
-    { id: 'data-api', name: 'Data API', icon: '🔌', type: 'processor', position: { x: 200, y: 480 }, layer: 6, description: 'Feature data hub' },
-    { id: 'admin-api', name: 'Admin API', icon: '⚙️', type: 'processor', position: { x: 400, y: 480 }, layer: 6, description: 'System monitoring' },
+    // Layer 6: Data Processing (Between storage and APIs)
+    { id: 'data-retention', name: 'Data Retention', icon: '🔄', type: 'processor', position: { x: 300, y: 460 }, layer: 6, description: 'Data lifecycle management (port 8080)' },
     
-    // Layer 7: Main UI (Bottom center)
-    { id: 'health-dashboard', name: 'Dashboard', icon: '📊', type: 'ui', position: { x: 300, y: 580 }, layer: 7, description: 'You are here!' },
+    // Layer 7: API Gateway (Spread horizontally, second from bottom)
+    { id: 'data-api', name: 'Data API', icon: '🔌', type: 'processor', position: { x: 180, y: 560 }, layer: 7, description: 'Feature data hub (port 8006)' },
+    { id: 'admin-api', name: 'Admin API', icon: '⚙️', type: 'processor', position: { x: 420, y: 560 }, layer: 7, description: 'System monitoring (port 8003)' },
+    
+    // Layer 8: Main UI (Bottom center)
+    { id: 'health-dashboard', name: 'Dashboard', icon: '📊', type: 'ui', position: { x: 300, y: 660 }, layer: 8, description: 'You are here! (port 3000)' },
   ];
 
   // Define data flow paths with AI automation integration (Epic 31 Architecture)
+  // Epic 31: Direct writes to InfluxDB, no enrichment-pipeline
   const dataFlows: DataFlowPath[] = [
-    // ===== LEFT SIDE: PRIMARY DATA FLOWS (Non-AI) =====
-    // Primary HA Event Flow (Epic 31: Direct write, no enrichment-pipeline)
-    { id: 'ha-ws', from: 'home-assistant', to: 'websocket-ingestion', type: 'websocket', active: true, throughput: realTimeData?.eventsPerHour || 0, color: '#3B82F6' },
+    // ===== PRIMARY DATA FLOWS (Epic 31: Direct write path) =====
+    // Home Assistant → WebSocket Ingestion → InfluxDB (DIRECT, no enrichment-pipeline)
+    { id: 'ha-ws', from: 'home-assistant', to: 'websocket-ingestion', type: 'websocket', active: true, throughput: (realTimeData?.eventsPerHour || 0) / 3600, color: '#3B82F6' },
     { id: 'ws-direct-influx', from: 'websocket-ingestion', to: 'influxdb', type: 'storage', active: true, color: '#10B981' },
     
-    // External Services: Direct writes to InfluxDB (Epic 31 pattern)
-    { id: 'weather-influx', from: 'openweather', to: 'influxdb', type: 'storage', active: true, color: '#06B6D4' },
+    // External Services: Direct writes to InfluxDB (Epic 31 pattern - standalone services)
+    // Weather API: Standalone service (Epic 31) - writes to weather_data bucket (NOT inline enrichment)
+    { id: 'weather-api-fetch', from: 'openweather', to: 'weather-api', type: 'api', active: true, color: '#06B6D4' },
+    { id: 'weather-api-influx', from: 'weather-api', to: 'influxdb', type: 'storage', active: true, color: '#06B6D4' },
+    { id: 'external-fetch', from: 'external-apis', to: 'external-services', type: 'api', active: true, color: '#6B7280' },
+    { id: 'external-influx', from: 'external-services', to: 'influxdb', type: 'storage', active: true, color: '#6B7280' },
     
-    // Sports Data Flow (Hybrid Pattern)
+    // Sports Data Flow (Hybrid Pattern: InfluxDB + SQLite)
     { id: 'espn-sports', from: 'espn-api', to: 'sports-data', type: 'api', active: realTimeData?.dataSourcesActive?.includes('sports') || false, throughput: 0.5, color: '#8B5CF6' },
     { id: 'sports-influx', from: 'sports-data', to: 'influxdb', type: 'storage', active: true, color: '#8B5CF6' },
     { id: 'sports-sqlite', from: 'sports-data', to: 'sqlite', type: 'storage', active: true, color: '#8B5CF6' },
     
-    // External API Services (Non-AI Data Sources)
-    { id: 'external-fetch', from: 'external-apis', to: 'external-services', type: 'api', active: true, color: '#6B7280' },
-    { id: 'external-influx', from: 'external-services', to: 'influxdb', type: 'storage', active: true, color: '#6B7280' },
-    
-    // ===== RIGHT SIDE: AI PATTERN ANALYSIS FLOWS =====
+    // ===== AI PATTERN ANALYSIS FLOWS =====
     // AI Automation reads from InfluxDB (Epic 31: Direct query or via data-api)
     { id: 'influx-ai', from: 'influxdb', to: 'ai-automation-service', type: 'query', active: true, color: '#8B5CF6' },
     { id: 'data-api-ai', from: 'data-api', to: 'ai-automation-service', type: 'api', active: true, color: '#8B5CF6' },
+    
+    // AI Model Interactions
     { id: 'ai-openvino', from: 'ai-automation-service', to: 'openvino-models', type: 'api', active: true, color: '#8B5CF6' },
     { id: 'openvino-ai', from: 'openvino-models', to: 'ai-automation-service', type: 'api', active: true, color: '#8B5CF6' },
     { id: 'ai-openai', from: 'ai-automation-service', to: 'openai-gpt4', type: 'api', active: true, color: '#FF6B6B' },
     { id: 'openai-ai', from: 'openai-gpt4', to: 'ai-automation-service', type: 'api', active: true, color: '#FF6B6B' },
     { id: 'ai-sqlite', from: 'ai-automation-service', to: 'sqlite', type: 'storage', active: true, color: '#8B5CF6' },
     
-    // Hybrid Database Queries
+    // ===== DATA PROCESSING & RETENTION =====
+    { id: 'influx-retention', from: 'influxdb', to: 'data-retention', type: 'api', active: true, color: '#6366F1' },
+    { id: 'retention-influx', from: 'data-retention', to: 'influxdb', type: 'api', active: true, color: '#6366F1' },
+    
+    // ===== HYBRID DATABASE QUERIES =====
     { id: 'influx-data', from: 'influxdb', to: 'data-api', type: 'query', active: true, color: '#3B82F6' },
     { id: 'sqlite-data', from: 'sqlite', to: 'data-api', type: 'query', active: true, color: '#10B981' },
+    { id: 'influx-admin', from: 'influxdb', to: 'admin-api', type: 'query', active: true, color: '#F59E0B' },
     
-    // API Gateway Layer
+    // ===== API GATEWAY TO DASHBOARD =====
     { id: 'data-dash', from: 'data-api', to: 'health-dashboard', type: 'api', active: true, color: '#3B82F6' },
     { id: 'admin-dash', from: 'admin-api', to: 'health-dashboard', type: 'api', active: true, color: '#F59E0B' },
   ];
@@ -315,61 +328,91 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
           strokeDasharray={flow.active ? undefined : '5,5'}
         />
         
-        {/* Animated path overlay */}
-        {flow.active && (
-          <>
-            <path
-              d={path}
-              fill="none"
-              stroke={flow.color}
-              strokeWidth="3"
-              strokeLinecap="round"
-              opacity="0.6"
-              filter={`url(#glow-${flow.type})`}
-            >
-              <animate
-                attributeName="stroke-dasharray"
-                values="10,5;20,15"
-                dur="1s"
-                repeatCount="indefinite"
-              />
-              <animate
-                attributeName="stroke-dashoffset"
-                from="0"
-                to="30"
-                dur="1.5s"
-                repeatCount="indefinite"
-              />
-            </path>
-            
-            {/* Data particles */}
-            <circle r="4" fill={flow.color} filter={`url(#glow-${flow.type})`}>
-              <animateMotion
-                dur={`${2 + Math.random() * 2}s`}
-                repeatCount="indefinite"
-                path={path}
-              />
-              <animate
-                attributeName="r"
-                values="3;5;3"
-                dur="1s"
-                repeatCount="indefinite"
-              />
-            </circle>
-            
-            {/* Additional particles for high throughput */}
-            {flow.throughput && flow.throughput > 10 && (
-              <circle r="3" fill={flow.color} opacity="0.7">
-                <animateMotion
-                  dur="3s"
-                  repeatCount="indefinite"
-                  path={path}
-                  begin="1s"
+            {/* Enhanced animated path overlay with stronger glow */}
+            {flow.active && (
+              <>
+                {/* Base glow path */}
+                <path
+                  d={path}
+                  fill="none"
+                  stroke={flow.color}
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  opacity="0.4"
+                  filter={`url(#glow-${flow.type})`}
                 />
-              </circle>
+                
+                {/* Animated main path */}
+                <path
+                  d={path}
+                  fill="none"
+                  stroke={flow.color}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  opacity="0.8"
+                  filter={`url(#glow-${flow.type})`}
+                >
+                  <animate
+                    attributeName="stroke-dasharray"
+                    values="8,4;16,12"
+                    dur="1.2s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    from="0"
+                    to="24"
+                    dur="1.8s"
+                    repeatCount="indefinite"
+                  />
+                </path>
+                
+                {/* Primary data particle with enhanced glow */}
+                <circle r="5" fill={flow.color} filter={`url(#glow-${flow.type})`} opacity="0.9">
+                  <animateMotion
+                    dur={`${1.5 + Math.random() * 1.5}s`}
+                    repeatCount="indefinite"
+                    path={path}
+                  />
+                  <animate
+                    attributeName="r"
+                    values="4;6;4"
+                    dur="1.2s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                
+                {/* Secondary particles for high throughput */}
+                {flow.throughput && flow.throughput > 0.1 && (
+                  <>
+                    <circle r="3" fill={flow.color} opacity="0.6">
+                      <animateMotion
+                        dur="2.5s"
+                        repeatCount="indefinite"
+                        path={path}
+                        begin="0.5s"
+                      />
+                      <animate
+                        attributeName="opacity"
+                        values="0.6;0.9;0.6"
+                        dur="1.5s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                    {flow.throughput > 0.5 && (
+                      <circle r="2.5" fill={flow.color} opacity="0.5">
+                        <animateMotion
+                          dur="3s"
+                          repeatCount="indefinite"
+                          path={path}
+                          begin="1s"
+                        />
+                      </circle>
+                    )}
+                  </>
+                )}
+              </>
             )}
-          </>
-        )}
         
         {/* Throughput label */}
         {flow.throughput && flow.throughput > 0 && isHighlighted && (
@@ -415,28 +458,46 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
         onMouseEnter={() => setHoveredNode(node.id)}
         onMouseLeave={() => setHoveredNode(null)}
       >
-        {/* Node glow effect */}
+        {/* Enhanced node glow effect with pulsing */}
         <circle
-          r="35"
+          r="38"
           fill={nodeColor}
-          opacity="0.2"
+          opacity="0.15"
           filter="url(#node-glow)"
         >
           <animate
             attributeName="r"
-            values="35;40;35"
-            dur="2s"
+            values="38;45;38"
+            dur="2.5s"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="opacity"
+            values="0.15;0.25;0.15"
+            dur="2.5s"
             repeatCount="indefinite"
           />
         </circle>
         
-        {/* Node background */}
+        {/* Node background with gradient */}
         <circle
-          r="30"
+          r="32"
           fill={darkMode ? '#1F2937' : '#FFFFFF'}
           stroke={nodeColor}
-          strokeWidth="3"
+          strokeWidth={isSelected ? '4' : '3'}
           filter={isSelected ? 'url(#selected-glow)' : undefined}
+          style={{
+            boxShadow: isSelected ? `0 0 20px ${nodeColor}` : undefined,
+          }}
+        />
+        
+        {/* Inner glow ring */}
+        <circle
+          r="28"
+          fill="none"
+          stroke={nodeColor}
+          strokeWidth="1"
+          opacity="0.3"
         />
         
         {/* Node icon */}
@@ -564,7 +625,7 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
                 <div className={`w-0.5 h-4 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
               </div>
               
-              {/* Ingestion Layer (Epic 31: Direct write, no enrichment-pipeline) */}
+              {/* Ingestion Layer (Epic 31: Direct write, no enrichment-pipeline, weather is standalone service) */}
               <div className="flex justify-center">
                 <div className={`px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-green-900/30 text-green-300 border border-green-700/50' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5"></span>
@@ -690,7 +751,7 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-0.5 bg-cyan-500"></div>
-            <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Weather (Inline)</span>
+            <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Weather API</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-0.5 bg-gray-500"></div>
@@ -707,36 +768,26 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
         </div>
       </div>
 
-      {/* Clean SVG Diagram Container */}
-      <div className={`p-8 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg overflow-x-auto`}>
+      {/* Enhanced SVG Diagram Container with gradient background */}
+      <div className={`p-8 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg overflow-x-auto relative`}>
+        {/* Gradient background overlay */}
+        <div className={`absolute inset-0 rounded-lg opacity-10 pointer-events-none ${
+          darkMode 
+            ? 'bg-gradient-to-br from-blue-900 via-purple-900 to-green-900' 
+            : 'bg-gradient-to-br from-blue-50 via-purple-50 to-green-50'
+        }`}></div>
         <svg
           ref={svgRef}
           width="1000"
-          height="650"
-          viewBox="0 0 1000 650"
-          className="w-full"
+          height="750"
+          viewBox="0 0 1000 750"
+          className="w-full relative z-10"
           style={{ minWidth: '1000px' }}
         >
           {/* Definitions for filters and effects */}
           <defs>
-            {/* Glow filters for different flow types */}
-            <filter id="glow-websocket">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-            
-            <filter id="glow-api">
-              <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-            
-            <filter id="glow-storage">
+            {/* Enhanced glow filters for different flow types */}
+            <filter id="glow-websocket" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
               <feMerge>
                 <feMergeNode in="coloredBlur"/>
@@ -744,16 +795,15 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
               </feMerge>
             </filter>
             
-            <filter id="glow-query">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <filter id="glow-api" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
               <feMerge>
                 <feMergeNode in="coloredBlur"/>
                 <feMergeNode in="SourceGraphic"/>
               </feMerge>
             </filter>
             
-            {/* Node glow */}
-            <filter id="node-glow">
+            <filter id="glow-storage" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
               <feMerge>
                 <feMergeNode in="coloredBlur"/>
@@ -761,9 +811,26 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
               </feMerge>
             </filter>
             
-            {/* Selected node glow */}
-            <filter id="selected-glow">
-              <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+            <filter id="glow-query" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            
+            {/* Enhanced node glow */}
+            <filter id="node-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            
+            {/* Enhanced selected node glow */}
+            <filter id="selected-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
               <feMerge>
                 <feMergeNode in="coloredBlur"/>
                 <feMergeNode in="SourceGraphic"/>

@@ -1,222 +1,239 @@
-# UX/UI Pattern Quick Reference
+# UX Pattern Quick Reference
 
-## 🎨 Preferred Patterns for HA Ingestor
+**Last Updated:** November 30, 2025  
+**Status:** ✅ Active Reference
 
-This document provides quick access to approved UI/UX patterns for the project.
+## 2025 Modern Design Patterns
+
+### Collapsible Statistics & Filters Section
+
+**Pattern**: Space-efficient collapsible section for statistics, filters, and controls
+
+**When to Use**:
+- Statistics dashboards
+- Filter panels
+- Control sections
+- Information panels that can be hidden
+
+**Implementation**:
+```tsx
+import { motion, AnimatePresence } from 'framer-motion';
+
+const [showStats, setShowStats] = useState(true);
+
+<motion.div className="rounded-2xl overflow-hidden transition-all duration-300
+  bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20
+  border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm">
+  
+  {/* Header */}
+  <motion.div className="p-4 border-b border-blue-500/20">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <span className="text-xl">📊</span>
+        <h2 className="text-lg font-bold">Statistics & Filters</h2>
+      </div>
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setShowStats(!showStats)}
+        className="px-4 py-2 rounded-xl font-medium text-sm
+          bg-gradient-to-r from-blue-600 to-purple-600 text-white
+          shadow-lg shadow-blue-500/30"
+      >
+        <motion.span
+          animate={{ rotate: showStats ? 180 : 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {showStats ? '▲' : '▼'}
+        </motion.span>
+        {showStats ? 'Hide' : 'Show'}
+      </motion.button>
+    </div>
+  </motion.div>
+
+  {/* Collapsible Content */}
+  <AnimatePresence>
+    {showStats && (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: 'auto' }}
+        exit={{ opacity: 0, height: 0 }}
+        transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+        className="overflow-hidden"
+      >
+        <div className="p-6 bg-slate-900/40 backdrop-blur-sm">
+          {/* Stats, filters, controls */}
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+</motion.div>
+```
+
+**Key Features**:
+- ✅ Smooth height animation (0.4s)
+- ✅ Rotating arrow indicator
+- ✅ Gradient button backgrounds
+- ✅ Glassmorphism effects
+- ✅ Space-efficient when collapsed
+
+**Reference Implementation**: `services/ai-automation-ui/src/pages/Synergies.tsx` (lines 574-986)
 
 ---
 
-## ✅ System Health Dashboard: Overview Tab Pattern
+### Glassmorphism Card Pattern
 
-**Status:** ✅ Production-tested, User-approved  
-**Source:** http://localhost:3000/ - Overview Tab  
-**Full Documentation:** [context7-cache/ux-patterns/overview-tab-glanceable-dashboard-pattern.md](context7-cache/ux-patterns/overview-tab-glanceable-dashboard-pattern.md)
+**Pattern**: Modern frosted glass appearance for cards and overlays
 
-### Quick Summary
+**When to Use**:
+- Information cards
+- Overlay panels
+- Modal backgrounds
+- Elevated content sections
 
-Comprehensive system health dashboard with hero status, component cards, sparkline trends, and progressive disclosure.
+**Implementation**:
+```tsx
+// Dark Mode
+<div className="bg-slate-900/40 backdrop-blur-sm border border-blue-500/20
+  rounded-xl p-6 shadow-lg">
 
-### When to Use
-
-- System health monitoring dashboards
-- Application status pages
-- Real-time operations centers
-- Service monitoring overviews
-- Infrastructure health displays
-- Microservices dashboards
-
-### Key Features
-
-🎯 **Hero Status** - Large, clear "Is system OK?" indicator  
-📊 **Component Cards** - 3-pillar architecture (Ingestion, Processing, Storage)  
-📈 **Sparkline Trends** - Lightweight performance visualization  
-↗️ **Trend Indicators** - Real-time metric change arrows  
-🔍 **Progressive Disclosure** - Click cards for detailed metrics  
-♿ **WCAG 2.1 AA** - Full accessibility compliance  
-🎬 **Smooth Animations** - Professional polish  
-⚡ **Performance Optimized** - React.memo, 34% smaller bundle  
-🌙 **Dark mode** - Full theme support  
-📱 **Responsive** - Mobile-first design  
-
-### Technology Stack
-
+// Light Mode
+<div className="bg-white/60 backdrop-blur-sm border border-blue-200/50
+  rounded-xl p-6 shadow-lg">
 ```
-React 18.2
-TypeScript 5.2
-Tailwind CSS 3.4
-Vite 5.0
-Native SVG (no charting libs)
+
+**Variations**:
+- `bg-slate-800/60` - More opaque (dark)
+- `bg-white/80` - More opaque (light)
+- `backdrop-blur-md` - Stronger blur
+- `backdrop-blur-sm` - Subtle blur (preferred)
+
+---
+
+### Gradient Background Pattern
+
+**Pattern**: Modern gradient backgrounds for hero sections and cards
+
+**Dark Mode Gradients**:
+```tsx
+// Card gradient
+className="bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20"
+
+// Button gradient
+className="bg-gradient-to-r from-blue-600 to-purple-600"
+
+// Text gradient
+className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+```
+
+**Light Mode Gradients**:
+```tsx
+// Card gradient
+className="bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50"
+
+// Button gradient
+className="bg-gradient-to-r from-blue-500 to-purple-500"
 ```
 
 ---
 
-## ✅ Service Visualization: Dependencies Tab Pattern
+### Enhanced Button Patterns
 
-**Status:** ✅ Production-tested, User-approved  
-**Source:** http://localhost:3000/ - Dependencies Tab  
-**Full Documentation:** [context7-cache/ux-patterns/health-dashboard-dependencies-tab-pattern.md](context7-cache/ux-patterns/health-dashboard-dependencies-tab-pattern.md)
-
-### Quick Summary
-
-Interactive service dependency graph with visual layers, click-to-highlight, and status indicators.
-
-### When to Use
-
-- Service topology visualizations
-- Data flow diagrams
-- System architecture views
-- Microservice dependency graphs
-- Pipeline visualizations
-- Infrastructure maps
-
-### Key Features
-
-✨ **Interactive** - Click to highlight dependencies  
-🎯 **Hover tooltips** - Contextual information on hover  
-📊 **Layered layout** - Top-to-bottom data flow  
-🎨 **Status colors** - Green/Yellow/Red/Gray indicators  
-😊 **Icon-based** - Emoji icons for quick recognition  
-✨ **Animations** - Smooth scale transforms  
-🌙 **Dark mode** - Full theme support  
-📱 **Responsive** - Grid layouts adapt to screen size  
-⚡ **Lightweight** - Pure React/CSS, no heavy libraries  
-
-### Technology Stack
-
-```
-React 18.2
-TypeScript 5.2
-Tailwind CSS 3.4
-Vite 5.0
-```
-
-### Quick Implementation Pattern
-
-```typescript
-// Node with click-to-highlight
-<div
-  onClick={handleNodeClick}
-  onMouseEnter={handleHover}
-  className={`
-    px-6 py-4 rounded-lg border-2 cursor-pointer transition-all
-    ${statusColor}
-    ${isHighlighted ? 'ring-4 ring-blue-500 scale-110' : 'hover:scale-105'}
-  `}
+**Gradient Primary Button**:
+```tsx
+<motion.button
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+  className="px-4 py-2 rounded-xl font-medium text-sm
+    bg-gradient-to-r from-blue-600 to-purple-600 text-white
+    shadow-lg shadow-blue-500/30 transition-all duration-300"
 >
-  <div className="text-3xl">{icon}</div>
-  <div className="text-sm">{name}</div>
-</div>
+  Action
+</motion.button>
 ```
 
-### Status Color Pattern
-
-```typescript
-const colors = {
-  running: 'bg-green-900 border-green-700',  // or light mode variant
-  error: 'bg-red-900 border-red-700',
-  degraded: 'bg-yellow-900 border-yellow-700',
-  unknown: 'bg-gray-700 border-gray-600'
-};
+**Secondary Button**:
+```tsx
+<button className="px-4 py-2 rounded-xl font-medium text-sm
+  bg-slate-800/60 hover:bg-slate-700/60 text-gray-300 hover:text-white
+  border border-slate-700/50 shadow-sm hover:shadow-md">
+  Secondary
+</button>
 ```
 
-### Performance
-
-- **No heavy graph libraries** (D3, Vis.js)
-- **Pure React/CSS** implementation
-- **Minimal re-renders** with state management
-- **Fast interactions** (<50ms response)
-
 ---
 
-## 📋 Pattern Catalog
+### Smooth Animation Patterns
 
-| Pattern | Status | Use For | Complexity |
-|---------|--------|---------|------------|
-| **Overview Tab - Glanceable Dashboard** | ✅ Approved | System health, status overviews, monitoring | High |
-| **Dependencies Tab** | ✅ Approved | Service graphs, data flow | Medium |
-| *More patterns coming soon* | | | |
-
----
-
-## 🔍 Finding Patterns
-
-### Context7 KB Commands
-
-```bash
-# Search for patterns
-*context7-kb-search "dependencies visualization"
-*context7-kb-search "service graph"
-*context7-kb-search "interactive visualization"
-
-# View KB status
-*context7-kb-status
-
-# View all patterns
-*context7-kb-search "ux-patterns"
+**Standard Transition**:
+```tsx
+transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
 ```
 
-### Direct Access
+**Hover Effects**:
+```tsx
+<motion.div
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+>
+```
 
-- **Pattern Catalog:** `docs/kb/context7-cache/ux-patterns/README.md`
-- **KB Index:** `docs/kb/context7-cache/index.yaml`
-- **This Reference:** `docs/kb/ux-pattern-quick-reference.md`
-
----
-
-## 💡 Design Principles
-
-When implementing any pattern, follow these core principles:
-
-1. **Visual Hierarchy** - Most important info is most prominent
-2. **Progressive Enhancement** - Works without interaction, better with it
-3. **Feedback Loop** - Every interaction provides visual feedback
-4. **Consistency** - Same patterns throughout (colors, spacing, transitions)
-5. **Clarity** - No ambiguity in what each element represents
-6. **Performance** - Lightweight, no unnecessary work
-7. **Accessibility** - Keyboard nav, ARIA labels, high contrast
+**Rotating Icons**:
+```tsx
+<motion.span
+  animate={{ rotate: isOpen ? 180 : 0 }}
+  transition={{ duration: 0.3, ease: "easeInOut" }}
+>
+  {isOpen ? '▲' : '▼'}
+</motion.span>
+```
 
 ---
 
-## 🚀 Contributing New Patterns
+## Pattern Catalog
 
-When you discover a great UI/UX pattern:
+### Overview Tab Pattern
+**File**: `docs/kb/context7-cache/ux-patterns/overview-tab-glanceable-dashboard-pattern.md`  
+**Status**: ✅ Complete  
+**Use For**: Dashboard overview pages
 
-1. **Document it thoroughly** using the pattern template
-2. **Include code examples** for reusability
-3. **Add to KB index** (`docs/kb/context7-cache/index.yaml`)
-4. **Update this reference** with quick access info
-5. **Create memory** so it's remembered for future use
+### Health Dashboard Dependencies Tab Pattern
+**File**: `docs/kb/context7-cache/ux-patterns/health-dashboard-dependencies-tab-pattern.md`  
+**Status**: ✅ Complete  
+**Use For**: Dependency visualization
 
-### Pattern Template Location
-
-See: `docs/kb/context7-cache/ux-patterns/health-dashboard-dependencies-tab-pattern.md`
-
----
-
-## 📚 Related Resources
-
-- [Health Dashboard README](../services/health-dashboard/README.md)
-- [Component Library](../services/health-dashboard/src/components/)
-- [Architecture Docs](architecture/)
-- [Context7 KB Cache](context7-cache/)
+### Collapsible Statistics Pattern (NEW)
+**Status**: ✅ Active  
+**Use For**: Statistics, filters, control panels  
+**Reference**: Synergies page implementation
 
 ---
 
-**Last Updated:** 2025-10-13  
-**Maintained By:** BMAD Agents (Sally @ux-expert, James @dev)  
-**Quick Access:** `docs/kb/ux-pattern-quick-reference.md`
+## Quick Reference
+
+### Spacing
+- Section margin: `mb-6` (24px)
+- Card padding: `p-6` (24px)
+- Gap between items: `gap-4` (16px)
+
+### Colors
+- Primary: `blue-600` / `blue-500`
+- Accent: `purple-600` / `purple-500`
+- Success: `green-500`
+- Warning: `yellow-500`
+- Error: `red-500`
+
+### Shadows
+- Card: `shadow-lg`
+- Button: `shadow-lg shadow-blue-500/30`
+- Card with glow: `shadow-2xl shadow-blue-900/20`
+
+### Border Radius
+- Cards: `rounded-xl` (12px)
+- Buttons: `rounded-xl` (12px)
+- Small elements: `rounded-lg` (8px)
 
 ---
 
-## 🎨 Design System Reference
-
-For complete design system documentation including:
-- Color palette and status colors
-- Typography scale and hierarchy
-- Spacing system
-- Component patterns
-- Animation guidelines
-- Accessibility standards
-
-**See:** [docs/architecture/frontend-specification.md](../../architecture/frontend-specification.md)
-
+**Maintained by**: BMad Master  
+**Last Updated**: November 30, 2025

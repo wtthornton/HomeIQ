@@ -356,6 +356,52 @@ class AdminAPIService:
                 "timestamp": datetime.now().isoformat()
             }
 
+        # Public real-time metrics endpoint for dashboard (no authentication required)
+        @self.app.get("/api/v1/real-time-metrics")
+        async def public_real_time_metrics():
+            """Get consolidated real-time metrics for dashboard - public endpoint"""
+            try:
+                # Call the stats endpoint methods directly
+                event_rate = await self.stats_endpoints._get_current_event_rate()
+                api_stats = await self.stats_endpoints._get_all_api_metrics()
+                data_sources = await self.stats_endpoints._get_active_data_sources()
+                
+                return {
+                    "events_per_hour": event_rate * 3600,
+                    "api_calls_active": api_stats["active_calls"],
+                    "data_sources_active": data_sources,
+                    "api_metrics": api_stats["api_metrics"],
+                    "inactive_apis": api_stats["inactive_apis"],
+                    "error_apis": api_stats["error_apis"],
+                    "total_apis": api_stats["total_apis"],
+                    "health_summary": {
+                        "healthy": api_stats["active_calls"],
+                        "unhealthy": api_stats["inactive_apis"] + api_stats["error_apis"],
+                        "total": api_stats["total_apis"],
+                        "health_percentage": round((api_stats["active_calls"] / api_stats["total_apis"]) * 100, 1) if api_stats["total_apis"] > 0 else 0
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+            except Exception as e:
+                logger.error(f"Error getting real-time metrics: {e}")
+                return {
+                    "events_per_hour": 0,
+                    "api_calls_active": 0,
+                    "data_sources_active": [],
+                    "api_metrics": [],
+                    "inactive_apis": 0,
+                    "error_apis": 0,
+                    "total_apis": 0,
+                    "health_summary": {
+                        "healthy": 0,
+                        "unhealthy": 0,
+                        "total": 0,
+                        "health_percentage": 0
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                    "error": str(e)
+                }
+
         secure_dependency = [Depends(self.auth_manager.get_current_user)]
 
         # Health endpoints

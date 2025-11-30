@@ -136,9 +136,9 @@ class MultiModalContextEnhancer:
         
         energy_boost = self._calculate_energy_boost(
             context.get('energy_cost'),
-            context.get('peak_hours'),
             context.get('carbon_intensity'),
-            synergy
+            synergy,
+            peak_hours=context.get('peak_hours', False)
         )
         
         behavior_boost = self._calculate_behavior_boost(
@@ -433,9 +433,9 @@ class MultiModalContextEnhancer:
     def _calculate_energy_boost(
         self,
         energy_cost: float | None,
-        peak_hours: bool | False,
         carbon_intensity: float | None,
-        synergy: dict
+        synergy: dict,
+        peak_hours: bool = False
     ) -> float:
         """
         Calculate energy context boost.
