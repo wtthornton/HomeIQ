@@ -86,8 +86,8 @@ export const handlers = [
           dependencies: ['influxdb'],
         },
         {
-          id: 'enrichment',
-          name: 'Enrichment Pipeline',
+          id: 'data-api',
+          name: 'Data API',
           status: 'healthy',
           dependencies: ['influxdb'],
         },

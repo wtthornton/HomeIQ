@@ -76,17 +76,57 @@ class ExplainableSynergyGenerator:
 
     def _generate_summary(self, synergy: dict) -> str:
         """Generate one-line summary."""
-        trigger_name = synergy.get('trigger_name', synergy.get('trigger_entity', 'Device'))
-        action_name = synergy.get('action_name', synergy.get('action_entity', 'Device'))
-        relationship = synergy.get('relationship_type', 'automation')
+        synergy_type = synergy.get('relationship_type', synergy.get('synergy_type', 'automation'))
+        trigger_name = synergy.get('trigger_name', synergy.get('trigger_entity'))
+        action_name = synergy.get('action_name', synergy.get('action_entity'))
         area = synergy.get('area', 'your home')
+        impact = synergy.get('impact_score', 0)
+        
+        # Handle event_context synergies (event-triggered, not device pairs)
+        if synergy_type == 'event_context' or synergy.get('synergy_type') == 'event_context':
+            # Get event context from opportunity_metadata
+            metadata = synergy.get('opportunity_metadata', {})
+            if isinstance(metadata, dict):
+                event_context = metadata.get('event_context', 'sports event')
+                suggested_action = metadata.get('suggested_action', 'Activate scene')
+                rationale = metadata.get('rationale', '')
+                
+                if rationale:
+                    return rationale
+                elif action_name:
+                    return f"{suggested_action} for {action_name} when {event_context} occurs (Impact: {impact:.0%})"
+                else:
+                    return f"{suggested_action} when {event_context} occurs (Impact: {impact:.0%})"
+            else:
+                # Fallback for event_context
+                if action_name:
+                    return f"Automate {action_name} based on event schedule (Impact: {impact:.0%})"
+                else:
+                    return f"Event-based automation opportunity (Impact: {impact:.0%})"
+        
+        # Handle device pair synergies
+        if not trigger_name or trigger_name == 'None' or trigger_name == 'unknown':
+            # Try to get from opportunity_metadata
+            metadata = synergy.get('opportunity_metadata', {})
+            if isinstance(metadata, dict):
+                trigger_name = metadata.get('trigger_name', metadata.get('trigger_entity', 'Event'))
+            else:
+                trigger_name = 'Event'
+        
+        if not action_name or action_name == 'None' or action_name == 'unknown':
+            # Try to get from opportunity_metadata
+            metadata = synergy.get('opportunity_metadata', {})
+            if isinstance(metadata, dict):
+                action_name = metadata.get('action_name', metadata.get('action_entity', 'Device'))
+            else:
+                action_name = 'Device'
         
         # Convert relationship type to readable format
-        relationship_readable = relationship.replace('_', ' ').title()
+        relationship_readable = synergy_type.replace('_', ' ').title()
         
         return (
             f"{relationship_readable}: {trigger_name} → {action_name} "
-            f"in {area} (Impact: {synergy.get('impact_score', 0):.0%})"
+            f"in {area} (Impact: {impact:.0%})"
         )
 
     def _generate_detailed_explanation(

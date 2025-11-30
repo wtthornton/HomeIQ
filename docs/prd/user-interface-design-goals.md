@@ -44,13 +44,24 @@ The system maintains a clean, modern aesthetic that balances technical functiona
 - **Progressive Disclosure** - Summary at-a-glance, details on demand
 
 **Design System**:
-- **Colors**: Status-based palette (green/yellow/red/gray/blue)
+- **Colors**: Status-based palette (green/yellow/red/gray/blue) with modern gradients
 - **Typography**: Clear hierarchy (36px hero → 12px captions)
 - **Spacing**: Consistent 24px grid system
-- **Animations**: Subtle, purposeful (200-400ms)
+- **Animations**: Subtle, purposeful (200-400ms) with smooth easing
 - **Dark Mode**: Full support throughout
+- **2025 Patterns**: Collapsible sections, glassmorphism, gradient backgrounds
 
-**Reference**: [Frontend Specification - Design System](../architecture/frontend-specification.md#design-system)
+**Modern 2025 Features**:
+- **Collapsible Sections**: Space-efficient statistics and filter panels with smooth animations
+- **Glassmorphism**: Frosted glass effects with backdrop blur for modern aesthetics
+- **Gradient Backgrounds**: Subtle gradients for cards, buttons, and hero sections
+- **Enhanced Shadows**: Color-tinted shadows for depth and visual interest
+- **Smooth Transitions**: Cubic-bezier easing for natural, polished animations
+
+**Reference**: 
+- [Frontend Specification - Design System](../architecture/frontend-specification.md#design-system)
+- [Modern Design System](../design-system/MODERN_MANLY_DESIGN_SYSTEM.md)
+- [UX Pattern Quick Reference](../kb/ux-pattern-quick-reference.md)
 
 ### Target Device and Platforms: Web Responsive
 

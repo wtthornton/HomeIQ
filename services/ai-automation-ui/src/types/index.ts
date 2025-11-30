@@ -207,6 +207,7 @@ export interface SynergyOpportunity {
     weather_condition?: string;
     suggested_action?: string;
     estimated_savings?: string;
+    event_context?: string;  // For event_context synergies
   };
   impact_score: number;
   complexity: 'low' | 'medium' | 'high';
@@ -217,5 +218,16 @@ export interface SynergyOpportunity {
   pattern_support_score?: number;  // 0.0-1.0, how well patterns support this synergy
   validated_by_patterns?: boolean;  // true if patterns validate this synergy
   supporting_pattern_ids?: number[];  // IDs of patterns that support this synergy
+  // Epic AI-4: Multi-device chains
+  synergy_depth?: number;  // Number of devices in chain (2, 3, or 4)
+  chain_devices?: string[];  // Array of entity IDs in the automation chain
+  chain_path?: string;  // Human-readable chain path (e.g., "entity1 → entity2 → entity3")
+  // 2025 Enhancement: Explainable AI
+  rationale?: string;  // Explanation of why this synergy was detected
+  explanation?: {
+    summary?: string;
+    score_breakdown?: Record<string, number>;
+  };
+  explanation_breakdown?: Record<string, number>;  // Score breakdown for display
 }
 

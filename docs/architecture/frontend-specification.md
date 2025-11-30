@@ -1,9 +1,9 @@
 # Front-End Specification & UI Standards
 
-**Version**: 2.0  
-**Last Updated**: January 17, 2025  
+**Version**: 3.0  
+**Last Updated**: November 30, 2025  
 **Status**: Production-Ready  
-**Based On**: Streamlined UI Redesign & AI Automation UX Improvements
+**Based On**: Streamlined UI Redesign, AI Automation UX Improvements & 2025 Modern Design Patterns
 
 ---
 
@@ -78,6 +78,146 @@
 ---
 
 ## Design System
+
+### 2025 Modern Design Patterns (NEW)
+
+The latest design system incorporates modern 2025 UI/UX patterns for enhanced user experience:
+
+#### Collapsible Sections Pattern
+**Use Case**: Statistics, filters, and information sections that can be hidden to save space
+
+**Implementation**:
+```tsx
+const [showSection, setShowSection] = useState(true);
+
+<motion.div className="rounded-2xl overflow-hidden transition-all duration-300 
+  bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 
+  border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm">
+  {/* Header with toggle */}
+  <motion.div className="p-4 border-b border-blue-500/20">
+    <div className="flex items-center justify-between">
+      <h2 className="text-lg font-bold">Section Title</h2>
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setShowSection(!showSection)}
+        className="px-4 py-2 rounded-xl font-medium text-sm transition-all
+          bg-gradient-to-r from-blue-600 to-purple-600 text-white 
+          shadow-lg shadow-blue-500/30"
+      >
+        <motion.span
+          animate={{ rotate: showSection ? 180 : 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+        >
+          {showSection ? '▲' : '▼'}
+        </motion.span>
+        {showSection ? 'Hide' : 'Show'}
+      </motion.button>
+    </div>
+  </motion.div>
+
+  {/* Collapsible Content */}
+  <AnimatePresence>
+    {showSection && (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: 'auto' }}
+        exit={{ opacity: 0, height: 0 }}
+        transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+        className="overflow-hidden"
+      >
+        <div className="p-6 bg-slate-900/40 backdrop-blur-sm">
+          {/* Content here */}
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+</motion.div>
+```
+
+**Key Features**:
+- Smooth height animation (0.4s cubic-bezier easing)
+- Rotating arrow indicator
+- Gradient button backgrounds
+- Glassmorphism effects (backdrop-blur-sm)
+- Space-efficient when collapsed
+
+#### Glassmorphism Effects
+**Use Case**: Modern frosted glass appearance for cards and overlays
+
+**Implementation**:
+```tsx
+className="bg-slate-900/40 backdrop-blur-sm border border-blue-500/20"
+// or
+className="bg-white/60 backdrop-blur-sm border border-blue-200/50"
+```
+
+**Patterns**:
+- Dark mode: `bg-slate-900/40` or `bg-slate-800/60` with `backdrop-blur-sm`
+- Light mode: `bg-white/60` or `bg-white/80` with `backdrop-blur-sm`
+- Border: `border-blue-500/20` (dark) or `border-blue-200/50` (light)
+
+#### Gradient Backgrounds
+**Use Case**: Hero sections, cards, and buttons with modern gradient aesthetics
+
+**Dark Mode Gradients**:
+```tsx
+// Card gradient
+className="bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20"
+
+// Button gradient
+className="bg-gradient-to-r from-blue-600 to-purple-600"
+
+// Text gradient
+className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+```
+
+**Light Mode Gradients**:
+```tsx
+// Card gradient
+className="bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50"
+
+// Button gradient
+className="bg-gradient-to-r from-blue-500 to-purple-500"
+
+// Text gradient
+className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+```
+
+#### Modern Animation Patterns
+**Smooth Transitions**:
+```tsx
+// Standard transition
+transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+
+// Hover effects
+whileHover={{ scale: 1.05 }}
+whileTap={{ scale: 0.95 }}
+
+// Rotating icons
+animate={{ rotate: isOpen ? 180 : 0 }}
+transition={{ duration: 0.3, ease: "easeInOut" }}
+```
+
+**Easing Functions**:
+- Standard: `cubic-bezier(0.4, 0, 0.2, 1)` - Smooth, natural
+- EaseInOut: `ease-in-out` - Balanced acceleration
+- Bounce: `cubic-bezier(0.16, 1, 0.3, 1)` - Playful entrance
+
+#### Enhanced Shadow System
+**Modern Shadow Patterns**:
+```tsx
+// Card shadow with color
+className="shadow-2xl shadow-blue-900/20"
+
+// Button shadow
+className="shadow-lg shadow-blue-500/30"
+
+// Layered shadows
+boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.8), 
+           0 0 0 1px rgba(59, 130, 246, 0.2),
+           0 0 100px rgba(59, 130, 246, 0.1)"
+```
 
 ### Color Palette
 
@@ -1850,5 +1990,5 @@ Use the Overview Tab as the reference implementation, and follow these patterns 
 
 ---
 
-*Last Updated: October 13, 2025 - Based on Overview Tab Redesign (Phase 1-3)*
+*Last Updated: November 30, 2025 - Enhanced with 2025 Modern Design Patterns (Collapsible Sections, Glassmorphism, Gradients)*
 

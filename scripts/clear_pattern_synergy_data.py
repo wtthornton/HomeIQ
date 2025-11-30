@@ -2,8 +2,31 @@
 """Clear pattern and synergy data from database for fresh analysis"""
 import sqlite3
 import sys
+import os
+from pathlib import Path
 
-db_path = '/app/data/ai_automation.db'
+# Try to find the database in common locations
+possible_paths = [
+    '/app/data/ai_automation.db',  # Docker path
+    'data/ai_automation.db',  # Root data directory
+    'services/ai-automation-service/data/ai_automation.db',  # Local dev path
+    './data/ai_automation.db',  # Relative to script location
+    str(Path(__file__).parent.parent / 'data' / 'ai_automation.db'),  # Absolute from script root
+    str(Path(__file__).parent.parent / 'services' / 'ai-automation-service' / 'data' / 'ai_automation.db'),  # Absolute from script
+]
+
+db_path = None
+for path in possible_paths:
+    if os.path.exists(path):
+        db_path = path
+        break
+
+if not db_path:
+    print("❌ Error: Could not find ai_automation.db database")
+    print("   Searched in:")
+    for path in possible_paths:
+        print(f"     - {path}")
+    sys.exit(1)
 
 try:
     conn = sqlite3.connect(db_path)
@@ -13,21 +36,29 @@ try:
     print("CLEARING PATTERN AND SYNERGY DATA")
     print("=" * 70)
     
-    # Get counts before deletion
-    cursor.execute('SELECT COUNT(*) FROM patterns')
-    pattern_count = cursor.fetchone()[0]
+    # Check which tables exist
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    existing_tables = [row[0] for row in cursor.fetchall()]
     
-    cursor.execute('SELECT COUNT(*) FROM synergy_opportunities')
-    synergy_count = cursor.fetchone()[0]
-    
-    cursor.execute('SELECT COUNT(*) FROM discovered_synergies')
-    ml_synergy_count = cursor.fetchone()[0]
-    
-    # Check if pattern_history table exists
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pattern_history'")
-    history_table_exists = cursor.fetchone() is not None
+    # Get counts before deletion (only for existing tables)
+    pattern_count = 0
+    synergy_count = 0
+    ml_synergy_count = 0
     history_count = 0
-    if history_table_exists:
+    
+    if 'patterns' in existing_tables:
+        cursor.execute('SELECT COUNT(*) FROM patterns')
+        pattern_count = cursor.fetchone()[0]
+    
+    if 'synergy_opportunities' in existing_tables:
+        cursor.execute('SELECT COUNT(*) FROM synergy_opportunities')
+        synergy_count = cursor.fetchone()[0]
+    
+    if 'discovered_synergies' in existing_tables:
+        cursor.execute('SELECT COUNT(*) FROM discovered_synergies')
+        ml_synergy_count = cursor.fetchone()[0]
+    
+    if 'pattern_history' in existing_tables:
         cursor.execute('SELECT COUNT(*) FROM pattern_history')
         history_count = cursor.fetchone()[0]
     
@@ -64,14 +95,21 @@ try:
     conn.commit()
     
     # Verify deletion
-    cursor.execute('SELECT COUNT(*) FROM patterns')
-    remaining_patterns = cursor.fetchone()[0]
+    remaining_patterns = 0
+    remaining_synergies = 0
+    remaining_ml_synergies = 0
     
-    cursor.execute('SELECT COUNT(*) FROM synergy_opportunities')
-    remaining_synergies = cursor.fetchone()[0]
+    if 'patterns' in existing_tables:
+        cursor.execute('SELECT COUNT(*) FROM patterns')
+        remaining_patterns = cursor.fetchone()[0]
     
-    cursor.execute('SELECT COUNT(*) FROM discovered_synergies')
-    remaining_ml_synergies = cursor.fetchone()[0]
+    if 'synergy_opportunities' in existing_tables:
+        cursor.execute('SELECT COUNT(*) FROM synergy_opportunities')
+        remaining_synergies = cursor.fetchone()[0]
+    
+    if 'discovered_synergies' in existing_tables:
+        cursor.execute('SELECT COUNT(*) FROM discovered_synergies')
+        remaining_ml_synergies = cursor.fetchone()[0]
     
     print(f"\n✅ Verification:")
     print(f"   Remaining Patterns: {remaining_patterns}")

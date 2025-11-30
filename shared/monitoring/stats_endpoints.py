@@ -214,50 +214,9 @@ class StatsEndpoints:
                     detail="Failed to get alerts"
                 )
         
-        @self.router.get("/real-time-metrics", response_model=Dict[str, Any])
-        async def get_real_time_metrics():
-            """Get consolidated real-time metrics for dashboard"""
-            try:
-                # Get all metrics in parallel
-                event_rate = await self._get_current_event_rate()
-                api_stats = await self._get_all_api_metrics()
-                data_sources = await self._get_active_data_sources()
-                
-                return {
-                    "events_per_hour": event_rate * 3600,  # Convert events/sec to events/hour
-                    "api_calls_active": api_stats["active_calls"],
-                    "data_sources_active": data_sources,
-                    "api_metrics": api_stats["api_metrics"],
-                    "inactive_apis": api_stats["inactive_apis"],
-                    "error_apis": api_stats["error_apis"],
-                    "total_apis": api_stats["total_apis"],
-                    "health_summary": {
-                        "healthy": api_stats["active_calls"],
-                        "unhealthy": api_stats["inactive_apis"] + api_stats["error_apis"],
-                        "total": api_stats["total_apis"],
-                        "health_percentage": round((api_stats["active_calls"] / api_stats["total_apis"]) * 100, 1) if api_stats["total_apis"] > 0 else 0
-                    },
-                    "timestamp": datetime.now().isoformat()
-                }
-            except Exception as e:
-                logger.error(f"Error getting real-time metrics: {e}")
-                return {
-                    "events_per_hour": 0,
-                    "api_calls_active": 0,
-                    "data_sources_active": [],
-                    "api_metrics": [],
-                    "inactive_apis": 0,
-                    "error_apis": 0,
-                    "total_apis": 0,
-                    "health_summary": {
-                        "healthy": 0,
-                        "unhealthy": 0,
-                        "total": 0,
-                        "health_percentage": 0
-                    },
-                    "timestamp": datetime.now().isoformat(),
-                    "error": str(e)
-                }
+        # Note: /real-time-metrics endpoint moved to main.py as public endpoint
+        # This route is kept for backward compatibility but should not be used
+        # The public endpoint in main.py handles this route without authentication
     
     async def _get_stats_from_influxdb(self, period: str, service: Optional[str] = None) -> Dict[str, Any]:
         """
