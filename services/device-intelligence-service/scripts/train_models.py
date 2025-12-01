@@ -38,8 +38,23 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def train_models(days_back: int = 180, force: bool = False, verbose: bool = False):
-    """Train ML models."""
+async def train_models(
+    days_back: int = 180,
+    force: bool = False,
+    verbose: bool = False,
+    use_synthetic: bool = False,
+    synthetic_count: int = 1000
+):
+    """
+    Train ML models.
+    
+    Args:
+        days_back: Number of days of historical data to use
+        force: Force retrain even if models exist
+        verbose: Enable verbose logging
+        use_synthetic: Use synthetic device data for training (Epic 46.3)
+        synthetic_count: Number of synthetic samples to generate (if use_synthetic=True)
+    """
     if verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
@@ -48,6 +63,9 @@ async def train_models(days_back: int = 180, force: bool = False, verbose: bool 
     logger.info("=" * 80)
     logger.info(f"Days back: {days_back}")
     logger.info(f"Force retrain: {force}")
+    logger.info(f"Use synthetic data: {use_synthetic}")
+    if use_synthetic:
+        logger.info(f"Synthetic sample count: {synthetic_count}")
     logger.info("")
 
     try:
@@ -69,11 +87,28 @@ async def train_models(days_back: int = 180, force: bool = False, verbose: bool 
             logger.info(f"   Training date: {status['model_metadata'].get('training_date', 'unknown')}")
             return 0
 
+        # Generate synthetic data if requested (Epic 46.3)
+        historical_data = None
+        if use_synthetic:
+            logger.info("📊 Generating synthetic device data...")
+            try:
+                from src.training.synthetic_device_generator import SyntheticDeviceGenerator
+                generator = SyntheticDeviceGenerator()
+                historical_data = generator.generate_training_data(
+                    count=synthetic_count,
+                    days=days_back
+                )
+                logger.info(f"✅ Generated {len(historical_data)} synthetic device samples")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to generate synthetic data: {e}")
+                logger.warning("   Falling back to database data")
+                historical_data = None
+
         # Train models
         logger.info("🚀 Starting model training...")
         logger.info("")
 
-        await engine.train_models(days_back=days_back)
+        await engine.train_models(historical_data=historical_data, days_back=days_back)
 
         if engine.is_trained:
             # Get training results
@@ -160,6 +195,17 @@ Examples:
         action='store_true',
         help='Enable verbose logging'
     )
+    parser.add_argument(
+        '--synthetic-data',
+        action='store_true',
+        help='Use synthetic device data for training (Epic 46.3: for initial training)'
+    )
+    parser.add_argument(
+        '--synthetic-count',
+        type=int,
+        default=1000,
+        help='Number of synthetic samples to generate (default: 1000, only used with --synthetic-data)'
+    )
 
     args = parser.parse_args()
 
@@ -167,7 +213,9 @@ Examples:
     exit_code = asyncio.run(train_models(
         days_back=args.days_back,
         force=args.force,
-        verbose=args.verbose
+        verbose=args.verbose,
+        use_synthetic=args.synthetic_data,
+        synthetic_count=args.synthetic_count
     ))
 
     sys.exit(exit_code)

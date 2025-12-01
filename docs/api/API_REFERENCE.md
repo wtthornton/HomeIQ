@@ -1,6 +1,6 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** November 25, 2025  
+**Last Updated:** November 2025 (Comprehensive Review - Removed deprecated enrichment-pipeline references, updated OpenAI models)  
 **API Version:** v4.6  
 **Status:** ✅ Production Ready  
 **Recent Updates:** Home Type Categorization System (ML-based classification, November 2025), Device Database enhancements (health monitoring, classification, setup assistant, recommendations), device-specific automation templates, HA API-only capability discovery
@@ -144,7 +144,6 @@ Comprehensive health status of all system services.
       "connection": { "is_connected": true },
       "event_processing": { "events_per_minute": 16.28 }
     },
-    "enrichment_pipeline": { "status": "healthy" },
     "data_retention": { "status": "healthy" },
     "influxdb": { "status": "healthy" }
   },

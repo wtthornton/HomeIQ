@@ -1,0 +1,72 @@
+{
+  "version": "1.0.1",
+  "training_date": "2025-12-01T19:44:29.681438+00:00",
+  "training_data_stats": {
+    "sample_count": 500,
+    "unique_devices": 500,
+    "date_range": null,
+    "days_back": 180
+  },
+  "model_performance": {
+    "accuracy": 0.98,
+    "precision": 0.9047619047619048,
+    "recall": 1.0,
+    "f1_score": 0.95,
+    "evaluated_at": "2025-12-01T19:44:29.944089+00:00"
+  },
+  "scikit_learn_version": "1.7.2",
+  "feature_columns": [
+    "response_time",
+    "error_rate",
+    "battery_level",
+    "signal_strength",
+    "usage_frequency",
+    "temperature",
+    "humidity",
+    "uptime_hours",
+    "restart_count",
+    "connection_drops",
+    "data_transfer_rate"
+  ],
+  "training_parameters": {
+    "n_estimators": 100,
+    "max_depth": 10,
+    "contamination": 0.1,
+    "test_size": 0.2,
+    "random_state": 42,
+    "model_type": "randomforest"
+  },
+  "data_source": "database",
+  "training_duration_seconds": 0.273911,
+  "validation": {
+    "valid": true,
+    "reason": "All validation checks passed",
+    "checks": {
+      "accuracy": {
+        "value": 0.98,
+        "threshold": 0.5,
+        "passed": true
+      },
+      "precision": {
+        "value": 0.9047619047619048,
+        "threshold": 0.3,
+        "passed": true
+      },
+      "recall": {
+        "value": 1.0,
+        "threshold": 0.3,
+        "passed": true
+      },
+      "prediction_test": {
+        "passed": true,
+        "sample_predictions": true,
+        "sample_proba_shape": true
+      },
+      "anomaly_test": {
+        "passed": true,
+        "sample_predictions": true,
+        "sample_scores": true
+      }
+    }
+  }
+}

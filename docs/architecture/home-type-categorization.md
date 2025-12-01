@@ -44,9 +44,13 @@ Home Type Categorization System
 
 ### Model Architecture
 
-- **Algorithm:** scikit-learn RandomForestClassifier
-- **Trees:** 100
-- **Max Depth:** 15
+- **Default Algorithm:** scikit-learn RandomForestClassifier
+- **Alternative Options** (2025 improvements):
+  - **LightGBM**: 2-5x faster training, similar accuracy
+  - **TabPFN v2.5**: Instant training (<1s), 90-98% accuracy
+- **Configuration:** Via `ML_FAILURE_MODEL` environment variable
+- **Trees:** 100 (RandomForest)
+- **Max Depth:** 15 (RandomForest)
 - **Features:** 15-20 tabular features
 - **Classes:** 5-10 home type categories
 

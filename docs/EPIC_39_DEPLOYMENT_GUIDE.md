@@ -120,7 +120,7 @@ AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8016
 
 # OpenAI (for query and training services)
 OPENAI_API_KEY=your-openai-api-key
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5.1  # Default model (GPT-5.1-mini for low-risk tasks: 80% cost savings)
 
 # Home Assistant (for automation service)
 HA_URL=http://192.168.1.86:8123

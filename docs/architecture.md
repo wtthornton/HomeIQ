@@ -16,7 +16,7 @@ This document serves as the main entry point for the Home Assistant Ingestor arc
 **Deployment:** Docker Compose with optimized Alpine images and containerized AI microservices  
 **Purpose:** Capture Home Assistant events, enrich with weather context, store in time-series database, provide AI-powered automation  
 **Status:** ✅ FULLY OPERATIONAL - All services healthy, MQTT connected, 100% success rate, Sports tab with team ID migration, Phase 1 AI containerization complete, Home Assistant pattern improvements implemented (State Machines, Template Engine, Condition Evaluator)  
-**Last Updated:** November 18, 2025
+**Last Updated:** November 2025 (Comprehensive Review - Updated OpenAI models to GPT-5.1/GPT-5.1-mini)
 
 ## Enhanced HA Connection Management
 
@@ -93,8 +93,9 @@ The system now includes **containerized AI microservices** for advanced automati
 **Containerized AI Models:**
 - **OpenVINO Service** (Port 8026 external, 8019 internal): Embeddings, re-ranking, classification using all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small
 - **ML Service** (Port 8025 external, 8020 internal): Classical machine learning with K-Means clustering and Isolation Forest anomaly detection
+- **Device Intelligence Service** (Port 8028): Predictive analytics with 2025 ML improvements (RandomForest/LightGBM/TabPFN, incremental learning)
 - **NER Service** (Port 8031): Named Entity Recognition using BERT (dslim/bert-base-NER)
-- **OpenAI Service** (Port 8020): GPT-4o-mini API client for advanced language processing
+- **OpenAI Service** (Port 8020): GPT-5.1/GPT-5.1-mini API client for advanced language processing (50-80% cost savings vs GPT-4o)
 - **AI Core Service** (Port 8018): Orchestrator for complex AI workflows and multi-model coordination
 - **AI Automation Service** (Port 8024 external, 8018 internal): Pattern detection & automation suggestions
 - **Device Intelligence** (Port 8028 external, 8019 internal): Device capability discovery via MQTT
@@ -333,6 +334,7 @@ NEW (Epic 31):     HA → websocket-ingestion → InfluxDB (direct)
 
 ### November 2025 - Home Type Categorization System
 - **Added**: ML-based home type classification using RandomForest classifier
+- **2025 ML Improvements** (December 2025): LightGBM, TabPFN v2.5, River incremental learning, PyTorch compile for GNN
 - **Feature**: Synthetic data generation for training (100-120 homes)
 - **Feature**: Production profiling and classification API endpoints (`/api/home-type/profile`, `/api/home-type/classify`, `/api/home-type/model-info`)
 - **Feature**: Event categorization based on home type (security, climate, lighting, appliance, monitoring, general)

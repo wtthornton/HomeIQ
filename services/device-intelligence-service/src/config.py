@@ -146,6 +146,38 @@ class Settings(BaseSettings):
         description="Allowed CORS origins"
     )
 
+    # ML Model Configuration (2025 improvements)
+    ML_FAILURE_MODEL: str = Field(
+        default="randomforest",
+        description="Failure prediction model: randomforest, lightgbm, or tabpfn"
+    )
+    ML_USE_INCREMENTAL: bool = Field(
+        default=False,
+        description="Use incremental learning for model updates"
+    )
+    ML_INCREMENTAL_UPDATE_THRESHOLD: int = Field(
+        default=100,
+        description="Number of samples before incremental update"
+    )
+    GNN_USE_COMPILE: bool = Field(
+        default=True,
+        description="Use PyTorch compile for GNN training (1.5-2x speedup)"
+    )
+
+    # Training Scheduler Configuration (Epic 46.2: Built-in Nightly Training Scheduler)
+    ML_TRAINING_SCHEDULE: str = Field(
+        default="0 2 * * *",
+        description="Cron expression for training schedule (default: 2 AM daily)"
+    )
+    ML_TRAINING_ENABLED: bool = Field(
+        default=True,
+        description="Enable automatic nightly training"
+    )
+    ML_TRAINING_MODE: str = Field(
+        default="incremental",
+        description="Training mode: 'full' or 'incremental' (default: incremental for 10-50x faster updates)"
+    )
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

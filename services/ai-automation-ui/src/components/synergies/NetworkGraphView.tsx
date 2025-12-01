@@ -64,6 +64,18 @@ const loadForceGraph = async (): Promise<any> => {
     };
   }
   
+  // Ensure THREE.js is available globally before importing react-force-graph
+  if (typeof window !== 'undefined' && !(window as any).THREE) {
+    try {
+      const THREE = await import('three');
+      // Handle both default and named exports
+      (window as any).THREE = THREE.default || THREE;
+    } catch (err) {
+      console.warn('Failed to load THREE.js:', err);
+      // Continue anyway - react-force-graph might handle it
+    }
+  }
+  
   if (!loadPromise) {
     loadPromise = import('react-force-graph')
       .then((module: any) => {
@@ -91,6 +103,23 @@ const loadForceGraph = async (): Promise<any> => {
           // Retry the import
           loadPromise = null;
           return loadForceGraph();
+        }
+        // Handle THREE-related errors
+        if (errorMessage.includes('THREE') || errorMessage.includes('three')) {
+          console.warn('THREE.js error detected, attempting to load THREE.js:', errorMessage);
+          // Try to load THREE again and retry
+          if (typeof window !== 'undefined') {
+            return import('three').then((THREE) => {
+              (window as any).THREE = THREE.default || THREE;
+              // Retry react-force-graph import
+              loadPromise = null;
+              return loadForceGraph();
+            }).catch((threeErr) => {
+              console.error('Failed to load THREE.js:', threeErr);
+              loadPromise = null;
+              throw new Error('THREE.js is required but could not be loaded');
+            });
+          }
         }
         console.error('Failed to load react-force-graph:', error);
         loadPromise = null; // Reset so we can retry

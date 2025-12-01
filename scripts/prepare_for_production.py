@@ -577,15 +577,42 @@ async def train_home_type_classifier(synthetic_homes_dir: Path, allow_low_qualit
 
 
 async def train_device_intelligence(allow_low_quality: bool = False) -> tuple[bool, dict]:
-    """Train device intelligence models."""
+    """
+    Train device intelligence models with synthetic data (Epic 46.3).
+    
+    Uses template-based synthetic device data for initial training before alpha release.
+    """
     logger.info("Training Device Intelligence Models...")
     
+    # Generate synthetic device data for initial training (Epic 46.3)
+    logger.info("Generating synthetic device data for initial training...")
+    use_synthetic = False
+    try:
+        # Import synthetic device generator
+        sys.path.insert(0, str(device_intelligence_dir))
+        from src.training.synthetic_device_generator import SyntheticDeviceGenerator
+        
+        generator = SyntheticDeviceGenerator()
+        synthetic_data = generator.generate_training_data(count=1000, days=180)
+        logger.info(f"✅ Generated {len(synthetic_data)} synthetic device samples")
+        use_synthetic = True
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to generate synthetic data: {e}")
+        logger.warning("   Falling back to database data")
+        import traceback
+        logger.debug(traceback.format_exc())
+    
+    # Train with synthetic data if available
     cmd = [
         sys.executable,
         str(device_intelligence_dir / "scripts" / "train_models.py"),
         "--force",
         "--verbose"
     ]
+    
+    if use_synthetic:
+        cmd.extend(["--synthetic-data", "--synthetic-count", "1000"])
+        logger.info("   Using synthetic data for training")
     
     exit_code, stdout, stderr = run_command(cmd, cwd=device_intelligence_dir, check=False)
     
