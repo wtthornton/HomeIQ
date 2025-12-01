@@ -32,7 +32,7 @@ numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (compatible with pandas and openvin
 # Machine Learning
 scikit-learn>=1.5.0,<2.0.0  # Stable scikit-learn 1.5.x (November 2025)
 scipy>=1.16.3,<2.0.0  # Latest stable (2025) - statistical operations
-tabpfn>=0.1.0,<1.0.0  # TabPFN for correlation prediction (Epic 36 - 100-1000x faster)
+tabpfn>=2.5.0,<3.0.0  # TabPFN v2.5 for correlation prediction (Epic 36 - 100-1000x faster, 2025 update)
 river>=0.22.0,<1.0.0  # River for streaming statistics (Epic 36 - O(1) real-time updates)
 faiss-cpu>=1.7.4,<2.0.0  # FAISS for vector similarity search (Epic 37 - 2025: CPU-only, flat index for single-home)
 optuna>=3.6.0,<4.0.0  # Optuna for hyperparameter optimization (Epic 37 - AutoML foundation)

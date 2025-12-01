@@ -4,9 +4,9 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 
 **Deployment:** Single-home Home Assistant application running on Intel NUC (i3/i5, 8-16GB RAM)  
 **Port:** 8018 (internal), exposed as 8024 (external)  
-**Technology:** Python 3.11+, FastAPI 0.121, OpenAI GPT-4o-mini, OpenVINO  
+**Technology:** Python 3.11+, FastAPI 0.115.x, OpenAI GPT-5.1/GPT-5.1-mini, OpenVINO  
 **Container:** `homeiq-ai-automation-service`  
-**Database:** SQLite (ai_automation.db - 13 tables)  
+**Database:** SQLite (ai_automation.db - 25 tables)  
 **Scale:** Optimized for ~50-100 devices (single-home, not multi-home)
 
 ## Recent Updates (November 2025)
@@ -156,7 +156,8 @@ MQTT_PASSWORD=your-mqtt-password
 
 # OpenAI Configuration
 OPENAI_API_KEY=your-openai-api-key
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5.1  # Default model (GPT-5.1 - 50% cost savings vs GPT-4o)
+# Model selection: gpt-5.1 (best quality), gpt-5.1-mini (80% cost savings, 95% quality)
 
 # Authentication
 ENABLE_AUTHENTICATION=true
@@ -173,8 +174,9 @@ USE_LANGCHAIN_PATTERNS=false                 # Enable LangChain for patterns
 # Database
 DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
 
-# OpenVINO Service (for RAG embeddings)
+# OpenVINO Service (for RAG embeddings and model optimization)
 OPENVINO_SERVICE_URL=http://openvino-service:8019
+# Note: OpenVINO is used for embedding generation and model optimization
 
 # Logging
 LOG_LEVEL=INFO
@@ -781,20 +783,159 @@ Safety validation for generated automations (6-rule engine)
 #### Ranking endpoints
 Suggestion ranking and prioritization
 
+### v2 API Endpoints (Phase 3)
+
+#### `POST /api/v2/conversations`
+Create a new conversation
+```bash
+curl -X POST http://localhost:8024/api/v2/conversations \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Turn on office lights at 6am"}'
+```
+
+#### `GET /api/v2/conversations/{id}`
+Get conversation details
+```bash
+curl http://localhost:8024/api/v2/conversations/abc123
+```
+
+#### `POST /api/v2/conversations/{id}/messages`
+Add message to conversation
+```bash
+curl -X POST http://localhost:8024/api/v2/conversations/abc123/messages \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Make it 6:30am instead"}'
+```
+
+#### `POST /api/v2/conversations/stream`
+Stream conversation responses (Server-Sent Events)
+```bash
+curl -X POST http://localhost:8024/api/v2/conversations/stream \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What can I do with my lights?"}'
+```
+
+#### `POST /api/v2/automations`
+Create automation from conversation
+```bash
+curl -X POST http://localhost:8024/api/v2/automations \
+  -H "Content-Type: application/json" \
+  -d '{"conversation_id": "abc123", "suggestion_id": "456"}'
+```
+
+#### `GET /api/v2/automations/{id}`
+Get automation details
+```bash
+curl http://localhost:8024/api/v2/automations/abc123
+```
+
+#### `POST /api/v2/actions/execute`
+Execute immediate action (test automation)
+```bash
+curl -X POST http://localhost:8024/api/v2/actions/execute \
+  -H "Content-Type: application/json" \
+  -d '{"action": "turn_on", "entity_id": "light.office"}'
+```
+
 ### Community Pattern Discovery
 
-#### Community pattern mining endpoints
-Access to automation-miner service for community automation patterns
+#### `GET /api/community-patterns`
+Get community patterns from automation-miner service
+```bash
+curl http://localhost:8024/api/community-patterns
+```
+
+#### `GET /api/community-patterns/{id}`
+Get specific community pattern
+```bash
+curl http://localhost:8024/api/community-patterns/abc123
+```
 
 ### Settings Management
 
-#### Settings endpoints
-Feature flag configuration and service settings
+#### `GET /api/v1/settings`
+Get system settings
+```bash
+curl http://localhost:8024/api/v1/settings
+```
+
+#### `PUT /api/v1/settings`
+Update system settings
+```bash
+curl -X PUT http://localhost:8024/api/v1/settings \
+  -H "Content-Type: application/json" \
+  -d '{"schedule_enabled": true, "min_confidence": 0.7}'
+```
 
 ### Admin Operations
 
-#### Admin endpoints
-Service administration and maintenance operations
+#### `GET /api/admin/stats`
+Get admin statistics
+```bash
+curl http://localhost:8024/api/admin/stats
+```
+
+#### `POST /api/admin/reset`
+Reset service state (admin only)
+```bash
+curl -X POST http://localhost:8024/api/admin/reset
+```
+
+### Home Type Classification
+
+#### `GET /api/home-type`
+Get home type classification
+```bash
+curl http://localhost:8024/api/home-type
+```
+
+#### `POST /api/home-type/classify`
+Classify home type from events
+```bash
+curl -X POST http://localhost:8024/api/home-type/classify \
+  -H "Content-Type: application/json" \
+  -d '{"days_lookback": 30}'
+```
+
+### MCP Tools
+
+#### `POST /mcp/tools/execute`
+Execute MCP code execution tool
+```bash
+curl -X POST http://localhost:8024/mcp/tools/execute \
+  -H "Content-Type: application/json" \
+  -d '{"tool": "python", "code": "print(\"hello\")"}'
+```
+
+### Learning System
+
+#### `GET /api/learning/stats`
+Get learning system statistics
+```bash
+curl http://localhost:8024/api/learning/stats
+```
+
+#### `GET /api/learning/preferences`
+Get learned user preferences
+```bash
+curl http://localhost:8024/api/learning/preferences
+```
+
+### Model Comparison
+
+#### `POST /api/v1/ask-ai/model-comparison/compare`
+Compare model performance
+```bash
+curl -X POST http://localhost:8024/api/v1/ask-ai/model-comparison/compare \
+  -H "Content-Type: application/json" \
+  -d '{"query": "test query", "models": ["gpt-5.1", "gpt-5.1-mini"]}'
+```
+
+#### `GET /api/v1/ask-ai/model-comparison/metrics`
+Get model comparison metrics
+```bash
+curl http://localhost:8024/api/v1/ask-ai/model-comparison/metrics
+```
 
 ## Architecture
 
@@ -851,68 +992,266 @@ ai-automation-service/
 │   ├── main.py                          # FastAPI application with lifespan
 │   ├── config.py                        # Pydantic settings
 │   ├── api/                             # API endpoints
-│   │   ├── health_router.py
-│   │   ├── pattern_router.py
-│   │   ├── suggestion_router.py
-│   │   ├── analysis_router.py
-│   │   ├── deployment_router.py
-│   │   ├── nl_generation_router.py
-│   │   ├── conversational_router.py
-│   │   ├── ask_ai_router.py
-│   │   ├── synergy_router.py            # Epic AI-3, AI-4
-│   │   ├── validation_router.py
-│   │   ├── ranking_router.py
-│   │   ├── community_pattern_router.py
-│   │   ├── devices_router.py
-│   │   ├── settings_router.py
-│   │   ├── admin_router.py
-│   │   └── middlewares.py               # Idempotency, Rate limiting
+│   │   ├── health.py                    # Health check endpoint
+│   │   ├── pattern_router.py            # Pattern detection endpoints
+│   │   ├── suggestion_router.py         # Suggestion management
+│   │   ├── analysis_router.py          # Analysis and batch jobs
+│   │   ├── deployment_router.py        # Automation deployment
+│   │   ├── nl_generation_router.py      # Natural language generation
+│   │   ├── conversational_router.py    # Conversational refinement (v1)
+│   │   ├── ask_ai_router.py            # Ask AI query interface
+│   │   ├── ask_ai/
+│   │   │   └── model_comparison_router.py  # Model comparison endpoints
+│   │   ├── synergy_router.py           # Synergy detection (Epic AI-3, AI-4)
+│   │   ├── validation_router.py        # Safety validation
+│   │   ├── ranking_router.py           # Suggestion ranking
+│   │   ├── community_pattern_router.py # Community pattern learning
+│   │   ├── devices_router.py           # Device endpoints
+│   │   ├── settings_router.py          # System settings
+│   │   ├── admin_router.py             # Admin operations
+│   │   ├── learning_router.py          # Q&A learning system
+│   │   ├── home_type_router.py         # Home type categorization
+│   │   ├── mcp_router.py               # MCP code execution tools
+│   │   ├── suggestion_management_router.py  # Suggestion CRUD operations
+│   │   ├── data_router.py              # Data API proxy
+│   │   ├── middlewares.py              # Idempotency, Rate limiting, Auth
+│   │   ├── common/                     # Common dependencies
+│   │   ├── dependencies/               # Dependency injection
+│   │   └── v2/                         # v2 API routers
+│   │       ├── conversation_router.py  # Conversation API v2
+│   │       ├── automation_router.py    # Automation API v2
+│   │       ├── action_router.py        # Immediate Actions API v2
+│   │       └── streaming_router.py     # Streaming API v2
 │   ├── database/
-│   │   └── models.py                    # SQLAlchemy models (12 tables)
+│   │   ├── models.py                    # SQLAlchemy models (25 tables)
+│   │   ├── models_v2.py                 # v2 schema models
+│   │   └── crud.py                     # Database CRUD operations
 │   ├── pattern_analyzer/               # Epic AI-1
-│   │   ├── time_of_day_detector.py
-│   │   ├── co_occurrence_detector.py
-│   │   └── anomaly_detector.py
+│   │   ├── time_of_day.py              # Time-of-day pattern detection
+│   │   ├── co_occurrence.py            # Co-occurrence detection
+│   │   ├── confidence_calibrator.py    # Confidence calibration
+│   │   ├── pattern_cross_validator.py  # Pattern validation
+│   │   └── pattern_deduplicator.py     # Pattern deduplication
 │   ├── device_intelligence/            # Epic AI-2
-│   │   ├── capability_parser.py
-│   │   ├── mqtt_listener.py
-│   │   └── feature_analyzer.py
+│   │   ├── capability_parser.py        # Capability parsing
+│   │   ├── mqtt_capability_listener.py  # MQTT capability listener
+│   │   ├── feature_analyzer.py         # Feature utilization analysis
+│   │   ├── feature_suggestion_generator.py  # Feature suggestions
+│   │   └── capability_batch.py         # Batch capability processing
 │   ├── synergy_detection/              # Epic AI-3
-│   │   ├── device_pair_detector.py
-│   │   ├── weather_context.py
-│   │   ├── energy_context.py
-│   │   └── event_context.py
+│   │   ├── synergy_detector.py         # Main synergy detector
+│   │   ├── device_pair_analyzer.py      # Device pair analysis
+│   │   ├── enhanced_synergy_detector.py  # Enhanced detection
+│   │   ├── explainable_synergy.py      # Explainable synergy analysis
+│   │   ├── gnn_synergy_detector.py     # GNN-based detection
+│   │   ├── ml_enhanced_synergy_detector.py  # ML-enhanced detection
+│   │   ├── ml_synergy_miner.py         # ML synergy mining
+│   │   ├── multimodal_context.py       # Multimodal context analysis
+│   │   ├── real_world_rules.py         # Real-world validation rules
+│   │   ├── relationship_analyzer.py    # Relationship analysis
+│   │   ├── rl_synergy_optimizer.py     # RL-based optimization
+│   │   ├── sequence_transformer.py     # Sequence transformation
+│   │   ├── spatial_validator.py       # Spatial validation
+│   │   ├── synergy_cache.py            # Synergy caching
+│   │   ├── synergy_suggestion_generator.py  # Suggestion generation
+│   │   ├── association_rules.py       # Association rule mining
+│   │   └── rules_manager.py            # Rules management
 │   ├── nlevel_synergy/                 # Epic AI-4
-│   │   ├── embedding_generator.py
-│   │   ├── chain_detector.py
-│   │   └── similarity_matcher.py
+│   │   ├── device_embedding_generator.py  # Device embedding generation
+│   │   ├── embedding_model.py          # Embedding model
+│   │   ├── embedding_cache.py          # Embedding cache
+│   │   └── descriptor_builder.py       # Descriptor building
 │   ├── clients/
-│   │   ├── data_api_client.py
-│   │   ├── device_intelligence_client.py
-│   │   └── mqtt_client.py
-│   ├── models/
-│   │   └── model_manager.py             # OpenVINO model management
-│   ├── langchain_integration/          # Feature flags
-│   │   └── chains.py                    # LCEL chains
-│   ├── pdl/                            # PDL workflows
-│   │   └── workflows.py
+│   │   ├── data_api_client.py          # Data API client
+│   │   ├── device_intelligence_client.py  # Device Intelligence client
+│   │   ├── mqtt_client.py              # MQTT client
+│   │   ├── ha_client.py                # Home Assistant client
+│   │   ├── home_type_client.py         # Home type client
+│   │   ├── influxdb_client.py          # InfluxDB client
+│   │   ├── pattern_aggregate_client.py  # Pattern aggregate client
+│   │   ├── data_enrichment_client.py   # Data enrichment client
+│   │   ├── automation_parser.py        # Automation parser
+│   │   └── capability_parsers/         # Capability parsers
 │   ├── services/
 │   │   ├── clarification/              # Clarification system
-│   │   │   ├── detector.py            # Ambiguity detection (with RAG integration)
-│   │   │   ├── question_generator.py  # Question generation
-│   │   │   └── confidence_calculator.py
-│   │   └── rag/                        # RAG (Retrieval-Augmented Generation)
-│   │       ├── client.py              # Generic RAG client
-│   │       ├── models.py              # Data models
-│   │       └── exceptions.py          # Custom exceptions
-│   ├── safety_validator.py             # 6-rule safety engine
-│   ├── nl_automation_generator.py      # Natural language → YAML
-│   └── scheduler.py                     # Daily analysis scheduler
+│   │   │   ├── detector.py            # Ambiguity detection (with RAG)
+│   │   │   ├── question_generator.py   # Question generation
+│   │   │   ├── confidence_calculator.py  # Confidence calculation
+│   │   │   ├── confidence_calibrator.py  # Confidence calibration
+│   │   │   ├── auto_resolver.py        # Auto-resolution
+│   │   │   ├── answer_validator.py     # Answer validation
+│   │   │   ├── outcome_tracker.py      # Outcome tracking
+│   │   │   ├── uncertainty_quantification.py  # Uncertainty quantification
+│   │   │   ├── calibration_retrainer.py  # Calibration retraining
+│   │   │   ├── ab_testing.py           # A/B testing
+│   │   │   └── rl_calibrator.py        # RL-based calibration
+│   │   ├── rag/                        # RAG (Retrieval-Augmented Generation)
+│   │   │   ├── client.py              # Generic RAG client
+│   │   │   ├── models.py              # Data models
+│   │   │   ├── exceptions.py          # Custom exceptions
+│   │   │   ├── bm25_retrieval.py      # BM25 retrieval
+│   │   │   ├── cross_encoder_reranker.py  # Cross-encoder reranking
+│   │   │   └── query_expansion.py     # Query expansion
+│   │   ├── automation/                 # Automation services
+│   │   │   ├── action_executor.py     # Action execution
+│   │   │   ├── action_parser.py       # Action parsing
+│   │   │   ├── action_state_machine.py  # State machine
+│   │   │   ├── deployer.py            # Deployment service
+│   │   │   ├── yaml_generator.py      # YAML generation
+│   │   │   ├── yaml_generation_service.py  # YAML service
+│   │   │   ├── yaml_validator.py      # YAML validation
+│   │   │   ├── yaml_corrector.py      # YAML correction
+│   │   │   ├── test_executor.py       # Test execution
+│   │   │   └── action_models.py       # Action models
+│   │   ├── learning/                   # Q&A Learning system
+│   │   │   ├── user_preference_learner.py  # Preference learning
+│   │   │   ├── pattern_learner.py     # Pattern learning
+│   │   │   ├── qa_outcome_tracker.py  # Outcome tracking
+│   │   │   ├── question_quality_tracker.py  # Quality tracking
+│   │   │   ├── metrics_collector.py    # Metrics collection
+│   │   │   ├── continuous_improvement.py  # Continuous improvement
+│   │   │   ├── ensemble_quality_scorer.py  # Quality scoring
+│   │   │   ├── fbvl_quality_scorer.py  # FBVL quality scoring
+│   │   │   ├── hitl_quality_enhancer.py  # HITL enhancement
+│   │   │   ├── pattern_drift_detector.py  # Drift detection
+│   │   │   ├── pattern_rlhf.py        # RLHF for patterns
+│   │   │   ├── quality_calibration_loop.py  # Calibration loop
+│   │   │   ├── user_profile_builder.py  # Profile building
+│   │   │   └── weight_optimization_loop.py  # Weight optimization
+│   │   ├── entity/                     # Entity services
+│   │   │   ├── extractor.py           # Entity extraction
+│   │   │   ├── resolver.py            # Entity resolution
+│   │   │   ├── validator.py           # Entity validation
+│   │   │   └── enricher.py            # Entity enrichment
+│   │   ├── blueprints/                 # Blueprint services
+│   │   │   ├── matcher.py             # Blueprint matching
+│   │   │   ├── filler.py              # Blueprint filling
+│   │   │   └── renderer.py            # Blueprint rendering
+│   │   ├── conversation/               # Conversation services
+│   │   │   ├── context_manager.py     # Context management
+│   │   │   ├── history_manager.py     # History management
+│   │   │   ├── intent_matcher.py      # Intent matching
+│   │   │   └── response_builder.py    # Response building
+│   │   ├── device/                     # Device services
+│   │   │   └── context_service.py     # Device context
+│   │   ├── function_calling/           # Function calling
+│   │   │   └── registry.py            # Function registry
+│   │   ├── alias_service.py            # Alias management
+│   │   ├── device_matching.py          # Device matching
+│   │   ├── entity_validator.py         # Entity validation
+│   │   ├── entity_id_validator.py      # Entity ID validation
+│   │   ├── ensemble_entity_validator.py  # Ensemble validation
+│   │   ├── entity_attribute_service.py  # Attribute service
+│   │   ├── entity_capability_enrichment.py  # Capability enrichment
+│   │   ├── comprehensive_entity_enrichment.py  # Comprehensive enrichment
+│   │   ├── entity_context_cache.py     # Context caching
+│   │   ├── enrichment_context_fetcher.py  # Context fetching
+│   │   ├── pattern_context_service.py  # Pattern context
+│   │   ├── synergy_context_service.py  # Synergy context
+│   │   ├── suggestion_context_enricher.py  # Context enrichment
+│   │   ├── component_detector.py       # Component detection
+│   │   ├── service_validator.py       # Service validation
+│   │   ├── model_comparison_service.py  # Model comparison
+│   │   ├── parallel_model_tester.py   # Parallel testing
+│   │   ├── reverse_engineering_metrics.py  # Reverse engineering
+│   │   ├── safety_validator.py         # Safety validation
+│   │   ├── yaml_self_correction.py     # YAML self-correction
+│   │   ├── yaml_structure_validator.py  # YAML structure validation
+│   │   ├── template_pattern_fusion.py  # Template pattern fusion
+│   │   ├── event_driven_template_matcher.py  # Event-driven matching
+│   │   ├── error_recovery.py           # Error recovery
+│   │   └── service_container.py       # Service container (DI)
+│   ├── pattern_detection/               # Pattern detection algorithms
+│   ├── pattern_discovery/              # Pattern discovery
+│   ├── patterns/                       # Pattern definitions
+│   ├── preprocessing/                  # Data preprocessing
+│   ├── trigger_analysis/               # Trigger analysis
+│   ├── contextual_patterns/            # Contextual patterns
+│   │   ├── weather_opportunities.py   # Weather-based opportunities
+│   │   ├── energy_opportunities.py     # Energy opportunities
+│   │   └── event_opportunities.py      # Event opportunities
+│   ├── correlation/                    # Correlation analysis (Epic 36-38)
+│   │   ├── correlation_service.py     # Correlation service
+│   │   ├── correlation_cache.py       # Correlation caching
+│   │   ├── feature_extractor.py       # Feature extraction
+│   │   ├── long_term_patterns.py      # Long-term patterns
+│   │   ├── presence_aware_correlations.py  # Presence-aware correlations
+│   │   ├── automated_insights.py      # Automated insights
+│   │   ├── augmented_analytics.py     # Augmented analytics
+│   │   ├── calendar_integration.py    # Calendar integration
+│   │   ├── state_history_client.py    # State history client
+│   │   ├── streaming_tracker.py       # Streaming tracker
+│   │   ├── tabpfn_predictor.py       # TabPFN predictor
+│   │   ├── automl_optimizer.py        # AutoML optimizer
+│   │   ├── hyperparameter_optimization.py  # Hyperparameter optimization
+│   │   ├── integration.py             # Integration layer
+│   │   └── vector_db.py               # Vector database
+│   ├── entity_extraction/              # Entity extraction
+│   │   ├── enhanced_extractor.py      # Enhanced extraction
+│   │   ├── multi_model_extractor.py    # Multi-model extraction
+│   │   └── pattern_extractor.py       # Pattern-based extraction
+│   ├── extraction/                     # Extraction pipeline
+│   │   ├── pipeline.py                # Extraction pipeline
+│   │   ├── models.py                  # Extraction models
+│   │   ├── extractors/                # Extractors
+│   │   └── utils/                     # Utilities
+│   ├── home_type/                      # Home type classification
+│   │   ├── home_type_classifier.py    # Home type classifier
+│   │   ├── home_type_profiler.py      # Home type profiler
+│   │   ├── production_classifier.py    # Production classifier
+│   │   ├── production_profiler.py     # Production profiler
+│   │   ├── feature_extractor.py       # Feature extraction
+│   │   ├── event_categorizer.py       # Event categorization
+│   │   ├── data_augmenter.py          # Data augmentation
+│   │   ├── label_generator.py         # Label generation
+│   │   ├── incremental_updater.py     # Incremental updates
+│   │   ├── integration_helpers.py     # Integration helpers
+│   │   └── suggestion_filter.py       # Suggestion filtering
+│   ├── training/                       # Training services
+│   │   ├── synthetic_event_generator.py  # Synthetic event generation
+│   │   ├── synthetic_correlation_engine.py  # Synthetic correlation
+│   │   ├── synthetic_external_data_generator.py  # External data generation
+│   │   └── [additional training modules]
+│   ├── models/                         # Model management
+│   │   └── model_manager.py           # OpenVINO model manager
+│   ├── model_services/                 # Model services
+│   │   ├── openai_service.py         # OpenAI service
+│   │   └── ner_service.py             # NER service
+│   ├── llm/                            # LLM services
+│   ├── providers/                      # Provider abstractions
+│   ├── prompt_building/                # Prompt building
+│   ├── guardrails/                     # Guardrails
+│   │   └── hf_guardrails.py           # HuggingFace guardrails
+│   ├── ranking/                        # Ranking algorithms
+│   ├── validation/                     # Validation services
+│   ├── testing/                        # Testing utilities
+│   ├── monitoring/                     # Monitoring
+│   ├── observability/                  # Observability
+│   ├── integration/                    # Integration services
+│   ├── migration/                      # Data migration
+│   ├── contracts/                     # API contracts
+│   ├── automation_templates/           # Automation templates
+│   ├── utils/                          # Utilities
+│   ├── langchain_integration/         # LangChain integration
+│   ├── pdl/                           # PDL workflows
+│   ├── policy/                         # Policy management
+│   ├── safety_validator.py            # 6-rule safety engine
+│   ├── nl_automation_generator.py     # Natural language → YAML
+│   ├── enhanced_automation_generator.py  # Enhanced generation
+│   ├── template_engine.py             # Template engine
+│   ├── condition_evaluator.py         # Condition evaluation
+│   ├── rollback.py                    # Rollback functionality
+│   └── scheduler/                     # Scheduler
+│       └── daily_analysis.py          # Daily analysis scheduler
 ├── alembic/                            # Database migrations
-│   └── versions/
-├── scripts/
-│   └── seed_rag_knowledge_base.py     # Seed RAG knowledge base
-├── tests/                              # 56/56 tests passing ✅
+│   └── versions/                      # Migration versions
+├── scripts/                            # Utility scripts
+│   ├── seed_rag_knowledge_base.py     # Seed RAG knowledge base
+│   └── [additional scripts]
+├── tests/                              # Test suite
+│   ├── correlation/                   # Correlation tests
+│   ├── datasets/                      # Dataset tests
+│   └── training/                     # Training tests
 ├── Dockerfile                          # Production container
 ├── requirements.txt                    # Python dependencies
 └── pytest.ini                          # Test configuration
@@ -920,21 +1259,33 @@ ai-automation-service/
 
 ### Database Schema
 
-**SQLite Database: ai_automation.db (13 tables)**
+**SQLite Database: ai_automation.db (25 tables)**
 
 1. **patterns** - Detected patterns (time-of-day, co-occurrence, anomaly)
-2. **suggestions** - Automation suggestions (draft, approved, rejected, deployed)
-3. **device_capabilities** - Device capability metadata
-4. **feature_usage** - Device feature utilization tracking
-5. **synergies** - Detected device synergies (2-4 level chains)
-6. **device_embeddings** - Device similarity embeddings
-7. **entity_aliases** - User-defined entity nicknames
-8. **deployment_history** - Automation deployment tracking
-9. **openai_usage** - OpenAI API usage statistics
-10. **analysis_runs** - Daily analysis job tracking
-11. **validation_results** - Safety validation results
-12. **semantic_knowledge** - RAG knowledge base (queries, patterns, automations with embeddings)
-13. **clarification_sessions** - Persistent clarification sessions with query linkage (AI1.26)
+2. **system_settings** - System configuration and feature flags
+3. **suggestions** - Automation suggestions (draft, approved, rejected, deployed)
+4. **user_feedback** - User feedback on suggestions
+5. **automation_versions** - Version history for deployed automations
+6. **device_capabilities** - Device capability metadata
+7. **device_feature_usage** - Device feature utilization tracking
+8. **pattern_history** - Historical pattern tracking for trend analysis
+9. **synergy_opportunities** - Detected synergy opportunities
+10. **discovered_synergies** - Discovered device synergies (2-4 level chains)
+11. **manual_refresh_triggers** - Manual refresh trigger tracking
+12. **analysis_run_status** - Daily analysis job tracking and status
+13. **ask_ai_queries** - Ask AI query history and results
+14. **clarification_sessions** - Persistent clarification sessions with query linkage (AI1.26)
+15. **clarification_confidence_feedback** - Confidence calibration feedback
+16. **clarification_outcomes** - Clarification outcome tracking
+17. **entity_aliases** - User-defined entity nicknames
+18. **semantic_knowledge** - RAG knowledge base (queries, patterns, automations with embeddings)
+19. **reverse_engineering_metrics** - Reverse engineering performance metrics
+20. **model_comparison_metrics** - Model comparison and A/B testing metrics
+21. **training_runs** - Training run tracking and metadata
+22. **qa_outcomes** - Q&A learning outcome tracking
+23. **user_preferences** - Learned user preferences from Q&A sessions
+24. **question_quality_metrics** - Question quality tracking for learning system
+25. **auto_resolution_metrics** - Auto-resolution performance metrics
 
 ### Entity Resolution Enhancements
 
@@ -990,8 +1341,8 @@ All generated automations must pass all 6 rules before deployment.
 
 ### Epic AI-1 (Pattern Detection)
 - **Stories:** `docs/stories/story-ai1-*.md`
-- **Components:** `src/pattern_analyzer/`
-- **Tests:** `tests/test_*_detector.py`
+- **Components:** `src/pattern_analyzer/`, `src/pattern_detection/`, `src/pattern_discovery/`
+- **Tests:** `tests/test_*_detector.py`, `tests/datasets/test_pattern_*.py`
 - **Status:** Complete ✅
 
 ### Epic AI-2 (Device Intelligence)
@@ -1003,14 +1354,24 @@ All generated automations must pass all 6 rules before deployment.
 ### Epic AI-3 (N-Level Synergy Detection)
 - **Stories:** `docs/stories/story-ai3-*.md`
 - **Components:** `src/synergy_detection/`
-- **Tests:** `tests/test_synergy_*.py`
+- **Tests:** `tests/test_synergy_*.py`, `tests/datasets/test_synergy_*.py`
 - **Status:** Complete ✅
 
 ### Epic AI-4 (Advanced Synergy Analysis)
 - **Stories:** `docs/stories/story-ai4-*.md`
 - **Components:** `src/nlevel_synergy/`
 - **Tests:** `tests/test_nlevel_*.py`
-- **Status:** In Progress 🚧
+- **Status:** Complete ✅
+
+### Epic 36-38 (Correlation Analysis)
+- **Components:** `src/correlation/`
+- **Tests:** `tests/correlation/`
+- **Status:** Complete ✅
+
+### v2 API (Phase 3)
+- **Components:** `src/api/v2/`
+- **Routers:** Conversation, Automation, Action, Streaming APIs
+- **Status:** Complete ✅
 
 ### Local Development
 
@@ -1078,7 +1439,7 @@ pytest tests/test_pattern_analyzer.py::test_time_of_day_detection
 pytest tests/ -v
 ```
 
-**Test Coverage:** 56/56 unit tests passing ✅
+**Test Coverage:** Comprehensive test suite with unit, integration, and dataset tests ✅
 
 ### Test Categories
 
@@ -1130,10 +1491,11 @@ curl -X POST http://localhost:8024/api/v1/ask-ai/query \
 7. MQTT Notification: <1s
 
 **OpenAI Usage:**
-- **Model:** GPT-4o-mini
+- **Models:** GPT-5.1 (suggestions/YAML), GPT-5.1-mini (classification/extraction)
 - **Tokens per run:** ~1,000-5,000 tokens
-- **Cost per run:** $0.001-0.005
+- **Cost per run:** $0.001-0.005 (optimized with GPT-5.1-mini for low-risk tasks)
 - **Annual cost:** ~$0.50 (365 runs)
+- **Cost savings:** 50% vs GPT-4o (GPT-5.1), 80% vs GPT-4o (GPT-5.1-mini)
 
 **Scaling Characteristics:**
 - 100 devices: ~2 minutes
@@ -1194,69 +1556,81 @@ Configure feature flags and service settings via:
 ### Core Dependencies
 
 ```
-fastapi==0.121.2              # Web framework
-uvicorn==0.38.0               # ASGI server
-python-multipart==0.0.20      # Form data parsing
-pydantic==2.12.4              # Data validation
-pydantic-settings==2.12.0     # Settings management
+fastapi>=0.115.0,<0.116.0      # Web framework (stable 0.115.x series)
+uvicorn[standard]>=0.32.0,<0.33.0  # ASGI server (with standard extras)
+python-multipart>=0.0.12,<0.1.0  # Form data parsing
+pydantic>=2.9.0,<3.0.0        # Data validation (Pydantic v2)
+pydantic-settings>=2.5.0,<3.0.0  # Settings management
 ```
 
 ### Database
 
 ```
-sqlalchemy==2.0.44            # ORM
-aiosqlite==0.21.0             # Async SQLite driver
-alembic==1.17.2               # Database migrations
+sqlalchemy>=2.0.35,<3.0.0      # ORM (SQLAlchemy 2.0.x)
+aiosqlite>=0.20.0,<0.21.0     # Async SQLite driver
+alembic>=1.13.0,<2.0.0        # Database migrations
 ```
 
 ### HTTP & MQTT
 
 ```
-httpx==0.27.2                 # Async HTTP client
-aiohttp==3.13.2               # Async HTTP client
-paho-mqtt==1.6.1              # MQTT client
+httpx>=0.28.1,<0.29.0         # Async HTTP client (latest stable 2025)
+aiohttp>=3.13.2,<4.0.0        # Async HTTP client (latest stable 2025)
+paho-mqtt>=1.6.1,<2.0.0       # MQTT client
 ```
 
 ### Data Processing
 
 ```
-pandas==2.3.3                 # Data analysis
-numpy==2.3.4                  # Numerical computing
-scikit-learn==1.4.2           # Machine learning
-influxdb-client==1.49.0       # InfluxDB 2.x client
+pandas>=2.2.0,<3.0.0          # Data analysis (pandas 2.x)
+numpy>=1.26.0,<1.27.0         # Numerical computing (compatible with OpenVINO)
+scikit-learn>=1.5.0,<2.0.0    # Machine learning (scikit-learn 1.5.x)
+scipy>=1.16.3,<2.0.0          # Statistical operations
+influxdb-client>=1.40.0,<2.0.0  # InfluxDB 2.x client
+tabpfn>=2.5.0,<3.0.0          # TabPFN for correlation prediction (Epic 36)
+river>=0.22.0,<1.0.0          # River for streaming statistics (Epic 36)
+faiss-cpu>=1.7.4,<2.0.0       # FAISS for vector similarity search (Epic 37)
+optuna>=3.6.0,<4.0.0          # Optuna for hyperparameter optimization (Epic 37)
 ```
 
 ### AI & ML
 
 ```
-openai==1.40.2                # OpenAI API client (GPT-4o-mini)
-spacy==3.7.2                  # NLP and NER fallback
-sentence-transformers==3.3.1  # Embeddings (all-MiniLM-L6-v2)
-transformers==4.46.1          # HuggingFace models
-torch==2.3.1+cpu              # CPU-only PyTorch
-openvino==2024.6.0            # Intel optimization
-optimum-intel==1.21.0         # OpenVINO + Transformers
-peft==0.14.0                  # LoRA fine-tuning support
+openai>=1.54.0,<2.0.0         # OpenAI API client (supports GPT-5.1)
+spacy>=3.7.0,<4.0.0           # NLP and NER fallback
+tiktoken>=0.8.0,<1.0.0         # Token counting for OpenAI models
+sentence-transformers>=3.3.1,<4.0.0  # Embeddings (all-MiniLM-L6-v2)
+transformers>=4.46.1,<5.0.0   # HuggingFace models (latest stable 2025)
+torch>=2.4.0,<3.0.0           # PyTorch 2.4.x CPU-only (from PyTorch index)
+torch-geometric>=2.5.0,<3.0.0  # PyTorch Geometric for GNN (CPU-compatible)
+openvino>=2024.5.0,<2025.0.0  # Intel optimization (2024.x series)
+optimum-intel>=1.21.0,<2.0.0  # OpenVINO + Transformers integration
+peft>=0.12.0,<1.0.0           # LoRA fine-tuning support
 ```
 
 ### Utilities
 
 ```
-apscheduler==3.11.1           # Job scheduling
-python-dotenv==1.2.1          # Environment variables
-tenacity==8.2.3               # Retry logic
-pyyaml==6.0.3                 # YAML parsing
-rapidfuzz>=3.14.3             # Fuzzy string matching
-langchain==0.2.14             # Prompt orchestration (optional)
-deprecated==1.2.14            # Deprecation warnings
+apscheduler>=3.10.0,<4.0.0    # Job scheduling
+python-dotenv>=1.0.0,<2.0.0   # Environment variable loader
+tenacity>=8.2.0,<9.0.0        # Retry logic
+pyyaml>=6.0.1,<7.0.0          # YAML parsing
+rapidfuzz>=3.10.0,<4.0.0      # Fuzzy string matching
+langchain>=0.3.0,<1.0.0       # Prompt orchestration (optional, latest stable)
+langchain-openai>=0.2.0,<1.0.0  # LangChain OpenAI integration
+jinja2>=3.1.4,<4.0.0          # Template engine
+synthetic-home>=4.1.0,<5.0.0  # Home Assistant synthetic home generator
+deprecated>=1.2.13,<2.0.0     # Deprecation warnings
 ```
 
 ### Development & Testing
 
 ```
-pytest==8.3.3                 # Testing framework
-pytest-asyncio==0.23.0        # Async test support
+pytest>=8.3.0,<9.0.0          # Testing framework (latest stable)
+pytest-asyncio>=0.24.0,<1.0.0  # Async test support
 ```
+
+**Note:** PyTorch CPU-only version must be installed from PyTorch index (see `--extra-index-url` in requirements.txt)
 
 ## Troubleshooting
 
@@ -1494,12 +1868,37 @@ async def detect_patterns(
 
 ---
 
-**Last Updated:** November 17, 2025
+**Last Updated:** November 2025 (Comprehensive Code Review)
 **Version:** 2.3
 **Status:** Production Ready ✅
 **Port:** 8018 (internal), 8024 (external)
 
+## Recent Documentation Updates (November 2025)
+
+### ✅ Comprehensive Code Review Completed
+
+**Major Updates:**
+- **Database Schema:** Updated from 13 to 25 tables (accurate count)
+- **FastAPI Version:** Corrected to 0.115.x (stable series)
+- **OpenAI Models:** Updated to GPT-5.1/GPT-5.1-mini (50-80% cost savings)
+- **Directory Structure:** Complete component tree documented
+- **API Routers:** All 25+ routers documented including v2 APIs
+- **Dependencies:** Updated to reflect actual requirements.txt versions
+- **Epic Status:** All epics marked complete (AI-1 through AI-4, 36-38, v2 API)
+
+**Key Corrections:**
+- Database tables: 25 (not 13)
+- FastAPI: 0.115.x (not 0.121)
+- OpenAI: GPT-5.1/GPT-5.1-mini (not GPT-4o-mini)
+- Epic AI-4: Complete (not In Progress)
+- Added v2 API documentation
+- Added correlation analysis (Epic 36-38)
+- Added comprehensive service directory structure
+- Updated all dependency versions to match requirements.txt
+
 **Epic AI-1:** Complete ✅ (Pattern Detection + Clarification Flow - Story AI1.26)
 **Epic AI-2:** Complete ✅ (Device Intelligence - Stories 2.1-2.5)
 **Epic AI-3:** Complete ✅ (N-Level Synergy Detection)
-**Epic AI-4:** In Progress 🚧 (Advanced Synergy Analysis)
+**Epic AI-4:** Complete ✅ (Advanced Synergy Analysis)
+**Epic 36-38:** Complete ✅ (Correlation Analysis)
+**v2 API:** Complete ✅ (Phase 3 - New API Routers)

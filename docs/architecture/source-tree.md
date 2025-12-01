@@ -53,7 +53,7 @@ homeiq/
 │   ├── openvino-service/          # OpenVINO models (Port 8026 external, 8019 internal)
 │   ├── ml-service/                # ML algorithms (Port 8025 external, 8020 internal)
 │   ├── ner-service/               # Named Entity Recognition (Port 8031)
-│   ├── openai-service/            # GPT-4o-mini client (Port 8020)
+│   ├── openai-service/            # GPT-5.1/GPT-5.1-mini client (Port 8020)
 │   ├── ai-code-executor/          # AI code execution service
 │   ├── automation-miner/          # Automation mining (Port 8029 external, 8019 internal)
 │   ├── ha-simulator/              # Test event generator

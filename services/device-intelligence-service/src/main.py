@@ -31,6 +31,7 @@ from .api.websocket_router import router as websocket_router
 from .config import Settings
 from .core.database import close_database, initialize_database
 from .core.predictive_analytics import PredictiveAnalyticsEngine
+from .scheduler.training_scheduler import TrainingScheduler
 
 # Configure logging
 logging.basicConfig(
@@ -46,6 +47,7 @@ settings = Settings()
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events."""
     analytics_engine: PredictiveAnalyticsEngine | None = None
+    training_scheduler: TrainingScheduler | None = None
     logger.info("🚀 Device Intelligence Service starting up...")
     logger.info(f"📊 Service configuration loaded: Port {settings.DEVICE_INTELLIGENCE_PORT}")
 
@@ -59,9 +61,20 @@ async def lifespan(app: FastAPI):
         app.state.analytics_engine = analytics_engine
         logger.info("✅ Predictive analytics engine initialized")
 
+        # Start training scheduler (Epic 46.2: Built-in Nightly Training Scheduler)
+        training_scheduler = TrainingScheduler(settings, analytics_engine)
+        training_scheduler.start()
+        app.state.training_scheduler = training_scheduler
+        logger.info("✅ Training scheduler initialized")
+
         yield
     finally:
         logger.info("🛑 Device Intelligence Service shutting down...")
+        
+        # Stop training scheduler
+        if training_scheduler:
+            training_scheduler.stop()
+        
         await shutdown_discovery_service()
 
         if analytics_engine:

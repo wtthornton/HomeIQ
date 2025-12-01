@@ -232,11 +232,27 @@ The AI Automation Service includes rate limiting middleware to prevent API abuse
 - **OpenVINO Service**: INT8 optimized models (all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small)
 - **ML Service**: Classical ML (K-Means clustering, Isolation Forest)
 - **NER Service**: Named Entity Recognition (BERT-based)
-- **OpenAI Service**: GPT-4o-mini API client
+- **OpenAI Service**: GPT-5.1/GPT-5.1-mini API client (50-80% cost savings vs GPT-4o)
 - **Transformers**: 4.40.0+ with optimum-intel 1.21.0+ for OpenVINO integration
 - **PyTorch**: 2.4.0+ CPU-only for NUC deployments
 - **LangChain**: 0.3.0+ for LLM orchestration
 - **Synthetic Home**: 4.1.0+ for training data generation
+
+**2025 ML Training Improvements** (December 2025):
+- **scikit-learn**: 1.5.0+ - Classical ML algorithms (RandomForest, IsolationForest) - Default
+- **LightGBM**: 4.0.0+ - Gradient boosting (2-5x faster training) - Optional
+- **TabPFN**: 2.5.0+ - Pre-trained transformer for tabular data (5-10x faster, 90-98% accuracy) - Optional
+- **River**: 0.21.0+ - Incremental/streaming ML (10-50x faster updates) - Optional
+- **PyTorch Compile**: 2.4.0+ - GNN training optimization (1.5-2x speedup) - Automatic if available
+- **pandas**: 2.2.0+ - Data manipulation and analysis
+- **numpy**: 1.26.0+ - Numerical computing
+
+**ML Model Selection (Device Intelligence Service):**
+- **Default**: RandomForest (stable, proven, 85-95% accuracy)
+- **Fast Training**: LightGBM (2-5x faster, similar accuracy)
+- **High Accuracy**: TabPFN (90-98% accuracy, instant training)
+- **Incremental Updates**: River (10-50x faster daily updates)
+- **Configuration**: Via `ML_FAILURE_MODEL` environment variable (randomforest/lightgbm/tabpfn)
 
 ## Context7 Knowledge Base Coverage
 

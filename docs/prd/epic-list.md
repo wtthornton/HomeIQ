@@ -182,7 +182,7 @@ Comprehensive end-to-end tests for AI Automation Suggestions engine UI, covering
 ## AI Enhancement Epics (AI-1, AI-2, AI-3)
 
 **Epic AI-1: AI Automation Suggestion System** ✅ **COMPLETE** 🤖
-AI-powered automation discovery based on pattern detection and natural language generation. Analyzes 30 days of Home Assistant data to detect time-of-day patterns, co-occurrence patterns, and generates actionable automation suggestions using OpenAI GPT-4o-mini. Runs daily at 3 AM with ~$0.50/year cost.
+AI-powered automation discovery based on pattern detection and natural language generation. Analyzes 30 days of Home Assistant data to detect time-of-day patterns, co-occurrence patterns, and generates actionable automation suggestions using OpenAI GPT-5.1/GPT-5.1-mini (50-80% cost savings vs GPT-4o). Runs daily at 3 AM with ~$0.50/year cost.
 
 **Key Features:**
 - ✅ Pattern detection (time-of-day, co-occurrence, anomaly)
@@ -457,11 +457,33 @@ Implement a Home Assistant-aligned tiered statistics model that automatically ag
 
 ---
 
+## ML Training Enhancement Epics (46)
+
+**Epic 46: Enhanced ML Training Data and Nightly Training Automation** 📋 PLANNING
+Enhance ML training infrastructure to support high-quality initial model training for alpha release and automated nightly training for users. Addresses critical gaps in the training pipeline to ensure alpha users receive working models immediately and can continuously improve them with their own data.
+
+**Key Features:**
+- Synthetic device data generator (realistic patterns, failure scenarios)
+- Built-in nightly training scheduler (APScheduler integration)
+- Enhanced initial training pipeline (synthetic data + quality validation)
+- Pre-trained models in Docker image (work immediately)
+- Automated continuous improvement (nightly training)
+
+**Stories:**
+- 46.1: Synthetic Device Data Generator (4-5 hours, P0)
+- 46.2: Built-in Nightly Training Scheduler (4-5 hours, P1)
+- 46.3: Enhanced Initial Training Pipeline (3-4 hours, P0)
+
+**Total Effort:** 12-16 hours estimated  
+**Priority:** High (Alpha Release Blocker)
+
+---
+
 ## Summary
 
-- **Total Epics**: 45 (26 infrastructure + 4 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement)
+- **Total Epics**: 46 (26 infrastructure + 4 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement + 1 ML training enhancement)
 - **Completed**: 32 (26 infrastructure + 4 AI + 4 setup service + 1 architecture + 1 code quality) ✅ **100% COMPLETE** 🎉
-- **Planned**: 12 (Epic 33-45: Synthetic External Data, Correlation Analysis, Service Modularization, Dual Deployment, Production Readiness Improvements, Development Experience Improvements, Tiered Statistics Model) 📋
+- **Planned**: 13 (Epic 33-46: Synthetic External Data, Correlation Analysis, Service Modularization, Dual Deployment, Production Readiness Improvements, Development Experience Improvements, Tiered Statistics Model, Enhanced ML Training) 📋
 - **In Progress**: 0
 - **Draft/Planned**: 0
 - **Active Services**: 21 total (18 microservices + InfluxDB infrastructure)

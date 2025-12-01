@@ -525,6 +525,15 @@ class GNNSynergyDetector:
         # Initialize model
         input_dim = train_data.x.shape[1]
         self.model = GNNModel(input_dim, self.hidden_dim, self.num_layers)
+        
+        # Apply PyTorch compile for faster training (2025 optimization)
+        if hasattr(torch, 'compile') and TORCH_AVAILABLE:
+            try:
+                self.model = torch.compile(self.model, mode='reduce-overhead')
+                logger.info("✅ GNN model compiled for faster training (1.5-2x speedup expected)")
+            except Exception as e:
+                logger.warning(f"⚠️  torch.compile failed, using standard model: {e}")
+        
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         criterion = nn.BCELoss()
         

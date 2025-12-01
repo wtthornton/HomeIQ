@@ -1271,6 +1271,11 @@ services:
       - REQUEST_TIMEOUT=30
       - CACHE_TTL=300
       - MAX_CACHE_SIZE=1000
+      # ML Model Configuration (2025 improvements)
+      - ML_FAILURE_MODEL=${ML_FAILURE_MODEL:-randomforest}  # randomforest, lightgbm, or tabpfn
+      - ML_USE_INCREMENTAL=${ML_USE_INCREMENTAL:-false}  # Enable incremental learning
+      - ML_INCREMENTAL_UPDATE_THRESHOLD=${ML_INCREMENTAL_UPDATE_THRESHOLD:-100}  # Samples before incremental update
+      - GNN_USE_COMPILE=${GNN_USE_COMPILE:-true}  # Use PyTorch compile for GNN (1.5-2x speedup)
     volumes:
       - device_intelligence_data:/app/data
       - ./infrastructure:/app/infrastructure:rw

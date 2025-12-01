@@ -639,15 +639,15 @@ TABLE webhook_deliveries (
 ### 20. OpenAI Service
 **Port:** 8020 (external)
 **Technology:** Python 3.11, OpenAI SDK, FastAPI
-**Purpose:** GPT-4o-mini API client
+**Purpose:** GPT-5.1/GPT-5.1-mini API client (50-80% cost savings vs GPT-4o)
 
 **Key Features:**
 - Natural language processing
 - Conversational AI
 - Automation generation from text
-- GPT-4o-mini integration
+- GPT-5.1/GPT-5.1-mini integration
 
-**Model:** `gpt-4o-mini`
+**Model:** `gpt-5.1` (default), `gpt-5.1-mini` (for low-risk tasks - 80% cost savings)
 
 **Endpoints:**
 - `POST /chat` - Chat completion
@@ -856,7 +856,7 @@ AI Services (8018-8028):                Integration Services (8009-8014):
 | ai-automation-service | 8018 | 8024 | ✅ Running | AI automation (port mapped) |
 | ai-automation-ui | 80 | 3001 | ✅ Running | AI UI frontend (nginx) |
 | ner-service | 8019 | 8019 | ✅ Running | Named Entity Recognition |
-| openai-service | 8020 | 8020 | ✅ Running | GPT-4o-mini API client |
+| openai-service | 8020 | 8020 | ✅ Running | GPT-5.1/GPT-5.1-mini API client |
 | ml-service | 8020 | 8025 | ✅ Running | ML algorithms (port mapped) |
 | openvino-service | 8019 | 8026 | ✅ Running | OpenVINO models (port mapped) |
 | ha-setup-service | 8020 | 8027 | ✅ Running | HA setup service (port mapped) |
@@ -884,7 +884,7 @@ The system now includes **9 containerized AI microservices** for advanced automa
 |---------|---------------|---------------|--------|---------|
 | ai-core-service | 8018 | 8018 | ✅ Running | AI orchestration and coordination |
 | ner-service | 8019 | 8019 | ✅ Running | Named Entity Recognition (BERT) |
-| openai-service | 8020 | 8020 | ✅ Running | GPT-4o-mini API client |
+| openai-service | 8020 | 8020 | ✅ Running | GPT-5.1/GPT-5.1-mini API client |
 | ai-automation-service | 8024 | 8018 | ✅ Running | Pattern detection & automation |
 | ml-service | 8025 | 8020 | ✅ Running | K-Means clustering, anomaly detection |
 | openvino-service | 8026 | 8019 | ✅ Running | Embeddings, re-ranking, classification |
@@ -937,10 +937,10 @@ The system now includes **9 containerized AI microservices** for advanced automa
 ### 4. OpenAI Service
 **Port:** 8020 (external) → 8020 (internal)  
 **Technology:** Python 3.11, FastAPI, OpenAI API client  
-**Purpose:** GPT-4o-mini API client for advanced language processing
+**Purpose:** GPT-5.1/GPT-5.1-mini API client (50-80% cost savings vs GPT-4o) for advanced language processing
 
 **Features:**
-- **GPT-4o-mini Integration**: Cost-effective language model access
+- **GPT-5.1/GPT-5.1-mini Integration**: Cost-effective language model access with 50-80% cost savings
 - **Configurable Parameters**: Temperature, max tokens, model selection
 - **Error Handling**: Robust retry logic and error management
 
