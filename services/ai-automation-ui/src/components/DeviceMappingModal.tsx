@@ -107,10 +107,10 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className={`w-full max-w-2xl max-h-[80vh] rounded-lg border overflow-hidden ${
+          className={`w-full max-w-2xl max-h-[80vh] rounded-xl border overflow-hidden backdrop-blur-sm ${
             darkMode 
-              ? 'bg-gray-800 border-gray-700' 
-              : 'bg-white border-gray-200'
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20' 
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
@@ -126,10 +126,10 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
               </h3>
               <button
                 onClick={onCancel}
-                className={`p-1 rounded hover:bg-opacity-20 ${
+                className={`p-1 rounded-xl transition-all hover:scale-105 active:scale-95 ${
                   darkMode 
-                    ? 'text-gray-400 hover:bg-gray-700' 
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'text-gray-400 hover:bg-gray-700/60' 
+                    : 'text-gray-600 hover:bg-gray-100/80'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,10 +158,10 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
               placeholder="Search entities by name or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`w-full px-3 py-2 rounded border ${
+              className={`w-full px-3 py-2 rounded-xl border backdrop-blur-sm ${
                 darkMode
-                  ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400'
-                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  ? 'bg-slate-800/60 border-gray-700/50 text-gray-100 placeholder-gray-400'
+                  : 'bg-white/80 border-gray-300/50 text-gray-900 placeholder-gray-500'
               } focus:outline-none focus:ring-2 focus:ring-blue-500`}
             />
           </div>
@@ -197,14 +197,14 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
                     <button
                       key={entity.entity_id}
                       onClick={() => handleEntitySelect(entity.entity_id)}
-                      className={`w-full text-left p-3 rounded-lg border transition-all ${
+                      className={`w-full text-left p-3 rounded-xl border transition-all backdrop-blur-sm ${
                         isSelected
                           ? darkMode
-                            ? 'bg-blue-900 border-blue-600'
-                            : 'bg-blue-50 border-blue-500'
+                            ? 'bg-gradient-to-r from-blue-600/30 to-purple-600/30 border-blue-500/50'
+                            : 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-400/50'
                           : darkMode
-                            ? 'bg-gray-700 border-gray-600 hover:bg-gray-600'
-                            : 'bg-white border-gray-200 hover:bg-gray-50'
+                            ? 'bg-slate-800/60 border-gray-700/50 hover:bg-slate-700/60'
+                            : 'bg-white/80 border-gray-200/50 hover:bg-white'
                       }`}
                     >
                       <div className="flex items-start justify-between">
@@ -277,10 +277,10 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
           }`}>
             <button
               onClick={onCancel}
-              className={`px-4 py-2 rounded font-medium transition-colors ${
+              className={`px-4 py-2 rounded-xl font-medium transition-all ${
                 darkMode
-                  ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-slate-800/60 text-gray-200 hover:bg-slate-700/60 border border-slate-700/50'
+                  : 'bg-white/80 text-gray-700 hover:bg-white border border-gray-200 shadow-sm hover:shadow-md'
               }`}
             >
               Cancel
@@ -288,12 +288,14 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
             <button
               onClick={handleSave}
               disabled={selectedEntityId === currentEntityId}
-              className={`px-4 py-2 rounded font-medium transition-colors ${
+              className={`px-4 py-2 rounded-xl font-medium transition-all ${
                 selectedEntityId === currentEntityId
                   ? darkMode
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? 'bg-slate-800/60 text-gray-500 cursor-not-allowed border border-slate-700/50'
+                    : 'bg-white/80 text-gray-400 cursor-not-allowed border border-gray-200'
+                  : darkMode
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
               }`}
             >
               Save Mapping

@@ -79,7 +79,7 @@ export const DesignSystem = {
 export const getCardStyles = (additionalStyles?: React.CSSProperties) => ({
   background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
   border: '1px solid rgba(51, 65, 85, 0.5)',
-  borderRadius: DesignSystem.borderRadius.lg,
+  borderRadius: DesignSystem.borderRadius.xl, // Updated to rounded-xl for 2025 design
   boxShadow: DesignSystem.shadows.card,
   padding: DesignSystem.spacing['2xl'],
   backdropFilter: 'blur(12px)',
@@ -99,7 +99,7 @@ export const getButtonStyles = (
     fontWeight: 500,
     padding: '0.375rem 0.75rem',
     fontSize: '0.6875rem', // 11px - slightly smaller
-    borderRadius: DesignSystem.borderRadius.md,
+    borderRadius: DesignSystem.borderRadius.xl, // Updated to rounded-xl for 2025 design
     border: 'none',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.025em',

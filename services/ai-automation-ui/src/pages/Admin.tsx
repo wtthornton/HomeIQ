@@ -206,25 +206,35 @@ export const Admin: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} pb-4`}>
+      {/* Header - Modern 2025 Design */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
+      >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              🔧 Admin Dashboard
-            </h1>
-            <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                🔧 Admin Dashboard
+              </h1>
+            </div>
+            <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               System administration and management
             </p>
           </div>
-          <div className="text-sm text-gray-500">
+          <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             {overviewLoading ? 'Loading status…' : `System Status: ${overview?.systemStatus ?? 'unknown'}`}
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Info Banner */}
-      <div className={`rounded-lg p-4 ${darkMode ? 'bg-blue-900/30 border-blue-800' : 'bg-blue-50 border-blue-200'} border`}>
+      {/* Info Banner - Glassmorphism */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`rounded-xl p-4 ${darkMode ? 'bg-blue-900/40 border-blue-700/50' : 'bg-blue-50/80 border-blue-200/50'} border backdrop-blur-sm shadow-lg`}
+      >
         <div className="flex items-start gap-3">
           <span className="text-2xl">🔧</span>
           <div className={`text-sm ${darkMode ? 'text-blue-200' : 'text-blue-900'}`}>
@@ -232,7 +242,7 @@ export const Admin: React.FC = () => {
             Access to advanced features and configuration options.
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -242,10 +252,10 @@ export const Admin: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className={`rounded-lg p-4 border ${
+            className={`rounded-xl p-4 border ${
               darkMode
-                ? 'bg-gray-800 border-gray-700'
-                : 'bg-white border-gray-200'
+                ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
+                : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
             }`}
           >
             <div className="flex items-center justify-between mb-2">
@@ -274,10 +284,10 @@ export const Admin: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className={`rounded-lg p-6 border ${
+          className={`rounded-xl p-6 border shadow-lg ${
             darkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-white border-gray-200'
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
           }`}
         >
           <h2 className={`text-lg font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -309,10 +319,10 @@ export const Admin: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className={`rounded-lg p-6 border ${
+          className={`rounded-xl p-6 border shadow-lg ${
             darkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-white border-gray-200'
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
           }`}
         >
           <h2 className={`text-lg font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -405,11 +415,11 @@ export const Admin: React.FC = () => {
               type="button"
               onClick={() => trainingMutation.mutate()}
               disabled={trainingMutation.isPending || hasActiveTrainingRun}
-              className={`px-4 py-2 text-xs rounded-lg font-bold shadow transition-colors ${
+              className={`px-4 py-2 text-xs rounded-xl font-bold shadow-lg transition-all ${
                 darkMode
-                  ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+              } disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
             >
               {trainingMutation.isPending
                 ? '🚧 Starting…'
@@ -560,11 +570,11 @@ export const Admin: React.FC = () => {
             type="button"
             onClick={() => gnnTrainingMutation.mutate()}
             disabled={gnnTrainingMutation.isPending || hasActiveGNNTrainingRun}
-            className={`px-4 py-2 text-xs rounded-lg font-bold shadow transition-colors ${
+            className={`px-4 py-2 text-xs rounded-xl font-bold shadow-lg transition-all ${
               darkMode
-                ? 'bg-purple-600 hover:bg-purple-500 text-white'
-                : 'bg-purple-500 hover:bg-purple-600 text-white'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
+                : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
+            } disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
           >
             {gnnTrainingMutation.isPending
               ? '🚧 Starting…'
@@ -644,8 +654,13 @@ export const Admin: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Footer Info */}
-      <div className={`rounded-lg p-6 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} border`}>
+      {/* Footer Info - Glassmorphism */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className={`rounded-xl p-6 ${darkMode ? 'bg-slate-900/60 border-gray-700/50' : 'bg-white/80 border-gray-200/50'} border backdrop-blur-sm shadow-lg`}
+      >
         <div className={`text-sm space-y-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           <p>
             <strong>🔧 Admin Functions:</strong> This page provides access to system administration features.
@@ -663,7 +678,7 @@ export const Admin: React.FC = () => {
             </a>
           </p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Error Message Modal */}
       {errorModalRun && (

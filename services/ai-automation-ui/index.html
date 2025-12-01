@@ -9,6 +9,35 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Global AFRAME stub to prevent errors from react-force-graph
+      // react-force-graph checks for AFRAME globally but we only use 2D graphs
+      (function() {
+        if (typeof window !== 'undefined') {
+          if (!window.AFRAME) {
+            window.AFRAME = {
+              registerComponent: function() {},
+              registerSystem: function() {},
+              registerPrimitive: function() {},
+              scenes: [],
+              version: '1.0.0'
+            };
+          }
+          // Also catch and suppress AFRAME-related errors
+          const originalError = window.onerror;
+          window.onerror = function(msg, url, line, col, error) {
+            if (msg && typeof msg === 'string' && msg.includes('AFRAME')) {
+              console.warn('Suppressed AFRAME error (expected for 2D graphs):', msg);
+              return true; // Suppress the error
+            }
+            if (originalError) {
+              return originalError(msg, url, line, col, error);
+            }
+            return false;
+          };
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

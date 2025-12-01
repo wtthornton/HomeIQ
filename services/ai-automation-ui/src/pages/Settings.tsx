@@ -127,28 +127,45 @@ export const Settings: React.FC = () => {
 
   return (
     <div className="space-y-6" data-testid="settings-container">
+      {/* Header - Modern 2025 Design */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
+        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
       >
-        <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          ⚙️ Settings
-        </h1>
-        <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            ⚙️ Settings
+          </h1>
+        </div>
+        <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           Configure your AI automation preferences
         </p>
       </motion.div>
 
       {showLoadingState && (
-        <div className={`rounded-xl p-6 border text-sm ${darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-600'}`}>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-xl p-6 border text-sm ${darkMode ? 'bg-slate-900/60 border-gray-700/50 text-gray-200 backdrop-blur-sm' : 'bg-white/80 border-gray-200/50 text-gray-600 backdrop-blur-sm'}`}
+        >
           Loading latest settings from server...
-        </div>
+        </motion.div>
       )}
 
       {/* Settings Form */}
       <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6" data-testid="settings-form">
-        {/* Analysis Schedule Section */}
-        <div className={`rounded-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+        {/* Analysis Schedule Section - Glassmorphism */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className={`rounded-xl p-6 shadow-lg ${
+            darkMode 
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+          }`}
+        >
           <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             📅 Analysis Schedule
           </h2>
@@ -184,10 +201,19 @@ export const Settings: React.FC = () => {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        {/* Confidence & Quality Section */}
-        <div className={`rounded-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+        {/* Confidence & Quality Section - Glassmorphism */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className={`rounded-xl p-6 shadow-lg ${
+            darkMode 
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+          }`}
+        >
           <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             🎯 Confidence & Quality
           </h2>
@@ -230,10 +256,19 @@ export const Settings: React.FC = () => {
               />
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Category Preferences Section */}
-        <div className={`rounded-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+        {/* Category Preferences Section - Glassmorphism */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className={`rounded-xl p-6 shadow-lg ${
+            darkMode 
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+          }`}
+        >
           <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             🏷️ Category Preferences
           </h2>
@@ -259,7 +294,7 @@ export const Settings: React.FC = () => {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Budget Management Section */}
         <div className={`rounded-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
@@ -708,9 +743,13 @@ export const Settings: React.FC = () => {
         </div>
 
         {isFetching && !mutation.isPending && (
-          <div className={`rounded-xl p-4 text-sm border ${darkMode ? 'bg-gray-800 border-gray-700 text-gray-300' : 'bg-white border-gray-200 text-gray-600'}`}>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className={`rounded-xl p-4 text-sm border ${darkMode ? 'bg-slate-900/60 border-gray-700/50 text-gray-300 backdrop-blur-sm' : 'bg-white/80 border-gray-200/50 text-gray-600 backdrop-blur-sm'}`}
+          >
             Refreshing settings…
-          </div>
+          </motion.div>
         )}
 
         {/* Team Tracker Integration */}
@@ -725,9 +764,9 @@ export const Settings: React.FC = () => {
             disabled={isSaving}
             className={`flex-1 px-4 py-2 text-xs rounded-xl font-bold shadow-lg transition-all ${
               darkMode
-                ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+            } disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
           >
             {isSaving ? '💾 Saving...' : '💾 Save Settings'}
           </motion.button>
@@ -739,8 +778,8 @@ export const Settings: React.FC = () => {
             onClick={handleReset}
             className={`px-4 py-2 text-xs rounded-xl font-bold shadow-lg transition-all ${
               darkMode
-                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                ? 'bg-slate-800/60 hover:bg-slate-700/60 text-white border border-slate-700/50'
+                : 'bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md'
             }`}
           >
             🔄 Reset to Defaults

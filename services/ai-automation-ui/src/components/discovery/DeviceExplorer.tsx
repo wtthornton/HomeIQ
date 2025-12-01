@@ -6,6 +6,7 @@
  * Epic AI-4, Story AI4.3
  */
 import React, { useState } from 'react';
+import { useAppStore } from '../../store';
 
 interface DeviceExplorerProps {
   devices: string[];
@@ -21,6 +22,7 @@ interface Possibility {
 }
 
 export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices }) => {
+  const { darkMode } = useAppStore();
   const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [possibilities, setPossibilities] = useState<Possibility[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,7 +84,7 @@ export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices }) => {
         <select
           value={selectedDevice}
           onChange={(e) => handleDeviceSelect(e.target.value)}
-          className="w-full md:w-1/2 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full md:w-1/2 px-4 py-2 border rounded-xl backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 dark:bg-slate-800/60 border-gray-300/50 dark:border-gray-700/50"
         >
           <option value="">-- Choose a device --</option>
           {devices.map((device) => (
@@ -109,7 +111,11 @@ export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices }) => {
           </h3>
           
           {possibilities.map((possibility, idx) => (
-            <div key={idx} className="border rounded-lg p-4 hover:shadow-md transition">
+            <div key={idx} className={`border rounded-xl p-4 hover:shadow-lg transition-all backdrop-blur-sm ${
+              darkMode
+                ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-xl shadow-blue-900/20'
+                : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-md shadow-blue-100/50'
+            }`}>
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-lg font-medium capitalize">{possibility.use_case}</h4>
                 <span className={`px-3 py-1 rounded-full text-sm ${getDifficultyColor(possibility.difficulty)}`}>

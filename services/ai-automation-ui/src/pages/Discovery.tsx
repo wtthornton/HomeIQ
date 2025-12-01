@@ -7,12 +7,15 @@
  * Epic AI-4, Story AI4.3
  */
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useAppStore } from '../store';
 import { DeviceExplorer } from '../components/discovery/DeviceExplorer';
 import { SmartShopping } from '../components/discovery/SmartShopping';
 
 interface DiscoveryPageProps {}
 
 export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
+  const { darkMode } = useAppStore();
   const [userDevices, setUserDevices] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,38 +85,73 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Automation Discovery</h1>
-        <p className="text-gray-600">
+      {/* Header - Modern 2025 Design */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`mb-8 p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
+      >
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            🔍 Automation Discovery
+          </h1>
+        </div>
+        <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           Discover what you can automate and get smart device recommendations
         </p>
-      </div>
+      </motion.div>
 
       {error && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6">
-          <p className="font-bold">Note</p>
-          <p>{error}</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-xl p-4 mb-6 border ${darkMode ? 'bg-yellow-900/30 border-yellow-700/50 text-yellow-200' : 'bg-yellow-50 border-yellow-200 text-yellow-800'} backdrop-blur-sm`}
+        >
+          <p className="font-bold mb-1">Note</p>
+          <p className="text-sm">{error}</p>
+        </motion.div>
       )}
 
       <div className="space-y-8">
-        {/* Device Explorer Section */}
-        <section className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold mb-4">Device Explorer</h2>
-          <p className="text-gray-600 mb-6">
+        {/* Device Explorer Section - Glassmorphism */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className={`rounded-xl shadow-lg p-6 ${
+            darkMode 
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+          }`}
+        >
+          <h2 className={`text-2xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Device Explorer
+          </h2>
+          <p className={`text-sm mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             See what you can automate with your existing devices
           </p>
           <DeviceExplorer devices={userDevices} />
-        </section>
+        </motion.section>
 
-        {/* Smart Shopping Section */}
-        <section className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold mb-4">Smart Shopping Recommendations</h2>
-          <p className="text-gray-600 mb-6">
+        {/* Smart Shopping Section - Glassmorphism */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className={`rounded-xl shadow-lg p-6 ${
+            darkMode 
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+          }`}
+        >
+          <h2 className={`text-2xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Smart Shopping Recommendations
+          </h2>
+          <p className={`text-sm mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             Data-driven device suggestions to unlock new automations
           </p>
           <SmartShopping userDevices={userDevices} />
-        </section>
+        </motion.section>
       </div>
     </div>
   );

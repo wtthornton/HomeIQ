@@ -8,6 +8,8 @@
  * Memory: Dependencies Tab pattern ID 9810709
  */
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useAppStore } from '../../store';
 
 interface DeviceRecommendation {
   device_type: string;
@@ -28,6 +30,7 @@ interface SmartShoppingProps {
 }
 
 export const SmartShopping: React.FC<SmartShoppingProps> = ({ userDevices }) => {
+  const { darkMode } = useAppStore();
   const [recommendations, setRecommendations] = useState<DeviceRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
@@ -123,7 +126,11 @@ export const SmartShopping: React.FC<SmartShoppingProps> = ({ userDevices }) => 
   return (
     <div className="space-y-6">
       {/* ROI Chart */}
-      <div className="bg-white border rounded-lg p-4">
+      <div className={`border rounded-xl p-4 backdrop-blur-sm ${
+        darkMode
+          ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-xl shadow-blue-900/20'
+          : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-md shadow-blue-100/50'
+      }`}>
         <h3 className="text-lg font-semibold mb-4">ROI Comparison</h3>
         <div className="space-y-2">
           {recommendations.slice(0, 5).map((rec) => (
@@ -153,13 +160,23 @@ export const SmartShopping: React.FC<SmartShoppingProps> = ({ userDevices }) => 
 
       {/* Device Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {recommendations.map((rec) => (
-          <div
+        {recommendations.map((rec, idx) => (
+          <motion.div
             key={rec.device_type}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+            whileHover={{ scale: 1.02 }}
             className={`
-              border rounded-lg p-4 cursor-pointer transition-all duration-200
-              hover:shadow-lg hover:scale-105
-              ${selectedDevice === rec.device_type ? 'ring-2 ring-blue-500 shadow-lg' : ''}
+              border rounded-xl p-4 cursor-pointer transition-all duration-200 backdrop-blur-sm
+              ${selectedDevice === rec.device_type 
+                ? darkMode
+                  ? 'ring-2 ring-blue-500/50 shadow-2xl shadow-blue-900/20 bg-gradient-to-br from-blue-900/40 to-purple-900/40'
+                  : 'ring-2 ring-blue-500/50 shadow-xl shadow-blue-100/50 bg-gradient-to-br from-blue-50 to-purple-50'
+                : darkMode
+                ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-xl shadow-blue-900/20'
+                : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-md shadow-blue-100/50'
+              }
             `}
             onClick={() => setSelectedDevice(
               selectedDevice === rec.device_type ? null : rec.device_type
@@ -228,12 +245,16 @@ export const SmartShopping: React.FC<SmartShoppingProps> = ({ userDevices }) => 
                 </ul>
               </div>
             )}
-          </div>
+          </motion.div>
         ))}
       </div>
 
       {/* Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+      <div className={`border rounded-xl p-4 text-sm backdrop-blur-sm ${
+        darkMode
+          ? 'bg-blue-900/40 border-blue-700/50'
+          : 'bg-blue-50/80 border-blue-200/50'
+      }`}>
         <p className="font-semibold text-blue-900 mb-2">How to interpret ROI scores:</p>
         <ul className="space-y-1 text-blue-800">
           <li>• <strong>ROI &gt; 3.0:</strong> Excellent purchase - many high-quality automations, low cost</li>

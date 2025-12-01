@@ -56,23 +56,18 @@ export const Navigation: React.FC = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className="px-3 py-0.5 text-xs font-medium transition-colors"
+                className={`px-3 py-0.5 text-xs font-medium transition-all rounded-xl ${
+                  isActive(item.path)
+                    ? darkMode
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
+                    : darkMode
+                    ? 'text-gray-300 hover:bg-gray-700/50'
+                    : 'text-gray-700 hover:bg-gray-100/50'
+                }`}
                 style={{
-                  background: isActive(item.path) ? 'linear-gradient(to right, #3b82f6, #2563eb)' : 'transparent',
-                  color: isActive(item.path) ? '#ffffff' : '#cbd5e1',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  borderRadius: '0.375rem'
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive(item.path)) {
-                    e.currentTarget.style.background = 'rgba(51, 65, 85, 0.3)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive(item.path)) {
-                    e.currentTarget.style.background = 'transparent';
-                  }
+                  letterSpacing: '0.05em'
                 }}
               >
                 {item.label}
@@ -82,16 +77,10 @@ export const Navigation: React.FC = () => {
             {/* Dark Mode Toggle - 44x44px minimum touch target */}
               <button
               onClick={toggleDarkMode}
-              className="p-1 rounded-lg ml-2 min-w-[28px] min-h-[28px] flex items-center justify-center text-sm"
+              className="p-1 rounded-xl ml-2 min-w-[28px] min-h-[28px] flex items-center justify-center text-sm transition-all hover:scale-105 active:scale-95"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
               }}
               aria-label="Toggle dark mode"
             >
@@ -104,8 +93,8 @@ export const Navigation: React.FC = () => {
           <div className="md:hidden flex items-center gap-2">
             <button
               onClick={toggleDarkMode}
-              className={`p-1 rounded-lg min-w-[28px] min-h-[28px] flex items-center justify-center text-sm ${
-                darkMode ? 'bg-gray-800' : 'bg-gray-100'
+              className={`p-1 rounded-xl min-w-[28px] min-h-[28px] flex items-center justify-center text-sm transition-all hover:scale-105 active:scale-95 ${
+                darkMode ? 'bg-gray-800/60 backdrop-blur-sm border border-gray-700/50' : 'bg-white/80 backdrop-blur-sm border border-gray-200/50'
               }`}
               aria-label="Toggle dark mode"
             >
@@ -120,11 +109,15 @@ export const Navigation: React.FC = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg"
-              style={{
-                background: isActive(item.path) ? 'linear-gradient(to right, #3b82f6, #2563eb)' : 'transparent',
-                color: isActive(item.path) ? '#ffffff' : '#94a3b8'
-              }}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+                isActive(item.path)
+                  ? darkMode
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
+                  : darkMode
+                  ? 'text-gray-400 hover:bg-gray-700/50'
+                  : 'text-gray-600 hover:bg-gray-100/50'
+              }`}
             >
               <span className="text-lg">{item.icon}</span>
               <span className="text-[10px] font-medium uppercase" style={{ letterSpacing: '0.05em' }}>

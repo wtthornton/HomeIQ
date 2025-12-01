@@ -5,18 +5,100 @@
  * Phase 3: Interactive Network Graph
  */
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, Component, ErrorInfo, ReactNode, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SynergyOpportunity } from '../../types';
 
-// Dynamic import to avoid loading react-force-graph until needed
-let ForceGraph2D: any = null;
-const loadForceGraph = async () => {
-  if (!ForceGraph2D) {
-    const module = await import('react-force-graph');
-    ForceGraph2D = module.ForceGraph2D;
+// Global AFRAME stub to prevent errors from react-force-graph
+// react-force-graph checks for AFRAME globally but we only use 2D graphs
+if (typeof window !== 'undefined' && !(window as any).AFRAME) {
+  (window as any).AFRAME = {
+    registerComponent: () => {},
+    registerSystem: () => {},
+    registerPrimitive: () => {},
+    scenes: [],
+    version: '1.0.0'
+  };
+}
+
+// Error Boundary Component for graph rendering errors
+class GraphErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode; fallback: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
   }
-  return ForceGraph2D;
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('NetworkGraphView rendering error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+// Dynamic import with state management
+let ForceGraph2DComponent: any = null;
+let loadPromise: Promise<any> | null = null;
+
+const loadForceGraph = async (): Promise<any> => {
+  if (ForceGraph2DComponent) {
+    return ForceGraph2DComponent;
+  }
+  
+  // Ensure AFRAME stub is available before importing react-force-graph
+  if (typeof window !== 'undefined' && !(window as any).AFRAME) {
+    (window as any).AFRAME = {
+      registerComponent: () => {},
+      registerSystem: () => {},
+      registerPrimitive: () => {},
+      scenes: [],
+      version: '1.0.0'
+    };
+  }
+  
+  if (!loadPromise) {
+    loadPromise = import('react-force-graph')
+      .then((module: any) => {
+        if (!module || !module.ForceGraph2D) {
+          throw new Error('ForceGraph2D component not found in react-force-graph module');
+        }
+        ForceGraph2DComponent = module.ForceGraph2D;
+        return ForceGraph2DComponent;
+      })
+      .catch((error: any) => {
+        // Suppress AFRAME-related errors as we don't use 3D graphs
+        const errorMessage = error?.message || String(error);
+        if (errorMessage.includes('AFRAME')) {
+          console.warn('AFRAME error suppressed (expected for 2D graphs):', errorMessage);
+          // Set AFRAME stub and retry
+          if (typeof window !== 'undefined' && !(window as any).AFRAME) {
+            (window as any).AFRAME = {
+              registerComponent: () => {},
+              registerSystem: () => {},
+              registerPrimitive: () => {},
+              scenes: [],
+              version: '1.0.0'
+            };
+          }
+          // Retry the import
+          loadPromise = null;
+          return loadForceGraph();
+        }
+        console.error('Failed to load react-force-graph:', error);
+        loadPromise = null; // Reset so we can retry
+        throw error;
+      });
+  }
+  
+  return loadPromise;
 };
 
 interface NetworkGraphViewProps {
@@ -56,47 +138,24 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
   const [filterArea, setFilterArea] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [graphLoaded, setGraphLoaded] = useState(false);
-  const [GraphComponent, setGraphComponent] = useState<any>(null);
+  const [ForceGraph2D, setForceGraph2D] = useState<any>(null);
   const graphRef = useRef<any>();
-  
-  // Load graph component on mount
+
+  // Load the graph component on mount
   useEffect(() => {
-    let mounted = true;
-    
-    // Suppress AFRAME errors (optional dependency for 3D graphs)
-    const originalError = console.error;
-    const errorHandler = (...args: any[]) => {
-      const errorStr = args[0]?.toString() || '';
-      if (errorStr.includes('AFRAME') || errorStr.includes('aframe')) {
-        return; // Suppress AFRAME errors
-      }
-      originalError(...args);
-    };
-    console.error = errorHandler;
-
     loadForceGraph()
-      .then((Graph) => {
-        if (mounted && Graph) {
-          setGraphComponent(() => Graph);
-          setGraphLoaded(true);
-        }
+      .then((GraphComponent: any) => {
+        setForceGraph2D(() => GraphComponent);
+        setGraphLoaded(true);
+        setLoadError(null);
       })
-      .catch((err) => {
-        console.warn('Force graph library not available, using fallback:', err);
-        if (mounted) {
-          setGraphLoaded(true);
-          setGraphComponent(null); // Explicitly set to null on error
-        }
-      })
-      .finally(() => {
-        console.error = originalError; // Restore original error handler
+      .catch((err: any) => {
+        console.error('Error loading ForceGraph2D:', err);
+        setLoadError(err?.message || 'Failed to load network graph library');
+        setGraphLoaded(false);
       });
-
-    return () => {
-      mounted = false;
-      console.error = originalError;
-    };
   }, []);
   
   // Transform synergies into graph format
@@ -357,43 +416,96 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
       
       {/* Graph Container */}
       <div className={`relative rounded-xl overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-gray-100'} shadow-lg`}>
-        {!graphLoaded ? (
+        {loadError ? (
+          <div className="flex items-center justify-center h-[600px]">
+            <div className={`text-center p-6 rounded-xl ${darkMode ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-700'}`}>
+              <div className="text-4xl mb-4">⚠️</div>
+              <h3 className="text-lg font-semibold mb-2">Failed to load network graph</h3>
+              <p className="text-sm mb-4">{loadError}</p>
+              <button
+                onClick={() => {
+                  setLoadError(null);
+                  window.location.reload();
+                }}
+                className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                  darkMode
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : filteredData.nodes.length === 0 ? (
+          <div className="flex items-center justify-center h-[600px]">
+            <div className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className="text-4xl mb-4">📊</div>
+              <p className="text-lg font-medium mb-2">No data to display</p>
+              <p className="text-sm">No synergies available for network graph visualization.</p>
+            </div>
+          </div>
+        ) : !graphLoaded || !ForceGraph2D ? (
           <div className="flex items-center justify-center h-[600px]">
             <div className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p>Loading network graph...</p>
             </div>
           </div>
-        ) : GraphComponent ? (
-          <GraphComponent
-            ref={graphRef}
-            graphData={filteredData}
-            nodeLabel={(node: GraphNode) => `${node.label}\n${node.synergyCount} synergies`}
-            nodeColor={getNodeColor}
-            nodeVal={(node: GraphNode) => Math.sqrt(node.synergyCount) * 5 + 5}
-            linkLabel={(link: GraphLink) => `Impact: ${Math.round(link.impact * 100)}%\nConfidence: ${Math.round(link.confidence * 100)}%`}
-            linkColor={getLinkColor}
-            linkWidth={(link: GraphLink) => link.impact * 3 + 1}
-            linkDirectionalArrowLength={6}
-            linkDirectionalArrowRelPos={1}
-            onNodeClick={handleNodeClick}
-            onLinkClick={handleLinkClick}
-            onBackgroundClick={handleBackgroundClick}
-            cooldownTicks={100}
-            onEngineStop={() => graphRef.current?.zoomToFit(400)}
-            width={typeof window !== 'undefined' ? Math.max(window.innerWidth - 100, 800) : 800}
-            height={600}
-          />
         ) : (
-          <div className="flex flex-col items-center justify-center h-[600px] p-8">
-            <div className={`text-center ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
-              <div className="text-4xl mb-4">⚠️</div>
-              <p className="text-lg font-semibold mb-2">Network Graph Unavailable</p>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                The interactive network graph requires additional libraries. Please use Grid View or Room Map View instead.
-              </p>
-            </div>
-          </div>
+          <GraphErrorBoundary
+            fallback={
+              <div className="flex items-center justify-center h-[600px]">
+                <div className={`text-center p-6 rounded-xl ${darkMode ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-700'}`}>
+                  <div className="text-4xl mb-4">⚠️</div>
+                  <h3 className="text-lg font-semibold mb-2">Graph rendering error</h3>
+                  <p className="text-sm mb-4">An error occurred while rendering the network graph.</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                      darkMode
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                        : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                    }`}
+                  >
+                    Refresh Page
+                  </button>
+                </div>
+              </div>
+            }
+          >
+            <ForceGraph2D
+              ref={graphRef}
+              graphData={filteredData}
+              nodeLabel={(node: any) => {
+                const graphNode = node as GraphNode;
+                return `${graphNode.label}\n${graphNode.synergyCount} synergies`;
+              }}
+              nodeColor={(node: any) => getNodeColor(node as GraphNode)}
+              nodeVal={(node: any) => {
+                const graphNode = node as GraphNode;
+                return Math.sqrt(graphNode.synergyCount) * 5 + 5;
+              }}
+              linkLabel={(link: any) => {
+                const graphLink = link as GraphLink;
+                return `Impact: ${Math.round(graphLink.impact * 100)}%\nConfidence: ${Math.round(graphLink.confidence * 100)}%`;
+              }}
+              linkColor={(link: any) => getLinkColor(link as GraphLink)}
+              linkWidth={(link: any) => {
+                const graphLink = link as GraphLink;
+                return graphLink.impact * 3 + 1;
+              }}
+              linkDirectionalArrowLength={6}
+              linkDirectionalArrowRelPos={1}
+              onNodeClick={(node: any) => handleNodeClick(node as GraphNode)}
+              onLinkClick={(link: any) => handleLinkClick(link as GraphLink)}
+              onBackgroundClick={handleBackgroundClick}
+              cooldownTicks={100}
+              onEngineStop={() => graphRef.current?.zoomToFit(400)}
+              width={typeof window !== 'undefined' ? Math.max(window.innerWidth - 100, 800) : 800}
+              height={600}
+            />
+          </GraphErrorBoundary>
         )}
       </div>
       
