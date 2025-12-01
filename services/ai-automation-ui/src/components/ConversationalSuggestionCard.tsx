@@ -251,22 +251,22 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border overflow-hidden shadow-lg"
-      style={{
-        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
-        border: isDeployed 
-          ? '2px solid rgba(16, 185, 129, 0.6)' 
-          : '1px solid rgba(51, 65, 85, 0.5)',
-        boxShadow: isDeployed
-          ? '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(16, 185, 129, 0.3), 0 0 20px rgba(16, 185, 129, 0.2)'
-          : '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(59, 130, 246, 0.2)'
-      }}
+      className={`rounded-xl border overflow-hidden shadow-lg backdrop-blur-sm ${
+        isDeployed
+          ? darkMode
+            ? 'bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-green-500/50 shadow-2xl shadow-green-900/20'
+            : 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-400/50 shadow-xl shadow-green-100/50'
+          : darkMode
+          ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20'
+          : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
+      }`}
     >
-      {/* Header */}
-      <div className="p-4" style={{
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(51, 65, 85, 0.6) 100%)',
-        borderBottom: '1px solid rgba(51, 65, 85, 0.5)'
-      }}>
+      {/* Header - Glassmorphism */}
+      <div className={`p-4 border-b ${
+        darkMode
+          ? 'bg-slate-800/60 border-gray-700/50 backdrop-blur-sm'
+          : 'bg-white/80 border-gray-200/50 backdrop-blur-sm'
+      }`}>
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1.5">
@@ -636,7 +636,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           <div>
             <button
               onClick={() => setShowCapabilities(!showCapabilities)}
-              className="w-full text-left px-3 py-1.5 rounded-lg font-medium transition-all text-sm"
+              className="w-full text-left px-3 py-1.5 rounded-xl font-medium transition-all text-sm"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)',
@@ -669,7 +669,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="mt-2 p-4 rounded-lg border"
+                  className="mt-2 p-4 rounded-xl border backdrop-blur-sm"
                   style={{
                     background: 'rgba(30, 58, 138, 0.2)',
                     borderColor: 'rgba(59, 130, 246, 0.3)'
@@ -697,7 +697,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           <div>
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="w-full text-left px-3 py-1.5 rounded-lg font-medium transition-all text-sm"
+              className="w-full text-left px-3 py-1.5 rounded-xl font-medium transition-all text-sm"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)',
@@ -735,7 +735,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   {suggestion.conversation_history.map((entry, idx) => (
                     <div
                       key={idx}
-                      className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'} border ${darkMode ? 'border-gray-600' : 'border-gray-200'}`}
+                      className={`p-3 rounded-xl ${darkMode ? 'bg-slate-800/60 backdrop-blur-sm' : 'bg-white/80 backdrop-blur-sm'} border ${darkMode ? 'border-gray-700/50' : 'border-gray-200/50'}`}
                     >
                       <div className="flex items-start gap-2 mb-1">
                         <span className="text-sm font-medium text-blue-500">You said:</span>
@@ -775,7 +775,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   value={editInput}
                   onChange={(e) => setEditInput(e.target.value)}
                   placeholder="Describe your changes... (e.g., 'Make it blue and only on weekdays')"
-                  className="w-full p-3 rounded-lg border-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full p-3 rounded-xl border-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm backdrop-blur-sm"
                   style={{
                     background: 'rgba(30, 41, 59, 0.6)',
                     borderColor: 'rgba(51, 65, 85, 0.5)',
@@ -941,7 +941,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
           <div>
             <button
               onClick={() => setShowYaml(!showYaml)}
-              className="w-full text-left px-3 py-1.5 rounded-lg font-medium transition-all text-sm"
+              className="w-full text-left px-3 py-1.5 rounded-xl font-medium transition-all text-sm"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)',
@@ -975,7 +975,9 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <pre className="mt-2 p-4 rounded-lg text-xs overflow-x-auto overflow-y-auto max-h-96 font-mono border" style={{
+                  <pre className={`mt-2 p-4 rounded-xl text-xs overflow-x-auto overflow-y-auto max-h-96 font-mono border backdrop-blur-sm ${
+                    darkMode ? 'bg-slate-900/60 border-slate-700/50' : 'bg-white/80 border-gray-200/50'
+                  }`} style={{
                     background: 'rgba(15, 23, 42, 0.9)',
                     borderColor: 'rgba(51, 65, 85, 0.5)',
                     color: '#10b981'
@@ -991,7 +993,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
         {/* Deploy Button (after YAML generated) */}
         {suggestion.status === 'yaml_generated' && (
           <button
-            className="w-full px-3 py-0.5 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 text-xs"
+            className="w-full px-3 py-0.5 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-medium rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-1.5 text-xs"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

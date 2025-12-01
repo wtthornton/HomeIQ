@@ -60,18 +60,18 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className={`border overflow-hidden transition-all ${
+      className={`border overflow-hidden transition-all rounded-xl ${
         isSelected
           ? darkMode
-            ? 'bg-blue-900 border-blue-500 ring-1 ring-blue-500'
-            : 'bg-blue-50 border-blue-400 ring-1 ring-blue-400'
+            ? 'bg-gradient-to-br from-blue-900/60 to-purple-900/60 border-blue-500/50 ring-1 ring-blue-500/50 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
+            : 'bg-gradient-to-br from-blue-50 to-purple-50 border-blue-400/50 ring-1 ring-blue-400/50 shadow-xl shadow-blue-100/50'
           : darkMode
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-white border-gray-200'
+          ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
+          : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
       }`}
     >
-      {/* Header with Category Badge */}
-      <div className={`p-4 ${darkMode ? 'bg-gray-750' : 'bg-gradient-to-r from-blue-50 to-purple-50'}`}>
+      {/* Header with Category Badge - Glassmorphism */}
+      <div className={`p-4 ${darkMode ? 'bg-slate-800/60 backdrop-blur-sm' : 'bg-gradient-to-r from-blue-50/80 to-purple-50/80 backdrop-blur-sm'}`}>
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
             <h3 className={`text-lg font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -106,10 +106,10 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
         <div>
           <button
             onClick={() => setShowYaml(!showYaml)}
-            className={`w-full text-left px-3 py-1.5 rounded-lg font-medium transition-all text-xs ${
+            className={`w-full text-left px-3 py-1.5 rounded-xl font-medium transition-all text-xs ${
               darkMode
-                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                ? 'bg-slate-800/60 hover:bg-slate-700/60 text-white border border-slate-700/50'
+                : 'bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md'
             }`}
           >
             <span className="flex items-center justify-between">
@@ -129,9 +129,9 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <pre className={`mt-2 p-4 rounded-lg text-xs overflow-x-auto overflow-y-auto max-h-96 font-mono ${
-                darkMode ? 'bg-gray-900 text-green-400' : 'bg-gray-50 text-gray-800'
-              } border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <pre className={`mt-2 p-4 rounded-xl text-xs overflow-x-auto overflow-y-auto max-h-96 font-mono ${
+                darkMode ? 'bg-slate-900/60 text-green-400 backdrop-blur-sm border border-slate-700/50' : 'bg-white/80 text-gray-800 backdrop-blur-sm border border-gray-200/50'
+              }`}>
                 {suggestion.automation_yaml}
               </pre>
             </motion.div>
@@ -158,10 +158,10 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
               <button
                 data-testid="edit-button"
                 onClick={() => onEdit(suggestion.id)}
-                className={`px-3 py-1 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                className={`px-3 py-1 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
                   darkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    ? 'bg-slate-800/60 hover:bg-slate-700/60 text-white border border-slate-700/50'
+                    : 'bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md'
                 }`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,7 +175,7 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
             <button
               data-testid="reject-button"
               onClick={() => onReject(suggestion.id)}
-              className="flex-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors flex items-center justify-center gap-1.5 min-w-[100px]"
+              className="flex-1 px-3 py-1 rounded-xl text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5 min-w-[100px] bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg shadow-red-500/30"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -190,7 +190,7 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
           <button
             data-testid={`deploy-${suggestion.id}`}
             onClick={() => onDeploy(suggestion.id)}
-            className="w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            className="w-full px-3 py-1.5 rounded-xl text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/30"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -201,9 +201,14 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
 
         {/* Status Badge for deployed/rejected */}
         {(suggestion.status === 'deployed' || suggestion.status === 'rejected') && (
-          <div className={`text-center py-2 rounded-lg font-medium text-sm ${
-            suggestion.status === 'deployed' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-            'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+          <div className={`text-center py-2 rounded-xl font-medium text-sm ${
+            suggestion.status === 'deployed' 
+              ? darkMode
+                ? 'bg-gradient-to-r from-blue-600/30 to-purple-600/30 text-blue-200 border border-blue-500/50 backdrop-blur-sm'
+                : 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-800 border border-blue-200/50'
+              : darkMode
+              ? 'bg-slate-800/60 text-gray-200 border border-slate-700/50 backdrop-blur-sm'
+              : 'bg-white/80 text-gray-800 border border-gray-200/50'
           }`}>
             {suggestion.status === 'deployed' && '🚀 Deployed to Home Assistant'}
             {suggestion.status === 'rejected' && '❌ Rejected'}

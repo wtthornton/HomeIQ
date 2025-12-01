@@ -203,14 +203,18 @@ export const Deployed: React.FC = () => {
         processType={processingOperation?.type === 'self-correct' ? 'reverse-engineering' : 'automation-creation'}
       />
       <div className="space-y-6" data-testid="deployed-container">
+      {/* Header - Modern 2025 Design */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
+        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
       >
-        <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          🚀 Deployed Automations
-        </h1>
-        <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            🚀 Deployed Automations
+          </h1>
+        </div>
+        <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           Manage automations deployed to Home Assistant
         </p>
       </motion.div>
@@ -225,7 +229,9 @@ export const Deployed: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className={`rounded-2xl shadow-xl p-8 text-center ${
-            darkMode ? 'bg-gray-800' : 'bg-white'
+            darkMode 
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
           }`}
         >
           <div className="text-6xl mb-4">🚀</div>
@@ -247,7 +253,9 @@ export const Deployed: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
               className={`rounded-xl shadow-lg p-6 ${
-                darkMode ? 'bg-gray-800' : 'bg-white'
+                darkMode 
+                  ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
+                  : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -280,12 +288,14 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleToggle(automation.entity_id, automation.state)}
-                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
                       automation.state === 'on'
                         ? darkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
+                          ? 'bg-gray-700/60 hover:bg-gray-600/60 text-white border border-gray-600/50'
+                          : 'bg-white/80 hover:bg-white text-gray-900 border border-gray-200 shadow-sm hover:shadow-md'
+                        : darkMode
+                        ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/30'
+                        : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg shadow-green-400/30'
                     }`}
                   >
                     {automation.state === 'on' ? 'Disable' : 'Enable'}
@@ -296,10 +306,10 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleTrigger(automation.entity_id)}
-                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
                       darkMode
-                        ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                        : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
                     }`}
                   >
                     ▶️ Trigger
@@ -310,10 +320,10 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleRedeploy(automation.entity_id)}
-                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
                       darkMode
-                        ? 'bg-purple-600 hover:bg-purple-500 text-white'
-                        : 'bg-purple-500 hover:bg-purple-600 text-white'
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
+                        : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
                     }`}
                     title="Re-generate YAML with latest improvements and re-deploy"
                   >
@@ -325,10 +335,10 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleShowCode(automation.entity_id)}
-                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
                       darkMode
-                        ? 'bg-gray-600 hover:bg-gray-500 text-white'
-                        : 'bg-gray-500 hover:bg-gray-600 text-white'
+                        ? 'bg-slate-800/60 hover:bg-slate-700/60 text-white border border-slate-700/50'
+                        : 'bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md'
                     }`}
                     title={expandedCode.has(automation.entity_id) ? "Hide YAML code" : "Show YAML code"}
                   >
@@ -340,10 +350,10 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleSelfCorrect(automation.entity_id)}
-                    className={`px-3 py-1 text-xs rounded-lg font-medium ${
+                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
                       darkMode
-                        ? 'bg-green-600 hover:bg-green-500 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
+                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/30'
+                        : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-400/30'
                     }`}
                     title="Reverse engineer and self-correct YAML to match original prompt"
                   >
@@ -358,7 +368,7 @@ export const Deployed: React.FC = () => {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className={`mt-4 rounded-lg overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}
+                  className={`mt-4 rounded-xl overflow-hidden ${darkMode ? 'bg-slate-900/60 backdrop-blur-sm border border-slate-700/50' : 'bg-white/80 backdrop-blur-sm border border-gray-200'}`}
                 >
                   <pre className={`p-4 overflow-x-auto overflow-y-auto max-h-96 text-xs font-mono ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
                     <code>{yamlCache.get(automation.entity_id)}</code>
@@ -377,8 +387,8 @@ export const Deployed: React.FC = () => {
         onClick={loadAutomations}
         className={`w-full px-4 py-2 text-xs rounded-xl font-semibold shadow-lg transition-all ${
           darkMode
-            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+            ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+            : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
         }`}
       >
         🔄 Refresh List

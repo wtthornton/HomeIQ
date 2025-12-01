@@ -78,10 +78,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Search by device, title, or description..."
-          className={`w-full px-3 py-2 pl-10 border focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors ${
+          className={`w-full px-3 py-2 pl-10 border rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all ${
             darkMode
-              ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
-              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+              ? 'bg-slate-800/60 border-gray-700/50 text-white placeholder-gray-500 backdrop-blur-sm'
+              : 'bg-white/80 border-gray-300/50 text-gray-900 placeholder-gray-400 backdrop-blur-sm'
           }`}
         />
         <div className="absolute left-3 top-2.5 text-gray-400">

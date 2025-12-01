@@ -55,7 +55,9 @@ export const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
   if (variant === 'compact') {
     return (
       <div 
-        className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
+        className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl text-sm font-medium backdrop-blur-sm ${
+          darkMode ? 'bg-slate-800/60 border border-slate-700/50' : 'bg-white/80 border border-gray-200/50'
+        }`}
         role="progressbar"
         aria-valuenow={percentage}
         aria-valuemin={0}
@@ -94,7 +96,9 @@ export const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
       )}
       
       <div 
-        className={`w-full h-3 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+        className={`w-full h-3 rounded-full overflow-hidden backdrop-blur-sm ${
+          darkMode ? 'bg-slate-800/60 border border-slate-700/50' : 'bg-white/80 border border-gray-200/50'
+        }`}
         role="progressbar"
         aria-valuenow={percentage}
         aria-valuemin={0}

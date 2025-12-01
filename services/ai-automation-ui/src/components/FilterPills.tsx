@@ -118,10 +118,10 @@ export const FilterPills: React.FC<FilterPillsProps> = ({
           {selected.length > 0 && (
             <button
               onClick={clearAll}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+              className={`px-2 py-1 text-xs font-medium rounded-xl transition-all ${
                 darkMode 
-                  ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/60'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/80'
               }`}
             >
               Clear
@@ -130,10 +130,10 @@ export const FilterPills: React.FC<FilterPillsProps> = ({
           {selected.length < options.length && (
             <button
               onClick={selectAll}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+              className={`px-2 py-1 text-xs font-medium rounded-xl transition-all ${
                 darkMode 
-                  ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/60'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/80'
               }`}
             >
               All
@@ -151,9 +151,10 @@ export const FilterPills: React.FC<FilterPillsProps> = ({
               key={option.value}
               onClick={() => toggleOption(option.value)}
               className={`
-                px-3 py-1 text-sm font-medium border transition-colors
+                px-3 py-1 text-sm font-medium border transition-all rounded-xl
                 ${getPillColors(isSelected, option.value)}
                 focus:outline-none focus:ring-1 focus:ring-blue-500
+                ${isSelected ? 'shadow-lg' : ''}
               `}
               aria-pressed={isSelected}
               aria-label={`Filter by ${option.label}${option.count ? ` (${option.count} items)` : ''}`}

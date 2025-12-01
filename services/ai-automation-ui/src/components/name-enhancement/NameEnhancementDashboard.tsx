@@ -101,20 +101,20 @@ export const NameEnhancementDashboard: React.FC = () => {
           <div className="flex gap-3">
             <button
               onClick={() => handleBatchEnhance(false)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-xl font-medium transition-all ${
                 darkMode
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
               }`}
             >
               Batch Enhance (Pattern)
             </button>
             <button
               onClick={() => handleBatchEnhance(true)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-xl font-medium transition-all ${
                 darkMode
-                  ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                  : 'bg-purple-500 hover:bg-purple-600 text-white'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
+                  : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
               }`}
             >
               Batch Enhance (AI)
@@ -125,7 +125,10 @@ export const NameEnhancementDashboard: React.FC = () => {
         {loading ? (
           <div className={`${textColor} text-center py-12`}>Loading suggestions...</div>
         ) : devices.length === 0 ? (
-          <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-8 text-center ${textColor}`}>
+          <div className={`${darkMode 
+            ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
+            : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+          } rounded-xl p-8 text-center ${textColor}`}>
             <p className="text-lg mb-2">No pending name suggestions</p>
             <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
               All devices have been reviewed or no suggestions are available yet.

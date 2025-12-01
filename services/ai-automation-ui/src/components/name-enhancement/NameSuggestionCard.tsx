@@ -62,7 +62,6 @@ export const NameSuggestionCard: React.FC<NameSuggestionCardProps> = ({
     return null;
   }
 
-  const bgColor = darkMode ? 'bg-gray-800' : 'bg-white';
   const textColor = darkMode ? 'text-gray-100' : 'text-gray-900';
   const borderColor = darkMode ? 'border-gray-700' : 'border-gray-200';
 
@@ -70,7 +69,11 @@ export const NameSuggestionCard: React.FC<NameSuggestionCardProps> = ({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`${bgColor} ${borderColor} border rounded-lg p-4 mb-4 shadow-sm`}
+      className={`${borderColor} border rounded-xl p-4 mb-4 shadow-lg backdrop-blur-sm ${
+        darkMode
+          ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20'
+          : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
+      }`}
     >
       <div className="flex items-center justify-between mb-3">
         <div>
@@ -88,7 +91,7 @@ export const NameSuggestionCard: React.FC<NameSuggestionCardProps> = ({
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
-            className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} rounded-lg p-3`}
+            className={`${darkMode ? 'bg-slate-800/60 backdrop-blur-sm border border-slate-700/50' : 'bg-white/80 backdrop-blur-sm border border-gray-200/50'} rounded-xl p-3`}
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -113,12 +116,12 @@ export const NameSuggestionCard: React.FC<NameSuggestionCardProps> = ({
                 <button
                   onClick={() => handleAccept(suggestion.name)}
                   disabled={processing === suggestion.name}
-                  className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
                     processing === suggestion.name
                       ? 'bg-gray-400 cursor-not-allowed'
                       : darkMode
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : 'bg-green-500 hover:bg-green-600 text-white'
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/30'
+                      : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-400/30'
                   }`}
                 >
                   {processing === suggestion.name ? 'Accepting...' : 'Accept'}
@@ -126,12 +129,12 @@ export const NameSuggestionCard: React.FC<NameSuggestionCardProps> = ({
                 <button
                   onClick={() => handleReject(suggestion.name)}
                   disabled={processing === suggestion.name}
-                  className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
                     processing === suggestion.name
                       ? 'bg-gray-400 cursor-not-allowed'
                       : darkMode
-                      ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                      ? 'bg-slate-800/60 hover:bg-slate-700/60 text-white border border-slate-700/50'
+                      : 'bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md'
                   }`}
                 >
                   Reject

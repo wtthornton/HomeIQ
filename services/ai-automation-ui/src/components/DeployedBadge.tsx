@@ -76,7 +76,7 @@ export const DeployedBadge: React.FC<DeployedBadgeProps> = ({
       {/* Main Badge */}
       <motion.button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all"
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium cursor-pointer transition-all backdrop-blur-sm"
         style={{
           background: status === 'active' 
             ? 'rgba(16, 185, 129, 0.2)' 
@@ -108,7 +108,7 @@ export const DeployedBadge: React.FC<DeployedBadgeProps> = ({
             animate={{ opacity: 1, height: 'auto', y: 0 }}
             exit={{ opacity: 0, height: 0, y: -10 }}
             transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
-            className="absolute top-full left-0 mt-2 z-10 rounded-lg border shadow-lg overflow-hidden"
+            className="absolute top-full left-0 mt-2 z-10 rounded-xl border shadow-lg overflow-hidden backdrop-blur-sm"
             style={{
               background: darkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
               border: darkMode ? '1px solid rgba(51, 65, 85, 0.8)' : '1px solid rgba(203, 213, 225, 0.8)',
@@ -157,7 +157,7 @@ export const DeployedBadge: React.FC<DeployedBadgeProps> = ({
                       e.stopPropagation();
                       onEdit();
                     }}
-                    className="flex-1 px-2 py-1 text-xs rounded font-medium transition-all"
+                    className="flex-1 px-2 py-1 text-xs rounded-xl font-medium transition-all"
                     style={{
                       background: 'rgba(59, 130, 246, 0.2)',
                       border: '1px solid rgba(59, 130, 246, 0.4)',
@@ -179,7 +179,7 @@ export const DeployedBadge: React.FC<DeployedBadgeProps> = ({
                       e.stopPropagation();
                       onDisable();
                     }}
-                    className="flex-1 px-2 py-1 text-xs rounded font-medium transition-all"
+                    className="flex-1 px-2 py-1 text-xs rounded-xl font-medium transition-all"
                     style={{
                       background: 'rgba(239, 68, 68, 0.2)',
                       border: '1px solid rgba(239, 68, 68, 0.4)',

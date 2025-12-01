@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store';
 import api from '../services/api';
 import type { Pattern } from '../types';
@@ -20,6 +20,7 @@ export const Patterns: React.FC = () => {
   const [scheduleInfo, setScheduleInfo] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPatternGuide, setShowPatternGuide] = useState(false);
+  const [showStatsAndCharts, setShowStatsAndCharts] = useState(true); // Collapsible stats
 
   const loadPatterns = useCallback(async () => {
     try {
@@ -236,25 +237,27 @@ export const Patterns: React.FC = () => {
 
   return (
     <div className="space-y-6" data-testid="patterns-container">
-      {/* Hero Section with Pattern Information */}
+      {/* Hero Section with Pattern Information - Modern 2025 Design */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`p-6 rounded-xl ${darkMode ? 'bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-700/50' : 'bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200'} shadow-lg`}
+        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
       >
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              📊 Detected Patterns
-            </h1>
-            <p className={`text-lg mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+        <div className="flex justify-between items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                📊 Detected Patterns
+              </h1>
+            </div>
+            <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Usage patterns detected by machine learning analysis
             </p>
           </div>
         </div>
 
         {/* What Are Patterns Section */}
-        <div className={`mb-4 p-4 rounded-lg ${darkMode ? 'bg-gray-800/50' : 'bg-white/60'}`}>
+        <div className={`mt-4 p-4 rounded-lg border ${darkMode ? 'bg-gray-800/60 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
           <h2 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             What Are Patterns?
           </h2>
@@ -275,73 +278,78 @@ export const Patterns: React.FC = () => {
               <li><strong>Discovery:</strong> Find relationships between devices you might not have noticed</li>
             </ul>
           </div>
-        </div>
 
-        {/* Pattern Type Guide Toggle */}
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowPatternGuide(!showPatternGuide)}
-          className={`w-full p-3 rounded-lg font-medium transition-all ${
-            darkMode 
-              ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-              : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-          }`}
-        >
-          <span className="flex items-center justify-between">
-            <span>
-              {showPatternGuide ? '▼' : '▶'} Pattern Type Guide
-            </span>
-            <span className="text-sm">
-              {showPatternGuide ? 'Hide Details' : 'Show All Pattern Types'}
-            </span>
-          </span>
-        </motion.button>
-
-        {/* Pattern Type Guide */}
-        {showPatternGuide && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className={`mt-4 p-4 rounded-lg ${darkMode ? 'bg-gray-800/50' : 'bg-white/60'} max-h-96 overflow-y-auto`}
+          {/* Pattern Type Guide Toggle - Modern 2025 Design */}
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={() => setShowPatternGuide(!showPatternGuide)}
+            className={`w-full mt-4 p-2 rounded-lg text-xs font-medium transition-all ${
+              darkMode 
+                ? 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300' 
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}
           >
-            <h3 className={`text-lg font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Pattern Types Explained
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {['time_of_day', 'co_occurrence', 'sequence', 'contextual', 'room_based', 'session', 'duration', 'day_type', 'seasonal', 'anomaly'].map((type) => {
-                const info = getPatternTypeInfo(type);
-                return (
-                  <div
-                    key={type}
-                    className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-800/30 border-gray-700' : 'bg-white border-gray-200'}`}
-                  >
-                    <div className="flex items-start gap-3 mb-2">
-                      <span className="text-2xl">{getPatternIcon(type)}</span>
-                      <div className="flex-1">
-                        <h4 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {info.name}
-                        </h4>
-                        <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {info.description}
-                        </p>
-                      </div>
-                    </div>
-                    <div className={`mt-2 p-2 rounded text-xs ${darkMode ? 'bg-blue-900/20 text-blue-200' : 'bg-blue-50 text-blue-800'}`}>
-                      <p className="font-semibold mb-1">Why it matters:</p>
-                      <p>{info.importance}</p>
-                    </div>
-                    <div className={`mt-2 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      <p className="font-semibold">Example:</p>
-                      <p className="italic">{info.example}</p>
-                    </div>
+            <span className="flex items-center justify-between">
+              <span>
+                {showPatternGuide ? '▼' : '▶'} Pattern Type Guide
+              </span>
+              <span className="text-xs opacity-75">
+                {showPatternGuide ? 'Hide' : 'Show Details'}
+              </span>
+            </span>
+          </motion.button>
+
+          {/* Pattern Type Guide - Collapsible */}
+          <AnimatePresence>
+            {showPatternGuide && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className={`mt-2 p-3 rounded-lg ${darkMode ? 'bg-gray-800/40' : 'bg-gray-50'} max-h-80 overflow-y-auto`}>
+                  <h3 className={`text-lg font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Pattern Types Explained
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {['time_of_day', 'co_occurrence', 'sequence', 'contextual', 'room_based', 'session', 'duration', 'day_type', 'seasonal', 'anomaly'].map((type) => {
+                      const info = getPatternTypeInfo(type);
+                      return (
+                        <div
+                          key={type}
+                          className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-800/30 border-gray-700' : 'bg-white border-gray-200'}`}
+                        >
+                          <div className="flex items-start gap-3 mb-2">
+                            <span className="text-2xl">{getPatternIcon(type)}</span>
+                            <div className="flex-1">
+                              <h4 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {info.name}
+                              </h4>
+                              <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {info.description}
+                              </p>
+                            </div>
+                          </div>
+                          <div className={`mt-2 p-2 rounded text-xs ${darkMode ? 'bg-blue-900/20 text-blue-200' : 'bg-blue-50 text-blue-800'}`}>
+                            <p className="font-semibold mb-1">Why it matters:</p>
+                            <p>{info.importance}</p>
+                          </div>
+                          <div className={`mt-2 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            <p className="font-semibold">Example:</p>
+                            <p className="italic">{info.example}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {scheduleInfo && (
           <p className={`text-sm mt-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -424,64 +432,184 @@ export const Patterns: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Collapsible */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-2xl overflow-hidden transition-all duration-300 ${
+            darkMode 
+              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20' 
+              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+          } backdrop-blur-sm`}
+        >
+          {/* Stats Header - Collapsible */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+            className={`p-4 ${showStatsAndCharts ? 'border-b' : ''} ${
+              darkMode ? 'border-blue-500/20' : 'border-blue-200/50'
+            }`}
           >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📊</span>
+                <h2 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Statistics & Charts
+                </h2>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowStatsAndCharts(!showStatsAndCharts)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 ${
+                  showStatsAndCharts
+                    ? darkMode
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
+                    : darkMode
+                    ? 'bg-slate-800/60 hover:bg-slate-700/60 text-gray-300 hover:text-white border border-slate-700/50'
+                    : 'bg-white/80 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 shadow-sm hover:shadow-md'
+                }`}
+              >
+                <motion.span
+                  animate={{ rotate: showStatsAndCharts ? 180 : 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="text-lg"
+                >
+                  {showStatsAndCharts ? '▲' : '▼'}
+                </motion.span>
+                <span className="hidden sm:inline">
+                  {showStatsAndCharts ? 'Hide' : 'Show'}
+                </span>
+              </motion.button>
+            </div>
+          </motion.div>
+
+          {/* Collapsible Stats Content */}
+          <AnimatePresence>
+            {showStatsAndCharts && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                className="overflow-hidden"
+              >
+                <div className={`p-6 ${darkMode ? 'bg-slate-900/40' : 'bg-white/60'} backdrop-blur-sm`}>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+                    >
             <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               {stats.total_patterns || 0}
             </div>
-            <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Total Patterns
-            </div>
-          </motion.div>
+                      <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Total Patterns
+                      </div>
+                    </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
-          >
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+                    >
             <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
               {stats.unique_devices || 0}
             </div>
-            <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Devices
-            </div>
-          </motion.div>
+                      <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Devices
+                      </div>
+                    </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
-          >
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+                    >
             <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-red-600 bg-clip-text text-transparent">
               {Math.round((stats.avg_confidence || 0) * 100)}%
             </div>
-            <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Avg Confidence
-            </div>
-          </motion.div>
+                      <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Avg Confidence
+                      </div>
+                    </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
-          >
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+                    >
             <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               {Object.keys(stats.by_type || {}).length}
             </div>
-            <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Pattern Types
-            </div>
-          </motion.div>
-        </div>
+                      <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Pattern Types
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Charts Section */}
+                  {!loading && patterns.length > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+                      >
+                        <div className="mb-4">
+                          <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            📊 Pattern Distribution
+                          </h3>
+                          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Breakdown of patterns by type. Hover over bars for detailed counts.
+                          </p>
+                        </div>
+                        <PatternTypeChart patterns={patterns} darkMode={darkMode} />
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                        className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
+                      >
+                        <div className="mb-4">
+                          <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            🎯 Confidence Levels
+                          </h3>
+                          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Quality distribution of detected patterns. Higher confidence = more reliable automations.
+                          </p>
+                        </div>
+                        <ConfidenceDistributionChart patterns={patterns} darkMode={darkMode} />
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 }}
+                        className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg lg:col-span-2`}
+                      >
+                        <div className="mb-4">
+                          <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            🔝 Top Devices with Patterns
+                          </h3>
+                          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Devices that appear most frequently in detected patterns. These are prime candidates for automation.
+                          </p>
+                        </div>
+                        <TopDevicesChart patterns={patterns} darkMode={darkMode} />
+                      </motion.div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       )}
 
       {/* Detected Pattern Types - Prominent Display */}
@@ -563,59 +691,6 @@ export const Patterns: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Charts */}
-      {!loading && patterns.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
-          >
-            <div className="mb-4">
-              <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                📊 Pattern Distribution
-              </h3>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Breakdown of patterns by type. Hover over bars for detailed counts.
-              </p>
-            </div>
-            <PatternTypeChart patterns={patterns} darkMode={darkMode} />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
-          >
-            <div className="mb-4">
-              <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                🎯 Confidence Levels
-              </h3>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Quality distribution of detected patterns. Higher confidence = more reliable automations.
-              </p>
-            </div>
-            <ConfidenceDistributionChart patterns={patterns} darkMode={darkMode} />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg lg:col-span-2`}
-          >
-            <div className="mb-4">
-              <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                🔝 Top Devices with Patterns
-              </h3>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Devices that appear most frequently in detected patterns. These are prime candidates for automation.
-              </p>
-            </div>
-            <TopDevicesChart patterns={patterns} darkMode={darkMode} />
-          </motion.div>
-        </div>
-      )}
 
       {/* Pattern List */}
       <div className="grid gap-4">

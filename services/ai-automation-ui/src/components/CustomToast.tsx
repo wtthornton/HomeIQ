@@ -20,10 +20,12 @@ export const CustomToaster: React.FC<CustomToasterProps> = ({ darkMode = false }
       toastOptions={{
         duration: 4000,
         style: {
-          background: darkMode ? '#374151' : '#fff',
+          background: darkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
           color: darkMode ? '#f3f4f6' : '#1f2937',
-          border: `1px solid ${darkMode ? '#4b5563' : '#e5e7eb'}`,
-          borderRadius: '12px',
+          border: `1px solid ${darkMode ? 'rgba(51, 65, 85, 0.5)' : 'rgba(203, 213, 225, 0.5)'}`,
+          borderRadius: '16px', // Updated to rounded-xl (16px) for 2025 design
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
         },
         success: {

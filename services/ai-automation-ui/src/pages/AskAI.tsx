@@ -1393,7 +1393,11 @@ export const AskAI: React.FC = () => {
       {/* Main Chat Area - Full Height Container */}
       <div className="flex-1 flex flex-col h-full">
         {/* Ultra-Compact Header - Full width */}
-        <div className="flex items-center justify-between px-6 py-1 border-b flex-shrink-0" style={{
+        {/* Header - Modern 2025 Design */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between px-6 py-3 border-b flex-shrink-0" style={{
           borderColor: 'rgba(51, 65, 85, 0.5)',
           background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
           backdropFilter: 'blur(12px)'
@@ -1440,7 +1444,7 @@ export const AskAI: React.FC = () => {
               </svg>
             </button>
             <label
-              className="p-1.5 rounded cursor-pointer transition-colors"
+              className="p-1.5 rounded-xl cursor-pointer transition-all hover:scale-105 active:scale-95"
               style={{ color: '#cbd5e1' }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'rgba(51, 65, 85, 0.5)';
@@ -1499,7 +1503,7 @@ export const AskAI: React.FC = () => {
               New Chat
             </button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Messages Area - Full width and optimized for space */}
         <div 
@@ -2235,23 +2239,27 @@ export const AskAI: React.FC = () => {
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask me about your devices or automations..."
               disabled={isLoading}
-              className={`flex-1 px-3 py-2 rounded-lg border transition-colors text-sm ${
+              className={`flex-1 px-3 py-2 rounded-xl border transition-all text-sm ${
                 darkMode
                   ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500'
                   : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
               } focus:outline-none focus:ring-1 focus:ring-blue-500 focus:ring-opacity-50`}
             />
-            <button
+            <motion.button
+              whileHover={isLoading || !inputValue.trim() ? {} : { scale: 1.05 }}
+              whileTap={isLoading || !inputValue.trim() ? {} : { scale: 0.95 }}
               type="submit"
               disabled={isLoading || !inputValue.trim()}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-xs ${
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all text-xs ${
                 isLoading || !inputValue.trim()
                   ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : darkMode
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
               }`}
             >
               {isLoading ? 'Sending...' : 'Send'}
-            </button>
+            </motion.button>
           </form>
         </div>
       </div>

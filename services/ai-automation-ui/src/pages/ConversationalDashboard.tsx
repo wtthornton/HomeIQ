@@ -412,14 +412,18 @@ export const ConversationalDashboard: React.FC = () => {
         processType="automation-creation"
       />
       <div className="space-y-6">
-      {/* Header */}
-      <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} pb-4`}>
+      {/* Header - Modern 2025 Design */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               💡 Automation Suggestions
             </h1>
-            <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <p className={`text-sm mt-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Edit with natural language, approve to create
             </p>
           </div>
@@ -428,21 +432,23 @@ export const ConversationalDashboard: React.FC = () => {
               <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 {suggestions.length} suggestions
               </span>
-              <button
+              <motion.button
+                whileHover={refreshLoading || !refreshAllowed ? {} : { scale: 1.05 }}
+                whileTap={refreshLoading || !refreshAllowed ? {} : { scale: 0.95 }}
                 onClick={handleRefreshClick}
                 disabled={refreshLoading || !refreshAllowed}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-xl transition-all flex items-center gap-1 ${
                   refreshLoading || !refreshAllowed
                     ? darkMode
                       ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                       : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     : darkMode
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
                 }`}
               >
                 {refreshLoading ? 'Refreshing…' : '🔄 Refresh Suggestions'}
-              </button>
+              </motion.button>
             </div>
             {!refreshAllowed && nextRefreshAt && (
               <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -456,37 +462,43 @@ export const ConversationalDashboard: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Status Tabs */}
+      {/* Status Tabs - Modern 2025 Design */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {(['draft', 'refining', 'yaml_generated', 'deployed'] as const).map((status) => (
-          <button
+          <motion.button
             key={status}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setSelectedStatus(status)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-xl transition-all whitespace-nowrap ${
               selectedStatus === status
                 ? darkMode
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-500 text-white'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
                 : darkMode
-                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-gray-700/60 hover:bg-gray-600/60 text-gray-300 border border-gray-600/50'
+                : 'bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md'
             }`}
           >
             {status === 'draft' && '📝 New'}
             {status === 'refining' && '✏️ Editing'}
             {status === 'yaml_generated' && '✅ Ready'}
             {status === 'deployed' && '🚀 Deployed'}
-            <span className="ml-2 opacity-70">
+              <span className="ml-2 opacity-70">
               ({suggestions.filter(s => s.status === status).length})
             </span>
-          </button>
+          </motion.button>
         ))}
       </div>
 
-      {/* Info Banner */}
-      <div className={`rounded-lg p-4 ${darkMode ? 'bg-blue-900/30 border-blue-800' : 'bg-blue-50 border-blue-200'} border`}>
+      {/* Info Banner - Glassmorphism */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`rounded-xl p-4 ${darkMode ? 'bg-blue-900/40 border-blue-700/50' : 'bg-blue-50/80 border-blue-200/50'} border backdrop-blur-sm shadow-lg`}
+      >
         <div className="flex items-start gap-3">
           <span className="text-2xl">💡</span>
           <div className={`text-sm ${darkMode ? 'text-blue-200' : 'text-blue-900'}`}>
@@ -494,7 +506,7 @@ export const ConversationalDashboard: React.FC = () => {
             to customize automations without touching YAML code. We'll generate the code when you approve.
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Error Display */}
       {error && !loading && (
@@ -518,16 +530,18 @@ export const ConversationalDashboard: React.FC = () => {
                 {error.message}
               </p>
               {error.retryable && (
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleRetry}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium rounded-xl transition-all ${
                     darkMode
-                      ? 'bg-red-600 hover:bg-red-700 text-white'
-                      : 'bg-red-500 hover:bg-red-600 text-white'
+                      ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg shadow-red-500/30'
+                      : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg shadow-red-400/30'
                   }`}
                 >
                   🔄 Retry {retryCount > 0 && `(Attempt ${retryCount + 1})`}
-                </button>
+                </motion.button>
               )}
             </div>
           </div>
@@ -563,16 +577,18 @@ export const ConversationalDashboard: React.FC = () => {
                 {error.message || 'An error occurred while loading suggestions. Please check your connection and try again.'}
               </p>
               {error.retryable && (
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleRetry}
-                  className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                  className={`px-4 py-2 text-sm rounded-xl font-medium transition-all ${
                     darkMode
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
                   }`}
                 >
                   🔄 Retry Loading
-                </button>
+                </motion.button>
               )}
             </motion.div>
           ) : null
@@ -622,17 +638,19 @@ export const ConversationalDashboard: React.FC = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
                   {selectedStatus === 'draft' && (
-                    <button
+                    <motion.button
+                      whileHover={loading ? {} : { scale: 1.05 }}
+                      whileTap={loading ? {} : { scale: 0.95 }}
                       onClick={generateSampleSuggestion}
                       disabled={loading}
-                      className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                      className={`px-4 py-2 text-sm rounded-xl font-medium transition-all ${
                         darkMode
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-700 disabled:text-gray-400'
-                          : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300 disabled:text-gray-500'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none'
+                          : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30 disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none'
                       }`}
                     >
                       {loading ? '⏳ Generating...' : '🎯 Generate Sample Suggestion'}
-                    </button>
+                    </motion.button>
                   )}
                   {hasOtherStatuses && (
                     <button

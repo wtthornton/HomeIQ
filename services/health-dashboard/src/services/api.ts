@@ -276,6 +276,77 @@ class AdminApiClient extends BaseApiClient {
     );
   }
 
+  async testServiceHealth(serviceName: string, port: number): Promise<{ success: boolean; message: string; data?: any }> {
+    try {
+      // Create abort controller for timeout (compatible with older browsers)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`http://localhost:${port}/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        let errorText = '';
+        try {
+          errorText = await response.text();
+        } catch {
+          errorText = `HTTP ${response.status}`;
+        }
+        return {
+          success: false,
+          message: `Service returned status ${response.status}${errorText ? `: ${errorText.substring(0, 100)}` : ''}`,
+        };
+      }
+
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch {
+        // If response is not JSON, that's okay - service responded
+        data = { status: 'ok' };
+      }
+
+      // Extract status from response if available
+      const status = data.status || data.health || 'healthy';
+      const statusMessage = status === 'healthy' || status === 'ok' || status === 'pass'
+        ? 'Service is healthy'
+        : `Service status: ${status}`;
+
+      return {
+        success: true,
+        message: statusMessage,
+        data,
+      };
+    } catch (error: any) {
+      if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+        return {
+          success: false,
+          message: 'Service did not respond within 5 seconds. It may be starting up or not running.',
+        };
+      }
+      if (error.message?.includes('Failed to fetch') || 
+          error.message?.includes('NetworkError') ||
+          error.message?.includes('CORS') ||
+          error.message?.includes('ERR_CONNECTION_REFUSED')) {
+        return {
+          success: false,
+          message: 'Service is not reachable. It may not be running or the port may be incorrect.',
+        };
+      }
+      return {
+        success: false,
+        message: error.message || 'Unknown error occurred while testing service',
+      };
+    }
+  }
+
   async getContainerLogs(serviceName: string, tail: number = 100): Promise<{ logs: string }> {
     return this.fetchWithErrorHandling<{ logs: string }>(
       `${this.baseUrl}/api/v1/docker/containers/${serviceName}/logs?tail=${tail}`
