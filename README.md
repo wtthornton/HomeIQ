@@ -485,6 +485,13 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Epic AI-6 - Blueprint-Enhanced Suggestion Intelligence** (December 2025)
+  - Blueprint opportunity discovery from device inventory
+  - Pattern validation against community blueprints with confidence boosting
+  - User preference system (max suggestions, creativity level, blueprint preference)
+  - Preference-aware ranking for more relevant suggestions
+  - Preference API endpoints (`GET/PUT /api/v1/preferences`)
+  - Settings UI for easy preference configuration
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 02, 2025)
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 01, 2025)
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 01, 2025)

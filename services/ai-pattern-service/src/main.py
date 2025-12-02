@@ -87,7 +87,7 @@ async def lifespan(app: FastAPI):
                 password=settings.mqtt_password,
                 enabled=True
             )
-            await mqtt_client.connect()
+            mqtt_client.connect()
             logger.info(f"✅ MQTT client connected to {settings.mqtt_broker}:{settings.mqtt_port}")
         except Exception as e:
             logger.warning(f"⚠️ MQTT client initialization failed: {e}")
@@ -133,7 +133,7 @@ async def lifespan(app: FastAPI):
     # Disconnect MQTT client
     if mqtt_client:
         try:
-            await mqtt_client.disconnect()
+            mqtt_client.disconnect()
             logger.info("✅ MQTT client disconnected")
         except Exception as e:
             logger.warning(f"⚠️ Error disconnecting MQTT client: {e}")
@@ -162,13 +162,13 @@ if register_error_handlers:
 # Instrument FastAPI for observability
 if OBSERVABILITY_AVAILABLE:
     try:
-        instrument_fastapi(app)
+        instrument_fastapi(app, "ai-pattern-service")
         app.add_middleware(CorrelationMiddleware)
     except Exception as e:
         logger.warning(f"Failed to instrument FastAPI: {e}")
 
 # Include routers
-app.include_router(health_router.router, prefix="/health", tags=["health"])
+app.include_router(health_router.router, tags=["health"])
 
 @app.get("/")
 async def root():

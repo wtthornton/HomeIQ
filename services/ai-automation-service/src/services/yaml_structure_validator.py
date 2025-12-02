@@ -301,6 +301,26 @@ class YAMLStructureValidator:
                 else:
                     logger.warning(f"⚠️ Auto-fix incomplete: {len(fixed_validation.errors)} errors remain")
 
+        # Check for initial_state field (best practice for HA 2025.10+)
+        if 'initial_state' not in data:
+            warnings.append(
+                "⚠️ Missing 'initial_state:' field (best practice: set to 'true' to prevent automations "
+                "from being disabled after Home Assistant restarts)"
+            )
+            # Auto-fix: Add initial_state: true
+            data['initial_state'] = True
+            # Mark that we need to regenerate YAML
+            if fixed_yaml is None:
+                fixed_yaml = yaml.dump(data, default_flow_style=False, sort_keys=False)
+                logger.info("🔧 Auto-fixed: Added initial_state: true (best practice)")
+            else:
+                # If we already have a fixed_yaml, we need to regenerate it with initial_state
+                fixed_data = yaml.safe_load(fixed_yaml)
+                if fixed_data:
+                    fixed_data['initial_state'] = True
+                    fixed_yaml = yaml.dump(fixed_data, default_flow_style=False, sort_keys=False)
+                    logger.info("🔧 Added initial_state: true to fixed YAML (best practice)")
+
         # Use the most complete fixed version
         # Priority: trigger_fix > service_fixes > auto_fix
         if trigger_fix_needed or service_fixes_applied:
@@ -460,6 +480,18 @@ class YAMLStructureValidator:
                     )
 
                 # Basic structure check (without triggering auto-fix)
+                # Check if key fields exist
+                # Validate initial_state is present (best practice for HA 2025.10+)
+                if 'initial_state' not in data:
+                    warnings.append(
+                        "⚠️ Missing 'initial_state:' field (best practice: set to 'true' to prevent automations "
+                        "from being disabled after Home Assistant restarts)"
+                    )
+                    # Auto-fix: Add initial_state: true
+                    data['initial_state'] = True
+                    fixed_yaml = yaml.dump(data, default_flow_style=False, sort_keys=False)
+                    logger.info("🔧 Auto-fixed: Added initial_state: true (best practice)")
+                
                 # Check if key fields exist
                 if 'trigger' not in data and 'triggers' not in data:
                     errors.append("Missing 'trigger:' field")

@@ -220,6 +220,13 @@ class EntityAttributeService:
             name_by_user = entity_registry_data.get('name_by_user')
             name = entity_registry_data.get('name')
             original_name = entity_registry_data.get('original_name')
+            
+            # Phase 1-2: Extract new 2025 HA API attributes from Entity Registry
+            aliases = entity_registry_data.get('aliases') or []
+            labels = entity_registry_data.get('labels') or []
+            options = entity_registry_data.get('options')
+            icon_current = entity_registry_data.get('icon')  # Current icon (may be user-customized)
+            original_icon = entity_registry_data.get('original_icon')  # Original icon from integration
 
             # Build enriched entity
             enriched = {
@@ -229,7 +236,13 @@ class EntityAttributeService:
                 'name': name,  # Entity Registry name field
                 'name_by_user': name_by_user,  # User-customized name (highest priority)
                 'original_name': original_name,  # Original name from integration
-                'icon': attributes.get('icon'),
+                # Phase 1: Entity Registry 2025 Attributes (Critical)
+                'icon': icon_current or attributes.get('icon'),  # Current icon (prioritize Entity Registry)
+                'original_icon': original_icon,  # Original icon from integration
+                'aliases': aliases,  # Array of alternative names for entity resolution
+                # Phase 2: Entity Registry 2025 Attributes (Important)
+                'labels': labels,  # Array of label IDs for organizational filtering
+                'options': options,  # Entity-specific options/config
                 'device_class': attributes.get('device_class'),
                 'unit_of_measurement': attributes.get('unit_of_measurement'),
                 'state': state_data.get('state', 'unknown'),

@@ -334,7 +334,8 @@ class DeviceMatchingService:
             if clarification_context:
                 qa_list = clarification_context.get("questions_and_answers", [])
                 for qa in qa_list:
-                    answer_text = qa.get("answer", "").lower()
+                    answer = qa.get("answer") or ""
+                    answer_text = answer.lower() if answer else ""
                     if not context_location:
                         location_keywords = [
                             "office",
@@ -519,9 +520,82 @@ class DeviceMatchingService:
         - Fuzzy similarity WRatio (20% weight)
         - Context bonuses (10% weight: area + platform + domain)
         - Cap at 1.0
+        
+        Phase 1 Enhancement: Also checks aliases for matching (best alias match used)
         """
         # Normalize entity name (2025 best practice: uses Entity Registry name)
         entity_tokens = normalize_entity_name(entity)
+        
+        # Phase 1: Check aliases for matching
+        from ..utils.device_normalization import normalize_entity_aliases
+        alias_token_lists = normalize_entity_aliases(entity)
+        
+        # Calculate score for primary name
+        primary_score = self._calculate_name_score(query_tokens, entity_tokens)
+        
+        # Calculate scores for all aliases and take the best
+        best_alias_score = 0.0
+        for alias_tokens in alias_token_lists:
+            alias_score = self._calculate_name_score(query_tokens, alias_tokens)
+            if alias_score > best_alias_score:
+                best_alias_score = alias_score
+        
+        # Use the best score (primary name or best alias)
+        score = max(primary_score, best_alias_score)
+        
+        # Early termination: Exact match (40% weight)
+        if score >= 1.0:
+            return 1.0
+
+        # Context bonuses (10% weight, additive, capped at 1.0)
+        context_bonus = 0.0
+
+        # Area match bonus
+        area_id = entity.get("area_id")
+        if context_location and area_id:
+            area_normalized = normalize_area_name(str(area_id))
+            location_normalized = normalize_area_name(context_location)
+            if area_normalized == location_normalized or location_normalized in area_normalized:
+                context_bonus += 0.05
+                area_match = True
+
+        # Platform match bonus
+        platform = entity.get("platform")
+        if platform and context_device_hints:
+            if any(platform.lower() in hint.lower() for hint in context_device_hints):
+                context_bonus += 0.03
+                platform_match = True
+
+        # Domain match bonus
+        domain = entity.get("domain")
+        if domain and context_device_hints:
+            if any(domain.lower() in hint.lower() for hint in context_device_hints):
+                context_bonus += 0.02
+                domain_match = True
+
+        # Add context bonus to score (capped at 1.0)
+        score = min(score + context_bonus, 1.0)
+
+        return score
+
+    def _calculate_name_score(
+        self,
+        query_tokens: list[str],
+        entity_tokens: list[str],
+    ) -> float:
+        """
+        Calculate matching score for query tokens against entity tokens.
+        
+        Used for both primary name and alias matching.
+        
+        Formula:
+        - Exact match (40% weight) - early termination
+        - All tokens present (30% weight)
+        - Fuzzy similarity WRatio (20% weight)
+        - Cap at 1.0
+        """
+        if not entity_tokens:
+            return 0.0
 
         # Early termination: Exact match (40% weight)
         if query_tokens == entity_tokens:
@@ -551,17 +625,7 @@ class DeviceMatchingService:
         if fuzzy_score > 0.7:
             score += fuzzy_score * 0.20
 
-        # Context bonuses (10% weight, additive, capped at 1.0)
-        area_match = False
-        platform_match = False
-        domain_match = False
-
-        # Area match bonus
-        area_id = entity.get("area_id")
-        if context_location and area_id:
-            area_normalized = normalize_area_name(str(area_id))
-            location_normalized = normalize_area_name(context_location)
-            if area_normalized == location_normalized or location_normalized in area_normalized:
+        return min(score, 1.0)
                 area_match = True
                 score += 0.05
 
@@ -670,7 +734,8 @@ class DeviceMatchingService:
         if clarification_context:
             qa_list = clarification_context.get("questions_and_answers", [])
             for qa in qa_list:
-                answer_text = qa.get("answer", "").lower()
+                answer = qa.get("answer") or ""
+                answer_text = answer.lower() if answer else ""
                 for device in devices_involved:
                     device_lower = device.lower()
                     if device_lower in answer_text or answer_text.find(device_lower) != -1:

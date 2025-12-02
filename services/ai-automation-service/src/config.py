@@ -1,8 +1,8 @@
 """Configuration management for AI Automation Service"""
 
-
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+import os
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -22,8 +22,15 @@ class Settings(BaseSettings):
     influxdb_bucket: str = "home_assistant_events"
 
     # Home Assistant (Story AI4.1: Enhanced configuration)
-    ha_url: str
-    ha_token: str
+    # Support multiple environment variable names for compatibility
+    ha_url: str = Field(
+        default="",
+        description="Home Assistant URL (supports HA_URL, HA_HTTP_URL, HOME_ASSISTANT_URL)"
+    )
+    ha_token: str = Field(
+        default="",
+        description="Home Assistant token (supports HA_TOKEN, HOME_ASSISTANT_TOKEN)"
+    )
     ha_max_retries: int = 3  # Maximum retry attempts for HA API calls
     ha_retry_delay: float = 1.0  # Initial retry delay in seconds
     ha_timeout: int = 10  # Request timeout in seconds
@@ -437,11 +444,53 @@ class Settings(BaseSettings):
     gnn_model_path: str = "/app/models/gnn_synergy_detector.pth"
     """Path to save/load GNN model (default: /app/models/gnn_synergy_detector.pth)"""
 
-    model_config = ConfigDict(
-        env_file="infrastructure/env.ai-automation",
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore"  # Ignore extra fields from environment to prevent validation errors
+        extra="ignore",  # Ignore extra fields from environment to prevent validation errors
+        env_ignore_empty=True,  # Ignore empty environment variables
     )
+    
+    @field_validator("ha_url", mode="before")
+    @classmethod
+    def validate_ha_url(cls, v: str | None) -> str:
+        """Validate and load HA URL from alternative environment variable names"""
+        if v:
+            return v
+        # Try alternative environment variable names
+        return (
+            os.getenv("HA_URL") or
+            os.getenv("HA_HTTP_URL") or
+            os.getenv("HOME_ASSISTANT_URL") or
+            ""
+        )
+    
+    @field_validator("ha_token", mode="before")
+    @classmethod
+    def validate_ha_token(cls, v: str | None) -> str:
+        """Validate and load HA token from alternative environment variable names"""
+        if v:
+            return v
+        # Try alternative environment variable names
+        return (
+            os.getenv("HA_TOKEN") or
+            os.getenv("HOME_ASSISTANT_TOKEN") or
+            ""
+        )
+    
+    @model_validator(mode="after")
+    def validate_required_fields(self):
+        """Validate required fields after initialization (Pydantic v2 pattern)"""
+        if not self.ha_url:
+            raise ValueError(
+                "ha_url is required. Set HA_URL, HA_HTTP_URL, or HOME_ASSISTANT_URL in environment."
+            )
+        if not self.ha_token:
+            raise ValueError(
+                "ha_token is required. Set HA_TOKEN or HOME_ASSISTANT_TOKEN in environment."
+            )
+        return self
 
 
 # Global settings instance

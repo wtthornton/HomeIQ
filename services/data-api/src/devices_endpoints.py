@@ -67,6 +67,11 @@ class DeviceResponse(BaseModel):
     last_capability_sync: str | None = Field(default=None, description="When capabilities were last updated")
     entity_count: int = Field(default=0, description="Number of entities")
     timestamp: str = Field(description="Last update timestamp")
+    # Phase 2: Device Registry 2025 Attributes (Important)
+    labels: list[str] | None = Field(default=None, description="Array of label IDs for organizational filtering")
+    # Phase 3: Device Registry 2025 Attributes (Nice to Have)
+    serial_number: str | None = Field(default=None, description="Optional serial number (if available from integration)")
+    model_id: str | None = Field(default=None, description="Optional model ID (manufacturer identifier, may differ from model)")
 
 
 class EntityResponse(BaseModel):
@@ -80,6 +85,25 @@ class EntityResponse(BaseModel):
     disabled: bool = Field(default=False, description="Whether entity is disabled")
     config_entry_id: str | None = Field(default=None, description="Config entry ID (source tracking)")
     timestamp: str = Field(description="Last update timestamp")
+    # Entity Registry Name Fields (2025 HA API)
+    name: str | None = Field(default=None, description="Entity Registry name (source of truth)")
+    name_by_user: str | None = Field(default=None, description="User-customized name (highest priority)")
+    original_name: str | None = Field(default=None, description="Original name from integration")
+    friendly_name: str | None = Field(default=None, description="Computed friendly name (name_by_user > name > original_name)")
+    # Entity Capabilities
+    supported_features: int | None = Field(default=None, description="Bitmask of supported features")
+    capabilities: list[str] | None = Field(default=None, description="Parsed capabilities list")
+    available_services: list[str] | None = Field(default=None, description="List of available service calls")
+    # Entity Attributes
+    icon: str | None = Field(default=None, description="Current icon (may be user-customized)")
+    original_icon: str | None = Field(default=None, description="Original icon from integration/platform")
+    device_class: str | None = Field(default=None, description="Device class (motion, door, temperature, etc)")
+    unit_of_measurement: str | None = Field(default=None, description="Unit of measurement for sensors")
+    # Phase 1: Entity Registry 2025 Attributes (Critical)
+    aliases: list[str] | None = Field(default=None, description="Array of alternative names for entity resolution")
+    # Phase 2: Entity Registry 2025 Attributes (Important)
+    labels: list[str] | None = Field(default=None, description="Array of label IDs for organizational filtering")
+    options: dict[str, Any] | None = Field(default=None, description="Entity-specific options/config (e.g., default brightness)")
 
 
 class IntegrationResponse(BaseModel):
@@ -161,7 +185,11 @@ async def list_devices(
             Device.area_id,
             Device.config_entry_id,
             Device.via_device,
-            Device.last_seen
+            Device.last_seen,
+            # Phase 2-3: Device Registry 2025 Attributes (may not exist before migration)
+            Device.labels,
+            Device.serial_number,
+            Device.model_id
         ]
         
         if platform:
@@ -197,33 +225,86 @@ async def list_devices(
         rows = result.all()
 
         # Convert to response
-        # Current schema: 10 device columns + entity_count (Phase 1.1 columns not in DB yet)
-        device_responses = [
-            DeviceResponse(
-                device_id=row[0],  # device_id
-                name=row[1],  # name
-                manufacturer=row[2] or "Unknown",  # manufacturer
-                model=row[3] or "Unknown",  # model
-                integration=row[4],  # integration
-                sw_version=row[5],  # sw_version
-                area_id=row[6],  # area_id
-                config_entry_id=row[7],  # config_entry_id
-                via_device=row[8],  # via_device
-                device_type=None,  # Phase 1.1: not in current schema
-                device_category=None,  # Phase 1.1: not in current schema
-                power_consumption_idle_w=None,  # Phase 1.1: not in current schema
-                power_consumption_active_w=None,  # Phase 1.1: not in current schema
-                power_consumption_max_w=None,  # Phase 1.1: not in current schema
-                setup_instructions_url=None,  # Phase 1.1: not in current schema
-                troubleshooting_notes=None,  # Phase 1.1: not in current schema
-                device_features_json=None,  # Phase 1.1: not in current schema
-                community_rating=None,  # Phase 1.1: not in current schema
-                last_capability_sync=None,  # Phase 1.1: not in current schema
-                entity_count=row[10],  # entity_count (last column)
-                timestamp=row[9].isoformat() if row[9] else datetime.now().isoformat()  # last_seen
-            )
-            for row in rows
-        ]
+        # Schema: device columns + entity_count
+        # Note: Phase 2-3 fields (labels, serial_number, model_id) may not exist before migration
+        device_responses = []
+        for row in rows:
+            try:
+                # Unpack row - handle variable length based on schema version
+                row_len = len(row)
+                device_id = row[0]
+                name = row[1]
+                manufacturer = row[2] or "Unknown"
+                model = row[3] or "Unknown"
+                integration = row[4]
+                sw_version = row[5]
+                area_id = row[6]
+                config_entry_id = row[7]
+                via_device = row[8]
+                last_seen = row[9] if row_len > 9 else None
+                # Phase 2-3: New fields (may not exist before migration)
+                labels = row[10] if row_len > 10 and hasattr(Device, 'labels') else None
+                serial_number = row[11] if row_len > 11 and hasattr(Device, 'serial_number') else None
+                model_id = row[12] if row_len > 12 and hasattr(Device, 'model_id') else None
+                entity_count = row[-1]  # Last column is always entity_count
+                
+                device_responses.append(DeviceResponse(
+                    device_id=device_id,
+                    name=name,
+                    manufacturer=manufacturer,
+                    model=model,
+                    integration=integration,
+                    sw_version=sw_version,
+                    area_id=area_id,
+                    config_entry_id=config_entry_id,
+                    via_device=via_device,
+                    device_type=None,  # Phase 1.1: not in current schema
+                    device_category=None,  # Phase 1.1: not in current schema
+                    power_consumption_idle_w=None,  # Phase 1.1: not in current schema
+                    power_consumption_active_w=None,  # Phase 1.1: not in current schema
+                    power_consumption_max_w=None,  # Phase 1.1: not in current schema
+                    setup_instructions_url=None,  # Phase 1.1: not in current schema
+                    troubleshooting_notes=None,  # Phase 1.1: not in current schema
+                    device_features_json=None,  # Phase 1.1: not in current schema
+                    community_rating=None,  # Phase 1.1: not in current schema
+                    last_capability_sync=None,  # Phase 1.1: not in current schema
+                    # Phase 2-3: Device Registry 2025 Attributes
+                    labels=labels if isinstance(labels, list) else None,
+                    serial_number=serial_number,
+                    model_id=model_id,
+                    entity_count=entity_count,
+                    timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat()
+                ))
+            except (IndexError, AttributeError) as e:
+                # Handle case where new columns don't exist yet (before migration)
+                logger.debug(f"Row unpacking error (may be pre-migration schema): {e}")
+                # Fallback to basic fields only
+                device_responses.append(DeviceResponse(
+                    device_id=row[0],
+                    name=row[1],
+                    manufacturer=row[2] or "Unknown",
+                    model=row[3] or "Unknown",
+                    integration=row[4],
+                    sw_version=row[5],
+                    area_id=row[6],
+                    config_entry_id=row[7],
+                    via_device=row[8],
+                    device_type=None,
+                    device_category=None,
+                    power_consumption_idle_w=None,
+                    power_consumption_active_w=None,
+                    power_consumption_max_w=None,
+                    setup_instructions_url=None,
+                    troubleshooting_notes=None,
+                    device_features_json=None,
+                    community_rating=None,
+                    last_capability_sync=None,
+                    labels=None,  # Will be populated after migration
+                    serial_number=None,  # Will be populated after migration
+                    model_id=None,  # Will be populated after migration
+                    entity_count=row[-1],
+                    timestamp=row[9].isoformat() if len(row) > 9 and row[9] else datetime.now().isoformat()
+                ))
 
         result = DevicesListResponse(
             devices=device_responses,
@@ -272,7 +353,11 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             Device.device_features_json,
             Device.community_rating,
             Device.last_capability_sync,
-            Device.last_seen
+            Device.last_seen,
+            # Phase 2-3: Device Registry 2025 Attributes (may not exist before migration)
+            Device.labels,
+            Device.serial_number,
+            Device.model_id
         ]
         
         query = select(*device_columns, func.count(Entity.entity_id).label('entity_count'))\
@@ -286,12 +371,13 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
         if not row:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
 
-        # Unpack row tuple (including Phase 1.1 fields)
+        # Unpack row tuple (including Phase 1.1 fields and Phase 2-3 2025 attributes)
         (device_id_col, name, manufacturer, model, sw_version, area_id,
          integration, config_entry_id, via_device, device_type, device_category,
          power_consumption_idle_w, power_consumption_active_w, power_consumption_max_w,
          setup_instructions_url, troubleshooting_notes, device_features_json,
-         community_rating, last_capability_sync, last_seen, entity_count) = row
+         community_rating, last_capability_sync, last_seen,
+         labels, serial_number, model_id, entity_count) = row
 
         return DeviceResponse(
             device_id=device_id_col,
@@ -313,6 +399,10 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             device_features_json=device_features_json,
             community_rating=community_rating,
             last_capability_sync=last_capability_sync.isoformat() if last_capability_sync else None,
+            # Phase 2-3: Device Registry 2025 Attributes
+            labels=labels if isinstance(labels, list) else None,
+            serial_number=serial_number,
+            model_id=model_id,
             entity_count=entity_count,
             timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat()
         )
@@ -501,7 +591,7 @@ async def list_entities(
                 unique_id=entity.unique_id,
                 area_id=entity.area_id,
                 disabled=entity.disabled,
-                # Entity Registry Name Fields
+                # Entity Registry Name Fields (2025 HA API)
                 name=entity.name,
                 name_by_user=entity.name_by_user,
                 original_name=entity.original_name,
@@ -511,9 +601,15 @@ async def list_entities(
                 capabilities=entity.capabilities if isinstance(entity.capabilities, list) else None,
                 available_services=entity.available_services if isinstance(entity.available_services, list) else None,
                 # Entity Attributes
-                icon=entity.icon,
+                icon=entity.icon,  # Current icon
+                original_icon=entity.original_icon,  # Phase 1: Original icon
                 device_class=entity.device_class,
                 unit_of_measurement=entity.unit_of_measurement,
+                # Phase 1: Entity Registry 2025 Attributes (Critical)
+                aliases=entity.aliases if isinstance(entity.aliases, list) else None,
+                # Phase 2: Entity Registry 2025 Attributes (Important)
+                labels=entity.labels if isinstance(entity.labels, list) else None,
+                options=entity.options if isinstance(entity.options, dict) else None,
                 timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat())
             )
             for entity in entities_data
@@ -549,20 +645,26 @@ async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
             area_id=entity.area_id,
             disabled=entity.disabled,
             config_entry_id=entity.config_entry_id,
-            # Entity Registry Name Fields
-            name=entity.name,
-            name_by_user=entity.name_by_user,
-            original_name=entity.original_name,
-            friendly_name=entity.friendly_name,
-            # Entity Capabilities
-            supported_features=entity.supported_features,
-            capabilities=entity.capabilities if isinstance(entity.capabilities, list) else None,
-            available_services=entity.available_services if isinstance(entity.available_services, list) else None,
-            # Entity Attributes
-            icon=entity.icon,
-            device_class=entity.device_class,
-            unit_of_measurement=entity.unit_of_measurement,
-            timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat())
+                # Entity Registry Name Fields (2025 HA API)
+                name=entity.name,
+                name_by_user=entity.name_by_user,
+                original_name=entity.original_name,
+                friendly_name=entity.friendly_name,
+                # Entity Capabilities
+                supported_features=entity.supported_features,
+                capabilities=entity.capabilities if isinstance(entity.capabilities, list) else None,
+                available_services=entity.available_services if isinstance(entity.available_services, list) else None,
+                # Entity Attributes
+                icon=entity.icon,  # Current icon
+                original_icon=entity.original_icon,  # Phase 1: Original icon
+                device_class=entity.device_class,
+                unit_of_measurement=entity.unit_of_measurement,
+                # Phase 1: Entity Registry 2025 Attributes (Critical)
+                aliases=entity.aliases if isinstance(entity.aliases, list) else None,
+                # Phase 2: Entity Registry 2025 Attributes (Important)
+                labels=entity.labels if isinstance(entity.labels, list) else None,
+                options=entity.options if isinstance(entity.options, dict) else None,
+                timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat())
         )
     except HTTPException:
         raise
@@ -1131,6 +1233,10 @@ async def bulk_upsert_devices(
                 'entry_type': device_data.get('entry_type'),
                 'configuration_url': device_data.get('configuration_url'),
                 'suggested_area': device_data.get('suggested_area'),
+                # Phase 2-3: Device Registry 2025 Attributes
+                'labels': device_data.get('labels') or [],
+                'serial_number': device_data.get('serial_number'),
+                'model_id': device_data.get('model_id'),
                 # Source tracking
                 'config_entry_id': device_data.get('config_entry_id'),
                 'via_device': device_data.get('via_device_id'),  # HA uses 'via_device_id'
@@ -1234,15 +1340,22 @@ async def bulk_upsert_entities(
                 unique_id=entity_data.get('unique_id'),
                 area_id=entity_data.get('area_id'),
                 disabled=entity_data.get('disabled_by') is not None,
-                # NEW: Entity Registry name fields
+                # Entity Registry name fields (2025 HA API)
                 name=name,
                 name_by_user=name_by_user,
                 original_name=original_name,
                 friendly_name=friendly_name,
-                # NEW: Entity capabilities (will be enriched from state API)
+                # Entity capabilities (will be enriched from state API)
                 supported_features=supported_features,
                 capabilities=capabilities,
                 available_services=available_services,
+                # Phase 1: Entity Registry 2025 Attributes (Critical)
+                icon=entity_data.get('icon'),  # Current icon (may be user-customized)
+                original_icon=entity_data.get('original_icon'),  # Original icon from integration
+                aliases=entity_data.get('aliases') or [],
+                # Phase 2: Entity Registry 2025 Attributes (Important)
+                labels=entity_data.get('labels') or [],
+                options=entity_data.get('options'),
                 # Source tracking
                 config_entry_id=entity_data.get('config_entry_id'),
                 created_at=datetime.now(),

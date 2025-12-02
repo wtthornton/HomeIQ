@@ -72,14 +72,16 @@ def normalize_entity_name(entity: dict) -> list[str]:
     Normalize entity names using 2025 Entity Registry best practices.
     
     Priority order for Entity Registry entries:
-    1. name - Entity Registry name (source of truth, what shows in HA UI)
-    2. original_name - Entity Registry original name
-    3. name_by_user - User-customized name (if available)
+    1. name_by_user - User-customized name (highest priority, what user sees)
+    2. name - Entity Registry name (source of truth, what shows in HA UI)
+    3. original_name - Entity Registry original name
     4. friendly_name - States API friendly_name (fallback only)
     
     For States API entities (when Entity Registry unavailable):
     1. friendly_name - States API friendly_name
     2. entity_id - Use entity_id as last resort
+    
+    Phase 1 Enhancement: Also checks aliases for matching (handled separately in matching logic)
     
     Args:
         entity: Entity dictionary (from Entity Registry or States API)
@@ -92,20 +94,20 @@ def normalize_entity_name(entity: dict) -> list[str]:
         >>> normalize_entity_name(entity)
         ['office', 'back', 'left']
     """
-    # Priority 1: Entity Registry name (source of truth)
+    # Priority 1: User-customized name (Entity Registry) - highest priority
+    name_by_user = entity.get('name_by_user')
+    if name_by_user and isinstance(name_by_user, str):
+        return normalize_device_query(name_by_user)
+    
+    # Priority 2: Entity Registry name (source of truth)
     name = entity.get('name')
     if name and isinstance(name, str):
         return normalize_device_query(name)
     
-    # Priority 2: Entity Registry original_name
+    # Priority 3: Entity Registry original_name
     original_name = entity.get('original_name')
     if original_name and isinstance(original_name, str):
         return normalize_device_query(original_name)
-    
-    # Priority 3: User-customized name (Entity Registry)
-    name_by_user = entity.get('name_by_user')
-    if name_by_user and isinstance(name_by_user, str):
-        return normalize_device_query(name_by_user)
     
     # Priority 4: States API friendly_name (fallback)
     friendly_name = entity.get('friendly_name')
@@ -121,6 +123,38 @@ def normalize_entity_name(entity: dict) -> list[str]:
             return normalize_device_query(entity_name_part)
     
     return []
+
+
+def normalize_entity_aliases(entity: dict) -> list[list[str]]:
+    """
+    Normalize entity aliases for matching.
+    
+    Phase 1 Enhancement: Extracts and normalizes all aliases from entity.
+    Returns list of token lists (one per alias) for comprehensive matching.
+    
+    Args:
+        entity: Entity dictionary (from Entity Registry)
+        
+    Returns:
+        List of normalized token lists, one per alias
+        
+    Examples:
+        >>> entity = {"aliases": ["desk light", "work light", "office desk"]}
+        >>> normalize_entity_aliases(entity)
+        [['desk'], ['work'], ['office', 'desk']]
+    """
+    aliases = entity.get('aliases') or []
+    if not isinstance(aliases, list):
+        return []
+    
+    normalized_aliases = []
+    for alias in aliases:
+        if isinstance(alias, str) and alias.strip():
+            tokens = normalize_device_query(alias)
+            if tokens:
+                normalized_aliases.append(tokens)
+    
+    return normalized_aliases
 
 
 def normalize_area_name(area: str) -> str:

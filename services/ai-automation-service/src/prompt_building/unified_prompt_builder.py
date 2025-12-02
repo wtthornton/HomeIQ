@@ -400,7 +400,9 @@ CRITICAL: DEVICE NAMING REQUIREMENTS:
 - ONLY use devices that are listed in the "Available devices and capabilities" section OR the "ENRICHED ENTITY CONTEXT" section above
 - Count how many devices are actually available - DO NOT assume a specific number
 - Use ACTUAL device friendly names from the enriched entity context JSON - DO NOT make up generic names like "Device 1" or "office lights"
-- Reference devices by their EXACT friendly_name from the entities list
+- Reference devices by their EXACT friendly_name from the entities list (priority: name_by_user > name > original_name)
+- Phase 1 Enhancement: Entities may have "aliases" array - these are alternative names users can use to refer to the device
+- Phase 2 Enhancement: Entities may have "labels" array - these are user-defined organizational tags (e.g., "outdoor", "security")
 - If the enriched context shows 6 individual lights, list all 6 with their actual names
 - DO NOT use group entity names unless the enriched context shows it's a group entity
 - Example: If enriched context shows ["Office light 1", "Office light 2", "Office light 3"], use those exact names

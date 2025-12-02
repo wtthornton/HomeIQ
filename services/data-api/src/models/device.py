@@ -6,7 +6,7 @@ Phase 1.1: Enhanced with device intelligence fields
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, JSON, String, Text
 from sqlalchemy.orm import relationship
 
 from ..database import Base
@@ -31,6 +31,11 @@ class Device(Base):
     entry_type = Column(String)  # Entry type (service, config_entry, etc.)
     configuration_url = Column(String)  # Device configuration URL
     suggested_area = Column(String)  # Suggested area for device
+
+    # Device Registry 2025 Attributes (Phase 2-3 Implementation)
+    labels = Column(JSON)  # Array of label IDs for organizational filtering
+    serial_number = Column(String, nullable=True)  # Optional serial number (if available from integration)
+    model_id = Column(String, nullable=True)  # Optional model ID (manufacturer identifier, may differ from model)
 
     # Source tracking
     config_entry_id = Column(String, index=True)  # Config entry ID (source tracking)

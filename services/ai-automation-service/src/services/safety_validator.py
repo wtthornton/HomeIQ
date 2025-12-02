@@ -410,8 +410,9 @@ class SafetyValidator:
                             },
                             'recommendation': (
                                 f'Entity {entity_id} is currently {state_value}. '
-                                'Consider adding availability checks in conditions or '
-                                'ensuring the entity is online before using it in automation.'
+                                'Availability conditions have been automatically added to prevent '
+                                'automation failures when this entity is unavailable. '
+                                'Ensure the entity is online for the automation to work correctly.'
                             )
                         })
             except Exception as e:

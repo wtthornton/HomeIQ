@@ -108,13 +108,13 @@ if register_error_handlers:
 # Instrument FastAPI for observability
 if OBSERVABILITY_AVAILABLE:
     try:
-        instrument_fastapi(app)
+        instrument_fastapi(app, "ai-query-service")
         app.add_middleware(CorrelationMiddleware)
     except Exception as e:
         logger.warning(f"Failed to instrument FastAPI: {e}")
 
 # Include routers
-app.include_router(health_router.router, prefix="/health", tags=["health"])
+app.include_router(health_router.router, tags=["health"])
 app.include_router(query_router.router, tags=["query"])
 
 @app.get("/")

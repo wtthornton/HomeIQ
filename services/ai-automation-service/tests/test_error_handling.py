@@ -7,7 +7,9 @@ import pytest
 from src.services.automation.error_handling import (
     add_error_handling_to_actions,
     _detect_critical_actions,
-    _add_error_handling_to_action
+    _add_error_handling_to_action,
+    _should_use_choose_block,
+    _add_choose_block_error_handling
 )
 from src.contracts.models import Action
 
@@ -46,9 +48,11 @@ class TestErrorHandling:
         
         enhanced = add_error_handling_to_actions(actions)
         
-        # Both should have error: "continue"
-        assert enhanced[0].error == "continue"
-        assert enhanced[1].error == "continue"
+        # Both should have continue_on_error: True (HA 2025 format)
+        action0_dict = enhanced[0].model_dump(exclude_none=True)
+        action1_dict = enhanced[1].model_dump(exclude_none=True)
+        assert action0_dict.get("continue_on_error") is True
+        assert action1_dict.get("continue_on_error") is True
 
     def test_error_handling_preserves_critical(self):
         """Test that critical actions don't get error handling"""
@@ -60,9 +64,11 @@ class TestErrorHandling:
         enhanced = add_error_handling_to_actions(actions)
         
         # Critical action should not have error handling
-        assert enhanced[0].error is None
+        action0_dict = enhanced[0].model_dump(exclude_none=True)
+        assert "continue_on_error" not in action0_dict
         # Non-critical should have error handling
-        assert enhanced[1].error == "continue"
+        action1_dict = enhanced[1].model_dump(exclude_none=True)
+        assert action1_dict.get("continue_on_error") is True
 
     def test_error_handling_explicit_critical_indices(self):
         """Test error handling with explicit critical indices"""
@@ -74,9 +80,11 @@ class TestErrorHandling:
         enhanced = add_error_handling_to_actions(actions, critical_action_indices={0})
         
         # Index 0 is critical, so no error handling
-        assert enhanced[0].error is None
+        action0_dict = enhanced[0].model_dump(exclude_none=True)
+        assert "continue_on_error" not in action0_dict
         # Index 1 is not critical, so has error handling
-        assert enhanced[1].error == "continue"
+        action1_dict = enhanced[1].model_dump(exclude_none=True)
+        assert action1_dict.get("continue_on_error") is True
 
     def test_add_error_handling_to_action_already_has_error(self):
         """Test that actions with existing error field are not overridden"""
@@ -89,4 +97,41 @@ class TestErrorHandling:
         enhanced = _add_error_handling_to_action(action)
         # Should preserve existing error value
         assert enhanced.error == "stop"
+    
+    def test_should_use_choose_block_with_entity(self):
+        """Test choose block detection for actions with entity_id"""
+        action = Action(service="light.turn_on", entity_id="light.kitchen")
+        assert _should_use_choose_block(action) is True
+    
+    def test_should_not_use_choose_block_without_entity(self):
+        """Test choose block detection for actions without entity_id"""
+        action = Action(service="system_log.write")
+        assert _should_use_choose_block(action) is False
+    
+    def test_choose_block_error_handling(self):
+        """Test choose block error handling structure"""
+        action = Action(service="light.turn_on", entity_id="light.kitchen")
+        choose_block = _add_choose_block_error_handling(action)
+        
+        # Should be a dict with choose key
+        assert isinstance(choose_block, dict)
+        assert "choose" in choose_block
+        assert isinstance(choose_block["choose"], list)
+        assert len(choose_block["choose"]) >= 1
+        assert "default" in choose_block
+    
+    def test_add_error_handling_with_choose_blocks(self):
+        """Test error handling with choose blocks enabled"""
+        actions = [
+            Action(service="light.turn_on", entity_id="light.kitchen"),
+            Action(service="switch.turn_off", entity_id="switch.fan"),
+        ]
+        
+        enhanced = add_error_handling_to_actions(actions, use_choose_blocks=True)
+        
+        # Should use choose blocks for actions with entities
+        assert isinstance(enhanced[0], dict)
+        assert "choose" in enhanced[0]
+        assert isinstance(enhanced[1], dict)
+        assert "choose" in enhanced[1]
 

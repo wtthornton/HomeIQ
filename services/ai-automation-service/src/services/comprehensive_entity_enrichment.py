@@ -113,7 +113,16 @@ async def enrich_entities_comprehensively(
             'domain': entity_id.split('.')[0] if '.' in entity_id else 'unknown',
             # HA Attributes data
             'friendly_name': None,
-            'icon': None,
+            'name': None,  # Entity Registry name
+            'name_by_user': None,  # User-customized name (highest priority)
+            'original_name': None,  # Original name from integration
+            # Phase 1: Entity Registry 2025 Attributes (Critical)
+            'icon': None,  # Current icon (may be user-customized)
+            'original_icon': None,  # Original icon from integration
+            'aliases': [],  # Array of alternative names for entity resolution
+            # Phase 2: Entity Registry 2025 Attributes (Important)
+            'labels': [],  # Array of label IDs for organizational filtering
+            'options': None,  # Entity-specific options/config
             'device_class': None,
             'unit_of_measurement': None,
             'state': 'unknown',
@@ -153,7 +162,16 @@ async def enrich_entities_comprehensively(
             ha_data = ha_enriched[entity_id]
             combined.update({
                 'friendly_name': ha_data.get('friendly_name'),
-                'icon': ha_data.get('icon'),
+                'name': ha_data.get('name'),  # Entity Registry name
+                'name_by_user': ha_data.get('name_by_user'),  # User-customized name
+                'original_name': ha_data.get('original_name'),  # Original name
+                # Phase 1: Entity Registry 2025 Attributes (Critical)
+                'icon': ha_data.get('icon'),  # Current icon
+                'original_icon': ha_data.get('original_icon'),  # Original icon
+                'aliases': ha_data.get('aliases') or [],  # Aliases array
+                # Phase 2: Entity Registry 2025 Attributes (Important)
+                'labels': ha_data.get('labels') or [],  # Labels array
+                'options': ha_data.get('options'),  # Options object
                 'device_class': ha_data.get('device_class'),
                 'unit_of_measurement': ha_data.get('unit_of_measurement'),
                 'state': ha_data.get('state', 'unknown'),

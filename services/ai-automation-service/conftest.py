@@ -176,9 +176,15 @@ def pytest_collection_modifyitems(config, items):
 # Environment variable validation - Context7 recommended approach
 def pytest_sessionstart(session):
     """Load test environment - Context7 recommended approach"""
-    # Try loading .env.test from multiple locations
+    from dotenv import load_dotenv
+    
+    # Try loading .env from multiple locations (primary source)
+    # Then fall back to .env.test if it exists
     env_files = [
-        Path('.env.test'),
+        Path('.env'),  # Project root .env (primary)
+        Path(__file__).parent.parent.parent / '.env',  # Project root from service
+        Path(__file__).parent / '.env',  # Service directory
+        Path('.env.test'),  # Fallback to .env.test
         Path(__file__).parent / '.env.test',
         Path(__file__).parent.parent / '.env.test'
     ]
@@ -186,32 +192,44 @@ def pytest_sessionstart(session):
     loaded_from = None
     for env_file in env_files:
         if env_file.exists():
-            from dotenv import load_dotenv
-            load_dotenv(env_file)
-            loaded_from = env_file
-            break
+            load_dotenv(env_file, override=False)  # Don't override existing env vars
+            if not loaded_from:  # Only set first found file
+                loaded_from = env_file
 
     if loaded_from:
         print(f"[OK] Loaded test environment from {loaded_from}")
     else:
-        print("[WARN] No .env.test file found - using system environment")
+        print("[WARN] No .env or .env.test file found - using system environment")
 
-    # Validate required test variables
-    required_vars = {
-        'HA_URL': 'Home Assistant test URL',
-        'HA_TOKEN': 'Home Assistant test token',
-        'MQTT_BROKER': 'MQTT test broker',
-        'OPENAI_API_KEY': 'OpenAI test API key'
-    }
+    # Validate required test variables with alternative names
+    # Check for alternative variable names used in the codebase
+    def get_env_var(*names):
+        """Get environment variable trying multiple alternative names"""
+        for name in names:
+            value = os.getenv(name)
+            if value:
+                return value
+        return None
+
+    # Check required variables with alternatives
+    ha_url = get_env_var('HA_URL', 'HA_HTTP_URL', 'HOME_ASSISTANT_URL')
+    ha_token = get_env_var('HA_TOKEN', 'HOME_ASSISTANT_TOKEN')
+    mqtt_broker = get_env_var('MQTT_BROKER')
+    openai_api_key = get_env_var('OPENAI_API_KEY')
 
     missing_vars = []
-    for var, description in required_vars.items():
-        if not os.getenv(var):
-            missing_vars.append(f"{var} ({description})")
+    if not ha_url:
+        missing_vars.append("HA_URL/HA_HTTP_URL/HOME_ASSISTANT_URL (Home Assistant URL)")
+    if not ha_token:
+        missing_vars.append("HA_TOKEN/HOME_ASSISTANT_TOKEN (Home Assistant token)")
+    if not mqtt_broker:
+        missing_vars.append("MQTT_BROKER (MQTT broker)")
+    if not openai_api_key:
+        missing_vars.append("OPENAI_API_KEY (OpenAI API key)")
 
     if missing_vars:
         print(f"[ERROR] Missing required test variables: {', '.join(missing_vars)}")
-        print("   Create a .env.test file with test values")
+        print("   Add these to your .env file")
     else:
         print("[OK] All required test environment variables present")
 
@@ -219,9 +237,18 @@ def pytest_sessionstart(session):
 @pytest.fixture
 def test_config():
     """Simple test configuration fixture - Context7 pattern"""
+    # Support alternative variable names
+    ha_url = (os.getenv('HA_URL') or 
+              os.getenv('HA_HTTP_URL') or 
+              os.getenv('HOME_ASSISTANT_URL') or 
+              'http://localhost:8123')
+    ha_token = (os.getenv('HA_TOKEN') or 
+                os.getenv('HOME_ASSISTANT_TOKEN') or 
+                'test_token')
+    
     return {
-        'ha_url': os.getenv('HA_URL', 'http://localhost:8123'),
-        'ha_token': os.getenv('HA_TOKEN', 'test_token'),
+        'ha_url': ha_url,
+        'ha_token': ha_token,
         'mqtt_broker': os.getenv('MQTT_BROKER', 'localhost:1883'),
         'openai_api_key': os.getenv('OPENAI_API_KEY', 'test_key'),
         'influxdb_url': os.getenv('INFLUXDB_URL', 'http://localhost:8086'),
