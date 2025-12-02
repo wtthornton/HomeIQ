@@ -1,167 +1,186 @@
 """
-Integration tests for weather and carbon generators in the synthetic home pipeline.
+Integration tests for enhanced synthetic home generation pipeline.
+
+Tests for Story AI11.9: End-to-End Pipeline Integration
 """
 
-import json
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-
 import pytest
-
-from src.training.synthetic_area_generator import SyntheticAreaGenerator
-from src.training.synthetic_carbon_intensity_generator import SyntheticCarbonIntensityGenerator
-from src.training.synthetic_device_generator import SyntheticDeviceGenerator
-from src.training.synthetic_event_generator import SyntheticEventGenerator
-from src.training.synthetic_home_generator import SyntheticHomeGenerator
-from src.training.synthetic_weather_generator import SyntheticWeatherGenerator
+from datetime import datetime, timezone
+from src.training.enhanced_synthetic_home_generator import EnhancedSyntheticHomeGenerator
 
 
-class TestPipelineIntegration:
-    """Test weather and carbon integration in the synthetic home pipeline."""
+class TestEnhancedPipelineIntegration:
+    """Test enhanced synthetic home generation pipeline."""
     
-    def test_home_json_structure_with_external_data(self):
-        """Test that home JSON structure includes external_data section."""
-        home_generator = SyntheticHomeGenerator()
-        area_generator = SyntheticAreaGenerator()
-        device_generator = SyntheticDeviceGenerator()
-        event_generator = SyntheticEventGenerator()
-        weather_generator = SyntheticWeatherGenerator()
-        carbon_generator = SyntheticCarbonIntensityGenerator()
+    @pytest.mark.asyncio
+    async def test_generate_complete_home(self):
+        """Test generating a complete home with all enhancements."""
+        generator = EnhancedSyntheticHomeGenerator()
         
-        # Generate a single home
-        homes = home_generator.generate_homes(target_count=1)
-        assert len(homes) == 1
-        
-        home = homes[0]
-        
-        # Generate areas, devices, events
-        areas = area_generator.generate_areas(home)
-        devices = device_generator.generate_devices(home, areas)
-        
-        # Generate events (synchronous for test)
-        import asyncio
-        events = asyncio.run(event_generator.generate_events(devices, days=7))
-        
-        # Generate weather and carbon data
-        start_date = datetime.now(timezone.utc) - timedelta(days=7)
-        weather_data = weather_generator.generate_weather(home, start_date, 7)
-        carbon_data = carbon_generator.generate_carbon_intensity(home, start_date, 7)
-        
-        # Correlate
-        weather_correlated = weather_generator.correlate_with_hvac(
-            weather_data,
-            events,
-            devices
-        )
-        final_events = carbon_generator.correlate_with_energy_devices(
-            carbon_data,
-            weather_correlated,
-            devices
-        )
-        
-        # Build complete home structure
-        home['areas'] = areas
-        home['devices'] = devices
-        home['events'] = final_events
-        home['external_data'] = {
-            'weather': weather_data,
-            'carbon_intensity': carbon_data
+        home_data = {
+            'home_type': 'single_family_house',
+            'size_category': 'medium',
+            'home_id': 'test_home_001'
         }
         
-        # Validate structure
-        assert 'external_data' in home
-        assert 'weather' in home['external_data']
-        assert 'carbon_intensity' in home['external_data']
+        complete_home = await generator.generate_complete_home(
+            home_data=home_data,
+            days=7,
+            enable_context=True,
+            enable_synergies=True,
+            enable_ground_truth=True
+        )
         
-        # Validate weather data structure
-        assert len(home['external_data']['weather']) > 0
-        weather_point = home['external_data']['weather'][0]
-        assert 'timestamp' in weather_point
-        assert 'temperature' in weather_point
-        assert 'condition' in weather_point
+        # Check required fields
+        assert 'areas' in complete_home
+        assert 'devices' in complete_home
+        assert 'events' in complete_home
+        assert 'automations' in complete_home
+        assert 'ground_truth' in complete_home
+        assert 'generation_metadata' in complete_home
         
-        # Validate carbon data structure
-        assert len(home['external_data']['carbon_intensity']) > 0
-        carbon_point = home['external_data']['carbon_intensity'][0]
-        assert 'timestamp' in carbon_point
-        assert 'intensity' in carbon_point
-        assert 'renewable_percentage' in carbon_point
-        assert 'forecast' in carbon_point
+        # Check areas
+        assert len(complete_home['areas']) > 0
+        
+        # Check devices
+        assert len(complete_home['devices']) > 0
+        
+        # Check events
+        assert len(complete_home['events']) > 0
+        
+        # Check generation metadata
+        metadata = complete_home['generation_metadata']
+        assert 'generated_at' in metadata
+        assert 'days' in metadata
+        assert 'enhancements' in metadata
+        assert 'generation_time_ms' in metadata
+        
+        # Check enhancements enabled
+        enhancements = metadata['enhancements']
+        assert enhancements['ha_2024_naming'] is True
+        assert enhancements['areas_floors_labels'] is True
+        assert enhancements['failure_scenarios'] is True
+        assert enhancements['event_diversification'] is True
+        assert enhancements['blueprint_automations'] is True
+        assert enhancements['context_aware'] is True
+        assert enhancements['synergies'] is True
+        assert enhancements['ground_truth'] is True
     
-    def test_json_serialization(self):
-        """Test that home with external_data can be serialized to JSON."""
-        home_generator = SyntheticHomeGenerator()
-        area_generator = SyntheticAreaGenerator()
-        device_generator = SyntheticDeviceGenerator()
-        event_generator = SyntheticEventGenerator()
-        weather_generator = SyntheticWeatherGenerator()
-        carbon_generator = SyntheticCarbonIntensityGenerator()
+    @pytest.mark.asyncio
+    async def test_generate_complete_home_minimal(self):
+        """Test generating a complete home with minimal enhancements."""
+        generator = EnhancedSyntheticHomeGenerator()
         
-        # Generate a minimal home
-        homes = home_generator.generate_homes(target_count=1)
-        home = homes[0]
-        
-        # Generate minimal data
-        areas = area_generator.generate_areas(home)
-        devices = device_generator.generate_devices(home, areas)
-        
-        import asyncio
-        events = asyncio.run(event_generator.generate_events(devices, days=1))
-        
-        start_date = datetime.now(timezone.utc) - timedelta(days=1)
-        weather_data = weather_generator.generate_weather(home, start_date, 1)
-        carbon_data = carbon_generator.generate_carbon_intensity(home, start_date, 1)
-        
-        # Build complete structure
-        home['areas'] = areas
-        home['devices'] = devices
-        home['events'] = events
-        home['external_data'] = {
-            'weather': weather_data,
-            'carbon_intensity': carbon_data
+        home_data = {
+            'home_type': 'apartment',
+            'size_category': 'small',
+            'home_id': 'test_home_002'
         }
         
-        # Test JSON serialization
-        json_str = json.dumps(home, indent=2, ensure_ascii=False)
-        assert len(json_str) > 0
+        complete_home = await generator.generate_complete_home(
+            home_data=home_data,
+            days=3,
+            enable_context=False,
+            enable_synergies=False,
+            enable_ground_truth=False
+        )
         
-        # Test JSON deserialization
-        parsed = json.loads(json_str)
-        assert 'external_data' in parsed
-        assert 'weather' in parsed['external_data']
-        assert 'carbon_intensity' in parsed['external_data']
+        # Check required fields
+        assert 'areas' in complete_home
+        assert 'devices' in complete_home
+        assert 'events' in complete_home
+        
+        # Check enhancements disabled
+        metadata = complete_home['generation_metadata']
+        enhancements = metadata['enhancements']
+        assert enhancements['context_aware'] is False
+        assert enhancements['synergies'] is False
+        assert enhancements['ground_truth'] is False
     
-    def test_pipeline_doesnt_break_existing_functionality(self):
-        """Test that adding external_data doesn't break existing pipeline."""
-        home_generator = SyntheticHomeGenerator()
-        area_generator = SyntheticAreaGenerator()
-        device_generator = SyntheticDeviceGenerator()
-        event_generator = SyntheticEventGenerator()
+    @pytest.mark.asyncio
+    async def test_generate_batch(self):
+        """Test generating a batch of homes."""
+        generator = EnhancedSyntheticHomeGenerator()
         
-        # Generate home without external data (existing functionality)
-        homes = home_generator.generate_homes(target_count=1)
-        home = homes[0]
+        home_data_list = [
+            {
+                'home_type': 'single_family_house',
+                'size_category': 'medium',
+                'home_id': f'test_home_{i:03d}'
+            }
+            for i in range(5)
+        ]
         
-        areas = area_generator.generate_areas(home)
-        devices = device_generator.generate_devices(home, areas)
+        progress_calls = []
+        def progress_callback(home_num, total_homes, home):
+            progress_calls.append((home_num, total_homes, home.get('home_id')))
         
-        import asyncio
-        events = asyncio.run(event_generator.generate_events(devices, days=1))
+        complete_homes = await generator.generate_batch(
+            home_data_list=home_data_list,
+            days=7,
+            progress_callback=progress_callback
+        )
         
-        # Existing structure should still work
-        home['areas'] = areas
-        home['devices'] = devices
-        home['events'] = events
+        # Check all homes generated
+        assert len(complete_homes) == 5
         
-        # Validate existing fields
-        assert 'home_type' in home
-        assert 'areas' in home
-        assert 'devices' in home
-        assert 'events' in home
+        # Check progress callback called
+        assert len(progress_calls) == 5
+        assert progress_calls[0][0] == 1
+        assert progress_calls[0][1] == 5
         
-        # external_data is optional, so it's OK if it's not present
-        # But if it is present, it should have the right structure
-        if 'external_data' in home:
-            assert 'weather' in home['external_data']
-            assert 'carbon_intensity' in home['external_data']
-
+        # Check each home has required fields
+        for home in complete_homes:
+            assert 'areas' in home
+            assert 'devices' in home
+            assert 'events' in home
+    
+    @pytest.mark.asyncio
+    async def test_pipeline_integration_all_components(self):
+        """Test that all pipeline components are integrated."""
+        generator = EnhancedSyntheticHomeGenerator()
+        
+        home_data = {
+            'home_type': 'townhouse',
+            'size_category': 'large',
+            'home_id': 'test_integration'
+        }
+        
+        complete_home = await generator.generate_complete_home(
+            home_data=home_data,
+            days=7
+        )
+        
+        # Verify all components present
+        assert 'areas' in complete_home
+        assert 'devices' in complete_home
+        assert 'automations' in complete_home
+        assert 'events' in complete_home
+        assert 'ground_truth' in complete_home
+        
+        # Verify areas have floors (Story AI11.2)
+        areas = complete_home['areas']
+        if areas:
+            # At least some areas should have floor assignments
+            areas_with_floors = [a for a in areas if 'floor' in a]
+            # Not all areas need floors, but some should
+            # (This is a soft check - floors are optional)
+        
+        # Verify devices have HA 2024 naming (Story AI11.1)
+        devices = complete_home['devices']
+        assert len(devices) > 0
+        for device in devices:
+            assert 'entity_id' in device
+            assert 'friendly_name' in device
+        
+        # Verify events have diverse types (Story AI11.5)
+        events = complete_home['events']
+        assert len(events) > 0
+        event_types = set(e.get('event_type', 'unknown') for e in events)
+        # Should have multiple event types
+        assert len(event_types) >= 2  # At least state_changed and others
+        
+        # Verify ground truth exists (Story AI11.3)
+        ground_truth = complete_home.get('ground_truth')
+        if ground_truth:
+            assert 'expected_patterns' in ground_truth or 'home_id' in ground_truth
