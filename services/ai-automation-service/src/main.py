@@ -54,6 +54,7 @@ from .api import (
     model_comparison_router,
     nl_generation_router,
     pattern_router,
+    preference_router,
     set_device_intelligence_client,
     settings_router,
     suggestion_management_router,
@@ -408,6 +409,7 @@ app.include_router(ask_ai_router)  # Ask AI Tab: Natural Language Query Interfac
 app.include_router(model_comparison_router)  # Epic 39.13: Model Comparison endpoints (extracted from ask_ai_router)
 app.include_router(devices_router)  # Devices endpoint
 app.include_router(settings_router)  # System settings management
+app.include_router(preference_router)  # Epic AI-6 Story AI6.12: Frontend Preference Settings UI
 app.include_router(admin_router)  # Admin dashboard endpoints
 app.include_router(learning_router)  # Q&A Learning Enhancement Plan
 app.include_router(validation_router)  # Validation wall endpoint

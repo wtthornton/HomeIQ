@@ -16,6 +16,7 @@ import {
 } from '../api/settings';
 import { TeamTrackerSettings } from '../components/TeamTrackerSettings';
 import { ModelComparisonMetricsComponent } from '../components/ModelComparisonMetrics';
+import { PreferenceSettings } from '../components/PreferenceSettings';
 
 export const Settings: React.FC = () => {
   const { darkMode } = useAppStore();
@@ -751,6 +752,9 @@ export const Settings: React.FC = () => {
             Refreshing settings…
           </motion.div>
         )}
+
+        {/* Suggestion Preferences Section - Epic AI-6 Story AI6.12 */}
+        <PreferenceSettings darkMode={darkMode} userId="default" />
 
         {/* Team Tracker Integration */}
         <TeamTrackerSettings />

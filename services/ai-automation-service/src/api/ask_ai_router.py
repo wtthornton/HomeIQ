@@ -3030,6 +3030,181 @@ def _convert_unified_context_to_entities(context: AutomationContext) -> list[dic
 
     return entities
 
+async def discover_blueprint_opportunities_for_query(
+    query: str,
+    entities: list[dict[str, Any]],
+    area_filter: str | None = None
+) -> list[dict[str, Any]]:
+    """
+    Discover blueprint opportunities from query entities.
+    
+    Extracts device types from entities and searches for matching blueprints.
+    Converts blueprint opportunities to suggestion format.
+    
+    Story AI6.4: Blueprint Opportunity Discovery in Ask AI
+    Epic AI-6: Blueprint-Enhanced Suggestion Intelligence
+    
+    Args:
+        query: User's natural language query
+        entities: Resolved entities from query extraction
+        area_filter: Optional area filter from query
+        
+    Returns:
+        List of blueprint-inspired suggestions
+    """
+    try:
+        from ..utils.miner_integration import MinerIntegration
+        
+        # Initialize services
+        miner = MinerIntegration()
+        
+        # Check if automation-miner is available (graceful degradation)
+        if not await miner.is_available():
+            logger.debug("Automation-miner unavailable, skipping blueprint discovery")
+            return []
+        
+        # Extract device types from entities
+        device_types = []
+        integrations = []
+        
+        for entity in entities:
+            # Extract domain as device type
+            entity_id = entity.get('entity_id', '')
+            if entity_id and '.' in entity_id:
+                domain = entity_id.split('.')[0]
+                if domain not in device_types:
+                    device_types.append(domain)
+            
+            # Extract integration/platform if available
+            platform = entity.get('platform') or entity.get('integration')
+            if platform and platform not in integrations:
+                integrations.append(platform)
+        
+        # If no device types extracted, try extracting from query text
+        if not device_types:
+            # Simple keyword extraction from query
+            query_lower = query.lower()
+            domain_keywords = {
+                'light': ['light', 'lamp', 'bulb', 'luminance'],
+                'switch': ['switch', 'outlet'],
+                'sensor': ['sensor', 'motion', 'temperature', 'humidity'],
+                'binary_sensor': ['motion', 'door', 'window', 'presence'],
+                'climate': ['thermostat', 'temperature', 'heating', 'cooling'],
+                'cover': ['blind', 'shade', 'curtain', 'garage'],
+                'fan': ['fan', 'ventilation']
+            }
+            
+            for domain, keywords in domain_keywords.items():
+                if any(keyword in query_lower for keyword in keywords):
+                    if domain not in device_types:
+                        device_types.append(domain)
+        
+        if not device_types:
+            logger.debug("No device types extracted from query entities")
+            return []
+        
+        logger.info(f"📘 Discovering blueprint opportunities for device types: {device_types}")
+        
+        # Search blueprints for each device type
+        all_blueprints = []
+        seen_blueprint_ids = set()
+        
+        for device_type in device_types:
+            blueprints = await miner.search_blueprints(
+                device=device_type,
+                min_quality=0.7,
+                limit=10
+            )
+            
+            # Add unique blueprints (avoid duplicates)
+            for blueprint in blueprints:
+                blueprint_id = blueprint.get('id') or blueprint.get('blueprint_id')
+                if blueprint_id and blueprint_id not in seen_blueprint_ids:
+                    seen_blueprint_ids.add(blueprint_id)
+                    all_blueprints.append(blueprint)
+        
+        if not all_blueprints:
+            logger.debug("No blueprints found matching device types")
+            return []
+        
+        logger.info(f"✅ Found {len(all_blueprints)} unique blueprints")
+        
+        # Convert blueprints to suggestions
+        blueprint_suggestions = []
+        for blueprint in all_blueprints:
+            blueprint_id = blueprint.get('id') or blueprint.get('blueprint_id')
+            blueprint_title = blueprint.get('title') or blueprint.get('name', 'Untitled Blueprint')
+            blueprint_description = blueprint.get('description', '')
+            blueprint_quality = blueprint.get('quality_score') or blueprint.get('quality', 0.7)
+            
+            # Extract device types from blueprint metadata
+            blueprint_devices = []
+            # Blueprint metadata is nested: metadata._blueprint_metadata or metadata._blueprint_devices
+            metadata = blueprint.get('metadata', {})
+            if isinstance(metadata, dict):
+                # Try to extract from _blueprint_devices array (preferred)
+                blueprint_devices_list = metadata.get('_blueprint_devices', [])
+                if blueprint_devices_list:
+                    blueprint_devices.extend(blueprint_devices_list if isinstance(blueprint_devices_list, list) else [])
+                # Fallback: extract from _blueprint_variables
+                else:
+                    blueprint_vars = metadata.get('_blueprint_variables', {})
+                    if isinstance(blueprint_vars, dict):
+                        for var_spec in blueprint_vars.values():
+                            if isinstance(var_spec, dict) and 'domain' in var_spec:
+                                domain = var_spec['domain']
+                                if domain and domain not in blueprint_devices:
+                                    blueprint_devices.append(domain)
+            
+            # Generate suggestion description with blueprint hint
+            description = f"{blueprint_title}"
+            if blueprint_description:
+                # Truncate long descriptions
+                desc_preview = blueprint_description[:100] + "..." if len(blueprint_description) > 100 else blueprint_description
+                description += f": {desc_preview}"
+            description += f" (Based on '{blueprint_title}' blueprint)"
+            
+            # Calculate confidence from blueprint quality (0.7-0.9 range)
+            confidence = min(0.9, max(0.7, 0.7 + (blueprint_quality - 0.7) * 0.5))
+            
+            # Create suggestion dict
+            suggestion = {
+                'description': description,
+                'category': 'blueprint',
+                'priority': 'medium',
+                'confidence': confidence,
+                'source': 'blueprint_discovery',
+                'metadata': {
+                    'blueprint_id': blueprint_id,
+                    'blueprint_title': blueprint_title,
+                    'blueprint_quality': blueprint_quality,
+                    'device_types': blueprint_devices if blueprint_devices else device_types,
+                    'query': query,
+                    'area_filter': area_filter
+                },
+                # Include device types for later YAML generation
+                'device_types': blueprint_devices if blueprint_devices else device_types,
+                'blueprint_id': blueprint_id
+            }
+            
+            blueprint_suggestions.append(suggestion)
+        
+        return blueprint_suggestions
+        
+    except Exception as e:
+        logger.error(
+            f"Error discovering blueprint opportunities: {e}",
+            exc_info=True,
+            extra={
+                'query': query,
+                'entity_count': len(entities),
+                'error_type': type(e).__name__
+            }
+        )
+        # Non-blocking: Return empty list on error
+        return []
+
+
 async def generate_suggestions_from_query(
     query: str,
     entities: list[dict[str, Any]],
@@ -5203,6 +5378,51 @@ async def process_natural_language_query(
             area_filter=area_filter  # Pass area_filter for location filtering
         )
 
+        # Story AI6.4: Discover blueprint opportunities and add to suggestions
+        try:
+            blueprint_suggestions = await discover_blueprint_opportunities_for_query(
+                query=request.query,
+                entities=entities,
+                area_filter=area_filter
+            )
+            
+            if blueprint_suggestions:
+                logger.info(f"📘 Adding {len(blueprint_suggestions)} blueprint opportunities to suggestions")
+                # Combine with existing suggestions (blueprint suggestions added first)
+                suggestions = blueprint_suggestions + suggestions
+        except Exception as e:
+            logger.warning(
+                f"Failed to discover blueprint opportunities: {e}",
+                exc_info=True,
+                extra={
+                    'query': request.query,
+                    'error_type': type(e).__name__
+                }
+            )
+        
+        # Story AI6.11: Apply unified preference-aware ranking
+        # Applies all preferences: creativity filtering, blueprint weighting, max_suggestions limit
+        try:
+            from ..blueprint_discovery.preference_aware_ranker import PreferenceAwareRanker
+            preference_ranker = PreferenceAwareRanker(user_id=request.user_id)
+            original_count = len(suggestions)
+            suggestions = await preference_ranker.rank_suggestions(suggestions)
+            logger.info(f"✅ Applied unified preference-aware ranking: {original_count} → {len(suggestions)} suggestions")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to apply unified preference-aware ranking, using existing ranking: {e}")
+            # Continue without unified ranking on error (graceful degradation)
+            # Fallback to max_suggestions limit only
+            try:
+                from ..blueprint_discovery.preference_manager import PreferenceManager
+                preference_manager = PreferenceManager(user_id=request.user_id)
+                max_suggestions = await preference_manager.get_max_suggestions()
+                if suggestions:
+                    suggestions.sort(key=lambda s: s.get('confidence', 0.0), reverse=True)
+                    suggestions = suggestions[:max_suggestions]
+                    logger.info(f"📊 Applied fallback max_suggestions limit: {max_suggestions}")
+            except Exception:
+                pass  # Continue with all suggestions if fallback also fails
+
         # Reduce confidence for suggestions generated with pending clarification (Quick Win 1)
         if questions and suggestions:
             clarification_penalty = 0.2
@@ -6433,6 +6653,29 @@ async def provide_clarification(
                         "message": "Failed to generate suggestions (no data returned)"
                     }
                 )
+            
+            # Story AI6.11: Apply unified preference-aware ranking
+            # Applies all preferences: creativity filtering, blueprint weighting, max_suggestions limit
+            try:
+                from ..blueprint_discovery.preference_aware_ranker import PreferenceAwareRanker
+                preference_ranker = PreferenceAwareRanker(user_id="anonymous")  # TODO: Get actual user_id from session
+                original_count = len(suggestions)
+                suggestions = await preference_ranker.rank_suggestions(suggestions)
+                logger.info(f"✅ Applied unified preference-aware ranking in clarify endpoint: {original_count} → {len(suggestions)} suggestions")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to apply unified preference-aware ranking in clarify endpoint, using existing ranking: {e}")
+                # Continue without unified ranking on error (graceful degradation)
+                # Fallback to max_suggestions limit only
+                try:
+                    from ..blueprint_discovery.preference_manager import PreferenceManager
+                    preference_manager = PreferenceManager(user_id="anonymous")  # TODO: Get actual user_id from session
+                    max_suggestions = await preference_manager.get_max_suggestions()
+                    if suggestions:
+                        suggestions.sort(key=lambda s: s.get('confidence', 0.0), reverse=True)
+                        suggestions = suggestions[:max_suggestions]
+                        logger.info(f"📊 Applied fallback max_suggestions limit in clarify endpoint: {max_suggestions}")
+                except Exception:
+                    pass  # Continue with all suggestions if fallback also fails
 
             # Add conversation history to suggestions
             for suggestion in suggestions:

@@ -1272,6 +1272,76 @@ Update the system configuration. Validation is applied server-side (e.g., soft p
 
 **Validation Errors:** Returns `400 Bad Request` with a list of validation issues (e.g., missing directory, thresholds out of range).
 
+### Preference API *(Epic AI-6, December 2025)*
+
+**Base URL:** `/api/v1/preferences` (AI Automation Service)
+
+User preference settings for customizing suggestion generation and ranking.
+
+#### GET /api/v1/preferences
+
+Get current user preferences for suggestion generation.
+
+**Query Parameters:**
+- `user_id` (optional, default: "default"): User ID
+
+**Response:**
+```json
+{
+  "max_suggestions": 10,
+  "creativity_level": "balanced",
+  "blueprint_preference": "medium"
+}
+```
+
+**Field Descriptions:**
+- `max_suggestions` (int, 5-50): Maximum number of suggestions to show (default: 10)
+- `creativity_level` (string): Creativity level - "conservative", "balanced", or "creative" (default: "balanced")
+- `blueprint_preference` (string): Blueprint preference - "low", "medium", or "high" (default: "medium")
+
+**Example:**
+```bash
+curl "http://localhost:8024/api/v1/preferences?user_id=default"
+```
+
+#### PUT /api/v1/preferences
+
+Update user preferences. Only provided fields are updated.
+
+**Query Parameters:**
+- `user_id` (optional, default: "default"): User ID
+
+**Request:**
+```json
+{
+  "max_suggestions": 15,
+  "creativity_level": "creative",
+  "blueprint_preference": "high"
+}
+```
+
+**Response:** Updated preferences (same schema as GET)
+
+**Validation:**
+- `max_suggestions`: Must be between 5 and 50
+- `creativity_level`: Must be "conservative", "balanced", or "creative"
+- `blueprint_preference`: Must be "low", "medium", or "high"
+
+**Validation Errors:** Returns `400 Bad Request` with validation error details.
+
+**Example:**
+```bash
+curl -X PUT "http://localhost:8024/api/v1/preferences?user_id=default" \
+  -H "Content-Type: application/json" \
+  -d '{"max_suggestions": 15, "creativity_level": "creative"}'
+```
+
+**Notes:**
+- Preferences are applied to both daily batch job (3 AM) and Ask AI query suggestions
+- Changes take effect immediately for new suggestions
+- If preferences are not set, default values are used
+- See [User Guide: Preferences](../current/USER_GUIDE_PREFERENCES.md) for detailed explanations
+
 ### Entity Alias Management (October 2025)
 
 User-defined aliases allow personalized nicknames for devices (e.g., "sleepy light" → light.bedroom_1).

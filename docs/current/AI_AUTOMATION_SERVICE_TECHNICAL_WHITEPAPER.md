@@ -1,6 +1,6 @@
 # AI Automation Service: Technical White Paper
 
-**Version:** 2.3  
+**Version:** 2.4  
 **Date:** November 2025  
 **Status:** Production Ready  
 **Service:** AI-Powered Home Assistant Automation Discovery and Recommendation System
@@ -131,7 +131,7 @@ The AI Automation Service addresses a fundamental challenge in smart home automa
 
 **Key Features:**
 - **Dual-Path Access:** Data API (primary) + Direct InfluxDB (fallback/specialized)
-- **Incremental Processing:** Pattern aggregate buckets for optimized queries (Story AI5.4)
+- **Incremental Processing:** Pattern aggregate buckets for optimized queries
 - **Real-time Capability:** Direct queries for low-latency access
 - **Flux Query Support:** Full Flux language support for complex queries
 - **Attribute-Level Queries:** Direct access to attribute fields (brightness, color_temp, etc.)
@@ -199,7 +199,48 @@ The AI Automation Service addresses a fundamental challenge in smart home automa
 - Graceful degradation (service continues without MQTT)
 - Read-only subscriptions (security best practice)
 
-#### 5. External Context Services
+#### 5. Automation-Miner Service
+
+**Purpose:** Home Assistant blueprint corpus and community automation patterns  
+**Location:** Port 8029  
+**Source:** Home Assistant Community Forum (Blueprints Exchange)
+
+**Blueprint Corpus:**
+- **Content:** Community-validated Home Assistant automation blueprints
+- **Storage:** SQLite database with blueprint metadata
+- **Metadata:** Blueprint variables, device requirements, use cases, quality scores
+- **Update Frequency:** Periodic crawls from Home Assistant Discourse forum
+
+**Blueprint Structure:**
+```yaml
+blueprint:
+  name: "Motion-Activated Light"
+  description: "Turn on lights when motion detected"
+  domain: automation
+  input:
+    motion_sensor:
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+    target_light:
+      selector:
+        entity:
+          domain: light
+```
+
+**Integration:**
+- Blueprint matching for YAML generation (reliable, tested automations)
+- Pattern validation against community patterns
+- Quality scoring based on community feedback
+
+**Data Retrieved:**
+- Blueprint YAML templates
+- Blueprint metadata (variables, device requirements)
+- Quality scores and community ratings
+- Use case classifications
+
+#### 6. External Context Services
 
 **Weather Data:**
 - Source: Home Assistant weather entities
@@ -339,7 +380,7 @@ The service employs a **distributed microservices architecture** with containeri
 
 **TabPFN (Tabular Prior-data Fitted Networks):**
 - **Purpose:** Fast correlation prediction (100-1000x faster than traditional ML)
-- **Usage:** Device correlation analysis (Epic 36)
+- **Usage:** Device correlation analysis
 - **Performance:** O(1) inference time
 
 **River (Streaming Statistics):**
@@ -366,6 +407,187 @@ The service employs a **distributed microservices architecture** with containeri
 - Batch processing for efficiency
 - Model caching to reduce load times
 
+### Model Training and Retraining
+
+The service includes several models that are trained or retrained to adapt to user behavior and improve accuracy over time. This section documents which models get trained, when training occurs, and why training is necessary.
+
+#### 1. GNN Synergy Detector (Graph Neural Network)
+
+**Model Type:** PyTorch Geometric GNN (Graph Neural Network)  
+**Purpose:** Learn multi-hop device relationships for synergy detection  
+**Training Method:** Supervised learning from known synergies
+
+**When Training Occurs:**
+- **Manual Trigger:** Via API endpoint `POST /api/admin/training/gnn/trigger`
+- **Standalone Script:** `scripts/train_gnn_synergy.py` (for scheduled retraining)
+- **Frequency:** On-demand (not automatic in daily batch job)
+- **Recommended:** Monthly or when significant new synergies are validated
+
+**Training Data:**
+- **Positive Examples:** Validated synergies from `discovered_synergies` database table
+- **Negative Examples:** Automatically generated negative pairs (non-synergy device pairs)
+- **Cold Start:** Synthetic synergies generated from device graph if no validated synergies exist
+- **Graph Structure:** Device entities with event history for graph construction
+
+**Training Process:**
+1. Load entities from Data API (up to 10,000 entities)
+2. Load known synergies from database (or generate synthetic if none exist)
+3. Build device graph with nodes (entities) and edges (relationships)
+4. Create training pairs: positive (synergy pairs) + negative (random non-synergy pairs)
+5. Split data: 80% training, 20% validation
+6. Train GNN model with early stopping (patience-based)
+7. Save model state and metadata to persistent storage
+
+**Why Training is Needed:**
+- Learns device relationship patterns specific to user's home
+- Improves detection of 3-level and 4-level synergy chains
+- Adapts to new devices and usage patterns over time
+- Reduces false positives in synergy detection
+
+**Training Metrics:**
+- Training/validation loss tracking
+- Accuracy metrics (binary classification: synergy vs. non-synergy)
+- Early stopping based on validation loss improvement
+- Model saved with training date and statistics
+
+**Configuration:**
+- Default epochs: 30 (configurable)
+- Learning rate: 0.001 (configurable)
+- Hidden dimensions: 64 (configurable)
+- Early stopping patience: 5 epochs
+- Model path: Persistent Docker volume
+
+#### 2. Clarification Confidence Calibrator
+
+**Model Type:** Statistical calibration model (Platt scaling / Isotonic regression)  
+**Purpose:** Calibrate raw confidence scores to accurate probabilities for clarification questions  
+**Training Method:** Supervised learning from user feedback
+
+**When Training Occurs:**
+- **Automatic Retraining:** Weekly (default, configurable via `clarification_calibration_retrain_interval_days`)
+- **Sample-Based Trigger:** When ≥50 new feedback samples accumulate since last retrain
+- **Manual Trigger:** Via calibration retrainer API
+- **Frequency:** Weekly (default) or monthly (configurable)
+
+**Training Data:**
+- **Source:** `clarification_confidence_feedback` database table
+- **Features:**
+  - Raw confidence scores (before calibration)
+  - Actual user behavior (proceeded vs. skipped clarification)
+  - Ambiguity counts (number of ambiguous entities)
+  - Critical ambiguity flags
+  - Clarification rounds and answer counts
+- **Minimum Samples:** 10 samples required for training (configurable)
+
+**Training Process:**
+1. Check if retraining is needed (time-based or sample-based)
+2. Load feedback records from database (up to 10,000 records)
+3. Extract features: raw confidence, ambiguity counts, user outcomes
+4. Train calibration model (Platt scaling or Isotonic regression)
+5. Save calibrated model to persistent storage
+6. Update calibration statistics
+
+**Why Training is Needed:**
+- Raw confidence scores may not reflect actual probability of needing clarification
+- User behavior provides ground truth for calibration
+- Reduces false positive clarification questions (improves UX)
+- Improves confidence threshold accuracy over time
+
+**Retraining Conditions:**
+- **Time-Based:** Every 7 days (default, configurable)
+- **Sample-Based:** ≥50 new feedback samples since last retrain
+- **Manual:** On-demand via API
+
+**Configuration:**
+- Retrain interval: 7 days (default)
+- Minimum samples: 10 (configurable)
+- Minimum new samples: 50 (for sample-based retraining)
+- Enabled by default: `clarification_calibration_enabled = True`
+
+#### 3. Device Intelligence Service Models (External Service)
+
+**Note:** These models are part of the separate Device Intelligence Service (Port 8028), not the AI Automation Service, but are documented here for completeness.
+
+**Model Types:**
+- **RandomForestClassifier:** Device failure prediction
+- **IsolationForest:** Anomaly detection
+
+**When Training Occurs:**
+- **Manual API Trigger:** `POST /api/predictions/train` (Device Intelligence Service)
+- **Scheduled:** Weekly/monthly via cron or systemd timer
+- **Standalone Script:** `scripts/train_models.py`
+- **Frequency:** Weekly (recommended) or monthly
+
+**Training Data:**
+- **Source:** Historical device metrics from InfluxDB
+- **Time Range:** 180 days (default, configurable)
+- **Minimum Samples:** 100 samples required (falls back to rule-based if insufficient)
+- **Features:** Device metrics, usage patterns, error rates, connectivity data
+
+**Why Training is Needed:**
+- Predicts device failures before they occur
+- Detects anomalies in device behavior
+- Adapts to specific device models and usage patterns
+- Improves accuracy with more historical data
+
+**Training Process:**
+1. Collect historical device data (180 days default)
+2. Prepare features: device metrics, usage patterns, error rates
+3. Split data: 80% training, 20% testing
+4. Train RandomForestClassifier (failure prediction)
+5. Train IsolationForest (anomaly detection)
+6. Evaluate models and save to persistent storage
+
+#### 4. Home Type Classifier (One-Time Training)
+
+**Model Type:** RandomForest (scikit-learn)  
+**Purpose:** Classify home types (apartment, house, etc.) from device inventory  
+**Training Method:** Pre-trained on synthetic data before release
+
+**When Training Occurs:**
+- **One-Time:** Before service release (included in Docker image)
+- **Not Retrained:** Model is static in production
+- **Training Script:** `scripts/train_home_type_models.py` (development only)
+
+**Training Data:**
+- **Source:** Synthetic home profiles with data augmentation
+- **Augmentation:** 3-5 variations per synthetic home
+- **Features:** Device counts, room types, integration platforms, device classes
+
+**Why Training is Needed:**
+- Provides baseline home type classification
+- Enables home-type-specific automation suggestions
+- Pre-trained model ensures consistent behavior
+
+**Note:** This model is not retrained in production. Future versions may support fine-tuning on real user data.
+
+#### Training Infrastructure
+
+**Database Tracking:**
+- **`training_runs` Table:** Tracks all training jobs with:
+  - Training type (gnn_synergy, soft_prompt, etc.)
+  - Status (pending, running, completed, failed)
+  - Start/finish timestamps
+  - Training statistics (loss, accuracy, dataset size)
+  - Error messages (if failed)
+
+**API Endpoints:**
+- `POST /api/admin/training/gnn/trigger` - Trigger GNN training
+- `GET /api/admin/training/runs` - List training runs
+- `GET /api/admin/training/runs/{id}` - Get training run details
+
+**Monitoring:**
+- Training run status tracked in database
+- Logs include training progress and metrics
+- Failed training runs include error messages
+- Training statistics stored for analysis
+
+**Best Practices:**
+- **GNN Training:** Monthly or when 20+ new synergies validated
+- **Calibration Retraining:** Weekly (automatic) or monthly (if low feedback volume)
+- **Device Intelligence:** Weekly (recommended) for failure prediction accuracy
+- **Resource Management:** Training runs in background, doesn't block daily analysis
+
 ---
 
 ## Data Flow and Processing Pipeline
@@ -374,7 +596,7 @@ The service employs a **distributed microservices architecture** with containeri
 
 The service runs a comprehensive analysis pipeline every day at 3 AM (configurable via cron schedule). The pipeline consists of 6 phases:
 
-#### Phase 1: Device Capability Update (Epic AI-2)
+#### Phase 1: Device Capability Update
 
 **Duration:** 10-30 seconds  
 **Purpose:** Discover and update device capabilities
@@ -440,7 +662,7 @@ from(bucket: "home_assistant_events")
 - **Fallback:** InfluxDB (direct - Port 8086)
 - **Note:** All event data originates from InfluxDB; Data API provides a normalized abstraction layer
 
-#### Phase 3: Pattern Detection (Epic AI-1)
+#### Phase 3: Pattern Detection
 
 **Duration:** 30-90 seconds  
 **Purpose:** Detect usage patterns from historical events
@@ -490,7 +712,7 @@ Pattern Deduplicator
 SQLite (patterns table)
 ```
 
-#### Phase 3c: Synergy Detection (Epic AI-3, AI-4)
+#### Phase 3c: Synergy Detection
 
 **Duration:** 15-45 seconds  
 **Purpose:** Discover multi-hop device relationships
@@ -541,7 +763,50 @@ SQLite (patterns table)
 - Energy data (InfluxDB - direct Flux queries)
 - Device embeddings (OpenVINO service)
 
-#### Phase 4: Feature Analysis (Epic AI-2)
+#### Phase 3d: Blueprint Opportunity Discovery (Epic AI-6)
+
+**Duration:** 2-5 seconds  
+**Purpose:** Discover blueprint opportunities from user device inventory
+
+**Process:**
+1. Fetch user device inventory (devices + entities from Data API)
+2. Extract device types (domains) and integration platforms
+3. Search automation-miner service for matching blueprints
+4. Calculate fit scores based on device type compatibility and blueprint quality
+5. Store discovered opportunities in SQLite (`blueprint_opportunities` table)
+
+**Fit Score Calculation:**
+- Device type compatibility (60%): Match between user devices and blueprint requirements
+- Integration compatibility (20%): Platform/integration matching
+- Blueprint quality (20%): Community rating and usage statistics
+
+**Example Discovery:**
+```python
+User Devices: [light.office_light, binary_sensor.motion]
+Device Types: ["light", "binary_sensor"]
+Integrations: ["hue", "generic"]
+
+Matching Blueprint: "Motion-Activated Light"
+Fit Score: 0.85
+Opportunity: "Turn on lights when motion detected"
+```
+
+**Output:**
+- List of blueprint opportunities with fit scores
+- Stored in `blueprint_opportunities` table
+- Available for both 3 AM batch job and Ask AI queries
+
+**Data Sources:**
+- Device inventory (Data API Service)
+- Automation-miner service (blueprint corpus)
+- Blueprint metadata (quality scores, device requirements)
+
+**Graceful Degradation:**
+- If automation-miner service unavailable, returns empty list
+- Daily analysis continues without blueprint discovery
+- Logs warning but doesn't block execution
+
+#### Phase 4: Feature Analysis
 
 **Duration:** 10-30 seconds  
 **Purpose:** Analyze device feature utilization
@@ -571,16 +836,23 @@ Suggestion: "Enable LED notifications for visual feedback"
 - Event history (InfluxDB, via Phase 2 - Data API or direct)
 - Entity attributes (InfluxDB - direct queries for `attr_brightness`, `attr_color_temp`, etc.)
 
-#### Phase 5: Description-Only Generation (Story AI1.24)
+#### Phase 5: Description-Only Generation
 
 **Duration:** 5-15 seconds  
 **Purpose:** Generate human-readable automation descriptions
 
 **Process:**
-1. Combine pattern, feature, and synergy suggestions
-2. Rank by priority (pattern confidence + feature impact + synergy score)
-3. Select top 10 candidates
-4. Generate descriptions using OpenAI GPT-5.1-mini
+1. Combine pattern, feature, synergy, and blueprint opportunity suggestions
+2. Validate patterns against blueprints (Epic AI-6):
+   - Search for matching blueprints for each pattern
+   - Calculate confidence boost for validated patterns
+   - Add blueprint hints to high-confidence matches (≥0.8)
+3. Apply preference-aware ranking (Epic AI-6):
+   - Apply creativity level filtering (conservative/balanced/creative)
+   - Apply blueprint preference weighting (low/medium/high)
+   - Sort by adjusted confidence scores
+   - Apply max_suggestions limit (user-configurable, default: 10)
+4. Generate descriptions using OpenAI GPT-5.1-mini (with blueprint context if available)
 5. Store as `status='draft'` with `automation_yaml=NULL`
 
 **Prompt Template:**
@@ -613,7 +885,56 @@ your day with proper lighting."
 - Patterns (SQLite, from Phase 3)
 - Features (SQLite, from Phase 4)
 - Synergies (SQLite, from Phase 3c)
+- Blueprint opportunities (SQLite, from Phase 3d - Epic AI-6)
+- User preferences (SQLite, `suggestion_preferences` table - Epic AI-6)
+- Automation-miner service (blueprint validation - Epic AI-6)
 - OpenAI API (GPT-5.1-mini)
+
+### YAML Generation (After User Approval)
+
+When a user approves a suggestion, the service generates Home Assistant automation YAML using a **hybrid approach** that prioritizes reliability:
+
+**Blueprint-First Strategy:**
+1. **Blueprint Matching** (if enabled):
+   - Search automation-miner service for matching Home Assistant blueprints
+   - Calculate fit score based on device types (60%), use case (30%), integration (10%)
+   - If fit score ≥ 0.8 (configurable threshold), use blueprint
+   - Fill blueprint inputs with user's actual entities
+   - Render blueprint YAML by replacing `!input` variables
+   - **Advantages:** Tested, reliable, community-validated automations
+
+2. **AI Generation** (fallback):
+   - If no blueprint match or score too low, use OpenAI GPT-5.1
+   - Generate YAML from scratch using pattern context
+   - Apply safety validation (6-rule engine)
+   - **Advantages:** Handles unique patterns not covered by blueprints
+
+**Blueprint Integration Components:**
+
+- **BlueprintMatcher:** Matches suggestions to blueprints from automation-miner service
+  - Searches by device types and use case
+  - Calculates weighted fit scores
+  - Returns best match if score exceeds threshold
+
+- **BlueprintInputFiller:** Fills blueprint template inputs
+  - Maps user entities to blueprint input requirements
+  - Extracts numeric/boolean/text values from suggestion descriptions
+  - Handles entity selectors, number selectors, boolean selectors, time selectors
+
+- **BlueprintRenderer:** Renders final automation YAML
+  - Replaces `!input variable_name` with actual values
+  - Removes blueprint metadata section
+  - Adds Home Assistant 2025 standards (id, alias, description)
+
+**Configuration:**
+- `blueprint_enabled`: Enable/disable blueprint matching (default: true)
+- `blueprint_match_threshold`: Minimum fit score to use blueprint (default: 0.8)
+- `automation_miner_url`: URL to automation-miner service (Port 8029)
+
+**Data Sources:**
+- Automation-miner service (blueprint corpus from Home Assistant community)
+- Validated entities (from user approval)
+- Suggestion metadata (description, devices_involved)
 
 #### Phase 6: Publish MQTT Notification
 
@@ -701,9 +1022,9 @@ Response to User
 │  └─ Lifespan Management                                     │
 │                                                             │
 │  Core Components:                                           │
-│  ├─ Pattern Analyzer (Epic AI-1)                           │
-│  ├─ Device Intelligence (Epic AI-2)                        │
-│  ├─ Synergy Detection (Epic AI-3, AI-4)                    │
+│  ├─ Pattern Analyzer                                        │
+│  ├─ Device Intelligence                                     │
+│  ├─ Synergy Detection                                       │
 │  ├─ Suggestion Generation                                   │
 │  ├─ Safety Validation (6-rule engine)                      │
 │  └─ Deployment Service                                      │
@@ -938,6 +1259,45 @@ The service automatically discovers capabilities for **6,000+ Zigbee device mode
 
 **Result:** Works out-of-the-box with any Zigbee device, regardless of manufacturer.
 
+#### 8. Blueprint-First YAML Generation
+
+The service uses a **hybrid YAML generation strategy** that prioritizes reliability:
+
+- **Blueprint Matching:** Searches automation-miner service for community-validated blueprints
+- **Fit Scoring:** Calculates match quality (device types, use case, integration compatibility)
+- **Smart Fallback:** Uses AI generation only when no suitable blueprint found
+- **Input Filling:** Automatically maps user entities to blueprint template variables
+- **Quality Assurance:** Blueprints are community-tested and validated
+
+**Result:** More reliable automations with faster generation (blueprints are pre-validated) and lower AI costs (blueprints don't require OpenAI API calls).
+
+#### 9. Blueprint-Enhanced Suggestion Intelligence (Epic AI-6)
+
+The service proactively discovers blueprint opportunities from user device inventory and applies intelligent preference-based ranking:
+
+**Blueprint Opportunity Discovery:**
+- **Proactive Discovery:** Scans user device inventory to find matching blueprints
+- **Fit Scoring:** Calculates compatibility scores (device types, integrations, quality)
+- **Opportunity Storage:** Stores discovered opportunities for batch and real-time use
+
+**Pattern Validation:**
+- **Blueprint Validation:** Validates detected patterns against community blueprints
+- **Confidence Boosting:** Increases confidence scores for validated patterns
+- **Blueprint Context:** Adds blueprint hints to pattern descriptions (≥0.8 match score)
+
+**Preference-Aware Ranking:**
+- **Creativity Levels:** Conservative/Balanced/Creative filtering (confidence thresholds, experimental limits)
+- **Blueprint Preference:** Low/Medium/High weighting for blueprint opportunities
+- **Max Suggestions:** User-configurable limit (5-50, default: 10)
+- **Unified Ranking:** Single service applies all preferences in optimal order
+
+**Integration Points:**
+- **3 AM Batch Job:** Phase 3d discovers blueprint opportunities, Phase 5 validates patterns and applies preferences
+- **Ask AI Queries:** Real-time blueprint discovery from query context, preference-aware ranking
+- **Settings UI:** User-friendly interface for configuring all preferences
+
+**Result:** More relevant suggestions, better user control, and intelligent ranking based on user preferences and blueprint validation.
+
 ### Technical Excellence
 
 **Architecture:**
@@ -999,7 +1359,7 @@ This technical foundation enables the service to transform raw device data into 
 
 ---
 
-**Document Version:** 2.3  
+**Document Version:** 2.4  
 **Last Updated:** November 2025  
 **Status:** Production Ready  
 **Service Port:** 8018 (internal), 8024 (external)

@@ -872,6 +872,70 @@ class DailyAnalysisScheduler:
                 job_result['patterns_stored'] = 0
 
             # ================================================================
+            # Phase 3d: Blueprint Opportunity Discovery (NEW - Epic AI-6)
+            # ================================================================
+            logger.info("📘 Phase 3d/7: Blueprint Opportunity Discovery (Epic AI-6)...")
+            
+            blueprint_opportunities_count = 0
+            try:
+                from ..blueprint_discovery import BlueprintOpportunityFinder
+                from ..database.crud import store_blueprint_opportunities
+                from ..utils.miner_integration import MinerIntegration
+                
+                # Check if automation-miner service is available
+                miner = MinerIntegration(
+                    base_url=getattr(settings, 'automation_miner_url', 'http://automation-miner:8029')
+                )
+                
+                if await miner.is_available():
+                    # Initialize BlueprintOpportunityFinder with cached device inventory
+                    opportunity_finder = BlueprintOpportunityFinder(
+                        data_api_client=data_client,
+                        miner=miner
+                    )
+                    
+                    # Discover blueprint opportunities (using cached device inventory)
+                    import time
+                    phase_3d_start = time.time()
+                    
+                    opportunities = await opportunity_finder.find_opportunities(
+                        min_fit_score=0.6,
+                        min_blueprint_quality=0.7,
+                        limit=50
+                    )
+                    
+                    phase_3d_duration = (time.time() - phase_3d_start) * 1000  # Convert to ms
+                    
+                    if opportunities:
+                        # Store opportunities in database (link to analysis run)
+                        async with get_db_session() as db:
+                            # Get current analysis run ID (will be set after recording)
+                            opportunities_stored = await store_blueprint_opportunities(
+                                db,
+                                opportunities,
+                                analysis_run_id=None  # Will link after analysis run is recorded
+                            )
+                            blueprint_opportunities_count = opportunities_stored
+                        
+                        logger.info(f"   ✅ Discovered {len(opportunities)} blueprint opportunities")
+                        logger.info(f"   💾 Stored {blueprint_opportunities_count} opportunities in database")
+                        logger.info(f"   ⏱️  Phase 3d duration: {phase_3d_duration:.1f}ms")
+                        
+                        if phase_3d_duration > 30:
+                            logger.warning(f"   ⚠️  Phase 3d exceeded 30ms target: {phase_3d_duration:.1f}ms")
+                    else:
+                        logger.info("   ℹ️  No blueprint opportunities found")
+                else:
+                    logger.info("   ⚠️  Automation-miner service unavailable, skipping blueprint discovery")
+                    
+            except Exception as e:
+                logger.warning(f"   ⚠️  Blueprint opportunity discovery failed: {e}")
+                logger.info("   → Continuing with synergy detection...")
+                # Non-blocking: Continue even if blueprint discovery fails
+            
+            job_result['blueprint_opportunities_discovered'] = blueprint_opportunities_count
+
+            # ================================================================
             # Phase 3c: Synergy Detection (NEW - Epic AI-3)
             # ================================================================
             logger.info("🔗 Phase 3c/7: Synergy Detection (Epic AI-3)...")
@@ -1294,6 +1358,95 @@ class DailyAnalysisScheduler:
                     return None
 
             if all_patterns:
+                # ================================================================
+                # Blueprint Validation and Confidence Boosting (Story AI6.5)
+                # ================================================================
+                logger.info("     → Validating patterns against blueprints (Epic AI-6)...")
+                
+                validated_count = 0
+                total_boost = 0.0
+                
+                try:
+                    from ..blueprint_discovery.blueprint_validator import BlueprintValidator
+                    from ..utils.miner_integration import MinerIntegration
+                    
+                    # Initialize validator
+                    miner = MinerIntegration()
+                    validator = BlueprintValidator(miner)
+                    
+                    # Validate each pattern and apply confidence boosts
+                    for pattern in all_patterns:
+                        try:
+                            pattern_type = pattern.get('pattern_type', 'unknown')
+                            
+                            # Skip validation if automation-miner unavailable (graceful degradation)
+                            if not await miner.is_available():
+                                logger.debug(f"     ⚠️ automation-miner unavailable, skipping blueprint validation")
+                                break
+                            
+                            # Validate pattern against blueprints
+                            validation_result = await validator.validate_pattern(
+                                pattern=pattern,
+                                pattern_type=pattern_type
+                            )
+                            
+                            # Apply confidence boost if validated
+                            if validation_result.get('validated', False):
+                                boost = validation_result.get('confidence_boost', 0.0)
+                                original_confidence = pattern.get('confidence', 0.0)
+                                
+                                # Apply boost (clamp to 0.0-1.0 range)
+                                boosted_confidence = min(1.0, original_confidence + boost)
+                                pattern['confidence'] = boosted_confidence
+                                
+                                # Store validation metadata (Story AI6.6: Include blueprint title for description generation)
+                                # blueprint_match is already the blueprint dictionary (not wrapped)
+                                blueprint = validation_result.get('blueprint_match', {})
+                                
+                                pattern['blueprint_validated'] = True
+                                pattern['blueprint_match_score'] = validation_result.get('match_score', 0.0)
+                                pattern['blueprint_confidence_boost'] = boost
+                                pattern['blueprint_id'] = blueprint.get('id') if blueprint else None
+                                # Extract title from blueprint metadata or top-level title field
+                                blueprint_title = blueprint.get('title') or (
+                                    blueprint.get('metadata', {}).get('_blueprint_metadata', {}).get('name') if blueprint else None
+                                )
+                                pattern['blueprint_title'] = blueprint_title  # For description hints
+                                
+                                validated_count += 1
+                                total_boost += boost
+                                
+                                logger.debug(
+                                    f"     ✓ Pattern validated: {pattern_type} "
+                                    f"(confidence: {original_confidence:.3f} → {boosted_confidence:.3f}, boost: +{boost:.3f})"
+                                )
+                            else:
+                                pattern['blueprint_validated'] = False
+                                
+                        except Exception as e:
+                            # Non-blocking: Continue if validation fails for one pattern
+                            logger.warning(
+                                f"     ⚠️ Pattern validation failed: {e}",
+                                exc_info=True
+                            )
+                            pattern['blueprint_validated'] = False
+                    
+                    if validated_count > 0:
+                        avg_boost = total_boost / validated_count
+                        logger.info(
+                            f"     ✅ Validated {validated_count}/{len(all_patterns)} patterns "
+                            f"(avg boost: +{avg_boost:.3f}, total boost: +{total_boost:.3f})"
+                        )
+                    else:
+                        logger.info(f"     ℹ️  No patterns validated against blueprints")
+                        
+                except Exception as e:
+                    # Non-blocking: Continue without validation if service unavailable
+                    logger.warning(
+                        f"     ⚠️ Blueprint validation unavailable: {e}",
+                        exc_info=True
+                    )
+                
                 # Quality Framework Enhancement: Sort by quality score if available, otherwise by confidence
                 if any(p.get('quality_score') is not None for p in all_patterns):
                     sorted_patterns = sorted(all_patterns, key=lambda p: p.get('quality_score', p.get('confidence', 0.0)), reverse=True)
@@ -1487,7 +1640,27 @@ class DailyAnalysisScheduler:
                     suggestion['_ranking_score'] = base_confidence
 
             all_suggestions.sort(key=lambda s: s.get('_ranking_score', 0.5), reverse=True)
-            all_suggestions = all_suggestions[:10]  # Top 10 total
+            
+            # Story AI6.11: Apply unified preference-aware ranking
+            # Applies all preferences: creativity filtering, blueprint weighting, max_suggestions limit
+            try:
+                from ..blueprint_discovery.preference_aware_ranker import PreferenceAwareRanker
+                preference_ranker = PreferenceAwareRanker(user_id="default")
+                original_count = len(all_suggestions)
+                all_suggestions = await preference_ranker.rank_suggestions(all_suggestions)
+                logger.info(f"   ✅ Applied unified preference-aware ranking: {original_count} → {len(all_suggestions)} suggestions")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Failed to apply unified preference-aware ranking, using existing ranking: {e}")
+                # Continue without unified ranking on error (graceful degradation)
+                # Fallback to max_suggestions limit only
+                try:
+                    from ..blueprint_discovery.preference_manager import PreferenceManager
+                    preference_manager = PreferenceManager(user_id="default")
+                    max_suggestions = await preference_manager.get_max_suggestions()
+                    all_suggestions = all_suggestions[:max_suggestions]
+                    logger.info(f"   📊 Applied fallback max_suggestions limit: {max_suggestions}")
+                except Exception:
+                    all_suggestions = all_suggestions[:10]  # Hard fallback
 
             # Clean up temporary ranking score
             for suggestion in all_suggestions:
