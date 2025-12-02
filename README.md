@@ -493,6 +493,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
   - Preference API endpoints (`GET/PUT /api/v1/preferences`)
   - Settings UI for easy preference configuration
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 02, 2025)
+- **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 02, 2025)
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 01, 2025)
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 01, 2025)
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (November 30, 2025)
