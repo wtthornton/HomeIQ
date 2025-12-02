@@ -7,7 +7,8 @@
 **Priority:** High (Alpha Release Quality Blocker)  
 **Effort:** 9 Stories (34 story points, 4-6 weeks estimated)  
 **Created:** January 2025  
-**Based On:** Home Assistant Best Practices Analysis & Training Data Quality Review
+**Based On:** Home Assistant Best Practices Analysis & Training Data Quality Review  
+**Note:** This epic covers Epic 40's synthetic data generation feature with enhanced quality (HA 2024 conventions, ground truth validation, quality gates)
 
 ---
 

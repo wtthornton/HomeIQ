@@ -539,10 +539,6 @@ docker stats --no-stream
 docker-compose logs websocket-ingestion | grep -E "(ERROR|WARNING)"
 curl http://localhost:8080/api/v1/health/websocket-ingestion
 
-# Enrichment Pipeline
-docker-compose logs enrichment-pipeline | grep -E "(ERROR|WARNING)"
-curl http://localhost:8080/api/v1/health/enrichment-pipeline
-
 # Data Retention
 docker-compose logs data-retention | grep -E "(ERROR|WARNING)"
 curl http://localhost:8080/api/v1/health/data-retention
@@ -552,7 +548,6 @@ curl http://localhost:8080/api/v1/health/data-retention
 ```bash
 # Check service connectivity
 docker-compose exec websocket-ingestion ping influxdb
-docker-compose exec enrichment-pipeline ping admin-api
 
 # Check port accessibility
 netstat -tulpn | grep -E "(3000|8080|8086)"

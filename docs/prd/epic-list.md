@@ -296,7 +296,7 @@ Transform blueprints from late-stage YAML generation tool into core suggestion q
 ---
 
 **Epic AI-11: Realistic Training Data Enhancement** 📋 PLANNING
-Enhance synthetic training data generation to align with 2024/2025 Home Assistant best practices, improve pattern detection accuracy from 1.8% to 80%+, and generate realistic device behaviors, naming conventions, and organizational structures.
+Enhance synthetic training data generation to align with 2024/2025 Home Assistant best practices, improve pattern detection accuracy from 1.8% to 80%+, and generate realistic device behaviors, naming conventions, and organizational structures. **Note:** This epic covers Epic 40's synthetic data generation feature with enhanced quality (HA 2024 conventions, ground truth validation, quality gates).
 
 **Key Features:**
 - HA 2024 naming conventions (`{area}_{device}_{detail}`)
@@ -385,7 +385,7 @@ Implement a continuous learning pipeline that automatically improves models from
 ---
 
 **Epic AI-15: Advanced Testing & Validation** 📋 PLANNING ⭐ **NEW**
-Implement comprehensive advanced testing framework including adversarial testing, simulation-based testing, real-world validation against community Home Assistant configurations, cross-validation framework, and performance stress testing.
+Implement comprehensive advanced testing framework including adversarial testing, simulation-based testing, real-world validation against community Home Assistant configurations, cross-validation framework, and performance stress testing. **Note:** This epic covers Epic 40's testing framework feature with comprehensive testing strategies (adversarial, simulation-based, real-world validation).
 
 **Key Features:**
 - Adversarial test suite (edge cases, noise, failures)
@@ -634,17 +634,26 @@ Refactor the monolithic AI Automation Service into a modular architecture with i
 
 ## Deployment & Infrastructure Epics (40)
 
-**Epic 40: Dual Deployment Configuration (Test & Production)** 📋 PLANNING ⭐ **MUST BE LAST**
-Create completely isolated test and production deployment configurations with full database separation, container isolation, and clear deployment commands. Test deployment uses only synthetic/mock data creation, disables external API feeds, but keeps all AI services operational. Production deployment explicitly blocks data generation services. **Timeline:** 4-6 weeks. **Story Points:** 40-55. **Type:** Infrastructure & Deployment. **Depends on:** Epic 33-35 (Synthetic External Data Generation) - **Must be implemented LAST**.
+**Epic 40: Dual Deployment Configuration (Test & Production)** ⏸️ **DEFERRED** - Features Covered by AI Epics
+Create completely isolated test and production deployment configurations with full database separation, container isolation, and clear deployment commands. **Decision (Nov 26, 2025):** Deferred - core features already covered by Epic AI-11, AI-15, and AI-16 with superior implementations. **Timeline:** 4-6 weeks. **Story Points:** 40-55. **Type:** Infrastructure & Deployment. **Depends on:** Epic 33-35 (Synthetic External Data Generation).
 
-**Key Features:**
-- ✅ Separate InfluxDB instances (test on port 8087, production on 8086)
-- ✅ Separate SQLite databases and Docker networks
-- ✅ Test deployment disables external APIs (weather, carbon, etc.)
-- ✅ Test deployment keeps AI services enabled (OpenAI, patterns, Ask AI)
-- ✅ Production deployment blocks data generation services
-- ✅ Clear deployment commands: `deploy to test` / `deploy to prod`
-- ✅ HA test container integrated into test deployment
+**Why Deferred:**
+- **Epic AI-16 (Simulation Framework):** Provides comprehensive mock service layer (InfluxDB, OpenAI, MQTT, HA, etc.) - superior to environment variable-based control
+- **Epic AI-11 (Training Data Enhancement):** Provides enhanced synthetic data generation with HA 2024 best practices
+- **Epic AI-15 (Advanced Testing):** Provides comprehensive testing framework (adversarial, simulation-based, real-world validation)
+- **File-Based Training:** Already provides perfect isolation (training uses file datasets, not InfluxDB)
+- **Single-Home Context:** Docker Compose profile-based deployment separation is over-engineering
+
+**Feature Coverage:**
+| Epic 40 Feature | AI Epic Coverage | Status |
+|----------------|-----------------|--------|
+| Synthetic Data Generation | Epic AI-11 | ✅ PLANNED |
+| Mock Services | Epic AI-16 | ✅ PLANNED |
+| Training Isolation | File-based (current) | ✅ IMPLEMENTED |
+| Workflow Simulation | Epic AI-16 | ✅ PLANNED |
+| Testing Framework | Epic AI-15 | ✅ PLANNED |
+
+**See:** `implementation/EPIC_40_AI_EPICS_COMPARISON.md` for detailed analysis
 
 ---
 
@@ -679,7 +688,7 @@ Add static type checking (mypy), import validation at build time, and service st
 
 ## Database Architecture Enhancement Epics (45)
 
-**Epic 45: Tiered Statistics Model - Home Assistant Alignment** 📋 PLANNING
+**Epic 45: Tiered Statistics Model - Home Assistant Alignment** ✅ **COMPLETE**
 Implement a Home Assistant-aligned tiered statistics model that automatically aggregates raw events into short-term (5-minute) and long-term (hourly) statistics, enabling efficient long-term trend analysis while reducing storage by 80-90%. Includes entity filtering, statistics metadata tracking, and smart query routing for optimal performance.
 
 **Key Features:**
@@ -703,7 +712,7 @@ Implement a Home Assistant-aligned tiered statistics model that automatically ag
 
 ## ML Training Enhancement Epics (46)
 
-**Epic 46: Enhanced ML Training Data and Nightly Training Automation** 📋 PLANNING
+**Epic 46: Enhanced ML Training Data and Nightly Training Automation** ✅ **COMPLETE**
 Enhance ML training infrastructure to support high-quality initial model training for alpha release and automated nightly training for users. Addresses critical gaps in the training pipeline to ensure alpha users receive working models immediately and can continuously improve them with their own data.
 
 **Key Features:**
@@ -723,11 +732,36 @@ Enhance ML training infrastructure to support high-quality initial model trainin
 
 ---
 
+## RAG Enhancement Epics (47)
+
+**Epic 47: BGE-M3 Embedding Model Upgrade (Phase 1)** 📋 PLANNING
+Upgrade RAG embedding model from all-MiniLM-L6-v2 (2019, 384-dim) to BGE-M3-base (2024, 1024-dim) for 10-15% accuracy improvement. Pre-trained model upgrade (no fine-tuning) for immediate improvement with minimal effort.
+
+**Key Features:**
+- BGE-M3-base model download and INT8 quantization
+- OpenVINO service embedding model update
+- RAG client dimension handling update
+- Database schema migration for 1024-dim embeddings
+- Testing and validation with performance benchmarks
+
+**Stories:**
+- 47.1: BGE-M3 Model Download and Quantization (2-3 hours, P0)
+- 47.2: OpenVINO Service Embedding Model Update (2-3 hours, P0)
+- 47.3: RAG Client Embedding Dimension Update (1-2 hours, P0)
+- 47.4: Database Schema Migration for 1024-Dim Embeddings (2-3 hours, P1)
+- 47.5: Testing and Validation (2-3 hours, P0)
+
+**Total Effort:** 9-14 hours estimated  
+**Priority:** High (RAG Accuracy Improvement)
+
+---
+
 ## Summary
 
-- **Total Epics**: 47 (26 infrastructure + 5 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement + 1 ML training enhancement)
-- **Completed**: 32 (26 infrastructure + 4 AI + 4 setup service + 1 architecture + 1 code quality) ✅ **100% COMPLETE** 🎉
-- **Planned**: 14 (Epic 33-46 + Epic AI-5 + Epic AI-6: Synthetic External Data, Correlation Analysis, Service Modularization, Dual Deployment, Production Readiness Improvements, Development Experience Improvements, Tiered Statistics Model, Enhanced ML Training, Unified Contextual Intelligence, Blueprint-Enhanced Suggestion Intelligence) 📋
+- **Total Epics**: 48 (26 infrastructure + 5 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement + 1 ML training enhancement + 1 RAG enhancement)
+- **Completed**: 34 (26 infrastructure + 4 AI + 4 setup service + 1 architecture + 1 code quality + 1 database architecture + 1 ML training) ✅ **100% COMPLETE** 🎉
+- **Deferred**: 1 (Epic 40: Dual Deployment Configuration - not needed for single-home setup) ⏸️
+- **Planned**: 12 (Epic 33-39, 41, 43-44, 47 + Epic AI-5 + Epic AI-6: Synthetic External Data, Correlation Analysis, Service Modularization, Production Readiness Improvements, Development Experience Improvements, Unified Contextual Intelligence, Blueprint-Enhanced Suggestion Intelligence, BGE-M3 Embedding Upgrade) 📋
 - **In Progress**: 0
 - **Draft/Planned**: 0
 - **Active Services**: 21 total (18 microservices + InfluxDB infrastructure)
@@ -771,7 +805,7 @@ Transform blueprints from late-stage YAML generation tool into core suggestion q
 
 ---
 
-**Last Updated**: November 2025  
+**Last Updated**: November 26, 2025  
 **Status**: 🎉 **PROJECT PRODUCTION READY - Core features complete** 🎉
 
 **Latest Completions**: 
@@ -780,6 +814,12 @@ Transform blueprints from late-stage YAML generation tool into core suggestion q
 - **Epic AI-4** - Community Knowledge Augmentation (4 stories, 12 hours) ✅
 - **Epic 24** - Monitoring Data Quality & Accuracy (1 story, verified complete) ✅
 - **Epic 31** - Weather API Service Migration (5 stories, 2 hours) ✅
+- **Epic 13** - Admin API Service Separation (4 stories) ✅
+- **Epic 14** - Dashboard UX Polish (4 stories) ✅
+- **Epic 15** - Advanced Dashboard Features (4 stories) ✅
+
+**Latest Decisions**:
+- **Epic 40** - Deferred (Nov 26, 2025): Features covered by Epic AI-11, AI-15, AI-16 with superior implementations
 
 **All Critical Issues Resolved**: ✅  
 - ✅ Epic 11 - Team persistence implemented with async SQLite
@@ -787,11 +827,13 @@ Transform blueprints from late-stage YAML generation tool into core suggestion q
 - ✅ Epic 12 - Event detection integrated with team database
 - ✅ Epic 31 - Weather migrated to standalone API service (architectural consistency)
 
-**Latest Epic Executed**: ✅ **Epic 31** - Weather API Service Migration (500 lines in 2 hours using simple pattern)
+**Latest Epic Executed**: ✅ **Epic 15** - Advanced Dashboard Features (4 stories, real-time WebSocket, live streaming, custom thresholds)
+
+**Latest Decision**: ⏸️ **Epic 40** - Deferred (Nov 26, 2025): Features covered by Epic AI-11, AI-15, AI-16 with superior implementations
 
 **New Epic Planned**: 📋 **Epic AI-6** - Blueprint-Enhanced Suggestion Intelligence (14 stories, 6-8 weeks)
 
-**Project Completion**: 🚀 **84% (32/38 epics complete, 7 planned)** 🚀  
+**Project Completion**: 🚀 **84% (32/38 epics complete, 1 deferred, 13 planned)** 🚀  
 **Status**: **PRODUCTION READY - Core features complete, enhancement epics planned**  
-**Next Steps**: Begin Epic AI-6 (Blueprint-Enhanced Suggestion Intelligence) to enhance suggestion quality and user control
+**Next Steps**: Focus on Epic AI-16 (Simulation Framework) which provides Epic 40's testing/training isolation with superior architecture (mock services vs environment variables)
 

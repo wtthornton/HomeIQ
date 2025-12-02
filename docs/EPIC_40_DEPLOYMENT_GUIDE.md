@@ -1,14 +1,38 @@
 # Epic 40: Dual Deployment Configuration Guide
 
 **Epic ID:** 40  
-**Status:** ✅ Complete  
-**Created:** January 2025
+**Status:** ⏸️ **DEFERRED** - Features Covered by AI Epics  
+**Created:** January 2025  
+**Updated:** November 26, 2025  
+**Decision:** Deferred - core features covered by Epic AI-11, AI-15, AI-16
+
+---
+
+## ⚠️ DECISION: Epic Deferred
+
+**Status:** ⏸️ **DEFERRED** - Core features already covered by Epic AI-11, AI-15, and AI-16
+
+**Why Deferred:**
+- **Epic AI-16 (Simulation Framework):** Provides comprehensive mock service layer (InfluxDB, OpenAI, MQTT, HA, etc.) - superior to environment variable-based control
+- **Epic AI-11 (Training Data Enhancement):** Provides enhanced synthetic data generation with HA 2024 best practices
+- **Epic AI-15 (Advanced Testing):** Provides comprehensive testing framework (adversarial, simulation-based, real-world validation)
+- **File-Based Training:** Already provides perfect isolation (training uses file datasets, not InfluxDB)
+- **Single-Home Context:** Docker Compose profile-based deployment separation is over-engineering for single-home setup
+
+**See:** `implementation/EPIC_40_AI_EPICS_COMPARISON.md` for detailed feature comparison
 
 ---
 
 ## Overview
 
-Epic 40 implements dual deployment configuration for test and production environments using Docker Compose profiles. This enables safe testing without affecting production data or consuming external API quotas.
+Epic 40 was planned to implement dual deployment configuration for test and production environments using Docker Compose profiles. However, this approach is not needed because:
+
+1. **File-based training** already provides perfect isolation
+2. **Epic AI-16's mock services** provide better isolation than environment variables
+3. **Epic AI-11's synthetic data generation** is superior to basic generators
+4. **Epic AI-15's testing framework** complements the simulation framework
+
+**Alternative:** Focus on implementing Epic AI-16 (Simulation Framework) which provides all the testing/training isolation Epic 40 was trying to achieve, but with better architecture.
 
 ### Key Features
 

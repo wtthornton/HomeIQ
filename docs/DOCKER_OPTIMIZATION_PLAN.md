@@ -71,7 +71,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 - Reduced network bandwidth usage
 - Consistent build times even with large dependency trees
 
-**Affected Services:** All Python services (websocket-ingestion, enrichment-pipeline, admin-api, data-retention, weather-api, carbon-intensity, electricity-pricing, air-quality, calendar, smart-meter)
+**Affected Services:** All Python services (websocket-ingestion, admin-api, data-retention, weather-api, carbon-intensity, electricity-pricing, air-quality, calendar, smart-meter)
 
 ---
 
@@ -544,13 +544,7 @@ target "websocket" {
   cache-to = ["type=gha,mode=max"]
 }
 
-target "enrichment" {
-  context = "."
-  dockerfile = "services/enrichment-pipeline/Dockerfile"
-  tags = ["homeiq/enrichment:latest"]
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
+# enrichment-pipeline target removed (deprecated in Epic 31)
 
 target "admin-api" {
   context = "."
@@ -608,7 +602,6 @@ jobs:
       matrix:
         service:
           - websocket-ingestion
-          - enrichment-pipeline
           - admin-api
           - health-dashboard
           - data-retention
@@ -947,7 +940,7 @@ services:
 ## Appendix B: Sample Optimized Dockerfiles
 
 See implementation files for complete optimized Dockerfiles for:
-- Python services (websocket-ingestion, enrichment-pipeline, admin-api)
+- Python services (websocket-ingestion, admin-api)
 - Node.js service (health-dashboard)
 - Specialized services (data-retention, external data services)
 

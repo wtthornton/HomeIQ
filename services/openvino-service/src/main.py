@@ -220,9 +220,12 @@ async def generate_embeddings(request: EmbeddingRequest):
 
         processing_time = time.perf_counter() - start_time
 
+        # Epic 47: Use dynamic model name from manager
+        model_name = manager.embedding_model_name if hasattr(manager, 'embedding_model_name') else "all-MiniLM-L6-v2"
+        
         return EmbeddingResponse(
             embeddings=embeddings.tolist(),
-            model_name="all-MiniLM-L6-v2",
+            model_name=model_name,
             processing_time=processing_time
         )
 

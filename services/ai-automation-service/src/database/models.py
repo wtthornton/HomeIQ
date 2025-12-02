@@ -822,7 +822,7 @@ class SemanticKnowledge(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     text = Column(Text, nullable=False)  # Original text (query, pattern, blueprint, etc.)
-    embedding = Column(JSON, nullable=False)  # 384-dim embedding array (stored as JSON)
+    embedding = Column(JSON, nullable=False)  # Embedding array (384-dim for all-MiniLM-L6-v2, 1024-dim for BGE-M3-base, stored as JSON)
     knowledge_type = Column(String, nullable=False, index=True)  # 'query', 'pattern', 'blueprint', 'automation', etc.
     knowledge_metadata = Column(JSON, nullable=True)  # Flexible metadata (device_id, area_id, confidence, etc.) - renamed from 'metadata' to avoid SQLAlchemy reserved word conflict
     success_score = Column(Float, default=0.5, nullable=False)  # 0.0-1.0 (learned from user feedback)

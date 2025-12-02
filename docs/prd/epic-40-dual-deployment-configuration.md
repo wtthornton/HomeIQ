@@ -2,19 +2,59 @@
 
 **Epic ID:** 40  
 **Title:** Dual Deployment Configuration (Test & Production)  
-**Status:** Planning  
-**Priority:** High  
+**Status:** ⏸️ **DEFERRED** - Not Needed for Single-Home Setup  
+**Priority:** Low (Deferred)  
 **Complexity:** Medium  
 **Timeline:** 1-2 weeks  
 **Story Points:** 15-20  
 **Type:** Infrastructure & Deployment  
-**Depends on:** Epic 33-35 (Synthetic External Data Generation) - Must be implemented LAST
+**Depends on:** Epic 33-35 (Synthetic External Data Generation) - Must be implemented LAST  
+**Decision Date:** November 26, 2025
+
+---
+
+## ⚠️ DECISION: Epic Deferred - Features Covered by AI Epics
+
+**Status:** ⏸️ **DEFERRED** - Core features already covered by Epic AI-11, AI-15, and AI-16
+
+**Decision Rationale:**
+- **Epic AI-16 (Simulation Framework):** Provides comprehensive mock service layer (InfluxDB, OpenAI, MQTT, HA, etc.) - superior to environment variable-based control
+- **Epic AI-11 (Training Data Enhancement):** Provides enhanced synthetic data generation with HA 2024 best practices
+- **Epic AI-15 (Advanced Testing):** Provides comprehensive testing framework (adversarial, simulation-based, real-world validation)
+- **File-Based Training:** Already provides perfect isolation (training uses file datasets, not InfluxDB)
+- **Single-Home Context:** Docker Compose profile-based deployment separation is over-engineering for single-home setup
+
+**Feature Coverage Analysis:**
+| Epic 40 Feature | AI Epic Coverage | Status |
+|----------------|-----------------|--------|
+| Synthetic Data Generation | Epic AI-11 | ✅ PLANNED |
+| Mock Services | Epic AI-16 | ✅ PLANNED |
+| Training Isolation | File-based (current) | ✅ IMPLEMENTED |
+| Workflow Simulation | Epic AI-16 | ✅ PLANNED |
+| Testing Framework | Epic AI-15 | ✅ PLANNED |
+| Zero API Costs | Epic AI-16 | ✅ PLANNED |
+| Docker Compose Profiles | Epic 40 only | ❌ NOT NEEDED |
+
+**When to Reconsider:**
+- ✅ If multi-environment deployment becomes necessary
+- ✅ If InfluxDB-based testing becomes required (currently using file-based)
+- ✅ If Docker Compose profile-based separation becomes valuable
+
+**Alternative Approach:**
+- **Epic AI-16:** Implement comprehensive simulation framework with mock services (better than environment variables)
+- **Epic AI-11:** Enhance synthetic data generation quality
+- **Epic AI-15:** Implement advanced testing framework
+- Continue using file-based synthetic data for training (already working)
+
+**See:** `implementation/EPIC_40_AI_EPICS_COMPARISON.md` for detailed analysis
 
 ---
 
 ## Epic Goal
 
 Create simple test and production deployment separation using Docker Compose profiles with database separation. Test deployment uses only synthetic/mock data creation, disables external API feeds, but keeps all AI services operational. Production deployment explicitly blocks data generation services. Simplified approach optimized for single-home NUC deployment.
+
+**Note:** This epic is deferred as it's not needed for the current single-home setup with file-based training workflow.
 
 ## Epic Description
 
@@ -560,7 +600,9 @@ services:
 ---
 
 **Created:** January 25, 2025  
+**Updated:** November 26, 2025  
 **Author:** BMAD Master  
-**Status:** Planning  
-**Priority:** High (Enables safe testing and production safeguards)
+**Status:** ⏸️ **DEFERRED** - Not needed for single-home setup  
+**Priority:** Low (Deferred)  
+**Decision:** Skip for now - file-based training already provides isolation. Reconsider if Epic 33-35 implemented or InfluxDB testing needed.
 
