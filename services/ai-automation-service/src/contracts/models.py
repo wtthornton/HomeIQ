@@ -144,6 +144,7 @@ class AutomationPlan(BaseModel):
     description: str | None = Field(None, max_length=500, description="Human-readable description")
     mode: AutomationMode = Field(default=AutomationMode.SINGLE, description="Automation mode")
     max_exceeded: MaxExceeded | None = None
+    initial_state: bool = Field(default=True, description="Initial state of automation (enabled by default)")
 
     # Metadata fields (not part of HA automation, but required for traceability)
     metadata: AutomationMetadata | None = None
@@ -182,6 +183,7 @@ class AutomationPlan(BaseModel):
         ha_automation = {
             "alias": self.name,
             "description": self.description,
+            "initial_state": self.initial_state,
             "trigger": [t.model_dump(exclude_none=True, by_alias=True) for t in self.triggers],
             "action": [a.model_dump(exclude_none=True, by_alias=True) for a in self.actions],
             "mode": self.mode.value,
@@ -220,4 +222,73 @@ class AutomationPlan(BaseModel):
             data["metadata"] = metadata.model_dump()
 
         return cls.model_validate(data)
+
+    @classmethod
+    def determine_automation_mode(
+        cls,
+        triggers: list["Trigger"],
+        actions: list["Action"],
+        description: str | None = None
+    ) -> AutomationMode:
+        """
+        Intelligently determine automation mode based on triggers and actions.
+        
+        Rules:
+        - Motion sensors with delays → restart (cancel previous runs)
+        - Time-based triggers → single (one-time actions)
+        - Multiple actions with delays → restart (cancel previous sequence)
+        - Default → single (safest default)
+        
+        Args:
+            triggers: List of automation triggers
+            actions: List of automation actions
+            description: Optional description for keyword detection
+            
+        Returns:
+            Appropriate AutomationMode
+        """
+        # Check for motion sensors with delays → restart mode
+        has_motion_trigger = False
+        for trigger in triggers:
+            if trigger.platform == "state":
+                entity_id = trigger.entity_id
+                if isinstance(entity_id, str):
+                    entity_id = [entity_id]
+                elif entity_id is None:
+                    entity_id = []
+                
+                # Check if any entity_id contains "motion" (case-insensitive)
+                if any("motion" in str(eid).lower() for eid in entity_id if eid):
+                    has_motion_trigger = True
+                    break
+        
+        # Check if any action has delays (for multiple checks)
+        has_delays = any(
+            action.delay or 
+            action.wait_template or 
+            action.wait_for_trigger 
+            for action in actions
+        )
+        
+        # Motion sensors with delays → restart mode (cancel previous runs)
+        if has_motion_trigger and has_delays:
+            return AutomationMode.RESTART
+        
+        # Multiple actions with delays suggest restart mode (cancel previous sequence)
+        # Check this BEFORE time-based check, as time-based can still have delays
+        if len(actions) > 1 and has_delays:
+            return AutomationMode.RESTART
+        
+        # Time-based automations are typically single (if no delays)
+        if any(trigger.platform in ["time", "time_pattern", "sun"] for trigger in triggers):
+            return AutomationMode.SINGLE
+        
+        # Check description for keywords suggesting restart mode
+        desc_lower = (description or "").lower()
+        if any(keyword in desc_lower for keyword in ["motion", "presence", "movement"]):
+            if has_delays:
+                return AutomationMode.RESTART
+        
+        # Default to single for safety
+        return AutomationMode.SINGLE
 

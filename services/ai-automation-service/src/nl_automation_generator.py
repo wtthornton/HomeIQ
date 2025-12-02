@@ -321,20 +321,26 @@ The available devices list below has already been filtered to show only devices 
 1. Generate a COMPLETE, VALID Home Assistant automation in YAML format with:
    - Unique id (use random 10-digit number like '1234567890')
    - Descriptive alias (quoted string)
-   - Brief description field
-   - mode field (use 'single' unless user wants parallel/queued/restart)
+   - Brief description field (include trigger conditions and expected behavior)
+   - initial_state: true (explicitly set - best practice)
+   - mode field (select intelligently: 'single' for one-time, 'restart' for motion with delays, 'queued' for sequential, 'parallel' for independent)
+   - max_exceeded: silent (for time-based automations - prevents queue buildup)
    - triggers, conditions, actions sections (all plural forms)
+   - tags: ["ai-generated"] (add additional tags like "energy", "security", "comfort", "convenience" as appropriate)
 2. Use ONLY devices that exist in the available devices list above
 3. **AREA FILTERING:** If the user specifies a location (e.g., "in the office", "kitchen and bedroom"):
    - Use ONLY entities from that area/those areas
    - The available devices list is already filtered by area if specified
    - DO NOT use entities from other areas
    - Verify entity_id matches the specified area(s)
+   - Prefer target.area_id over multiple entity_id entries when all entities are in same area
 4. If the request is ambiguous, ask for clarification in the 'clarification' field
 5. Include appropriate triggers, conditions (if needed), and actions
-6. Use a friendly, descriptive alias name
-7. Add time constraints or conditions for safety where appropriate
-8. Explain how the automation works in plain language
+6. Add entity availability checks in conditions (check state is not "unavailable" or "unknown")
+7. Add error handling (continue_on_error: true or choose blocks) for non-critical actions
+8. Use a friendly, descriptive alias name
+9. Add time constraints or conditions for safety where appropriate
+10. Explain how the automation works in plain language
 
 **Common Trigger Types:**
 - Time: `trigger: time` with `at: "HH:MM:SS"`
