@@ -116,7 +116,6 @@ setup_directories() {
     local log_dirs=(
         "$PROJECT_ROOT/logs/influxdb"
         "$PROJECT_ROOT/logs/websocket-ingestion"
-        "$PROJECT_ROOT/logs/enrichment-pipeline"
         "$PROJECT_ROOT/logs/weather-api"
         "$PROJECT_ROOT/logs/admin-api"
         "$PROJECT_ROOT/logs/data-retention"
@@ -196,7 +195,6 @@ wait_for_health() {
     local services=(
         "influxdb"
         "websocket-ingestion"
-        "enrichment-pipeline"
         "admin-api"
         "data-retention"
         "health-dashboard"

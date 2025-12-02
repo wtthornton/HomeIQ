@@ -222,7 +222,6 @@ Reports in `../duplication/` directory.
 - data-api
 - admin-api
 - websocket-ingestion
-- enrichment-pipeline
 - ai-automation-service
 - (+ 15 other microservices)
 
