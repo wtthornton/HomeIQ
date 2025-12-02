@@ -359,15 +359,49 @@ async def deliver_webhook(webhook: WebhookRegistration, event_type: str, payload
         return False
 
 
+# Helper function to get user-selected teams
+async def get_monitored_teams() -> list[str]:
+    """
+    Get list of teams to monitor for webhook events
+    
+    Epic 12 Story 12.4: Event Detector Team Integration
+    Gets teams from:
+    1. Registered webhooks (teams with webhooks)
+    2. Environment variable (SPORTS_MONITORED_TEAMS)
+    3. Default: empty list (monitor all if no teams specified)
+    """
+    teams = set()
+    
+    # Get teams from registered webhooks
+    for webhook in webhooks.values():
+        if webhook.team:
+            teams.add(webhook.team.lower())
+    
+    # Get teams from environment variable (comma-separated)
+    env_teams = os.getenv("SPORTS_MONITORED_TEAMS", "")
+    if env_teams:
+        for team in env_teams.split(","):
+            team = team.strip().lower()
+            if team:
+                teams.add(team)
+    
+    return list(teams)
+
+
 # Background task for webhook event detection (to be started with service)
 async def webhook_event_detector():
     """
     Background task to detect game events and trigger webhooks
     
+    Epic 12 Story 12.3: Adaptive Event Monitor + Webhooks
+    Epic 12 Story 12.4: Event Detector Team Integration
+    
     Runs every 15 seconds, checks for:
     - Game start (status: scheduled → live)
     - Game end (status: live → finished)  
     - Score changes (significant: 6+ points or lead change)
+    
+    Only monitors games for user-selected teams (Story 12.4)
     """
     logger.info("Starting webhook event detector background task")
 
@@ -382,28 +416,61 @@ async def webhook_event_detector():
                 logger.debug("InfluxDB client not ready, skipping webhook detection cycle")
                 continue
 
-            # Query all active games
-            query = '''
-                from(bucket: "sports_data")
-                    |> range(start: -24h)
-                    |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
-                    |> filter(fn: (r) => r.status == "live" or r.status == "upcoming")
-                    |> sort(columns: ["_time"], desc: true)
-                    |> limit(n: 100)
-            '''
+            # Get teams to monitor (Story 12.4)
+            monitored_teams = await get_monitored_teams()
+            
+            if not monitored_teams and not webhooks:
+                # No teams to monitor and no webhooks registered - skip this cycle
+                logger.debug("No teams to monitor and no webhooks registered, skipping detection cycle")
+                continue
+            
+            # Build query - filter by monitored teams if specified
+            if monitored_teams:
+                # Build team filter (OR condition for home_team or away_team)
+                team_filters = " or ".join([f'r.home_team == "{team}" or r.away_team == "{team}"' for team in monitored_teams])
+                query = f'''
+                    from(bucket: "sports_data")
+                        |> range(start: -24h)
+                        |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
+                        |> filter(fn: (r) => r.status == "live" or r.status == "upcoming")
+                        |> filter(fn: (r) => {team_filters})
+                        |> sort(columns: ["_time"], desc: true)
+                        |> limit(n: 100)
+                '''
+                logger.debug(f"Monitoring {len(monitored_teams)} teams: {', '.join(monitored_teams)}")
+            else:
+                # No teams specified - monitor all games (for backward compatibility)
+                query = '''
+                    from(bucket: "sports_data")
+                        |> range(start: -24h)
+                        |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
+                        |> filter(fn: (r) => r.status == "live" or r.status == "upcoming")
+                        |> sort(columns: ["_time"], desc: true)
+                        |> limit(n: 100)
+                '''
+                logger.debug("No teams specified - monitoring all games")
 
             results = await influxdb_client._execute_query(query)
+            
+            if not results:
+                logger.debug("No active games found in InfluxDB")
+                continue
+            
+            logger.debug(f"Found {len(results)} active games to check for events")
 
             for game in results:
                 game_id = game.get("game_id")
-                home_team = game.get("home_team")
-                away_team = game.get("away_team")
-                current_status = game.get("status")
+                home_team = game.get("home_team", "").lower()
+                away_team = game.get("away_team", "").lower()
+                current_status = game.get("status", "").lower()
 
                 # Check for webhooks for either team
                 for webhook_id, webhook in webhooks.items():
-                    if webhook.team not in [home_team, away_team]:
+                    webhook_team = webhook.team.lower()
+                    if webhook_team not in [home_team, away_team]:
                         continue
+                    
+                    logger.debug(f"Checking events for game {game_id} (team: {webhook.team})")
 
                     # Check for events
                     previous = previous_state.get(game_id, {})

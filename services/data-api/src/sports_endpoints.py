@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
 from shared.influxdb_query_client import InfluxDBQueryClient
+from .sports_influxdb_writer import get_sports_writer
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,9 @@ router = APIRouter(tags=["Sports Data"])
 # InfluxDB client (shared instance)
 influxdb_client = InfluxDBQueryClient()
 
+# Sports InfluxDB writer (Epic 12 Story 12.1)
+sports_writer = get_sports_writer()
+
 
 @router.get("/sports/games/live")
 async def get_live_games(
@@ -91,18 +95,82 @@ async def get_live_games(
     Get currently live games
     
     Story 21.2: Live games endpoint for Sports Tab
+    Epic 12 Story 12.1: InfluxDB persistence - writes game data to InfluxDB
     
-    This is a passthrough to the sports-data service for real-time game data.
+    This endpoint queries InfluxDB for live games and writes new data when fetched.
     For historical data, use /sports/games/history endpoint.
     """
     try:
-        # For now, return empty array (sports-data service integration needed)
-        # TODO: Integrate with sports-data service or external API
+        # Query InfluxDB for live games
+        query = '''
+            from(bucket: "sports_data")
+                |> range(start: -24h)
+                |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
+                |> filter(fn: (r) => r.status == "live")
+                |> sort(columns: ["_time"], desc: true)
+                |> limit(n: 50)
+        '''
+        
+        if league:
+            query = f'''
+                from(bucket: "sports_data")
+                    |> range(start: -24h)
+                    |> filter(fn: (r) => r._measurement == "{league.lower()}_scores")
+                    |> filter(fn: (r) => r.status == "live")
+                    |> sort(columns: ["_time"], desc: true)
+                    |> limit(n: 50)
+            '''
+        
+        results = await influxdb_client._execute_query(query)
+        
+        games = []
+        for record in results:
+            # Filter by team_ids if provided
+            if team_ids:
+                team_list = [t.strip().lower() for t in team_ids.split(",")]
+                home_team = record.get("home_team", "").lower()
+                away_team = record.get("away_team", "").lower()
+                if home_team not in team_list and away_team not in team_list:
+                    continue
+            
+            game = GameResponse(
+                game_id=record.get("game_id", ""),
+                league=record.get("_measurement", "").split('_')[0].upper(),
+                season=int(record.get("season", datetime.now().year)),
+                week=record.get("week"),
+                home_team=record.get("home_team", ""),
+                away_team=record.get("away_team", ""),
+                home_score=record.get("home_score"),
+                away_score=record.get("away_score"),
+                status=record.get("status", "live"),
+                quarter_period=record.get("quarter") or record.get("period"),
+                time_remaining=record.get("time_remaining"),
+                timestamp=record.get("_time", datetime.now().isoformat())
+            )
+            games.append(game)
+            
+            # Write to InfluxDB (Epic 12 Story 12.1) - ensures data is persisted
+            if sports_writer.is_connected:
+                game_data = {
+                    "game_id": game.game_id,
+                    "league": game.league,
+                    "season": game.season,
+                    "week": game.week,
+                    "home_team": game.home_team,
+                    "away_team": game.away_team,
+                    "home_score": game.home_score,
+                    "away_score": game.away_score,
+                    "status": game.status,
+                    "quarter": game.quarter_period,
+                    "time_remaining": game.time_remaining,
+                    "start_time": game.timestamp
+                }
+                await sports_writer.write_game(game_data)
+        
         return {
-            "games": [],
-            "count": 0,
-            "status": "no_live_games",
-            "message": "Live games integration coming soon"
+            "games": [game.model_dump() for game in games],
+            "count": len(games),
+            "status": "success"
         }
     except Exception as e:
         logger.error(f"Error fetching live games: {e}")
@@ -119,18 +187,82 @@ async def get_upcoming_games(
     Get upcoming games
     
     Story 21.2: Upcoming games endpoint for Sports Tab
+    Epic 12 Story 12.1: InfluxDB persistence - writes game data to InfluxDB
     
-    This is a passthrough to the sports-data service for scheduled games.
+    This endpoint queries InfluxDB for upcoming games and writes new data when fetched.
     For historical data, use /sports/games/history endpoint.
     """
     try:
-        # For now, return empty array (sports-data service integration needed)
-        # TODO: Integrate with sports-data service or external API
+        # Query InfluxDB for upcoming games
+        query = f'''
+            from(bucket: "sports_data")
+                |> range(start: now(), stop: now() + {hours}h)
+                |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
+                |> filter(fn: (r) => r.status == "scheduled" or r.status == "upcoming")
+                |> sort(columns: ["_time"], desc: false)
+                |> limit(n: 50)
+        '''
+        
+        if league:
+            query = f'''
+                from(bucket: "sports_data")
+                    |> range(start: now(), stop: now() + {hours}h)
+                    |> filter(fn: (r) => r._measurement == "{league.lower()}_scores")
+                    |> filter(fn: (r) => r.status == "scheduled" or r.status == "upcoming")
+                    |> sort(columns: ["_time"], desc: false)
+                    |> limit(n: 50)
+            '''
+        
+        results = await influxdb_client._execute_query(query)
+        
+        games = []
+        for record in results:
+            # Filter by team_ids if provided
+            if team_ids:
+                team_list = [t.strip().lower() for t in team_ids.split(",")]
+                home_team = record.get("home_team", "").lower()
+                away_team = record.get("away_team", "").lower()
+                if home_team not in team_list and away_team not in team_list:
+                    continue
+            
+            game = GameResponse(
+                game_id=record.get("game_id", ""),
+                league=record.get("_measurement", "").split('_')[0].upper(),
+                season=int(record.get("season", datetime.now().year)),
+                week=record.get("week"),
+                home_team=record.get("home_team", ""),
+                away_team=record.get("away_team", ""),
+                home_score=record.get("home_score"),
+                away_score=record.get("away_score"),
+                status=record.get("status", "upcoming"),
+                quarter_period=record.get("quarter") or record.get("period"),
+                time_remaining=record.get("time_remaining"),
+                timestamp=record.get("_time", datetime.now().isoformat())
+            )
+            games.append(game)
+            
+            # Write to InfluxDB (Epic 12 Story 12.1) - ensures data is persisted
+            if sports_writer.is_connected:
+                game_data = {
+                    "game_id": game.game_id,
+                    "league": game.league,
+                    "season": game.season,
+                    "week": game.week,
+                    "home_team": game.home_team,
+                    "away_team": game.away_team,
+                    "home_score": game.home_score,
+                    "away_score": game.away_score,
+                    "status": game.status,
+                    "quarter": game.quarter_period,
+                    "time_remaining": game.time_remaining,
+                    "start_time": game.timestamp
+                }
+                await sports_writer.write_game(game_data)
+        
         return {
-            "games": [],
-            "count": 0,
-            "hours": hours,
-            "message": "Upcoming games integration coming soon"
+            "games": [game.model_dump() for game in games],
+            "count": len(games),
+            "hours": hours
         }
     except Exception as e:
         logger.error(f"Error fetching upcoming games: {e}")

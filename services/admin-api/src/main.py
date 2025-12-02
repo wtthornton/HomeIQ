@@ -54,15 +54,11 @@ from shared.monitoring import (
 )
 from shared.rate_limiter import RateLimiter, rate_limit_middleware
 
-from .alert_endpoints import create_alert_router
 from .config_endpoints import ConfigEndpoints
 from .config_manager import config_manager
-from .devices_endpoints import router as devices_router
 from .docker_endpoints import DockerEndpoints
-from .events_endpoints import EventsEndpoints
 from .ha_proxy_endpoints import router as ha_proxy_router
 from .health_endpoints import HealthEndpoints
-from .metrics_endpoints import create_metrics_router
 from .mqtt_config_endpoints import router as mqtt_config_router
 
 load_dotenv()
@@ -135,11 +131,9 @@ class AdminAPIService:
         self.health_endpoints = HealthEndpoints()
         self.stats_endpoints = StatsEndpoints()
         self.config_endpoints = ConfigEndpoints()
-        self.events_endpoints = EventsEndpoints()
         self.docker_endpoints = DockerEndpoints(self.auth_manager)
         self.monitoring_endpoints = MonitoringEndpoints(self.auth_manager)
-        # Create integration router with service-specific config_manager
-        self.integration_router = create_integration_router(config_manager)
+        # Integration router removed - migrated to data-api (Epic 13 Story 13.3)
         # WebSocket endpoints removed - using HTTP polling only
 
         # FastAPI app
@@ -442,13 +436,7 @@ class AdminAPIService:
             dependencies=secure_dependency
         )
 
-        # Events endpoints
-        self.app.include_router(
-            self.events_endpoints.router,
-            prefix="/api/v1",
-            tags=["Events"],
-            dependencies=secure_dependency
-        )
+        # Events endpoints removed - migrated to data-api (Epic 13 Story 13.2)
 
         # Monitoring endpoints
         self.app.include_router(
@@ -460,20 +448,9 @@ class AdminAPIService:
 
         # WebSocket endpoints removed - dashboard uses HTTP polling for simplicity
 
-        # Integration Management endpoints
-        self.app.include_router(
-            self.integration_router,
-            prefix="/api/v1",
-            tags=["Integration Management"],
-            dependencies=secure_dependency
-        )
+        # Integration Management endpoints removed - migrated to data-api (Epic 13 Story 13.3)
 
-        # Devices & Entities endpoints
-        self.app.include_router(
-            devices_router,
-            tags=["Devices & Entities"],
-            dependencies=secure_dependency
-        )
+        # Devices & Entities endpoints removed - migrated to data-api (Epic 13 Story 13.2)
 
         # Home Assistant proxy endpoints
         self.app.include_router(
@@ -482,21 +459,9 @@ class AdminAPIService:
             dependencies=secure_dependency
         )
 
-        # Metrics endpoints (Epic 17.3)
-        self.app.include_router(
-            create_metrics_router(),
-            prefix="/api/v1",
-            tags=["Metrics"],
-            dependencies=secure_dependency
-        )
+        # Metrics endpoints removed - migrated to data-api (Epic 13 Story 13.3)
 
-        # Alert endpoints (Epic 17.4)
-        self.app.include_router(
-            create_alert_router(),
-            prefix="/api/v1",
-            tags=["Alerts"],
-            dependencies=secure_dependency
-        )
+        # Alert endpoints removed - migrated to data-api (Epic 13 Story 13.3)
 
         # Root health endpoint (for Docker health checks)
         @self.app.get("/health")

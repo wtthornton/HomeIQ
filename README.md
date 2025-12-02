@@ -121,7 +121,7 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 - **Docker** & **Docker Compose** (Docker Compose v2.0+)
 - **Network access** to Home Assistant instance
 - **Node.js 20+** (for development only)
-- **Python 3.11+** (for development only)
+- **Python 3.12+** (for development only)
 
 **Important:** This application is optimized for a single-home Home Assistant deployment on resource-constrained NUC hardware. It is **not designed for multi-home or enterprise-scale deployments**. All services run on a single NUC, and the architecture is optimized for this use case.
 
@@ -640,7 +640,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 - **Deployment**: Single-home Home Assistant on Intel NUC (i3/i5, 8-16GB RAM)
 - **Scale**: Optimized for ~50-100 devices (single-home, not multi-home)
 - **Hardware**: Intel NUC i3/i5, 8-16GB RAM, 20GB+ disk space
-- **Languages**: Python 3.11+ (backend), TypeScript/React 18 (frontend)
+- **Languages**: Python 3.12+ (backend), TypeScript/React 18 (frontend)
 - **Databases**: InfluxDB 2.7 (time-series) + 5 SQLite databases (metadata)
 - **APIs**: RESTful (FastAPI), WebSocket (Home Assistant), MQTT (external broker)
 - **UI Frameworks**: React 18, Vite, Tailwind CSS
