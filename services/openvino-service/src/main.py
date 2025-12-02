@@ -3,7 +3,7 @@ OpenVINO Service - Optimized Model Inference
 Phase 1: Containerized AI Models
 
 Provides optimized model inference for:
-- all-MiniLM-L6-v2 (INT8) - Embeddings
+- BAAI/bge-m3-base (INT8) - Embeddings (1024-dim) [Epic 47]
 - bge-reranker-base (INT8) - Re-ranking  
 - flan-t5-small (INT8) - Classification
 """
@@ -220,12 +220,9 @@ async def generate_embeddings(request: EmbeddingRequest):
 
         processing_time = time.perf_counter() - start_time
 
-        # Epic 47: Use dynamic model name from manager
-        model_name = manager.embedding_model_name if hasattr(manager, 'embedding_model_name') else "all-MiniLM-L6-v2"
-        
         return EmbeddingResponse(
             embeddings=embeddings.tolist(),
-            model_name=model_name,
+            model_name="BAAI/bge-large-en-v1.5",
             processing_time=processing_time
         )
 

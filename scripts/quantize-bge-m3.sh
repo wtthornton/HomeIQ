@@ -59,11 +59,14 @@ if [ -f "$TARGET_DIR/openvino_model.xml" ]; then
 else
     echo -e "${YELLOW}Downloading and quantizing model (this may take several minutes)...${NC}"
     
+    # Set cache directory via environment variable
+    export HF_HOME="$CACHE_DIR"
+    export TRANSFORMERS_CACHE="$CACHE_DIR"
+    
     optimum-cli export openvino \
         --model "${MODEL_NAME}" \
         --task feature-extraction \
         --weight-format int8 \
-        --cache-dir "$CACHE_DIR" \
         "$TARGET_DIR"
     
     if [ $? -eq 0 ]; then

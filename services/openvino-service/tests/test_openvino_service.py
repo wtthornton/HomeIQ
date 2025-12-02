@@ -51,10 +51,8 @@ async def test_health_endpoint_reports_ready(wired_manager):
 @pytest.mark.asyncio
 async def test_model_status_endpoint(wired_manager):
     status = await get_model_status()
-    # Epic 47: Support both all-MiniLM-L6-v2 and BGE-M3-base
-    assert status["embedding_model"] in ["all-MiniLM-L6-v2", "BAAI/bge-m3-base", "sentence-transformers/all-MiniLM-L6-v2"]
-    assert "embedding_dimension" in status
-    assert status["embedding_dimension"] in [384, 1024]
+    assert status["embedding_model"] == "BAAI/bge-m3-base"
+    assert status["embedding_dimension"] == 1024
     assert status["ready_for_requests"] is True
 
 
@@ -63,11 +61,8 @@ async def test_embeddings_endpoint(wired_manager):
     request = EmbeddingRequest(texts=["Turn on the hallway lights"], normalize=True)
     response = await generate_embeddings(request)
     assert len(response.embeddings) == 1
-    # Epic 47: Support both 384-dim (all-MiniLM-L6-v2) and 1024-dim (BGE-M3-base)
-    embedding_dim = len(response.embeddings[0])
-    assert embedding_dim in [384, 1024], f"Expected 384 or 1024 dimensions, got {embedding_dim}"
-    # Model name should match the configured model
-    assert response.model_name in ["all-MiniLM-L6-v2", "BAAI/bge-m3-base", "sentence-transformers/all-MiniLM-L6-v2"]
+    assert len(response.embeddings[0]) == 1024
+    assert response.model_name == "BAAI/bge-m3-base"
 
 
 @pytest.mark.asyncio

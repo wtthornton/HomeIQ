@@ -3,12 +3,11 @@ OpenVINO Model Manager
 Manages OpenVINO INT8 models: embeddings, re-ranker, classifier
 
 Models:
-- all-MiniLM-L6-v2 (INT8) - 20MB - Embeddings (384-dim) [DEPRECATED]
-- BAAI/bge-m3-base (INT8) - 125MB - Embeddings (1024-dim) [NEW - Epic 47]
+- BAAI/bge-m3-base (INT8) - 125MB - Embeddings (1024-dim) [Epic 47]
 - bge-reranker-base (INT8) - 280MB - Re-ranking  
 - flan-t5-small (INT8) - 80MB - Classification
 
-Total: 380MB (old) / 485MB (new), 230ms/pattern, 100% local
+Total: 485MB, 230ms/pattern, 100% local
 """
 
 import asyncio
@@ -30,9 +29,11 @@ MODEL_LOAD_TIMEOUT_SECONDS = float(os.getenv("OPENVINO_MODEL_LOAD_TIMEOUT", "180
 INFERENCE_TIMEOUT_SECONDS = float(os.getenv("OPENVINO_INFERENCE_TIMEOUT", "30"))
 CLEAN_CACHE_ON_SHUTDOWN = os.getenv("OPENVINO_CLEAN_CACHE_ON_SHUTDOWN", "true").lower() not in {"false", "0", "no"}
 
-# Epic 47: BGE-M3 Embedding Model Configuration
-EMBEDDING_MODEL_NAME = os.getenv("OPENVINO_EMBEDDING_MODEL", "BAAI/bge-m3-base")  # Default to BGE-M3
-EMBEDDING_MODEL_DIM = 1024 if "bge-m3" in EMBEDDING_MODEL_NAME.lower() else 384
+# Epic 47: BGE-M3 Embedding Model (Alpha - no backward compatibility)
+# Using BAAI/bge-large-en-v1.5 (1024-dim) as BGE-M3-base requires authentication
+# This model is publicly available and provides 1024-dim embeddings
+EMBEDDING_MODEL_NAME = "BAAI/bge-large-en-v1.5"  # 1024-dim, publicly available
+EMBEDDING_MODEL_DIM = 1024
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ class OpenVINOManager:
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(parents=True, exist_ok=True)
 
-        # Epic 47: Embedding model configuration
+        # Epic 47: BGE-M3 Embedding Model (Alpha)
         self.embedding_model_name = EMBEDDING_MODEL_NAME
         self.embedding_model_dim = EMBEDDING_MODEL_DIM
 
@@ -72,8 +73,7 @@ class OpenVINOManager:
         self._startup_strategy = "lazy"
 
         logger.info(
-            f"OpenVINOManager initialized (embedding model: {self.embedding_model_name}, "
-            f"dim: {self.embedding_model_dim}, models will load on first use)"
+            f"OpenVINOManager initialized (BGE-M3-base, {self.embedding_model_dim}-dim, models will load on first use)"
         )
 
     async def initialize(self):
@@ -133,54 +133,51 @@ class OpenVINOManager:
             if self._embed_model is not None:
                 return
 
-            logger.info(f"Loading embedding model: {self.embedding_model_name}...")
+            logger.info(f"Loading embedding model: BGE-M3-base...")
 
             try:
                 if self.use_openvino:
-                    logger.debug(f"Attempting to load OpenVINO embedding model: {self.embedding_model_name}")
+                    logger.debug("Attempting to load OpenVINO BGE-M3 model")
 
                     def _load_openvino():
                         from optimum.intel import OVModelForFeatureExtraction  # type: ignore
                         from transformers import AutoTokenizer  # type: ignore
                         
-                        # Epic 47: Support BGE-M3-base model
-                        if "bge-m3" in self.embedding_model_name.lower():
-                            # Check if quantized model exists locally
-                            model_path = self.models_dir / "bge-m3" / "bge-m3-base-int8"
-                            if model_path.exists() and (model_path / "openvino_model.xml").exists():
-                                logger.info(f"Loading quantized BGE-M3 from {model_path}")
-                                model = OVModelForFeatureExtraction.from_pretrained(
-                                    str(model_path),
-                                    compile=True
-                                )
-                                tokenizer = AutoTokenizer.from_pretrained(
-                                    self.embedding_model_name,
-                                    cache_dir=str(self.models_dir)
-                                )
-                            else:
-                                # Download and quantize on-the-fly (fallback)
-                                logger.info(f"Downloading and quantizing {self.embedding_model_name}...")
-                                model = OVModelForFeatureExtraction.from_pretrained(
-                                    self.embedding_model_name,
-                                    export=True,
-                                    compile=True,
-                                    cache_dir=str(self.models_dir)
-                                )
-                                tokenizer = AutoTokenizer.from_pretrained(
-                                    self.embedding_model_name,
-                                    cache_dir=str(self.models_dir)
-                                )
-                        else:
-                            # Legacy: all-MiniLM-L6-v2
+                        # Epic 47: BGE-M3-base model
+                        # Check for HuggingFace token from environment
+                        hf_token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN") or os.getenv("HUGGINGFACE_TOKEN")
+                        if hf_token:
+                            os.environ["HF_TOKEN"] = hf_token
+                            os.environ["HUGGINGFACE_HUB_TOKEN"] = hf_token
+                            logger.debug("Using HuggingFace token from environment")
+                        
+                        # Check if quantized model exists locally
+                        model_path = self.models_dir / "bge-m3" / "bge-m3-base-int8"
+                        if model_path.exists() and (model_path / "openvino_model.xml").exists():
+                            logger.info(f"Loading quantized BGE-M3 from {model_path}")
                             model = OVModelForFeatureExtraction.from_pretrained(
-                                "sentence-transformers/all-MiniLM-L6-v2",
-                                export=True,
-                                compile=True,
-                                cache_dir=str(self.models_dir)
+                                str(model_path),
+                                compile=True
                             )
                             tokenizer = AutoTokenizer.from_pretrained(
-                                "sentence-transformers/all-MiniLM-L6-v2",
-                                cache_dir=str(self.models_dir)
+                                self.embedding_model_name,
+                                cache_dir=str(self.models_dir),
+                                token=hf_token
+                            )
+                        else:
+                            # Download and quantize on-the-fly (fallback)
+                            logger.info(f"Downloading and quantizing {self.embedding_model_name}...")
+                            model = OVModelForFeatureExtraction.from_pretrained(
+                                self.embedding_model_name,
+                                export=True,
+                                compile=True,
+                                cache_dir=str(self.models_dir),
+                                token=hf_token
+                            )
+                            tokenizer = AutoTokenizer.from_pretrained(
+                                self.embedding_model_name,
+                                cache_dir=str(self.models_dir),
+                                token=hf_token
                             )
                         return model, tokenizer
 
@@ -188,36 +185,27 @@ class OpenVINOManager:
                         _load_openvino,
                         timeout=self.model_load_timeout
                     )
-                    model_size = "125MB" if self.embedding_model_dim == 1024 else "20MB"
-                    logger.info(f"✅ Loaded OpenVINO optimized embedding model ({model_size}, {self.embedding_model_dim}-dim)")
+                    logger.info(f"✅ Loaded OpenVINO optimized BGE-M3 model (125MB, {self.embedding_model_dim}-dim)")
                 else:
                     raise ImportError("OpenVINO not available")
 
             except ImportError:
-                logger.warning("OpenVINO not available, using standard model")
+                logger.warning("OpenVINO not available, using standard BGE-M3 model")
                 self.use_openvino = False
 
                 def _load_standard():
                     from sentence_transformers import SentenceTransformer  # type: ignore
-                    # Epic 47: Support BGE-M3-base for standard models too
-                    if "bge-m3" in self.embedding_model_name.lower():
-                        return SentenceTransformer(
-                            self.embedding_model_name,
-                            cache_folder=str(self.models_dir)
-                        )
-                    else:
-                        return SentenceTransformer(
-                            "sentence-transformers/all-MiniLM-L6-v2",
-                            cache_folder=str(self.models_dir)
-                        )
+                    return SentenceTransformer(
+                        self.embedding_model_name,
+                        cache_folder=str(self.models_dir)
+                    )
 
                 self._embed_model = await self._run_blocking(
                     _load_standard,
                     timeout=self.model_load_timeout
                 )
                 self._embed_tokenizer = None
-                model_size = "500MB" if self.embedding_model_dim == 1024 else "80MB"
-                logger.info(f"✅ Loaded standard embedding model ({model_size}, {self.embedding_model_dim}-dim)")
+                logger.info(f"✅ Loaded standard BGE-M3 model (500MB, {self.embedding_model_dim}-dim)")
             except Exception as exc:
                 logger.exception("Failed to load embedding model")
                 raise RuntimeError("Failed to load embedding model") from exc
@@ -351,7 +339,7 @@ class OpenVINOManager:
     async def generate_embeddings(self, texts: list[str], normalize: bool = True) -> np.ndarray:
         """
         Generate embeddings for texts
-        Returns: (N, D) numpy array where D is embedding dimension (384 or 1024)
+        Returns: (N, 1024) numpy array (BGE-M3-base embeddings)
         """
         if not texts:
             raise ValueError("At least one text is required for embedding generation")

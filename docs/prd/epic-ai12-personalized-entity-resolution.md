@@ -2,12 +2,14 @@
 
 **Epic ID:** AI-12  
 **Title:** Personalized Entity Resolution & Natural Language Understanding  
-**Status:** 📋 **PLANNING**  
+**Status:** 📋 **PLANNING** (Generic Entity Resolution Exists, Personalized Not Implemented)  
 **Type:** Brownfield Enhancement (AI/ML Infrastructure)  
 **Priority:** High (Foundation for Quality Improvements)  
 **Effort:** 10 Stories (40 story points, 4-6 weeks estimated)  
 **Created:** January 2025  
-**Based On:** Entity Resolution Analysis, Personalized Learning Requirements, Natural Language Understanding Gaps
+**Last Updated:** December 2025  
+**Based On:** Entity Resolution Analysis, Personalized Learning Requirements, Natural Language Understanding Gaps  
+**Current State:** Generic entity resolution with embeddings exists (`src/services/entity_validator.py`, `src/services/entity/resolver.py`), but personalized index builder and active learning not implemented
 
 ---
 

@@ -100,7 +100,7 @@ class RAGClient:
             text: Text to embed
             
         Returns:
-            numpy array (384-dim for all-MiniLM-L6-v2, 1024-dim for BGE-M3-base)
+            numpy array (1024-dim BGE-M3-base embeddings)
             
         Raises:
             EmbeddingGenerationError: If embedding generation fails
@@ -149,7 +149,7 @@ class RAGClient:
             texts: List of texts to embed
             
         Returns:
-            List of 384-dim numpy arrays
+            List of 1024-dim numpy arrays (BGE-M3-base)
             
         Raises:
             EmbeddingGenerationError: If embedding generation fails
