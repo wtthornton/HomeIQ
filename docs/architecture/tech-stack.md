@@ -9,7 +9,7 @@ This is the DEFINITIVE technology selection for the entire Home Assistant Ingest
 | **UI Component Library** | TailwindCSS | 3.4.13 | Utility-first CSS framework | Modern, responsive design system with excellent developer experience |
 | **Icons** | Heroicons | 2.2.0 | Icon library | Consistent with TailwindCSS ecosystem |
 | **State Management** | React Context + Hooks / Zustand | 18.3.1 / 4.5.0 | Frontend state management | Built-in React state management + Zustand for AI UI |
-| **Backend Language** | Python | 3.11 | WebSocket client and data processing | Simple, proven async support with excellent libraries |
+| **Backend Language** | Python | 3.12+ | WebSocket client and data processing | Simple, proven async support with excellent libraries |
 | **Backend Framework (API)** | FastAPI | 0.115.x | REST API for admin interface | High performance, automatic OpenAPI docs, excellent async support (2025 stable) |
 | **Backend Framework (WebSocket)** | aiohttp | 3.13.2 | WebSocket client + async HTTP | Native async WebSocket + simple HTTP API for real-time streaming |
 | **Fine-Tuning Library** | PEFT | 0.12.0+ | Soft prompt / LoRA training pipeline | Lightweight adapter tuning compatible with CPU-only NUC deployments |

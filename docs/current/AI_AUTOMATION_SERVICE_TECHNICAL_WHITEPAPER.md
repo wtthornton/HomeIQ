@@ -50,7 +50,7 @@ The AI Automation Service addresses a fundamental challenge in smart home automa
 - Resource-efficient design for edge computing
 
 **Technology Stack:**
-- **Framework:** FastAPI 0.115.x (Python 3.11+)
+- **Framework:** FastAPI 0.115.x (Python 3.12+)
 - **Database:** SQLite (27 tables, 365-day retention)
 - **Port:** 8018 (internal), 8024 (external)
 - **Container:** Docker with persistent model volumes
@@ -1015,7 +1015,7 @@ Response to User
 ┌─────────────────────────────────────────────────────────────┐
 │              AI Automation Service (Port 8024)              │
 ├─────────────────────────────────────────────────────────────┤
-│  FastAPI Application (Python 3.11+)                        │
+│  FastAPI Application (Python 3.12+)                        │
 │  ├─ API Routers (25+ endpoints)                            │
 │  ├─ Middleware (Auth, Rate Limiting, Idempotency)          │
 │  ├─ Dependency Injection                                    │

@@ -4,9 +4,9 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 
 **Deployment:** Single-home Home Assistant application running on Intel NUC (i3/i5, 8-16GB RAM)  
 **Port:** 8018 (internal), exposed as 8024 (external)  
-**Technology:** Python 3.11+, FastAPI 0.115.x, OpenAI GPT-5.1/GPT-5.1-mini, OpenVINO  
+**Technology:** Python 3.12+, FastAPI 0.115.x, OpenAI GPT-5.1/GPT-5.1-mini, OpenVINO  
 **Container:** `homeiq-ai-automation-service`  
-**Database:** SQLite (ai_automation.db - 25 tables)  
+**Database:** SQLite (ai_automation.db - 27 tables)  
 **Scale:** Optimized for ~50-100 devices (single-home, not multi-home)
 
 ## Recent Updates
@@ -87,7 +87,7 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - 🗣️ Create automations from plain English
 - 🔍 Entity extraction from Home Assistant
 - 🛡️ Safety validation (6-rule engine)
-- 📝 YAML generation with OpenAI GPT-4o-mini
+- 📝 YAML generation with OpenAI GPT-5.1/GPT-5.1-mini
 
 **Ask AI Interface:**
 - ❓ Natural language queries about devices and automations
@@ -145,7 +145,7 @@ All components are optimized for this deployment context.
 ### Prerequisites
 
 - **Intel NUC** (i3/i5, 8-16GB RAM) running Home Assistant
-- Python 3.11+
+- Python 3.12+
 - Home Assistant with MQTT integration (single-home setup)
 - OpenAI API key
 - Data API service running (port 8006)
@@ -1055,7 +1055,7 @@ ai-automation-service/
 │   │       ├── action_router.py        # Immediate Actions API v2
 │   │       └── streaming_router.py     # Streaming API v2
 │   ├── database/
-│   │   ├── models.py                    # SQLAlchemy models (25 tables)
+│   │   ├── models.py                    # SQLAlchemy models (27 tables)
 │   │   ├── models_v2.py                 # v2 schema models
 │   │   └── crud.py                     # Database CRUD operations
 │   ├── pattern_analyzer/               # Epic AI-1
@@ -1291,7 +1291,7 @@ ai-automation-service/
 
 ### Database Schema
 
-**SQLite Database: ai_automation.db (25 tables)**
+**SQLite Database: ai_automation.db (27 tables)**
 
 1. **patterns** - Detected patterns (time-of-day, co-occurrence, anomaly)
 2. **system_settings** - System configuration and feature flags
@@ -1302,22 +1302,24 @@ ai-automation-service/
 7. **device_feature_usage** - Device feature utilization tracking
 8. **pattern_history** - Historical pattern tracking for trend analysis
 9. **synergy_opportunities** - Detected synergy opportunities
-10. **discovered_synergies** - Discovered device synergies (2-4 level chains)
-11. **manual_refresh_triggers** - Manual refresh trigger tracking
-12. **analysis_run_status** - Daily analysis job tracking and status
-13. **ask_ai_queries** - Ask AI query history and results
-14. **clarification_sessions** - Persistent clarification sessions with query linkage (AI1.26)
-15. **clarification_confidence_feedback** - Confidence calibration feedback
-16. **clarification_outcomes** - Clarification outcome tracking
-17. **entity_aliases** - User-defined entity nicknames
-18. **semantic_knowledge** - RAG knowledge base (queries, patterns, automations with embeddings)
-19. **reverse_engineering_metrics** - Reverse engineering performance metrics
-20. **model_comparison_metrics** - Model comparison and A/B testing metrics
-21. **training_runs** - Training run tracking and metadata
-22. **qa_outcomes** - Q&A learning outcome tracking
-23. **user_preferences** - Learned user preferences from Q&A sessions
-24. **question_quality_metrics** - Question quality tracking for learning system
-25. **auto_resolution_metrics** - Auto-resolution performance metrics
+10. **blueprint_opportunities** - Blueprint opportunity discovery (Epic AI-6)
+11. **discovered_synergies** - Discovered device synergies (2-4 level chains)
+12. **manual_refresh_triggers** - Manual refresh trigger tracking
+13. **analysis_run_status** - Daily analysis job tracking and status
+14. **ask_ai_queries** - Ask AI query history and results
+15. **clarification_sessions** - Persistent clarification sessions with query linkage (AI1.26)
+16. **clarification_confidence_feedback** - Confidence calibration feedback
+17. **clarification_outcomes** - Clarification outcome tracking
+18. **entity_aliases** - User-defined entity nicknames
+19. **semantic_knowledge** - RAG knowledge base (queries, patterns, automations with embeddings)
+20. **reverse_engineering_metrics** - Reverse engineering performance metrics
+21. **model_comparison_metrics** - Model comparison and A/B testing metrics
+22. **training_runs** - Training run tracking and metadata
+23. **qa_outcomes** - Q&A learning outcome tracking
+24. **user_preferences** - Learned user preferences from Q&A sessions
+25. **question_quality_metrics** - Question quality tracking for learning system
+26. **auto_resolution_metrics** - Auto-resolution performance metrics
+27. **suggestion_preferences** - User preferences for suggestion configuration (Epic AI-6)
 
 ### Entity Resolution Enhancements
 
@@ -1910,7 +1912,7 @@ async def detect_patterns(
 ### ✅ Comprehensive Code Review Completed
 
 **Major Updates:**
-- **Database Schema:** Updated from 13 to 25 tables (accurate count)
+- **Database Schema:** Updated from 13 to 27 tables (accurate count)
 - **FastAPI Version:** Corrected to 0.115.x (stable series)
 - **OpenAI Models:** Updated to GPT-5.1/GPT-5.1-mini (50-80% cost savings)
 - **Directory Structure:** Complete component tree documented
@@ -1919,7 +1921,7 @@ async def detect_patterns(
 - **Epic Status:** All epics marked complete (AI-1 through AI-4, 36-38, v2 API)
 
 **Key Corrections:**
-- Database tables: 25 (not 13)
+- Database tables: 27 (not 13, not 25)
 - FastAPI: 0.115.x (not 0.121)
 - OpenAI: GPT-5.1/GPT-5.1-mini (not GPT-4o-mini)
 - Epic AI-4: Complete (not In Progress)

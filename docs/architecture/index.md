@@ -6,7 +6,7 @@ This directory contains the comprehensive architectural documentation for the Ho
 
 ## Quick Reference
 
-**Technology Stack**: Python 3.11, React 18.2, FastAPI, aiohttp, InfluxDB 2.7, SQLite 3.45+, Docker  
+**Technology Stack**: Python 3.12+, React 18.2, FastAPI, aiohttp, InfluxDB 2.7, SQLite 3.45+, Docker  
 **Database**: Hybrid architecture (InfluxDB for time-series, SQLite for metadata - Epic 22)  
 **Deployment**: Single-tenant Docker Compose with optimized Alpine images  
 **Architecture Style**: Microservices with event-driven processing, API-first design, and external service integration

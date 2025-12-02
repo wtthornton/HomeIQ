@@ -83,6 +83,7 @@ from .metrics_endpoints import create_metrics_router
 
 # Story 13.4: Sports & HA Automation (Epic 12 Integration)
 from .sports_endpoints import router as sports_router
+from .sports_influxdb_writer import get_sports_writer
 
 load_dotenv()
 
@@ -173,6 +174,14 @@ class DataAPIService:
             connected = await self.influxdb_client.connect()
             if connected:
                 logger.info("InfluxDB connection established successfully")
+
+                # Connect sports InfluxDB writer (Epic 12 Story 12.1)
+                sports_writer = get_sports_writer()
+                await sports_writer.connect()
+                if sports_writer.is_connected:
+                    logger.info("Sports InfluxDB writer connected successfully")
+                else:
+                    logger.warning("Sports InfluxDB writer connection failed - writes disabled")
 
                 # Start webhook event detector AFTER InfluxDB connection (Story 13.4)
                 # This ensures InfluxDB client is ready before detector queries it
