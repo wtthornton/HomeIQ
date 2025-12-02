@@ -8,6 +8,7 @@ import yaml
 from src.contracts.models import (
     AutomationPlan,
     AutomationMode,
+    MaxExceeded,
     Trigger,
     Action
 )
@@ -293,4 +294,121 @@ class TestModeSelection:
         )
         
         assert mode == AutomationMode.RESTART
+
+
+class TestMaxExceededSelection:
+    """Test Improvement #5: Intelligent max_exceeded selection"""
+
+    def test_max_exceeded_silent_for_time_trigger(self):
+        """Test that time-based triggers get max_exceeded: silent"""
+        triggers = [Trigger(platform="time", at="07:00:00")]
+        actions = [Action(service="light.turn_on", entity_id="light.kitchen")]
+        
+        max_exceeded = AutomationPlan.determine_max_exceeded(
+            triggers=triggers,
+            actions=actions,
+            description="Turn on light at 7 AM"
+        )
+        
+        assert max_exceeded == MaxExceeded.SILENT
+    
+    def test_max_exceeded_silent_for_time_pattern(self):
+        """Test that time_pattern triggers get max_exceeded: silent"""
+        triggers = [Trigger(platform="time_pattern", minutes="/5")]
+        actions = [Action(service="sensor.update", entity_id="sensor.temperature")]
+        
+        max_exceeded = AutomationPlan.determine_max_exceeded(
+            triggers=triggers,
+            actions=actions
+        )
+        
+        assert max_exceeded == MaxExceeded.SILENT
+    
+    def test_max_exceeded_silent_for_sun_trigger(self):
+        """Test that sun triggers get max_exceeded: silent"""
+        triggers = [Trigger(platform="sun", event="sunset")]
+        actions = [Action(service="light.turn_on", entity_id="light.porch")]
+        
+        max_exceeded = AutomationPlan.determine_max_exceeded(
+            triggers=triggers,
+            actions=actions
+        )
+        
+        assert max_exceeded == MaxExceeded.SILENT
+    
+    def test_max_exceeded_warning_for_lock_action(self):
+        """Test that lock actions get max_exceeded: warning"""
+        triggers = [Trigger(platform="time", at="22:00:00")]
+        actions = [Action(service="lock.lock", entity_id="lock.front_door")]
+        
+        max_exceeded = AutomationPlan.determine_max_exceeded(
+            triggers=triggers,
+            actions=actions,
+            description="Lock front door at night"
+        )
+        
+        assert max_exceeded == MaxExceeded.WARNING
+    
+    def test_max_exceeded_warning_for_alarm_action(self):
+        """Test that alarm actions get max_exceeded: warning"""
+        triggers = [Trigger(platform="state", entity_id="binary_sensor.motion", to="on")]
+        actions = [Action(service="alarm_control_panel.trigger", entity_id="alarm.home")]
+        
+        max_exceeded = AutomationPlan.determine_max_exceeded(
+            triggers=triggers,
+            actions=actions
+        )
+        
+        assert max_exceeded == MaxExceeded.WARNING
+    
+    def test_max_exceeded_warning_for_notify_action(self):
+        """Test that notify actions get max_exceeded: warning"""
+        triggers = [Trigger(platform="state", entity_id="binary_sensor.door", to="on")]
+        actions = [Action(service="notify.mobile_app", entity_id=None)]
+        
+        max_exceeded = AutomationPlan.determine_max_exceeded(
+            triggers=triggers,
+            actions=actions,
+            description="Notify when door opens"
+        )
+        
+        assert max_exceeded == MaxExceeded.WARNING
+    
+    def test_max_exceeded_warning_for_security_entity(self):
+        """Test that security entities get max_exceeded: warning"""
+        triggers = [Trigger(platform="time", at="22:00:00")]
+        actions = [Action(service="switch.turn_on", entity_id="switch.security_system")]
+        
+        max_exceeded = AutomationPlan.determine_max_exceeded(
+            triggers=triggers,
+            actions=actions
+        )
+        
+        assert max_exceeded == MaxExceeded.WARNING
+    
+    def test_max_exceeded_none_for_regular_automation(self):
+        """Test that regular automations get no max_exceeded"""
+        triggers = [Trigger(platform="state", entity_id="binary_sensor.motion", to="on")]
+        actions = [Action(service="light.turn_on", entity_id="light.kitchen")]
+        
+        max_exceeded = AutomationPlan.determine_max_exceeded(
+            triggers=triggers,
+            actions=actions,
+            description="Turn on light when motion detected"
+        )
+        
+        assert max_exceeded is None
+    
+    def test_max_exceeded_warning_from_description(self):
+        """Test that safety keywords in description trigger warning"""
+        triggers = [Trigger(platform="state", entity_id="binary_sensor.door", to="on")]
+        actions = [Action(service="light.turn_on", entity_id="light.entryway")]
+        
+        max_exceeded = AutomationPlan.determine_max_exceeded(
+            triggers=triggers,
+            actions=actions,
+            description="Security alert: turn on light when door opens"
+        )
+        
+        assert max_exceeded == MaxExceeded.WARNING
 

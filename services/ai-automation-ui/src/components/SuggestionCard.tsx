@@ -7,6 +7,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { Suggestion } from '../types';
 import { ConfidenceMeter } from './ConfidenceMeter';
+import { TagBadge } from './TagBadge';
+import { AutomationMetadataBadge } from './AutomationMetadataBadge';
 
 interface SuggestionCardProps {
   suggestion: Suggestion;
@@ -102,6 +104,33 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
 
       {/* Body */}
       <div className="p-4 space-y-3">
+        {/* Epic AI-9: Tags Display */}
+        {suggestion.tags && suggestion.tags.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Tags:
+            </span>
+            {suggestion.tags.map((tag) => (
+              <TagBadge key={tag} tag={tag} darkMode={darkMode} showTooltip={true} />
+            ))}
+          </div>
+        )}
+
+        {/* Epic AI-9: Metadata Display */}
+        {(suggestion.mode || suggestion.initial_state !== undefined || suggestion.max_exceeded) && (
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Metadata:
+            </span>
+            <AutomationMetadataBadge
+              mode={suggestion.mode}
+              initialState={suggestion.initial_state}
+              maxExceeded={suggestion.max_exceeded}
+              darkMode={darkMode}
+            />
+          </div>
+        )}
+
         {/* YAML Preview */}
         <div>
           <button

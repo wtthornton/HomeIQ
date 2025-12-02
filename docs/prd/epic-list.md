@@ -295,7 +295,145 @@ Transform blueprints from late-stage YAML generation tool into core suggestion q
 
 ---
 
-**Epic AI-7: Home Assistant Best Practices Implementation** 📋 PLANNING ⭐ **NEW**
+**Epic AI-11: Realistic Training Data Enhancement** 📋 PLANNING
+Enhance synthetic training data generation to align with 2024/2025 Home Assistant best practices, improve pattern detection accuracy from 1.8% to 80%+, and generate realistic device behaviors, naming conventions, and organizational structures.
+
+**Key Features:**
+- HA 2024 naming conventions (`{area}_{device}_{detail}`)
+- Areas/Floors/Labels organizational hierarchy
+- Expanded failure scenarios (10+ types)
+- Event type diversification (7+ types)
+- Ground truth validation framework
+- Quality gates (>80% precision required)
+
+**Stories:** 9 stories across 4 phases (4-6 weeks)
+
+**Expected Outcomes:**
+- +4,344% pattern detection accuracy (1.8% → 80%+)
+- -398% false positive rate (98.2% → <20%)
+- +217% naming consistency (30% → 95%+)
+
+**Epic Document:** `docs/prd/epic-ai11-realistic-training-data-enhancement.md`
+
+---
+
+**Epic AI-12: Personalized Entity Resolution & Natural Language Understanding** 📋 PLANNING ⭐ **NEW**
+Build a personalized entity resolution system that learns from each user's actual device names, friendly names, aliases, and areas from Home Assistant Entity Registry. Enables natural language queries to resolve correctly without hardcoded variations.
+
+**Key Features:**
+- Personalized entity index builder (reads all user devices)
+- Natural language entity resolver (semantic search with embeddings)
+- Active learning from user corrections
+- Training data generation from user's actual devices
+- Area name resolution
+- E2E testing with user's real device names
+
+**Stories:** 10 stories across 4 phases (4-6 weeks)
+
+**Expected Outcomes:**
+- +95% entity resolution accuracy (60% → 95%+)
+- +100% user naming coverage (all device/area name variations)
+- -80% clarification requests (better understanding)
+- +50% user satisfaction (system understands "my" device names)
+
+**Epic Document:** `docs/prd/epic-ai12-personalized-entity-resolution.md`
+
+---
+
+**Epic AI-13: ML-Based Pattern Quality & Active Learning** 📋 PLANNING ⭐ **NEW**
+Train supervised ML models to predict pattern quality and learn from user feedback (approve/reject suggestions). Addresses the critical 98.2% false positive rate by learning what makes a "good" pattern.
+
+**Key Features:**
+- Supervised ML model for pattern quality prediction (RandomForest)
+- Active learning from user feedback (approve/reject)
+- Transfer learning from blueprint corpus (1000+ examples)
+- Incremental model updates (continuous improvement)
+- Pattern quality scoring (precision: 1.8% → 80%+)
+
+**Stories:** 11 stories across 4 phases (4-6 weeks)
+
+**Expected Outcomes:**
+- -4,456% false positive rate (98.2% → <20%)
+- +4,344% pattern precision (1.8% → 80%+)
+- +100% user trust (only high-quality suggestions)
+- +50% approval rate (better suggestions)
+
+**Epic Document:** `docs/prd/epic-ai13-ml-based-pattern-quality.md`
+
+---
+
+**Epic AI-14: Continuous Learning & Adaptation** 📋 PLANNING ⭐ **NEW**
+Implement a continuous learning pipeline that automatically improves models from user interactions, includes A/B testing framework for comparing suggestion strategies, and enables model versioning with rollback capabilities.
+
+**Key Features:**
+- Continuous learning pipeline (learns from every user action)
+- A/B testing framework (compare suggestion strategies)
+- Model versioning and rollback
+- Performance monitoring and alerting
+- User preference learning
+
+**Stories:** 10 stories across 4 phases (6-8 weeks)
+
+**Expected Outcomes:**
+- +100% continuous improvement (system learns from every action)
+- +50% model accuracy over time (improves with feedback)
+- +30% user satisfaction (better suggestions over time)
+- +100% A/B testing capability (compare strategies scientifically)
+
+**Epic Document:** `docs/prd/epic-ai14-continuous-learning.md`
+
+---
+
+**Epic AI-15: Advanced Testing & Validation** 📋 PLANNING ⭐ **NEW**
+Implement comprehensive advanced testing framework including adversarial testing, simulation-based testing, real-world validation against community Home Assistant configurations, cross-validation framework, and performance stress testing.
+
+**Key Features:**
+- Adversarial test suite (edge cases, noise, failures)
+- Simulation-based testing (24-hour home behavior simulation)
+- Real-world validation (community HA configs)
+- Cross-validation framework
+- Performance stress testing
+
+**Stories:** 9 stories across 4 phases (4-6 weeks)
+
+**Expected Outcomes:**
+- +100% test coverage (adversarial, simulation, real-world)
+- +95% production confidence (comprehensive testing)
+- +80% edge case coverage (adversarial testing)
+- +100% real-world validation (test against actual HA configs)
+
+**Epic Document:** `docs/prd/epic-ai15-advanced-testing-validation.md`
+
+---
+
+**Epic AI-16: 3 AM Workflow & Ask AI Simulation Framework** 📋 PLANNING ⭐ **NEW**
+Build a comprehensive, fast, high-volume simulation framework that validates the complete 3 AM batch workflow and Ask AI conversational flow end-to-end using synthetic data, mocked services, and integrated ML model training/validation.
+
+**Key Features:**
+- Simulation engine core with dependency injection
+- Mock service layer (InfluxDB, OpenAI, MQTT, HA, etc.)
+- Model training integration (pre-trained or train-during-simulation)
+- Complete 3 AM workflow simulation (all 6 phases)
+- Complete Ask AI flow simulation (query → suggestion → YAML)
+- Prompt data creation & validation framework
+- YAML validation framework (multi-stage)
+- Batch processing & parallelization (100+ homes, 50+ queries)
+- Comprehensive metrics & reporting
+
+**Stories:** 12 stories across 5 phases (5-6 weeks)
+
+**Expected Outcomes:**
+- +4,000% validation speed (hours → minutes)
+- -100% API costs (all mocked)
+- +95% deployment confidence (validate before production)
+- +100% test coverage (100+ homes, 50+ queries)
+- +80% YAML accuracy (multi-stage validation)
+
+**Epic Document:** `docs/prd/epic-ai16-simulation-framework.md`
+
+---
+
+**Epic AI-7: Home Assistant Best Practices Implementation** ✅ COMPLETE
 Implement all 8 Home Assistant best practices from the "Best Practices for Home Assistant Setup and Automations" PDF review to improve automation quality, reliability, and maintainability.
 
 **Key Features:**
@@ -322,7 +460,7 @@ Implement all 8 Home Assistant best practices from the "Best Practices for Home 
 
 ---
 
-**Epic AI-8: Home Assistant 2025 API Integration** 📋 PLANNING ⭐ **NEW**
+**Epic AI-8: Home Assistant 2025 API Integration** ✅ COMPLETE
 Fully integrate Home Assistant 2025 API attributes (aliases, labels, options, icon) throughout the AI Automation Service and ensure they are used in entity resolution, suggestion generation, and filtering.
 
 **Key Features:**
@@ -347,7 +485,7 @@ Fully integrate Home Assistant 2025 API attributes (aliases, labels, options, ic
 
 ---
 
-**Epic AI-9: Dashboard Home Assistant 2025 Enhancements** 📋 PLANNING ⭐ **NEW**
+**Epic AI-9: Dashboard Home Assistant 2025 Enhancements** ✅ COMPLETE (Dec 2, 2025)
 Enhance the AI Automation UI dashboard to display and utilize Home Assistant 2025 attributes (aliases, labels, options, icon) and best practices information (tags, mode, initial_state).
 
 **Key Features:**
@@ -604,7 +742,7 @@ Enhance ML training infrastructure to support high-quality initial model trainin
 
 ---
 
-## AI Enhancement Epics (AI-1 through AI-6)
+## AI Enhancement Epics (AI-1 through AI-16)
 
 **Epic AI-6: Blueprint-Enhanced Suggestion Intelligence** 📋 PLANNING ⭐ **NEW**
 Transform blueprints from late-stage YAML generation tool into core suggestion quality and discovery mechanism. Enables proactive discovery of proven automation opportunities, blueprint-validated patterns, and user-configurable suggestion preferences. **Timeline:** 6-8 weeks. **Story Points:** 32 (14 stories). **Value:** High (9/10). **Priority:** High.

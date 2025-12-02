@@ -866,6 +866,7 @@ async def generate_suggestions(
 @router.get("/list")
 async def list_suggestions(
     status_filter: str | None = Query(default=None, description="Filter by status (pending, approved, deployed, rejected)"),
+    label_filter: str | None = Query(default=None, description="Filter by labels (comma-separated, e.g., 'outdoor,security')"),
     limit: int = Query(default=50, ge=1, le=200, description="Maximum suggestions to return"),
     db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
@@ -912,6 +913,35 @@ async def list_suggestions(
         except Exception as e:
             logger.warning(f"Failed to build user profile (continuing without personalization): {e}")
 
+        # Apply label filtering if requested (HA 2025 feature)
+        if label_filter:
+            try:
+                from ..services.automation.label_filtering import filter_entities_by_labels, enhance_suggestions_with_labels
+                
+                # Parse label filter (comma-separated)
+                required_labels = [label.strip() for label in label_filter.split(",")]
+                
+                # Get entities for label filtering
+                from ..clients.data_api_client import DataAPIClient
+                data_api_client = DataAPIClient()
+                entities_data = await data_api_client.get_all_entities()
+                await data_api_client.close()
+                
+                # Enhance suggestions with label information
+                raw_suggestions = enhance_suggestions_with_labels(raw_suggestions, entities_data)
+                
+                # Filter suggestions by labels
+                filtered_suggestions = []
+                for suggestion in raw_suggestions:
+                    detected_labels = suggestion.get("detected_labels", [])
+                    if any(label in detected_labels for label in required_labels):
+                        filtered_suggestions.append(suggestion)
+                
+                raw_suggestions = filtered_suggestions
+                logger.info(f"Label filtering: {len(raw_suggestions)} suggestions match labels: {required_labels}")
+            except Exception as e:
+                logger.warning(f"Label filtering failed, continuing without filter: {e}")
+        
         suggestions_list = []
         for s in raw_suggestions:
             device_capabilities = s.device_capabilities or {}

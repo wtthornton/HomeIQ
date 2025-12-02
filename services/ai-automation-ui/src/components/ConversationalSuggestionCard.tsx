@@ -11,13 +11,22 @@ import toast from 'react-hot-toast';
 import { getButtonStyles } from '../utils/designSystem';
 import { DeviceMappingModal } from './DeviceMappingModal';
 import { DeployedBadge } from './DeployedBadge';
+import { TagBadge } from './TagBadge';
+import { AutomationMetadataBadge } from './AutomationMetadataBadge';
 import { QuestionsAndAnswersSection } from './ask-ai/QuestionsAndAnswersSection';
+import { resolveEntityIcon, isUserCustomized, getIconTooltip } from '../utils/iconHelpers';
 
 interface DeviceInfo {
   friendly_name: string;
   entity_id: string;
   domain?: string;
   selected?: boolean; // Whether this device is selected for inclusion in automation
+  // Epic AI-9: HA 2025 Enhancements
+  labels?: string[];
+  options?: Record<string, any>;
+  icon?: string;
+  original_icon?: string;
+  aliases?: string[];
 }
 
 interface EnergySavings {
@@ -101,6 +110,11 @@ interface ConversationalSuggestion {
     answer: string;
     selected_entities?: string[];
   }>;
+  // Epic AI-9: HA 2025 Enhancements
+  tags?: string[];
+  mode?: string;
+  initial_state?: boolean;
+  max_exceeded?: string;
 }
 
 interface Props {
@@ -448,6 +462,33 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
         }}>
           {suggestion.description_only || 'No description available'}
           
+          {/* Epic AI-9: Automation Tags Display */}
+          {suggestion.tags && suggestion.tags.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-600">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-400 font-medium">Tags:</span>
+                {suggestion.tags.map((tag) => (
+                  <TagBadge key={tag} tag={tag} darkMode={darkMode} showTooltip={true} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Epic AI-9: Automation Metadata Display */}
+          {(suggestion.mode || suggestion.initial_state !== undefined || suggestion.max_exceeded) && (
+            <div className="mt-3 pt-3 border-t border-gray-600">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 font-medium">Metadata:</span>
+                <AutomationMetadataBadge
+                  mode={suggestion.mode}
+                  initialState={suggestion.initial_state}
+                  maxExceeded={suggestion.max_exceeded}
+                  darkMode={darkMode}
+                />
+              </div>
+            </div>
+          )}
+          
           {/* Phase 2: Historical Usage Context */}
           {suggestion.context?.historical && (
             <div className="mt-2 pt-2 border-t border-gray-600 text-xs opacity-80">
@@ -557,10 +598,19 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                         ? '1px solid rgba(59, 130, 246, 0.6)' 
                         : '1px solid rgba(59, 130, 246, 0.2)';
                     }}
-                    title={`${isSelected ? 'Click to exclude' : 'Click to include'} ${device.friendly_name} in automation. Right-click to view details.${hasCustomMapping ? ` Custom mapping: ${effectiveEntityId}` : ''}`}
+                    title={`${isSelected ? 'Click to exclude' : 'Click to include'} ${device.friendly_name} in automation. Right-click to view details.${hasCustomMapping ? ` Custom mapping: ${effectiveEntityId}` : ''}${device.icon ? `\n${getIconTooltip(device.icon, device.original_icon, device.domain)}` : ''}`}
                     disabled={disabled || !onDeviceToggle}
                   >
                     <span className="flex items-center gap-1">
+                      {/* Epic AI-9: Icon display with customization indicator */}
+                      {device.icon && (
+                        <span className="text-sm" title={getIconTooltip(device.icon, device.original_icon, device.domain)}>
+                          {resolveEntityIcon(device.icon, device.original_icon, device.domain)}
+                          {isUserCustomized(device.icon, device.original_icon) && (
+                            <span className="text-xs ml-0.5">✨</span>
+                          )}
+                        </span>
+                      )}
                       {isSelected ? (
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -576,6 +626,30 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                           <title>{`Custom mapping: ${device.entity_id} → ${effectiveEntityId}`}</title>
                           <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                         </svg>
+                      )}
+                      {/* Epic AI-9: Entity Labels Display */}
+                      {device.labels && device.labels.length > 0 && (
+                        <span className="ml-1 flex items-center gap-0.5">
+                          {device.labels.slice(0, 2).map((label) => (
+                            <span
+                              key={label}
+                              className="px-1 py-0.5 rounded text-xs"
+                              style={{
+                                background: 'rgba(168, 85, 247, 0.2)',
+                                border: '1px solid rgba(168, 85, 247, 0.4)',
+                                color: '#c084fc'
+                              }}
+                              title={`Label: ${label}`}
+                            >
+                              {label}
+                            </span>
+                          ))}
+                          {device.labels.length > 2 && (
+                            <span className="text-xs opacity-70" title={`Additional labels: ${device.labels.slice(2).join(', ')}`}>
+                              +{device.labels.length - 2}
+                            </span>
+                          )}
+                        </span>
                       )}
                     </span>
                   </button>
@@ -610,6 +684,41 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Epic AI-9: Entity Options Display (Preferences) */}
+        {suggestion.device_info && suggestion.device_info.some(d => d.options && Object.keys(d.options).length > 0) && (
+          <div className="mt-2 p-2 rounded-lg" style={{
+            background: 'rgba(30, 41, 59, 0.4)',
+            border: '1px solid rgba(51, 65, 85, 0.3)'
+          }}>
+            <div className="text-xs text-gray-400 font-medium mb-1.5">Device Preferences:</div>
+            <div className="space-y-1">
+              {suggestion.device_info.filter(d => d.options && Object.keys(d.options).length > 0).map((device, idx) => (
+                <div key={idx} className="text-xs" style={{ color: '#cbd5e1' }}>
+                  <span className="font-medium">{device.friendly_name}:</span>
+                  {' '}
+                  {Object.entries(device.options || {}).map(([key, value], optIdx) => {
+                    // Format option value nicely
+                    let displayValue = value;
+                    if (key === 'brightness' && typeof value === 'number') {
+                      displayValue = `${Math.round((value / 255) * 100)}%`;
+                    } else if (key === 'color_temp' && typeof value === 'number') {
+                      displayValue = `${value}K`;
+                    } else if (typeof value === 'boolean') {
+                      displayValue = value ? 'On' : 'Off';
+                    }
+                    return (
+                      <span key={optIdx}>
+                        {optIdx > 0 && ', '}
+                        <span className="opacity-70">{key}:</span> {String(displayValue)}
+                      </span>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         )}
         
