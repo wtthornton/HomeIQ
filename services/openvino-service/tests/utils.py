@@ -29,7 +29,8 @@ except ImportError:
     from models.openvino_manager import OpenVINOManager
 
 
-EMBEDDING_DIMENSION = 384
+# Epic 47: BGE-M3 Embedding Model (1024-dim)
+EMBEDDING_DIMENSION = 1024
 
 
 def _stable_seed(text: str) -> int:
@@ -74,8 +75,12 @@ def cosine_similarity(vec_a: Sequence[float], vec_b: Sequence[float]) -> float:
 class FakeSentenceTransformer:
     """Minimal stand-in for sentence-transformers SentenceTransformer."""
 
+    def __init__(self, dimension: int = EMBEDDING_DIMENSION):
+        """Initialize with embedding dimension (1024 for BGE-M3-base)."""
+        self.dimension = dimension
+
     def encode(self, texts: Iterable[str], convert_to_numpy: bool = True) -> np.ndarray:
-        vectors = [deterministic_embedding(text) for text in texts]
+        vectors = [deterministic_embedding(text, dimension=self.dimension) for text in texts]
         return np.stack(vectors)
 
 
@@ -179,7 +184,7 @@ class TestOpenVINOManager(OpenVINOManager):
 
     async def _load_embedding_model(self):
         if self._embed_model is None:
-            self._embed_model = FakeSentenceTransformer()
+            self._embed_model = FakeSentenceTransformer(dimension=1024)
             self._embed_tokenizer = None
 
     async def _load_reranker_model(self):
