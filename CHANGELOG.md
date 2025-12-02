@@ -18,6 +18,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **feat(data-services): Enhance data API and retention services** (3fdf742) - wtthornton
 - **feat(device-intelligence): Add device database and intelligence services** (0af813e) - wtthornton
 - **feat(ai-automation): Enhance API endpoints and core service functionality** (03d54c0) - wtthornton
+
+### Changed
+
+- **Update epic and story status to COMPLETE** (6bfbd86) - wtthornton
+- **Update: Additional test and submodule changes** (cdff1a7) - wtthornton
+- **Update: AI automation improvements, HA 2025 API integration, and documentation updates** (1e79db9) - wtthornton
+- **Update OpenAI prompts with Home Assistant best practices** (8c17b57) - wtthornton
+- **Update UI components, health dashboard, and implementation documentation** (d2e0a55) - wtthornton
+- **Update: Pattern synergy fixes, health dashboard improvements, and verification scripts** (a413090) - wtthornton
+
+### Removed
+
+- **Remove enrichment-pipeline references from documentation and deployment** (9399701) - wtthornton
+
+### Fixed
+
+- **Update story-35.4 and migration file** (3dd02f5) - wtthornton
+- **Update generate_synthetic_homes and suggestion_router** (20fa1e6) - wtthornton
+- **Update story documentation and add suggestion metadata migration** (61959ab) - wtthornton
+
+
+### Added
+
+- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (5863015) - wtthornton
+- **Epic 40 - Dual Deployment Configuration (Test & Production)** (28c04eb) - wtthornton
+- **Update performance docs with Context7 patterns and NUC optimizations** (e45277d) - wtthornton
+- **feat(training): Add correlation engine and additional test infrastructure** (4c6b275) - wtthornton
+- **feat(scripts): Add analysis, deployment, and utility scripts** (49a513e) - wtthornton
+- **feat(ui): Enhance admin panel and AskAI interface** (d20bca0) - wtthornton
+- **feat(data-services): Enhance data API and retention services** (3fdf742) - wtthornton
+- **feat(device-intelligence): Add device database and intelligence services** (0af813e) - wtthornton
+- **feat(ai-automation): Enhance API endpoints and core service functionality** (03d54c0) - wtthornton
 - **feat(ai-automation): Add home type categorization integration** (cdfb1a0) - wtthornton
 - **feat(ai-automation): Enhance GNN synergy detection and quality framework** (b8590d3) - wtthornton
 
