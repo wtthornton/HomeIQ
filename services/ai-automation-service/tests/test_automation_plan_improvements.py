@@ -149,4 +149,148 @@ class TestModeSelection:
         )
         
         assert mode_with_motion == AutomationMode.RESTART
+    
+    def test_mode_restart_for_presence_sensor_with_delay(self):
+        """Test that presence sensors with delays get restart mode"""
+        triggers = [Trigger(
+            platform="state",
+            entity_id="binary_sensor.presence_sensor",
+            to="on"
+        )]
+        actions = [
+            Action(
+                service="light.turn_on",
+                entity_id="light.kitchen",
+                delay="00:05:00"
+            )
+        ]
+        
+        mode = AutomationPlan.determine_automation_mode(
+            triggers=triggers,
+            actions=actions,
+            description="Presence sensor turns on light"
+        )
+        
+        assert mode == AutomationMode.RESTART
+    
+    def test_mode_restart_for_door_sensor_with_delay(self):
+        """Test that door sensors with delays get restart mode"""
+        triggers = [Trigger(
+            platform="state",
+            entity_id="binary_sensor.front_door",
+            to="on"
+        )]
+        actions = [
+            Action(
+                service="light.turn_on",
+                entity_id="light.entryway",
+                delay="00:02:00"
+            )
+        ]
+        
+        mode = AutomationPlan.determine_automation_mode(
+            triggers=triggers,
+            actions=actions,
+            description="Door sensor activates entryway light"
+        )
+        
+        assert mode == AutomationMode.RESTART
+    
+    def test_mode_single_for_event_trigger(self):
+        """Test that event triggers get single mode"""
+        triggers = [Trigger(platform="event", event_type="button_pressed")]
+        actions = [Action(service="light.turn_on", entity_id="light.kitchen")]
+        
+        mode = AutomationPlan.determine_automation_mode(
+            triggers=triggers,
+            actions=actions,
+            description="Button press turns on light"
+        )
+        
+        assert mode == AutomationMode.SINGLE
+    
+    def test_mode_single_for_webhook_trigger(self):
+        """Test that webhook triggers get single mode"""
+        triggers = [Trigger(platform="webhook", topic="automation/webhook")]
+        actions = [Action(service="light.turn_on", entity_id="light.kitchen")]
+        
+        mode = AutomationPlan.determine_automation_mode(
+            triggers=triggers,
+            actions=actions,
+            description="Webhook triggers light"
+        )
+        
+        assert mode == AutomationMode.SINGLE
+    
+    def test_mode_parallel_for_independent_actions(self):
+        """Test that independent actions without delays get parallel mode"""
+        triggers = [Trigger(platform="time", at="07:00:00")]
+        actions = [
+            Action(service="light.turn_on", entity_id="light.kitchen"),
+            Action(service="switch.turn_on", entity_id="switch.fan")
+        ]
+        
+        mode = AutomationPlan.determine_automation_mode(
+            triggers=triggers,
+            actions=actions,
+            description="Turn on kitchen light and fan simultaneously"
+        )
+        
+        # Should be parallel for independent actions
+        assert mode == AutomationMode.PARALLEL
+    
+    def test_mode_queued_for_sequential_description(self):
+        """Test that sequential descriptions suggest queued mode"""
+        triggers = [Trigger(platform="time", at="07:00:00")]
+        actions = [
+            Action(service="light.turn_on", entity_id="light.kitchen"),
+            Action(service="switch.turn_on", entity_id="switch.fan")
+        ]
+        
+        mode = AutomationPlan.determine_automation_mode(
+            triggers=triggers,
+            actions=actions,
+            description="Sequential actions: first light, then fan"
+        )
+        
+        assert mode == AutomationMode.QUEUED
+    
+    def test_mode_parallel_for_parallel_description(self):
+        """Test that parallel descriptions suggest parallel mode"""
+        triggers = [Trigger(platform="time", at="07:00:00")]
+        actions = [
+            Action(service="light.turn_on", entity_id="light.kitchen"),
+            Action(service="switch.turn_on", entity_id="switch.fan")
+        ]
+        
+        mode = AutomationPlan.determine_automation_mode(
+            triggers=triggers,
+            actions=actions,
+            description="Parallel independent actions"
+        )
+        
+        assert mode == AutomationMode.PARALLEL
+    
+    def test_mode_restart_for_window_sensor_with_delay(self):
+        """Test that window sensors with delays get restart mode"""
+        triggers = [Trigger(
+            platform="state",
+            entity_id="binary_sensor.window_sensor",
+            to="on"
+        )]
+        actions = [
+            Action(
+                service="climate.set_temperature",
+                entity_id="climate.thermostat",
+                delay="00:01:00"
+            )
+        ]
+        
+        mode = AutomationPlan.determine_automation_mode(
+            triggers=triggers,
+            actions=actions,
+            description="Window sensor adjusts temperature"
+        )
+        
+        assert mode == AutomationMode.RESTART
 
