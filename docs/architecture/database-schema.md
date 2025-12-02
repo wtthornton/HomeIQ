@@ -118,7 +118,7 @@ Each Home Assistant attribute is stored as `attr_{attribute_name}`:
 - ⚠️ **Storage Overhead**: Field names repeated per event
 - ✅ **Query Performance**: Significantly faster than JSON field queries
 
-**Implementation Location**: `services/enrichment-pipeline/src/influxdb_wrapper.py` (Line 214)
+**Implementation Location**: `services/websocket-ingestion/src/influxdb_wrapper.py` (Epic 31 - migrated from enrichment-pipeline)
 
 ```python
 # Flattens all attributes with attr_ prefix
@@ -141,27 +141,27 @@ for key, value in attributes.items():
    - Enables filtering by integration type
    - Useful for debugging integration-specific issues
    - Example query: "Show all zigbee device states"
-   - Implementation: `services/enrichment-pipeline/src/influxdb_wrapper.py` (Line 167-170)
+   - Implementation: `services/websocket-ingestion/src/influxdb_wrapper.py` (Epic 31 - migrated)
 
 2. **`time_of_day` tag** - Temporal categorization of events
    - Values: morning (5am-12pm), afternoon (12pm-5pm), evening (5pm-9pm), night (9pm-5am)
    - Enables temporal pattern analysis
    - Example query: "Show all lights turned on in the evening"
    - Supports circadian rhythm analysis
-   - Implementation: `services/enrichment-pipeline/src/influxdb_wrapper.py` (Line 172-193)
+   - Implementation: `services/websocket-ingestion/src/influxdb_wrapper.py` (Epic 31 - migrated)
 
 3. **`weather_condition` tag** - Current weather condition for context-aware queries
    - Values: Clear, Clouds, Rain, Snow, Thunderstorm, etc.
    - Enables weather-based filtering
    - Example query: "Show all motion events when it was raining"
-   - Implementation: `services/enrichment-pipeline/src/influxdb_wrapper.py` (Line 306-307)
+   - Implementation: `services/websocket-ingestion/src/influxdb_wrapper.py` (Epic 31 - migrated)
 
 **New Fields Added**:
 1. **Weather enrichment fields** - Current weather context for all events
    - `weather_temp` (°C), `weather_humidity` (%), `weather_pressure` (hPa), `wind_speed` (m/s)
    - Source: OpenWeatherMap API (Las Vegas, NV)
    - Cache: 5-minute TTL with 97%+ hit rate
-   - Implementation: `services/enrichment-pipeline/src/influxdb_wrapper.py` (Line 281-310)
+   - Implementation: `services/websocket-ingestion/src/influxdb_wrapper.py` (Epic 31 - migrated)
 
 **Impact**: All tags and fields are applied to new events. Weather enrichment activated after cache clear (Oct 18, 2025, 11:11 AM).
 

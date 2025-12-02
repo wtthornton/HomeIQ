@@ -1,7 +1,15 @@
 # Epic 40: Quick Reference Card
 
 **Epic 40: Dual Deployment Configuration**  
-**Status:** ✅ Complete
+**Status:** ⏸️ **DEFERRED** - Features Covered by AI Epics (AI-11, AI-15, AI-16)
+
+**⚠️ NOTE:** This epic is deferred because its core features are already covered by:
+- **Epic AI-16:** Comprehensive mock service layer (superior to environment variables)
+- **Epic AI-11:** Enhanced synthetic data generation
+- **Epic AI-15:** Advanced testing framework
+- **Current:** File-based training (already isolated)
+
+**See:** `implementation/EPIC_40_AI_EPICS_COMPARISON.md` for detailed analysis
 
 ---
 

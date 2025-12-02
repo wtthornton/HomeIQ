@@ -7,13 +7,20 @@
 **Priority:** High (Pre-Production Quality Blocker)  
 **Effort:** 12 Stories (48 story points, 5-6 weeks estimated)  
 **Created:** January 2025  
-**Based On:** Training Data Quality Review, Pattern Detection Analysis, YAML Validation Requirements
+**Based On:** Training Data Quality Review, Pattern Detection Analysis, YAML Validation Requirements  
+**Note:** This epic covers Epic 40's mock service and testing isolation features with superior architecture (dependency injection vs environment variables)
 
 ---
 
 ## Epic Goal
 
 Build a comprehensive, fast, high-volume simulation framework that validates the complete 3 AM batch workflow and Ask AI conversational flow end-to-end using synthetic data, mocked services, and integrated ML model training/validation. This framework enables pre-production validation of both pipelines (model training → event fetching → pattern detection → suggestion generation → YAML creation → validation) at scale and speed, without real API calls or network dependencies.
+
+**Note:** This epic provides the testing/training isolation that Epic 40 was trying to achieve, but with superior architecture:
+- **Mock services** (dependency injection) vs environment variable-based control
+- **In-memory testing** vs separate InfluxDB buckets
+- **Zero API costs** vs disabling external APIs
+- **Fast validation** (minutes) vs full deployment switching
 
 **Business Value:**
 - **+4,000% Validation Speed** (Real-time: hours → Simulation: minutes)

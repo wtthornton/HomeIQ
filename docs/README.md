@@ -305,7 +305,6 @@ ENABLE_AUTH=true
 ```bash
 # Run all tests
 docker-compose exec admin-api python -m pytest tests/
-docker-compose exec enrichment-pipeline python -m pytest tests/
 docker-compose exec data-retention python -m pytest tests/
 
 # Run frontend tests
@@ -316,7 +315,6 @@ npm run test:coverage
 
 ### **Test Results**
 - **Data Retention Service**: 104/105 tests passing (99%)
-- **Enrichment Pipeline Service**: 40/40 tests passing (100%)
 - **Admin API Service**: 36/45 tests passing (85%)
 - **Health Dashboard Service**: 400+/427 tests passing (95%+)
 

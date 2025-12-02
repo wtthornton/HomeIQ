@@ -100,7 +100,7 @@ class RAGClient:
             text: Text to embed
             
         Returns:
-            384-dim numpy array
+            numpy array (384-dim for all-MiniLM-L6-v2, 1024-dim for BGE-M3-base)
             
         Raises:
             EmbeddingGenerationError: If embedding generation fails
