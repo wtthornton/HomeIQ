@@ -126,7 +126,6 @@ function Initialize-Directories {
     $logDirs = @(
         "$ProjectRoot/logs/influxdb",
         "$ProjectRoot/logs/websocket-ingestion",
-        "$ProjectRoot/logs/enrichment-pipeline",
         "$ProjectRoot/logs/weather-api",
         "$ProjectRoot/logs/admin-api",
         "$ProjectRoot/logs/data-retention",
@@ -218,7 +217,6 @@ function Wait-ForHealth {
     $services = @(
         "influxdb",
         "websocket-ingestion", 
-        "enrichment-pipeline",
         "admin-api",
         "data-retention",
         "health-dashboard"
