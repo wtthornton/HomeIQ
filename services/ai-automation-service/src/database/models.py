@@ -401,6 +401,39 @@ class SynergyOpportunity(Base):
         return f"<SynergyOpportunity(id={self.id}, type={self.synergy_type}, depth={depth}, area={self.area}, impact={self.impact_score}, validated={validated})>"
 
 
+class BlueprintOpportunity(Base):
+    """
+    Blueprint opportunities discovered from user device inventory.
+    
+    Stores blueprint opportunities discovered during daily analysis
+    that match user's devices and could be turned into automation suggestions.
+    
+    Story AI6.3: Blueprint Opportunity Discovery in 3 AM Run
+    Epic AI-6: Blueprint-Enhanced Suggestion Intelligence
+    """
+    __tablename__ = 'blueprint_opportunities'
+
+    id = Column(Integer, primary_key=True)
+    blueprint_id = Column(String(100), nullable=False, index=True)  # Blueprint identifier from automation-miner
+    device_types = Column(Text, nullable=False)  # JSON array of device types (e.g., ["light", "binary_sensor"])
+    fit_score = Column(Float, nullable=False)  # 0.0-1.0 match score
+    discovered_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run_id = Column(Integer, ForeignKey('analysis_run_status.id'), nullable=True)  # Link to analysis run
+    
+    # Blueprint metadata (cached for performance)
+    blueprint_title = Column(String(255), nullable=True)  # Blueprint title
+    blueprint_description = Column(Text, nullable=True)  # Blueprint description
+    blueprint_quality = Column(Float, nullable=True)  # Blueprint quality score
+    
+    # Status tracking
+    processed = Column(Boolean, default=False, nullable=False)  # Whether converted to suggestion
+    processed_at = Column(DateTime, nullable=True)  # When converted to suggestion
+
+    def __repr__(self):
+        processed = "✓" if self.processed else "✗"
+        return f"<BlueprintOpportunity(id={self.id}, blueprint_id={self.blueprint_id}, fit_score={self.fit_score:.2f}, processed={processed})>"
+
+
 class DiscoveredSynergy(Base):
     """
     ML-discovered synergies from association rule mining.
@@ -1120,3 +1153,31 @@ class AutoResolutionMetric(Base):
 
     def __repr__(self):
         return f"<AutoResolutionMetric(id={self.id}, method='{self.method}', confidence={self.confidence:.2f}, accepted={self.user_accepted})>"
+
+
+class SuggestionPreference(Base):
+    """
+    User preferences for suggestion configuration.
+    
+    Stores user-configurable preferences for AI automation suggestions:
+    - max_suggestions: Maximum number of suggestions to show (5-50)
+    - creativity_level: Suggestion creativity (conservative/balanced/creative)
+    - blueprint_preference: Preference for blueprint-based suggestions (low/medium/high)
+    
+    Epic AI-6 Story AI6.7: User Preference Configuration System
+    """
+    __tablename__ = 'suggestion_preferences'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String, nullable=False, index=True, default='default')
+    preference_key = Column(String, nullable=False)  # 'max_suggestions', 'creativity_level', 'blueprint_preference'
+    preference_value = Column(String, nullable=False)  # Stored as string, validated by PreferenceManager
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'preference_key', name='uq_suggestion_pref_user_key'),
+        Index('idx_suggestion_pref_user', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f"<SuggestionPreference(id={self.id}, user_id='{self.user_id}', key='{self.preference_key}', value='{self.preference_value}')>"

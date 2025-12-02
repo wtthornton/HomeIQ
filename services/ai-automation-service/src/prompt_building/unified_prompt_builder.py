@@ -183,6 +183,13 @@ Guidelines:
             "No explicit user feedback recorded for this device yet. "
             "Favor low-friction, easy-to-accept automations."
         )
+        
+        # Story AI6.6: Add blueprint context when validated (match_score ≥ 0.8)
+        blueprint_context = self._build_blueprint_context_section(pattern)
+        
+        # Append blueprint context to user prompt if available
+        if blueprint_context and output_mode == "description":
+            user_prompt += "\n\n" + blueprint_context
 
         return {
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,
@@ -190,6 +197,7 @@ Guidelines:
             "pattern_summary": pattern_summary,
             "synergy_context": synergy_context,
             "feedback_hint": feedback_hint,
+            "blueprint_context": blueprint_context,  # NEW: Blueprint context for description hints
             "pattern_source": pattern
         }
 
@@ -611,6 +619,52 @@ Focus on practical applications that enhance the user experience."""
             synergy_lines.append(f"Pattern support score: {support_score:.2f}")
 
         return "\n".join(synergy_lines)
+
+    def _build_blueprint_context_section(self, pattern: dict) -> str:
+        """
+        Build blueprint context section for prompt enhancement.
+        
+        Story AI6.6: Blueprint-Enriched Description Generation
+        Only includes blueprint hints when match_score ≥ 0.8.
+        
+        Args:
+            pattern: Pattern dictionary with blueprint validation metadata
+            
+        Returns:
+            Blueprint context string (empty if no blueprint match or score < 0.8)
+        """
+        # Check if pattern is blueprint-validated with high match score
+        if not pattern.get('blueprint_validated', False):
+            return ""
+        
+        match_score = pattern.get('blueprint_match_score', 0.0)
+        if match_score < 0.8:  # Only show hints for high-confidence matches
+            return ""
+        
+        blueprint_title = pattern.get('blueprint_title')
+        if not blueprint_title:
+            return ""
+        
+        # Build blueprint context section
+        blueprint_context = f"""
+═══════════════════════════════════════════════════════════════════════════════
+BLUEPRINT CONTEXT (Community-Validated Automation):
+═══════════════════════════════════════════════════════════════════════════════
+This automation pattern is based on the '{blueprint_title}' blueprint from the Home Assistant community.
+
+This blueprint has been validated by the community and matches your detected pattern with a confidence score of {match_score:.2f}.
+
+INCLUDE IN DESCRIPTION:
+When generating the automation description, naturally mention this blueprint:
+- Format: "Based on '{blueprint_title}' blueprint"
+- Example: "Turn on the office light when motion is detected in the morning. Based on 'Motion-Activated Light' blueprint."
+- The blueprint mention should be integrated naturally at the end of the description
+- This adds community validation and increases user confidence
+
+Do NOT force the blueprint mention - integrate it naturally into the description.
+═══════════════════════════════════════════════════════════════════════════════
+"""
+        return blueprint_context
 
     async def get_enhanced_device_context(self, pattern: dict) -> dict:
         """

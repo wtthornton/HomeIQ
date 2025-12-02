@@ -9,7 +9,28 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 **Database:** SQLite (ai_automation.db - 25 tables)  
 **Scale:** Optimized for ~50-100 devices (single-home, not multi-home)
 
-## Recent Updates (November 2025)
+## Recent Updates
+
+### ✅ Epic AI-6: Blueprint-Enhanced Suggestion Intelligence (December 2025)
+**Status**: ✅ **DEPLOYED** - Blueprint discovery and preference system now available
+
+**New Features:**
+- Proactive blueprint opportunity discovery from device inventory (Phase 3d)
+- Pattern validation against blueprints with confidence boosting
+- User preference system (max suggestions, creativity level, blueprint preference)
+- Preference-aware unified ranking service
+- Preference settings UI in Settings page
+- Preference API endpoints (`GET/PUT /api/v1/preferences`)
+
+**Impact:**
+- More relevant automation suggestions based on blueprint discovery
+- Better user control over suggestion generation and ranking
+- Blueprint-validated patterns receive confidence boosts
+- Configurable creativity levels for suggestion filtering
+
+**Documentation:**
+- [User Guide: Preferences](../../docs/current/USER_GUIDE_PREFERENCES.md)
+- See Technical Whitepaper for architecture details
 
 ### ✅ Import Errors Fixed (November 19, 2025)
 **Status**: ✅ **DEPLOYED** - Service validation now working correctly
@@ -32,6 +53,7 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 **Epic AI-2: Device Intelligence** - Discovers device capabilities and suggests unused features
 **Epic AI-3: N-Level Synergy Detection** - Multi-hop device relationship discovery
 **Epic AI-4: Advanced Synergy Analysis** - Device embedding generation and similarity matching
+**Epic AI-6: Blueprint-Enhanced Suggestion Intelligence** - Proactive blueprint discovery and preference-based ranking
 
 ### Features
 
@@ -95,6 +117,16 @@ AI-powered Home Assistant automation discovery and recommendation system with de
 - 📋 YAML-based procedure orchestration
 - 🌙 Nightly analysis coordination
 - 🛡️ Synergy guardrails (when enabled)
+
+**Blueprint-Enhanced Suggestion Intelligence (Epic AI-6 - December 2025):**
+- 🔍 **Blueprint Opportunity Discovery** - Proactively finds automation opportunities from device inventory
+- ✅ **Pattern Validation** - Validates detected patterns against community blueprints for confidence boosting
+- 🎯 **Preference-Based Ranking** - Customizable suggestion ranking with creativity levels and blueprint preferences
+- ⚙️ **User Preference Settings** - Configure max suggestions, creativity level, and blueprint preference weighting
+- 📘 **Blueprint-Enriched Descriptions** - Pattern suggestions include blueprint hints when high-confidence matches found
+- 🔄 **Unified Preference Application** - Single ranking service applies all preferences in optimal order
+- 🎨 **Creativity Levels** - Conservative/Balanced/Creative filtering with configurable confidence thresholds
+- 📊 **Configurable Limits** - User-configurable max suggestions (5-50) with preference-aware ranking
 
 ## Deployment Context
 

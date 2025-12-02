@@ -12,6 +12,7 @@ from .health import router as health_router
 from .nl_generation_router import router as nl_generation_router
 from .pattern_router import router as pattern_router
 from .settings_router import router as settings_router
+from .preference_router import router as preference_router  # Epic AI-6 Story AI6.12
 from .suggestion_management_router import router as suggestion_management_router
 from .suggestion_router import router as suggestion_router
 from .learning_router import router as learning_router
@@ -30,6 +31,7 @@ __all__ = [
     'ask_ai_router',  # Ask AI Tab: Natural Language Query Interface
     'devices_router',
     'settings_router',
+    'preference_router',  # Epic AI-6 Story AI6.12: Frontend Preference Settings UI
     'admin_router',
     'learning_router',  # Q&A Learning Enhancement Plan
     'set_device_intelligence_client',

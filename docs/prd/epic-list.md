@@ -239,7 +239,7 @@ Detect cross-device automation opportunities and context-aware patterns that use
 
 ---
 
-**Epic AI-4: Community Knowledge Augmentation** ✅ **COMPLETE** 🌐 **NEW**
+**Epic AI-4: Community Knowledge Augmentation** ✅ **COMPLETE** 🌐
 Helper layer that enhances AI suggestions with proven community automation ideas. Crawls 2,000+ high-quality Home Assistant automations from Discourse/GitHub, normalizes into structured metadata, and augments personal patterns (80% weight) with community best practices (20% weight). Includes device discovery ("What can I do with X?"), ROI-based purchase recommendations, and automated weekly refresh.
 
 **Key Innovation:** Community knowledge augments personal patterns, doesn't replace them.
@@ -260,6 +260,38 @@ Helper layer that enhances AI suggestions with proven community automation ideas
 - ✅ Self-sustaining system (zero manual intervention)
 
 **Implementation:** 67 files, 14,500+ lines in 12 hours (Oct 18-19, 2025)
+
+---
+
+**Epic AI-5: Unified Contextual Intelligence Service** 📋 PLANNING
+Implement a comprehensive unified intelligence service that provides consistent contextual awareness across both automated batch processing and user-initiated queries. Includes Phase 1 quick integration enhancements and Phase 2 unified service architecture, eliminating the current architectural split and creating a seamless user experience.
+
+---
+
+**Epic AI-6: Blueprint-Enhanced Suggestion Intelligence** 📋 PLANNING ⭐ **NEW**
+Transform blueprints from late-stage YAML generation tool into core suggestion quality and discovery mechanism. Enables proactive discovery of proven automation opportunities, blueprint-validated patterns, and user-configurable suggestion preferences.
+
+**Key Features:**
+- Blueprint opportunity discovery (3 AM run + Ask AI)
+- Pattern validation against blueprints with confidence boosting
+- Blueprint-enriched suggestion descriptions
+- User-configurable suggestion count (5-50)
+- User-configurable creativity levels (conservative/balanced/creative)
+- Blueprint preference configuration
+
+**Stories:** 14 stories across 4 phases (6-8 weeks)
+- Phase 1: Blueprint Opportunity Discovery (4 stories)
+- Phase 2: Blueprint-Enhanced Suggestions (3 stories)
+- Phase 3: User-Configurable Suggestions (3 stories)
+- Phase 4: Integration & Polish (4 stories)
+
+**Expected Outcomes:**
+- +50% suggestion diversity (blueprint opportunities)
+- +30% user trust (community-validated suggestions)
+- +40% adoption rate (proven automations)
+- 100% user control (customizable preferences)
+
+**Epic Document:** `docs/prd/epic-ai6-blueprint-enhanced-suggestion-intelligence.md`
 
 ---
 
@@ -481,9 +513,9 @@ Enhance ML training infrastructure to support high-quality initial model trainin
 
 ## Summary
 
-- **Total Epics**: 46 (26 infrastructure + 4 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement + 1 ML training enhancement)
+- **Total Epics**: 47 (26 infrastructure + 5 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement + 1 ML training enhancement)
 - **Completed**: 32 (26 infrastructure + 4 AI + 4 setup service + 1 architecture + 1 code quality) ✅ **100% COMPLETE** 🎉
-- **Planned**: 13 (Epic 33-46: Synthetic External Data, Correlation Analysis, Service Modularization, Dual Deployment, Production Readiness Improvements, Development Experience Improvements, Tiered Statistics Model, Enhanced ML Training) 📋
+- **Planned**: 14 (Epic 33-46 + Epic AI-5 + Epic AI-6: Synthetic External Data, Correlation Analysis, Service Modularization, Dual Deployment, Production Readiness Improvements, Development Experience Improvements, Tiered Statistics Model, Enhanced ML Training, Unified Contextual Intelligence, Blueprint-Enhanced Suggestion Intelligence) 📋
 - **In Progress**: 0
 - **Draft/Planned**: 0
 - **Active Services**: 21 total (18 microservices + InfluxDB infrastructure)
@@ -498,15 +530,44 @@ Enhance ML training infrastructure to support high-quality initial model trainin
 
 ---
 
-**Last Updated**: October 19, 2025  
-**Status**: 🎉🎉🎉 **PROJECT 100% COMPLETE - ALL 33 EPICS DONE** 🎉🎉🎉
+## AI Enhancement Epics (AI-1 through AI-6)
+
+**Epic AI-6: Blueprint-Enhanced Suggestion Intelligence** 📋 PLANNING ⭐ **NEW**
+Transform blueprints from late-stage YAML generation tool into core suggestion quality and discovery mechanism. Enables proactive discovery of proven automation opportunities, blueprint-validated patterns, and user-configurable suggestion preferences. **Timeline:** 6-8 weeks. **Story Points:** 32 (14 stories). **Value:** High (9/10). **Priority:** High.
+
+**Key Features:**
+- ✅ Blueprint opportunity discovery (3 AM run + Ask AI)
+- ✅ Pattern validation against blueprints with confidence boosting
+- ✅ Blueprint-enriched suggestion descriptions
+- ✅ User-configurable suggestion count (5-50)
+- ✅ User-configurable creativity levels (conservative/balanced/creative)
+- ✅ Blueprint preference configuration (low/medium/high)
+
+**Stories:** 14 stories across 4 phases
+- Phase 1: Blueprint Opportunity Discovery (4 stories, weeks 1-3)
+- Phase 2: Blueprint-Enhanced Suggestions (3 stories, weeks 3-5)
+- Phase 3: User-Configurable Suggestions (3 stories, weeks 5-7)
+- Phase 4: Integration & Polish (4 stories, weeks 7-8)
+
+**Expected Outcomes:**
+- +50% suggestion diversity (blueprint opportunities)
+- +30% user trust (community-validated suggestions)
+- +40% adoption rate (proven automations)
+- 100% user control (customizable preferences)
+
+**Epic Document:** `docs/prd/epic-ai6-blueprint-enhanced-suggestion-intelligence.md`
+
+---
+
+**Last Updated**: November 2025  
+**Status**: 🎉 **PROJECT PRODUCTION READY - Core features complete** 🎉
 
 **Latest Completions**: 
 - **Epic 11** - Sports Data Integration (4 stories, 2 hours) ✅
 - **Epic 12** - Sports Data InfluxDB Persistence (4 stories, 2 hours) ✅
 - **Epic AI-4** - Community Knowledge Augmentation (4 stories, 12 hours) ✅
 - **Epic 24** - Monitoring Data Quality & Accuracy (1 story, verified complete) ✅
-- **Epic 31** - Weather API Service Migration (5 stories, 2 hours) ✅ **NEW**
+- **Epic 31** - Weather API Service Migration (5 stories, 2 hours) ✅
 
 **All Critical Issues Resolved**: ✅  
 - ✅ Epic 11 - Team persistence implemented with async SQLite
@@ -516,7 +577,9 @@ Enhance ML training infrastructure to support high-quality initial model trainin
 
 **Latest Epic Executed**: ✅ **Epic 31** - Weather API Service Migration (500 lines in 2 hours using simple pattern)
 
-**Project Completion**: 🚀 **84% (32/38 epics complete, 6 planned)** 🚀  
-**Status**: **PRODUCTION READY - Core features complete, correlation analysis epics planned**  
-**Next Steps**: Begin Epic 33 (Foundation External Data Generation) to enable correlation analysis capabilities
+**New Epic Planned**: 📋 **Epic AI-6** - Blueprint-Enhanced Suggestion Intelligence (14 stories, 6-8 weeks)
+
+**Project Completion**: 🚀 **84% (32/38 epics complete, 7 planned)** 🚀  
+**Status**: **PRODUCTION READY - Core features complete, enhancement epics planned**  
+**Next Steps**: Begin Epic AI-6 (Blueprint-Enhanced Suggestion Intelligence) to enhance suggestion quality and user control
 

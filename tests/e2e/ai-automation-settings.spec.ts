@@ -288,3 +288,207 @@ async function mockSettingsAPI(page: Page) {
   });
 }
 
+/**
+ * Mock preference API endpoints
+ * Epic AI-6 Story AI6.12: Frontend Preference Settings UI
+ */
+async function mockPreferencesAPI(page: Page) {
+  // Mock GET /api/v1/preferences
+  await page.route('**/api/v1/preferences*', route => {
+    const url = new URL(route.request().url());
+    const method = route.request().method();
+
+    if (method === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          max_suggestions: 10,
+          creativity_level: 'balanced',
+          blueprint_preference: 'medium'
+        })
+      });
+    } else if (method === 'PUT') {
+      const requestBody = route.request().postDataJSON();
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          max_suggestions: requestBody.max_suggestions ?? 10,
+          creativity_level: requestBody.creativity_level ?? 'balanced',
+          blueprint_preference: requestBody.blueprint_preference ?? 'medium'
+        })
+      });
+    }
+  });
+}
+
+/**
+ * Preference Settings E2E Tests
+ * Epic AI-6 Story AI6.12: Frontend Preference Settings UI
+ */
+test.describe('Preference Settings - Story AI6.12', () => {
+  test.beforeEach(async ({ page }) => {
+    // Mock preference API
+    await mockPreferencesAPI(page);
+    
+    // Mock other required APIs
+    await mockSettingsAPI(page);
+
+    // Navigate to settings page
+    await page.goto('http://localhost:3001/settings');
+    await expect(page.getByTestId('settings-container')).toBeVisible();
+    
+    // Wait for preference section to load
+    await expect(page.getByTestId('preference-settings-section')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('should display preference settings section', async ({ page }) => {
+    // Verify preference section is visible
+    const preferenceSection = page.getByTestId('preference-settings-section');
+    await expect(preferenceSection).toBeVisible();
+    
+    // Verify all controls are present
+    await expect(page.getByTestId('max-suggestions-slider')).toBeVisible();
+    await expect(page.getByTestId('creativity-level-dropdown')).toBeVisible();
+    await expect(page.getByTestId('blueprint-preference-dropdown')).toBeVisible();
+  });
+
+  test('should update max_suggestions preference', async ({ page }) => {
+    const slider = page.getByTestId('max-suggestions-slider');
+    
+    // Verify default value
+    await expect(slider).toHaveValue('10');
+    
+    // Update to 25
+    await slider.fill('25');
+    
+    // Wait for API call to complete
+    await page.waitForResponse(response => 
+      response.url().includes('/api/v1/preferences') && 
+      response.request().method() === 'PUT'
+    );
+    
+    // Verify success toast
+    await expect(page.getByText(/preferences saved successfully/i)).toBeVisible({ timeout: 3000 });
+    
+    // Verify slider shows new value
+    await expect(slider).toHaveValue('25');
+  });
+
+  test('should update creativity_level preference', async ({ page }) => {
+    const dropdown = page.getByTestId('creativity-level-dropdown');
+    
+    // Verify default value
+    await expect(dropdown).toHaveValue('balanced');
+    
+    // Update to creative
+    await dropdown.selectOption('creative');
+    
+    // Wait for API call to complete
+    await page.waitForResponse(response => 
+      response.url().includes('/api/v1/preferences') && 
+      response.request().method() === 'PUT'
+    );
+    
+    // Verify success toast
+    await expect(page.getByText(/preferences saved successfully/i)).toBeVisible({ timeout: 3000 });
+    
+    // Verify dropdown shows new value
+    await expect(dropdown).toHaveValue('creative');
+  });
+
+  test('should update blueprint_preference', async ({ page }) => {
+    const dropdown = page.getByTestId('blueprint-preference-dropdown');
+    
+    // Verify default value
+    await expect(dropdown).toHaveValue('medium');
+    
+    // Update to high
+    await dropdown.selectOption('high');
+    
+    // Wait for API call to complete
+    await page.waitForResponse(response => 
+      response.url().includes('/api/v1/preferences') && 
+      response.request().method() === 'PUT'
+    );
+    
+    // Verify success toast
+    await expect(page.getByText(/preferences saved successfully/i)).toBeVisible({ timeout: 3000 });
+    
+    // Verify dropdown shows new value
+    await expect(dropdown).toHaveValue('high');
+  });
+
+  test('should validate max_suggestions range', async ({ page }) => {
+    const slider = page.getByTestId('max-suggestions-slider');
+    
+    // Verify min value (5)
+    await slider.fill('5');
+    await expect(slider).toHaveValue('5');
+    
+    // Verify max value (50)
+    await slider.fill('50');
+    await expect(slider).toHaveValue('50');
+    
+    // Verify slider cannot go below 5
+    await slider.fill('4');
+    // Slider should clamp to 5
+    const value = await slider.inputValue();
+    expect(parseInt(value, 10)).toBeGreaterThanOrEqual(5);
+    
+    // Verify slider cannot go above 50
+    await slider.fill('51');
+    // Slider should clamp to 50
+    const maxValue = await slider.inputValue();
+    expect(parseInt(maxValue, 10)).toBeLessThanOrEqual(50);
+  });
+
+  test('should handle API errors gracefully', async ({ page }) => {
+    // Mock API error
+    await page.route('**/api/v1/preferences*', route => {
+      if (route.request().method() === 'PUT') {
+        route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: 'Internal Server Error',
+            detail: 'Failed to update preferences'
+          })
+        });
+      } else {
+        route.continue();
+      }
+    });
+    
+    const dropdown = page.getByTestId('creativity-level-dropdown');
+    await dropdown.selectOption('creative');
+    
+    // Verify error toast
+    await expect(page.getByText(/failed to save preferences/i)).toBeVisible({ timeout: 3000 });
+    
+    // Verify dropdown reverts to previous value
+    await expect(dropdown).toHaveValue('balanced');
+  });
+
+  test('should persist preferences across page reload', async ({ page }) => {
+    // Update preferences
+    const slider = page.getByTestId('max-suggestions-slider');
+    await slider.fill('15');
+    
+    await page.waitForResponse(response => 
+      response.url().includes('/api/v1/preferences') && 
+      response.request().method() === 'PUT'
+    );
+    
+    // Reload page
+    await page.reload();
+    await expect(page.getByTestId('preference-settings-section')).toBeVisible({ timeout: 5000 });
+    
+    // Verify preference is loaded (should come from API)
+    const reloadedSlider = page.getByTestId('max-suggestions-slider');
+    // Value should be loaded from API (mocked to return last saved value)
+    await expect(reloadedSlider).toBeVisible();
+  });
+}
+

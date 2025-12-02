@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..pattern_detection.pattern_filters import validate_pattern
 from .models import (
     AnalysisRunStatus,
+    BlueprintOpportunity,
     DeviceCapability,
     DeviceFeatureUsage,
     ManualRefreshTrigger,
@@ -2374,3 +2375,137 @@ def calculate_synergy_priority_score(synergy: dict) -> float:
 
     # Clamp to 0.0-1.0 range
     return max(0.0, min(1.0, base_score))
+
+
+# ============================================================================
+# Blueprint Opportunity CRUD Operations
+# ============================================================================
+
+async def store_blueprint_opportunities(
+    db: AsyncSession,
+    opportunities: list[dict],
+    analysis_run_id: int | None = None
+) -> int:
+    """
+    Store multiple blueprint opportunities in database.
+    
+    Args:
+        db: Database session
+        opportunities: List of opportunity dictionaries from BlueprintOpportunityFinder
+        analysis_run_id: Optional ID linking to analysis run status
+    
+    Returns:
+        Number of opportunities stored
+        
+    Story AI6.3: Blueprint Opportunity Discovery in 3 AM Run
+    Epic AI-6: Blueprint-Enhanced Suggestion Intelligence
+    """
+    import json
+
+    from sqlalchemy.exc import IntegrityError
+
+    if not opportunities:
+        logger.debug("No blueprint opportunities to store")
+        return 0
+
+    stored_count = 0
+
+    try:
+        for opp in opportunities:
+            try:
+                # Extract device types (should be a list)
+                device_types = opp.get('device_types', [])
+                if isinstance(device_types, str):
+                    # If stored as JSON string, parse it
+                    try:
+                        device_types = json.loads(device_types)
+                    except (json.JSONDecodeError, TypeError):
+                        device_types = [device_types]
+                elif not isinstance(device_types, list):
+                    device_types = [device_types] if device_types else []
+                
+                # Extract blueprint metadata
+                blueprint = opp.get('blueprint', {})
+                blueprint_id = blueprint.get('id') or opp.get('blueprint_id')
+                blueprint_title = blueprint.get('title') or blueprint.get('name')
+                blueprint_description = blueprint.get('description')
+                blueprint_quality = blueprint.get('quality_score') or blueprint.get('quality')
+                
+                if not blueprint_id:
+                    logger.warning(f"Skipping opportunity without blueprint_id: {opp}")
+                    continue
+                
+                # Create blueprint opportunity record
+                blueprint_opp = BlueprintOpportunity(
+                    blueprint_id=blueprint_id,
+                    device_types=json.dumps(device_types),  # Store as JSON string
+                    fit_score=opp.get('fit_score', 0.0),
+                    discovered_at=datetime.now(timezone.utc),
+                    analysis_run_id=analysis_run_id,
+                    blueprint_title=blueprint_title,
+                    blueprint_description=blueprint_description,
+                    blueprint_quality=blueprint_quality,
+                    processed=False
+                )
+                
+                db.add(blueprint_opp)
+                stored_count += 1
+                
+            except IntegrityError:
+                # Skip duplicates (blueprint_id + device_types combination)
+                logger.debug(f"Skipping duplicate blueprint opportunity: {blueprint_id}")
+                await db.rollback()
+                continue
+            except Exception as e:
+                logger.warning(f"Failed to store blueprint opportunity: {e}")
+                await db.rollback()
+                continue
+
+        await db.commit()
+        logger.info(f"Stored {stored_count} blueprint opportunities")
+        return stored_count
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to store blueprint opportunities: {e}", exc_info=True)
+        raise
+
+
+async def get_blueprint_opportunities(
+    db: AsyncSession,
+    min_fit_score: float = 0.6,
+    processed: bool | None = None,
+    limit: int = 50
+) -> list[BlueprintOpportunity]:
+    """
+    Retrieve blueprint opportunities from database.
+    
+    Args:
+        db: Database session
+        min_fit_score: Minimum fit score threshold (default: 0.6)
+        processed: Filter by processed status (None = all, True/False = filter)
+        limit: Maximum number of results
+    
+    Returns:
+        List of BlueprintOpportunity instances
+        
+    Story AI6.3: Blueprint Opportunity Discovery in 3 AM Run
+    """
+    try:
+        conditions = [BlueprintOpportunity.fit_score >= min_fit_score]
+        
+        if processed is not None:
+            conditions.append(BlueprintOpportunity.processed == processed)
+        
+        query = select(BlueprintOpportunity).where(and_(*conditions))
+        query = query.order_by(BlueprintOpportunity.fit_score.desc()).limit(limit)
+        
+        result = await db.execute(query)
+        opportunities = result.scalars().all()
+        
+        logger.debug(f"Retrieved {len(opportunities)} blueprint opportunities")
+        return list(opportunities)
+    
+    except Exception as e:
+        logger.error(f"Failed to retrieve blueprint opportunities: {e}", exc_info=True)
+        raise
