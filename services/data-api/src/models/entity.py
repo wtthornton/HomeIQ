@@ -44,9 +44,15 @@ class Entity(Base):
     available_services = Column(JSON)  # List of available service calls for this entity (e.g., ["light.turn_on", "light.turn_off", "light.toggle"])
 
     # Entity Attributes
-    icon = Column(String)  # Entity icon from attributes
+    icon = Column(String)  # Current icon (from Entity Registry, may be user-customized)
+    original_icon = Column(String)  # Original icon from integration/platform
     device_class = Column(String, index=True)  # Device class (e.g., "motion", "door", "temperature")
     unit_of_measurement = Column(String)  # Unit of measurement for sensors
+
+    # Entity Registry 2025 Attributes (Phase 1-2 Implementation)
+    aliases = Column(JSON)  # Array of alternative names for entity resolution
+    labels = Column(JSON)  # Array of label IDs for organizational filtering
+    options = Column(JSON)  # Entity-specific options/config (e.g., default brightness, preferred colors)
 
     # Source tracking
     config_entry_id = Column(String, index=True)  # Config entry ID (source tracking)
@@ -70,4 +76,6 @@ Index('idx_entity_friendly_name', Entity.friendly_name)
 Index('idx_entity_supported_features', Entity.supported_features)
 Index('idx_entity_device_class', Entity.device_class)
 Index('idx_entity_config_entry', Entity.config_entry_id)
+# Phase 1-2: Indexes for new 2025 HA API attributes
+Index('idx_entity_name_by_user', Entity.name_by_user)  # For user-customized name lookups
 

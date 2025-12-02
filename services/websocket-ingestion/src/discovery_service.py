@@ -425,6 +425,11 @@ class DiscoveryService:
         """
         Wait for response with specific message ID
         
+        IMPORTANT: This method should NOT be called while the listen() loop is running,
+        as it will cause "Concurrent call to receive() is not allowed" errors.
+        
+        For discovery during active connection, use message routing through the connection manager.
+        
         Args:
             websocket: WebSocket connection
             message_id: Message ID to wait for
@@ -435,7 +440,12 @@ class DiscoveryService:
         """
         try:
             start_time = asyncio.get_event_loop().time()
-
+            
+            # Check if websocket is being consumed by another task (listen loop)
+            # If so, we cannot call receive() directly - this will cause concurrent receive error
+            # Instead, we should use message routing through the connection manager
+            # For now, we'll use a try-except to catch the error and provide better messaging
+            
             while True:
                 # Check timeout
                 elapsed = asyncio.get_event_loop().time() - start_time
@@ -444,10 +454,22 @@ class DiscoveryService:
 
                 # Wait for message with remaining timeout
                 remaining_timeout = timeout - elapsed
-                msg = await asyncio.wait_for(
-                    websocket.receive(),
-                    timeout=remaining_timeout
-                )
+                try:
+                    msg = await asyncio.wait_for(
+                        websocket.receive(),
+                        timeout=remaining_timeout
+                    )
+                except RuntimeError as e:
+                    if "Concurrent call to receive()" in str(e) or "concurrent" in str(e).lower():
+                        logger.error(
+                            f"❌ Cannot call receive() while listen() loop is running. "
+                            f"Discovery should use message routing instead. Error: {e}"
+                        )
+                        raise RuntimeError(
+                            "Discovery cannot use direct receive() while listen loop is active. "
+                            "Use message routing through connection manager instead."
+                        ) from e
+                    raise
 
                 if msg.type == 1:  # TEXT message
                     data = msg.json()

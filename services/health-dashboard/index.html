@@ -31,6 +31,7 @@
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeIQ Dashboard" />
@@ -40,12 +41,12 @@
     <link rel="dns-prefetch" href="//fonts.googleapis.com" />
     
     <!-- Security Headers -->
+    <!-- Note: X-Frame-Options is set via nginx HTTP headers, not meta tag -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="X-Frame-Options" content="DENY" />
     <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
     
     <!-- Performance -->
-    <link rel="preload" as="script" href="/src/main.tsx" />
+    <!-- Preload removed - Vite handles script loading during build -->
   </head>
   <body>
     <div id="root"></div>

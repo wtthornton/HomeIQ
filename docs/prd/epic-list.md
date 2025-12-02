@@ -295,6 +295,80 @@ Transform blueprints from late-stage YAML generation tool into core suggestion q
 
 ---
 
+**Epic AI-7: Home Assistant Best Practices Implementation** 📋 PLANNING ⭐ **NEW**
+Implement all 8 Home Assistant best practices from the "Best Practices for Home Assistant Setup and Automations" PDF review to improve automation quality, reliability, and maintainability.
+
+**Key Features:**
+- Complete initial state implementation
+- Entity availability validation
+- Enhanced error handling system
+- Intelligent mode selection enhancement
+- Max exceeded implementation
+- Target optimization (area/device IDs)
+- Enhanced description generation
+- Comprehensive tag system
+
+**Stories:** 8 stories across 3 phases (4-5 weeks)
+- Phase 1: Critical Best Practices (3 stories)
+- Phase 2: Important Best Practices (3 stories)
+- Phase 3: Enhancement Best Practices (2 stories)
+
+**Expected Outcomes:**
+- +40% automation reliability (best practices prevent failures)
+- +30% user trust (more reliable automations)
+- +20% maintenance reduction (better automations)
+
+**Epic Document:** `docs/prd/epic-ai7-home-assistant-best-practices-implementation.md`
+
+---
+
+**Epic AI-8: Home Assistant 2025 API Integration** 📋 PLANNING ⭐ **NEW**
+Fully integrate Home Assistant 2025 API attributes (aliases, labels, options, icon) throughout the AI Automation Service and ensure they are used in entity resolution, suggestion generation, and filtering.
+
+**Key Features:**
+- Labels-based filtering system
+- Options-based preference detection
+- Enhanced entity context in prompts
+- Icon display enhancement
+- Entity resolution with aliases enhancement
+- Name by user priority
+
+**Stories:** 6 stories across 3 phases (3-4 weeks)
+- Phase 1: Filtering and Preferences (2 stories)
+- Phase 2: Context Enhancement (2 stories)
+- Phase 3: Resolution Enhancement (2 stories)
+
+**Expected Outcomes:**
+- +50% entity resolution accuracy (aliases improve matching)
+- +30% suggestion quality (labels and options provide context)
+- 100% HA 2025 compliance (full support for latest API features)
+
+**Epic Document:** `docs/prd/epic-ai8-home-assistant-2025-api-integration.md`
+
+---
+
+**Epic AI-9: Dashboard Home Assistant 2025 Enhancements** 📋 PLANNING ⭐ **NEW**
+Enhance the AI Automation UI dashboard to display and utilize Home Assistant 2025 attributes (aliases, labels, options, icon) and best practices information (tags, mode, initial_state).
+
+**Key Features:**
+- Display automation tags
+- Display entity labels and options
+- Display automation metadata (mode, initial_state)
+- Enhanced entity icon display
+
+**Stories:** 4 stories across 2 phases (2-3 weeks)
+- Phase 1: Tag and Metadata Display (2 stories)
+- Phase 2: Metadata and Icon Enhancement (2 stories)
+
+**Expected Outcomes:**
+- +30% user satisfaction (better visualization)
+- +20% adoption rate (clearer information)
+- 100% feature visibility (all new attributes visible)
+
+**Epic Document:** `docs/prd/epic-ai9-dashboard-ha-2025-enhancements.md`
+
+---
+
 ## HA Setup & Recommendation Service Epics (27-30)
 
 **Epic 27: HA Ingestor Setup & Recommendation Service Foundation** ✅ **COMPLETE**

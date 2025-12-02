@@ -51,7 +51,7 @@ The AI Automation Service addresses a fundamental challenge in smart home automa
 
 **Technology Stack:**
 - **Framework:** FastAPI 0.115.x (Python 3.11+)
-- **Database:** SQLite (25 tables, 365-day retention)
+- **Database:** SQLite (27 tables, 365-day retention)
 - **Port:** 8018 (internal), 8024 (external)
 - **Container:** Docker with persistent model volumes
 
@@ -594,7 +594,7 @@ The service includes several models that are trained or retrained to adapt to us
 
 ### Unified Daily Batch Job (3 AM)
 
-The service runs a comprehensive analysis pipeline every day at 3 AM (configurable via cron schedule). The pipeline consists of 6 phases:
+The service runs a comprehensive analysis pipeline every day at 3 AM (configurable via cron schedule). The pipeline consists of 7 phases:
 
 #### Phase 1: Device Capability Update
 
@@ -906,7 +906,7 @@ When a user approves a suggestion, the service generates Home Assistant automati
 2. **AI Generation** (fallback):
    - If no blueprint match or score too low, use OpenAI GPT-5.1
    - Generate YAML from scratch using pattern context
-   - Apply safety validation (6-rule engine)
+   - Apply safety validation (5-check engine)
    - **Advantages:** Handles unique patterns not covered by blueprints
 
 **Blueprint Integration Components:**
@@ -1026,7 +1026,7 @@ Response to User
 │  ├─ Device Intelligence                                     │
 │  ├─ Synergy Detection                                       │
 │  ├─ Suggestion Generation                                   │
-│  ├─ Safety Validation (6-rule engine)                      │
+│  ├─ Safety Validation (5-check engine)                      │
 │  └─ Deployment Service                                      │
 │                                                             │
 │  External Service Clients:                                  │
@@ -1037,14 +1037,14 @@ Response to User
 │  └─ OpenAI Client                                           │
 │                                                             │
 │  Database:                                                   │
-│  └─ SQLite (25 tables, 365-day retention)                  │
+│  └─ SQLite (27 tables, 365-day retention)                  │
 │                                                             │
 │  Scheduler:                                                  │
 │  └─ APScheduler (daily 3 AM job)                           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Database Schema (25 Tables)
+### Database Schema (27 Tables)
 
 **Core Tables:**
 1. `patterns` - Detected patterns (time-of-day, co-occurrence, anomaly)
@@ -1053,29 +1053,33 @@ Response to User
 4. `device_feature_usage` - Feature utilization tracking
 5. `synergy_opportunities` - Detected synergy opportunities
 6. `discovered_synergies` - Multi-hop device relationships
+7. `blueprint_opportunities` - Discovered blueprint opportunities (Epic AI-6)
+
+**Note:** The service uses a hybrid database architecture where device/entity metadata is stored in the Data API service's SQLite database (`metadata.db`), while pattern analysis and suggestions are stored in the AI Automation Service's SQLite database (`ai_automation.db`). See [Missing HA 2025 Database Attributes Analysis](mdc:implementation/analysis/MISSING_HA_2025_DATABASE_ATTRIBUTES.md) for a comprehensive review of Home Assistant 2025 API attributes and potential schema enhancements.
 
 **Learning System Tables:**
-7. `ask_ai_queries` - Query history and results
-8. `clarification_sessions` - Persistent clarification sessions
-9. `semantic_knowledge` - RAG knowledge base (queries + embeddings)
-10. `user_preferences` - Learned user preferences
-11. `question_quality_metrics` - Question quality tracking
-12. `qa_outcomes` - Q&A learning outcome tracking
+8. `ask_ai_queries` - Query history and results
+9. `clarification_sessions` - Persistent clarification sessions
+10. `semantic_knowledge` - RAG knowledge base (queries + embeddings)
+11. `user_preferences` - Learned user preferences
+12. `question_quality_metrics` - Question quality tracking
+13. `qa_outcomes` - Q&A learning outcome tracking
 
 **Management Tables:**
-13. `system_settings` - System configuration
-14. `automation_versions` - Version history
-15. `analysis_run_status` - Daily job tracking
-16. `user_feedback` - User feedback on suggestions
-17. `pattern_history` - Historical pattern tracking
-18. `entity_aliases` - User-defined entity nicknames
-19. `clarification_confidence_feedback` - Confidence calibration
-20. `clarification_outcomes` - Clarification outcome tracking
-21. `reverse_engineering_metrics` - Performance metrics
-22. `model_comparison_metrics` - Model comparison data
-23. `training_runs` - Training run tracking
-24. `auto_resolution_metrics` - Auto-resolution performance
-25. `manual_refresh_triggers` - Manual refresh tracking
+14. `system_settings` - System configuration
+15. `automation_versions` - Version history
+16. `analysis_run_status` - Daily job tracking
+17. `user_feedback` - User feedback on suggestions
+18. `pattern_history` - Historical pattern tracking
+19. `entity_aliases` - User-defined entity nicknames
+20. `clarification_confidence_feedback` - Confidence calibration
+21. `clarification_outcomes` - Clarification outcome tracking
+22. `reverse_engineering_metrics` - Performance metrics
+23. `model_comparison_metrics` - Model comparison data
+24. `training_runs` - Training run tracking
+25. `auto_resolution_metrics` - Auto-resolution performance
+26. `manual_refresh_triggers` - Manual refresh tracking
+27. `suggestion_preferences` - User preference settings for suggestions (Epic AI-6)
 
 ### API Architecture
 
@@ -1113,16 +1117,17 @@ Response to User
 - `POST /api/nl/generate` - Generate from natural language
 - `POST /api/nl/clarify/{id}` - Clarify request
 
-### Safety Validation (6-Rule Engine)
+### Safety Validation (5-Check Engine)
 
-All generated automations must pass 6 safety rules before deployment:
+All generated automations must pass 5 safety checks before deployment:
 
-1. **No destructive actions without confirmation** - Prevent device damage
-2. **No entity ID mismatches** - Ensure correct device references
-3. **No excessive automation frequency** - Prevent automation spam
-4. **No unsafe device combinations** - Block dangerous pairings
-5. **No privacy-violating data collection** - Protect user privacy
-6. **No unrealistic time ranges** - Validate time specifications
+1. **Conflicting Automations Check** - Detects existing automations with same trigger/action patterns
+2. **Dangerous Actions Check** - Validates destructive actions (lock/unlock, alarm disarm, extreme climate settings)
+3. **Energy Consumption Check** - Flags high-power actions (heaters, AC units, devices > 500W)
+4. **Time Conflicts Check** - Validates time-based conditions don't conflict (impossible ranges, always-on patterns)
+5. **Entity Availability Check** - Ensures all entities exist and are accessible, with fuzzy matching for suggestions
+
+**Note:** The safety validator performs 5 implementation-level checks that cover the conceptual safety rules including destructive actions, entity mismatches, automation conflicts, unsafe combinations, and time range validation.
 
 ---
 
@@ -1141,6 +1146,7 @@ All generated automations must pass 6 safety rules before deployment:
 - Phase 2 (Fetch Events): 20-60s
 - Phase 3 (Pattern Detection): 30-90s
 - Phase 3c (Synergy Detection): 15-45s
+- Phase 3d (Blueprint Opportunity Discovery): 2-5s
 - Phase 4 (Feature Analysis): 10-30s
 - Phase 5 (Description Generation): 5-15s
 - Phase 6 (MQTT Notification): <1s
@@ -1315,7 +1321,7 @@ The service proactively discovers blueprint opportunities from user device inven
 **User Experience:**
 - Natural language interface
 - Conversational refinement
-- Safety validation (6-rule engine)
+- Safety validation (5-check engine)
 - One-click deployment
 
 **Scalability:**
@@ -1331,7 +1337,7 @@ The service proactively discovers blueprint opportunities from user device inven
 3. **Self-Learning:** RAG system improves over time
 4. **Cost-Efficient:** ~$0.50/year for AI processing
 5. **Universal:** Works with 6,000+ device models automatically
-6. **Safe:** 6-rule validation engine prevents dangerous automations
+6. **Safe:** 5-check validation engine prevents dangerous automations
 7. **User-Friendly:** Description-first flow, natural language interface
 
 ---
@@ -1359,8 +1365,8 @@ This technical foundation enables the service to transform raw device data into 
 
 ---
 
-**Document Version:** 2.4  
-**Last Updated:** November 2025  
+**Document Version:** 2.5  
+**Last Updated:** December 2025 (Epic AI-6: Blueprint-Enhanced Suggestion Intelligence)  
 **Status:** Production Ready  
 **Service Port:** 8018 (internal), 8024 (external)
 

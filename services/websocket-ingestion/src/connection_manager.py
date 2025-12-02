@@ -433,12 +433,16 @@ class ConnectionManager:
                     continue
 
                 # Run discovery refresh
+                # 2025 Best Practice: Use HTTP API for discovery to avoid concurrent receive() errors
+                # Don't pass websocket - discovery will use HTTP API instead
                 logger.info("=" * 80)
                 logger.info("🔄 PERIODIC DISCOVERY REFRESH")
                 logger.info("=" * 80)
 
                 try:
-                    await self.discovery_service.discover_all(self.client.websocket, store=True)
+                    # 2025 Best Practice: Pass None for websocket to force HTTP API usage
+                    # This avoids "Concurrent call to receive() is not allowed" errors
+                    await self.discovery_service.discover_all(websocket=None, store=True)
                     logger.info("✅ Periodic discovery refresh completed successfully")
                 except Exception as discovery_error:
                     logger.error(f"❌ Periodic discovery refresh failed: {discovery_error}")
@@ -470,26 +474,27 @@ class ConnectionManager:
         await self._subscribe_to_events()
 
         # Discover devices and entities
-        # IMPORTANT: Run discovery BEFORE listen() loop starts to avoid concurrency issues
-        # Discovery uses WebSocket, but it's safe here because listen() hasn't started yet
+        # 2025 Best Practice: Use HTTP API for discovery to avoid concurrent receive() errors
+        # Discovery can run independently of WebSocket connection
         logger.info("🔍 Starting device and entity discovery...")
         try:
-            if self.client and self.client.websocket:
-                # Pass websocket to discovery (will use WebSocket since HTTP API not available)
-                # This is safe because listen() loop hasn't started yet
-                await self.discovery_service.discover_all(self.client.websocket)
+            # 2025 Best Practice: Pass None for websocket to force HTTP API usage
+            # This avoids "Concurrent call to receive() is not allowed" errors
+            # Discovery will use HTTP API endpoints instead of WebSocket
+            await self.discovery_service.discover_all(websocket=None)
 
-                # Subscribe to registry update events (still requires WebSocket for real-time updates)
+            # Subscribe to registry update events (still requires WebSocket for real-time updates)
+            if self.client and self.client.websocket:
                 logger.info("📡 Subscribing to registry update events...")
                 await self.discovery_service.subscribe_to_device_registry_events(self.client.websocket)
                 await self.discovery_service.subscribe_to_entity_registry_events(self.client.websocket)
-
-                # Start periodic discovery refresh task
-                if not self.periodic_discovery_task or self.periodic_discovery_task.done():
-                    logger.info(f"🔄 Starting periodic discovery refresh (every {self.discovery_refresh_interval/60:.1f} minutes)...")
-                    self.periodic_discovery_task = asyncio.create_task(self._periodic_discovery_refresh())
             else:
-                logger.warning("⚠️  WebSocket not available - skipping discovery")
+                logger.warning("⚠️  WebSocket not available - skipping registry event subscriptions")
+
+            # Start periodic discovery refresh task
+            if not self.periodic_discovery_task or self.periodic_discovery_task.done():
+                logger.info(f"🔄 Starting periodic discovery refresh (every {self.discovery_refresh_interval/60:.1f} minutes)...")
+                self.periodic_discovery_task = asyncio.create_task(self._periodic_discovery_refresh())
         except Exception as e:
             logger.error(f"❌ Discovery failed (non-fatal): {e}")
             import traceback

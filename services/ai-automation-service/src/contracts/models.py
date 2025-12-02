@@ -233,10 +233,14 @@ class AutomationPlan(BaseModel):
         """
         Intelligently determine automation mode based on triggers and actions.
         
-        Rules:
-        - Motion sensors with delays → restart (cancel previous runs)
+        Enhanced rules (Home Assistant Best Practices):
+        - Motion/presence sensors with delays → restart (cancel previous runs)
+        - Binary sensors (door/window) with delays → restart
         - Time-based triggers → single (one-time actions)
         - Multiple actions with delays → restart (cancel previous sequence)
+        - Parallel actions → parallel mode (independent, non-conflicting)
+        - Sequential independent actions → queued mode
+        - Event/webhook triggers → single (usually one-time)
         - Default → single (safest default)
         
         Args:
@@ -247,21 +251,6 @@ class AutomationPlan(BaseModel):
         Returns:
             Appropriate AutomationMode
         """
-        # Check for motion sensors with delays → restart mode
-        has_motion_trigger = False
-        for trigger in triggers:
-            if trigger.platform == "state":
-                entity_id = trigger.entity_id
-                if isinstance(entity_id, str):
-                    entity_id = [entity_id]
-                elif entity_id is None:
-                    entity_id = []
-                
-                # Check if any entity_id contains "motion" (case-insensitive)
-                if any("motion" in str(eid).lower() for eid in entity_id if eid):
-                    has_motion_trigger = True
-                    break
-        
         # Check if any action has delays (for multiple checks)
         has_delays = any(
             action.delay or 
@@ -270,9 +259,51 @@ class AutomationPlan(BaseModel):
             for action in actions
         )
         
-        # Motion sensors with delays → restart mode (cancel previous runs)
-        if has_motion_trigger and has_delays:
+        # Check for state-based triggers with sensor keywords
+        has_sensor_trigger = False
+        sensor_keywords = ["motion", "presence", "occupancy", "door", "window", "contact"]
+        
+        for trigger in triggers:
+            if trigger.platform == "state":
+                entity_id = trigger.entity_id
+                if isinstance(entity_id, str):
+                    entity_id = [entity_id]
+                elif entity_id is None:
+                    entity_id = []
+                
+                # Check if any entity_id contains sensor keywords (case-insensitive)
+                entity_ids_str = " ".join(str(eid).lower() for eid in entity_id if eid)
+                if any(keyword in entity_ids_str for keyword in sensor_keywords):
+                    has_sensor_trigger = True
+                    break
+        
+        # Motion/presence/door/window sensors with delays → restart mode (cancel previous runs)
+        if has_sensor_trigger and has_delays:
             return AutomationMode.RESTART
+        
+        # Check for parallel actions (independent, non-conflicting)
+        # If actions have parallel structure or are clearly independent
+        has_parallel_structure = any(
+            hasattr(action, 'parallel') or 
+            (hasattr(action, 'service') and action.service and 
+             action.service not in ['sequence', 'choose', 'repeat', 'if', 'while'])
+            for action in actions
+        )
+        
+        # Multiple independent actions without dependencies → parallel mode
+        if len(actions) > 1 and not has_delays and has_parallel_structure:
+            # Check if actions are truly independent (different entities, no shared state)
+            entity_ids_in_actions = set()
+            for action in actions:
+                if action.entity_id:
+                    if isinstance(action.entity_id, str):
+                        entity_ids_in_actions.add(action.entity_id)
+                    elif isinstance(action.entity_id, list):
+                        entity_ids_in_actions.update(action.entity_id)
+            
+            # If actions target different entities and no delays, use parallel
+            if len(entity_ids_in_actions) > 1 and len(actions) > 1:
+                return AutomationMode.PARALLEL
         
         # Multiple actions with delays suggest restart mode (cancel previous sequence)
         # Check this BEFORE time-based check, as time-based can still have delays
@@ -283,11 +314,25 @@ class AutomationPlan(BaseModel):
         if any(trigger.platform in ["time", "time_pattern", "sun"] for trigger in triggers):
             return AutomationMode.SINGLE
         
+        # Event/webhook triggers are typically single (one-time events)
+        if any(trigger.platform in ["event", "webhook", "mqtt"] for trigger in triggers):
+            return AutomationMode.SINGLE
+        
         # Check description for keywords suggesting restart mode
         desc_lower = (description or "").lower()
-        if any(keyword in desc_lower for keyword in ["motion", "presence", "movement"]):
+        if any(keyword in desc_lower for keyword in ["motion", "presence", "movement", "door", "window"]):
             if has_delays:
                 return AutomationMode.RESTART
+        
+        # Check description for keywords suggesting queued mode
+        if any(keyword in desc_lower for keyword in ["sequence", "sequential", "order", "queue"]):
+            if len(actions) > 1:
+                return AutomationMode.QUEUED
+        
+        # Check description for keywords suggesting parallel mode
+        if any(keyword in desc_lower for keyword in ["parallel", "simultaneous", "concurrent", "independent"]):
+            if len(actions) > 1:
+                return AutomationMode.PARALLEL
         
         # Default to single for safety
         return AutomationMode.SINGLE

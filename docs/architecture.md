@@ -332,6 +332,17 @@ NEW (Epic 31):     HA → websocket-ingestion → InfluxDB (direct)
 
 ## Recent Updates
 
+### December 2025 - Epic AI-6: Blueprint-Enhanced Suggestion Intelligence
+- **Status**: ✅ **DEPLOYED** - Blueprint discovery and preference system now available
+- **Blueprint Opportunity Discovery**: Proactively discovers automation opportunities from user device inventory (Phase 3d)
+- **Pattern Validation**: Validates detected patterns against community blueprints with confidence boosting
+- **User Preference System**: Configurable max suggestions, creativity level, and blueprint preference weighting
+- **Preference-Aware Ranking**: Unified ranking service applies all preferences in optimal order
+- **Preference Settings UI**: User-friendly interface in Settings page for configuring preferences
+- **Preference API Endpoints**: `GET/PUT /api/v1/preferences` for programmatic preference management
+- **Impact**: More relevant suggestions, better user control, blueprint-validated patterns receive confidence boosts
+- **Documentation**: [User Guide: Preferences](docs/current/USER_GUIDE_PREFERENCES.md), [Epic AI-6 PRD](docs/prd/epic-ai6-blueprint-enhanced-suggestion-intelligence.md)
+
 ### November 2025 - Home Type Categorization System
 - **Added**: ML-based home type classification using RandomForest classifier
 - **2025 ML Improvements** (December 2025): LightGBM, TabPFN v2.5, River incremental learning, PyTorch compile for GNN
@@ -443,8 +454,8 @@ cd services/health-dashboard && npm test
 
 ---
 
-**Last Updated**: November 25, 2025  
-**Version**: 4.1  
+**Last Updated**: December 2025 (Epic AI-6: Blueprint-Enhanced Suggestion Intelligence)  
+**Version**: 4.2  
 **Status**: Production Ready
 
 **For complete details, see the [Architecture Documentation Index](architecture/index.md)**

@@ -103,7 +103,7 @@ if register_error_handlers:
 # Instrument FastAPI for observability
 if OBSERVABILITY_AVAILABLE:
     try:
-        instrument_fastapi(app)
+        instrument_fastapi(app, "ai-training-service")
         app.add_middleware(CorrelationMiddleware)
     except Exception as e:
         logger.warning(f"Failed to instrument FastAPI: {e}")

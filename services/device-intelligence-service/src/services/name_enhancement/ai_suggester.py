@@ -254,14 +254,26 @@ Return your response as JSON with this structure:
         parts.append("DEVICE INFORMATION:")
         parts.append(f"- Manufacturer: {device.manufacturer or 'Unknown'}")
         parts.append(f"- Model: {device.model or 'Unknown'}")
+        # Phase 3: Include model_id if available (more precise model identification)
+        if hasattr(device, 'model_id') and device.model_id:
+            parts.append(f"- Model ID: {device.model_id}")
         if entity:
             parts.append(f"- Type: {entity.domain} ({entity.domain})")
         elif device.device_class:
             parts.append(f"- Type: {device.device_class}")
         parts.append(f"- Location: {device.area_name or device.area_id or 'Unknown'}")
         parts.append(f"- Current Name: {device.name or 'Unknown'}")
+        # Phase 1: Include name_by_user if available (user-customized name)
+        if hasattr(device, 'name_by_user') and device.name_by_user:
+            parts.append(f"- User Custom Name: {device.name_by_user}")
+        # Phase 2: Include labels if available (organizational context)
+        if hasattr(device, 'labels') and device.labels:
+            parts.append(f"- Labels: {', '.join(device.labels)}")
         if entity:
             parts.append(f"- Entity ID: {entity.entity_id}")
+            # Phase 1: Include entity aliases if available
+            if hasattr(entity, 'aliases') and entity.aliases:
+                parts.append(f"- Entity Aliases: {', '.join(entity.aliases)}")
 
         # Existing devices in same area (for uniqueness)
         if context and "existing_devices" in context:

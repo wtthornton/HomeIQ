@@ -187,7 +187,11 @@ class EntityContextBuilder:
                     if not isinstance(available_services, list):
                         available_services = []
                     supported_features = entity_metadata.get('supported_features')
-                    icon = entity_metadata.get('icon')
+                    icon = entity_metadata.get('icon')  # Current icon
+                    original_icon = entity_metadata.get('original_icon')  # Phase 1: Original icon
+                    aliases = entity_metadata.get('aliases') or []  # Phase 1: Aliases
+                    labels = entity_metadata.get('labels') or []  # Phase 2: Labels
+                    options = entity_metadata.get('options')  # Phase 2: Options
                     device_class = entity_metadata.get('device_class')
                     unit_of_measurement = entity_metadata.get('unit_of_measurement')
 
@@ -231,6 +235,14 @@ class EntityContextBuilder:
                 supported_features = attributes.get('supported_features')
             if not icon:
                 icon = enriched.get('icon')
+            if not original_icon:
+                original_icon = enriched.get('original_icon')  # Phase 1: Fallback to enriched data
+            if not aliases:
+                aliases = enriched.get('aliases') or []  # Phase 1: Fallback to enriched data
+            if not labels:
+                labels = enriched.get('labels') or []  # Phase 2: Fallback to enriched data
+            if not options:
+                options = enriched.get('options')  # Phase 2: Fallback to enriched data
             if not device_class:
                 attributes = enriched.get('attributes', {})
                 device_class = attributes.get('device_class')
@@ -245,9 +257,16 @@ class EntityContextBuilder:
             entity_entry = {
                 'entity_id': entity_id,
                 'friendly_name': friendly_name,
-                'name': name,  # NEW: Entity Registry name
-                'name_by_user': name_by_user,  # NEW: User-customized name
-                'original_name': original_name,  # NEW: Original name
+                'name': name,  # Entity Registry name
+                'name_by_user': name_by_user,  # User-customized name (highest priority)
+                'original_name': original_name,  # Original name from integration
+                # Phase 1: Entity Registry 2025 Attributes (Critical)
+                'icon': icon,  # Current icon (may be user-customized)
+                'original_icon': original_icon,  # Original icon from integration
+                'aliases': aliases,  # Array of alternative names for entity resolution
+                # Phase 2: Entity Registry 2025 Attributes (Important)
+                'labels': labels,  # Array of label IDs for organizational filtering
+                'options': options,  # Entity-specific options/config (e.g., default brightness)
                 'domain': domain,
                 'type': self._determine_type(enriched),
                 'state': enriched.get('state', 'unknown'),
@@ -257,11 +276,10 @@ class EntityContextBuilder:
                     'is_hue_group': enriched.get('is_group', False)
                 }),
                 'capabilities': capabilities,  # From database first
-                'supported_features': supported_features,  # NEW
-                'available_services': available_services,  # NEW
-                'icon': icon,  # NEW
-                'device_class': device_class,  # NEW
-                'unit_of_measurement': unit_of_measurement,  # NEW
+                'supported_features': supported_features,
+                'available_services': available_services,
+                'device_class': device_class,
+                'unit_of_measurement': unit_of_measurement,
                 'attributes': attributes,  # Full passthrough of all attributes
                 'is_group': enriched.get('is_group', False),
                 'integration': enriched.get('integration', 'unknown')

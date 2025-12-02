@@ -1,9 +1,9 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** November 2025 (Comprehensive Review - Removed deprecated enrichment-pipeline references, updated OpenAI models)  
-**API Version:** v4.6  
+**Last Updated:** December 2025 (Epic AI-6: Blueprint-Enhanced Suggestion Intelligence)  
+**API Version:** v4.7  
 **Status:** ✅ Production Ready  
-**Recent Updates:** Home Type Categorization System (ML-based classification, November 2025), Device Database enhancements (health monitoring, classification, setup assistant, recommendations), device-specific automation templates, HA API-only capability discovery
+**Recent Updates:** Epic AI-6 Blueprint-Enhanced Suggestion Intelligence (December 2025), Preference API endpoints, Blueprint opportunity discovery, Pattern validation, Preference-aware ranking, Home Type Categorization System (ML-based classification, November 2025), Device Database enhancements (health monitoring, classification, setup assistant, recommendations), device-specific automation templates, HA API-only capability discovery
 
 > **📌 This is the SINGLE SOURCE OF TRUTH for all HA Ingestor API documentation.**  
 > **Supersedes:** API_DOCUMENTATION.md, API_COMPREHENSIVE_REFERENCE.md, API_ENDPOINTS_REFERENCE.md
@@ -1276,7 +1276,13 @@ Update the system configuration. Validation is applied server-side (e.g., soft p
 
 **Base URL:** `/api/v1/preferences` (AI Automation Service)
 
-User preference settings for customizing suggestion generation and ranking.
+User preference settings for customizing suggestion generation and ranking. Preferences control how suggestions are filtered, ranked, and limited in both the daily batch job (3 AM) and Ask AI queries.
+
+**Epic AI-6 Features:**
+- **Blueprint Opportunity Discovery:** Proactively finds automation opportunities from device inventory
+- **Pattern Validation:** Validates detected patterns against community blueprints for confidence boosting
+- **Preference-Based Ranking:** Customizable suggestion ranking with creativity levels and blueprint preferences
+- **Unified Preference Application:** Single ranking service applies all preferences in optimal order
 
 #### GET /api/v1/preferences
 
@@ -1296,8 +1302,16 @@ Get current user preferences for suggestion generation.
 
 **Field Descriptions:**
 - `max_suggestions` (int, 5-50): Maximum number of suggestions to show (default: 10)
+  - Controls the total number of suggestions returned in both batch job and Ask AI queries
+  - Applied after all ranking and filtering is complete
 - `creativity_level` (string): Creativity level - "conservative", "balanced", or "creative" (default: "balanced")
+  - **Conservative:** Only high-confidence suggestions (confidence ≥ 0.85), no experimental features
+  - **Balanced:** Standard confidence threshold (≥ 0.70), includes validated patterns
+  - **Creative:** Lower confidence threshold (≥ 0.60), includes experimental and innovative suggestions
 - `blueprint_preference` (string): Blueprint preference - "low", "medium", or "high" (default: "medium")
+  - **Low:** Blueprint opportunities receive minimal weight boost (5%)
+  - **Medium:** Standard blueprint weighting (15% boost for blueprint-validated patterns)
+  - **High:** Strong blueprint preference (30% boost for blueprint-validated patterns)
 
 **Example:**
 ```bash
@@ -1333,14 +1347,16 @@ Update user preferences. Only provided fields are updated.
 ```bash
 curl -X PUT "http://localhost:8024/api/v1/preferences?user_id=default" \
   -H "Content-Type: application/json" \
-  -d '{"max_suggestions": 15, "creativity_level": "creative"}'
+  -d '{"max_suggestions": 15, "creativity_level": "creative", "blueprint_preference": "high"}'
 ```
 
 **Notes:**
 - Preferences are applied to both daily batch job (3 AM) and Ask AI query suggestions
 - Changes take effect immediately for new suggestions
 - If preferences are not set, default values are used
+- Preferences are stored in `suggestion_preferences` table in SQLite
 - See [User Guide: Preferences](../current/USER_GUIDE_PREFERENCES.md) for detailed explanations
+- See [Epic AI-6 Documentation](../../docs/prd/epic-ai6-blueprint-enhanced-suggestion-intelligence.md) for architecture details
 
 ### Entity Alias Management (October 2025)
 
@@ -1887,8 +1903,8 @@ setInterval(updateDashboard, 5000);
 
 ---
 
-**Document Version:** 4.2  
-**Last Updated:** October 29, 2025  
+**Document Version:** 4.7  
+**Last Updated:** December 2025 (Epic AI-6: Blueprint-Enhanced Suggestion Intelligence)  
 **Status:** ✅ Production Ready  
 **Maintained By:** HA Ingestor Team
 

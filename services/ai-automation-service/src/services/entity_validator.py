@@ -1490,13 +1490,25 @@ class EntityValidator:
             # Build searchable string from all available names
             search_terms = []
 
-            # Priority order: friendly_name > name_by_user > device_name > entity_id
-            if entity.get('friendly_name'):
-                search_terms.append(entity['friendly_name'])
+            # Priority order: name_by_user > friendly_name > name > original_name > device_name > entity_id
+            # Phase 1: Prioritize user-customized names
             if entity.get('name_by_user'):
                 search_terms.append(entity['name_by_user'])
+            if entity.get('friendly_name'):
+                search_terms.append(entity['friendly_name'])
+            if entity.get('name'):
+                search_terms.append(entity['name'])
+            if entity.get('original_name'):
+                search_terms.append(entity['original_name'])
             if entity.get('device_name'):
                 search_terms.append(entity['device_name'])
+            
+            # Phase 1: Add aliases for comprehensive matching
+            aliases = entity.get('aliases') or []
+            if isinstance(aliases, list):
+                search_terms.extend(aliases)
+            elif isinstance(aliases, str):
+                search_terms.append(aliases)
 
             # Also include entity_id parts
             entity_id = entity.get('entity_id', '')

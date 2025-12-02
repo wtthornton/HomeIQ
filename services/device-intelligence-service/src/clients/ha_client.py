@@ -40,6 +40,10 @@ class HADevice:
     disabled_by: str | None
     created_at: datetime
     updated_at: datetime
+    # Phase 2-3: Device Registry 2025 Attributes
+    labels: list[str] | None = None  # Array of label IDs for organizational filtering
+    serial_number: str | None = None  # Optional serial number (if available from integration)
+    model_id: str | None = None  # Optional model ID (manufacturer identifier, may differ from model)
 
 
 @dataclass
@@ -61,6 +65,13 @@ class HAEntity:
     translation_key: str | None
     created_at: datetime
     updated_at: datetime
+    # Phase 1: Entity Registry 2025 Attributes (Critical)
+    name_by_user: str | None = None  # User-customized name (source of truth from Entity Registry)
+    icon: str | None = None  # Current icon (may be user-customized, separate from original_icon)
+    aliases: list[str] | None = None  # Array of alternative names for entity resolution
+    # Phase 2: Entity Registry 2025 Attributes (Important)
+    labels: list[str] | None = None  # Array of label IDs for organizational filtering
+    options: dict[str, Any] | None = None  # Entity-specific options/config (e.g., default brightness)
 
 
 @dataclass
@@ -376,7 +387,11 @@ class HomeAssistantClient:
                     via_device_id=device_data.get("via_device_id"),
                     disabled_by=device_data.get("disabled_by"),
                     created_at=self._parse_timestamp(device_data.get("created_at")),
-                    updated_at=self._parse_timestamp(device_data.get("updated_at"))
+                    updated_at=self._parse_timestamp(device_data.get("updated_at")),
+                    # Phase 2-3: Device Registry 2025 Attributes
+                    labels=device_data.get("labels") or [],
+                    serial_number=device_data.get("serial_number"),
+                    model_id=device_data.get("model_id")
                 )
                 devices.append(device)
 
@@ -412,7 +427,14 @@ class HomeAssistantClient:
                     unique_id=entity_data["unique_id"],
                     translation_key=entity_data.get("translation_key"),
                     created_at=self._parse_timestamp(entity_data.get("created_at")),
-                    updated_at=self._parse_timestamp(entity_data.get("updated_at"))
+                    updated_at=self._parse_timestamp(entity_data.get("updated_at")),
+                    # Phase 1: Entity Registry 2025 Attributes (Critical)
+                    name_by_user=entity_data.get("name_by_user"),
+                    icon=entity_data.get("icon"),  # Current icon (may be user-customized)
+                    aliases=entity_data.get("aliases") or [],
+                    # Phase 2: Entity Registry 2025 Attributes (Important)
+                    labels=entity_data.get("labels") or [],
+                    options=entity_data.get("options")
                 )
                 entities.append(entity)
 

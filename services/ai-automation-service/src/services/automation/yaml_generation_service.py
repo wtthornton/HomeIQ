@@ -656,9 +656,12 @@ def _apply_best_practice_enhancements(
         if not yaml_data or not isinstance(yaml_data, dict):
             return yaml_content  # Return original if parsing fails
         
-        # Improvement #1: Add initial_state if missing
+        # Improvement #1: Ensure initial_state is always present (best practice)
+        # Always set to True if missing (prevents automations from being disabled after restart)
+        # If already present, preserve the value (user may have explicitly set it)
         if "initial_state" not in yaml_data:
             yaml_data["initial_state"] = True
+            logger.debug("Added initial_state: true (best practice)")
         
         # Improvement #4: Intelligent mode selection
         if "mode" not in yaml_data or yaml_data.get("mode") == "single":
@@ -716,14 +719,28 @@ def _apply_best_practice_enhancements(
                     # Add error handling
                     enhanced_actions = add_error_handling_to_actions(action_objects)
                     
-                    # Convert back to dict format
-                    enhanced_actions_dict = [
-                        a.model_dump(exclude_none=True, by_alias=True) for a in enhanced_actions
-                    ]
+                    # Convert back to dict format (handle both Action objects and dicts)
+                    enhanced_actions_dict = []
+                    for a in enhanced_actions:
+                        if isinstance(a, dict):
+                            # Already a dict (choose block)
+                            enhanced_actions_dict.append(a)
+                        else:
+                            # Action object - convert to dict
+                            enhanced_actions_dict.append(
+                                a.model_dump(exclude_none=True, by_alias=True)
+                            )
                     yaml_data["action"] = enhanced_actions_dict
                     logger.debug(f"Added error handling to {len(enhanced_actions)} actions")
         except Exception as e:
             logger.debug(f"Could not add error handling: {e}")
+        
+        # Improvement #4: Add entity availability conditions
+        try:
+            from .availability_conditions import add_availability_conditions
+            yaml_data = add_availability_conditions(yaml_data)
+        except Exception as e:
+            logger.debug(f"Could not add availability conditions: {e}")
         
         # Convert back to YAML
         return yaml_lib.dump(yaml_data, default_flow_style=False, sort_keys=False)
@@ -926,6 +943,9 @@ Use this entity information to:
 2. Understand device capabilities
 3. Generate appropriate actions using ONLY available services
 4. Respect device limitations (e.g., brightness range, color modes)
+5. Phase 1: Use "aliases" array if available - these are alternative names users may use
+6. Phase 2: Consider "labels" array for organizational context (e.g., "outdoor", "security")
+7. Phase 2: Use "options" object to respect user preferences (e.g., default brightness settings)
 """
     else:
         # This should not happen - validated_entities check above should catch this

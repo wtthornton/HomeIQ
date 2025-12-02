@@ -21,7 +21,40 @@ def _insert_unique(path: Path) -> None:
 
 
 # Ignore legacy helper scripts that do not represent real tests.
-collect_ignore = ["services/ai-automation-service/scripts/simple_test.py"]
+collect_ignore = [
+    "services/ai-automation-service/scripts/simple_test.py",
+]
+
+
+def pytest_ignore_collect(collection_path, config):
+    """Ignore test files in scripts directories and src directories"""
+    import os
+    # Handle both pathlib.Path and legacy py.path.local
+    if hasattr(collection_path, 'parts'):
+        path_parts = collection_path.parts
+        path_str = str(collection_path)
+    else:
+        # Legacy py.path.local support
+        path_str = str(collection_path)
+        path_parts = Path(path_str).parts
+    
+    filename = os.path.basename(path_str)
+    
+    # Ignore any files in scripts/ directories (root or service-level)
+    if "scripts" in path_parts:
+        # Check if it's a test file
+        if filename.startswith("test_") or "test" in filename.lower():
+            return True
+    
+    # Ignore test files in src/ directories (they're not real tests)
+    if "src" in path_parts and filename.startswith("test_"):
+        return True
+    
+    # Ignore correlation tests (require optuna and aren't in unit test list)
+    if "correlation" in path_parts and filename.startswith("test_"):
+        return True
+    
+    return None  # Let pytest decide for other files
 
 
 def pytest_sessionstart(session):  # pragma: no cover - test harness hook
