@@ -357,7 +357,7 @@ class SafetyValidator:
                     if entity_id:
                         all_entities.add(entity_id)
 
-        # Check each entity
+        # Check each entity for existence and availability
         for entity_id in all_entities:
             try:
                 state = await self.ha_client.get_entity_state(entity_id)
@@ -395,6 +395,25 @@ class SafetyValidator:
                         f"Entity not found: {entity_id} "
                         f"(validated: {was_validated})"
                     )
+                else:
+                    # Improvement #3: Check entity state availability
+                    state_value = state.get('state', '').lower()
+                    if state_value in ['unavailable', 'unknown']:
+                        issues.append({
+                            'severity': 'warning',
+                            'category': 'availability',
+                            'message': f'Entity is {state_value}: {entity_id}',
+                            'details': {
+                                'entity_id': entity_id,
+                                'state': state_value,
+                                'attributes': state.get('attributes', {})
+                            },
+                            'recommendation': (
+                                f'Entity {entity_id} is currently {state_value}. '
+                                'Consider adding availability checks in conditions or '
+                                'ensuring the entity is online before using it in automation.'
+                            )
+                        })
             except Exception as e:
                 logger.warning(f"Error checking entity {entity_id}: {e}")
 

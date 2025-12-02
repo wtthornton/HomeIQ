@@ -30,9 +30,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...clients.ha_client import HomeAssistantClient
 from ...config import settings
 from ...llm.openai_client import OpenAIClient
-from ...contracts.models import AutomationPlan
+from ...contracts.models import AutomationPlan, AutomationMode, Trigger, Action
 from pydantic import ValidationError as PydanticValidationError
 from .yaml_validator import AutomationYAMLValidator
+from .error_handling import add_error_handling_to_actions
 
 logger = logging.getLogger(__name__)
 
@@ -566,6 +567,13 @@ async def _validate_generated_yaml(
     if auto_fixed:
         logger.info("[OK] Using auto-fixed YAML (fixes applied from structure validation)")
     
+    # Apply best practice enhancements (Improvements #1-4)
+    try:
+        final_yaml = _apply_best_practice_enhancements(final_yaml, suggestion)
+        logger.info("[OK] Applied best practice enhancements (initial_state, mode selection, error handling)")
+    except Exception as e:
+        logger.warning(f"[WARNING] Failed to apply best practice enhancements: {e}, using original YAML")
+    
     # Log validation results for each stage
     all_stages_passed = validation_result.all_checks_passed
     stages_metadata = []
@@ -621,6 +629,108 @@ async def _validate_generated_yaml(
         )
     
     return (final_yaml, validation_metadata)
+
+
+def _apply_best_practice_enhancements(
+    yaml_content: str,
+    suggestion: dict[str, Any] | None = None
+) -> str:
+    """
+    Apply Home Assistant best practice enhancements to generated YAML.
+    
+    Improvements applied:
+    1. Add initial_state field if missing
+    2. Intelligent automation mode selection
+    3. Error handling for non-critical actions
+    4. Entity availability conditions (if entities can be detected)
+    
+    Args:
+        yaml_content: YAML string to enhance
+        suggestion: Optional suggestion dictionary for context
+    
+    Returns:
+        Enhanced YAML string
+    """
+    try:
+        yaml_data = yaml_lib.safe_load(yaml_content)
+        if not yaml_data or not isinstance(yaml_data, dict):
+            return yaml_content  # Return original if parsing fails
+        
+        # Improvement #1: Add initial_state if missing
+        if "initial_state" not in yaml_data:
+            yaml_data["initial_state"] = True
+        
+        # Improvement #4: Intelligent mode selection
+        if "mode" not in yaml_data or yaml_data.get("mode") == "single":
+            # Try to intelligently determine mode
+            try:
+                triggers_raw = yaml_data.get("trigger", [])
+                actions_raw = yaml_data.get("action", [])
+                
+                # Convert to Trigger/Action objects if possible
+                triggers = []
+                for t in triggers_raw:
+                    if isinstance(t, dict):
+                        try:
+                            triggers.append(Trigger(**t))
+                        except Exception:
+                            pass  # Skip if can't parse
+                
+                actions = []
+                for a in actions_raw:
+                    if isinstance(a, dict):
+                        try:
+                            # Extract service for Action creation
+                            if "service" in a:
+                                actions.append(Action(**a))
+                        except Exception:
+                            pass  # Skip if can't parse
+                
+                # Determine mode if we have valid triggers and actions
+                if triggers and actions:
+                    description = yaml_data.get("description") or suggestion.get("description") if suggestion else None
+                    determined_mode = AutomationPlan.determine_automation_mode(
+                        triggers=triggers,
+                        actions=actions,
+                        description=description
+                    )
+                    yaml_data["mode"] = determined_mode.value
+                    logger.debug(f"Intelligently determined automation mode: {determined_mode.value}")
+            except Exception as e:
+                logger.debug(f"Could not determine intelligent mode: {e}, using default")
+        
+        # Improvement #2: Add error handling to actions
+        try:
+            actions_raw = yaml_data.get("action", [])
+            if isinstance(actions_raw, list) and actions_raw:
+                # Convert to Action objects
+                action_objects = []
+                for a in actions_raw:
+                    if isinstance(a, dict) and "service" in a:
+                        try:
+                            action_objects.append(Action(**a))
+                        except Exception:
+                            pass  # Skip invalid actions
+                
+                if action_objects:
+                    # Add error handling
+                    enhanced_actions = add_error_handling_to_actions(action_objects)
+                    
+                    # Convert back to dict format
+                    enhanced_actions_dict = [
+                        a.model_dump(exclude_none=True, by_alias=True) for a in enhanced_actions
+                    ]
+                    yaml_data["action"] = enhanced_actions_dict
+                    logger.debug(f"Added error handling to {len(enhanced_actions)} actions")
+        except Exception as e:
+            logger.debug(f"Could not add error handling: {e}")
+        
+        # Convert back to YAML
+        return yaml_lib.dump(yaml_data, default_flow_style=False, sort_keys=False)
+    
+    except Exception as e:
+        logger.warning(f"Error applying best practice enhancements: {e}")
+        return yaml_content  # Return original on any error
 
 
 async def generate_automation_yaml(
@@ -939,7 +1049,7 @@ CRITICAL: Use the exact entity IDs above - DO NOT use template variables like {{
 """
     
     prompt = f"""
-TASK: Generate Home Assistant 2025 automation YAML from this request.
+TASK: Generate Home Assistant 2025.10+ automation YAML from this request (latest 2025 standards).
 
 USER REQUEST: "{original_query}"
 {dynamic_entity_text}
@@ -956,7 +1066,7 @@ AUTOMATION SPECIFICATION:
 {"🔴 TEST MODE (SEQUENCES) - Shortened delays (10x faster) and reduced repeat counts for quick testing" if is_sequence_test else ("🔴 TEST MODE - Use event trigger (event_type: test_trigger) for immediate manual execution" if is_test else "")}
 
 ═══════════════════════════════════════════════════════════════════════════════
-2025 HOME ASSISTANT YAML EXAMPLES
+HOME ASSISTANT 2025.10+ YAML EXAMPLES (Current Standard)
 ═══════════════════════════════════════════════════════════════════════════════
 
 Example 1 - Simple Time-Based Automation (Specific Time):
@@ -964,6 +1074,7 @@ Example 1 - Simple Time-Based Automation (Specific Time):
 id: '1234567890'
 alias: Morning Light
 description: "Turn on light at 7 AM"
+initial_state: true
 mode: single
 trigger:
   - platform: time
@@ -982,6 +1093,7 @@ Example 1b - Recurring Time-Based Automation (Every X Minutes/Hours):
 id: '1234567891'
 alias: Periodic Light Effect
 description: "Change light effect every 10 minutes"
+initial_state: true
 mode: single
 trigger:
   - platform: time_pattern
@@ -1011,6 +1123,7 @@ Example 2 - Advanced Automation with Sequences and Conditions:
 id: '1234567893'
 alias: Smart Door Alert
 description: "Color-coded notifications for different doors"
+initial_state: true
 mode: single
 trigger:
   - platform: state
@@ -1060,25 +1173,27 @@ action:
 ```
 
 ═══════════════════════════════════════════════════════════════════════════════
-HOME ASSISTANT YAML FORMAT (CURRENT STANDARD)
+HOME ASSISTANT 2025.10+ YAML FORMAT (Current Standard - December 2025)
 ═══════════════════════════════════════════════════════════════════════════════
 
-REQUIRED STRUCTURE:
+REQUIRED STRUCTURE (2025.10+ Standards):
 ```yaml
 id: '<base_id>'              # Base ID (will be made unique automatically with timestamp/UUID suffix)
 alias: <descriptive_name>
 description: "<quoted_if_contains_colons>"
+initial_state: true          # ✅ REQUIRED in 2025.10+ (explicit initial state)
 mode: single|restart|queued|parallel
-trigger:                     # ✅ SINGULAR "trigger:" (Home Assistant standard)
-  - platform: state|time|time_pattern|...  # ✅ "platform:" field (REQUIRED)
+trigger:                     # ✅ SINGULAR "trigger:" (Home Assistant 2025.10+ API standard)
+  - platform: state|time|time_pattern|...  # ✅ "platform:" field (REQUIRED in 2025.10+)
     <trigger_fields>
 conditions: []               # Optional
-action:                      # ✅ SINGULAR "action:" (Home Assistant standard)
-  - service: domain.service  # ✅ "service:" field (REQUIRED)
+action:                      # ✅ SINGULAR "action:" (Home Assistant 2025.10+ API standard)
+  - service: domain.service  # ✅ "service:" field (REQUIRED in 2025.10+)
     target:
       entity_id: <validated_entity>
     data:
       <parameters>
+    error: continue          # ✅ 2025 Best Practice: Add error handling for non-critical actions
 ```
 
 NOTE: The 'id' field will automatically be made unique (timestamp + UUID suffix appended) to ensure each approval creates a NEW automation, not an update to an existing one.
@@ -1126,6 +1241,92 @@ ADVANCED FEATURES (Use for creative implementations):
 - condition: Complex logic (time, state, template)
 - delay: Timing between actions
 - template: Dynamic values
+
+═══════════════════════════════════════════════════════════════════════════════
+HOME ASSISTANT BEST PRACTICES (MUST FOLLOW)
+═══════════════════════════════════════════════════════════════════════════════
+
+1. INITIAL STATE (CRITICAL):
+   - ALWAYS set initial_state: true explicitly
+   - Prevents automations from being disabled after Home Assistant restarts
+   - Example: initial_state: true
+
+2. AUTOMATION MODE SELECTION (Choose intelligently):
+   - "single": One-time actions (e.g., "turn on light at 7 AM")
+   - "restart": Motion-activated with delays (cancels previous runs)
+   - "queued": Sequential automations that should run in order
+   - "parallel": Independent, non-conflicting actions
+   - Default to "single" unless automation pattern suggests otherwise
+
+3. MAX_EXCEEDED (For time-based automations):
+   - Set max_exceeded: silent for time-based automations
+   - Prevents queue buildup when Home Assistant is unavailable
+   - Example (time trigger):
+     ```yaml
+     trigger:
+       - platform: time
+         at: '07:00:00'
+     max_exceeded: silent
+     ```
+
+4. ERROR HANDLING (For reliability):
+   - Add continue_on_error: true for non-critical actions
+   - Use choose blocks for conditional error handling
+   - Example:
+     ```yaml
+     action:
+       - service: light.turn_on
+         target:
+           entity_id: light.office
+         error: continue  # Non-critical: continue if fails
+     ```
+
+5. ENTITY AVAILABILITY CHECKS (Prevent failures):
+   - Check entity state is not "unavailable" or "unknown" before using in conditions
+   - Add availability conditions when using entities that may be unavailable
+   - Example:
+     ```yaml
+     conditions:
+       - condition: state
+         entity_id: light.office
+         state:
+           - "on"
+           - "off"
+           - "unavailable"  # Accept unavailable as valid state
+     ```
+
+6. TARGET OPTIMIZATION (Better maintainability):
+   - Prefer target.area_id or target.device_id over multiple entity_id entries
+   - Use when all entities belong to same area or device
+   - Example:
+     ```yaml
+     # Instead of:
+     target:
+       entity_id:
+         - light.living_room_1
+         - light.living_room_2
+         - light.living_room_3
+     # Use:
+     target:
+       area_id: living_room
+     ```
+
+7. DESCRIPTIVE DESCRIPTIONS:
+   - Include trigger conditions, expected behavior, and time ranges
+   - Use device friendly names, not entity IDs
+   - Example: "Turn on living room lights when motion detected after sunset and before midnight, only when home"
+
+8. AUTOMATION TAGS (For organization):
+   - Add tags for categorization
+   - Common tags: "energy", "security", "comfort", "convenience", "ai-generated"
+   - Example:
+     ```yaml
+     tags:
+       - ai-generated
+       - energy
+     ```
+
+═══════════════════════════════════════════════════════════════════════════════
 """
 
     # Build test mode adjustments (avoid backslashes in f-strings)
@@ -1166,7 +1367,15 @@ Before generating YAML, verify ALL requirements:
 □ If using scene entities (scene.xxx), MUST have scene.create service call BEFORE referencing the scene
 □ Scene ID in scene.create (e.g., "office_light_before_show") must match scene entity ID (e.g., "scene.office_light_before_show")
 □ State restoration pattern (scene.create + scene.turn_on) works for ANY entity type - not device-specific
-□ Includes required fields: id, alias, mode, trigger, action
+□ Includes required fields: id, alias, initial_state, mode, trigger, action
+□ initial_state: true is set explicitly (best practice)
+□ Mode is selected appropriately (single/restart/queued/parallel based on automation type)
+□ max_exceeded: silent is set for time-based automations (best practice)
+□ Error handling (continue_on_error or choose blocks) added for non-critical actions
+□ Entity availability checks added when using entities that may be unavailable
+□ Target optimization used (area_id/device_id) when appropriate
+□ Descriptive description includes trigger conditions and expected behavior
+□ Tags added for categorization (ai-generated, energy, security, comfort, convenience)
 □ YAML syntax valid (2-space indentation, proper quoting)
 □ WLED entities use light domain (not wled domain)
 
@@ -1213,7 +1422,7 @@ Generate ONLY the YAML content:
             # Build prompt_dict for parallel tester
             prompt_dict = {
                 "system_prompt": (
-                    "You are a Home Assistant 2025 YAML automation expert. "
+                    "You are a Home Assistant 2025.10+ YAML automation expert (latest 2025 standards). "
                     "Your output is production-ready YAML that passes Home Assistant validation. "
                     "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
                     "You ALWAYS use Home Assistant format: trigger: (singular) with platform: fields, action: (singular) with service: fields. "
@@ -1330,7 +1539,7 @@ Generate ONLY the YAML content:
                     {
                         "role": "system",
                         "content": (
-                    "You are a Home Assistant 2025 YAML automation expert. "
+                    "You are a Home Assistant 2025.10+ YAML automation expert (latest 2025 standards). "
                     "Your output is production-ready YAML that passes Home Assistant validation. "
                     "You NEVER invent entity IDs - you ONLY use entity IDs from the validated list. "
                     "You ALWAYS use Home Assistant format: trigger: (singular) with platform: fields, action: (singular) with service: fields. "

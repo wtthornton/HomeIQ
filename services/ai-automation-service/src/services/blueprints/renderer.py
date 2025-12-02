@@ -136,14 +136,14 @@ class BlueprintRenderer:
         suggestion: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
-        Add HA 2025.04+ required fields: id, alias, description.
+        Add HA 2025.10+ required fields: id, alias, description, initial_state.
 
         Args:
             automation_data: Parsed automation YAML data
             suggestion: Optional suggestion for metadata
 
         Returns:
-            Automation data with 2025 standards applied
+            Automation data with 2025.10+ standards applied
         """
         # Generate unique ID if not present
         if "id" not in automation_data:
@@ -164,6 +164,10 @@ class BlueprintRenderer:
             else:
                 description = automation_data.get("alias", "Automation")
             automation_data["description"] = description
+
+        # Add initial_state if not present (2025 best practice)
+        if "initial_state" not in automation_data:
+            automation_data["initial_state"] = True
 
         return automation_data
 

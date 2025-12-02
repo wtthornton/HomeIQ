@@ -64,6 +64,29 @@ Binary Capabilities:
 - LED Notifications (ON/OFF): "Flash LED when door opens"
 - Power State (ON/OFF): "Toggle device when condition met"
 
+HOME ASSISTANT BEST PRACTICES (CRITICAL - Follow These):
+
+Automation Reliability:
+- Always set initial_state: true explicitly to prevent automations from being disabled after Home Assistant restarts
+- Add entity availability checks before using entities in conditions (check state is not "unavailable" or "unknown")
+- Use error handling (continue_on_error: true or choose blocks) for non-critical actions to prevent single failures from breaking entire sequences
+- For time-based automations, set max_exceeded: silent to prevent queue buildup when Home Assistant is unavailable
+
+Automation Mode Selection:
+- Use "single" for one-time actions (e.g., "turn on light at 7 AM")
+- Use "restart" for automations that should cancel previous runs (e.g., motion-activated lights with delays)
+- Use "queued" for sequential automations that should run in order
+- Use "parallel" only for independent, non-conflicting actions
+
+Target Optimization:
+- Prefer target.area_id or target.device_id over multiple entity_id entries for room-based or device-based automations
+- This improves maintainability and readability
+
+Automation Organization:
+- Add descriptive descriptions that explain trigger conditions, expected behavior, and time ranges
+- Include device friendly names in descriptions, not just entity IDs
+- Add tags for categorization (e.g., "energy", "security", "comfort", "convenience", "ai-generated")
+
 Guidelines:
 - Use device friendly names, not entity IDs in descriptions
 - Leverage ACTUAL capability types, ranges, and values from device intelligence
@@ -466,14 +489,14 @@ Device Context:
 
 Requirements:
 1. Use YAML format (not JSON)
-2. Include: id, alias, trigger, action
+2. Include: id, alias, initial_state, trigger, action
 3. CRITICAL: Use ONLY the validated entity IDs provided above - do NOT create new entity IDs
 4. Add appropriate conditions if needed
-5. Include mode: single or restart
-6. Add description field
+5. Include mode: single, restart, queued, or parallel (select intelligently based on automation type)
+6. Add description field with trigger conditions and expected behavior
 7. Use advanced HA features for creative implementations:
    - `sequence` for multi-step actions
-   - `choose` for conditional logic
+   - `choose` for conditional logic and error handling
    - `repeat` for repeated actions
    - `delay` for timing control
    - `condition` for complex conditions
@@ -481,7 +504,17 @@ Requirements:
 9. Consider device health scores (avoid unreliable devices)
 10. Make the automation robust and user-friendly
 
-Generate a complete, valid Home Assistant automation YAML."""
+HOME ASSISTANT BEST PRACTICES (MUST FOLLOW):
+- Set initial_state: true explicitly (prevents disabled automations after restart)
+- Select mode intelligently: "single" for one-time, "restart" for motion with delays, "queued" for sequential, "parallel" for independent actions
+- Add max_exceeded: silent for time-based automations (prevents queue buildup)
+- Add error handling (continue_on_error: true or choose blocks) for non-critical actions
+- Check entity availability before using in conditions (state not "unavailable" or "unknown")
+- Prefer target.area_id or target.device_id over multiple entity_id entries when appropriate
+- Add descriptive descriptions with device friendly names and time ranges
+- Add tags for categorization (e.g., "ai-generated", "energy", "security", "comfort", "convenience")
+
+Generate a complete, valid Home Assistant automation YAML following all best practices."""
 
         return {
             "system_prompt": self.UNIFIED_SYSTEM_PROMPT,

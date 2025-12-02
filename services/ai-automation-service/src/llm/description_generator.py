@@ -40,11 +40,13 @@ Guidelines:
 - Write like you're explaining to a friend
 - Keep it to 1-2 sentences maximum
 - Focus on WHAT it does, not HOW it's implemented
+- Mention reliability features when relevant (e.g., "only when device is available", "with error handling")
 
 Examples:
 ✓ "When motion is detected in the Kitchen after 6PM, turn on the Kitchen Light to 50% brightness"
 ✓ "Turn off the Coffee Maker automatically at 10 AM every weekday"
 ✓ "When the Front Door opens, turn on the Hallway Light for 5 minutes"
+✓ "At 7 AM every morning, gradually increase the Living Room Light brightness (only when the light is available)"
 
 ✗ "alias: Kitchen Motion Light\ntrigger:\n..." (NO YAML!)
 ✗ "light.kitchen turns on when binary_sensor.kitchen_motion..." (Use friendly names!)
