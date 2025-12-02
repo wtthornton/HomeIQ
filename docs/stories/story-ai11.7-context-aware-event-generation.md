@@ -121,7 +121,7 @@ The `ContextCorrelator` class will:
 - [x] Context patterns apply to events realistically
 - [x] Integration with weather/carbon generators working (ready for integration)
 - [x] Unit tests pass (14 tests, 100% pass rate, 82% code coverage)
-- [x] Code follows 2025 patterns (Python 3.11+, type hints)
+- [x] Code follows 2025 patterns (Python 3.12+, type hints)
 - [x] Documentation updated with context pattern descriptions
 
 ## Implementation Summary

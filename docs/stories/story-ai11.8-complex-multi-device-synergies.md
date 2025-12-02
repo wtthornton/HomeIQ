@@ -117,7 +117,7 @@ Each synergy pattern includes:
 - [x] Conditional logic working correctly
 - [x] Delay patterns applied correctly
 - [x] Unit tests pass (9 tests, 100% pass rate, 96% code coverage)
-- [x] Code follows 2025 patterns (Python 3.11+, type hints)
+- [x] Code follows 2025 patterns (Python 3.12+, type hints)
 - [x] Documentation updated with synergy pattern descriptions
 
 ## Implementation Summary

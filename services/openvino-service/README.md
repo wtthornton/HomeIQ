@@ -14,7 +14,7 @@ The OpenVINO Service provides transformer-based model inference for embeddings, 
 
 ### Key Features
 
-- **Text Embeddings** - all-MiniLM-L6-v2 for semantic similarity
+- **Text Embeddings** - BAAI/bge-large-en-v1.5 (1024-dim) for semantic similarity [Epic 47]
 - **Re-ranking** - BGE reranker for search result ranking
 - **Classification** - FLAN-T5 for pattern categorization
 - **Concurrency-Safe Loading** - Async locks prevent duplicate downloads and OOM spikes
@@ -75,7 +75,7 @@ curl http://localhost:8019/health
 ### Text Embeddings
 
 #### `POST /embeddings`
-Convert text to 384-dimensional embeddings (max 100 texts, 4,000 chars each by default)
+Convert text to 1024-dimensional embeddings (max 100 texts, 4,000 chars each by default) [Epic 47: BGE-Large]
 
 ```bash
 curl -X POST http://localhost:8019/embeddings \
@@ -98,8 +98,8 @@ curl -X POST http://localhost:8019/embeddings \
 ```json
 {
   "embeddings": [[0.1, -0.3, ...], [0.2, 0.1, ...]],
-  "model_name": "all-MiniLM-L6-v2",
-  "processing_time": 0.035
+  "model_name": "BAAI/bge-large-en-v1.5",
+  "processing_time": 0.182
 }
 ```
 
@@ -248,11 +248,12 @@ OPENVINO_MAX_EMBEDDING_TEXTS=100
 
 ### Supported Models
 
-#### 1. all-MiniLM-L6-v2 - Embeddings
-- **Purpose:** Text to 384-dim embeddings
-- **Size:** ~90MB
-- **Latency:** 20-50ms per batch
-- **Use case:** Semantic similarity, entity matching
+#### 1. BAAI/bge-large-en-v1.5 - Embeddings [Epic 47]
+- **Purpose:** Text to 1024-dim embeddings
+- **Size:** ~500MB (FP32), ~125MB (INT8 quantized)
+- **Latency:** 50-200ms per batch
+- **Use case:** Semantic similarity, entity matching, RAG retrieval
+- **Upgrade:** Replaced all-MiniLM-L6-v2 (384-dim) for improved accuracy
 
 #### 2. bge-reranker-base - Re-ranking
 - **Purpose:** Re-rank candidates by relevance
@@ -377,7 +378,7 @@ pydantic-settings==2.12.0     # Settings management
 ### Machine Learning
 
 ```
-sentence-transformers==3.3.1  # Embeddings (all-MiniLM-L6-v2)
+sentence-transformers==3.3.1  # Embeddings (BAAI/bge-large-en-v1.5, 1024-dim) [Epic 47]
 transformers==4.46.1          # HuggingFace models
 torch==2.3.1+cpu              # PyTorch CPU-only (1.5GB vs 10GB with CUDA)
 sentencepiece                 # T5 tokenizer

@@ -4,6 +4,8 @@
 **Title:** BGE-M3 Embedding Model Upgrade (Phase 1)  
 **Status:** ✅ **COMPLETE** (December 2025)  
 **Priority:** High  
+**Completed:** December 2025  
+**Model Deployed:** BAAI/bge-large-en-v1.5 (1024-dim) - Publicly available alternative to BGE-M3-base  
 **Complexity:** Medium  
 **Timeline:** 3-5 days  
 **Story Points:** 8-13  
@@ -58,7 +60,7 @@ Upgrade the RAG embedding model from `all-MiniLM-L6-v2` (2019, 384-dim) to `BGE-
 **What's Being Changed:**
 
 1. **Embedding Model Upgrade** (CORE CHANGE)
-   - Replace `all-MiniLM-L6-v2` with `BAAI/bge-m3-base`
+   - Replace `all-MiniLM-L6-v2` with `BAAI/bge-large-en-v1.5` (publicly available alternative to BGE-M3-base)
    - Upgrade from 384-dim to 1024-dim embeddings
    - Maintain INT8 quantization for NUC deployment
    - Update embedding dimension in database schema
@@ -238,7 +240,7 @@ Upgrade the RAG embedding model from `all-MiniLM-L6-v2` (2019, 384-dim) to `BGE-
 
 **BGE-M3-base chosen over alternatives:**
 - ✅ **FREE** (open source, no API costs)
-- ✅ **2024 model** (better training data than 2019 all-MiniLM-L6-v2)
+- ✅ **2024 model** (better training data than 2019 all-MiniLM-L6-v2) - Using BAAI/bge-large-en-v1.5 as publicly available alternative
 - ✅ **1024 dimensions** (better semantic expressiveness than 384)
 - ✅ **Multi-vector retrieval** (dense + sparse + ColBERT - matches hybrid retrieval)
 - ✅ **NUC-optimized** (quantizes to ~125MB INT8, fits 8GB RAM)
@@ -270,7 +272,7 @@ Upgrade the RAG embedding model from `all-MiniLM-L6-v2` (2019, 384-dim) to `BGE-
 **Expected Improvements:**
 - **Accuracy**: 10-15% improvement in semantic similarity
 - **Latency**: Similar (~50-100ms, may be slightly slower due to larger model)
-- **Memory**: ~125MB INT8 (vs ~20MB for all-MiniLM-L6-v2)
+- **Memory**: ~500MB FP32, ~125MB INT8 quantized (vs ~20MB for all-MiniLM-L6-v2)
 - **CPU**: Slightly higher CPU usage (larger model)
 
 **NUC Constraints:**

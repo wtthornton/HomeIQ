@@ -258,7 +258,7 @@ Storage & Notification
 **AI Services (8):**
 - `ai-automation-service` - Pattern detection + conversational automation
 - `ai-core-service` - AI orchestration
-- `openvino-service` - Embeddings + re-ranking (all-MiniLM-L6-v2)
+- `openvino-service` - Embeddings + re-ranking (BAAI/bge-large-en-v1.5, 1024-dim) [Epic 47]
 - `ml-service` - Classical ML algorithms (scikit-learn)
 - `ner-service` - Named Entity Recognition
 - `openai-service` - GPT-4o-mini API wrapper

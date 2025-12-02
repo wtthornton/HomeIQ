@@ -112,7 +112,7 @@ Each event type will have:
 - [x] Event type distribution matches target (within 5% tolerance)
 - [x] Event types have realistic attributes
 - [x] Unit tests pass (16 tests, 100% pass rate, 94% code coverage)
-- [x] Code follows 2025 patterns (Python 3.11+, type hints, async/await)
+- [x] Code follows 2025 patterns (Python 3.12+, type hints, async/await)
 - [x] Documentation updated with event type descriptions
 
 ## Implementation Summary

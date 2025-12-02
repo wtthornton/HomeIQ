@@ -173,7 +173,7 @@ docker-compose ps
 
 | AI Service | Purpose | External Port | Internal Port | Models | Status |
 |------------|---------|---------------|---------------|--------|--------|
-| **OpenVINO Service** | Embeddings, re-ranking, classification | 8026 | 8019 | all-MiniLM-L6-v2, bge-reranker-base | ✅ Active |
+| **OpenVINO Service** | Embeddings, re-ranking, classification | 8026 | 8019 | BAAI/bge-large-en-v1.5 (1024-dim), bge-reranker-base | ✅ Active |
 | **ML Service** | K-Means clustering, anomaly detection | 8025 | 8020 | scikit-learn algorithms | ✅ Active |
 | **NER Service** | Named Entity Recognition | 8031 | 8031 | dslim/bert-base-NER | ✅ Active |
 | **OpenAI Service** | GPT-4o-mini API client | 8020 | 8020 | GPT-4o-mini | ✅ Active |

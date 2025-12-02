@@ -191,7 +191,7 @@ def calculate_fit_score(
 ### Context from Architecture Docs
 
 **Tech Stack** (from `docs/architecture/tech-stack.md`):
-- Python 3.11+
+- Python 3.12+
 - FastAPI 0.115.x
 - SQLAlchemy 2.0+ (async ORM)
 - httpx for async HTTP

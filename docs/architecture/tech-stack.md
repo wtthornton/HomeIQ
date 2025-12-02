@@ -229,7 +229,7 @@ The AI Automation Service includes rate limiting middleware to prevent API abuse
 ## AI/ML Technology Stack (Containerized Services)
 
 **Phase 1 AI Containerization** (November 2025):
-- **OpenVINO Service**: INT8 optimized models (all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small)
+- **OpenVINO Service**: INT8 optimized models (BAAI/bge-large-en-v1.5 1024-dim [Epic 47], bge-reranker-base, flan-t5-small)
 - **ML Service**: Classical ML (K-Means clustering, Isolation Forest)
 - **NER Service**: Named Entity Recognition (BERT-based)
 - **OpenAI Service**: GPT-5.1/GPT-5.1-mini API client (50-80% cost savings vs GPT-4o)

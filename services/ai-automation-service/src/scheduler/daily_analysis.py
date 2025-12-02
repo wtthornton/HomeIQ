@@ -814,51 +814,65 @@ class DailyAnalysisScheduler:
                 except Exception as e:
                     logger.warning(f"⚠️ Confidence calibration failed: {e}, continuing with uncalibrated patterns")
 
-            # Quality Framework Enhancement: Score and filter patterns by quality
-            if all_patterns and settings.enable_quality_filtering:
-                logger.info("🎯 Quality Framework: Scoring and filtering patterns...")
+            # Quality Framework Enhancement: Score and filter patterns by ML-based quality (Story AI13.7)
+            if all_patterns and getattr(settings, 'enable_ml_quality_filtering', True):
+                logger.info("🎯 Quality Framework: ML-based quality scoring and filtering (Story AI13.7)...")
                 try:
-                    from ..services.learning.ensemble_quality_scorer import EnsembleQualityScorer
-                    ensemble_scorer = EnsembleQualityScorer()
+                    from ..services.pattern_quality.filter import PatternQualityFilter
                     
-                    scored_patterns = []
-                    for pattern in all_patterns:
-                        try:
-                            quality_result = ensemble_scorer.calculate_ensemble_quality(pattern)
-                            pattern['quality_score'] = quality_result['quality_score']
-                            pattern['quality_breakdown'] = quality_result.get('breakdown', {})
-                            scored_patterns.append(pattern)
-                        except Exception as e:
-                            logger.debug(f"   Failed to score pattern: {e}")
-                            # Fallback to confidence as quality score
-                            pattern['quality_score'] = pattern.get('confidence', 0.5)
-                            scored_patterns.append(pattern)
+                    # Initialize ML-based quality filter
+                    quality_threshold = getattr(settings, 'pattern_quality_threshold', 0.7)
+                    enable_ml_quality_filtering = getattr(settings, 'enable_ml_quality_filtering', True)
                     
-                    # Filter by quality threshold
-                    min_quality = settings.pattern_min_quality_score
-                    filtered_patterns = [
-                        p for p in scored_patterns 
-                        if p.get('quality_score', 0.0) >= min_quality
-                    ]
+                    quality_filter = PatternQualityFilter(
+                        quality_threshold=quality_threshold,
+                        enable_filtering=enable_ml_quality_filtering
+                    )
                     
-                    filtered_count = len(scored_patterns) - len(filtered_patterns)
+                    # Filter and rank patterns by quality
+                    filtered_patterns, filter_stats = await quality_filter.filter_and_rank(all_patterns)
+                    
+                    filtered_count = filter_stats.get('removed', 0)
                     if filtered_count > 0:
-                        logger.info(f"   ✅ Quality filtering: {filtered_count} patterns filtered (below {min_quality:.2f} threshold)")
-                        quality_scores = [p.get('quality_score', 0) for p in scored_patterns]
-                        if quality_scores:
-                            logger.info(f"   📊 Quality score range: {min(quality_scores):.3f} - {max(quality_scores):.3f}")
-                            logger.info(f"   📊 Average quality: {sum(quality_scores) / len(quality_scores):.3f}")
+                        logger.info(
+                            f"   ✅ ML Quality filtering: {filtered_count} patterns filtered "
+                            f"(below {quality_threshold:.2f} threshold)"
+                        )
+                        logger.info(
+                            f"   📊 Quality score range: {filter_stats.get('min_quality', 0):.3f} - "
+                            f"{filter_stats.get('max_quality', 0):.3f}"
+                        )
+                        logger.info(
+                            f"   📊 Average quality: {filter_stats.get('avg_quality', 0):.3f}"
+                        )
+                        logger.info(
+                            f"   ⏱️  Filtering time: {filter_stats.get('processing_time', 0)*1000:.1f}ms"
+                        )
                     
                     all_patterns = filtered_patterns
-                    logger.info(f"   ✅ {len(all_patterns)} patterns passed quality filter (from {len(scored_patterns)} scored)")
+                    logger.info(
+                        f"   ✅ {len(all_patterns)} patterns passed ML quality filter "
+                        f"(from {filter_stats.get('total', 0)} total)"
+                    )
                     
                     # Store quality metrics
-                    job_result['patterns_scored'] = len(scored_patterns)
+                    job_result['patterns_scored'] = filter_stats.get('total', 0)
                     job_result['patterns_filtered'] = filtered_count
                     job_result['patterns_after_quality_filter'] = len(all_patterns)
+                    job_result['quality_filtering_stats'] = filter_stats
+                    
+                    # Performance check: ensure <100ms overhead
+                    processing_time_ms = filter_stats.get('processing_time', 0) * 1000
+                    if processing_time_ms > 100:
+                        logger.warning(
+                            f"   ⚠️ Quality filtering exceeded 100ms target: {processing_time_ms:.1f}ms"
+                        )
                     
                 except Exception as e:
-                    logger.warning(f"⚠️ Quality framework filtering failed: {e}, continuing with all patterns")
+                    logger.warning(
+                        f"⚠️ ML Quality filtering failed: {e}, continuing with all patterns",
+                        exc_info=True
+                    )
                     job_result['quality_filtering_error'] = str(e)
 
             # Store patterns (don't fail if no patterns)

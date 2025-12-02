@@ -1,6 +1,6 @@
 # OpenVINO Service - Optimized Model Inference
 # Phase 1: Containerized AI Models
-# Models: all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small (INT8)
+# Models: BAAI/bge-large-en-v1.5 (1024-dim), bge-reranker-base, flan-t5-small [Epic 47]
 
 FROM python:3.12-slim AS builder
 

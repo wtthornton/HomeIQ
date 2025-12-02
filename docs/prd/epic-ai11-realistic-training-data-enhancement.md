@@ -599,7 +599,7 @@ SyntheticHomeGenerator (orchestrator)
 - [Epic 46: Enhanced ML Training Data](epic-46-enhanced-ml-training-data-and-automation.md)
 - [Test Data Generation Guide](../TEST_DATA_GENERATION_GUIDE.md)
 - [Synthetic Home Generation Plan](../../implementation/analysis/SYNTHETIC_HOME_GENERATION_AND_TRAINING_PLAN.md)
-- **Context7 KB**: FastAPI patterns, Pydantic 2.x, Python 3.11+ best practices
+- **Context7 KB**: FastAPI patterns, Pydantic 2.x, Python 3.12+ best practices
 
 ---
 
