@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
+import { resolveEntityIcon, isUserCustomized, getIconTooltip } from '../utils/iconHelpers';
 
 interface EntityOption {
   entity_id: string;
@@ -17,6 +18,11 @@ interface EntityOption {
   capabilities?: string[];
   device_id?: string;
   area_id?: string;
+  // Epic AI-9: HA 2025 Enhancements
+  labels?: string[];
+  options?: Record<string, any>;
+  icon?: string;
+  original_icon?: string;
 }
 
 interface DeviceMappingModalProps {
@@ -210,6 +216,15 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
+                            {/* Epic AI-9: Icon display */}
+                            {entity.icon && (
+                              <span className="text-base" title={getIconTooltip(entity.icon, entity.original_icon, entity.domain)}>
+                                {resolveEntityIcon(entity.icon, entity.original_icon, entity.domain)}
+                                {isUserCustomized(entity.icon, entity.original_icon) && (
+                                  <span className="text-xs">✨</span>
+                                )}
+                              </span>
+                            )}
                             <span className={`font-medium ${
                               darkMode ? 'text-gray-100' : 'text-gray-900'
                             }`}>
@@ -227,12 +242,60 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
                                 Selected
                               </span>
                             )}
+                            {/* Epic AI-9: Labels display */}
+                            {entity.labels && entity.labels.length > 0 && (
+                              <>
+                                {entity.labels.slice(0, 2).map((label) => (
+                                  <span
+                                    key={label}
+                                    className="text-xs px-1.5 py-0.5 rounded"
+                                    style={{
+                                      background: 'rgba(168, 85, 247, 0.2)',
+                                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                                      color: '#c084fc'
+                                    }}
+                                    title={`Label: ${label}`}
+                                  >
+                                    {label}
+                                  </span>
+                                ))}
+                                {entity.labels.length > 2 && (
+                                  <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} title={`Additional labels: ${entity.labels.slice(2).join(', ')}`}>
+                                    +{entity.labels.length - 2}
+                                  </span>
+                                )}
+                              </>
+                            )}
                           </div>
                           <code className={`text-xs mt-1 block ${
                             darkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}>
                             {entity.entity_id}
                           </code>
+                          {/* Epic AI-9: Options display */}
+                          {entity.options && Object.keys(entity.options).length > 0 && (
+                            <div className={`text-xs mt-2 p-2 rounded ${
+                              darkMode ? 'bg-slate-700/40' : 'bg-gray-50'
+                            }`}>
+                              <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Preferences:{' '}
+                              </span>
+                              {Object.entries(entity.options).map(([key, value], idx) => {
+                                let displayValue = value;
+                                if (key === 'brightness' && typeof value === 'number') {
+                                  displayValue = `${Math.round((value / 255) * 100)}%`;
+                                } else if (key === 'color_temp' && typeof value === 'number') {
+                                  displayValue = `${value}K`;
+                                }
+                                return (
+                                  <span key={key} className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                                    {idx > 0 && ', '}
+                                    {key}: {String(displayValue)}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
                           {entity.capabilities && entity.capabilities.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {entity.capabilities.map((cap) => (

@@ -8,6 +8,12 @@ export interface SuggestionDeviceInfo {
   domain?: string;
   area?: string;
   selected?: boolean;
+  // Epic AI-9: HA 2025 Enhancements
+  labels?: string[]; // Entity labels (outdoor, security, etc.)
+  options?: Record<string, any>; // Entity options (default brightness, etc.)
+  icon?: string; // Current icon (user-customized)
+  original_icon?: string; // Original icon from integration
+  aliases?: string[]; // Entity aliases
 }
 
 export interface SuggestionConversationEntry {
@@ -83,6 +89,11 @@ export interface Suggestion {
   conversation_history?: SuggestionConversationEntry[];
   device_capabilities?: Record<string, any>;
   device_info?: SuggestionDeviceInfo[];
+  // Epic AI-9: HA 2025 Enhancements
+  tags?: string[]; // Automation tags (ai-generated, energy, security, etc.)
+  mode?: string; // Automation mode (single, restart, queued, parallel)
+  initial_state?: boolean; // Initial state (enabled by default)
+  max_exceeded?: string; // Max exceeded behavior (silent, warning)
 }
 
 export interface Pattern {

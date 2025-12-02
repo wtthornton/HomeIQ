@@ -567,12 +567,73 @@ async def _validate_generated_yaml(
     if auto_fixed:
         logger.info("[OK] Using auto-fixed YAML (fixes applied from structure validation)")
     
-    # Apply best practice enhancements (Improvements #1-4)
+    # Apply best practice enhancements (Improvements #1-5)
     try:
         final_yaml = _apply_best_practice_enhancements(final_yaml, suggestion)
-        logger.info("[OK] Applied best practice enhancements (initial_state, mode selection, error handling)")
+        logger.info("[OK] Applied best practice enhancements (initial_state, mode selection, error handling, max_exceeded)")
     except Exception as e:
         logger.warning(f"[WARNING] Failed to apply best practice enhancements: {e}, using original YAML")
+    
+    # Apply all optimizations in unified pipeline (Epic AI-10 Priority 1.3)
+    # Parse YAML once, apply all optimizations, dump once
+    try:
+        import yaml as yaml_lib
+        from .target_optimization import optimize_action_targets
+        from .label_target_optimizer import optimize_action_labels
+        from .options_preferences import apply_preferences_to_yaml
+        from .voice_hint_generator import generate_voice_hints
+        
+        # Parse YAML once
+        yaml_data = yaml_lib.safe_load(final_yaml)
+        
+        # Build entities metadata once (if available)
+        entities_metadata = None
+        if entities:
+            entities_metadata = {entity['entity_id']: entity for entity in entities}
+        
+        # Apply optimizations in sequence (each modifies yaml_data dict)
+        optimizations_applied = []
+        
+        # 1. Target optimization (area_id/device_id)
+        if ha_client:
+            try:
+                yaml_data = await optimize_action_targets(yaml_data, ha_client)
+                optimizations_applied.append("target")
+            except Exception as e:
+                logger.debug(f"Could not apply target optimization: {e}")
+        
+        # 2. Label optimization (label_id)
+        if entities_metadata:
+            try:
+                yaml_data = await optimize_action_labels(yaml_data, entities_metadata, ha_client)
+                optimizations_applied.append("label")
+            except Exception as e:
+                logger.debug(f"Could not apply label optimization: {e}")
+        
+        # 3. Options-based preferences
+        if entities:
+            try:
+                yaml_data = apply_preferences_to_yaml(yaml_data, entities)
+                optimizations_applied.append("preferences")
+            except Exception as e:
+                logger.debug(f"Could not apply preferences: {e}")
+        
+        # 4. Voice command hints
+        if entities_metadata:
+            try:
+                yaml_data = generate_voice_hints(yaml_data, entities_metadata)
+                optimizations_applied.append("voice")
+            except Exception as e:
+                logger.debug(f"Could not add voice hints: {e}")
+        
+        # Dump YAML once
+        final_yaml = yaml_lib.dump(yaml_data, default_flow_style=False, sort_keys=False)
+        
+        if optimizations_applied:
+            logger.info(f"[OK] Applied optimizations: {', '.join(optimizations_applied)} (unified pipeline)")
+        
+    except Exception as e:
+        logger.warning(f"[WARNING] Unified optimization pipeline failed: {e}, using original YAML")
     
     # Log validation results for each stage
     all_stages_passed = validation_result.all_checks_passed
@@ -702,6 +763,45 @@ def _apply_best_practice_enhancements(
             except Exception as e:
                 logger.debug(f"Could not determine intelligent mode: {e}, using default")
         
+        # Improvement #5: Intelligent max_exceeded selection (best practice)
+        if "max_exceeded" not in yaml_data:
+            try:
+                triggers_raw = yaml_data.get("trigger", [])
+                actions_raw = yaml_data.get("action", [])
+                
+                # Convert to Trigger/Action objects if possible
+                triggers = []
+                for t in triggers_raw:
+                    if isinstance(t, dict):
+                        try:
+                            triggers.append(Trigger(**t))
+                        except Exception:
+                            pass  # Skip if can't parse
+                
+                actions = []
+                for a in actions_raw:
+                    if isinstance(a, dict):
+                        try:
+                            # Extract service for Action creation
+                            if "service" in a:
+                                actions.append(Action(**a))
+                        except Exception:
+                            pass  # Skip if can't parse
+                
+                # Determine max_exceeded if we have valid triggers and actions
+                if triggers and actions:
+                    description = yaml_data.get("description") or suggestion.get("description") if suggestion else None
+                    determined_max_exceeded = AutomationPlan.determine_max_exceeded(
+                        triggers=triggers,
+                        actions=actions,
+                        description=description
+                    )
+                    if determined_max_exceeded:
+                        yaml_data["max_exceeded"] = determined_max_exceeded.value
+                        logger.debug(f"Intelligently determined max_exceeded: {determined_max_exceeded.value}")
+            except Exception as e:
+                logger.debug(f"Could not determine max_exceeded: {e}, using default")
+        
         # Improvement #2: Add error handling to actions
         try:
             actions_raw = yaml_data.get("action", [])
@@ -741,6 +841,29 @@ def _apply_best_practice_enhancements(
             yaml_data = add_availability_conditions(yaml_data)
         except Exception as e:
             logger.debug(f"Could not add availability conditions: {e}")
+        
+        # Improvement #7: Enhance description with full context
+        try:
+            from .description_enhancement import enhance_automation_description
+            
+            # Extract entity names from suggestion if available
+            entity_names = None
+            if suggestion:
+                validated_entities = suggestion.get("validated_entities", {})
+                if validated_entities:
+                    # Invert mapping: entity_id -> friendly_name
+                    entity_names = {v: k for k, v in validated_entities.items()}
+            
+            yaml_data = enhance_automation_description(yaml_data, entity_names)
+        except Exception as e:
+            logger.debug(f"Could not enhance description: {e}")
+        
+        # Improvement #8: Add tags for categorization
+        try:
+            from .tag_determination import add_tags_to_automation
+            yaml_data = add_tags_to_automation(yaml_data, suggestion)
+        except Exception as e:
+            logger.debug(f"Could not add tags: {e}")
         
         # Convert back to YAML
         return yaml_lib.dump(yaml_data, default_flow_style=False, sort_keys=False)

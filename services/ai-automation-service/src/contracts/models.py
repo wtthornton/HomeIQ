@@ -194,6 +194,9 @@ class AutomationPlan(BaseModel):
 
         if self.max_exceeded:
             ha_automation["max_exceeded"] = self.max_exceeded.value
+        
+        if self.tags:
+            ha_automation["tags"] = self.tags
 
         return yaml.dump(ha_automation, default_flow_style=False, sort_keys=False)
 
@@ -336,4 +339,62 @@ class AutomationPlan(BaseModel):
         
         # Default to single for safety
         return AutomationMode.SINGLE
+    
+    @classmethod
+    def determine_max_exceeded(
+        cls,
+        triggers: list["Trigger"],
+        actions: list["Action"],
+        description: str | None = None
+    ) -> MaxExceeded | None:
+        """
+        Intelligently determine max_exceeded setting based on automation type.
+        
+        Rules:
+        - Time-based automations → silent (prevent queue buildup)
+        - Safety-critical automations → warning (log missed runs)
+        - Default → None (Home Assistant default behavior)
+        
+        Args:
+            triggers: List of automation triggers
+            actions: List of automation actions
+            description: Optional description for keyword detection
+            
+        Returns:
+            Appropriate MaxExceeded value or None
+        """
+        # Time-based automations should silently skip missed runs
+        # This prevents queue buildup when Home Assistant is unavailable
+        if any(trigger.platform in ["time", "time_pattern", "sun"] for trigger in triggers):
+            return MaxExceeded.SILENT
+        
+        # Safety-critical automations should warn on missed runs
+        safety_keywords = ["lock", "alarm", "security", "emergency", "notify", "alert"]
+        
+        # Check actions for safety-critical services
+        for action in actions:
+            if action.service:
+                service_lower = action.service.lower()
+                if any(keyword in service_lower for keyword in safety_keywords):
+                    return MaxExceeded.WARNING
+            
+            # Check entity IDs for safety-critical entities
+            if action.entity_id:
+                entity_ids_str = ""
+                if isinstance(action.entity_id, str):
+                    entity_ids_str = action.entity_id.lower()
+                elif isinstance(action.entity_id, list):
+                    entity_ids_str = " ".join(str(eid).lower() for eid in action.entity_id)
+                
+                if any(keyword in entity_ids_str for keyword in safety_keywords):
+                    return MaxExceeded.WARNING
+        
+        # Check description for safety-critical keywords
+        if description:
+            desc_lower = description.lower()
+            if any(keyword in desc_lower for keyword in safety_keywords):
+                return MaxExceeded.WARNING
+        
+        # Default: no max_exceeded (Home Assistant default)
+        return None
 

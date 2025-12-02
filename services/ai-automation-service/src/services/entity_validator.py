@@ -1604,24 +1604,36 @@ class EntityValidator:
                 exact_match = True
                 score_details['exact_device_name'] = True
 
-            # Signal 2.5: Common alias matching (Quick Win 2) - Weight: 15%
-            # Check aliases before fuzzy matching for better accuracy
+            # Signal 2.5: Alias matching (HA 2025 + Common Aliases) - Weight: 15%
+            # Check both entity aliases (from HA 2025) and common device aliases
             alias_match_score = 0.0
             if not exact_match:
-                query_lower_words = query_lower.split()
-                # Check if query contains alias terms
-                for alias_term, aliases in self.COMMON_DEVICE_ALIASES.items():
-                    if alias_term in query_lower_words or any(alias in query_lower_words for alias in aliases):
-                        # Check if entity names contain the alias or its alternatives
-                        entity_texts = [t for t in [friendly_name, name_by_user, device_name, entity_name] if t]
-                        for entity_text in entity_texts:
-                            entity_lower = entity_text.lower()
-                            if alias_term in entity_lower or any(alias in entity_lower for alias in aliases):
-                                alias_match_score = 0.8  # High score for alias match
-                                score_details['alias_match'] = True
-                                break
-                        if alias_match_score > 0:
+                # Check entity aliases from HA 2025 API first
+                entity_aliases = entity.get('aliases', []) or []
+                if isinstance(entity_aliases, list) and entity_aliases:
+                    for alias in entity_aliases:
+                        if isinstance(alias, str) and alias.lower() == query_lower:
+                            alias_match_score = 1.0  # Perfect alias match
+                            score_details['ha_alias_match'] = True
+                            logger.debug(f"✅ HA 2025 alias match: '{query_term}' matches alias '{alias}' for {entity_id}")
                             break
+                
+                # If no HA alias match, check common device aliases
+                if alias_match_score == 0.0:
+                    query_lower_words = query_lower.split()
+                    # Check if query contains alias terms
+                    for alias_term, aliases in self.COMMON_DEVICE_ALIASES.items():
+                        if alias_term in query_lower_words or any(alias in query_lower_words for alias in aliases):
+                            # Check if entity names contain the alias or its alternatives
+                            entity_texts = [t for t in [friendly_name, name_by_user, device_name, entity_name] if t]
+                            for entity_text in entity_texts:
+                                entity_lower = entity_text.lower()
+                                if alias_term in entity_lower or any(alias in entity_lower for alias in aliases):
+                                    alias_match_score = 0.8  # High score for common alias match
+                                    score_details['common_alias_match'] = True
+                                    break
+                            if alias_match_score > 0:
+                                break
                 
                 if alias_match_score > 0:
                     score += alias_match_score * 0.15
