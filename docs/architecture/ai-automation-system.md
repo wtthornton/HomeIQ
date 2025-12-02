@@ -276,7 +276,7 @@ ClarificationDetector
     ↓
 RAGClient.retrieve() → Check semantic similarity
     ↓
-OpenVINO Service → Generate query embedding (384-dim)
+OpenVINO Service → Generate query embedding (1024-dim) [Epic 47]
     ↓
 SQLite (semantic_knowledge) → Cosine similarity search
     ↓
@@ -302,7 +302,7 @@ Otherwise → Use hardcoded rules (fallback)
 CREATE TABLE semantic_knowledge (
     id INTEGER PRIMARY KEY,
     text TEXT NOT NULL,  -- Original text (query, pattern, blueprint)
-    embedding JSON NOT NULL,  -- 384-dim embedding array
+    embedding JSON NOT NULL,  -- 1024-dim embedding array [Epic 47]
     knowledge_type VARCHAR NOT NULL,  -- 'query', 'pattern', 'blueprint', 'automation'
     metadata JSON,  -- Flexible metadata
     success_score FLOAT DEFAULT 0.5,  -- 0.0-1.0 (learned from feedback)

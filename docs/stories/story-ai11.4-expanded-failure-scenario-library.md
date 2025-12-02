@@ -100,7 +100,7 @@ Each failure scenario will include:
 - [x] Failure scenarios can be assigned to devices
 - [x] Failure scenarios stored in device metadata with symptoms
 - [x] Unit tests pass (15 tests, 100% pass rate)
-- [x] Code follows 2025 patterns (Python 3.11+, type hints)
+- [x] Code follows 2025 patterns (Python 3.12+, type hints)
 - [x] Documentation updated with failure scenario descriptions
 
 ## Implementation Summary

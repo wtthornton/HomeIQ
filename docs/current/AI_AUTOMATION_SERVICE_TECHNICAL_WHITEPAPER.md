@@ -279,7 +279,7 @@ The service employs a **distributed microservices architecture** with containeri
 │              AI Services Layer (Containerized)              │
 ├─────────────────────────────────────────────────────────────┤
 │  OpenVINO Service (Port 8019)                              │
-│  ├─ all-MiniLM-L6-v2 (INT8) - Embeddings (384-dim)        │
+│  ├─ BAAI/bge-large-en-v1.5 (1024-dim) - Embeddings [Epic 47] │
 │  ├─ bge-reranker-base (INT8) - Re-ranking                  │
 │  └─ flan-t5-small (INT8) - Classification                  │
 │                                                             │
@@ -324,7 +324,7 @@ The service employs a **distributed microservices architecture** with containeri
 
 #### 2. OpenVINO Optimized Models
 
-**all-MiniLM-L6-v2 (Embeddings):**
+**BAAI/bge-large-en-v1.5 (Embeddings) [Epic 47]:**
 - **Purpose:** Semantic similarity, RAG knowledge base, device embeddings
 - **Dimensions:** 384
 - **Optimization:** INT8 quantization (20MB vs 80MB standard)
@@ -747,7 +747,7 @@ SQLite (patterns table)
 **Process:**
 1. Initialize synergy detectors (DevicePair, Weather, Energy, Event, MultiHop)
 2. Run detectors in parallel
-3. Generate device embeddings (OpenVINO all-MiniLM-L6-v2)
+3. Generate device embeddings (OpenVINO BAAI/bge-large-en-v1.5, 1024-dim) [Epic 47]
 4. Calculate similarity scores
 5. Apply priority-based ranking (impact + confidence + pattern validation)
 6. Store synergies in SQLite (`discovered_synergies` table)
@@ -977,7 +977,7 @@ User Query: "What can I do with my office lights?"
 Entity Extraction (NER Service / spaCy fallback)
     ↓
 Entity Resolution (Multi-signal matching)
-    ├─ Embeddings (35%) - OpenVINO all-MiniLM-L6-v2
+    ├─ Embeddings (35%) - OpenVINO BAAI/bge-large-en-v1.5 (1024-dim) [Epic 47]
     ├─ Exact matches (30%)
     ├─ Fuzzy matching (15%) - rapidfuzz
     ├─ Numbered devices (15%)

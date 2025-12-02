@@ -566,14 +566,14 @@ TABLE webhook_deliveries (
 **Purpose:** Embeddings, re-ranking, and classification
 
 **Key Features:**
-- Text embeddings (all-MiniLM-L6-v2)
+- Text embeddings (BAAI/bge-large-en-v1.5, 1024-dim) [Epic 47]
 - Document re-ranking (bge-reranker-base)
 - Text classification (flan-t5-small)
 - Optimized inference with OpenVINO
 - Model caching for performance
 
 **Models:**
-- `sentence-transformers/all-MiniLM-L6-v2` - Embeddings
+- `BAAI/bge-large-en-v1.5` - Embeddings (1024-dim) [Epic 47]
 - `BAAI/bge-reranker-base` - Re-ranking
 - `google/flan-t5-small` - Classification
 
@@ -898,7 +898,7 @@ The system now includes **9 containerized AI microservices** for advanced automa
 **Purpose:** Optimized AI model inference for embeddings, re-ranking, and classification
 
 **Models:**
-- **all-MiniLM-L6-v2**: Text embeddings (384 dimensions)
+- **BAAI/bge-large-en-v1.5**: Text embeddings (1024 dimensions) [Epic 47]
 - **bge-reranker-base**: Candidate re-ranking
 - **flan-t5-small**: Pattern classification
 

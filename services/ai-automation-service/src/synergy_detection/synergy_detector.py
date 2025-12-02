@@ -723,13 +723,22 @@ class DeviceSynergyDetector:
                 # Create scored synergy with advanced impact
                 scored_synergy = synergy.copy()
                 scored_synergy['impact_score'] = advanced_impact
+                # Ensure synergy_type is set (required for database storage)
+                if 'synergy_type' not in scored_synergy:
+                    scored_synergy['synergy_type'] = 'device_pair'
                 # Ensure confidence is set (required for filtering at line 290)
                 if 'confidence' not in scored_synergy:
                     scored_synergy['confidence'] = 0.9 if scored_synergy.get('area') else 0.7
+                # Ensure required fields are present for device_pair synergies
+                if 'devices' not in scored_synergy:
+                    scored_synergy['devices'] = [scored_synergy.get('trigger_entity'), scored_synergy.get('action_entity')]
                 scored_synergies.append(scored_synergy)
 
             except Exception as e:
                 logger.warning(f"Failed advanced scoring for synergy, using basic score: {e}")
+                # Ensure synergy_type is set (required for database storage)
+                if 'synergy_type' not in synergy:
+                    synergy['synergy_type'] = 'device_pair'
                 # Ensure synergy has confidence if advanced scoring failed
                 if 'confidence' not in synergy:
                     synergy['confidence'] = 0.9 if synergy.get('area') else 0.7
@@ -743,6 +752,9 @@ class DeviceSynergyDetector:
                         synergy['impact_score'] = benefit_score * (1 - complexity_penalty)
                     else:
                         synergy['impact_score'] = 0.7
+                # Ensure required fields are present
+                if 'devices' not in synergy:
+                    synergy['devices'] = [synergy.get('trigger_entity'), synergy.get('action_entity')]
                 scored_synergies.append(synergy)
 
         # Sort by advanced impact score descending

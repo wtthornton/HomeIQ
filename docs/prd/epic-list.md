@@ -268,22 +268,25 @@ Implement a comprehensive unified intelligence service that provides consistent 
 
 ---
 
-**Epic AI-6: Blueprint-Enhanced Suggestion Intelligence** 📋 PLANNING ⭐ **NEW**
+**Epic AI-6: Blueprint-Enhanced Suggestion Intelligence** ✅ **COMPLETE** (December 2025)
 Transform blueprints from late-stage YAML generation tool into core suggestion quality and discovery mechanism. Enables proactive discovery of proven automation opportunities, blueprint-validated patterns, and user-configurable suggestion preferences.
 
-**Key Features:**
-- Blueprint opportunity discovery (3 AM run + Ask AI)
-- Pattern validation against blueprints with confidence boosting
-- Blueprint-enriched suggestion descriptions
-- User-configurable suggestion count (5-50)
-- User-configurable creativity levels (conservative/balanced/creative)
-- Blueprint preference configuration
+**Key Features (Implemented):**
+- ✅ Blueprint opportunity discovery (3 AM run + Ask AI)
+- ✅ Pattern validation against blueprints with confidence boosting
+- ✅ Blueprint-enriched suggestion descriptions
+- ✅ User-configurable suggestion count (5-50)
+- ✅ User-configurable creativity levels (conservative/balanced/creative)
+- ✅ Blueprint preference configuration
+- ✅ Frontend preference settings UI
+- ✅ Comprehensive testing suite
+- ✅ Full documentation
 
-**Stories:** 14 stories across 4 phases (6-8 weeks)
-- Phase 1: Blueprint Opportunity Discovery (4 stories)
-- Phase 2: Blueprint-Enhanced Suggestions (3 stories)
-- Phase 3: User-Configurable Suggestions (3 stories)
-- Phase 4: Integration & Polish (4 stories)
+**Stories:** 14 stories across 4 phases ✅ **ALL COMPLETE**
+- Phase 1: Blueprint Opportunity Discovery (4 stories) ✅
+- Phase 2: Blueprint-Enhanced Suggestions (3 stories) ✅
+- Phase 3: User-Configurable Suggestions (3 stories) ✅
+- Phase 4: Integration & Polish (4 stories) ✅
 
 **Expected Outcomes:**
 - +50% suggestion diversity (blueprint opportunities)
@@ -734,8 +737,8 @@ Enhance ML training infrastructure to support high-quality initial model trainin
 
 ## RAG Enhancement Epics (47)
 
-**Epic 47: BGE-M3 Embedding Model Upgrade (Phase 1)** ✅ **COMPLETE**
-Upgrade RAG embedding model from all-MiniLM-L6-v2 (2019, 384-dim) to BGE-M3-base (2024, 1024-dim) for 10-15% accuracy improvement. Pre-trained model upgrade (no fine-tuning) for immediate improvement with minimal effort.
+**Epic 47: BGE-M3 Embedding Model Upgrade (Phase 1)** ✅ **COMPLETE** (December 2025)
+Upgrade RAG embedding model from all-MiniLM-L6-v2 (2019, 384-dim) to BAAI/bge-large-en-v1.5 (2024, 1024-dim) for 10-15% accuracy improvement. Pre-trained model upgrade (no fine-tuning) for immediate improvement with minimal effort. **Deployed:** BAAI/bge-large-en-v1.5 (publicly available alternative to BGE-M3-base).
 
 **Key Features:**
 - BGE-M3-base model download and INT8 quantization

@@ -420,7 +420,7 @@ Phase 6: Publish MQTT Notification
 - `device_capabilities` - Zigbee2MQTT capabilities (6,000+ models)
 - `device_feature_usage` - Feature utilization tracking
 - `synergy_opportunities` - Multi-device automations
-- `device_embeddings` - 384-dim embeddings for similarity
+- `device_embeddings` - 1024-dim embeddings for similarity [Epic 47]
 - `ask_ai_queries` - NL query history
 - `entity_aliases` - User-defined entity mappings
 - `reverse_engineering_metrics` - AI refinement analytics
@@ -454,7 +454,7 @@ Phase 6: Publish MQTT Notification
 **Purpose:** Optimized embeddings, re-ranking, classification
 
 **Models:**
-- all-MiniLM-L6-v2 (384-dim embeddings)
+- BAAI/bge-large-en-v1.5 (1024-dim embeddings) [Epic 47]
 - bge-reranker-base (re-ranking)
 - flan-t5-small (classification)
 

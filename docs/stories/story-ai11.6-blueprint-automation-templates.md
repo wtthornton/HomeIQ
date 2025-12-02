@@ -115,7 +115,7 @@ Each template will include:
 - [x] Templates generate valid automation structures
 - [x] Integration with event generation working (ready for integration)
 - [x] Unit tests pass (18 tests, 100% pass rate, 83% code coverage)
-- [x] Code follows 2025 patterns (Python 3.11+, type hints)
+- [x] Code follows 2025 patterns (Python 3.12+, type hints)
 - [x] Documentation updated with template descriptions
 
 ## Implementation Summary

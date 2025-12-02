@@ -20,7 +20,7 @@ numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (CPU-only, compatible with OpenVINO
 # CPU-only PyTorch index (no CUDA - saves 8.5GB!)
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-sentence-transformers==3.3.1  # Embeddings: all-MiniLM-L6-v2
+sentence-transformers==3.3.1  # Embeddings: BAAI/bge-large-en-v1.5 (1024-dim) [Epic 47]
 transformers==4.46.1          # HuggingFace models (compatible with sentence-transformers)
 torch>=2.4.0,<3.0.0  # Stable PyTorch 2.4.x CPU-only (November 2025)
 sentencepiece                 # Required for T5 tokenizer
