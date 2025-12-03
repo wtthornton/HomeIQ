@@ -149,3 +149,14 @@ embedding_test_output.log
 # Windows reserved names
 nul
 
+# Playwright MCP test artifacts (screenshots from MCP testing)
+.playwright-mcp/
+.playwright-mcp/**/*
+
+# Root-level temporary files (test artifacts, snapshots, logs)
+test_results_*.txt
+homeiq-*.txt
+full_logs_*.txt
+logs_*.txt
+deployment_test_results.json
+
