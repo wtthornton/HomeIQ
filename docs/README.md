@@ -64,7 +64,17 @@ HomeIQ is an enterprise-grade intelligence layer for Home Assistant that provide
 - Scalable microservices architecture
 - Comprehensive monitoring and alerting
 
-## ✅ **Recent Updates (October 2025)**
+## ✅ **Recent Updates (December 2025)**
+
+### 🤖 **Epic AI-21: Proactive Conversational Agent Service** ✅
+- New microservice for context-aware automation suggestions
+- Analyzes weather, sports, energy, and historical patterns
+- Generates proactive suggestions via agent-to-agent communication
+- Scheduled daily batch jobs (3 AM) for automated suggestions
+- Complete REST API for suggestion management
+- Production ready with comprehensive testing and code review
+
+## ✅ **Previous Updates (October 2025)**
 
 ### 🤖 **AI Containerization (Phase 1)**
 - Distributed AI microservices architecture
@@ -132,7 +142,8 @@ docker-compose ps
 │  ├─ Admin API                           :8003               │
 │  ├─ Data API                            :8006               │
 │  ├─ AI Automation Service               :8018               │
-│  └─ Device Intelligence Service         :8028               │
+│  ├─ Device Intelligence Service         :8028               │
+│  └─ Proactive Agent Service             :8031               │
 ├─────────────────────────────────────────────────────────────┤
 │  Data Layer                                                  │
 │  ├─ InfluxDB (Time-series)              :8086               │
@@ -164,6 +175,7 @@ docker-compose ps
 | **AI Automation UI** | Conversational automation | 3001 | 80 | React, TypeScript | ✅ Active |
 | **WebSocket Ingestion** | Real-time HA event capture | 8001 | 8001 | Python, aiohttp, WebSocket | ✅ Active |
 | **AI Automation Service** | Pattern detection & AI orchestration | 8024 | 8018 | Python, FastAPI, OpenAI | ✅ Active |
+| **Proactive Agent Service** | Context-aware suggestions | 8031 | 8031 | Python, FastAPI, APScheduler | ✅ Active |
 | **Data API** | Historical data queries | 8006 | 8006 | Python, FastAPI | ✅ Active |
 | **Admin API** | System control & config | 8003 | 8004 | Python, FastAPI | ✅ Active |
 | **Device Intelligence** | Device capability discovery | 8028 | 8019 | Python, FastAPI, MQTT | ✅ Active |
@@ -410,5 +422,5 @@ This project is licensed under the ISC License - see the [LICENSE](../LICENSE) f
 
 ---
 
-**Last Updated:** October 25, 2025
+**Last Updated:** December 2025
 **For the main project README, see:** [../README.md](../README.md)

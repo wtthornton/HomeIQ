@@ -9,10 +9,31 @@ Transform your Home Assistant into an intelligent automation powerhouse with con
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)](#)
 [![License](https://img.shields.io/badge/License-ISC-blue?style=for-the-badge)](LICENSE)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-41BDF5?style=for-the-badge&logo=home-assistant)](https://www.home-assistant.io/)
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
 [Features](#-key-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Architecture](#-architecture) • [Contributing](#-contributing)
 
 </div>
+
+---
+
+## 📑 Table of Contents
+
+- [What is HomeIQ?](#-what-is-homeiq)
+- [Key Features](#-key-features)
+- [Quick Start](#-quick-start)
+- [Architecture](#-architecture)
+- [Documentation](#-documentation)
+- [Configuration](#-configuration)
+- [Development](#-development)
+- [Screenshots](#-screenshots)
+- [Project Stats](#-project-stats)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Support](#-support)
 
 ---
 
@@ -64,6 +85,7 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 - **Self-Healing YAML**: Automatic entity ID correction during refinement
 - **Configurable Fallbacks**: Tune guardrail models and soft prompt thresholds directly from the Settings UI (persisted server-side)
 - **Device-Specific Templates**: Pre-built automation templates for common device types (fridge, car, 3D printer, thermostat)
+- **Proactive Agent Service**: Context-aware automation suggestions based on weather, sports, energy, and historical patterns
 
 ### 🏠 Device Intelligence & Database
 
@@ -99,6 +121,7 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 - **AI Automation UI** (localhost:3001): Conversational automation interface
 - **Interactive Visualizations**: Click-to-explore architecture diagrams
 - **Dark Mode**: Beautiful, eye-friendly design
+- **Responsive Design**: Mobile-friendly with touch gestures
 
 ---
 
@@ -136,7 +159,7 @@ cd HomeIQ
 cp infrastructure/env.example infrastructure/.env
 
 # Configure your Home Assistant connection
-# Edit .env (or infrastructure/.env) and add:
+# Edit infrastructure/.env and add:
 # - HA_HTTP_URL=http://192.168.1.86:8123  # Your HA instance IP
 # - HA_WS_URL=ws://192.168.1.86:8123/api/websocket  # WebSocket URL
 # - HA_TOKEN=your-long-lived-access-token  # From HA Profile → Long-Lived Access Tokens
@@ -202,11 +225,12 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 
 ## 🏗️ Architecture
 
-### System Overview (Epic 31 Architecture - 29 Active Microservices)
+### System Overview (Epic 31 Architecture - 30 Active Microservices)
 
-**Note:** Plus InfluxDB infrastructure = 30 total containers in production
+**Note:** Plus InfluxDB infrastructure = 31 total containers in production
 
-**New Services (Device Database Enhancements):**
+**New Services:**
+- **Proactive Agent Service** (Port 8031) - Context-aware automation suggestions (Epic AI-21) ✅
 - Device Health Monitor (Port 8019)
 - Device Context Classifier (Port 8032)
 - Device Setup Assistant (Port 8021)
@@ -216,8 +240,8 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        HomeIQ Stack                          │
-│                  29 Active Microservices                     │
-│              (+ InfluxDB = 30 total containers)              │
+│                  30 Active Microservices                     │
+│              (+ InfluxDB = 31 total containers)              │
 ├─────────────────────────────────────────────────────────────┤
 │  Web Layer (2 services)                                      │
 │  ├─ Health Dashboard (React)            :3000 → nginx       │
@@ -229,7 +253,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │  ├─ Admin API                           :8003→8004          │
 │  └─ Data API (SQLite + InfluxDB)        :8006               │
 ├─────────────────────────────────────────────────────────────┤
-│  AI Services Layer (8 services)                             │
+│  AI Services Layer (9 services)                             │
 │  ├─ AI Automation Service               :8024→8018          │
 │  │   └─ Pattern detection + conversational flow             │
 │  ├─ AI Core Service                     :8018               │
@@ -238,7 +262,9 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │  ├─ NER Service                         :8031               │
 │  ├─ OpenAI Service                      :8020               │
 │  ├─ Device Intelligence Service         :8028→8019          │
-│  └─ Automation Miner                    :8029→8019          │
+│  ├─ Automation Miner                    :8029→8019          │
+│  └─ Proactive Agent Service             :8031               │
+│      └─ Context-aware automation suggestions (Epic AI-21)   │
 ├─────────────────────────────────────────────────────────────┤
 │  Data Layer (Hybrid Architecture)                           │
 │  ├─ InfluxDB (Time-series)              :8086               │
@@ -328,6 +354,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 | **AI Automation UI** | Conversational automation | 3001 | 80 | React, TypeScript | ✅ Active |
 | **WebSocket Ingestion** | Real-time HA event capture | 8001 | 8001 | Python, aiohttp, WebSocket | ✅ Active |
 | **AI Automation Service** | Pattern detection & AI | 8024 | 8018 | Python, FastAPI, OpenAI, Self-Correction | ✅ Active |
+| **Proactive Agent Service** | Context-aware suggestions | 8031 | 8031 | Python, FastAPI, APScheduler | ✅ Active |
 | **Data API** | Historical data queries | 8006 | 8006 | Python, FastAPI | ✅ Active |
 | **Admin API** | System control & config | 8003 | 8004 | Python, FastAPI | ✅ Active |
 | **Device Intelligence** | Device capability discovery | 8028 | 8019 | Python, FastAPI, MQTT | ✅ Active |
@@ -463,6 +490,44 @@ Real-time monitoring of all services:
 
 ---
 
+## 📊 Project Stats
+
+- **Services**: 30 active microservices (+ InfluxDB infrastructure = 31 containers)
+- **Deployment**: Single-home Home Assistant on Intel NUC (i3/i5, 8-16GB RAM)
+- **Scale**: Optimized for ~50-100 devices (single-home, not multi-home)
+- **Hardware**: Intel NUC i3/i5, 8-16GB RAM, 20GB+ disk space
+- **Languages**: Python 3.12+ (backend), TypeScript/React 18 (frontend)
+- **Databases**: InfluxDB 2.7 (time-series) + 5 SQLite databases (metadata)
+- **APIs**: RESTful (FastAPI), WebSocket (Home Assistant), MQTT (external broker)
+- **UI Frameworks**: React 18, Vite, Tailwind CSS
+- **AI/ML**: OpenVINO, OpenAI GPT-4o-mini, LangChain 0.2.x, Sentence-BERT, scikit-learn
+- **External Integrations**: OpenWeatherMap, WattTime, Awattar, AirNow, ESPN
+- **Testing**: Legacy suites removed (November 2025); new targeted coverage TBD
+- **Lines of Code**: 50,000+ (reviewed November 2025)
+- **Shared Libraries**: 3,947 lines across 11 core modules
+- **Resource Constraints**: Optimized for NUC hardware, CPU-only (no GPU required)
+
+---
+
+## 🗺️ Roadmap
+
+### Current Focus (Q4 2024 - Q1 2025)
+- ✅ AI-powered pattern detection (Phase 1)
+- ✅ Conversational automation UI
+- ✅ Device validation system
+- ✅ Post-refinement entity sanitization (Nov 2025)
+- 🚧 Advanced ML models (Phase 2)
+- 🚧 Multi-hop automation chains
+
+### Future Plans
+- 📱 Mobile app integration
+- 🔊 Voice assistant support
+- 🌐 Multi-language support
+- 🔐 Enhanced security features
+- 📈 Predictive automation
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
@@ -484,8 +549,15 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ---
 
-### Recent Updates
+## 📝 Recent Updates
 
+- **Epic AI-21: Proactive Conversational Agent Service** (December 2025) ✅
+  - New microservice for context-aware automation suggestions
+  - Analyzes weather, sports, energy, and historical patterns
+  - Generates proactive suggestions via agent-to-agent communication
+  - Scheduled daily batch jobs (3 AM) for automated suggestions
+  - Complete REST API for suggestion management
+  - Production ready with comprehensive testing and code review
 - **Security Audit & Quality Improvements** (December 03, 2025)
   - Enhanced Flux query sanitization with length validation
   - Created comprehensive security test suites
@@ -538,42 +610,6 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 - **Admin API stubs**: Lightweight in-memory alerting/logging/metrics modules keep imports satisfied without the retired test harness.
 - **Legacy tests removed**: The old multi-language testing tree was deleted as part of this modernization; a slimmer suite will follow.
 
-## 📊 Project Stats
-
-- **Services**: 29 active microservices (+ InfluxDB infrastructure = 30 containers)
-- **Deployment**: Single-home Home Assistant on Intel NUC (i3/i5, 8-16GB RAM)
-- **Scale**: Optimized for ~50-100 devices (single-home, not multi-home)
-- **Hardware**: Intel NUC i3/i5, 8-16GB RAM, 20GB+ disk space
-- **Languages**: Python 3.12+ (backend), TypeScript/React 18 (frontend)
-- **Databases**: InfluxDB 2.7 (time-series) + 5 SQLite databases (metadata)
-- **APIs**: RESTful (FastAPI), WebSocket (Home Assistant), MQTT (external broker)
-- **UI Frameworks**: React 18, Vite, Tailwind CSS
-- **AI/ML**: OpenVINO, OpenAI GPT-4o-mini, LangChain 0.2.x, Sentence-BERT, scikit-learn
-- **External Integrations**: OpenWeatherMap, WattTime, Awattar, AirNow, ESPN
-- **Testing**: Legacy suites removed (November 2025); new targeted coverage TBD
-- **Lines of Code**: 50,000+ (reviewed November 2025)
-- **Shared Libraries**: 3,947 lines across 11 core modules
-- **Resource Constraints**: Optimized for NUC hardware, CPU-only (no GPU required)
-
----
-
-## 🗺️ Roadmap
-
-### Current Focus (Q4 2024 - Q1 2025)
-- ✅ AI-powered pattern detection (Phase 1)
-- ✅ Conversational automation UI
-- ✅ Device validation system
-- ✅ Post-refinement entity sanitization (Nov 2025)
-- 🚧 Advanced ML models (Phase 2)
-- 🚧 Multi-hop automation chains
-
-### Future Plans
-- 📱 Mobile app integration
-- 🔊 Voice assistant support
-- 🌐 Multi-language support
-- 🔐 Enhanced security features
-- 📈 Predictive automation
-
 ---
 
 ## 📜 License
@@ -595,10 +631,10 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 🐛 Issues: [GitHub Issues](https://github.com/wtthornton/HomeIQ/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/wtthornton/HomeIQ/discussions)
-- 📚 Wiki: [Project Wiki](https://github.com/wtthornton/HomeIQ/wiki)
-- 📖 Documentation: [Full Documentation](docs/)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/wtthornton/HomeIQ/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/wtthornton/HomeIQ/discussions)
+- 📚 **Wiki**: [Project Wiki](https://github.com/wtthornton/HomeIQ/wiki)
+- 📖 **Documentation**: [Full Documentation](docs/)
 
 ---
 
@@ -607,7 +643,7 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 **Latest Code Review:** December 03, 2025
 
 See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](docs/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) for detailed findings including:
-- Complete service inventory (29 active microservices)
+- Complete service inventory (30 active microservices)
 - Database architecture analysis (5 SQLite + InfluxDB)
 - Shared libraries documentation (3,947 lines, 11 modules)
 - Infrastructure and deployment patterns
@@ -625,16 +661,3 @@ See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](docs/CODE_REVIEW_COMPREHENSIVE_FINDI
 [Report Bug](https://github.com/wtthornton/HomeIQ/issues) · [Request Feature](https://github.com/wtthornton/HomeIQ/issues) · [Documentation](docs/)
 
 </div>
-
-## Current Scope
-- Single-account alpha environment (`cdk/HomeIqAlpha`) establishing baseline VPC, IAM guardrails, logging, and optional GitHub OIDC integration
-- Shared data primitives now provisioned by default:
-  - Amazon RDS (PostgreSQL) instance for multi-tenant metadata
-  - S3 telemetry landing bucket for Box-to-cloud sync
-  - SQS ingest queue and DLQ to decouple writes from processing
-- Patterns that will expand into dedicated stacks for:
-  - Ingestion pipelines (MSK/Kinesis, Lambda fan-out)
-  - EKS or ECS clusters for cloud services
-  - Monitoring/observability (CloudWatch, Prometheus/Grafana on EKS, etc.)
-- CI/CD integration via GitHub Actions assuming roles provisioned here; automation wiring will ship alongside the next pipeline PR
-

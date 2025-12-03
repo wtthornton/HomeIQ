@@ -1,0 +1,9 @@
+library_id: /omnilib/aiosqlite
+library_name: aiosqlite
+cached_topics:
+  - async-patterns
+cached_files:
+  - async-patterns.md
+last_updated: 2025-12-03
+source_reputation: High
+

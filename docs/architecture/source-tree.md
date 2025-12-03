@@ -3,7 +3,7 @@
 This document defines the complete source tree structure for the Home Assistant Ingestor project, following BMAD framework standards and microservices architecture patterns.
 
 **Status**: ✅ **FULLY OPERATIONAL** - All services healthy, MQTT connected, 100% success rate  
-**Last Updated**: November 26, 2025
+**Last Updated**: December 2025
 
 ## Root Directory Structure
 
@@ -30,7 +30,7 @@ homeiq/
 │   ├── analysis/                  # Technical analysis and diagnosis
 │   ├── verification/              # Test and verification results
 │   └── archive/                   # Old/superseded implementation notes
-├── services/                      # 29 Active Microservices (Alpine-based)
+├── services/                      # 30 Active Microservices (Alpine-based)
 │   ├── admin-api/                 # System monitoring & control API (Port 8003) [Epic 13]
 │   ├── data-api/                  # Feature data hub API (Port 8006) [Epic 13]
 │   ├── ha-setup-service/          # HA Setup & Recommendation Service (Port 8027 external, 8020 internal) [Epic 27-30]
@@ -54,6 +54,8 @@ homeiq/
 │   ├── ml-service/                # ML algorithms (Port 8025 external, 8020 internal)
 │   ├── ner-service/               # Named Entity Recognition (Port 8031)
 │   ├── openai-service/            # GPT-5.1/GPT-5.1-mini client (Port 8020)
+│   ├── ha-ai-agent-service/        # HA AI Agent - Tier 1 Context Injection (Port 8030) [Epic AI-19]
+│   ├── proactive-agent-service/    # Proactive Agent - Context-aware suggestions (Port 8031) [Epic AI-21] ✅
 │   ├── ai-code-executor/          # AI code execution service
 │   ├── automation-miner/          # Automation mining (Port 8029 external, 8019 internal)
 │   ├── ha-simulator/              # Test event generator
@@ -174,6 +176,75 @@ data-api/
 - **HA Automation:** `/api/v1/ha/game-status/{team}`, `/api/v1/ha/game-context/{team}`, `/api/v1/ha/webhooks/*`
 - **Integrations:** `/api/v1/integrations`, `/api/v1/services`
 - **WebSocket:** `/ws` (real-time streaming)
+
+### HA AI Agent Service (`services/ha-ai-agent-service/`) [Epic AI-19]
+**Purpose:** Tier 1 Context Injection for Home Assistant AI Agent
+**Port:** 8030
+**Database:** SQLite (context cache)
+
+```
+ha-ai-agent-service/
+├── src/
+│   ├── main.py                    # FastAPI application entry point
+│   ├── config.py                  # Application settings (Pydantic)
+│   ├── database.py                # SQLite async configuration
+│   ├── clients/                   # External service clients
+│   │   ├── ha_client.py           # Home Assistant REST API client
+│   │   ├── data_api_client.py     # Data API client (entity queries)
+│   │   └── device_intelligence_client.py # Device Intelligence client
+│   ├── services/                  # Context building services
+│   │   ├── context_builder.py     # Orchestrates all Tier 1 context
+│   │   ├── entity_inventory_service.py # Entity inventory summary (AI19.2)
+│   │   ├── areas_service.py       # Areas/rooms list (AI19.3)
+│   │   ├── services_summary_service.py # Available services summary (AI19.4)
+│   │   ├── capability_patterns_service.py # Device capability patterns (AI19.5)
+│   │   └── helpers_scenes_service.py # Helpers & scenes summary (AI19.6)
+│   └── prompts/                   # System prompts
+│       └── system_prompt.py       # Base system prompt for OpenAI agent
+├── docs/                          # Service documentation
+│   ├── API_DOCUMENTATION.md       # API endpoint documentation
+│   └── SYSTEM_PROMPT.md           # System prompt documentation
+├── tests/                          # Service tests
+│   ├── test_context_builder.py   # Context builder tests
+│   ├── test_entity_inventory_service.py # Entity inventory tests
+│   ├── test_areas_service.py     # Areas service tests
+│   ├── test_services_summary_service.py # Services summary tests
+│   ├── test_capability_patterns_service.py # Capability patterns tests
+│   ├── test_helpers_scenes_service.py # Helpers/scenes tests
+│   ├── test_ha_client.py          # HA client tests
+│   ├── test_data_api_client.py   # Data API client tests
+│   ├── test_device_intelligence_client.py # Device Intelligence client tests
+│   ├── test_performance.py        # Performance benchmarks
+│   └── integration/               # Integration tests
+│       └── test_context_integration.py # Full context integration tests
+├── Dockerfile                      # Production Docker image
+├── requirements.txt               # Python dependencies
+└── README.md                      # Service documentation
+```
+
+**Epic AI-19 API Endpoints:**
+- **Health:** `/health` - Service health check
+- **Context:** `/api/v1/context` - Get Tier 1 context (entity summaries, areas, services, capabilities, helpers/scenes)
+- **System Prompt:** `/api/v1/system-prompt` - Get base system prompt
+- **Complete Prompt:** `/api/v1/complete-prompt` - Get system prompt with context injected
+
+**Tier 1 Context Components:**
+1. **Entity Inventory Summary** - Aggregated entity counts by domain and area (5 min cache TTL)
+2. **Areas/Rooms List** - All areas from Home Assistant (10 min cache TTL)
+3. **Available Services Summary** - Services by domain with common parameters (10 min cache TTL)
+4. **Device Capability Patterns** - Capability examples from device intelligence (15 min cache TTL)
+5. **Helpers & Scenes Summary** - Available helpers and scenes for reusable components (10 min cache TTL)
+
+**Dependencies:**
+- `data-api` (Port 8006) - Entity and device queries
+- `device-intelligence-service` (Port 8028) - Device capability discovery
+- Home Assistant REST API - Areas, services, sun info
+
+**Performance Requirements:**
+- Context Building (with cache): < 100ms ✅
+- Context Building (first call): < 500ms ✅
+- System Prompt Retrieval: < 10ms ✅
+- Complete Prompt Building: < 100ms ✅
 
 ### Health Dashboard Service (`services/health-dashboard/`)
 ```
@@ -330,7 +401,7 @@ infrastructure/
 ## Current System Status (October 17, 2025)
 
 ### ✅ **FULLY OPERATIONAL**
-- **All Services**: 29 active microservices healthy and running
+- **All Services**: 30 active microservices healthy and running (including proactive-agent-service)
 - **Web Interfaces**: localhost:3000 (Dashboard), localhost:3001 (AI UI)
 - **API Services**: All ports responding correctly (8001-8031 range)
 - **MQTT Integration**: Connected to 192.168.1.86:1883
@@ -339,8 +410,9 @@ infrastructure/
 - **AI Services**: Containerized AI microservices operational (OpenVINO, ML, NER, OpenAI)
 - **AI Automation**: Daily 3 AM job running (~$0.50/year cost) [📖 Docs](../../implementation/analysis/AI_AUTOMATION_CALL_TREE_INDEX.md)
 
-### **Recent Major Updates (November 2025)**
-- **Service Count**: 29 active microservices (including containerized AI services)
+### **Recent Major Updates (December 2025)**
+- **Epic AI-21 Complete**: Proactive Agent Service (Port 8031) - Context-aware automation suggestions ✅
+- **Service Count**: 30 active microservices (including containerized AI services, ha-ai-agent-service, and proactive-agent-service)
 - **AI Containerization**: Phase 1 complete - OpenVINO, ML, NER services containerized
 - **Rate Limiting**: Enhanced middleware with internal network detection
 - **Synergy Detection**: Energy and event context synergies enabled
