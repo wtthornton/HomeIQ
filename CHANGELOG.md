@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Add simulation framework enhancements, training improvements, and implementation documentation** (9b51397) - wtthornton
+- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (5863015) - wtthornton
+- **Epic 40 - Dual Deployment Configuration (Test & Production)** (28c04eb) - wtthornton
+- **Update performance docs with Context7 patterns and NUC optimizations** (e45277d) - wtthornton
+
+### Changed
+
+- **Update epic list and submodule** (1473dcb) - wtthornton
+- **Update project: code improvements, documentation, and training data** (2b88184) - wtthornton
+- **Update BMAD agents, Context7 integration, Epic AI-17/AI-18 implementation, and simulation framework** (25acb02) - wtthornton
+- **Update epic and story status to COMPLETE** (6bfbd86) - wtthornton
+- **Update: Additional test and submodule changes** (cdff1a7) - wtthornton
+- **Update: AI automation improvements, HA 2025 API integration, and documentation updates** (1e79db9) - wtthornton
+- **Update OpenAI prompts with Home Assistant best practices** (8c17b57) - wtthornton
+- **Update UI components, health dashboard, and implementation documentation** (d2e0a55) - wtthornton
+- **Update: Pattern synergy fixes, health dashboard improvements, and verification scripts** (a413090) - wtthornton
+
+### Removed
+
+- **Remove large binary files and runtime data from git tracking** (b5a0eaa) - wtthornton
+- **Remove enrichment-pipeline references from documentation and deployment** (9399701) - wtthornton
+
+### Fixed
+
+- **Update story-35.4 and migration file** (3dd02f5) - wtthornton
+
+
+### Added
+
 - **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (5863015) - wtthornton
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (28c04eb) - wtthornton
 - **Update performance docs with Context7 patterns and NUC optimizations** (e45277d) - wtthornton
