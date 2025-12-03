@@ -1,0 +1,34 @@
+# HA AI Agent Service Dependencies
+# Epic AI-19: Tier 1 Context Injection
+
+# Web Framework
+fastapi>=0.115.0,<0.116.0  # Stable 0.115.x series (November 2025)
+uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
+
+# Data Validation
+pydantic==2.12.4
+pydantic-settings==2.12.0
+
+# HTTP Client
+aiohttp>=3.13.2,<3.14.0  # Async HTTP client for HA API calls
+httpx>=0.28.1,<0.29.0  # Alternative HTTP client if needed
+tenacity>=8.3.0,<9.0.0  # Retry library for API calls
+
+# Database
+sqlalchemy>=2.0.44,<2.1.0  # Async ORM
+alembic>=1.14.0,<2.0.0  # Database migrations (Epic AI-20 Story AI20.6)
+aiosqlite>=0.21.0,<0.22.0  # Async SQLite driver
+
+# OpenAI Integration (Epic AI-20)
+openai>=1.54.0,<2.0.0  # OpenAI Python SDK 1.54+ (2025 best practices)
+tiktoken>=0.8.0,<1.0.0  # Token counting for OpenAI models
+
+# Utilities
+python-dotenv==1.2.1
+pyyaml>=6.0.1,<7.0.0  # YAML parsing for automation validation
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.23.0
+httpx>=0.28.1,<0.29.0  # For testing
+

@@ -882,6 +882,99 @@ services:
         max-file: "3"
         labels: "service=ai-orchestrator,environment=production"
 
+  ha-ai-agent-service:
+    build:
+      context: .
+      dockerfile: services/ha-ai-agent-service/Dockerfile
+    container_name: homeiq-ha-ai-agent-service
+    restart: unless-stopped
+    ports:
+      - "8030:8030"
+    env_file:
+      - .env
+    environment:
+      - HA_URL=${HA_HTTP_URL:-http://homeassistant:8123}
+      - HA_TOKEN=${HA_TOKEN:-}
+      - DATA_API_URL=http://data-api:8006
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      data-api:
+        condition: service_healthy
+      device-intelligence-service:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    volumes:
+      - ha_ai_agent_data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8030/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ha-ai-agent,environment=production"
+
+  proactive-agent-service:
+    build:
+      context: .
+      dockerfile: services/proactive-agent-service/Dockerfile
+    container_name: homeiq-proactive-agent-service
+    restart: unless-stopped
+    ports:
+      - "8031:8031"
+    env_file:
+      - .env
+    environment:
+      - HA_AI_AGENT_URL=http://ha-ai-agent-service:8030
+      - WEATHER_API_URL=http://weather-api:8009
+      - SPORTS_DATA_URL=http://sports-data:8005
+      - CARBON_INTENSITY_URL=http://carbon-intensity:8010
+      - DATA_API_URL=http://data-api:8006
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
+      - SCHEDULER_TIME=${SCHEDULER_TIME:-03:00}
+    depends_on:
+      ha-ai-agent-service:
+        condition: service_healthy
+      data-api:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    volumes:
+      - proactive_agent_data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8031/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=proactive-agent-service,environment=production"
+
   ai-automation-service:
     build:
       context: .
@@ -1634,6 +1727,8 @@ volumes:
   device_cache_data:  # Device Database Client cache
   ha_test_config:  # Home Assistant test container configuration
   ha_test_data:  # Home Assistant test container data
+  ha_ai_agent_data:  # HA AI Agent Service context cache
+  proactive_agent_data:  # Proactive Agent Service suggestions storage
 
 networks:
   homeiq-network:

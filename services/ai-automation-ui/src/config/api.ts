@@ -19,6 +19,9 @@ export const API_CONFIG = {
 
   // Data API
   DATA: isProduction ? '/api/data' : 'http://localhost:8006/api',
+
+  // HA AI Agent Service (Epic AI-20)
+  HA_AI_AGENT: isProduction ? '/api/ha-ai-agent' : 'http://localhost:8030/api',
 };
 
 // Team Tracker specific endpoints

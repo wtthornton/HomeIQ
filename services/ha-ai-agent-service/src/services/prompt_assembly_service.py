@@ -1,0 +1,264 @@
+"""
+Prompt Assembly Service
+Epic AI-20 Story AI20.3: Prompt Assembly & Context Integration
+
+Assembles prompts with context injection, token counting, and budget enforcement.
+"""
+
+import logging
+
+from ..config import Settings
+from ..utils.token_counter import count_message_tokens, count_tokens
+from .context_builder import ContextBuilder
+from .conversation_service import Conversation, ConversationService
+
+logger = logging.getLogger(__name__)
+
+# Token budget for GPT-4o (128k context, but we reserve space for response)
+MAX_INPUT_TOKENS = 16_000  # Conservative limit for input tokens
+RESERVED_RESPONSE_TOKENS = 4_096  # Reserve space for response
+
+
+class PromptAssemblyService:
+    """
+    Assembles prompts with context injection, token counting, and budget enforcement.
+
+    Epic AI-20 Story AI20.3: Prompt Assembly & Context Integration
+    """
+
+    def __init__(
+        self,
+        settings: Settings,
+        context_builder: ContextBuilder,
+        conversation_service: ConversationService,
+    ):
+        """
+        Initialize prompt assembly service.
+
+        Args:
+            settings: Application settings
+            context_builder: ContextBuilder instance for context injection
+            conversation_service: ConversationService instance for message history
+        """
+        self.settings = settings
+        self.context_builder = context_builder
+        self.conversation_service = conversation_service
+        self.model = settings.openai_model
+        self.max_input_tokens = MAX_INPUT_TOKENS
+        logger.info("✅ Prompt assembly service initialized")
+
+    async def assemble_messages(
+        self,
+        conversation_id: str,
+        user_message: str,
+        refresh_context: bool = False,
+    ) -> list[dict[str, str]]:
+        """
+        Assemble complete message list for OpenAI API call.
+
+        Includes:
+        - System prompt with Tier 1 context
+        - Conversation history (truncated if needed)
+        - New user message
+
+        Args:
+            conversation_id: Conversation ID
+            user_message: New user message to add
+            refresh_context: Force context refresh (default: False, uses cache if available)
+
+        Returns:
+            List of message dicts in OpenAI format
+        """
+        # Get conversation
+        conversation = await self.conversation_service.get_conversation(conversation_id)
+        if not conversation:
+            raise ValueError(f"Conversation {conversation_id} not found")
+
+        # Add user message to conversation
+        await self.conversation_service.add_message(
+            conversation_id, "user", user_message
+        )
+
+        # Get system prompt with context
+        if refresh_context or not conversation.get_context_cache():
+            logger.debug(f"Building fresh context for conversation {conversation_id}")
+            system_prompt = await self.context_builder.build_complete_system_prompt()
+            conversation.set_context_cache(system_prompt)
+        else:
+            logger.debug(f"Using cached context for conversation {conversation_id}")
+            system_prompt = conversation.get_context_cache()
+
+        # Get conversation history (without system prompt)
+        history_messages = conversation.get_openai_messages()
+
+        # Assemble complete message list
+        messages = [
+            {"role": "system", "content": system_prompt},
+            *history_messages,
+        ]
+
+        # Enforce token budget
+        messages = await self._enforce_token_budget(messages, conversation)
+
+        return messages
+
+    async def _enforce_token_budget(
+        self, messages: list[dict[str, str]], conversation: Conversation
+    ) -> list[dict[str, str]]:
+        """
+        Enforce token budget by truncating conversation history if needed.
+
+        Strategy:
+        1. System prompt is always included (required for context)
+        2. New user message is always included (required for current request)
+        3. Truncate oldest conversation history messages if needed
+
+        Args:
+            messages: List of messages (system + history)
+            conversation: Conversation instance (reserved for future use)
+
+        Returns:
+            Truncated message list that fits within token budget
+        """
+        _ = conversation  # Reserved for future use (e.g., conversation-specific token limits)
+        total_tokens = count_message_tokens(messages, self.model)
+
+        if total_tokens <= self.max_input_tokens:
+            logger.debug(
+                f"Token count {total_tokens} within budget {self.max_input_tokens}"
+            )
+            return messages
+
+        logger.warning(
+            f"Token count {total_tokens} exceeds budget {self.max_input_tokens}, "
+            f"truncating conversation history"
+        )
+
+        # Extract system prompt and last user message (must keep)
+        system_message = messages[0]
+        last_user_message = None
+        history_messages = []
+
+        # Find last user message and separate history
+        for i in range(len(messages) - 1, 0, -1):
+            if messages[i]["role"] == "user":
+                last_user_message = messages[i]
+                history_messages = messages[1:i]  # Everything between system and last user
+                break
+
+        if not last_user_message:
+            # No user message found, return system only
+            logger.warning("No user message found, returning system prompt only")
+            return [system_message]
+
+        # Count tokens for required messages
+        required_tokens = count_message_tokens(
+            [system_message, last_user_message], self.model
+        )
+        available_tokens = self.max_input_tokens - required_tokens
+
+        if available_tokens < 0:
+            # Even system + user message exceeds budget (shouldn't happen)
+            logger.error(
+                f"System + user message ({required_tokens} tokens) exceeds budget "
+                f"({self.max_input_tokens} tokens)"
+            )
+            return [system_message, last_user_message]
+
+        # Truncate history to fit within available tokens
+        truncated_history = self._truncate_message_list(
+            history_messages, available_tokens
+        )
+
+        # Reassemble messages
+        result = [system_message, *truncated_history, last_user_message]
+
+        final_tokens = count_message_tokens(result, self.model)
+        logger.info(
+            f"Truncated conversation: {len(history_messages)} -> {len(truncated_history)} "
+            f"messages, {total_tokens} -> {final_tokens} tokens"
+        )
+
+        return result
+
+    def _truncate_message_list(
+        self, messages: list[dict[str, str]], max_tokens: int
+    ) -> list[dict[str, str]]:
+        """
+        Truncate message list to fit within token budget.
+
+        Removes oldest messages first until within budget.
+
+        Args:
+            messages: List of message dicts
+            max_tokens: Maximum tokens allowed
+
+        Returns:
+            Truncated message list
+        """
+        if not messages:
+            return []
+
+        # Count tokens for all messages
+        total_tokens = count_message_tokens(messages, self.model)
+
+        if total_tokens <= max_tokens:
+            return messages
+
+        # Remove oldest messages until within budget
+        truncated = messages.copy()
+        while truncated and count_message_tokens(truncated, self.model) > max_tokens:
+            truncated.pop(0)  # Remove oldest message
+
+        return truncated
+
+    async def get_token_count(
+        self, conversation_id: str, include_new_message: str | None = None
+    ) -> dict[str, int]:
+        """
+        Get token count breakdown for a conversation.
+
+        Args:
+            conversation_id: Conversation ID
+            include_new_message: Optional new message to include in count
+
+        Returns:
+            Dictionary with token counts:
+            - system_tokens: System prompt tokens
+            - history_tokens: Conversation history tokens
+            - new_message_tokens: New message tokens (if provided)
+            - total_tokens: Total tokens
+        """
+        conversation = await self.conversation_service.get_conversation(conversation_id)
+        if not conversation:
+            raise ValueError(f"Conversation {conversation_id} not found")
+
+        # Get system prompt
+        system_prompt = conversation.get_context_cache()
+        if not system_prompt:
+            system_prompt = await self.context_builder.build_complete_system_prompt()
+            conversation.set_context_cache(system_prompt)
+
+        system_tokens = count_tokens(system_prompt, self.model)
+
+        # Get history messages
+        history_messages = conversation.get_openai_messages()
+        history_tokens = count_message_tokens(history_messages, self.model)
+
+        # Count new message if provided
+        new_message_tokens = 0
+        if include_new_message:
+            new_message = {"role": "user", "content": include_new_message}
+            new_message_tokens = count_message_tokens([new_message], self.model)
+
+        total_tokens = system_tokens + history_tokens + new_message_tokens
+
+        return {
+            "system_tokens": system_tokens,
+            "history_tokens": history_tokens,
+            "new_message_tokens": new_message_tokens,
+            "total_tokens": total_tokens,
+            "max_input_tokens": self.max_input_tokens,
+            "within_budget": total_tokens <= self.max_input_tokens,
+        }
+

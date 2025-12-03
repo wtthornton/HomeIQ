@@ -1,7 +1,7 @@
 version: 2.0
-last_updated: 2025-10-19 00:00:00+00:00
-total_libraries: 23
-total_topics: 78
+last_updated: 2025-12-03 00:00:00+00:00
+total_libraries: 26
+total_topics: 84
 total_cache_hits: 15
 index_rebuilt: true
 libraries:
@@ -391,17 +391,57 @@ libraries:
     size_kb: 1
     status: archived
   pydantic:
-    version: 2.12.4
+    topics:
+    - v2-settings-validation
+    - validation-patterns
+    - configdict
+    - field-validators
+    last_fetched: '2025-12-03T00:00:00.000000Z'
+    cache_hits: 0
+    source: context7_api
     context7_id: /pydantic/pydantic
+    trust_score: 10
+    snippet_count: 604
+    docs_files:
+    - libraries/pydantic/v2-settings-validation.md
+    size_kb: 12
+    version: 2.12.4
     last_version_check: '2025-11-16T21:01:09.645243Z'
-    last_fetched: '2025-11-16T21:02:14.911580Z'
-    refresh_requested: '2025-11-16T21:02:14.911583Z'
+    usage: ha-ai-agent-service configuration management
   sqlalchemy:
+    topics:
+    - async-orm
+    - sqlite-integration
+    - streaming-results
+    - mapping-results
+    last_fetched: '2025-12-03T00:00:00.000000Z'
+    cache_hits: 0
+    source: context7_api
+    context7_id: /websites/sqlalchemy_en_21
+    trust_score: 10
+    snippet_count: 7090
+    docs_files:
+    - libraries/sqlalchemy/async-sqlite-patterns.md
+    size_kb: 8
     version: 2.0.44
-    context7_id: /sqlalchemy/sqlalchemy
     last_version_check: '2025-11-16T21:01:09.645257Z'
-    last_fetched: '2025-11-16T21:02:14.911585Z'
-    refresh_requested: '2025-11-16T21:02:14.911588Z'
+    usage: ha-ai-agent-service context caching
+  aiosqlite:
+    topics:
+    - async-patterns
+    - context-managers
+    - sqlite-driver
+    last_fetched: '2025-12-03T00:00:00.000000Z'
+    cache_hits: 0
+    source: context7_api
+    context7_id: /omnilib/aiosqlite
+    trust_score: 10
+    snippet_count: 33
+    docs_files:
+    - libraries/aiosqlite/async-patterns.md
+    size_kb: 3
+    version: 0.21.0
+    usage: ha-ai-agent-service async SQLite operations
 lessons_learned:
 - name: Events Tab Implementation
   file: lessons-learned-events-tab-implementation.md

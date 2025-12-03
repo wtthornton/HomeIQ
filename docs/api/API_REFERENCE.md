@@ -19,9 +19,10 @@
 5. [Data API](#data-api) (Port 8006)
 6. [Sports Data Service](#sports-data-service) (Port 8005)
 7. [AI Automation Services](#ai-automation-services-epic-39-modularization) (Ports 8016-8018, 8021)
-8. [Statistics API](#statistics-api)
-9. [Error Handling](#error-handling)
-10. [Integration Examples](#integration-examples)
+8. [HA AI Agent Service](#ha-ai-agent-service) (Port 8030)
+9. [Statistics API](#statistics-api)
+10. [Error Handling](#error-handling)
+11. [Integration Examples](#integration-examples)
 
 ---
 
@@ -46,6 +47,7 @@ The HA Ingestor is an **API-first platform** designed for Home Automation data m
 | **Admin API** | 8003 | `http://localhost:8003` | System monitoring, Docker management |
 | **Data API** | 8006 | `http://localhost:8006` | Feature data (events, devices, sports, analytics) |
 | **AI Automation** | 8024 | `http://localhost:8024` | Automation suggestions & conversational AI |
+| **HA AI Agent** | 8030 | `http://localhost:8030` | Tier 1 Context Injection for Home Assistant AI Agent [Epic AI-19] |
 | **Dashboard** | 3000 | `http://localhost:3000` | Frontend (nginx proxy to APIs) |
 | **AI Automation UI** | 3001 | `http://localhost:3001` | Conversational automation UI |
 | **InfluxDB** | 8086 | `http://localhost:8086` | Time-series database |
@@ -1665,6 +1667,187 @@ Get entities from Data API.
 - **OpenAI cost:** ~$0.50/year for daily analysis
 - **Memory usage:** 200-400MB peak
 - **Daily job duration:** 2-4 minutes typical
+
+---
+
+## HA AI Agent Service
+
+**Base URL:** `http://ha-ai-agent-service:8030`  
+**Status:** ✅ Complete (Epic AI-19)  
+**Purpose:** Tier 1 Context Injection for Home Assistant AI Agent
+
+### Overview
+
+The HA AI Agent Service provides REST API endpoints for retrieving context and system prompts for a conversational Home Assistant AI agent. This service implements Tier 1 essential context that is always included in every conversation to enable efficient automation generation without excessive tool calls.
+
+### Endpoints
+
+#### GET /health
+
+Check service health and readiness.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "ha-ai-agent-service",
+  "version": "1.0.0"
+}
+```
+
+**Status Codes:**
+- `200 OK` - Service is healthy
+- `503 Service Unavailable` - Service is not ready
+
+---
+
+#### GET /api/v1/context
+
+Retrieve Tier 1 context formatted for OpenAI agent.
+
+**Response:**
+```json
+{
+  "context": "HOME ASSISTANT CONTEXT:\nENTITY INVENTORY:\n...",
+  "token_count": 1450
+}
+```
+
+**Response Fields:**
+- `context` (string) - Formatted context string with all Tier 1 components
+- `token_count` (integer) - Rough token estimate (word count)
+
+**Context Sections:**
+1. Entity Inventory Summary - Aggregated entity counts by domain and area (5 min cache TTL)
+2. Areas/Rooms List - All areas from Home Assistant (10 min cache TTL)
+3. Available Services Summary - Services by domain with common parameters (10 min cache TTL)
+4. Device Capability Patterns - Capability examples from device intelligence (15 min cache TTL)
+5. Helpers & Scenes Summary - Available helpers and scenes for reusable components (10 min cache TTL)
+
+**Status Codes:**
+- `200 OK` - Context retrieved successfully
+- `503 Service Unavailable` - Service not ready
+- `500 Internal Server Error` - Failed to build context
+
+**Example:**
+```bash
+curl http://ha-ai-agent-service:8030/api/v1/context
+```
+
+---
+
+#### GET /api/v1/system-prompt
+
+Retrieve the base system prompt defining the agent's role and behavior.
+
+**Response:**
+```json
+{
+  "system_prompt": "You are a knowledgeable and helpful Home Assistant automation assistant...",
+  "token_count": 850
+}
+```
+
+**Response Fields:**
+- `system_prompt` (string) - Base system prompt without context
+- `token_count` (integer) - Rough token estimate
+
+**Status Codes:**
+- `200 OK` - System prompt retrieved successfully
+- `503 Service Unavailable` - Service not ready
+
+**Example:**
+```bash
+curl http://ha-ai-agent-service:8030/api/v1/system-prompt
+```
+
+---
+
+#### GET /api/v1/complete-prompt
+
+Retrieve the complete system prompt with Tier 1 context injected, ready for OpenAI API calls.
+
+**Response:**
+```json
+{
+  "system_prompt": "You are a knowledgeable and helpful Home Assistant automation assistant...\n\n---\n\nHOME ASSISTANT CONTEXT:\n...",
+  "token_count": 2300
+}
+```
+
+**Response Fields:**
+- `system_prompt` (string) - Complete system prompt with context injected
+- `token_count` (integer) - Rough token estimate
+
+**Status Codes:**
+- `200 OK` - Complete prompt retrieved successfully
+- `503 Service Unavailable` - Service not ready
+- `500 Internal Server Error` - Failed to build context
+
+**Example:**
+```bash
+curl http://ha-ai-agent-service:8030/api/v1/complete-prompt
+```
+
+### Performance Requirements
+
+- **Context Building (with cache)**: < 100ms ✅
+- **Context Building (first call)**: < 500ms ✅
+- **System Prompt Retrieval**: < 10ms ✅
+- **Complete Prompt Building**: < 100ms ✅
+
+### Caching
+
+Context components are cached in SQLite database (`ha_ai_agent.db`) with TTL-based expiration:
+- Entity summaries: 5 minutes
+- Areas list: 10 minutes
+- Services summary: 10 minutes
+- Capability patterns: 15 minutes
+- Helpers & scenes summary: 10 minutes
+
+### Dependencies
+
+The service depends on:
+- **Home Assistant REST API** - For areas, services, and entity states
+- **Data API Service** (Port 8006) - For entity queries
+- **Device Intelligence Service** (Port 8028) - For device capability patterns
+
+If dependencies are unavailable, the service will return context with unavailable sections marked.
+
+### Example Usage
+
+**Python Client:**
+```python
+import httpx
+
+async with httpx.AsyncClient() as client:
+    # Get complete prompt for OpenAI
+    response = await client.get(
+        "http://ha-ai-agent-service:8030/api/v1/complete-prompt"
+    )
+    data = response.json()
+    complete_prompt = data["system_prompt"]
+    # Use complete_prompt as system message in OpenAI API call
+```
+
+**cURL:**
+```bash
+# Get context only
+curl http://ha-ai-agent-service:8030/api/v1/context
+
+# Get system prompt only
+curl http://ha-ai-agent-service:8030/api/v1/system-prompt
+
+# Get complete prompt (recommended for OpenAI)
+curl http://ha-ai-agent-service:8030/api/v1/complete-prompt
+```
+
+### Related Documentation
+
+- Service README: `services/ha-ai-agent-service/README.md`
+- API Documentation: `services/ha-ai-agent-service/docs/API_DOCUMENTATION.md`
+- System Prompt: `services/ha-ai-agent-service/docs/SYSTEM_PROMPT.md`
+- Epic AI-19: `docs/prd/epic-ai19-ha-ai-agent-tier1-context-injection.md`
 
 ---
 
