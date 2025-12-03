@@ -165,3 +165,16 @@ services/tests/datasets/home-assistant-datasets/reports/**/*.yaml
 services/tests/datasets/home-assistant-datasets/reports/**/*.csv
 services/tests/datasets/home-assistant-datasets/reports/**/*.json
 
+# AI Training Data (large binary files - checkpoints, models, optimizer states)
+services/*/data/**/checkpoint-*/
+services/*/data/**/adapter_model.safetensors
+services/*/data/**/optimizer.pt
+services/*/data/**/scheduler.pt
+services/*/data/**/rng_state.pth
+services/*/data/**/training_args.bin
+services/*/data/**/tokenizer.json
+services/*/data/**/adapter_config.json
+# Keep README and training_run.json for documentation
+!services/*/data/**/README.md
+!services/*/data/**/training_run.json
+
