@@ -300,7 +300,7 @@ class PatternLearner:
                 QAOutcome.outcome_type == 'automation_created',
                 QAOutcome.created_at >= cutoff_date,
                 QAOutcome.days_active >= 30  # Only count successful (30+ days active)
-            )
+            ).limit(10000)  # CRITICAL FIX: Add LIMIT to prevent unbounded query
 
             result = await db.execute(query)
             rows = result.all()

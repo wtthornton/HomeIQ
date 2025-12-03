@@ -34,6 +34,7 @@ from ..services.learning.user_profile_builder import UserProfileBuilder
 from ..synergy_detection.relationship_analyzer import HomeAssistantAutomationChecker
 from ..validation.device_validator import DeviceValidator, ValidationResult
 from ..automation_templates.device_templates import DeviceTemplateGenerator
+from .dependencies.auth import require_authenticated_user
 
 logger = logging.getLogger(__name__)
 
@@ -335,7 +336,8 @@ async def refresh_status(
 @router.post("/refresh", status_code=status.HTTP_202_ACCEPTED)
 async def refresh_suggestions(
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth=Depends(require_authenticated_user)
 ) -> dict[str, Any]:
     """
     Manually trigger the nightly suggestion pipeline with a 1-per-day guard.
@@ -380,7 +382,8 @@ async def generate_suggestions(
     pattern_type: str | None = Query(default=None, description="Generate suggestions for specific pattern type"),
     min_confidence: float = Query(default=0.7, ge=0.0, le=1.0, description="Minimum pattern confidence"),
     max_suggestions: int = Query(default=10, ge=1, le=50, description="Maximum suggestions to generate"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth=Depends(require_authenticated_user)
 ) -> dict[str, Any]:
     """
     Generate automation suggestions from detected patterns using OpenAI.

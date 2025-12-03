@@ -7,6 +7,7 @@ import asyncio
 import contextlib
 import importlib
 import io
+import json
 import logging
 import multiprocessing
 import queue
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 SAFE_VALUE_TYPES = (str, int, float, bool, type(None))
 MAX_CONTEXT_DEPTH = 4
+MAX_CONTEXT_SIZE = 1024 * 1024  # 1MB max context size (JSON serialized)
 
 
 def _safe_import_factory(allowed_modules: set[str]):
@@ -275,31 +277,61 @@ class PythonSandbox:
     def _sanitize_context(self, context: dict[str, Any]) -> dict[str, Any]:
         """Ensure user-provided context only contains JSON-serializable primitives."""
 
-        def _sanitize(value: Any, depth: int = 0):
+        def _sanitize(value: Any, depth: int = 0, size_tracker: list[int] = None) -> Any:
+            """Recursively sanitize context values with size tracking."""
+            if size_tracker is None:
+                size_tracker = [0]
+            
             if depth > MAX_CONTEXT_DEPTH:
                 raise ValueError("Context nesting exceeds allowed depth")
 
             if isinstance(value, SAFE_VALUE_TYPES):
+                # Estimate size (rough approximation)
+                if isinstance(value, str):
+                    size_tracker[0] += len(value.encode('utf-8'))
+                else:
+                    size_tracker[0] += 16  # Approximate size for numbers/bool/None
                 return value
 
             if isinstance(value, (list, tuple)):
-                return [_sanitize(item, depth + 1) for item in value]
+                sanitized_list = []
+                for item in value:
+                    if size_tracker[0] > MAX_CONTEXT_SIZE:
+                        raise ValueError(f"Context size exceeds {MAX_CONTEXT_SIZE} bytes")
+                    sanitized_list.append(_sanitize(item, depth + 1, size_tracker))
+                return sanitized_list
 
             if isinstance(value, dict):
                 sanitized_dict = {}
                 for key, val in value.items():
                     if not isinstance(key, str):
                         raise ValueError("Context dictionary keys must be strings")
-                    sanitized_dict[key] = _sanitize(val, depth + 1)
+                    if size_tracker[0] > MAX_CONTEXT_SIZE:
+                        raise ValueError(f"Context size exceeds {MAX_CONTEXT_SIZE} bytes")
+                    # Add key size
+                    size_tracker[0] += len(key.encode('utf-8'))
+                    sanitized_dict[key] = _sanitize(val, depth + 1, size_tracker)
                 return sanitized_dict
 
             raise ValueError("Only JSON-serializable context values are permitted")
 
+        # Check initial context size (rough check)
+        try:
+            serialized_size = len(json.dumps(context, default=str))
+            if serialized_size > MAX_CONTEXT_SIZE:
+                raise ValueError(f"Context size ({serialized_size} bytes) exceeds limit ({MAX_CONTEXT_SIZE} bytes)")
+        except (TypeError, ValueError) as e:
+            # If we can't serialize, sanitization will catch it
+            pass
+
         sanitized: dict[str, Any] = {}
+        size_tracker = [0]
         for key, value in context.items():
             if key in {"__builtins__", "__name__", "__package__"}:
                 raise ValueError(f"Context key '{key}' is reserved")
-            sanitized[key] = _sanitize(value)
+            if size_tracker[0] > MAX_CONTEXT_SIZE:
+                raise ValueError(f"Context size exceeds {MAX_CONTEXT_SIZE} bytes")
+            sanitized[key] = _sanitize(value, depth=0, size_tracker=size_tracker)
 
         return sanitized
 
@@ -315,18 +347,45 @@ class PythonSandbox:
         )
 
         process.start()
-        process.join(self.config.timeout_seconds + 1)
-
-        if process.is_alive():
-            process.terminate()
-            process.join()
-            raise TimeoutError(f"Execution exceeded {self.config.timeout_seconds}s timeout")
-
+        
         try:
-            result_payload = result_queue.get_nowait()
-        except queue.Empty as exc:
-            raise RuntimeError("Sandbox process produced no output") from exc
+            process.join(self.config.timeout_seconds + 1)
+
+            if process.is_alive():
+                logger.warning(f"Process {process.pid} exceeded timeout, terminating")
+                process.terminate()
+                process.join(timeout=5)
+                
+                # Force kill if still alive after terminate
+                if process.is_alive():
+                    logger.error(f"Process {process.pid} did not terminate, killing")
+                    process.kill()
+                    process.join(timeout=2)
+                
+                raise TimeoutError(f"Execution exceeded {self.config.timeout_seconds}s timeout")
+
+            try:
+                result_payload = result_queue.get_nowait()
+            except queue.Empty as exc:
+                raise RuntimeError("Sandbox process produced no output") from exc
         finally:
-            result_queue.close()
+            # Ensure process is cleaned up even on exception
+            if process.is_alive():
+                logger.warning(f"Cleaning up orphaned process {process.pid}")
+                try:
+                    process.terminate()
+                    process.join(timeout=2)
+                    if process.is_alive():
+                        process.kill()
+                        process.join(timeout=1)
+                except Exception as cleanup_exc:
+                    logger.error(f"Error during process cleanup: {cleanup_exc}")
+            
+            # Clean up queue resources
+            try:
+                result_queue.close()
+                result_queue.join_thread()
+            except Exception as queue_exc:
+                logger.warning(f"Error closing result queue: {queue_exc}")
 
         return result_payload

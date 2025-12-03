@@ -102,6 +102,10 @@ commands:
   - run-tests: Execute linting and tests
   - context7-docs {library} {topic}: Get KB-first documentation for external libraries
   - context7-resolve {library}: Resolve library name to Context7-compatible ID
+  - context7-help: Show Context7 usage examples and best practices
+  - context7-kb-status: Show knowledge base statistics and hit rates
+  - context7-kb-search {query}: Search local knowledge base
+  - context7-kb-test: Test KB integration and cache functionality
   - context7-kb-refresh: Check and refresh stale cache entries
   - context7-kb-process-queue: Process queued background refreshes
   - exit: Say goodbye as the Developer, and then abandon inhabiting this persona
@@ -114,7 +118,12 @@ dependencies:
     - execute-checklist.md
     - progressive-code-review.md
     - validate-next-story.md
+    - context7-docs.md
+    - context7-resolve.md
     - context7-kb-lookup.md
+    - context7-kb-status.md
+    - context7-kb-search.md
+    - context7-kb-test.md
     - context7-kb-refresh.md
     - context7-kb-refresh-check.md
     - context7-kb-process-queue.md

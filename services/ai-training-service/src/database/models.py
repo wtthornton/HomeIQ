@@ -5,7 +5,7 @@ Epic 39, Story 39.1: Training Service Foundation
 Extracted from ai-automation-service for shared database access.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column,
     DateTime,
@@ -29,7 +29,7 @@ class TrainingRun(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     training_type = Column(String(20), nullable=False, default='soft_prompt')  # soft_prompt, gnn_synergy
     status = Column(String(20), nullable=False, default='queued')  # queued, running, completed, failed
-    started_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    started_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)  # CRITICAL: Use timezone-aware datetime
     finished_at = Column(DateTime, nullable=True)
     dataset_size = Column(Integer, nullable=True)
     base_model = Column(String, nullable=True)

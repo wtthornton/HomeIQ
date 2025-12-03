@@ -119,6 +119,12 @@ async def main():
         dest='enable_calendar',
         help='Disable calendar data generation'
     )
+    parser.add_argument(
+        '--rate-limit-rpm',
+        type=int,
+        default=20,
+        help='OpenAI API rate limit in requests per minute (default: 20 - conservative for tier 2). Lower values = safer but slower.'
+    )
     
     args = parser.parse_args()
     
@@ -146,7 +152,8 @@ async def main():
         
         home_generator = SyntheticHomeGenerator(
             enable_openai_enhancement=True,
-            openai_client=openai_client
+            openai_client=openai_client,
+            rate_limit_rpm=args.rate_limit_rpm
         )
         
         # Generate homes using hybrid approach
@@ -293,6 +300,10 @@ async def main():
             
             # Add external_data section to home
             home['external_data'] = external_data
+            
+            # Ensure home_id is present (required by models/services)
+            if 'home_id' not in home:
+                home['home_id'] = f"home_{home_num:03d}"
             
             complete_homes.append(home)
             

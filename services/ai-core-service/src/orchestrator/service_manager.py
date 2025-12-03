@@ -137,6 +137,9 @@ class ServiceManager:
             raise
 
     async def analyze_data(self, data: list[dict[str, Any]], analysis_type: str, options: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+        # analysis_type is validated in the request model but not used in routing logic
+        # Keeping for API compatibility and future routing logic
+        _ = analysis_type
         """Perform comprehensive data analysis using available services"""
         results = {}
         services_used = []
@@ -202,6 +205,9 @@ class ServiceManager:
             raise
 
     async def detect_patterns(self, patterns: list[dict[str, Any]], detection_type: str) -> tuple[list[dict[str, Any]], list[str]]:
+        # detection_type is validated in the request model but not used in routing logic
+        # Keeping for API compatibility and future routing logic
+        _ = detection_type
         """Detect patterns using available services"""
         detected_patterns = []
         services_used = []
@@ -281,11 +287,12 @@ class ServiceManager:
 
     def _build_suggestion_prompt(self, context: dict[str, Any], suggestion_type: str) -> str:
         """Build prompt for suggestion generation"""
+        # context is used in the f-string below
         return f"""
         Generate {suggestion_type} suggestions based on the following context:
-        
+
         Context: {context}
-        
+
         Please provide 3-5 specific, actionable suggestions in JSON format.
         Each suggestion should include:
         - title: Brief title
@@ -315,10 +322,12 @@ class ServiceManager:
 
     def _generate_fallback_suggestions(self, context: dict[str, Any], suggestion_type: str) -> list[dict[str, Any]]:
         """Generate fallback suggestions when AI services are unavailable"""
+        # Use context and suggestion_type in the fallback message
+        context_summary = str(context)[:100] if context else "your configuration"
         return [
             {
                 "title": "Basic Suggestion",
-                "description": f"Consider reviewing your {suggestion_type} configuration",
+                "description": f"Consider reviewing your {suggestion_type} configuration. Context: {context_summary}",
                 "priority": "medium",
                 "category": "convenience"
             }

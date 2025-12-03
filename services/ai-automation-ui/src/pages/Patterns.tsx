@@ -25,23 +25,41 @@ export const Patterns: React.FC = () => {
   const loadPatterns = useCallback(async () => {
     try {
       setError(null);
+      setLoading(true);
       const [patternsRes, statsRes] = await Promise.all([
         api.getPatterns(undefined, 0.7),
         api.getPatternStats()
       ]);
-      const patternsData = patternsRes.data.patterns || [];
+      
+      const patternsData = patternsRes.data?.patterns || [];
       setPatterns(patternsData);
-      setStats(statsRes.data || statsRes);
+      setStats(statsRes);
 
       // Load device names for the patterns
       if (patternsData.length > 0) {
         const uniqueDeviceIds = [...new Set(patternsData.map(p => p.device_id))];
-        const names = await api.getDeviceNames(uniqueDeviceIds);
-        setDeviceNames(names);
+        try {
+          const names = await api.getDeviceNames(uniqueDeviceIds);
+          setDeviceNames(names);
+        } catch (nameError: any) {
+          console.warn('Failed to load device names (non-critical):', nameError);
+          // Don't fail the entire load if device names fail
+        }
       }
     } catch (err: any) {
       console.error('Failed to load patterns:', err);
-      setError(err.message || 'Failed to load patterns');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to load patterns';
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        errorMessage = 'Network error: Unable to connect to the server. Please check your connection.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      } else if (err.toString && err.toString() !== '[object Object]') {
+        errorMessage = err.toString();
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

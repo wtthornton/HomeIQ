@@ -40,12 +40,16 @@ async def readiness_check():
         }
     except Exception as e:
         from fastapi import Response
+        import logging
+        logger = logging.getLogger("ai-training-service")
+        # CRITICAL: Don't leak internal error details to clients
+        logger.error(f"Readiness check failed: {e}", exc_info=True)
         return Response(
             content=json.dumps({
                 "status": "not_ready",
                 "service": "ai-training-service",
                 "database": "disconnected",
-                "error": str(e)
+                # CRITICAL: Don't expose internal error details
             }),
             status_code=503,
             media_type="application/json"

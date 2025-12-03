@@ -59,7 +59,7 @@ sections:
       Capture high-level UI/UX vision to guide Design Architect and to inform story creation. Steps:
 
       1. Pre-fill all subsections with educated guesses based on project context
-      2. **Use Context7 MCP tools (mcp_Context7_resolve-library-id, mcp_Context7_get-library-docs) to get up-to-date documentation for UI/UX technology decisions when making framework and library choices**
+      2. **MANDATORY: Use Context7 KB-first commands (*context7-docs, *context7-resolve) to get up-to-date documentation for UI/UX technology decisions. ALWAYS check KB cache first before fetching from Context7 API.**
       3. Present the complete rendered section to user
       4. Clearly let the user know where assumptions were made
       5. Ask targeted questions for unclear/missing elements or areas needing more specification

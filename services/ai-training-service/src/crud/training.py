@@ -6,7 +6,7 @@ Extracted from ai-automation-service database/crud.py
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -105,7 +105,7 @@ async def delete_old_training_runs(
     Returns:
         Number of runs deleted
     """
-    cutoff_date = datetime.utcnow() - timedelta(days=older_than_days)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=older_than_days)  # CRITICAL: Use timezone-aware datetime
     
     # Get IDs of runs to keep (most recent N)
     keep_query = select(TrainingRun.id)
@@ -115,19 +115,35 @@ async def delete_old_training_runs(
     keep_result = await db.execute(keep_query)
     keep_ids = {row[0] for row in keep_result.all()}
     
-    # Delete runs older than cutoff, excluding keep_ids
-    delete_query = select(TrainingRun).where(
-        TrainingRun.started_at < cutoff_date
-    )
-    if training_type:
-        delete_query = delete_query.where(TrainingRun.training_type == training_type)
+    # CRITICAL: Add LIMIT to prevent unbounded query and memory issues
+    # Process in batches to avoid loading all runs into memory
+    batch_size = 100
+    total_deleted = 0
     
-    result = await db.execute(delete_query)
-    runs_to_delete = [run for run in result.scalars().all() if run.id not in keep_ids]
+    while True:
+        # Delete runs older than cutoff, excluding keep_ids, with LIMIT
+        delete_query = select(TrainingRun).where(
+            TrainingRun.started_at < cutoff_date
+        )
+        if training_type:
+            delete_query = delete_query.where(TrainingRun.training_type == training_type)
+        delete_query = delete_query.limit(batch_size)  # CRITICAL: Limit batch size
+        
+        result = await db.execute(delete_query)
+        runs_to_delete = [run for run in result.scalars().all() if run.id not in keep_ids]
+        
+        if not runs_to_delete:
+            break
+        
+        for run in runs_to_delete:
+            await db.delete(run)
+        
+        await db.commit()
+        total_deleted += len(runs_to_delete)
+        
+        # If we got fewer than batch_size, we're done
+        if len(runs_to_delete) < batch_size:
+            break
     
-    for run in runs_to_delete:
-        await db.delete(run)
-    
-    await db.commit()
-    return len(runs_to_delete)
+    return total_deleted
 

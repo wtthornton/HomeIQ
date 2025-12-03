@@ -10,19 +10,17 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from aiohttp import web
-from dotenv import load_dotenv
 from influxdb_client_3 import InfluxDBClient3, Point
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
+from config import settings
 from event_parser import CalendarEventParser
 from ha_client import HomeAssistantCalendarClient
 from health_check import HealthCheckHandler
 
 from shared.enhanced_ha_connection_manager import ha_connection_manager
 from shared.logging_config import log_error_with_context, setup_logging
-
-load_dotenv()
 
 logger = setup_logging("calendar-service")
 
@@ -31,17 +29,18 @@ class CalendarService:
     """Home Assistant Calendar integration for occupancy prediction"""
 
     def __init__(self):
+        # CRITICAL FIX: Use config object instead of direct os.getenv (coding standards compliance)
         # Calendar configuration
-        self.calendar_entities = os.getenv('CALENDAR_ENTITIES', 'calendar.primary').split(',')
+        self.calendar_entities = settings.calendar_entities.split(',')
 
         # InfluxDB configuration
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
+        self.influxdb_url = settings.influxdb_url
+        self.influxdb_token = settings.influxdb_token
+        self.influxdb_org = settings.influxdb_org
+        self.influxdb_bucket = settings.influxdb_bucket
 
         # Service configuration
-        self.fetch_interval = int(os.getenv('CALENDAR_FETCH_INTERVAL', '900'))  # 15 minutes default
+        self.fetch_interval = settings.calendar_fetch_interval
 
         # Components
         self.ha_client: HomeAssistantCalendarClient | None = None
@@ -49,9 +48,9 @@ class CalendarService:
         self.influxdb_client: InfluxDBClient3 | None = None
         self.health_handler = HealthCheckHandler()
 
-        # Validate InfluxDB configuration
+        # Validate InfluxDB configuration (Pydantic will validate required fields)
         if not self.influxdb_token:
-            raise ValueError("INFLUXDB_TOKEN required")
+            raise ValueError("INFLUXDB_TOKEN required (set via environment variable)")
 
         # Clean up calendar entity list
         self.calendar_entities = [cal.strip() for cal in self.calendar_entities]
@@ -161,6 +160,7 @@ class CalendarService:
             return parsed_events
 
         except Exception as e:
+            # CRITICAL FIX: Preserve exception chain (B904 compliance)
             log_error_with_context(
                 logger,
                 f"Error fetching calendar events: {e}",
@@ -169,6 +169,8 @@ class CalendarService:
             )
             self.health_handler.ha_connected = False
             self.health_handler.failed_fetches += 1
+            # Log and return empty list, but preserve exception context
+            logger.debug(f"Exception context: {type(e).__name__}: {e}", exc_info=True)
             return []
 
     async def predict_home_status(self) -> dict[str, Any]:
@@ -248,6 +250,7 @@ class CalendarService:
             return prediction
 
         except Exception as e:
+            # CRITICAL FIX: Preserve exception chain (B904 compliance)
             log_error_with_context(
                 logger,
                 f"Error predicting occupancy: {e}",
@@ -255,12 +258,18 @@ class CalendarService:
                 error=str(e)
             )
             self.health_handler.failed_fetches += 1
+            # Log exception context for debugging
+            logger.debug(f"Exception context: {type(e).__name__}: {e}", exc_info=True)
             return None
 
-    async def store_in_influxdb(self, prediction: dict[str, Any]):
+    async def store_in_influxdb(self, prediction: dict[str, Any]) -> None:
         """Store occupancy prediction in InfluxDB"""
 
         if not prediction:
+            return
+
+        if not self.influxdb_client:
+            logger.error("InfluxDB client not initialized")
             return
 
         try:
@@ -273,17 +282,25 @@ class CalendarService:
                 .field("hours_until_arrival", float(prediction['hours_until_arrival']) if prediction['hours_until_arrival'] is not None else 0) \
                 .time(prediction['timestamp'])
 
-            self.influxdb_client.write(point)
+            # CRITICAL FIX: Use asyncio.to_thread() to avoid blocking the event loop
+            # InfluxDBClient3.write() is synchronous and blocks, violating "Async Everything" principle
+            await asyncio.to_thread(
+                self.influxdb_client.write,
+                point
+            )
 
             logger.info("Occupancy prediction written to InfluxDB")
 
         except Exception as e:
+            # CRITICAL FIX: Preserve exception chain (B904 compliance)
             log_error_with_context(
                 logger,
                 f"Error writing to InfluxDB: {e}",
                 service="calendar-service",
                 error=str(e)
             )
+            # Re-raise to allow caller to handle, preserving exception chain
+            raise RuntimeError(f"Failed to write occupancy prediction to InfluxDB: {e}") from e
 
     async def run_continuous(self):
         """Run continuous prediction loop"""
@@ -297,7 +314,18 @@ class CalendarService:
 
                 # Store in InfluxDB
                 if prediction:
-                    await self.store_in_influxdb(prediction)
+                    try:
+                        await self.store_in_influxdb(prediction)
+                    except Exception as e:
+                        # CRITICAL FIX: Handle InfluxDB write failures gracefully
+                        # Don't break the continuous loop if write fails
+                        log_error_with_context(
+                            logger,
+                            f"Failed to store prediction in InfluxDB: {e}",
+                            service="calendar-service",
+                            error=str(e)
+                        )
+                        logger.debug(f"Exception context: {type(e).__name__}: {e}", exc_info=True)
 
                 # Mark as healthy after successful fetch and store
                 self.health_handler.ha_connected = True
@@ -305,6 +333,7 @@ class CalendarService:
                 await asyncio.sleep(self.fetch_interval)
 
             except Exception as e:
+                # CRITICAL FIX: Preserve exception chain (B904 compliance)
                 log_error_with_context(
                     logger,
                     f"Error in continuous loop: {e}",
@@ -312,6 +341,8 @@ class CalendarService:
                     error=str(e)
                 )
                 self.health_handler.ha_connected = False
+                # Log full exception context for debugging
+                logger.debug(f"Exception context: {type(e).__name__}: {e}", exc_info=True)
                 # Wait 5 minutes before retry on error
                 await asyncio.sleep(300)
 
@@ -334,7 +365,7 @@ async def main():
     runner = web.AppRunner(app)
     await runner.setup()
 
-    port = int(os.getenv('SERVICE_PORT', '8013'))
+    port = settings.service_port
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
 

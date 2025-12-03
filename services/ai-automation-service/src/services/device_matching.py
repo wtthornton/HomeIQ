@@ -626,8 +626,6 @@ class DeviceMatchingService:
             score += fuzzy_score * 0.20
 
         return min(score, 1.0)
-                area_match = True
-                score += 0.05
 
         # Platform match bonus
         platform = entity.get("platform", "").lower()

@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 
-from database.models import Pattern, Suggestion, UserFeedback
+from ...database.models import Pattern, Suggestion, UserFeedback
 from .pattern_feedback_tracker import PatternFeedbackTracker
 
 logger = logging.getLogger(__name__)

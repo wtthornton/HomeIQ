@@ -1,6 +1,6 @@
 {
   "model_version": "1.0",
-  "training_date": "2025-11-29T20:13:31.359978+00:00",
+  "training_date": "2025-12-02T21:36:09.452595+00:00",
   "feature_names": [
     "total_devices",
     "security_ratio",

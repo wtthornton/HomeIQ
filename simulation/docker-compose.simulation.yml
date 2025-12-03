@@ -1,0 +1,32 @@
+# Simulation Framework Docker Compose Profile
+# 
+# This profile is separate from production deployment.
+# Used for development, testing, and CI/CD validation only.
+#
+# Usage:
+#   docker-compose --profile simulation -f docker-compose.simulation.yml up
+
+version: '3.8'
+
+services:
+  simulation:
+    build:
+      context: .
+      dockerfile: Dockerfile.simulation
+    container_name: homeiq-simulation
+    environment:
+      - SIMULATION_MODE=standard
+      - SIMULATION_SYNTHETIC_HOMES_COUNT=100
+      - SIMULATION_MAX_PARALLEL_HOMES=10
+      - SIMULATION_MODEL_MODE=pretrained
+    volumes:
+      - ./simulation_results:/app/simulation_results
+      - ./models:/app/models
+    command: python cli.py --mode standard --homes 100 --queries 50
+    networks:
+      - homeiq-network
+
+networks:
+  homeiq-network:
+    external: true
+

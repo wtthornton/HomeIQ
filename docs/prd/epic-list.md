@@ -436,6 +436,70 @@ Build a comprehensive, fast, high-volume simulation framework that validates the
 
 ---
 
+**Epic AI-17: Simulation Framework Core** 📋 PLANNING
+Comprehensive simulation framework for end-to-end workflow validation with mocked services, prompt-to-YAML testing, and validation/scoring engines. Provides isolated testing environment separate from production deployment.
+
+**Key Features:**
+- Core simulation engine with dependency injection
+- Complete mock service layer (OpenAI, HA, InfluxDB, MQTT, etc.)
+- 3 AM workflow simulation (all 6 phases)
+- Ask AI workflow simulation (complete conversational flow)
+- Prompt and YAML validation frameworks
+- Ground truth comparison (automation datasets)
+- Metrics collection and reporting
+- Batch processing and parallelization
+
+**Stories:** 10 stories across 5 phases (5-6 weeks)
+- Phase 1: Foundation & Core Engine (3 stories)
+- Phase 2: 3 AM Workflow Simulation (2 stories)
+- Phase 3: Ask AI Flow Simulation (2 stories)
+- Phase 4: Prompt & YAML Validation (2 stories)
+- Phase 5: Batch Processing & Optimization (3 stories)
+
+**Expected Outcomes:**
+- +4,000% validation speed (hours → minutes)
+- -100% API costs (all mocked)
+- +95% deployment confidence
+- +100% test coverage (100+ homes, 50+ queries)
+- +80% YAML accuracy
+
+**⚠️ Isolation:** Code in `simulation/` directory (NOT in `services/`), separate Docker profile, excluded from production builds
+
+**Epic Document:** `docs/prd/epic-ai17-simulation-framework-core.md`
+
+---
+
+**Epic AI-18: Simulation Data Generation & Training Collection** 📋 PLANNING
+Synthetic data generation and training data collection infrastructure for simulation framework. Enables on-demand generation of multiple synthetic homes, collects all training data from simulation runs, and automatically retrains models with collected data.
+
+**Key Features:**
+- Data generation manager (on-demand multi-home generation)
+- Enhanced home generator wrapper
+- Ground truth generator
+- Training data collector (all collection points)
+- Training data exporters (multiple formats)
+- Data lineage tracking
+- Model retraining manager (automatic triggers)
+- Model evaluation and deployment
+
+**Stories:** 8 stories across 3 phases (4-5 weeks)
+- Phase 1: Data Generation Infrastructure (3 stories)
+- Phase 2: Training Data Collection (3 stories)
+- Phase 3: Model Retraining Pipeline (2 stories)
+
+**Expected Outcomes:**
+- Unlimited training data availability (synthetic homes)
+- +100% data diversity (varied home types, sizes, devices)
+- +95% model accuracy improvement (continuous learning)
+- -100% production data dependency
+- +80% training speed (automated collection and retraining)
+
+**⚠️ Isolation:** Code in `simulation/` directory (NOT in `services/`), separate Docker profile, excluded from production builds
+
+**Epic Document:** `docs/prd/epic-ai18-simulation-data-generation-training.md`
+
+---
+
 **Epic AI-7: Home Assistant Best Practices Implementation** ✅ COMPLETE
 Implement all 8 Home Assistant best practices from the "Best Practices for Home Assistant Setup and Automations" PDF review to improve automation quality, reliability, and maintainability.
 
@@ -738,6 +802,73 @@ Enhance ML training infrastructure to support high-quality initial model trainin
 ## RAG Enhancement Epics (47)
 
 **Epic 47: BGE-M3 Embedding Model Upgrade (Phase 1)** ✅ **COMPLETE** (December 2025)
+
+**Epic 48: Energy Correlator Code Review Improvements** 📋 **PLANNING** ⭐ **NEW**
+Address critical security, testing, and code quality improvements identified in comprehensive 2025 code review of energy-correlator service. Enhances production readiness through security hardening, comprehensive test coverage (target 70%), integration tests, error scenario testing, and performance optimizations.
+
+**Key Improvements:**
+- Security: API endpoint authentication, input validation for InfluxDB bucket names
+- Testing: Integration test suite (InfluxDB queries, API endpoints, E2E flows)
+- Coverage: Increase from 40% to 70% target
+- Performance: Retry queue memory optimization, timezone standardization
+- Quality: Error scenario testing, comprehensive edge case coverage
+
+**Stories:** 5 stories (14-18 hours)
+- 48.1: Security Hardening & Input Validation (High, 2-3 hours)
+- 48.2: Integration Test Suite (High, 4-6 hours)
+- 48.3: Error Scenario Testing (Medium, 2-3 hours)
+- 48.4: Test Coverage & Quality Improvements (Medium, 3-4 hours)
+- 48.5: Performance & Memory Optimization (Medium, 1-2 hours)
+
+**Epic Document:** `docs/prd/epic-48-energy-correlator-code-review-improvements.md`  
+**Code Review:** `docs/qa/code-review-energy-correlator-2025.md`
+
+**Epic 49: Electricity Pricing Service Code Review Improvements** 📋 **PLANNING** ⭐ **NEW**
+Address critical security, testing, and performance improvements identified in comprehensive 2025 code review of electricity-pricing-service. Enhances production readiness through security hardening, batch write optimization, comprehensive test coverage (target 70%), and error scenario testing.
+
+**Key Improvements:**
+- Security: API endpoint input validation, query parameter bounds checking, authentication
+- Performance: Batch InfluxDB writes, async write context wrapping
+- Testing: Integration test suite (InfluxDB writes, API endpoints, provider integration)
+- Coverage: Increase from 50% to 70% target
+- Quality: Error scenario testing, provider-specific tests, comprehensive edge cases
+
+**Stories:** 6 stories (12-16 hours)
+- 49.1: Security Hardening & Input Validation (High, 2-3 hours)
+- 49.2: Performance Optimization - Batch Writes (High, 1-2 hours)
+- 49.3: Integration Test Suite (Medium, 3-4 hours)
+- 49.4: Error Scenario Testing (Medium, 2-3 hours)
+- 49.5: Test Coverage & Quality Improvements (Medium, 2-3 hours)
+- 49.6: Provider-Specific Testing (Medium, 1-2 hours)
+
+**Epic Document:** `docs/prd/epic-49-electricity-pricing-service-code-review-improvements.md`  
+**Code Review:** `docs/qa/code-review-electricity-pricing-service-2025.md`
+
+**Epic 50: WebSocket Ingestion Service Code Review Improvements** 📋 **PLANNING** ⭐ **NEW**
+Address security, testing, and code quality improvements identified in comprehensive 2025 code review of websocket-ingestion service. Enhances production readiness through timezone standardization, security hardening, comprehensive integration tests, and documentation improvements while maintaining excellent architectural patterns.
+
+**Key Improvements:**
+- Code Quality: Timezone standardization (107 instances of datetime.now() → timezone-aware)
+- Security: WebSocket message input validation, SSL verification enabled, rate limiting
+- Testing: Integration test suite (WebSocket connections, event pipeline, discovery integration)
+- Coverage: Increase from 70% to 80% target
+- Quality: Error scenario testing, WebSocket handler tests, code organization
+
+**Stories:** 7 stories (15-20 hours)
+- 50.1: Timezone Standardization (High, 2-3 hours)
+- 50.2: Security Hardening (High, 1-2 hours)
+- 50.3: Integration Test Suite (Medium, 4-6 hours)
+- 50.4: Error Scenario Testing (Medium, 2-3 hours)
+- 50.5: WebSocket Handler Tests (Medium, 1-2 hours)
+- 50.6: Test Coverage Improvement (Medium, 3-4 hours)
+- 50.7: Code Organization & Documentation (Medium, 1-2 hours)
+
+**Epic Document:** `docs/prd/epic-50-websocket-ingestion-code-review-improvements.md`  
+**Code Review:** `docs/qa/code-review-websocket-ingestion-2025.md`
+
+---
+
+**Epic 47: RAG Embedding Model Upgrade** ✅ **COMPLETE**
 Upgrade RAG embedding model from all-MiniLM-L6-v2 (2019, 384-dim) to BAAI/bge-large-en-v1.5 (2024, 1024-dim) for 10-15% accuracy improvement. Pre-trained model upgrade (no fine-tuning) for immediate improvement with minimal effort. **Deployed:** BAAI/bge-large-en-v1.5 (publicly available alternative to BGE-M3-base).
 
 **Key Features:**
@@ -761,10 +892,10 @@ Upgrade RAG embedding model from all-MiniLM-L6-v2 (2019, 384-dim) to BAAI/bge-la
 
 ## Summary
 
-- **Total Epics**: 48 (26 infrastructure + 5 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement + 1 ML training enhancement + 1 RAG enhancement)
+- **Total Epics**: 51 (26 infrastructure + 5 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement + 1 ML training enhancement + 1 RAG enhancement + 3 quality improvement)
 - **Completed**: 37 (26 infrastructure + 6 AI + 4 setup service + 1 architecture + 1 code quality + 1 database architecture + 1 ML training + 1 RAG enhancement) ✅ **100% COMPLETE** 🎉
 - **Deferred**: 1 (Epic 40: Dual Deployment Configuration - not needed for single-home setup) ⏸️
-- **Planned**: 9 (Epic 33-39, 41, 43-44 + Epic AI-5: Synthetic External Data, Correlation Analysis, Service Modularization, Production Readiness Improvements, Development Experience Improvements, Unified Contextual Intelligence) 📋
+- **Planned**: 12 (Epic 33-39, 41, 43-44, 48-50 + Epic AI-5: Synthetic External Data, Correlation Analysis, Service Modularization, Production Readiness Improvements, Development Experience Improvements, Unified Contextual Intelligence) 📋
 - **In Progress**: 0
 - **Draft/Planned**: 0
 - **Active Services**: 21 total (18 microservices + InfluxDB infrastructure)

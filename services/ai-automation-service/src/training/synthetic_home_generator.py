@@ -7,6 +7,7 @@ Follows home-assistant-datasets generation pattern.
 Template-based generation using predefined distributions and templates.
 """
 
+import asyncio
 import json
 import logging
 import random
@@ -51,7 +52,8 @@ class SyntheticHomeGenerator:
     def __init__(
         self,
         enable_openai_enhancement: bool = False,
-        openai_client: "OpenAIClient | None" = None
+        openai_client: "OpenAIClient | None" = None,
+        rate_limit_rpm: int = 20  # Default: 20 requests per minute (conservative for tier 2)
     ):
         """
         Initialize synthetic home generator.
@@ -63,6 +65,12 @@ class SyntheticHomeGenerator:
         self.enable_openai_enhancement = enable_openai_enhancement
         self.openai_client = openai_client
         self.openai_generator = None
+        
+        # Rate limiting: Calculate delay between requests to avoid exceeding OpenAI thresholds
+        # Formula: delay = (60 seconds / RPM) * 1.1 (10% safety buffer)
+        self.rate_limit_rpm = rate_limit_rpm
+        self.request_delay = (60.0 / rate_limit_rpm) * 1.1 if rate_limit_rpm > 0 else 0.0
+        logger.info(f"Rate limiting configured: {rate_limit_rpm} RPM = {self.request_delay:.2f}s delay between requests")
         
         if enable_openai_enhancement:
             if not openai_client:
@@ -223,6 +231,10 @@ class SyntheticHomeGenerator:
                 if current_total < enhanced_count:
                     enhanced_type_counts['single_family_house'] += (enhanced_count - current_total)
             
+            # Rate limiting: Add delay between OpenAI API calls to prevent rate limit errors
+            # Default: 20 RPM (3.3 seconds between calls) - conservative for tier 2 accounts
+            request_delay = getattr(self, 'request_delay', 3.3)  # Default delay in seconds
+            
             for home_type, count in enhanced_type_counts.items():
                 if count == 0:
                     continue
@@ -237,6 +249,12 @@ class SyntheticHomeGenerator:
                         )
                         enhanced_homes.append(enhanced_home)
                         logger.info(f"✅ Generated enhanced home {len(enhanced_homes)}/{enhanced_count}: {home_type} #{i+1}")
+                        
+                        # Rate limiting: Wait before next API call (except for last home)
+                        if i < count - 1 or len(enhanced_homes) < enhanced_count:
+                            logger.debug(f"⏳ Waiting {request_delay:.1f}s before next OpenAI API call (rate limiting)...")
+                            await asyncio.sleep(request_delay)
+                            
                     except Exception as e:
                         logger.error(f"❌ Failed to generate enhanced {home_type} home #{i+1}: {e}")
                         # Fallback to template generation
@@ -251,6 +269,10 @@ class SyntheticHomeGenerator:
                         except Exception as fallback_error:
                             logger.error(f"❌ Fallback also failed: {fallback_error}")
                             continue
+                        
+                        # Still wait after fallback to maintain rate limit consistency
+                        if i < count - 1 or len(enhanced_homes) < enhanced_count:
+                            await asyncio.sleep(request_delay)
         
         # Validate sample of template homes
         validated_count = 0
@@ -269,7 +291,10 @@ class SyntheticHomeGenerator:
             import random
             homes_to_validate = random.sample(template_homes, min(validate_count, len(template_homes)))
             
-            for home in homes_to_validate:
+            # Rate limiting: Add delay between validation API calls
+            request_delay = getattr(self, 'request_delay', 3.3)
+            
+            for idx, home in enumerate(homes_to_validate):
                 try:
                     # Generate areas and devices for validation
                     areas = area_generator.generate_areas(home)
@@ -282,6 +307,12 @@ class SyntheticHomeGenerator:
                         logger.warning(f"⚠️ Home {home.get('home_type')} validation issues: {validation_result.get('issues', [])}")
                     
                     validated_count += 1
+                    
+                    # Rate limiting: Wait before next validation call (except for last)
+                    if idx < len(homes_to_validate) - 1:
+                        logger.debug(f"⏳ Waiting {request_delay:.1f}s before next validation API call...")
+                        await asyncio.sleep(request_delay)
+                        
                 except Exception as e:
                     logger.warning(f"⚠️ Validation failed for home: {e}")
                     continue

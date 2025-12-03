@@ -39,7 +39,7 @@ async def readiness_check(db: AsyncSession = Depends(get_db)):
             "database": "connected"
         }
     except Exception as e:
-        logger.error(f"Readiness check failed: {e}")
+        logger.error(f"Readiness check failed: {e}", exc_info=True)
         return {
             "status": "not_ready",
             "service": "ai-query-service",

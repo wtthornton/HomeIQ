@@ -80,6 +80,11 @@ So that {{clear benefit/value}}.
 - Follows pattern: {{existing pattern to follow}}
 - Touch points: {{specific integration points}}
 
+**Technology Research (if needed):**
+- **MANDATORY**: Use Context7 KB-first commands (*context7-docs, *context7-resolve) when researching external libraries or frameworks
+- **ALWAYS**: Check KB cache first before fetching from Context7 API
+- Document any technology decisions with Context7 KB references
+
 #### Acceptance Criteria
 
 **Functional Requirements:**

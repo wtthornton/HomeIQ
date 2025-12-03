@@ -295,7 +295,19 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         header_name: str = "X-HomeIQ-API-Key",
     ):
         super().__init__(app)
-        self.enabled = enabled and bool(settings.ai_automation_api_key)
+        # CRITICAL: Authentication is mandatory - always enabled if API key is set
+        # If no API key is configured, service will fail to start (security requirement)
+        self.api_key = settings.ai_automation_api_key
+        self.admin_key = settings.ai_automation_admin_api_key or self.api_key
+        
+        # Require API key to be set (cannot be empty or default value)
+        if not self.api_key or self.api_key == "change-me":
+            raise ValueError(
+                "CRITICAL: AI_AUTOMATION_API_KEY must be set. "
+                "Authentication cannot be disabled. Set AI_AUTOMATION_API_KEY environment variable."
+            )
+        
+        self.enabled = True  # Always enabled when API key is set
         self.header_name = header_name
         self.public_paths = public_paths or [
             "/health",
@@ -304,16 +316,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             "/openapi.json",
             "/metrics",
         ]
-        self.api_key = settings.ai_automation_api_key
-        self.admin_key = settings.ai_automation_admin_api_key or self.api_key
-
-        if not self.enabled:
-            logger.warning("Authentication middleware disabled. Set ENABLE_AUTHENTICATION=true to enable.")
-        elif self.api_key == "change-me":
-            logger.warning(
-                "Authentication middleware enabled but default API key is still 'change-me'. "
-                "Update infrastructure/env.ai-automation."
-            )
+        
+        logger.info("✅ Authentication middleware enabled (mandatory)")
 
     async def dispatch(self, request: Request, call_next: Callable):
         if not self.enabled or self._is_public_path(request.url.path):

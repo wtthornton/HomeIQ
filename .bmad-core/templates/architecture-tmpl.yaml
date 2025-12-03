@@ -108,7 +108,7 @@ sections:
           List the key high-level patterns that will guide the architecture. For each pattern:
 
           1. Present 2-3 viable options if multiple exist
-          2. **Use Context7 MCP tools (mcp_Context7_resolve-library-id, mcp_Context7_get-library-docs) to get up-to-date documentation for technology decisions when making architectural choices**
+          2. **MANDATORY: Use Context7 KB-first commands (*context7-docs, *context7-resolve) to get up-to-date documentation for technology decisions. ALWAYS check KB cache first before fetching from Context7 API.**
           3. Provide your recommendation with clear rationale
           4. Get user confirmation before finalizing
           5. These patterns should align with the PRD's technical assumptions and project goals

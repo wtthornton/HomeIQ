@@ -22,7 +22,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .orchestrator.service_manager import ServiceManager
 
@@ -106,7 +106,7 @@ async def enforce_rate_limit(
 
 # Lifespan context manager
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Initialize service manager on startup"""
     global service_manager, api_key_value
 
@@ -162,9 +162,35 @@ app.add_middleware(
 
 # Pydantic models
 class AnalysisRequest(BaseModel):
-    data: list[dict[str, Any]] = Field(..., description="Data to analyze")
-    analysis_type: str = Field(..., description="Type of analysis to perform")
-    options: dict[str, Any] = Field(default_factory=dict, description="Analysis options")
+    data: list[dict[str, Any]] = Field(..., description="Data to analyze", min_length=1, max_length=1000)
+    analysis_type: str = Field(..., description="Type of analysis to perform", min_length=1, max_length=100)
+    options: dict[str, Any] = Field(default_factory=dict, description="Analysis options", max_length=50)
+
+    @field_validator('data')
+    @classmethod
+    def validate_data_size(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Validate data size and content"""
+        if not v:
+            raise ValueError("Data list cannot be empty")
+        if len(v) > 1000:
+            raise ValueError("Data list cannot exceed 1000 items")
+        # Validate each item is a dict and not too large
+        for item in v:
+            if not isinstance(item, dict):
+                raise ValueError("All data items must be dictionaries")
+            # Limit individual item size (prevent DoS)
+            if len(str(item)) > 10000:
+                raise ValueError("Individual data items cannot exceed 10KB")
+        return v
+
+    @field_validator('analysis_type')
+    @classmethod
+    def validate_analysis_type(cls, v: str) -> str:
+        """Validate analysis type"""
+        allowed_types = {"pattern_detection", "clustering", "anomaly_detection", "basic"}
+        if v not in allowed_types:
+            raise ValueError(f"Analysis type must be one of: {', '.join(allowed_types)}")
+        return v
 
 class AnalysisResponse(BaseModel):
     results: dict[str, Any] = Field(..., description="Analysis results")
@@ -172,8 +198,32 @@ class AnalysisResponse(BaseModel):
     processing_time: float = Field(..., description="Total processing time in seconds")
 
 class PatternDetectionRequest(BaseModel):
-    patterns: list[dict[str, Any]] = Field(..., description="Patterns to detect")
-    detection_type: str = Field("full", description="Type of pattern detection")
+    patterns: list[dict[str, Any]] = Field(..., description="Patterns to detect", min_length=1, max_length=500)
+    detection_type: str = Field("full", description="Type of pattern detection", max_length=50)
+
+    @field_validator('patterns')
+    @classmethod
+    def validate_patterns(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Validate patterns list"""
+        if not v:
+            raise ValueError("Patterns list cannot be empty")
+        if len(v) > 500:
+            raise ValueError("Patterns list cannot exceed 500 items")
+        for pattern in v:
+            if not isinstance(pattern, dict):
+                raise ValueError("All patterns must be dictionaries")
+            if len(str(pattern)) > 5000:
+                raise ValueError("Individual patterns cannot exceed 5KB")
+        return v
+
+    @field_validator('detection_type')
+    @classmethod
+    def validate_detection_type(cls, v: str) -> str:
+        """Validate detection type"""
+        allowed_types = {"full", "basic", "quick"}
+        if v not in allowed_types:
+            raise ValueError(f"Detection type must be one of: {', '.join(allowed_types)}")
+        return v
 
 class PatternDetectionResponse(BaseModel):
     detected_patterns: list[dict[str, Any]] = Field(..., description="Detected patterns")
@@ -182,7 +232,26 @@ class PatternDetectionResponse(BaseModel):
 
 class SuggestionRequest(BaseModel):
     context: dict[str, Any] = Field(..., description="Context for suggestions")
-    suggestion_type: str = Field(..., description="Type of suggestions to generate")
+    suggestion_type: str = Field(..., description="Type of suggestions to generate", min_length=1, max_length=100)
+
+    @field_validator('context')
+    @classmethod
+    def validate_context(cls, v: dict[str, Any]) -> dict[str, Any]:
+        """Validate context size"""
+        if not v:
+            raise ValueError("Context cannot be empty")
+        if len(str(v)) > 5000:
+            raise ValueError("Context cannot exceed 5KB")
+        return v
+
+    @field_validator('suggestion_type')
+    @classmethod
+    def validate_suggestion_type(cls, v: str) -> str:
+        """Validate suggestion type"""
+        allowed_types = {"automation_improvements", "energy_optimization", "comfort", "security", "convenience"}
+        if v not in allowed_types:
+            raise ValueError(f"Suggestion type must be one of: {', '.join(allowed_types)}")
+        return v
 
 class SuggestionResponse(BaseModel):
     suggestions: list[dict[str, Any]] = Field(..., description="Generated suggestions")
@@ -238,9 +307,11 @@ async def analyze_data(
             processing_time=processing_time
         )
 
-    except Exception:
+    except HTTPException:
+        raise
+    except Exception as e:
         logger.exception("Error in data analysis")
-        raise HTTPException(status_code=500, detail="Analysis failed")
+        raise HTTPException(status_code=500, detail="Analysis failed") from e
 
 @app.post("/patterns", response_model=PatternDetectionResponse)
 async def detect_patterns(
@@ -267,9 +338,11 @@ async def detect_patterns(
             processing_time=processing_time
         )
 
-    except Exception:
+    except HTTPException:
+        raise
+    except Exception as e:
         logger.exception("Error in pattern detection")
-        raise HTTPException(status_code=500, detail="Pattern detection failed")
+        raise HTTPException(status_code=500, detail="Pattern detection failed") from e
 
 @app.post("/suggestions", response_model=SuggestionResponse)
 async def generate_suggestions(
@@ -296,9 +369,11 @@ async def generate_suggestions(
             processing_time=processing_time
         )
 
-    except Exception:
+    except HTTPException:
+        raise
+    except Exception as e:
         logger.exception("Error generating suggestions")
-        raise HTTPException(status_code=500, detail="Suggestion generation failed")
+        raise HTTPException(status_code=500, detail="Suggestion generation failed") from e
 
 if __name__ == "__main__":
     import uvicorn
