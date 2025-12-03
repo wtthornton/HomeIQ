@@ -1,0 +1,50 @@
+[
+  {
+    "entity_id": "light.living_room",
+    "domain": "light",
+    "device_id": "light.living_room",
+    "name": "living_room",
+    "state": "unknown",
+    "attributes": {}
+  },
+  {
+    "entity_id": "sensor.motion",
+    "domain": "sensor",
+    "device_id": "sensor.motion",
+    "name": "motion",
+    "state": "unknown",
+    "attributes": {}
+  },
+  {
+    "entity_id": "light.kitchen",
+    "domain": "light",
+    "device_id": "light.kitchen",
+    "name": "kitchen",
+    "state": "unknown",
+    "attributes": {}
+  },
+  {
+    "entity_id": "switch.bedroom",
+    "domain": "switch",
+    "device_id": "switch.bedroom",
+    "name": "bedroom",
+    "state": "unknown",
+    "attributes": {}
+  },
+  {
+    "entity_id": "sensor.temperature",
+    "domain": "sensor",
+    "device_id": "sensor.temperature",
+    "name": "temperature",
+    "state": "unknown",
+    "attributes": {}
+  },
+  {
+    "entity_id": "light.office",
+    "domain": "light",
+    "device_id": "light.office",
+    "name": "office",
+    "state": "unknown",
+    "attributes": {}
+  }
+]

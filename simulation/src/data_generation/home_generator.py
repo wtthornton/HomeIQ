@@ -12,15 +12,16 @@ from typing import Any
 
 # Add production service to path for imports
 PRODUCTION_SERVICE_PATH = Path(__file__).parent.parent.parent.parent / "services" / "ai-automation-service"
-sys.path.insert(0, str(PRODUCTION_SERVICE_PATH))
+PRODUCTION_SRC_PATH = PRODUCTION_SERVICE_PATH / "src"
+sys.path.insert(0, str(PRODUCTION_SRC_PATH))
 
 try:
-    from src.training.enhanced_synthetic_home_generator import EnhancedSyntheticHomeGenerator
-    from src.training.synthetic_home_generator import SyntheticHomeGenerator
+    from training.enhanced_synthetic_home_generator import EnhancedSyntheticHomeGenerator
+    from training.synthetic_home_generator import SyntheticHomeGenerator
 except ImportError:
     # Fallback if enhanced version not available
     try:
-        from src.training.synthetic_home_generator import SyntheticHomeGenerator
+        from training.synthetic_home_generator import SyntheticHomeGenerator
         EnhancedSyntheticHomeGenerator = None
     except ImportError as e:
         raise ImportError(

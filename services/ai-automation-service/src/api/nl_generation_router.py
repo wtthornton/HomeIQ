@@ -32,10 +32,15 @@ data_api_client = DataAPIClient(
     influxdb_bucket=settings.influxdb_bucket
 )
 
-openai_client = OpenAIClient(
-    api_key=settings.openai_api_key,
-    model=getattr(settings, 'nl_model', 'gpt-5.1')
-)
+# Initialize OpenAI client (only if API key is configured)
+openai_client: OpenAIClient | None = None
+if settings.openai_api_key:
+    openai_client = OpenAIClient(
+        api_key=settings.openai_api_key,
+        model=getattr(settings, 'nl_model', 'gpt-5.1')
+    )
+else:
+    logger.warning("⚠️ OpenAI API key not configured - NL generation will be unavailable")
 
 safety_validator = get_safety_validator(getattr(settings, 'safety_level', 'moderate'))
 
@@ -71,6 +76,13 @@ async def generate_automation_from_nl(request: NLGenerationRequest):
         Generated automation with YAML, explanation, and safety validation
     """
     logger.info(f"📝 NL generation request: '{request.request_text}'")
+
+    # Check if NL generator is available
+    if not nl_generator:
+        raise HTTPException(
+            status_code=503,
+            detail="NL generation service unavailable. OpenAI API key not configured."
+        )
 
     # Generate automation
     try:
@@ -321,9 +333,9 @@ async def get_nl_generation_stats():
                     "average_confidence": round(avg_confidence, 2)
                 },
                 "openai_usage": {
-                    "total_tokens": openai_client.total_tokens_used,
-                    "input_tokens": openai_client.total_input_tokens,
-                    "output_tokens": openai_client.total_output_tokens
+                    "total_tokens": openai_client.total_tokens_used if openai_client else 0,
+                    "input_tokens": openai_client.total_input_tokens if openai_client else 0,
+                    "output_tokens": openai_client.total_output_tokens if openai_client else 0
                 }
             }
 

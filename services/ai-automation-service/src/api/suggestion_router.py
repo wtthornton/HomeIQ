@@ -41,8 +41,12 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/api/suggestions", tags=["Suggestions"])
 
-# Initialize OpenAI client
-openai_client = OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
+# Initialize OpenAI client (only if API key is configured)
+openai_client: OpenAIClient | None = None
+if settings.openai_api_key:
+    openai_client = OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
+else:
+    logger.warning("⚠️ OpenAI API key not configured - suggestion generation will be limited")
 
 # Initialize Unified Prompt Builder
 prompt_builder = UnifiedPromptBuilder()
@@ -183,6 +187,11 @@ async def get_usage_stats() -> dict[str, Any]:
             detail="OpenAI client not initialized"
         )
 
+    if not openai_client:
+        raise HTTPException(
+            status_code=503,
+            detail="OpenAI client not configured. Set OPENAI_API_KEY environment variable."
+        )
     stats = openai_client.get_usage_stats()
 
     # Add model-specific cost breakdown
@@ -234,7 +243,7 @@ async def get_usage_stats() -> dict[str, Any]:
     return {
         **stats,
         'model_pricing': model_breakdown,
-        'last_usage': openai_client.last_usage,
+        'last_usage': openai_client.last_usage if openai_client else None,
         'cache_stats': cache_stats,
         'success_metrics': success_metrics,  # Phase 5: Add success metrics
         'timestamp': datetime.now(timezone.utc).isoformat()
@@ -634,6 +643,11 @@ async def generate_suggestions(
                     )
 
                     # Generate with unified method
+                    if not openai_client:
+                        raise HTTPException(
+                            status_code=503,
+                            detail="OpenAI client not configured. Set OPENAI_API_KEY environment variable."
+                        )
                     result = await openai_client.generate_with_unified_prompt(
                         prompt_dict=prompt_dict,
                         temperature=0.7,
@@ -1097,7 +1111,12 @@ async def get_usage_stats() -> dict[str, Any]:
     Get OpenAI API usage statistics and cost estimates.
     """
     try:
-        stats = openai_client.get_usage_stats()
+        if not openai_client:
+        raise HTTPException(
+            status_code=503,
+            detail="OpenAI client not configured. Set OPENAI_API_KEY environment variable."
+        )
+    stats = openai_client.get_usage_stats()
 
         # Add budget alert
         from ..llm.cost_tracker import CostTracker
@@ -1129,7 +1148,8 @@ async def reset_usage_stats() -> dict[str, Any]:
     Reset OpenAI API usage statistics (for monthly reset).
     """
     try:
-        openai_client.reset_usage_stats()
+        if openai_client:
+            openai_client.reset_usage_stats()
 
         return {
             "success": True,

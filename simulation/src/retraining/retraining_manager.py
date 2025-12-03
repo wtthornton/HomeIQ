@@ -14,6 +14,13 @@ from typing import Any
 
 from .data_sufficiency import DataSufficiencyChecker
 
+try:
+    from .adapters import GNNDataAdapter, SoftPromptDataAdapter
+except ImportError:
+    # Fallback if adapters not available
+    GNNDataAdapter = None
+    SoftPromptDataAdapter = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,6 +66,9 @@ class RetrainingManager:
             "gnn_synergy": self.production_service_path / "scripts" / "train_gnn_synergy.py",
             "soft_prompt": self.production_service_path / "scripts" / "train_soft_prompt.py"
         }
+        
+        # Models that support --force flag
+        self.models_supporting_force = {"gnn_synergy"}
         
         logger.info("RetrainingManager initialized")
 
@@ -109,6 +119,59 @@ class RetrainingManager:
         
         start_time = datetime.now(timezone.utc)
         
+        # Prepare training data using adapters if JSON data exists
+        if model_type == "gnn_synergy":
+            json_path = self.training_data_directory / "gnn_synergy_data.json"
+            if json_path.exists():
+                if GNNDataAdapter is None:
+                    logger.error("GNNDataAdapter not available - adapters module not found")
+                    return {
+                        "success": False,
+                        "error": "GNNDataAdapter not available",
+                        "model_type": model_type
+                    }
+                logger.info(f"Using simulation data adapter for {model_type}")
+                try:
+                    adapter = GNNDataAdapter(self.model_directory / "training.db")
+                    entities, db_path = adapter.prepare_training_environment(json_path)
+                    
+                    # Create entities JSON for training script
+                    entities_json_path = self.model_directory / "entities.json"
+                    adapter.create_entities_json(entities, entities_json_path)
+                    
+                    # Set environment variable for training script to use JSON
+                    import os
+                    os.environ["SIMULATION_ENTITIES_JSON"] = str(entities_json_path)
+                    os.environ["SIMULATION_SYNERGY_DB"] = str(db_path)
+                    logger.info(f"Prepared training environment: {len(entities)} entities, DB: {db_path}")
+                except Exception as e:
+                    logger.error(f"Failed to prepare training environment: {e}", exc_info=True)
+                    return {
+                        "success": False,
+                        "error": f"Adapter failed: {e}",
+                        "model_type": model_type
+                    }
+        
+        elif model_type == "soft_prompt":
+            json_path = self.training_data_directory / "soft_prompt_data.json"
+            if json_path.exists():
+                logger.info(f"Using simulation data adapter for {model_type}")
+                try:
+                    # Use production database path - default to data/ai_automation.db
+                    db_path = self.production_service_path / "data" / "ai_automation.db"
+                    db_path.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    adapter = SoftPromptDataAdapter(db_path)
+                    adapter.prepare_training_database(json_path)
+                    logger.info(f"Prepared training database: {db_path}")
+                except Exception as e:
+                    logger.error(f"Failed to prepare training database: {e}", exc_info=True)
+                    return {
+                        "success": False,
+                        "error": f"Adapter failed: {e}",
+                        "model_type": model_type
+                    }
+        
         # Get training script path
         script_path = self.training_scripts.get(model_type)
         if not script_path or not script_path.exists():
@@ -121,32 +184,108 @@ class RetrainingManager:
             }
         
         try:
-            # Run training script
-            cmd = [
-                sys.executable,
-                str(script_path),
-                "--force" if force else ""
-            ]
-            cmd = [c for c in cmd if c]  # Remove empty strings
+            # Build command - use -u flag for unbuffered output
+            cmd = [sys.executable, "-u", str(script_path)]
             
+            # Add --force flag only if requested and model supports it
+            if force and model_type in self.models_supporting_force:
+                cmd.append("--force")
+            
+            # Add --db-path for soft_prompt if using simulation data
+            if model_type == "soft_prompt":
+                db_path = self.production_service_path / "data" / "ai_automation.db"
+                if db_path.exists():
+                    cmd.extend(["--db-path", str(db_path)])
+            
+            logger.info(f"Running training command: {' '.join(cmd)}")
+            logger.info("  [Streaming training progress...]")
+            
+            # Prepare environment variables for simulation mode
+            import os
+            env = os.environ.copy()
+            if model_type == "gnn_synergy":
+                entities_json = self.model_directory / "entities.json"
+                synergy_db = self.model_directory / "training.db"
+                if entities_json.exists():
+                    env["SIMULATION_ENTITIES_JSON"] = str(entities_json)
+                if synergy_db.exists():
+                    env["SIMULATION_SYNERGY_DB"] = str(synergy_db)
+            
+            # Set unbuffered output for real-time progress
+            import os
+            env['PYTHONUNBUFFERED'] = '1'
+            
+            # Create process with real-time output
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.production_service_path)
+                stderr=asyncio.subprocess.STDOUT,  # Merge stderr to stdout
+                cwd=str(self.production_service_path),
+                env=env,
+                bufsize=0  # Unbuffered
             )
             
-            stdout, stderr = await process.communicate()
+            # Read output line by line for progress feedback
+            stdout_lines = []
+            last_progress_time = datetime.now(timezone.utc)
+            
+            async def read_output(stream, lines_list):
+                """Read stream line by line and show ALL progress output."""
+                nonlocal last_progress_time
+                while True:
+                    line = await stream.readline()
+                    if not line:
+                        break
+                    try:
+                        decoded = line.decode('utf-8', errors='replace').strip()
+                        if decoded:
+                            lines_list.append(decoded)
+                            
+                            # Filter out only truly problematic lines
+                            if ("UnicodeEncodeError" not in decoded and 
+                                "Logging error" not in decoded):
+                                
+                                # Clean up emoji for Windows compatibility
+                                clean_line = ''.join(c for c in decoded if ord(c) < 128)
+                                
+                                # Show all meaningful lines (not just keywords)
+                                if clean_line and len(clean_line.strip()) > 3:
+                                    # Show with timestamp for clarity
+                                    logger.info(f"  {clean_line[:100]}")
+                                    last_progress_time = datetime.now(timezone.utc)
+                    except Exception:
+                        pass  # Skip problematic lines
+            
+            # Read stdout and show progress
+            logger.info("  [Training output stream starting...]")
+            await read_output(process.stdout, stdout_lines)
+            
+            # Wait for process to complete
+            await process.wait()
+            
+            stdout = "\n".join(stdout_lines).encode()
+            stderr = b""  # Already merged to stdout
             
             if process.returncode != 0:
-                error_msg = f"Training failed: {stderr.decode()}"
-                logger.error(error_msg)
+                # Extract meaningful error from output
+                error_lines = stdout_lines[-10:]  # Last 10 lines
+                error_msg = "\n".join(error_lines)
+                if not error_msg or len(error_msg) < 20:
+                    error_msg = f"Training failed with exit code {process.returncode}"
+                else:
+                    # Find first actual error line
+                    for line in reversed(error_lines):
+                        if "Error" in line or "Failed" in line or "Exception" in line:
+                            error_msg = line
+                            break
+                
+                logger.error(f"Training failed (exit code {process.returncode})")
                 return {
                     "success": False,
                     "error": error_msg,
                     "model_type": model_type,
-                    "stdout": stdout.decode(),
-                    "stderr": stderr.decode()
+                    "stdout": "\n".join(stdout_lines),
+                    "stderr": ""
                 }
             
             end_time = datetime.now(timezone.utc)

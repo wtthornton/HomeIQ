@@ -146,10 +146,10 @@ class SimulationEngine:
             Workflow simulator instance
         """
         if workflow_type == "3am":
-            from ..workflows.daily_analysis_simulator import DailyAnalysisSimulator
+            from workflows.daily_analysis_simulator import DailyAnalysisSimulator
             return DailyAnalysisSimulator(self.container)
         elif workflow_type == "ask_ai":
-            from ..workflows.ask_ai_simulator import AskAISimulator
+            from workflows.ask_ai_simulator import AskAISimulator
             return AskAISimulator(self.container)
         else:
             raise ValueError(f"Unknown workflow type: {workflow_type}")

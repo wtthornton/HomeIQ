@@ -1,6 +1,9 @@
 """Configuration management for AI Automation Service"""
 
+import inspect
 import os
+import sys
+from pathlib import Path
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,6 +26,7 @@ class Settings(BaseSettings):
 
     # Home Assistant (Story AI4.1: Enhanced configuration)
     # Support multiple environment variable names for compatibility
+    # Optional for training scripts
     ha_url: str = Field(
         default="",
         description="Home Assistant URL (supports HA_URL, HA_HTTP_URL, HOME_ASSISTANT_URL)"
@@ -35,14 +39,14 @@ class Settings(BaseSettings):
     ha_retry_delay: float = 1.0  # Initial retry delay in seconds
     ha_timeout: int = 10  # Request timeout in seconds
 
-    # MQTT
-    mqtt_broker: str
+    # MQTT (optional for training scripts)
+    mqtt_broker: str | None = None
     mqtt_port: int = 1883
     mqtt_username: str | None = None
     mqtt_password: str | None = None
 
-    # OpenAI
-    openai_api_key: str
+    # OpenAI (optional for training scripts)
+    openai_api_key: str | None = None
 
     # Multi-Model Entity Extraction
     entity_extraction_method: str = "multi_model"  # multi_model, enhanced, pattern
@@ -486,17 +490,54 @@ class Settings(BaseSettings):
             ""
         )
     
+    def _is_training_mode(self) -> bool:
+        """Detect if we're running in training mode (scripts don't need MQTT/OpenAI)"""
+        # Check environment variable
+        if os.getenv("TRAINING_MODE") == "true":
+            return True
+        
+        # Check if script name contains "train_"
+        script_name = sys.argv[0] if sys.argv else ""
+        if "train_" in script_name.lower():
+            return True
+        
+        # Check if we're in a training script context
+        # Training scripts typically don't import main.py or start the service
+        return False
+    
     @model_validator(mode="after")
     def validate_required_fields(self):
         """Validate required fields after initialization (Pydantic v2 pattern)"""
-        if not self.ha_url:
-            raise ValueError(
-                "ha_url is required. Set HA_URL, HA_HTTP_URL, or HOME_ASSISTANT_URL in environment."
-            )
-        if not self.ha_token:
-            raise ValueError(
-                "ha_token is required. Set HA_TOKEN or HOME_ASSISTANT_TOKEN in environment."
-            )
+        is_training = self._is_training_mode()
+        
+        # Only validate HA fields for runtime services (training scripts don't need them)
+        if not is_training:
+            if not self.ha_url:
+                raise ValueError(
+                    "ha_url is required for runtime service. "
+                    "Set HA_URL, HA_HTTP_URL, or HOME_ASSISTANT_URL in environment. "
+                    "Use TRAINING_MODE=true for training scripts."
+                )
+            if not self.ha_token:
+                raise ValueError(
+                    "ha_token is required for runtime service. "
+                    "Set HA_TOKEN or HOME_ASSISTANT_TOKEN in environment. "
+                    "Use TRAINING_MODE=true for training scripts."
+                )
+        
+        # Only validate MQTT and OpenAI for runtime services (not training scripts)
+        if not is_training:
+            if not self.mqtt_broker:
+                raise ValueError(
+                    "mqtt_broker is required for runtime service. "
+                    "Set MQTT_BROKER environment variable or use TRAINING_MODE=true for training scripts."
+                )
+            if not self.openai_api_key:
+                raise ValueError(
+                    "openai_api_key is required for runtime service. "
+                    "Set OPENAI_API_KEY environment variable or use TRAINING_MODE=true for training scripts."
+                )
+        
         return self
 
 
