@@ -14,8 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from sqlalchemy.orm import selectinload
 
-from database.models import Pattern, UserFeedback, Suggestion
-from database.crud import store_feedback
+from ...database.models import Pattern, UserFeedback, Suggestion
+from ...database.crud import store_feedback
 
 logger = logging.getLogger(__name__)
 

@@ -139,6 +139,21 @@ Rules with `globs` apply only to matching file types:
 Rules with `description` can be manually invoked:
 - **bmad-workflow.mdc** - BMAD workflow integration
 
+## Context Management
+
+**Important:** Manage context window for optimal performance. See **[Context Management Guide](../context-management-guide.md)** for:
+- How to start new chats efficiently
+- Using `.cursorignore` to exclude large files
+- Leveraging BMAD sharding for 90% token savings
+- Best practices for focused queries
+- Epic isolation strategies
+
+**Quick Tips:**
+- Start new chat per epic (`Cmd/Ctrl + L`)
+- Close files when done editing
+- Use file references (`@filename`) instead of broad queries
+- Check `.cursorignore` excludes simulation data and archives
+
 ## Best Practices
 
 1. **Use Appropriate Agents**: Choose the right BMAD agent for your task
@@ -151,6 +166,7 @@ Rules with `description` can be manually invoked:
 8. **Know the Architecture**: Understand Epic 31 changes (enrichment-pipeline deprecated, direct InfluxDB writes)
 9. **Customize Agents**: Create customizations in `.bmad-core/customizations/` for team-specific preferences
 10. **Progressive Reviews**: Use `*review-task` during development for early feedback (QA agent)
+11. **Manage Context**: Start new chats frequently, use focused queries, close unused files (see Context Management Guide)
 
 ## Getting Help
 

@@ -2,7 +2,7 @@
 
 **Epic ID:** AI-17  
 **Title:** Simulation Framework Core - End-to-End Workflow Validation  
-**Status:** 📋 **PLANNING**  
+**Status:** ✅ **COMPLETE**  
 **Type:** Brownfield Enhancement (Testing & Validation Infrastructure)  
 **Priority:** High (Pre-Production Quality Blocker)  
 **Effort:** 10 Stories (42 story points, 5-6 weeks estimated)  
@@ -398,6 +398,11 @@ Collect comprehensive metrics for 3 AM workflow simulation.
 - `simulation/src/metrics/aggregator.py` (new)
 - `simulation/tests/test_metrics.py` (new)
 
+**Context7 KB References:**
+- Metrics collection patterns (Context7 KB mandatory)
+- Data aggregation patterns (Context7 KB mandatory)
+- JSON/CSV export patterns (Context7 KB mandatory)
+
 **Story Creation:**
 - Must create story with `@dev` agent in `.bmad-core`
 - Story must reference Context7 KB for all technology decisions
@@ -432,6 +437,11 @@ Integrate complete Ask AI conversational flow with mocked services.
 - `simulation/src/data/synthetic_queries.py` (new)
 - `simulation/tests/test_ask_ai_simulation.py` (new)
 
+**Context7 KB References:**
+- Workflow integration patterns (Context7 KB mandatory)
+- Async orchestration patterns (Context7 KB mandatory)
+- Mock service integration (Context7 KB mandatory)
+
 **Story Creation:**
 - Must create story with `@dev` agent in `.bmad-core`
 - Story must reference Context7 KB for all technology decisions
@@ -462,6 +472,11 @@ Collect comprehensive metrics for Ask AI flow simulation.
 **Files:**
 - `simulation/src/metrics/ask_ai_metrics.py` (new)
 - `simulation/tests/test_ask_ai_metrics.py` (new)
+
+**Context7 KB References:**
+- Metrics collection patterns (Context7 KB mandatory)
+- Data export patterns (JSON, CSV) (Context7 KB mandatory)
+- Ground truth comparison patterns (Context7 KB mandatory)
 
 **Story Creation:**
 - Must create story with `@dev` agent in `.bmad-core`
@@ -605,6 +620,11 @@ Implement comprehensive results aggregation and reporting.
 - `simulation/src/reporting/formatters.py` (new)
 - `simulation/tests/test_reporting.py` (new)
 
+**Context7 KB References:**
+- Report generation patterns (JSON, CSV, HTML) (Context7 KB mandatory)
+- Data aggregation patterns (Context7 KB mandatory)
+- Template rendering patterns (Context7 KB mandatory)
+
 **Story Creation:**
 - Must create story with `@dev` agent in `.bmad-core`
 - Story must reference Context7 KB for all technology decisions
@@ -636,6 +656,11 @@ Create CLI interface and integration scripts for simulation framework.
 - `simulation/README.md` (new)
 - `simulation/docs/USAGE.md` (new)
 - `simulation/tests/test_cli.py` (new)
+
+**Context7 KB References:**
+- CLI patterns (Click, argparse) (Context7 KB mandatory)
+- YAML/JSON configuration parsing (Context7 KB mandatory)
+- Docker Compose integration patterns (Context7 KB mandatory)
 
 **Story Creation:**
 - Must create story with `@dev` agent in `.bmad-core`

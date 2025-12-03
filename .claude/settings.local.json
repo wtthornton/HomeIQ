@@ -15,7 +15,19 @@
       "Bash(git commit:*)",
       "Bash(git log:*)",
       "Bash(GIT_TRACE=1 git commit:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(python scripts/prepare_for_production.py:*)",
+      "Bash(python scripts/generate_synthetic_homes.py:*)",
+      "Bash(find:*)",
+      "Bash(python scripts/train_home_type_classifier.py:*)",
+      "Bash(python scripts/train_models.py:*)",
+      "Bash(python scripts/train_gnn_synergy.py:*)",
+      "Bash(python scripts/train_soft_prompt.py:*)",
+      "Bash(pip install:*)",
+      "Bash(sqlite3:*)",
+      "Bash(pip install radon)",
+      "Bash(python -m radon cc src --min C --show-complexity)",
+      "Bash(python -m radon cc src --min D --show-complexity)"
     ],
     "deny": [],
     "ask": []

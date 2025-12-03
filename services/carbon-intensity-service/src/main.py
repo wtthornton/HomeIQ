@@ -145,6 +145,10 @@ class CarbonIntensityService:
             logger.error("Cannot refresh token: username/password not configured")
             return False
 
+        if not self.session:
+            logger.error("HTTP session not initialized")
+            return False
+
         try:
             url = f"{self.base_url}/login"
             auth = aiohttp.BasicAuth(self.username, self.password)
@@ -215,6 +219,11 @@ class CarbonIntensityService:
         if not self.credentials_configured:
             # Don't log error every time, just return None quietly
             return None
+
+        if not self.session:
+            logger.error("HTTP session not initialized")
+            self.health_handler.failed_fetches += 1
+            return self.cached_data
 
         try:
             # Ensure we have a valid token before making request
@@ -349,11 +358,15 @@ class CarbonIntensityService:
             self.health_handler.failed_fetches += 1
             return self.cached_data
 
-    async def store_in_influxdb(self, data: dict[str, Any]):
+    async def store_in_influxdb(self, data: dict[str, Any]) -> None:
         """Store carbon intensity data in InfluxDB"""
 
         if not data:
             logger.warning("No data to store in InfluxDB")
+            return
+
+        if not self.influxdb_client:
+            logger.error("InfluxDB client not initialized")
             return
 
         try:
@@ -367,7 +380,9 @@ class CarbonIntensityService:
                 .field("forecast_24h", float(data['forecast_24h'])) \
                 .time(data['timestamp'])
 
-            self.influxdb_client.write(point)
+            # CRITICAL FIX: Use asyncio.to_thread to avoid blocking the event loop
+            # InfluxDBClient3.write() is synchronous and blocks the async event loop
+            await asyncio.to_thread(self.influxdb_client.write, point)
 
             logger.info("Carbon intensity data written to InfluxDB")
 
@@ -378,6 +393,8 @@ class CarbonIntensityService:
                 service="carbon-intensity-service",
                 error=str(e)
             )
+            # Don't re-raise - allow loop to continue with next fetch interval
+            # InfluxDB write failures shouldn't stop data collection
 
     async def run_continuous(self):
         """Run continuous data collection loop"""

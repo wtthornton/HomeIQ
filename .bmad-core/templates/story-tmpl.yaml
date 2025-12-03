@@ -38,7 +38,7 @@ sections:
       **As a** {{role}},
       **I want** {{action}},
       **so that** {{benefit}}
-    instruction: Define the user story using the standard format with role, action, and benefit. **Use Context7 MCP tools (mcp_Context7_resolve-library-id, mcp_Context7_get-library-docs) to get up-to-date documentation when stories involve external libraries or technologies that require implementation guidance.**
+    instruction: Define the user story using the standard format with role, action, and benefit. **MANDATORY: Use Context7 KB-first commands (*context7-docs, *context7-resolve) to get up-to-date documentation when stories involve external libraries or technologies. ALWAYS check KB cache first before fetching from Context7 API.**
     elicit: true
     owner: scrum-master
     editors: [scrum-master]

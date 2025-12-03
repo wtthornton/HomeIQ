@@ -102,6 +102,18 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 
     return await response.json();
   } catch (error) {
+    // Enhanced error logging with more context
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error(`API request failed (network error): ${url}`, {
+        error: error.message,
+        url,
+        message: 'This usually indicates a network connectivity issue, CORS problem, or the server is unreachable.'
+      });
+      // Wrap in a more descriptive error
+      const networkError = new Error(`Network error: Unable to connect to ${url}. Please check your connection and ensure the server is running.`);
+      (networkError as any).originalError = error;
+      throw networkError;
+    }
     console.error(`API request failed: ${url}`, error);
     throw error;
   }
@@ -291,11 +303,29 @@ export const api = {
     if (minConfidence) params.append('min_confidence', minConfidence.toString());
     params.append('limit', '100');
     
-    return fetchJSON(`${API_BASE_URL}/patterns/list?${params}`);
+    const response = await fetchJSON<any>(`${API_BASE_URL}/patterns/list?${params}`);
+    
+    // Handle API response structure: { success: true, data: {...}, message: "..." }
+    if (response.success !== undefined && response.data) {
+      return { data: response.data };
+    }
+    // Fallback for direct data structure
+    if (response.data) {
+      return response;
+    }
+    // Last resort: wrap the response
+    return { data: response };
   },
 
   async getPatternStats(): Promise<any> {
-    return fetchJSON(`${API_BASE_URL}/patterns/stats`);
+    const response = await fetchJSON<any>(`${API_BASE_URL}/patterns/stats`);
+    
+    // Handle API response structure: { success: true, data: {...}, message: "..." }
+    if (response.success !== undefined && response.data) {
+      return response.data;
+    }
+    // Fallback for direct data structure
+    return response.data || response;
   },
 
   // Usage & Cost

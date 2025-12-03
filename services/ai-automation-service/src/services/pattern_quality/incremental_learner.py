@@ -21,7 +21,7 @@ from .quality_model import PatternQualityModel
 from .model_trainer import PatternQualityTrainer
 from .model_versioning import ModelVersionManager
 from .features import PatternFeatures
-from database.models import async_session
+from ...database.models import async_session
 
 logger = logging.getLogger(__name__)
 

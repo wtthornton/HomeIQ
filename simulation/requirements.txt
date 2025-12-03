@@ -1,0 +1,26 @@
+# Simulation Framework Dependencies
+# Story AI17.1: Core framework dependencies
+# Story AI18.5: Training data exporters (Parquet support)
+
+# Core dependencies
+pydantic>=2.0.0,<3.0.0
+pydantic-settings>=2.0.0,<3.0.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+pyarrow>=14.0.0  # For Parquet support
+
+# YAML processing
+pyyaml>=6.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+
+# Async support
+asyncio-compat>=0.1.0
+
+# Type hints
+typing-extensions>=4.8.0
+

@@ -3,9 +3,8 @@
     "context7": {
       "url": "https://mcp.context7.com/mcp",
       "headers": {
-        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+        "CONTEXT7_API_KEY": "ctx7sk-d2e9066a-8542-4483-b367-5c434692b6f8"
       }
     }
   }
 }
-

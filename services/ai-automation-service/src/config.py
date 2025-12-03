@@ -102,10 +102,17 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
-    # Authentication / Authorization
-    enable_authentication: bool = True
-    ai_automation_api_key: str = "change-me"
-    ai_automation_admin_api_key: str | None = None
+    # Authentication / Authorization (MANDATORY - cannot be disabled)
+    # CRITICAL: Authentication is always required in production
+    # Set AI_AUTOMATION_API_KEY environment variable to enable
+    ai_automation_api_key: str = Field(
+        default="",
+        description="API key for authentication (REQUIRED - set via environment variable)"
+    )
+    ai_automation_admin_api_key: str | None = Field(
+        default=None,
+        description="Admin API key for elevated privileges (optional, defaults to regular API key)"
+    )
 
     # Rate limiting (disabled for internal single-home use)
     rate_limit_enabled: bool = False  # Disable rate limiting for internal projects

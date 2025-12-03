@@ -2,7 +2,7 @@
 
 **Epic ID:** AI-18  
 **Title:** Simulation Data Generation & Training Data Collection  
-**Status:** 📋 **PLANNING**  
+**Status:** ✅ **COMPLETE**  
 **Type:** Brownfield Enhancement (Training Infrastructure)  
 **Priority:** High (Pre-Production Quality Blocker)  
 **Effort:** 8 Stories (32 story points, 4-5 weeks estimated)  
@@ -270,6 +270,11 @@ Create wrapper around production `SyntheticHomeGenerator` for simulation use.
 - `simulation/src/data_generation/home_generator.py` (new)
 - `simulation/tests/test_home_generator.py` (new)
 
+**Context7 KB References:**
+- Wrapper pattern implementation (Context7 KB mandatory)
+- Async generator patterns (Context7 KB mandatory)
+- Error handling patterns (Context7 KB mandatory)
+
 **Story Creation:**
 - Must create story with `@dev` agent in `.bmad-core`
 - Story must reference Context7 KB for all technology decisions
@@ -336,6 +341,11 @@ Create training data collector for all simulation collection points.
 - `simulation/src/training_data/validators.py` (new)
 - `simulation/tests/test_collector.py` (new)
 
+**Context7 KB References:**
+- Data collection patterns (Context7 KB mandatory)
+- Data validation patterns (Pydantic validators) (Context7 KB mandatory)
+- Data filtering patterns (Context7 KB mandatory)
+
 **Story Creation:**
 - Must create story with `@dev` agent in `.bmad-core`
 - Story must reference Context7 KB for all technology decisions
@@ -398,6 +408,11 @@ Implement data lineage tracking for collected training data.
 - `simulation/src/training_data/lineage_tracker.py` (new)
 - `simulation/tests/test_lineage_tracker.py` (new)
 
+**Context7 KB References:**
+- Data lineage tracking patterns (Context7 KB mandatory)
+- Metadata tracking patterns (Context7 KB mandatory)
+- SQLite query patterns (Context7 KB mandatory)
+
 **Story Creation:**
 - Must create story with `@dev` agent in `.bmad-core`
 - Story must reference Context7 KB for all technology decisions
@@ -429,6 +444,11 @@ Create model retraining manager with automatic triggers.
 - `simulation/src/retraining/retraining_manager.py` (new)
 - `simulation/src/retraining/data_sufficiency.py` (new)
 - `simulation/tests/test_retraining_manager.py` (new)
+
+**Context7 KB References:**
+- Task orchestration patterns (Context7 KB mandatory)
+- Model version management patterns (Context7 KB mandatory)
+- Data sufficiency validation patterns (Context7 KB mandatory)
 
 **Story Creation:**
 - Must create story with `@dev` agent in `.bmad-core`

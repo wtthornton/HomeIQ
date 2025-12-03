@@ -335,11 +335,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Authentication middleware (API key with optional admin override)
-app.add_middleware(
-    AuthenticationMiddleware,
-    enabled=settings.enable_authentication
-)
+# Authentication middleware (MANDATORY - cannot be disabled)
+# CRITICAL: Authentication is always required for security
+app.add_middleware(AuthenticationMiddleware)
 
 # Rate limiting middleware (before idempotency) - only if enabled
 if settings.rate_limit_enabled:

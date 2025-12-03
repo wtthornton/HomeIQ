@@ -93,9 +93,20 @@ app = FastAPI(
 )
 
 # CORS middleware
+# CRITICAL: Cannot use allow_origins=["*"] with allow_credentials=True (security vulnerability)
+# Use specific origins when credentials are needed, or remove allow_credentials if using wildcard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=[
+        "http://localhost:3000",  # Health dashboard
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",  # AI Automation standalone UI
+        "http://127.0.0.1:3001",
+        "http://ai-automation-ui",  # Container network
+        "http://ai-automation-ui:80",
+        "http://homeiq-dashboard",  # Health dashboard container
+        "http://homeiq-dashboard:80"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -112,6 +123,17 @@ if OBSERVABILITY_AVAILABLE:
         app.add_middleware(CorrelationMiddleware)
     except Exception as e:
         logger.warning(f"Failed to instrument FastAPI: {e}")
+
+# TODO: Story 39.10 - Add authentication middleware
+# CRITICAL: Authentication should be added before production deployment
+# See ai-automation-service/src/api/middlewares.py for AuthenticationMiddleware pattern
+# app.add_middleware(AuthenticationMiddleware)
+
+# TODO: Story 39.10 - Add rate limiting middleware
+# CRITICAL: Rate limiting should be added before production deployment
+# See ai-automation-service/src/api/middlewares.py for RateLimitMiddleware pattern
+# if settings.rate_limit_enabled:
+#     app.add_middleware(RateLimitMiddleware, ...)
 
 # Include routers
 app.include_router(health_router.router, tags=["health"])

@@ -15,7 +15,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .metrics import PatternQualityMetrics
-from database.models import Pattern, UserFeedback
+from ...database.models import Pattern, UserFeedback
 
 logger = logging.getLogger(__name__)
 

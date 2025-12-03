@@ -96,9 +96,18 @@ async def deploy_suggestion(
                             status_code=400,
                             detail="force_deploy overrides are disabled by configuration"
                         )
+                    # CRITICAL: Audit log all force_deploy overrides for security monitoring
                     logger.warning(
-                        f"⚠️ Admin override: Safety validation failed for suggestion {suggestion_id} "
-                        f"(score={safety_result.safety_score}). Proceeding due to force_deploy."
+                        f"⚠️ SECURITY AUDIT - Admin override: Safety validation failed for suggestion {suggestion_id} "
+                        f"(score={safety_result.safety_score}). Admin user {auth.role} bypassed safety checks via force_deploy. "
+                        f"Automation: {suggestion.title[:50]}..."
+                    )
+                    # Log detailed audit trail
+                    logger.info(
+                        f"🔒 FORCE_DEPLOY_AUDIT: suggestion_id={suggestion_id}, "
+                        f"admin_role={auth.role}, safety_score={safety_result.safety_score}, "
+                        f"issues_count={len(safety_result.issues)}, "
+                        f"can_override={safety_result.can_override}"
                     )
                 else:
                     logger.warning(

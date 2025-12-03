@@ -41,6 +41,10 @@ class MCPSandbox(PythonSandbox):
             self._tool_registry.network_enabled,
         )
 
+    def is_initialized(self) -> bool:
+        """Check if sandbox has been initialized."""
+        return self._initialized
+
     async def execute_with_mcp(
         self,
         code: str,

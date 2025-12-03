@@ -230,6 +230,10 @@ class AirQualityService:
         if not data:
             return
 
+        if not self.influxdb_client:
+            logger.error("InfluxDB client not initialized")
+            return
+
         try:
             point = Point("air_quality") \
                 .tag("location", f"{self.latitude},{self.longitude}") \
@@ -244,7 +248,9 @@ class AirQualityService:
                 .field("so2", float(data.get('so2', 0))) \
                 .time(data['timestamp'])
 
-            self.influxdb_client.write(point)
+            # CRITICAL FIX: Wrap blocking write() in asyncio.to_thread to prevent blocking event loop
+            # InfluxDBClient3.write() is synchronous and blocks - must run in thread pool
+            await asyncio.to_thread(self.influxdb_client.write, point)
 
             logger.info("AQI data written to InfluxDB")
 
@@ -255,6 +261,7 @@ class AirQualityService:
                 service="air-quality-service",
                 error=str(e)
             )
+            self.health_handler.failed_fetches += 1
 
     async def get_current_aqi(self, request):
         """API endpoint for current AQI"""

@@ -79,6 +79,11 @@ Create a focused epic following this structure:
 - How it integrates: {{integration approach}}
 - Success criteria: {{measurable outcomes}}
 
+**Technology Research (if needed):**
+- **MANDATORY**: Use Context7 KB-first commands (*context7-docs, *context7-resolve) when researching external libraries or frameworks
+- **ALWAYS**: Check KB cache first before fetching from Context7 API
+- Document any technology decisions with Context7 KB references
+
 #### Stories
 
 List 1-3 focused stories that complete the epic:

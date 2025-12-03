@@ -121,8 +121,9 @@ sections:
 
       1. Use existing technology stack as the foundation
       2. Only introduce new technologies if absolutely necessary
-      3. Justify any new additions with clear rationale
-      4. Ensure version compatibility with existing dependencies
+      3. **MANDATORY**: Use Context7 KB-first commands (*context7-docs, *context7-resolve) when researching new technology additions. ALWAYS check KB cache first before fetching from Context7 API.
+      4. Justify any new additions with clear rationale and Context7 KB references
+      5. Ensure version compatibility with existing dependencies
     elicit: true
     sections:
       - id: existing-stack

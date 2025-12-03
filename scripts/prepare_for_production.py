@@ -76,7 +76,7 @@ REQUIRED_ENV_VARS = {
 }
 
 OPTIONAL_ENV_VARS = {
-    'OPENAI_API_KEY': 'OpenAI API key (required for GNN synergy and soft prompt training)'
+    'OPENAI_API_KEY': 'OpenAI API key (required for Ask AI suggestions and automation generation, but not for model training)'
 }
 
 # Model Quality Thresholds (Epic 43.1: Model Quality Validation)
@@ -663,18 +663,6 @@ async def train_gnn_synergy() -> tuple[bool, dict]:
         logger.warning("GNN training script not found, skipping")
         return True, {}
     
-    # Check for required environment variable (Epic 42.3: Enhanced Error Messages)
-    import os
-    if not os.getenv('OPENAI_API_KEY'):
-        error_msg = format_error_message(
-            what="GNN Synergy training skipped",
-            why="Missing environment variable OPENAI_API_KEY",
-            how_to_fix="Export OPENAI_API_KEY or add to .env file:\n  export OPENAI_API_KEY='your-api-key'\n  # or add to .env: OPENAI_API_KEY=your-api-key",
-            impact="OPTIONAL"
-        )
-        logger.warning(error_msg)
-        return False, {}
-    
     cmd = [
         sys.executable,
         str(script_path)
@@ -686,7 +674,7 @@ async def train_gnn_synergy() -> tuple[bool, dict]:
         error_msg = format_error_message(
             what="GNN Synergy training failed",
             why=f"Training script exited with code {exit_code}. Check logs above for details.",
-            how_to_fix="1. Verify OPENAI_API_KEY is set correctly\n2. Check script logs for specific errors\n3. Ensure required dependencies are installed",
+            how_to_fix="1. Check script logs for specific errors\n2. Ensure required dependencies are installed\n3. Verify database contains synergy data or entities for synthetic generation",
             impact="OPTIONAL"
         )
         logger.warning(error_msg)
@@ -705,18 +693,6 @@ async def train_soft_prompt() -> tuple[bool, dict]:
         logger.warning("Soft prompt training script not found, skipping")
         return True, {}
     
-    # Check for required environment variable (Epic 42.3: Enhanced Error Messages)
-    import os
-    if not os.getenv('OPENAI_API_KEY'):
-        error_msg = format_error_message(
-            what="Soft Prompt training skipped",
-            why="Missing environment variable OPENAI_API_KEY",
-            how_to_fix="Export OPENAI_API_KEY or add to .env file:\n  export OPENAI_API_KEY='your-api-key'\n  # or add to .env: OPENAI_API_KEY=your-api-key",
-            impact="OPTIONAL"
-        )
-        logger.warning(error_msg)
-        return False, {}
-    
     cmd = [
         sys.executable,
         str(script_path)
@@ -728,7 +704,7 @@ async def train_soft_prompt() -> tuple[bool, dict]:
         error_msg = format_error_message(
             what="Soft Prompt training failed",
             why=f"Training script exited with code {exit_code}. Check logs above for details.",
-            how_to_fix="1. Verify OPENAI_API_KEY is set correctly\n2. Check script logs for specific errors\n3. Ensure required dependencies are installed",
+            how_to_fix="1. Check script logs for specific errors\n2. Ensure required dependencies are installed (transformers, torch, peft)\n3. Verify database contains Ask AI labelled data (ask_ai_queries table with approved suggestions)\n4. Check HuggingFace model cache or network connectivity for model downloads",
             impact="OPTIONAL"
         )
         logger.warning(error_msg)

@@ -21,6 +21,17 @@ wheels/
 *.egg
 MANIFEST
 
+# Simulation Framework (Epic AI-17/AI-18)
+# Generated data and results are excluded, but source code is tracked
+simulation/data/
+simulation/results/
+simulation/training_data/
+simulation/*.pyc
+simulation/**/__pycache__/
+simulation/.pytest_cache/
+simulation/.coverage
+simulation/htmlcov/
+
 # Virtual environments
 .env
 .venv
@@ -36,6 +47,9 @@ venv.bak/
 *.swp
 *.swo
 *~
+
+# Cursor MCP Configuration (contains API keys)
+.cursor/mcp.json
 
 # OS
 .DS_Store
@@ -131,5 +145,7 @@ embedding_tests/
 embedding_test_output.log
 
 # BMAD Agent Customizations (user-specific, update-safe)
-.bmad-core/customizations/
-!.bmad-core/customizations/README.md
+
+# Windows reserved names
+nul
+

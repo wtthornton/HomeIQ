@@ -141,11 +141,16 @@ class ExecuteResponse(BaseModel):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    mcp_initialized = False
+    if sandbox is not None:
+        # Use public method instead of private attribute
+        mcp_initialized = sandbox.is_initialized()
+    
     return {
         "status": "healthy",
         "service": settings.service_name,
         "version": "1.0.0",
-        "mcp_initialized": sandbox is not None and sandbox._initialized
+        "mcp_initialized": mcp_initialized
     }
 
 
@@ -199,7 +204,7 @@ async def execute_code(request: ExecuteRequest):
 
     except Exception as e:
         logger.error(f"Execution failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 if __name__ == "__main__":

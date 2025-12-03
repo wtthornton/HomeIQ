@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -156,7 +156,7 @@ async def _execute_training_run(
         success = process.returncode == 0
         updates = {
             "status": "completed" if success else "failed",
-            "finished_at": datetime.utcnow(),
+            "finished_at": datetime.now(timezone.utc),  # CRITICAL: Use timezone-aware datetime
             "metadata_path": str(metadata_path) if metadata_path.exists() else None,
             "dataset_size": metadata.get("samples_used"),
             "base_model": metadata.get("base_model"),
@@ -198,7 +198,7 @@ async def _execute_training_run(
             run_id,
             {
                 "status": "failed",
-                "finished_at": datetime.utcnow(),
+                "finished_at": datetime.now(timezone.utc),  # CRITICAL: Use timezone-aware datetime
                 "error_message": str(exc),
             },
         )
@@ -211,9 +211,20 @@ async def list_training_runs_endpoint(
     db: AsyncSession = Depends(get_db),
 ) -> list[TrainingRunResponse]:
     """Return recent training runs for display."""
+    # CRITICAL: Input validation for training_type
+    if training_type is not None:
+        valid_types = ['soft_prompt', 'gnn_synergy', 'home_type_classifier']
+        if training_type not in valid_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}"
+            )
+    
     try:
         runs = await list_training_runs(db, limit=limit, training_type=training_type)
         return [TrainingRunResponse.model_validate(run, from_attributes=True) for run in runs]
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Failed to list training runs: %s", exc, exc_info=True)
         raise HTTPException(
@@ -272,7 +283,7 @@ async def trigger_training_run(
                 detail=f"A {training_type} training job is already running",
             )
 
-        run_identifier = datetime.utcnow().strftime(f"{training_type}_run_%Y%m%d_%H%M%S")
+        run_identifier = datetime.now(timezone.utc).strftime(f"{training_type}_run_%Y%m%d_%H%M%S")
         run_directory = base_output_dir / run_identifier
 
         run_record = await create_training_run(
@@ -280,7 +291,7 @@ async def trigger_training_run(
             {
                 "training_type": training_type,
                 "status": "queued",
-                "started_at": datetime.utcnow(),
+                "started_at": datetime.now(timezone.utc),  # CRITICAL: Use timezone-aware datetime
                 "output_dir": str(run_directory),
                 "run_identifier": run_identifier,
                 "triggered_by": "admin",
@@ -348,6 +359,15 @@ async def clear_old_training_runs_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete old training runs, keeping the most recent N runs."""
+    # CRITICAL: Input validation for training_type
+    if training_type is not None:
+        valid_types = ['soft_prompt', 'gnn_synergy', 'home_type_classifier']
+        if training_type not in valid_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}"
+            )
+    
     try:
         count = await delete_old_training_runs(
             db,
@@ -356,6 +376,8 @@ async def clear_old_training_runs_endpoint(
             keep_recent=keep_recent,
         )
         return {"deleted_count": count, "message": f"Deleted {count} old training run(s)"}
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Failed to clear old training runs: %s", exc, exc_info=True)
         raise HTTPException(
