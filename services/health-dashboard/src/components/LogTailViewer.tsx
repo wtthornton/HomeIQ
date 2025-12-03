@@ -83,20 +83,20 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
     }
   }, [logs, autoScroll]);
 
-    // Search logs using log aggregator API
-    const searchLogs = async (query: string) => {
-      if (!query.trim()) return;
+  // Search logs using log aggregator API
+  const searchLogs = async (query: string) => {
+    if (!query.trim()) return;
       
-      try {
-        const params = new URLSearchParams();
-        const normalizedQuery = query.trim().slice(0, 200);
-        if (!normalizedQuery) {
-          return;
-        }
-        params.append('q', normalizedQuery);
-        params.append('limit', '100');
+    try {
+      const params = new URLSearchParams();
+      const normalizedQuery = query.trim().slice(0, 200);
+      if (!normalizedQuery) {
+        return;
+      }
+      params.append('q', normalizedQuery);
+      params.append('limit', '100');
         
-        const response = await fetch(`/log-aggregator/api/v1/logs/search?${params}`);
+      const response = await fetch(`/log-aggregator/api/v1/logs/search?${params}`);
       if (response.ok) {
         const data = await response.json();
         setLogs(data.logs || []);

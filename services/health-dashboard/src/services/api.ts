@@ -375,21 +375,21 @@ class AdminApiClient extends BaseApiClient {
     );
   }
 
-    async testAPIKey(service: string, apiKey: string): Promise<APIKeyTestResponse> {
-      return this.fetchWithErrorHandling<APIKeyTestResponse>(
-        `${this.baseUrl}/api/v1/docker/api-keys/${service}/test`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api_key: apiKey })
-        }
-      );
-    }
+  async testAPIKey(service: string, apiKey: string): Promise<APIKeyTestResponse> {
+    return this.fetchWithErrorHandling<APIKeyTestResponse>(
+      `${this.baseUrl}/api/v1/docker/api-keys/${service}/test`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey })
+      }
+    );
+  }
 
-    // Real-time metrics endpoint (Story 23.2 + Epic 34.1)
-    async getRealTimeMetrics(): Promise<any> {
-      return this.fetchWithErrorHandling<any>(`${this.baseUrl}/api/v1/real-time-metrics`);
-    }
+  // Real-time metrics endpoint (Story 23.2 + Epic 34.1)
+  async getRealTimeMetrics(): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/api/v1/real-time-metrics`);
+  }
 }
 
 /**
@@ -432,7 +432,7 @@ class DataApiClient extends BaseApiClient {
 
   async searchEvents(query: string, fields: string[] = ['entity_id', 'event_type'], limit: number = 100): Promise<any[]> {
     return this.fetchWithErrorHandling<any[]>(
-      `/api/v1/events/search`,
+      '/api/v1/events/search',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -464,7 +464,7 @@ class DataApiClient extends BaseApiClient {
   }
 
   async getCurrentPower(): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`/api/v1/energy/current`);
+    return this.fetchWithErrorHandling<any>('/api/v1/energy/current');
   }
 
   async getCircuitPower(hours: number = 1): Promise<any[]> {

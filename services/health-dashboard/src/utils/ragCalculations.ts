@@ -56,8 +56,7 @@ export function calculateComponentRAG(
     } else {
       reasons.push('All metrics within normal thresholds');
     }
-  } 
-  else if (component === 'processing') {
+  } else if (component === 'processing') {
     const throughput = metrics.throughput ?? undefined;
     const errorRate = metrics.errorRate ?? 0;
     const latency = metrics.latency ?? 0;
@@ -100,8 +99,7 @@ export function calculateComponentRAG(
     } else {
       reasons.push('All metrics within normal thresholds');
     }
-  }
-  else if (component === 'storage') {
+  } else if (component === 'storage') {
     const latency = metrics.latency ?? metrics.responseTime ?? 0;
     const errorRate = metrics.errorRate ?? 0;
 
@@ -182,7 +180,7 @@ export function extractComponentMetrics(
     errorRate: websocketStats?.error_rate ?? (websocketDependency?.status === 'unhealthy' ? 5.0 : 0),
     throughput: websocketStats?.events_per_minute,
     availability: websocketDependency?.status === 'healthy' ? 100 : 
-                  websocketDependency?.status === 'degraded' ? 75 : 0
+      websocketDependency?.status === 'degraded' ? 75 : 0
   };
 
   // Extract Processing metrics (using websocket-ingestion as proxy)
@@ -206,9 +204,9 @@ export function extractComponentMetrics(
   const storageMetrics: ComponentMetrics = {
     latency: storageDependency?.response_time_ms,
     errorRate: storageDependency?.status === 'unhealthy' ? 5.0 : 
-               storageDependency?.status === 'degraded' ? 1.0 : 0,
+      storageDependency?.status === 'degraded' ? 1.0 : 0,
     availability: storageDependency?.status === 'healthy' ? 100 : 
-                  storageDependency?.status === 'degraded' ? 75 : 0,
+      storageDependency?.status === 'degraded' ? 75 : 0,
     responseTime: storageDependency?.response_time_ms
   };
 

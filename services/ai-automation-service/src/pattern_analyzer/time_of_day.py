@@ -58,24 +58,93 @@ class TimeOfDayPatternDetector:
 
     def detect_patterns(self, events: pd.DataFrame) -> list[dict]:
         """
-        Detect time-of-day patterns using KMeans clustering.
+        Detect time-of-day patterns using KMeans clustering analysis.
+        
+        This function identifies devices that are consistently used at specific times of day,
+        which indicates potential automation opportunities. For example, if a bedroom light
+        consistently turns on at 7:00 AM daily, this suggests a time-based automation pattern.
+        
+        The function uses KMeans clustering to group events by time, then identifies clusters
+        with sufficient occurrences and confidence. It applies domain-aware thresholds and
+        calculates confidence scores that account for time variance (consistency).
+        
+        Key behaviors/patterns:
+        - KMeans clustering: Groups events by time of day (using decimal hours as features)
+        - Smart cluster count: Adapts cluster count based on dataset size (1-3 clusters)
+        - Variance-aware confidence: Penalizes high time variance (inconsistent patterns)
+        - Domain-aware thresholds: Applies different occurrence/confidence thresholds per domain
+        - Aggregate storage: Stores daily aggregates to InfluxDB for incremental processing (Story AI5.3)
+        
+        Algorithm/Process:
+        1. Input validation: Check for required columns (device_id, timestamp)
+        2. Feature engineering: Extract hour, minute, and time_decimal (hour + minute/60)
+        3. Per-device analysis:
+           a. Filter events for each device
+           b. Skip devices with <5 events (insufficient data for clustering)
+           c. Determine cluster count based on dataset size:
+              - ≤10 events: 1 cluster
+              - ≤20 events: 2 clusters
+              - >20 events: 3 clusters
+        4. KMeans clustering:
+           a. Fit KMeans model on time_decimal values
+           b. Assign cluster labels to each event
+        5. Cluster analysis:
+           a. For each cluster, calculate:
+              - Average time (converted to hour:minute)
+              - Occurrence ratio (cluster_size / total_events)
+              - Time variance (standard deviation in minutes)
+              - Confidence score: occurrence_ratio * (1 - variance_penalty) + threshold_boost
+           b. Apply variance penalty (max 30% reduction for high variance)
+           c. Apply threshold boost (10% boost for high occurrence count)
+           d. Filter by domain-aware thresholds (min_occurrences, min_confidence)
+        6. Pattern construction: Build pattern dictionaries with metadata
+        7. Aggregate storage: Store daily aggregates to InfluxDB (Story AI5.3)
         
         Args:
-            events: DataFrame with columns [device_id, timestamp, state]
-                    device_id: str - Device identifier (e.g., "light.bedroom")
-                    timestamp: datetime - Event timestamp
-                    state: str - Device state (e.g., "on", "off")
+            events (pd.DataFrame): DataFrame with columns:
+                - device_id (str): Device/entity identifier (e.g., "light.bedroom", "climate.thermostat")
+                - timestamp (datetime): Event timestamp
+                - state (str, optional): Device state (not used in time-of-day detection)
         
         Returns:
-            List of pattern dictionaries with keys:
-                - device_id: Device identifier
-                - pattern_type: "time_of_day"
-                - hour: Hour of day (0-23)
-                - minute: Minute (0-59)
-                - occurrences: Number of events in pattern
-                - total_events: Total events for device
-                - confidence: Confidence score (occurrences / total_events)
-                - metadata: Additional pattern metadata
+            list[dict]: List of time-of-day pattern dictionaries, each containing:
+                - device_id (str): Device identifier
+                - pattern_type (str): Always "time_of_day"
+                - hour (int): Hour of day (0-23)
+                - minute (int): Minute (0-59)
+                - occurrences (int): Number of events in the pattern cluster
+                - total_events (int): Total events for the device
+                - confidence (float): Confidence score (0.0-1.0), calculated as:
+                  occurrence_ratio * (1 - variance_penalty) + threshold_boost
+                - metadata (dict): Additional pattern statistics including:
+                    - avg_time_decimal: Average time in decimal hours
+                    - cluster_id: KMeans cluster identifier
+                    - std_minutes: Time standard deviation in minutes
+                    - time_range: Human-readable time range (e.g., "07:00 ± 5min")
+                    - occurrence_ratio: Ratio of cluster events to total events
+                    - thresholds: Domain-specific thresholds applied
+        
+        Examples:
+            >>> # Example: Bedroom light consistently turns on at 7:00 AM
+            >>> events = pd.DataFrame({
+            ...     'device_id': ['light.bedroom'] * 10,
+            ...     'timestamp': pd.date_range('2025-01-01 07:00:00', periods=10, freq='D')
+            ... })
+            >>> detector = TimeOfDayPatternDetector(min_occurrences=3, min_confidence=0.7)
+            >>> patterns = detector.detect_patterns(events)
+            >>> patterns[0]['hour']
+            7
+            >>> patterns[0]['minute']
+            0
+            >>> patterns[0]['confidence'] > 0.7
+            True
+        
+        Complexity: C (14) - Involves KMeans clustering (O(n*k*i) where n=events, k=clusters, i=iterations),
+                   per-device analysis loops, statistical calculations, and domain-aware thresholding.
+        Note: The function uses a simple, proven KMeans algorithm with low resource usage. For large
+              datasets, consider batch processing or incremental updates. The function has been optimized
+              for incremental processing with aggregate storage (Story AI5.3). Consider refactoring to
+              extract clustering logic into separate methods if clustering strategies need frequent updates.
         """
         if events.empty:
             logger.warning("No events provided for pattern detection")

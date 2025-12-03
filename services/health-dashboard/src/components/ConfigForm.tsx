@@ -87,11 +87,11 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ service, onSave }) => {
     setLoading(true);
     setError('');
     
-      try {
-        const response = await fetch(`/api/v1/services/${service}/restart`, {
-          method: 'POST',
-          headers: withCsrfHeader()
-        });
+    try {
+      const response = await fetch(`/api/v1/services/${service}/restart`, {
+        method: 'POST',
+        headers: withCsrfHeader()
+      });
       
       if (!response.ok) throw new Error('Failed to restart service');
       

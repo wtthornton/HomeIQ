@@ -160,3 +160,8 @@ full_logs_*.txt
 logs_*.txt
 deployment_test_results.json
 
+# Test reports (regeneratable - don't track in git)
+services/tests/datasets/home-assistant-datasets/reports/**/*.yaml
+services/tests/datasets/home-assistant-datasets/reports/**/*.csv
+services/tests/datasets/home-assistant-datasets/reports/**/*.json
+

@@ -42,7 +42,9 @@ logger = logging.getLogger(__name__)
 async def train_gnn_synergy(
     epochs: int | None = None,
     force: bool = False,
-    verbose: bool = False
+    verbose: bool = False,
+    simulation_entities_json: str | None = None,
+    db_path: Path | None = None
 ):
     """Train GNN synergy detection model."""
     if verbose:
@@ -82,10 +84,7 @@ async def train_gnn_synergy(
             return 0
         
         # Load entities (support simulation mode with JSON file)
-        import os
-        from pathlib import Path as PathLib
-        simulation_entities_json = os.getenv("SIMULATION_ENTITIES_JSON")
-        if simulation_entities_json and PathLib(simulation_entities_json).exists():
+        if simulation_entities_json and Path(simulation_entities_json).exists():
             logger.info("📥 Loading entities from simulation JSON...")
             import json
             with open(simulation_entities_json, "r") as f:
@@ -101,36 +100,49 @@ async def train_gnn_synergy(
             return 1
         
         # Load synergies from database (support simulation mode with custom DB)
-        import os
-        from pathlib import Path as PathLib
-        simulation_db = os.getenv("SIMULATION_SYNERGY_DB")
-        if simulation_db and PathLib(simulation_db).exists():
+        if db_path and db_path.exists():
             logger.info("📥 Loading synergies from simulation database...")
-            # Use simulation database directly
-            import sqlite3
-            conn = sqlite3.connect(simulation_db)
-            cursor = conn.cursor()
-            cursor.execute("SELECT device_ids, confidence, impact_score FROM synergy_opportunities")
-            rows = cursor.fetchall()
-            synergies = []
-            for row in rows:
-                device_ids = json.loads(row[0])
-                if len(device_ids) >= 2:
-                    synergies.append({
-                        'synergy_id': f"sim-{len(synergies)}",
-                        'device_ids': device_ids[:2],
-                        'impact_score': row[2],
-                        'confidence': row[1],
-                        'area': None,
-                        'validated_by_patterns': False
-                    })
-            conn.close()
+            # Use async session for simulation database (same pattern as retraining_manager)
+            from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+            from sqlalchemy.orm import sessionmaker
+            from src.database.models import Base
+            
+            engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}", echo=False)
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)  # Create tables if they don't exist
+            
+            AsyncSessionLocal = sessionmaker(
+                autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
+            )
+            async with AsyncSessionLocal() as db:
+                synergies = await detector._load_synergies_from_database(db)
             logger.info(f"✅ Loaded {len(synergies)} synergies from simulation database")
         else:
-            logger.info("📥 Loading synergies from database...")
-            async with get_db_session() as db:
-                synergies = await detector._load_synergies_from_database(db)
-            logger.info(f"✅ Loaded {len(synergies)} synergies from database")
+            # Check environment variable as fallback
+            import os
+            simulation_db = os.getenv("SIMULATION_SYNERGY_DB")
+            if simulation_db and Path(simulation_db).exists():
+                logger.info("📥 Loading synergies from simulation database (env var)...")
+                # Use async session for simulation database
+                from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+                from sqlalchemy.orm import sessionmaker
+                from src.database.models import Base
+                
+                engine = create_async_engine(f"sqlite+aiosqlite:///{simulation_db}", echo=False)
+                async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+                
+                AsyncSessionLocal = sessionmaker(
+                    autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
+                )
+                async with AsyncSessionLocal() as db:
+                    synergies = await detector._load_synergies_from_database(db)
+                logger.info(f"✅ Loaded {len(synergies)} synergies from simulation database")
+            else:
+                logger.info("📥 Loading synergies from database...")
+                async with get_db_session() as db:
+                    synergies = await detector._load_synergies_from_database(db)
+                logger.info(f"✅ Loaded {len(synergies)} synergies from database")
         
         # Generate synthetic synergies if none exist (cold start scenario)
         if not synergies:
@@ -234,6 +246,16 @@ Examples:
         action='store_true',
         help='Enable verbose logging'
     )
+    parser.add_argument(
+        '--simulation-entities-json',
+        type=str,
+        help='Path to JSON file containing simulation entities (for simulation mode)'
+    )
+    parser.add_argument(
+        '--db-path',
+        type=Path,
+        help='Path to the SQLite database for training data (for simulation mode)'
+    )
     
     args = parser.parse_args()
     
@@ -241,7 +263,9 @@ Examples:
     exit_code = asyncio.run(train_gnn_synergy(
         epochs=args.epochs,
         force=args.force,
-        verbose=args.verbose
+        verbose=args.verbose,
+        simulation_entities_json=args.simulation_entities_json,
+        db_path=args.db_path
     ))
     
     sys.exit(exit_code)

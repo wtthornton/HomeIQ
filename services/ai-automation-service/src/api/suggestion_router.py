@@ -1388,170 +1388,166 @@ async def _check_and_filter_by_health(suggestion_data: dict[str, Any], suggestio
         # Continue with suggestion if health check fails - don't block suggestions
         return True
 
+async def _get_device_metadata_by_id(device_id: str) -> tuple[dict[str, Any] | None, str, str]:
+    """
+    Get device metadata by device ID or entity ID.
+    
+    Handles the logic for determining whether an ID is a device ID (long hex string)
+    or an entity ID (domain.entity_name), then fetches appropriate metadata.
+    
+    Args:
+        device_id: Device identifier (either device ID or entity ID)
+    
+    Returns:
+        Tuple of (metadata, friendly_name, domain):
+            - metadata: Device/entity metadata dict or None
+            - friendly_name: Human-readable device name
+            - domain: Entity domain (e.g., 'light', 'device', 'unknown')
+    """
+    # Check if device_id looks like a device ID (long hex string) or entity ID
+    if '.' not in device_id and len(device_id) > 20:
+        # This is a device ID, get device metadata directly
+        logger.debug(f"Treating {device_id} as device ID")
+        try:
+            device_metadata = await data_api_client.get_device_metadata(device_id)
+            if device_metadata and isinstance(device_metadata, dict):
+                metadata = {
+                    'friendly_name': device_metadata.get('name', ''),
+                    'area_name': device_metadata.get('area_id', '')
+                }
+                friendly_name = device_metadata.get('name', device_id)
+                domain = 'device'
+            else:
+                friendly_name = device_id
+                metadata = None
+                domain = 'unknown'
+        except Exception as e:
+            logger.error(f"Error getting device metadata for {device_id}: {e}")
+            friendly_name = device_id
+            metadata = None
+            domain = 'unknown'
+    else:
+        # This is an entity ID, try entity metadata first
+        metadata = await data_api_client.get_entity_metadata(device_id)
+        if not metadata:
+            # If entity not found, try to get device metadata using device_id from entity
+            try:
+                entities = await data_api_client.fetch_entities(limit=1000)
+                for entity in entities:
+                    if entity.get('entity_id') == device_id:
+                        device_metadata = await data_api_client.get_device_metadata(entity.get('device_id'))
+                        if device_metadata:
+                            metadata = {
+                                'friendly_name': device_metadata.get('name', ''),
+                                'area_name': device_metadata.get('area_id', '')
+                            }
+                        break
+            except Exception as e:
+                logger.warning(f"Failed to fetch device metadata for {device_id}: {e}")
+
+        friendly_name = data_api_client.extract_friendly_name(device_id, metadata)
+        domain = device_id.split('.')[0] if '.' in device_id else 'unknown'
+
+    return metadata, friendly_name, domain
+
+
+async def _build_single_device_context(device_id: str) -> dict[str, Any]:
+    """
+    Build context for a single device.
+    
+    Args:
+        device_id: Device identifier
+    
+    Returns:
+        Dictionary with device context (device_id, name, domain, and optional metadata)
+    """
+    metadata, friendly_name, domain = await _get_device_metadata_by_id(device_id)
+    
+    context = {
+        'device_id': device_id,
+        'name': friendly_name,
+        'domain': domain
+    }
+    
+    # Add extra metadata if available
+    if metadata:
+        context['device_class'] = metadata.get('device_class')
+        context['area'] = metadata.get('area_name')
+    
+    return context
+
+
+async def _build_co_occurrence_context(device1: str | None, device2: str | None) -> dict[str, Any]:
+    """
+    Build context for co-occurrence pattern (two devices).
+    
+    Args:
+        device1: First device identifier
+        device2: Second device identifier
+    
+    Returns:
+        Dictionary with device1 and device2 context
+    """
+    context = {}
+    
+    if device1:
+        metadata1, friendly1, domain1 = await _get_device_metadata_by_id(device1)
+        context['device1'] = {
+            'entity_id': device1,
+            'name': friendly1,
+            'domain': domain1
+        }
+    
+    if device2:
+        metadata2, friendly2, domain2 = await _get_device_metadata_by_id(device2)
+        context['device2'] = {
+            'entity_id': device2,
+            'name': friendly2,
+            'domain': domain2
+        }
+    
+    return context
+
+
 async def _build_device_context(pattern_dict: dict[str, Any]) -> dict[str, Any]:
     """
     Build device context with friendly names for OpenAI prompts.
     
+    Routes to appropriate helper function based on pattern type to build device context
+    with friendly names and metadata for use in OpenAI prompt generation.
+    
     Args:
-        pattern_dict: Pattern dictionary containing device_id(s)
+        pattern_dict: Pattern dictionary containing:
+            - pattern_type: Type of pattern ('time_of_day' or 'co_occurrence')
+            - device_id: For time_of_day patterns
+            - device1, device2: For co_occurrence patterns
     
     Returns:
-        Dictionary with friendly names and device metadata
+        Dictionary with friendly names and device metadata:
+            - For time_of_day: {device_id, name, domain, device_class?, area?}
+            - For co_occurrence: {device1: {...}, device2: {...}}
+            - Empty dict on error
     """
-    context = {}
-
     try:
         logger.info(f"Building device context for pattern: {pattern_dict}")
         pattern_type = pattern_dict.get('pattern_type')
 
-        # For time_of_day patterns: single device
         if pattern_type == 'time_of_day':
             device_id = pattern_dict.get('device_id')
             if device_id:
                 logger.info(f"Processing time_of_day pattern with device_id: {device_id}")
-                # Check if device_id looks like a device ID (long hex string) or entity ID (domain.entity_name)
-                if '.' not in device_id and len(device_id) > 20:
-                    # This is a device ID, get device metadata directly
-                    logger.info(f"Treating {device_id} as device ID")
-                    try:
-                        device_metadata = await data_api_client.get_device_metadata(device_id)
-                        if device_metadata:
-                            logger.info(f"Got device metadata: {device_metadata}")
-                            # Safely access device_metadata
-                            if isinstance(device_metadata, dict):
-                                metadata = {
-                                    'friendly_name': device_metadata.get('name', ''),
-                                    'area_name': device_metadata.get('area_id', '')
-                                }
-                                friendly_name = device_metadata.get('name', device_id)
-                            else:
-                                logger.warning(f"Device metadata is not a dict: {type(device_metadata)}")
-                                friendly_name = device_id
-                                metadata = None
-                            domain = 'device'  # Generic domain for device-level patterns
-                        else:
-                            friendly_name = device_id
-                            metadata = None
-                    except Exception as e:
-                        logger.error(f"Error getting device metadata for {device_id}: {e}")
-                        friendly_name = device_id
-                        metadata = None
-                        domain = 'unknown'
-                else:
-                    # This is an entity ID, try entity metadata first
-                    metadata = await data_api_client.get_entity_metadata(device_id)
-                    if not metadata:
-                        # If entity not found, try to get device metadata using device_id from entity
-                        try:
-                            entities = await data_api_client.fetch_entities(limit=1000)
-                            for entity in entities:
-                                if entity.get('entity_id') == device_id:
-                                    device_metadata = await data_api_client.get_device_metadata(entity.get('device_id'))
-                                    if device_metadata:
-                                        metadata = {
-                                            'friendly_name': device_metadata.get('name', ''),
-                                            'area_name': device_metadata.get('area_id', '')
-                                        }
-                                    break
-                        except Exception as e:
-                            logger.warning(f"Failed to fetch device metadata for {device_id}: {e}")
-
-                    friendly_name = data_api_client.extract_friendly_name(device_id, metadata)
-                    domain = device_id.split('.')[0] if '.' in device_id else 'unknown'
-
-                context = {
-                    'device_id': device_id,
-                    'name': friendly_name,
-                    'domain': domain
-                }
-
-                # Add extra metadata if available
-                if metadata:
-                    context['device_class'] = metadata.get('device_class')
-                    context['area'] = metadata.get('area_name')
-
-        # For co_occurrence patterns: two devices
+                context = await _build_single_device_context(device_id)
+            else:
+                context = {}
+        
         elif pattern_type == 'co_occurrence':
             device1 = pattern_dict.get('device1')
             device2 = pattern_dict.get('device2')
-
-            if device1:
-                # Check if device1 looks like a device ID (long hex string) or entity ID
-                if '.' not in device1 and len(device1) > 20:
-                    # This is a device ID, get device metadata directly
-                    device_metadata1 = await data_api_client.get_device_metadata(device1)
-                    if device_metadata1:
-                        friendly1 = device_metadata1.get('name', device1)
-                        domain1 = 'device'
-                    else:
-                        friendly1 = device1
-                        domain1 = 'unknown'
-                else:
-                    # This is an entity ID
-                    metadata1 = await data_api_client.get_entity_metadata(device1)
-                    if not metadata1:
-                        # Try to get device metadata using device_id from entity
-                        try:
-                            entities = await data_api_client.fetch_entities(limit=1000)
-                            for entity in entities:
-                                if entity.get('entity_id') == device1:
-                                    device_metadata = await data_api_client.get_device_metadata(entity.get('device_id'))
-                                    if device_metadata:
-                                        metadata1 = {
-                                            'friendly_name': device_metadata.get('name', ''),
-                                            'area_name': device_metadata.get('area_id', '')
-                                        }
-                                    break
-                        except Exception as e:
-                            logger.warning(f"Failed to fetch device metadata for {device1}: {e}")
-
-                    friendly1 = data_api_client.extract_friendly_name(device1, metadata1)
-                    domain1 = device1.split('.')[0] if '.' in device1 else 'unknown'
-
-                context['device1'] = {
-                    'entity_id': device1,
-                    'name': friendly1,
-                    'domain': domain1
-                }
-
-            if device2:
-                # Check if device2 looks like a device ID (long hex string) or entity ID
-                if '.' not in device2 and len(device2) > 20:
-                    # This is a device ID, get device metadata directly
-                    device_metadata2 = await data_api_client.get_device_metadata(device2)
-                    if device_metadata2:
-                        friendly2 = device_metadata2.get('name', device2)
-                        domain2 = 'device'
-                    else:
-                        friendly2 = device2
-                        domain2 = 'unknown'
-                else:
-                    # This is an entity ID
-                    metadata2 = await data_api_client.get_entity_metadata(device2)
-                    if not metadata2:
-                        # Try to get device metadata using device_id from entity
-                        try:
-                            entities = await data_api_client.fetch_entities(limit=1000)
-                            for entity in entities:
-                                if entity.get('entity_id') == device2:
-                                    device_metadata = await data_api_client.get_device_metadata(entity.get('device_id'))
-                                    if device_metadata:
-                                        metadata2 = {
-                                            'friendly_name': device_metadata.get('name', ''),
-                                            'area_name': device_metadata.get('area_id', '')
-                                        }
-                                    break
-                        except Exception as e:
-                            logger.warning(f"Failed to fetch device metadata for {device2}: {e}")
-
-                    friendly2 = data_api_client.extract_friendly_name(device2, metadata2)
-                    domain2 = device2.split('.')[0] if '.' in device2 else 'unknown'
-
-                context['device2'] = {
-                    'entity_id': device2,
-                    'name': friendly2,
-                    'domain': domain2
-                }
+            context = await _build_co_occurrence_context(device1, device2)
+        
+        else:
+            logger.warning(f"Unknown pattern type: {pattern_type}")
+            context = {}
 
         logger.debug(f"Built device context: {context}")
         return context

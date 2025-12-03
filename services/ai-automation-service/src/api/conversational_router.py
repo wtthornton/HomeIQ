@@ -451,16 +451,121 @@ async def refine_description(
     db: AsyncSession = Depends(get_db)
 ) -> RefinementResponse:
     """
-    Refine suggestion description with natural language.
+    Refine automation suggestion description using natural language input.
     
-    Phase 3: ✅ IMPLEMENTED - Real OpenAI refinement with validation!
+    This function enables conversational refinement of automation suggestions, allowing users
+    to modify automation descriptions using natural language (e.g., "Make it blue and only
+    on weekdays"). The function uses OpenAI to understand the user's intent and generate an
+    updated description that incorporates the requested changes.
     
-    Flow:
-    1. Fetch current suggestion from database
-    2. Get device capabilities (cached in suggestion)
-    3. Pre-validate feasibility (fast check)
-    4. Call OpenAI with refinement prompt
-    5. Update database with new description and history
+    The refinement process maintains conversation history, tracks changes, and validates
+    the updated description against device capabilities. It supports iterative refinement
+    with a maximum limit to prevent infinite loops.
+    
+    Key behaviors/patterns:
+    - Natural language refinement using OpenAI
+    - Conversation history tracking (all refinements stored)
+    - Refinement limit enforcement (max 10 refinements per suggestion)
+    - Status validation (only draft/refining suggestions can be refined)
+    - Device capability validation (ensures refinements are feasible)
+    - Change tracking (records what changed in each refinement)
+    
+    Algorithm/Process:
+    1. Input validation:
+       a. Check OpenAI client availability
+       b. Parse suggestion ID (handles both "suggestion-1" and integer formats)
+       c. Fetch suggestion from database
+       d. Verify suggestion exists
+    2. Refinement eligibility checks:
+       a. Check refinement limit (max 10 refinements via can_refine())
+       b. Verify suggestion status (must be 'draft' or 'refining')
+    3. OpenAI refinement:
+       a. Call OpenAI refine_description() method with:
+          - Current description (description_only)
+          - User input (natural language refinement request)
+          - Device capabilities (cached in suggestion)
+       b. Receive updated description, changes made, and validation results
+    4. Database update:
+       a. Append refinement to conversation_history:
+          - Timestamp
+          - User input
+          - Updated description
+          - Changes made
+          - Validation results
+       b. Update suggestion:
+          - description_only = updated description
+          - conversation_history = updated history
+          - refinement_count = increment
+          - status = 'refining'
+          - updated_at = current timestamp
+       c. Commit transaction
+    5. Response building:
+       a. Build RefinementResponse with:
+          - Updated description
+          - Changes detected
+          - Validation results (ok, warnings, alternatives)
+          - Confidence score
+          - Refinement count
+          - Status
+    
+    Args:
+        suggestion_id (str): Suggestion identifier, either:
+            - String format: "suggestion-1" (extracts integer ID)
+            - Integer format: "1" (direct integer ID)
+        request (RefineRequest): Refinement request containing:
+            - user_input (str): Natural language refinement (e.g., "Make it blue and only on weekdays")
+            - conversation_context (bool): Include conversation history in refinement (default: True)
+        db (AsyncSession): Database session for querying and updating suggestions
+    
+    Returns:
+        RefinementResponse: Refinement result containing:
+            - suggestion_id (str): Suggestion identifier
+            - updated_description (str): Refined description after applying user input
+            - changes_detected (list[str]): List of changes made (e.g., ["Added weekday condition", "Changed color to blue"])
+            - validation (ValidationResult): Validation results:
+                - ok (bool): Whether refinement is valid
+                - warnings (list[str]): Warning messages (e.g., feasibility concerns)
+                - alternatives (list[str]): Alternative suggestions if refinement is invalid
+            - confidence (float): Confidence score (0.0-1.0)
+            - refinement_count (int): Total number of refinements (incremented)
+            - status (str): Suggestion status (always "refining" after refinement)
+    
+    Raises:
+        HTTPException 400: If suggestion ID format is invalid, refinement limit exceeded,
+                          or suggestion status doesn't allow refinement
+        HTTPException 404: If suggestion not found
+        HTTPException 500: If OpenAI API not configured or refinement fails
+    
+    Examples:
+        >>> # Refine a light automation to add color and weekday condition
+        >>> request = RefineRequest(
+        ...     user_input="Make it blue and only on weekdays",
+        ...     conversation_context=True
+        ... )
+        >>> response = await refine_description("suggestion-1", request, db)
+        >>> response.updated_description
+        'Turn on Office Light to blue when motion is detected, only on weekdays'
+        >>> "weekday" in response.changes_detected[0].lower()
+        True
+        >>> "blue" in response.changes_detected[1].lower()
+        True
+        
+        >>> # Refine a climate automation to change temperature
+        >>> request = RefineRequest(
+        ...     user_input="Set it to 70°F instead",
+        ...     conversation_context=True
+        ... )
+        >>> response = await refine_description("suggestion-2", request, db)
+        >>> "70°F" in response.updated_description
+        True
+    
+    Complexity: C (11) - Moderate complexity due to database operations, OpenAI integration,
+                 conversation history management, and validation logic. The function is
+                 well-structured with clear error handling.
+    Note: This function is part of the conversational refinement flow (Story AI1.23, Phase 3).
+          Consider adding support for multi-turn refinement (allowing follow-up questions)
+          and better validation feedback (suggesting alternatives when refinements are invalid).
+          The refinement limit (10) could be made configurable per user or suggestion type.
     """
     logger.info(f"✏️ Refining suggestion {suggestion_id}: '{request.user_input}'")
 
@@ -1165,7 +1270,112 @@ def _get_feature_description(feature: str, domain: str) -> str:
 
 
 def _generate_use_cases(capabilities: dict) -> list[str]:
-    """Generate example use cases based on capabilities"""
+    """
+    Generate example use cases based on device capabilities for conversational refinement.
+    
+    This function creates human-readable example use cases that demonstrate how a device
+    can be controlled, based on its domain and supported features. These use cases are used
+    in the conversational refinement flow to help users understand what automations are
+    possible with their devices.
+    
+    The function analyzes device capabilities (domain, supported features, friendly name)
+    and generates domain-specific use cases. For example, a light with RGB color support
+    will generate use cases like "Change light to blue", while a climate device will
+    generate temperature-related use cases.
+    
+    Key behaviors/patterns:
+    - Domain-specific use case generation (light, climate, cover, generic)
+    - Feature-aware suggestions (only suggests features the device supports)
+    - Human-readable format using device friendly name
+    - Fallback to generic use case if no domain-specific cases match
+    
+    Algorithm/Process:
+    1. Extract device metadata:
+       a. Get domain (e.g., 'light', 'climate', 'cover')
+       b. Get supported_features dictionary
+       c. Get friendly_name (or default to 'device')
+    2. Domain-specific use case generation:
+       a. Light domain:
+          - If brightness supported: "Turn on {name} to 50% brightness"
+          - If rgb_color supported: "Change {name} to blue"
+          - If color_temp supported: "Set {name} to warm white"
+          - If transition supported: "Fade in {name} over 2 seconds"
+       b. Climate domain:
+          - If temperature supported: "Set {name} to 72°F"
+          - If hvac_mode supported: "Switch {name} to heat/cool"
+       c. Cover domain:
+          - If position supported: "Open {name} to 50%"
+          - Always: "Close {name}"
+       d. Generic domain:
+          - Default: "Turn {name} on/off"
+    3. Fallback handling:
+       a. If no use cases generated, return generic "Control {name}"
+       b. Return list of use case strings
+    
+    Args:
+        capabilities (dict): Device capabilities dictionary containing:
+            - domain (str): Device domain (e.g., 'light', 'climate', 'cover')
+            - supported_features (dict): Dictionary of supported features:
+                - brightness (bool): Brightness control supported
+                - rgb_color (bool): RGB color control supported
+                - color_temp (bool): Color temperature control supported
+                - transition (bool): Transition/fade control supported
+                - temperature (bool): Temperature control supported (climate)
+                - hvac_mode (bool): HVAC mode control supported (climate)
+                - position (bool): Position control supported (cover)
+            - friendly_name (str): Human-readable device name
+    
+    Returns:
+        list[str]: List of example use case strings, each describing a possible automation
+                   action for the device. Examples:
+                   - ["Turn on Office Light to 50% brightness", "Change Office Light to blue"]
+                   - ["Set Thermostat to 72°F", "Switch Thermostat to heat/cool"]
+                   - ["Open Garage Door to 50%", "Close Garage Door"]
+                   - ["Control Device"] (fallback)
+    
+    Examples:
+        >>> # Light with RGB and brightness
+        >>> capabilities = {
+        ...     'domain': 'light',
+        ...     'supported_features': {'brightness': True, 'rgb_color': True},
+        ...     'friendly_name': 'Office Light'
+        ... }
+        >>> use_cases = _generate_use_cases(capabilities)
+        >>> 'brightness' in use_cases[0].lower()
+        True
+        >>> 'blue' in use_cases[1].lower()
+        True
+        
+        >>> # Climate device
+        >>> capabilities = {
+        ...     'domain': 'climate',
+        ...     'supported_features': {'temperature': True, 'hvac_mode': True},
+        ...     'friendly_name': 'Thermostat'
+        ... }
+        >>> use_cases = _generate_use_cases(capabilities)
+        >>> '72°F' in use_cases[0]
+        True
+        >>> 'heat/cool' in use_cases[1]
+        True
+        
+        >>> # Generic device (no specific domain)
+        >>> capabilities = {
+        ...     'domain': 'switch',
+        ...     'supported_features': {},
+        ...     'friendly_name': 'Garage Switch'
+        ... }
+        >>> use_cases = _generate_use_cases(capabilities)
+        >>> use_cases[0]
+        'Turn Garage Switch on/off'
+    
+    Complexity: C (12) - Involves multiple conditional branches for different domains
+                 and feature combinations. The function is straightforward but has
+                 moderate complexity due to domain-specific logic.
+    Note: This function is used in the conversational refinement flow to provide users
+          with example use cases. Consider expanding to support more domains (media_player,
+          lock, fan, etc.) as the system grows. The use cases could also be made more
+          dynamic by using templates or configuration files for easier maintenance.
+    """
     use_cases = []
     domain = capabilities.get('domain', '')
     features = capabilities.get('supported_features', {})

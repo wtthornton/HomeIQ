@@ -119,25 +119,93 @@ class CoOccurrencePatternDetector:
 
     def detect_patterns(self, events: pd.DataFrame) -> list[dict]:
         """
-        Find devices used together within time window.
-        Simple approach: sliding window + counting.
+        Detect co-occurrence patterns between devices using sliding window analysis.
+        
+        This function identifies devices that are frequently used together within a time window,
+        which indicates potential automation opportunities. For example, if a motion sensor
+        consistently triggers within 30 seconds of a light turning on, this suggests an
+        automation pattern (motion → light).
+        
+        The function uses a sliding window approach combined with association rule mining
+        concepts to find statistically significant device pairs. It filters system noise,
+        calculates confidence scores, and validates patterns for meaningful automation opportunities.
+        
+        Key behaviors/patterns:
+        - Sliding window analysis: For each event, looks ahead within a time window (default: 5 minutes)
+        - Pair counting: Tracks how often device pairs co-occur
+        - Confidence calculation: Measures reliability as co-occurrences / min(device1_events, device2_events)
+        - System noise filtering: Removes system sensors, trackers, images, and events (Task 2)
+        - Time variance filtering: Filters patterns with high time variance (Task 3)
+        - Domain-aware thresholds: Applies different support/confidence thresholds based on device domains
+        
+        Algorithm/Process:
+        1. Input validation: Check for required columns (device_id, timestamp)
+        2. System noise filtering: Remove system sensors, trackers, images (if enabled)
+        3. Event sorting: Sort events by timestamp for efficient windowing
+        4. Sliding window analysis:
+           a. For each event, create a time window (event_time + window_minutes)
+           b. Find all events within the window
+           c. Count co-occurrences between different devices
+           d. Track time deltas for variance calculation
+        5. Pattern filtering:
+           a. Calculate support (co-occurrences / total_events)
+           b. Calculate confidence (co-occurrences / min(device1_events, device2_events))
+           c. Apply domain-aware thresholds (support and confidence)
+           d. Validate meaningful automation patterns (actionable devices, trigger-action pairs)
+           e. Filter by time variance threshold (reject patterns with std > max_variance_minutes)
+        6. Pattern construction: Build pattern dictionaries with metadata
+        7. Aggregate storage: Store daily aggregates to InfluxDB (Story AI5.3)
         
         Args:
-            events: DataFrame with columns [device_id, timestamp, state]
-                    device_id: str - Device identifier
-                    timestamp: datetime - Event timestamp
-                    state: str - Device state
+            events (pd.DataFrame): DataFrame with columns:
+                - device_id (str): Device/entity identifier (e.g., "light.office", "binary_sensor.door")
+                - timestamp (datetime): Event timestamp
+                - state (str, optional): Device state (not used in co-occurrence detection)
         
         Returns:
-            List of co-occurrence pattern dictionaries with keys:
-                - pattern_type: "co_occurrence"
-                - device_id: Primary device (for storage compatibility)
-                - device1: First device in pair
-                - device2: Second device in pair
-                - occurrences: Number of co-occurrences
-                - total_events: Total events analyzed
-                - confidence: Confidence score
-                - metadata: Additional statistics
+            list[dict]: List of co-occurrence pattern dictionaries, each containing:
+                - pattern_type (str): Always "co_occurrence"
+                - device_id (str): Combined device ID for storage (format: "device1+device2")
+                - device1 (str): First device in the pair
+                - device2 (str): Second device in the pair
+                - occurrences (int): Number of times the pair co-occurred
+                - total_events (int): Total number of events analyzed
+                - confidence (float): Confidence score (0.0-1.0), calculated as:
+                  co-occurrences / min(device1_events, device2_events)
+                - metadata (dict): Additional statistics including:
+                    - window_minutes: Time window used for detection
+                    - support: Support score (co-occurrences / total_events)
+                    - device1_count: Total events for device1
+                    - device2_count: Total events for device2
+                    - avg_time_delta_seconds: Average time between co-occurrences
+                    - time_variance_minutes: Time variance in minutes
+                    - time_std_minutes: Time standard deviation in minutes
+                    - thresholds: Domain-specific thresholds applied
+        
+        Examples:
+            >>> # Example: Motion sensor + Light co-occurrence
+            >>> events = pd.DataFrame({
+            ...     'device_id': ['binary_sensor.motion', 'light.office', 'binary_sensor.motion', 'light.office'],
+            ...     'timestamp': [pd.Timestamp('2025-01-01 08:00:00'),
+            ...                   pd.Timestamp('2025-01-01 08:00:15'),
+            ...                   pd.Timestamp('2025-01-01 09:00:00'),
+            ...                   pd.Timestamp('2025-01-01 09:00:20')]
+            ... })
+            >>> detector = CoOccurrencePatternDetector(window_minutes=5, min_support=2, min_confidence=0.7)
+            >>> patterns = detector.detect_patterns(events)
+            >>> patterns[0]['device1']
+            'binary_sensor.motion'
+            >>> patterns[0]['device2']
+            'light.office'
+            >>> patterns[0]['confidence'] > 0.7
+            True
+        
+        Complexity: C (14) - Involves nested loops (O(n²) worst case for sliding window),
+                   multiple filtering passes, statistical calculations, and domain-aware thresholding.
+        Note: For large datasets (>50,000 events), consider using `detect_patterns_optimized()`
+              which applies intelligent sampling. The function has been optimized for incremental
+              processing with aggregate storage (Story AI5.3). Consider refactoring to extract
+              filtering logic into separate methods if patterns need frequent updates.
         """
         if events.empty:
             logger.warning("No events provided for co-occurrence detection")

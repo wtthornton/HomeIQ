@@ -96,16 +96,16 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
       
       dataApi.getEntities({ device_id: selectedDevice.device_id, limit: 100 })
         .then(response => {
-          console.log(`[DeviceEntities] API response:`, response);
+          console.log('[DeviceEntities] API response:', response);
           const apiEntities = response?.entities || [];
           
-          console.log(`[DeviceEntities] Raw entities from API:`, apiEntities.length, apiEntities);
+          console.log('[DeviceEntities] Raw entities from API:', apiEntities.length, apiEntities);
           
           // The API should already filter by device_id, but add defensive check for data integrity
           // Use case-insensitive comparison and trim whitespace to handle potential formatting issues
           const validEntities = apiEntities.filter(e => {
             if (!e || !e.device_id) {
-              console.warn(`[DeviceEntities] Entity missing device_id:`, e);
+              console.warn('[DeviceEntities] Entity missing device_id:', e);
               return false;
             }
             const entityDeviceId = String(e.device_id).trim().toLowerCase();
@@ -125,7 +125,7 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
           if (validEntities.length === 0 && expectedEntityCount > 0) {
             console.warn(
               `[DeviceEntities] Device shows entity_count=${expectedEntityCount} but API returned ${apiEntities.length} entities. ` +
-              `This suggests a data mismatch between device registry and entity registry.`
+              'This suggests a data mismatch between device registry and entity registry.'
             );
           }
           
@@ -139,7 +139,7 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
           if (validEntities.length === 0 && apiEntities.length === 0 && expectedEntityCount > 0) {
             console.error(
               `[DeviceEntities] No entities found for device ${selectedDevice.device_id} but device.entity_count=${expectedEntityCount}. ` +
-              `Possible issues: 1) Entities not synced to database, 2) device_id mismatch, 3) Entities deleted but count not updated.`
+              'Possible issues: 1) Entities not synced to database, 2) device_id mismatch, 3) Entities deleted but count not updated.'
             );
           }
           

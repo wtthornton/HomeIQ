@@ -93,11 +93,11 @@ export const useAlerts = ({
   // Acknowledge an alert
   const acknowledgeAlert = useCallback(async (alertId: string): Promise<boolean> => {
     try {
-        const response = await fetch(`/api/v1/alerts/${alertId}/acknowledge`, {
+      const response = await fetch(`/api/v1/alerts/${alertId}/acknowledge`, {
         method: 'POST',
-          headers: withCsrfHeader({
-            'Content-Type': 'application/json',
-          }),
+        headers: withCsrfHeader({
+          'Content-Type': 'application/json',
+        }),
       });
 
       if (!response.ok) {
@@ -125,11 +125,11 @@ export const useAlerts = ({
   // Resolve an alert
   const resolveAlert = useCallback(async (alertId: string): Promise<boolean> => {
     try {
-        const response = await fetch(`/api/v1/alerts/${alertId}/resolve`, {
+      const response = await fetch(`/api/v1/alerts/${alertId}/resolve`, {
         method: 'POST',
-          headers: withCsrfHeader({
-            'Content-Type': 'application/json',
-          }),
+        headers: withCsrfHeader({
+          'Content-Type': 'application/json',
+        }),
       });
 
       if (!response.ok) {

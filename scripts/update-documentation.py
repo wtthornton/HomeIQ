@@ -247,6 +247,7 @@ class DocumentationUpdater:
         
         # Optionally add to "Recent Updates" section if there are significant changes
         # This is conservative - only add if there are notable features/fixes
+        # IMPORTANT: Check for duplicates before adding
         recent_updates_pattern = r'(### Recent Updates\n)'
         if re.search(recent_updates_pattern, content) and commits:
             # Check if we have notable commits (features or fixes)
@@ -268,15 +269,54 @@ class DocumentationUpdater:
                     flags=re.IGNORECASE
                 )
                 
-                # Add bullet point to Recent Updates
-                new_update = f"- **{clean_message}** ({today})\n"
-                content = re.sub(
-                    recent_updates_pattern,
-                    r'\1' + new_update,
-                    content
+                # Check if this update already exists (prevent duplicates)
+                # Look for the message in existing updates
+                existing_updates_pattern = r'- \*\*.*?\*\* \(.*?\)'
+                existing_updates = re.findall(existing_updates_pattern, content)
+                
+                # Normalize for comparison (remove date, compare message text)
+                update_text = f"**{clean_message}**"
+                is_duplicate = any(
+                    update_text.lower() in existing.lower() 
+                    for existing in existing_updates[:20]  # Check last 20 entries
                 )
-                changed = True
-                print(f"✅ Added recent update to README.md")
+                
+                if not is_duplicate:
+                    # Add bullet point to Recent Updates (at the top, after header)
+                    new_update = f"- **{clean_message}** ({today})\n"
+                    content = re.sub(
+                        recent_updates_pattern,
+                        r'\1' + new_update,
+                        content
+                    )
+                    changed = True
+                    print(f"✅ Added recent update to README.md")
+                    
+                    # Limit Recent Updates to last 15 entries to prevent bloat
+                    # Extract all update lines
+                    updates_section_match = re.search(
+                        r'(### Recent Updates\n)(.*?)(\n\n|\n## )',
+                        content,
+                        re.DOTALL
+                    )
+                    if updates_section_match:
+                        header = updates_section_match.group(1)
+                        updates_text = updates_section_match.group(2)
+                        footer = updates_section_match.group(3) or "\n\n"
+                        
+                        # Split into lines and keep only first 15 bullet points
+                        update_lines = [line for line in updates_text.split('\n') if line.strip().startswith('-')]
+                        if len(update_lines) > 15:
+                            # Keep first 15 (most recent)
+                            limited_updates = '\n'.join(update_lines[:15])
+                            content = content.replace(
+                                header + updates_text + footer,
+                                header + limited_updates + footer
+                            )
+                            changed = True
+                            print(f"✅ Limited Recent Updates to 15 entries (removed {len(update_lines) - 15} old entries)")
+                else:
+                    print(f"⚠️  Skipped duplicate update: {clean_message[:50]}...")
         
         if changed:
             readme_path.write_text(content)

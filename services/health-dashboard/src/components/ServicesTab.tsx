@@ -263,8 +263,8 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
       const serviceStatus = selectedService.service?.status || 'stopped';
       const status: 'healthy' | 'degraded' | 'unhealthy' | 'paused' = 
         serviceStatus === 'running' ? 'healthy' : 
-        serviceStatus === 'error' ? 'unhealthy' :
-        serviceStatus === 'degraded' ? 'degraded' : 'paused';
+          serviceStatus === 'error' ? 'unhealthy' :
+            serviceStatus === 'degraded' ? 'degraded' : 'paused';
       const details = [
         { label: 'Service Name', value: selectedService.service.service || 'Unknown' },
         { label: 'Status', value: serviceStatus || 'unknown' },

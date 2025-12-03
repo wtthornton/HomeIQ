@@ -168,9 +168,9 @@ export const RAGDetailsModal: React.FC<RAGDetailsModalProps> = ({
             className={`
               p-2 rounded-lg transition-colors
               ${darkMode 
-                ? 'hover:bg-gray-700 text-gray-400 hover:text-white' 
-                : 'hover:bg-gray-100 text-gray-500 hover:text-gray-900'
-              }
+      ? 'hover:bg-gray-700 text-gray-400 hover:text-white' 
+      : 'hover:bg-gray-100 text-gray-500 hover:text-gray-900'
+    }
             `}
             aria-label="Close modal"
           >
@@ -317,9 +317,9 @@ export const RAGDetailsModal: React.FC<RAGDetailsModalProps> = ({
             className={`
               px-4 py-2 rounded-lg font-medium transition-colors
               ${darkMode
-                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-              }
+      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+      : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+    }
             `}
           >
             Close

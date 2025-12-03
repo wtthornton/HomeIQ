@@ -117,7 +117,7 @@ export const Navigation: React.FC = () => {
             >
               <span className="text-xl">{item.icon}</span>
               <span className="text-xs font-medium">
-                {item.label.replace(/[🤖📊🚀⚙️]/g, '').trim()}
+                {item.label.replace(/[\u{1F916}\u{1F4CA}\u{1F680}\u{2699}]/gu, '').trim()}
               </span>
             </Link>
           ))}

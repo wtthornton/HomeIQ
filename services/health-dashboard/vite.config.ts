@@ -1,20 +1,20 @@
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
   // Load env file based on `mode` in the current working directory.
-  const env = loadEnv(mode, process.cwd(), '')
+  const env = loadEnv(mode, process.cwd(), '');
   
-  const isProduction = mode === 'production'
-  const isDevelopment = mode === 'development'
-    // In docker-compose.dev.yml admin-api maps 8003:8004, so localhost uses 8003
-    const devAdminApiTarget = env.VITE_DEV_ADMIN_API || 'http://localhost:8003';
-    const devAdminWsTarget = env.VITE_DEV_ADMIN_WS || 'ws://localhost:8003';
-    const devDataApiTarget = env.VITE_DEV_DATA_API || 'http://localhost:8006';
+  const isProduction = mode === 'production';
+  const isDevelopment = mode === 'development';
+  // In docker-compose.dev.yml admin-api maps 8003:8004, so localhost uses 8003
+  const devAdminApiTarget = env.VITE_DEV_ADMIN_API || 'http://localhost:8003';
+  const devAdminWsTarget = env.VITE_DEV_ADMIN_WS || 'ws://localhost:8003';
+  const devDataApiTarget = env.VITE_DEV_DATA_API || 'http://localhost:8006';
 
-    return {
+  return {
     plugins: [
       react({
         // Enable React Fast Refresh
@@ -47,15 +47,15 @@ export default defineConfig(({ command, mode }) => {
       proxy: {
         // WebSocket proxy
         '/ws': {
-            target: devAdminWsTarget,
+          target: devAdminWsTarget,
           ws: true,
           changeOrigin: true,
           secure: false,
-            rewrite: (path) => path.replace(/^\/ws/, '/ws'),
+          rewrite: (path) => path.replace(/^\/ws/, '/ws'),
         },
         // Explicit /api/v1 passthrough to avoid double-prefixing
         '/api/v1': {
-            target: devAdminApiTarget,
+          target: devAdminApiTarget,
           changeOrigin: true,
           secure: false,
           // Do NOT rewrite when already /api/v1
@@ -63,14 +63,14 @@ export default defineConfig(({ command, mode }) => {
         },
         // Sports API proxy - route to data-api (sports-data service was removed)
         '/api/sports': {
-            target: devDataApiTarget,
+          target: devDataApiTarget,
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/api\/sports/, '/api/v1/sports'),
         },
         // General API proxy
         '/api': {
-            target: devAdminApiTarget,
+          target: devAdminApiTarget,
           changeOrigin: true,
           secure: false,
           // Only add /v1 when not already present to prevent /api/v1 -> /api/v1/v1
@@ -106,14 +106,14 @@ export default defineConfig(({ command, mode }) => {
           chunkFileNames: 'assets/js/[name]-[hash].js',
           entryFileNames: 'assets/js/[name]-[hash].js',
           assetFileNames: (assetInfo) => {
-            const extType = assetInfo.name?.split('.').at(1)
+            const extType = assetInfo.name?.split('.').at(1);
             if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType ?? '')) {
-              return `assets/images/[name]-[hash][extname]`
+              return 'assets/images/[name]-[hash][extname]';
             }
             if (/css/i.test(extType ?? '')) {
-              return `assets/css/[name]-[hash][extname]`
+              return 'assets/css/[name]-[hash][extname]';
             }
-            return `assets/[name]-[hash][extname]`
+            return 'assets/[name]-[hash][extname]';
           },
         },
       },
@@ -144,5 +144,5 @@ export default defineConfig(({ command, mode }) => {
         'react-dom',
       ],
     },
-  }
-})
+  };
+});

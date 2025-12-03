@@ -485,15 +485,14 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+
+- **Security Audit & Quality Improvements** (December 03, 2025)
+  - Enhanced Flux query sanitization with length validation
+  - Created comprehensive security test suites
+  - Fixed hardcoded default tokens
+  - Added production readiness monitoring
+  - Improved test infrastructure with smoke tests
 - **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (December 03, 2025)
-- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (December 03, 2025)
-- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (December 02, 2025)
-- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (December 02, 2025)
-- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (December 02, 2025)
-- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (December 02, 2025)
-- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (December 02, 2025)
-- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (December 02, 2025)
-- **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 02, 2025)
 - **Epic AI-6 - Blueprint-Enhanced Suggestion Intelligence** (December 2025)
   - Blueprint opportunity discovery from device inventory
   - Pattern validation against community blueprints with confidence boosting
@@ -502,138 +501,37 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
   - Preference API endpoints (`GET/PUT /api/v1/preferences`)
   - Settings UI for easy preference configuration
 - **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 02, 2025)
-- **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 02, 2025)
-- **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 01, 2025)
-- **Epic 40 - Dual Deployment Configuration (Test & Production)** (December 01, 2025)
-- **Epic 40 - Dual Deployment Configuration (Test & Production)** (November 30, 2025)
-- **Epic 40 - Dual Deployment Configuration (Test & Production)** (November 29, 2025)
-- **Epic 40 - Dual Deployment Configuration (Test & Production)** (November 29, 2025)
-- **Update performance docs with Context7 patterns and NUC optimizations** (November 26, 2025)
-- **Update performance docs with Context7 patterns and NUC optimizations** (November 26, 2025)
-- **Update story-35.4 and migration file** (November 26, 2025)
 - **Home Type Categorization System** (November 25, 2025)
   - ML-based home type classification using RandomForest classifier
   - Synthetic data generation for training (100-120 homes)
-  - Production profiling and classification API endpoints (`/api/home-type/profile`, `/api/home-type/classify`, `/api/home-type/model-info`)
+  - Production profiling and classification API endpoints
   - Event categorization based on home type (security, climate, lighting, appliance, monitoring, general)
   - Integration with suggestion ranking (10% weight boost for home type preferences)
-  - Expected +15-20% suggestion acceptance rate improvement
 - **Automation Template Enhancements** (November 25, 2025)
   - Device-specific automation templates for common device types
   - Quick wins improvements for automation creation
 - **Implement Quick Wins for Ask AI: Fix 54% failure rate** (November 24, 2025)
 - **Device Database Enhancements** (January 20, 2025)
-  - Device health monitoring with battery levels and response time analysis   
-  - Automatic device classification (fridge, car, light, etc.) from entity patterns                                                                           
+  - Device health monitoring with battery levels and response time analysis
+  - Automatic device classification (fridge, car, light, etc.) from entity patterns
   - Device-specific automation templates for common device types
   - Setup assistant with step-by-step guides and issue detection
   - Device recommendations and comparison features
-  - HA API-only capability discovery (no direct protocol access)
-- **Phase 4.1 enhancements and Docker deployment fixes** (November 24, 2025)
-- **Fix prompt 14 in ask-ai-continuous-improvement.py - clarify light control logic for Home Assistant** (November 24, 2025)
-- **Fix prompt 14 in ask-ai-continuous-improvement.py - clarify light control logic for Home Assistant** (November 24, 2025)
-- **Fix admin-api service startup errors** (November 24, 2025)
-- **Implement comprehensive suggestions engine improvements (Phase 1-3)** (November 24, 2025)
-- **Add implementation docs and update service files** (November 23, 2025)
-- **Add implementation docs and update service files** (November 22, 2025)
-- **Implement device detection enhancement with two-stage matching** (November 22, 2025)
-- **Implement device detection enhancement with two-stage matching** (November 21, 2025)
-- **Implement device detection enhancement with two-stage matching** (November 21, 2025)
-- **Remove duplicate generate_automation_yaml function from ask_ai_router.py** (November 21, 2025)
-- **Remove duplicate generate_automation_yaml function from ask_ai_router.py** (November 21, 2025)
-- **Add AI automation learning features and QA improvements** (November 21, 2025)
-- **Standardize fuzzy matching with rapidfuzz best practices** (November 21, 2025)
-- **feat(validation): add comprehensive validation command** (November 21, 2025)
-- **Add debugging logs to AskAI UI for clarification flow - Improve original request detection to look backwards through messages - Add console logging for suggestion rendering and structure - Add logging for clarification message handling - Better error messages showing suggestion counts** (November 21, 2025)
-- **Fix ASK AI clarification flow: resolve NameError and location expansion** (November 21, 2025)
-- **Fix ASK AI clarification flow: resolve NameError and location expansion** (November 21, 2025)
-- **Fix ASK AI clarification flow: resolve NameError and location expansion** (November 20, 2025)
-- **Implement context-aware entity mapping for clarification flow** (November 20, 2025)
-- **Implement token optimization for Ask AI clarification flow** (November 20, 2025)
-- **Implement Phase 3 confidence algorithm improvements (RL calibration + Uncertainty quantification)** (November 20, 2025)
-- **Implement Phase 3 confidence algorithm improvements (RL calibration + Uncertainty quantification)** (November 20, 2025)
-- **Implement confidence algorithm improvements (Phase 1 & 2)** (November 20, 2025)
-- **Implement confidence algorithm improvements (Phase 1 & 2)** (November 20, 2025)
-- **Add AI Model Comparison feature with side-by-side metrics and recommendations** (November 19, 2025)
-- **Fix critical log issues and update documentation (November 2025)** (November 19, 2025)
-- **Implement shared base classes and observability infrastructure** (November 19, 2025)
-- **Implement shared base classes and observability infrastructure** (November 19, 2025)
-- **Implement shared base classes and observability infrastructure** (November 19, 2025)
-- **Ensure unique automation IDs to prevent duplicate updates** (November 19, 2025)
-- **Implement Action Execution Engine and major system improvements** (November 18, 2025)
-- **Fix entities endpoint database schema issue and update documentation** (November 18, 2025)
 - **Fix entities endpoint database schema issue** (November 18, 2025)
   - Fixed 500 error on `/api/entities` endpoint caused by missing database columns
   - Added migration 004 documentation and troubleshooting steps
-  - Entities now display correctly in dashboard (was showing 0 entities)
-  - See [Data API README](services/data-api/README.md#entities-endpoint-returns-500-error) for migration instructions
+  - Entities now display correctly in dashboard
 - **Fix websocket ingestion, dashboard, and AI automation improvements** (November 17, 2025)
   - Fixed websocket-ingestion service crash loop (import path fixes, Dockerfile correction)
-  - Fixed health dashboard OverviewTab to properly show system status based on RAG status and data source health
-  - Added area filtering to AI automation Ask AI interface (automatically filters devices by area)
-  - Enhanced prompt template with area restriction warnings for better device selection
-- **Implement persistent clarification session storage (AI1.26)** (November 18, 2025)
-- **Implement persistent clarification session storage (AI1.26)** (November 18, 2025)
+  - Fixed health dashboard OverviewTab to properly show system status
+  - Added area filtering to AI automation Ask AI interface
 - **Story AI1.26: Persistent clarification session storage** (November 18, 2025)
   - Database-backed clarification flow with query ID linkage
   - Smart suggestion retrieval supporting both direct and clarification query IDs
   - HOME_ASSISTANT_TOKEN standardization (removed LOCAL_HA_TOKEN/LOCAL_HA_URL)
   - YAML 2025 standards enforcement
-- **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (November 17, 2025)
-- **Add RAG (Red/Amber/Green) status monitoring to HA Ingestor Dashboard** (November 17, 2025)
-- **Add cache expiration and staleness detection across services** (November 17, 2025)
-- **Fix device discovery trigger endpoint websocket access bug** (November 17, 2025)
-- **Fix event details loading issue in Live Event Stream** (November 17, 2025)
-- **Fix event details loading issue in Live Event Stream** (November 17, 2025)
-- **Fix device entities not displaying in device detail popup** (November 17, 2025)
-- **Fix HA Core version detection in health monitoring service** (November 17, 2025)
-- **Fix HA Core version detection in health monitoring service** (November 17, 2025)
-- **Add missing InfluxDB tags and improve database review script** (November 17, 2025)
-- **Implement MQTT subscription for Zigbee2MQTT health monitoring** (November 16, 2025)
-- **Complete ML model update infrastructure for Device Intelligence Service** (November 16, 2025)
-- **Fix datetime usage in device-intelligence-service to use timezone-aware datetime** (November 16, 2025)
-- **fix(device-intelligence): resolve integration field and critical bugs** (November 16, 2025)
-- **Fix dashboard CSP and API authentication issues** (November 16, 2025)
-- **Add comprehensive OpenVINO ML tests** (November 16, 2025)
-- **Add comprehensive OpenVINO ML tests** (November 16, 2025)
-- **Add comprehensive OpenVINO ML tests** (November 16, 2025)
-- **Add comprehensive OpenVINO ML tests** (November 16, 2025)
-- **Fix critical issues and improve reliability** (November 16, 2025)
-- **Fix critical issues and improve reliability** (November 16, 2025)
-- **Fix critical issues and improve reliability** (November 16, 2025)
-- **Fix critical issues and improve reliability** (November 15, 2025)
-- **Fix critical issues and improve reliability** (November 15, 2025)
-- **Implement API key authentication and admin roles** (November 15, 2025)
-- **Implement API key authentication and admin roles** (November 15, 2025)
-- **Implement API key authentication and admin roles** (November 15, 2025)
-- **Implement API key authentication and admin roles** (November 15, 2025)
-- **Implement API key authentication and admin roles** (November 15, 2025)
-- **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
-- **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
-- **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
-- **feat(issues): add 12 critical issues in Open status to issues tracker** (November 15, 2025)
-- **feat(mcp): add AI Automation MCP endpoint for pattern detection** (November 15, 2025)
-- **feat(health-dashboard): enhance UI with modern styling and configurable URLs** (November 15, 2025)
-- **feat(ai-automation-ui): comprehensive production-ready updates** (November 15, 2025)
-- **fix(gitignore): properly format Phase 3 test artifact entries** (November 15, 2025)
-- **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
-- **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
-- **feat(mcp): implement MCP code execution pattern with LangChain integration** (November 15, 2025)
-- **fix(ci): resolve GitHub Actions test failures** (November 15, 2025)
-- **fix(ci): resolve GitHub Actions test failures** (November 15, 2025)
 - **feat(data-api): comprehensive security and performance improvements** (November 14, 2025)
-- **feat(team-tracker): Add comprehensive Team Tracker integration** (November 14, 2025)
-- **Fix service health API mapping** (November 14, 2025)
-- **Fix service health API mapping** (November 14, 2025)
-- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (November 14, 2025)
-- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (November 14, 2025)
-- **feat(ai-automation): implement multi-source fusion and dynamic synergy discovery** (November 14, 2025)
-- **feat(automation-miner): implement Blueprint YAML parsing** (November 14, 2025)
 - **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (November 14, 2025)
-- **feat(ai-automation): modernize to HA 2025 YAML automation syntax** (November 14, 2025)
-- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (November 14, 2025)
-- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (November 11, 2025)
-- **Automate README, CLAUDE.md, and docs/DOCUMENTATION_INDEX updates** (November 11, 2025)
 
 - **LangChain integrations**: Feature flags allow piloting LCEL-driven Ask AI prompts and pattern-detector chains.
 - **PDL workflows**: YAML-based procedures now orchestrate nightly analysis and synergy guardrails when enabled.
