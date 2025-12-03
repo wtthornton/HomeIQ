@@ -1,0 +1,77 @@
+{
+  "accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1_score": 1.0,
+  "cv_accuracy_mean": 1.0,
+  "cv_accuracy_std": 0.0,
+  "classification_report": {
+    "apartment": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 2.0
+    },
+    "standard_home": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 6.0
+    },
+    "accuracy": 1.0,
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 8.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      2,
+      0
+    ],
+    [
+      0,
+      6
+    ]
+  ],
+  "feature_names": [
+    "total_devices",
+    "security_ratio",
+    "climate_ratio",
+    "lighting_ratio",
+    "appliance_ratio",
+    "monitoring_ratio",
+    "device_count_light",
+    "device_count_binary_sensor",
+    "device_count_sensor",
+    "device_count_switch",
+    "device_count_climate",
+    "total_events",
+    "events_per_day",
+    "peak_hour_1",
+    "peak_hour_2",
+    "peak_hour_3",
+    "area_count",
+    "indoor_ratio",
+    "devices_per_area",
+    "pattern_count",
+    "avg_pattern_confidence",
+    "diversity_ratio"
+  ],
+  "class_names": [
+    "apartment",
+    "standard_home"
+  ],
+  "training_samples": 32,
+  "test_samples": 8,
+  "model_version": "1.0",
+  "training_date": "2025-12-02T21:39:31.238265+00:00"
+}

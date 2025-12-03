@@ -1,0 +1,16 @@
+{
+  "total_homes": 10,
+  "home_types": {
+    "single_family_house": 5,
+    "apartment": 2,
+    "condo": 1,
+    "townhouse": 1,
+    "cottage": 1
+  },
+  "size_categories": {
+    "large": 3,
+    "medium": 6,
+    "extra_large": 1
+  },
+  "generated_at": "2025-12-02T21:39:05.673208+00:00"
+}

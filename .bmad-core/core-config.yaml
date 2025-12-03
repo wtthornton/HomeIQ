@@ -203,12 +203,12 @@ agentLoadAlwaysFiles:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md
     - docs/architecture/coding-standards.md
-    - docs/architecture/performance-patterns.md
+    - docs/architecture/performance-guide.md
   dev:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md
     - docs/architecture/coding-standards.md
-    - docs/architecture/performance-patterns.md
+    - docs/architecture/performance-guide.md
     - docs/architecture/performance-checklist.md
   pm:
     - docs/architecture/tech-stack.md
@@ -217,8 +217,7 @@ agentLoadAlwaysFiles:
     - docs/architecture/tech-stack.md
     - docs/architecture/coding-standards.md
     - docs/architecture/testing-strategy.md
-    - docs/architecture/performance-patterns.md
-    - docs/architecture/performance-anti-patterns.md
+    - docs/architecture/performance-guide.md
   bmad-master:
     - docs/architecture/tech-stack.md
     - docs/architecture/source-tree.md
