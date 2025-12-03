@@ -200,37 +200,37 @@ export const EnvironmentHealthCard: React.FC = () => {
                       {integration.error_message}
                     </p>
                   )}
-                {integration.check_details && Object.keys(integration.check_details).length > 0 && (
-                  <dl className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
-                    {Object.entries(integration.check_details)
-                      .slice(0, 5)
-                      .map(([key, value]) => {
+                  {integration.check_details && Object.keys(integration.check_details).length > 0 && (
+                    <dl className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                      {Object.entries(integration.check_details)
+                        .slice(0, 5)
+                        .map(([key, value]) => {
                         // Highlight monitoring method for Zigbee2MQTT
-                        const isMonitoringMethod = key === 'monitoring_method';
-                        const isMqttSubscription = isMonitoringMethod && value === 'mqtt_subscription';
+                          const isMonitoringMethod = key === 'monitoring_method';
+                          const isMqttSubscription = isMonitoringMethod && value === 'mqtt_subscription';
                         
-                        return (
-                          <div key={key} className={`flex justify-between gap-2 ${isMqttSubscription ? 'bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded' : ''}`}>
-                            <dt className={`font-medium ${isMqttSubscription ? 'text-green-700 dark:text-green-300' : 'text-gray-600 dark:text-gray-300'}`}>
-                              {formatCheckDetailLabel(key)}
-                              {isMqttSubscription && (
-                                <span className="ml-1 text-green-600 dark:text-green-400" title="Real-time MQTT subscription">
+                          return (
+                            <div key={key} className={`flex justify-between gap-2 ${isMqttSubscription ? 'bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded' : ''}`}>
+                              <dt className={`font-medium ${isMqttSubscription ? 'text-green-700 dark:text-green-300' : 'text-gray-600 dark:text-gray-300'}`}>
+                                {formatCheckDetailLabel(key)}
+                                {isMqttSubscription && (
+                                  <span className="ml-1 text-green-600 dark:text-green-400" title="Real-time MQTT subscription">
                                   ⚡
-                                </span>
-                              )}
-                            </dt>
-                            <dd className={`text-right max-w-[180px] break-words ${isMqttSubscription ? 'text-green-700 dark:text-green-300 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                              {formatCheckDetailValue(value)}
-                            </dd>
-                          </div>
-                        );
-                      })}
-                  </dl>
-                )}
+                                  </span>
+                                )}
+                              </dt>
+                              <dd className={`text-right max-w-[180px] break-words ${isMqttSubscription ? 'text-green-700 dark:text-green-300 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                                {formatCheckDetailValue(value)}
+                              </dd>
+                            </div>
+                          );
+                        })}
+                    </dl>
+                  )}
                 </div>
               </div>
-            <span className={`px-2 py-1 rounded text-xs font-medium ${getIntegrationStatusColor(integration.status)}`}>
-              {integration.status.replace(/_/g, ' ')}
+              <span className={`px-2 py-1 rounded text-xs font-medium ${getIntegrationStatusColor(integration.status)}`}>
+                {integration.status.replace(/_/g, ' ')}
               </span>
             </div>
           ))}
@@ -239,43 +239,43 @@ export const EnvironmentHealthCard: React.FC = () => {
 
       {/* Performance Metrics */}
       {health.performance && (
-      <div className="mb-6">
-        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           Performance Metrics
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Response Time</p>
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">
-              {health.performance.response_time_ms?.toFixed(1) ?? 'N/A'}ms
-            </p>
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Response Time</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {health.performance.response_time_ms?.toFixed(1) ?? 'N/A'}ms
+              </p>
+            </div>
+            {health.performance.cpu_usage_percent !== undefined && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400">CPU Usage</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {health.performance.cpu_usage_percent.toFixed(1)}%
+                </p>
+              </div>
+            )}
+            {health.performance.memory_usage_mb !== undefined && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Memory</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {health.performance.memory_usage_mb.toFixed(0)}MB
+                </p>
+              </div>
+            )}
+            {health.performance.uptime_seconds !== undefined && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Uptime</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {Math.floor(health.performance.uptime_seconds / 3600)}h
+                </p>
+              </div>
+            )}
           </div>
-          {health.performance.cpu_usage_percent !== undefined && (
-            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-              <p className="text-xs text-gray-500 dark:text-gray-400">CPU Usage</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {health.performance.cpu_usage_percent.toFixed(1)}%
-              </p>
-            </div>
-          )}
-          {health.performance.memory_usage_mb !== undefined && (
-            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Memory</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {health.performance.memory_usage_mb.toFixed(0)}MB
-              </p>
-            </div>
-          )}
-          {health.performance.uptime_seconds !== undefined && (
-            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Uptime</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {Math.floor(health.performance.uptime_seconds / 3600)}h
-              </p>
-            </div>
-          )}
         </div>
-      </div>
       )}
 
       {/* Issues Detected */}

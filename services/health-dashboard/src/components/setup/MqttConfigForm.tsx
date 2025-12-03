@@ -118,13 +118,13 @@ export const MqttConfigForm: React.FC = () => {
       ZIGBEE2MQTT_BASE_TOPIC: formState.baseTopic.trim(),
     };
 
-      try {
-        const response = await fetch(CONFIG_ENDPOINT, {
-          method: 'PUT',
-          headers: withCsrfHeader({ 'Content-Type': 'application/json' }),
-          credentials: 'include',
-          body: JSON.stringify(payload),
-        });
+    try {
+      const response = await fetch(CONFIG_ENDPOINT, {
+        method: 'PUT',
+        headers: withCsrfHeader({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
 
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}));
@@ -168,8 +168,8 @@ export const MqttConfigForm: React.FC = () => {
             savingState === 'error' || (loadingState === 'error' && !isWarning)
               ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-200'
               : isWarning
-              ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-200'
-              : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-200'
+                ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-200'
+                : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-200'
           }`}
         >
           {statusMessage}

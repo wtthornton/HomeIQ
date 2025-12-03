@@ -3214,7 +3214,129 @@ async def generate_suggestions_from_query(
     query_id: str | None = None,  # NEW: Query ID for metrics tracking
     area_filter: str | None = None  # NEW: Area filter from query (e.g., "office" or "office,kitchen")
 ) -> list[dict[str, Any]]:
-    """Generate automation suggestions based on query and entities"""
+    """
+    Generate automation suggestions based on natural language query and extracted entities.
+    
+    This is the core function for the Ask AI feature, orchestrating the entire suggestion
+    generation pipeline from entity resolution to final suggestion ranking. It handles
+    complex entity mapping, context enrichment, prompt building, OpenAI API calls, and
+    post-processing of suggestions.
+    
+    The function performs the following major phases:
+    
+    Phase 1: Entity Resolution & Enrichment
+    - Resolves extracted entities to specific Home Assistant entity IDs
+    - Fetches all entities matching query context (location + domain)
+    - Handles clarification context (Q&A selected entities)
+    - Expands group entities to individual members
+    - Enriches entities with comprehensive metadata (attributes, capabilities, states)
+    - Fetches enrichment context (weather, carbon, energy, air quality) when relevant
+    
+    Phase 2: Entity Validation & Context Building
+    - Validates entities exist in Home Assistant
+    - Builds entity validation context with comprehensive data
+    - Maps device names to entity IDs using fuzzy matching
+    - Handles entity deduplication and consolidation
+    - Builds device selection debug data
+    
+    Phase 3: Prompt Generation
+    - Uses UnifiedPromptBuilder for consistent prompt generation
+    - Builds technical prompt with entity context
+    - Includes enrichment context (weather, energy, etc.) when relevant
+    - Handles clarification context integration
+    - Applies area filtering and location restrictions
+    
+    Phase 4: OpenAI API Interaction
+    - Calls OpenAI API with generated prompt
+    - Handles streaming responses (if enabled)
+    - Parses JSON responses into suggestion objects
+    - Handles API errors and retries
+    
+    Phase 5: Suggestion Processing
+    - Enhances suggestions with entity IDs
+    - Applies confidence scoring and quality assessment
+    - Runs pattern-based confidence boosting
+    - Applies soft prompt enhancement (if enabled)
+    - Runs guardrail checks for safety
+    
+    Phase 6: Post-Processing & Return
+    - Filters invalid suggestions
+    - Tracks skipped suggestions with reasons
+    - Logs metrics and debug information
+    - Returns final list of suggestions
+    
+    Args:
+        query (str): Natural language query from user (e.g., "turn on office lights at sunset")
+        entities (list[dict[str, Any]]): Pre-extracted entities from query (from entity extraction)
+        user_id (str): User identifier for personalization and metrics
+        db_session (AsyncSession | None): Database session for querying user preferences, history
+        clarification_context (dict[str, Any] | None): Clarification Q&A context containing:
+            - questions_and_answers: List of Q&A pairs with selected entities
+            - original_query: Original user query before clarification
+        query_id (str | None): Query ID for metrics tracking and analytics
+        area_filter (str | None): Area filter from query (e.g., "office" or "office,kitchen")
+            Used to restrict entity resolution to specific areas
+    
+    Returns:
+        list[dict[str, Any]]: List of automation suggestions, each containing:
+            - description (str): Human-readable automation description
+            - automation_yaml (str): Home Assistant YAML automation configuration
+            - confidence (float): Confidence score (0.0-1.0)
+            - entities (list): List of entities involved in automation
+            - metadata (dict): Additional metadata (guardrail results, quality scores, etc.)
+            - status (str): Suggestion status (e.g., "ready", "needs_review")
+        Empty list if no valid suggestions can be generated.
+    
+    Raises:
+        ValueError: If OpenAI client not available or all suggestions were skipped
+        Exception: If entity resolution fails or API calls fail
+    
+    Examples:
+        >>> # Basic query with entity extraction
+        >>> entities = [{'name': 'office lights', 'domain': 'light'}]
+        >>> suggestions = await generate_suggestions_from_query(
+        ...     query="turn on office lights at sunset",
+        ...     entities=entities,
+        ...     user_id="user123"
+        ... )
+        >>> len(suggestions) > 0
+        True
+        >>> suggestions[0]['description']
+        'Turn on office lights at sunset'
+        
+        >>> # Query with area filter
+        >>> suggestions = await generate_suggestions_from_query(
+        ...     query="control lights",
+        ...     entities=[],
+        ...     user_id="user123",
+        ...     area_filter="office,kitchen"
+        ... )
+        >>> # Suggestions will only include entities from office and kitchen areas
+        
+        >>> # Query with clarification context
+        >>> clarification = {
+        ...     'questions_and_answers': [{
+        ...         'question': 'Which lights?',
+        ...         'selected_entities': ['light.office_main', 'light.office_desk']
+        ...     }]
+        ... }
+        >>> suggestions = await generate_suggestions_from_query(
+        ...     query="turn on lights",
+        ...     entities=[],
+        ...     user_id="user123",
+        ...     clarification_context=clarification
+        ... )
+        >>> # Suggestions will prioritize the selected entities from Q&A
+    
+    Complexity: C (16) - Very high complexity due to multiple phases and conditional logic
+    Note: This function is extremely long (~1650 lines) and handles many responsibilities.
+          Consider refactoring into smaller functions:
+          - _resolve_and_enrich_entities()
+          - _build_prompt_with_context()
+          - _call_openai_for_suggestions()
+          - _process_and_enhance_suggestions()
+          This would improve maintainability and testability.
+    """
     if not openai_client:
         raise ValueError("OpenAI client not available - cannot generate suggestions")
 
@@ -8100,24 +8222,132 @@ async def test_suggestion_from_query(
     openai_client: OpenAIClient = Depends(get_openai_client)
 ) -> dict[str, Any]:
     """
-    Test a suggestion by executing the core command via HA Conversation API (quick test).
+    Test automation suggestion by executing core behavior via Home Assistant (quick test).
     
-    NEW BEHAVIOR:
-    - Simplifies the automation description to extract core command
-    - Executes the command immediately via HA Conversation API
-    - NO YAML generation (moved to approve endpoint)
-    - NO temporary automation creation
+    This function enables users to quickly test automation suggestions without creating
+    permanent automations. It simplifies the automation description, generates test YAML,
+    executes the actions via AutomationTestExecutor, and validates the results. The test
+    runs in "test mode" which strips timing components or shortens delays for sequences.
     
-    This is a "quick test" that runs the core behavior without creating automations.
+    The function performs comprehensive testing including entity resolution, YAML generation,
+    self-correction (reverse engineering), test execution, state validation, and result analysis.
+    It provides detailed performance metrics and quality reports for the test execution.
+    
+    Key behaviors/patterns:
+    - Quick test execution without creating permanent automations
+    - Test mode adaptation (simple: strips timing, sequence: shortens delays 10x)
+    - Entity resolution with fast path (uses saved validated_entities) or slow path (re-resolution)
+    - Self-correction via reverse engineering (improves YAML to match user intent)
+    - Component detection (tracks stripped components for preview)
+    - State validation (captures before/after states)
+    - Test result analysis using OpenAI JSON mode
+    
+    Algorithm/Process:
+    1. Query and suggestion retrieval:
+       a. Fetch query from database by query_id
+       b. Find specific suggestion by suggestion_id within query.suggestions
+       c. Validate both exist
+    2. Entity resolution (fast or slow path):
+       a. Fast path: Use saved validated_entities from suggestion (if available)
+       b. Slow path: Re-resolve entities using EntityValidator.map_query_to_entities()
+       c. Build entity_mapping (device_name -> entity_id)
+       d. Deduplicate entity mapping
+    3. Test mode detection:
+       a. Detect components (repeat, delay) using ComponentDetector
+       b. Determine test mode:
+          - Sequence mode: Has sequences/repeats (shorten delays 10x)
+          - Simple mode: No sequences (strip timing components)
+       c. Create test_suggestion with test_mode flag
+    4. YAML generation:
+       a. Generate test automation YAML using generate_automation_yaml()
+       b. Pass test_mode flag for test-aware generation
+    5. Self-correction (optional):
+       a. Run reverse engineering self-correction if available
+       b. Enrich entities comprehensively for correction context
+       c. Correct YAML to improve similarity to user intent
+       d. Use corrected YAML if similarity >= 0.80
+    6. Component detection:
+       a. Detect stripped components (timing, conditions removed for test)
+       b. Format components for preview
+    7. Test execution:
+       a. Use AutomationTestExecutor.execute_test()
+       b. Executes actions via ActionExecutor (no automation creation)
+       c. Captures state changes and execution summary
+    8. State validation:
+       a. Validates state changes (before/after comparison)
+       b. Generates validation summary
+    9. Test result analysis:
+       a. Use TestResultAnalyzer with OpenAI JSON mode
+       b. Analyzes test execution, state validation, execution logs
+       c. Generates analysis report
+    10. Quality report generation:
+        a. Generate test quality report
+        b. Calculate performance metrics
+        c. Build comprehensive response
     
     Args:
-        query_id: Query ID from the database
-        suggestion_id: Specific suggestion to test
-        db: Database session
-        ha_client: Home Assistant client
+        query_id (str): Query identifier from database (AskAIQueryModel.id)
+        suggestion_id (str): Suggestion identifier within query.suggestions
+        db (AsyncSession): Database session for querying and metrics storage
+        ha_client (HomeAssistantClient): Home Assistant client for entity resolution and execution
+        openai_client (OpenAIClient): OpenAI client for simplification, YAML generation, and analysis
     
     Returns:
-        Execution result with status and message
+        dict[str, Any]: Comprehensive test result containing:
+            - success (bool): Whether test executed successfully
+            - message (str): Human-readable test result message
+            - test_result (dict): Detailed test execution results:
+                - automation_yaml (str): Generated test automation YAML
+                - state_validation (dict): State change validation results
+                - execution_summary (dict): Action execution summary
+                - test_analysis (dict): OpenAI analysis of test execution
+                - stripped_components (list): Components removed for test mode
+                - quality_report (dict): Test quality assessment
+            - performance_metrics (dict): Performance timing metrics:
+                - entity_resolution_ms: Entity resolution time
+                - yaml_generation_ms: YAML generation time
+                - action_execution_ms: Action execution time
+                - state_validation_ms: State validation time
+                - total_ms: Total test execution time
+            - correction_result (dict | None): Self-correction results if applied
+    
+    Raises:
+        HTTPException 404: If query or suggestion not found
+        HTTPException 500: If Home Assistant client not initialized or test execution fails
+    
+    Examples:
+        >>> # Test a simple light automation
+        >>> result = await test_suggestion_from_query(
+        ...     query_id="query-123",
+        ...     suggestion_id="suggestion-1",
+        ...     db=db,
+        ...     ha_client=ha_client,
+        ...     openai_client=openai_client
+        ... )
+        >>> result['success']
+        True
+        >>> result['test_result']['execution_summary']['successful'] > 0
+        True
+        
+        >>> # Test a sequence automation (with delays)
+        >>> result = await test_suggestion_from_query(
+        ...     query_id="query-456",
+        ...     suggestion_id="suggestion-2",
+        ...     db=db,
+        ...     ha_client=ha_client,
+        ...     openai_client=openai_client
+        ... )
+        >>> # Delays will be shortened 10x in sequence mode
+    
+    Complexity: C (11) - Moderate complexity due to multiple phases (entity resolution,
+                 YAML generation, self-correction, test execution, analysis), conditional
+                 logic for test modes, and comprehensive error handling. The function is
+                 well-structured but could benefit from extracting some phases into
+                 separate methods for better testability.
+    Note: This function is part of the Ask AI quick test feature. Test automations are
+          temporary and do not create permanent automations in Home Assistant. Consider
+          adding support for test result caching to avoid re-executing identical tests.
+          The self-correction feature improves YAML quality but adds latency (~300-500ms).
     """
     logger.info(f"QUICK TEST START - suggestion_id: {suggestion_id}, query_id: {query_id}")
     start_time = time.time()

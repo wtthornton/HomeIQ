@@ -121,7 +121,7 @@ export const Navigation: React.FC = () => {
             >
               <span className="text-lg">{item.icon}</span>
               <span className="text-[10px] font-medium uppercase" style={{ letterSpacing: '0.05em' }}>
-                {item.label.replace(/[🤖💬📊🔮🚀🔍⚙️🔧]/g, '').trim()}
+                {item.label.replace(/[\u{1F916}\u{1F4AC}\u{1F4CA}\u{1F52E}\u{1F680}\u{1F50D}\u{2699}\u{1F527}]/gu, '').trim()}
               </span>
             </Link>
           ))}

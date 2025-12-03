@@ -41,14 +41,131 @@ async def deploy_suggestion(
     auth=Depends(require_authenticated_user)
 ):
     """
-    Deploy an approved suggestion to Home Assistant.
+    Deploy an approved automation suggestion to Home Assistant with comprehensive safety validation.
+    
+    This is the core deployment function that orchestrates the entire deployment pipeline,
+    including safety validation, conflict detection, version management, and learning system
+    integration. It ensures that only safe, validated automations are deployed to production.
+    
+    The function performs the following major phases:
+    
+    Phase 1: Authentication & Authorization
+    - Validates user authentication (via dependency injection)
+    - Checks admin privileges for skip_validation and force_deploy options
+    - Enforces role-based access control
+    
+    Phase 2: Suggestion Retrieval & Status Validation
+    - Retrieves suggestion from database by ID
+    - Validates suggestion exists (404 if not found)
+    - Checks suggestion status (must be 'approved' or 'deployed' unless skip_validation)
+    - Enforces admin-only access for skip_validation
+    
+    Phase 3: Safety Validation & Conflict Detection
+    - Fetches existing automations from Home Assistant for conflict detection
+    - Runs comprehensive safety validation (Story AI1.19) using SafetyValidator
+    - Validates automation YAML against safety rules (climate extremes, security, etc.)
+    - Calculates safety score (0-100)
+    - Detects conflicts with existing automations
+    
+    Phase 4: Admin Override Handling (if validation fails)
+    - Allows admin override via force_deploy flag (if enabled in config)
+    - Requires admin role and safety_allow_override configuration
+    - Logs comprehensive security audit trail for all overrides
+    - Tracks override details (safety score, issue count, admin role) for compliance
+    
+    Phase 5: Deployment to Home Assistant
+    - Calls Home Assistant API to deploy automation YAML
+    - Receives automation_id from Home Assistant upon successful deployment
+    - Handles deployment failures with detailed error messages
+    
+    Phase 6: Version Management & Rollback Support (Story AI1.20)
+    - Stores automation version for rollback capability
+    - Records safety score with version for historical tracking
+    - Enables rollback to previous versions if needed
+    
+    Phase 7: Observability & Tracing
+    - Creates decision trace for observability system
+    - Records validation results and safety scores
+    - Generates trace_id for request tracking
+    
+    Phase 8: Database Updates
+    - Updates suggestion status to 'deployed'
+    - Records automation_id and deployment timestamp
+    - Commits transaction to database
+    
+    Phase 9: Learning System Integration (if enabled)
+    - Links automation to clarification session (Q&A outcome tracking)
+    - Updates question quality metrics (marks questions as successful)
+    - Feeds successful deployment to RL confidence calibrator
+    - Tracks automation creation outcomes for continuous learning
+    - All learning operations are non-blocking (failures logged but don't stop deployment)
+    
+    Phase 10: Response Building
+    - Builds comprehensive response with deployment details
+    - Includes safety score and warnings (if validation was run)
+    - Returns automation_id, trace_id, and status information
     
     Args:
-        suggestion_id: ID of the suggestion to deploy
-        request: Deployment options
+        suggestion_id (int): Database ID of the suggestion to deploy (must exist and be approved)
+        request (DeployRequest): Deployment options containing:
+            - skip_validation (bool): Skip status validation (admin only, default: False)
+            - force_deploy (bool): Override safety checks (admin only, requires config, default: False)
+        auth (AuthenticatedUser): Authenticated user object from dependency injection
+            - Must have valid authentication token
+            - Admin role required for skip_validation and force_deploy
     
     Returns:
-        Deployment result with automation ID
+        dict[str, Any]: Deployment result containing:
+            - success (bool): True if deployment succeeded
+            - message (str): Human-readable success message
+            - data (dict): Deployment details:
+                - suggestion_id (int): ID of deployed suggestion
+                - automation_id (str): Home Assistant automation entity ID
+                - status (str): "deployed"
+                - title (str): Suggestion title
+                - trace_id (str): Observability trace ID
+                - safety_score (int): Safety validation score (0-100, if validation ran)
+                - safety_warnings (list): List of warning/info issues (if any)
+    
+    Raises:
+        HTTPException 404: If suggestion not found in database
+        HTTPException 400: If suggestion status invalid or safety validation failed
+        HTTPException 403: If user lacks admin privileges for requested operation
+        HTTPException 500: If deployment fails or internal error occurs
+    
+    Examples:
+        >>> # Standard deployment (approved suggestion)
+        >>> result = await deploy_suggestion(
+        ...     suggestion_id=123,
+        ...     request=DeployRequest(),
+        ...     auth=admin_user
+        ... )
+        >>> result['success']
+        True
+        >>> result['data']['automation_id']
+        'automation.morning_lights'
+        
+        >>> # Admin override (safety validation failed but force_deploy=True)
+        >>> result = await deploy_suggestion(
+        ...     suggestion_id=456,
+        ...     request=DeployRequest(force_deploy=True),
+        ...     auth=admin_user
+        ... )
+        >>> # Security audit log created, deployment proceeds
+    
+    Security Considerations:
+        - All admin overrides are logged with comprehensive audit trail
+        - Safety validation cannot be bypassed without admin role
+        - force_deploy requires explicit configuration flag (safety_allow_override)
+        - All deployment operations are traced for observability
+    
+    Complexity: C (15) - High complexity due to multiple phases, conditional logic,
+                 learning system integration, and comprehensive error handling.
+    Note: This function handles critical production deployment operations. Consider
+          refactoring learning system integration into separate service to reduce
+          function length and improve testability. The function is well-structured
+          but could benefit from extracting Phase 9 (learning integration) into
+          a dedicated service method.
     """
     try:
         async with get_db_session() as db:

@@ -16,12 +16,57 @@ def extract_entities_from_query(query: str) -> list[dict[str, Any]]:
     
     This is the safe way to extract entities without triggering any actions in Home Assistant.
     Uses pattern matching to identify devices, rooms, and entity types from natural language.
+    This function is a fallback/primary method for entity extraction that doesn't require
+    Home Assistant API access or external services.
+    
+    The function uses multiple regex patterns to identify:
+    - Room/area names (office, living room, bedroom, kitchen, garage, front, back)
+    - Device types (lights, sensors, switches, doors, windows)
+    - Common device patterns in natural language queries
+    
+    Algorithm/Process:
+    1. Convert query to lowercase for case-insensitive matching
+    2. Apply device patterns to extract room + device combinations
+    3. Handle regex match groups (tuples) and single matches
+    4. Filter out single-letter matches (avoid false positives)
+    5. If no entities found, apply generic fallback patterns:
+       - Check for common room keywords (office, garage, front)
+       - Check for device type keywords (light, door)
+       - Create generic entity entries with appropriate domains
     
     Args:
-        query: Natural language query string
-        
+        query (str): Natural language query string from user (e.g., "turn on office lights")
+    
     Returns:
-        List of extracted entities with basic information
+        List[dict[str, Any]]: List of extracted entities, each containing:
+            - name (str): Extracted entity name (e.g., "office", "lights", "front door")
+            - domain (str): Entity domain (e.g., "light", "binary_sensor", "room", "unknown")
+            - state (str): Always "unknown" (pattern matching doesn't provide state)
+            - extraction_method (str): Always "pattern_matching"
+        Empty list if no entities can be extracted.
+    
+    Examples:
+        >>> # Extract room and device
+        >>> extract_entities_from_query("turn on office lights")
+        [{'name': 'office', 'domain': 'room', ...}, {'name': 'lights', 'domain': 'light', ...}]
+        
+        >>> # Extract door entity
+        >>> extract_entities_from_query("check front door")
+        [{'name': 'front door', 'domain': 'binary_sensor', ...}]
+        
+        >>> # Generic fallback
+        >>> extract_entities_from_query("control lights")
+        [{'name': 'lights', 'domain': 'light', ...}]
+        
+        >>> # No entities found
+        >>> extract_entities_from_query("what's the weather")
+        []
+    
+    Complexity: C (17) - Multiple regex patterns, nested loops, fallback logic
+    Note: This is a pattern-based fallback. For more accurate extraction, use
+          multi-model entity extraction (EntityExtractor) which combines NER models
+          and OpenAI for complex queries. Consider refactoring to extract pattern
+          definitions to a separate configuration if patterns need frequent updates.
     """
     entities = []
     query_lower = query.lower()

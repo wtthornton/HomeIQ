@@ -73,10 +73,31 @@ class Settings(BaseSettings):
     )
 
     api_token: str = Field(
-        default="local-dev-token",
+        default="",  # Empty default - must be set via environment variable
         env="EXECUTOR_API_TOKEN",
-        description="Shared secret required via X-Executor-Token header",
+        description="Shared secret required via X-Executor-Token header (REQUIRED - set via EXECUTOR_API_TOKEN environment variable)",
     )
+    
+    @field_validator("api_token")
+    @classmethod
+    def validate_api_token(cls, value: str) -> str:
+        """Validate that API token is set and not a default value."""
+        import os
+        # In production, require explicit token
+        if os.getenv("ENVIRONMENT", "").lower() in ("production", "prod"):
+            if not value or value in ("", "local-dev-token", "change-me", "test-token"):
+                raise ValueError(
+                    "EXECUTOR_API_TOKEN must be set to a secure value in production. "
+                    "Set EXECUTOR_API_TOKEN environment variable."
+                )
+        # In development, warn if using default
+        elif value in ("", "local-dev-token", "change-me", "test-token"):
+            import warnings
+            warnings.warn(
+                "Using default or weak API token. Set EXECUTOR_API_TOKEN environment variable for security.",
+                UserWarning
+            )
+        return value
 
     # Logging
     log_level: str = Field(

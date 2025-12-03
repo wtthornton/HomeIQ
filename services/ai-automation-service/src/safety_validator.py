@@ -139,7 +139,84 @@ class SafetyValidator:
         )
 
     def _check_climate_extremes(self, automation: dict) -> list[SafetyIssue]:
-        """Rule 1: No extreme climate changes"""
+        """
+        Rule 1: No extreme climate changes
+        
+        Validates that climate control automations do not set extreme temperatures
+        that could damage HVAC systems, waste energy, or create unsafe conditions.
+        This is a critical safety rule to prevent accidental temperature extremes.
+        
+        The function checks for:
+        1. Temperature settings outside safe range (55-85°F)
+        2. Temperature changes without HVAC mode specification
+        3. Extreme values that could indicate errors or malicious input
+        
+        Safe temperature range: 60-80°F (recommended)
+        Warning range: 55-60°F or 80-85°F (acceptable but unusual)
+        Critical range: <55°F or >85°F (dangerous, blocked)
+        
+        Algorithm/Process:
+        1. Extract actions from automation (supports both 'actions' and 'action' keys)
+        2. For each action, check if it's a climate.set_temperature service call
+        3. Extract temperature value from action data
+        4. Validate temperature is within safe bounds (55-85°F)
+        5. Check if HVAC mode is specified (prevents mode conflicts)
+        6. Generate appropriate safety issues based on violations
+        
+        Args:
+            automation (Dict): Home Assistant automation configuration containing:
+                - actions/action (list): List of action blocks
+                - service (str): Service being called (e.g., 'climate.set_temperature')
+                - data/service_data (dict): Action parameters including:
+                    - temperature (float/str): Target temperature value
+                    - hvac_mode (str, optional): HVAC mode (heat, cool, auto, etc.)
+        
+        Returns:
+            List[SafetyIssue]: List of safety issues found:
+                - Critical: Temperature outside 55-85°F range
+                - Warning: Temperature change without hvac_mode specification
+                Empty list if no climate extremes detected.
+        
+        Examples:
+            >>> # BAD: Extreme temperature setting
+            >>> automation = {
+            ...     'action': [{
+            ...         'service': 'climate.set_temperature',
+            ...         'data': {'temperature': 95}
+            ...     }]
+            ... }
+            >>> issues = validator._check_climate_extremes(automation)
+            >>> issues[0].severity
+            'critical'
+            >>> issues[0].message
+            'Extreme temperature setting: 95°F (safe range: 60-80°F)'
+            
+            >>> # BAD: Temperature without mode
+            >>> automation = {
+            ...     'action': [{
+            ...         'service': 'climate.set_temperature',
+            ...         'data': {'temperature': 72}
+            ...     }]
+            ... }
+            >>> issues = validator._check_climate_extremes(automation)
+            >>> issues[0].severity
+            'warning'
+            
+            >>> # GOOD: Safe temperature with mode
+            >>> automation = {
+            ...     'action': [{
+            ...         'service': 'climate.set_temperature',
+            ...         'data': {'temperature': 72, 'hvac_mode': 'heat'}
+            ...     }]
+            ... }
+            >>> issues = validator._check_climate_extremes(automation)
+            >>> len(issues)
+            0
+        
+        Complexity: C (11) - Multiple conditional checks for temperature validation
+        Note: Consider extracting temperature validation logic to separate helper method
+              if additional climate safety rules are added in the future.
+        """
         issues = []
 
         # Support both modern (actions) and legacy (action) syntax
@@ -286,7 +363,83 @@ class SafetyValidator:
         return issues
 
     def _check_security_disable(self, automation: dict) -> list[SafetyIssue]:
-        """Rule 3: Never disable security automations"""
+        """
+        Rule 3: Never disable security automations
+        
+        Prevents automations from disabling security-related automations or any automations
+        that could compromise home security. This is a critical safety rule to maintain
+        security system integrity.
+        
+        Security-related automations include those with keywords:
+        - security, alarm, lock, door, motion, camera
+        
+        The function validates:
+        1. Service calls that disable automations (automation.turn_off)
+        2. Target entity IDs for security-related keywords
+        3. Any automation disable action (warns even if not security-related)
+        
+        Algorithm/Process:
+        1. Extract actions from automation (supports both 'actions' and 'action' keys)
+        2. For each action, check if it's an automation.turn_off service call
+        3. Extract target entity_id from action data or target
+        4. Check if entity_id contains security-related keywords
+        5. Generate critical issue if security automation is targeted
+        6. Generate warning for any automation disable action
+        
+        Args:
+            automation (Dict): Home Assistant automation configuration containing:
+                - actions/action (list): List of action blocks
+                - service (str): Service being called (e.g., 'automation.turn_off')
+                - data/service_data (dict): Action parameters
+                - target (dict): Target entities/areas
+                - entity_id (str): Specific automation entity to disable
+        
+        Returns:
+            List[SafetyIssue]: List of safety issues found:
+                - Critical: Attempts to disable security-related automations
+                - Warning: Any automation disable action (security or not)
+                Empty list if no automation disable actions detected.
+        
+        Examples:
+            >>> # BAD: Disabling security automation
+            >>> automation = {
+            ...     'action': [{
+            ...         'service': 'automation.turn_off',
+            ...         'entity_id': 'automation.door_alarm'
+            ...     }]
+            ... }
+            >>> issues = validator._check_security_disable(automation)
+            >>> issues[0].severity
+            'critical'
+            >>> issues[0].message
+            'Attempts to disable security automation: automation.door_alarm'
+            
+            >>> # BAD: Disabling any automation (warning)
+            >>> automation = {
+            ...     'action': [{
+            ...         'service': 'automation.turn_off',
+            ...         'entity_id': 'automation.lights_schedule'
+            ...     }]
+            ... }
+            >>> issues = validator._check_security_disable(automation)
+            >>> issues[0].severity
+            'warning'
+            
+            >>> # GOOD: No automation disable actions
+            >>> automation = {
+            ...     'action': [{
+            ...         'service': 'light.turn_on',
+            ...         'entity_id': 'light.living_room'
+            ...     }]
+            ... }
+            >>> issues = validator._check_security_disable(automation)
+            >>> len(issues)
+            0
+        
+        Complexity: C (11) - Multiple conditional checks for security keywords and service types
+        Note: Security keyword list can be expanded if additional security domains are identified.
+              Consider making security keywords configurable if needed.
+        """
         issues = []
 
         # Support both modern (actions) and legacy (action) syntax

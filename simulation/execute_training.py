@@ -157,8 +157,24 @@ async def main():
     logger.info("Training Execution Complete")
     logger.info("=" * 60)
     
-    successful = sum(1 for s in training_summaries if "success" in str(s))
-    failed = len(training_summaries) - successful
+    # Count successes by reading summary files
+    successful = 0
+    failed = 0
+    for summary_path in training_summaries:
+        if summary_path.exists():
+            import json
+            try:
+                with open(summary_path, "r") as f:
+                    summary_data = json.load(f)
+                    if summary_data.get("status") == "success":
+                        successful += 1
+                    else:
+                        failed += 1
+            except Exception:
+                failed += 1
+        else:
+            failed += 1
+    
     total_attempted = successful + failed
     success_rate = (successful / total_attempted * 100) if total_attempted > 0 else 0
     

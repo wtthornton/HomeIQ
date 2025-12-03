@@ -126,6 +126,194 @@ class DailyAnalysisScheduler:
         except Exception as e:
             logger.error(f"❌ Failed to stop scheduler: {e}", exc_info=True)
 
+    async def _get_home_type(self) -> str | None:
+        """
+        Get home type for threshold adjustment (Home Type Integration).
+        
+        Returns:
+            Home type string (e.g., 'standard_home') or None if detection fails
+        """
+        try:
+            from ..clients.home_type_client import HomeTypeClient
+            from ..config import settings
+            home_type_client = HomeTypeClient(
+                base_url="http://ai-automation-service:8018",
+                api_key=settings.ai_automation_api_key
+            )
+            home_type_data = await home_type_client.get_home_type(use_cache=True)
+            home_type = home_type_data.get('home_type', 'standard_home')
+            logger.info(f"🏠 Home type detected: {home_type} (confidence: {home_type_data.get('confidence', 0.0):.2f})")
+            await home_type_client.close()
+            return home_type
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to get home type: {e}, using default thresholds")
+            return None
+
+    def _initialize_data_client(self) -> DataAPIClient:
+        """
+        Initialize DataAPIClient with settings.
+        
+        Returns:
+            Initialized DataAPIClient instance
+        """
+        return DataAPIClient(
+            base_url=settings.data_api_url,
+            influxdb_url=settings.influxdb_url,
+            influxdb_token=settings.influxdb_token,
+            influxdb_org=settings.influxdb_org,
+            influxdb_bucket=settings.influxdb_bucket
+        )
+
+    async def _phase_1_device_capability_update(
+        self,
+        data_client: DataAPIClient,
+        job_result: dict[str, Any]
+    ) -> None:
+        """
+        Phase 1: Device Capability Update (Epic AI-2).
+        
+        Updates device capabilities in batch and records statistics.
+        
+        Args:
+            data_client: DataAPIClient instance
+            job_result: Job result dictionary to update with statistics
+        """
+        logger.info("📡 Phase 1/6: Device Capability Update (Epic AI-2)...")
+
+        try:
+            capability_stats = await update_device_capabilities_batch(
+                mqtt_client=self.mqtt_client,
+                data_api_client=data_client,
+                db_session_factory=get_db_session
+            )
+
+            logger.info("✅ Device capabilities updated:")
+            logger.info(f"   - Devices checked: {capability_stats['devices_checked']}")
+            logger.info(f"   - Capabilities updated: {capability_stats['capabilities_updated']}")
+            logger.info(f"   - New devices: {capability_stats['new_devices']}")
+            logger.info(f"   - Errors: {capability_stats['errors']}")
+
+            job_result['devices_checked'] = capability_stats['devices_checked']
+            job_result['capabilities_updated'] = capability_stats['capabilities_updated']
+            job_result['new_devices'] = capability_stats['new_devices']
+
+        except Exception as e:
+            logger.error(f"⚠️ Device capability update failed: {e}")
+            logger.info("   → Continuing with pattern analysis...")
+            job_result['devices_checked'] = 0
+            job_result['capabilities_updated'] = 0
+
+    async def _phase_2_fetch_events(
+        self,
+        data_client: DataAPIClient,
+        job_result: dict[str, Any]
+    ) -> Any:  # Returns pd.DataFrame | None
+        """
+        Phase 2: Fetch Historical Events (Shared by AI-1 + AI-2 + AI-3).
+        
+        Fetches events from InfluxDB with fallback to shorter time periods if needed.
+        
+        Args:
+            data_client: DataAPIClient instance
+            job_result: Job result dictionary to update with statistics
+        
+        Returns:
+            DataFrame with events, or None if no events found (job_result updated to 'no_data')
+        """
+        logger.info("📊 Phase 2/6: Fetching events (SHARED by AI-1 + AI-2)...")
+
+        # Use 7 days lookback (or adjust based on available data)
+        # If no events found, try shorter periods
+        start_date = datetime.now(timezone.utc) - timedelta(days=7)
+
+        events_df = await data_client.fetch_events(
+            start_time=start_date,
+            limit=100000
+        )
+
+        # If no events with 7 days, try 24 hours
+        if events_df.empty:
+            logger.info("No events in last 7 days, trying last 24 hours...")
+            start_date = datetime.now(timezone.utc) - timedelta(hours=24)
+            events_df = await data_client.fetch_events(
+                start_time=start_date,
+                limit=100000
+            )
+
+        if events_df.empty:
+            logger.warning("❌ No events available for analysis")
+            job_result['status'] = 'no_data'
+            job_result['events_count'] = 0
+            return None
+
+        logger.info(f"✅ Fetched {len(events_df)} events")
+        job_result['events_count'] = len(events_df)
+        return events_df
+
+    async def _phase_4_feature_analysis(
+        self,
+        data_client: DataAPIClient,
+        job_result: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """
+        Phase 4: Feature Analysis (Epic AI-2).
+        
+        Analyzes device features and identifies opportunities.
+        
+        Args:
+            data_client: DataAPIClient instance
+            job_result: Job result dictionary to update with statistics
+        
+        Returns:
+            List of feature opportunities (empty list on error)
+        """
+        logger.info("🧠 Phase 4/7: Feature Analysis (Epic AI-2)...")
+
+        try:
+            # Initialize Device Intelligence Service client
+            device_intelligence_client = DeviceIntelligenceClient(
+                base_url=settings.device_intelligence_url
+            )
+
+            feature_analyzer = FeatureAnalyzer(
+                device_intelligence_client=device_intelligence_client,
+                db_session=get_db_session,
+                influxdb_client=data_client.influxdb_client
+            )
+
+            analysis_result = await feature_analyzer.analyze_all_devices()
+
+            if analysis_result.get('skipped'):
+                skip_reason = analysis_result.get('skip_reason', 'unknown')
+                logger.warning(f"⚠️ Feature analysis skipped: {skip_reason}")
+                opportunities = []
+                job_result['feature_analysis_skipped'] = True
+                job_result['feature_analysis_skip_reason'] = skip_reason
+                job_result['stale_capabilities'] = analysis_result.get('stale_capabilities', {})
+                job_result['devices_analyzed'] = 0
+                job_result['opportunities_found'] = 0
+                job_result['avg_utilization'] = 0
+            else:
+                opportunities = analysis_result.get('opportunities', [])
+
+                logger.info("✅ Feature analysis complete:")
+                logger.info(f"   - Devices analyzed: {analysis_result.get('devices_analyzed', 0)}")
+                logger.info(f"   - Opportunities found: {len(opportunities)}")
+                logger.info(f"   - Average utilization: {analysis_result.get('avg_utilization', 0):.1f}%")
+
+                job_result['devices_analyzed'] = analysis_result.get('devices_analyzed', 0)
+                job_result['opportunities_found'] = len(opportunities)
+                job_result['avg_utilization'] = analysis_result.get('avg_utilization', 0)
+
+            return opportunities
+
+        except Exception as e:
+            logger.error(f"⚠️ Feature analysis failed: {e}")
+            logger.info("   → Continuing with suggestions...")
+            job_result['devices_analyzed'] = 0
+            job_result['opportunities_found'] = 0
+            return []
+
     async def run_daily_analysis(self):
         """
         Unified daily batch job workflow (Story AI2.5, Enhanced for Epic AI-3):
@@ -160,21 +348,7 @@ class DailyAnalysisScheduler:
             logger.info(f"Timestamp: {start_time.isoformat()}")
 
             # Get home type for threshold adjustment (Home Type Integration)
-            home_type = None
-            try:
-                from ..clients.home_type_client import HomeTypeClient
-                from ..config import settings
-                home_type_client = HomeTypeClient(
-                    base_url="http://ai-automation-service:8018",
-                    api_key=settings.ai_automation_api_key
-                )
-                home_type_data = await home_type_client.get_home_type(use_cache=True)
-                home_type = home_type_data.get('home_type', 'standard_home')
-                logger.info(f"🏠 Home type detected: {home_type} (confidence: {home_type_data.get('confidence', 0.0):.2f})")
-                await home_type_client.close()
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to get home type: {e}, using default thresholds")
-                home_type = None
+            home_type = await self._get_home_type()
 
             if getattr(settings, "enable_pdl_workflows", False):
                 try:
@@ -198,80 +372,16 @@ class DailyAnalysisScheduler:
                         exc_info=True,
                     )
 
-            # ================================================================
-            # Phase 1: Device Capability Update (NEW - Epic AI-2)
-            # ================================================================
-            logger.info("📡 Phase 1/6: Device Capability Update (Epic AI-2)...")
+            # Initialize data client (used by multiple phases)
+            data_client = self._initialize_data_client()
 
-            data_client = DataAPIClient(
-                base_url=settings.data_api_url,
-                influxdb_url=settings.influxdb_url,
-                influxdb_token=settings.influxdb_token,
-                influxdb_org=settings.influxdb_org,
-                influxdb_bucket=settings.influxdb_bucket
-            )
+            # Phase 1: Device Capability Update
+            await self._phase_1_device_capability_update(data_client, job_result)
 
-            try:
-                capability_stats = await update_device_capabilities_batch(
-                    mqtt_client=self.mqtt_client,
-                    data_api_client=data_client,
-                    db_session_factory=get_db_session
-                )
-
-                logger.info("✅ Device capabilities updated:")
-                logger.info(f"   - Devices checked: {capability_stats['devices_checked']}")
-                logger.info(f"   - Capabilities updated: {capability_stats['capabilities_updated']}")
-                logger.info(f"   - New devices: {capability_stats['new_devices']}")
-                logger.info(f"   - Errors: {capability_stats['errors']}")
-
-                job_result['devices_checked'] = capability_stats['devices_checked']
-                job_result['capabilities_updated'] = capability_stats['capabilities_updated']
-                job_result['new_devices'] = capability_stats['new_devices']
-
-            except Exception as e:
-                logger.error(f"⚠️ Device capability update failed: {e}")
-                logger.info("   → Continuing with pattern analysis...")
-                job_result['devices_checked'] = 0
-                job_result['capabilities_updated'] = 0
-
-            # ================================================================
-            # Phase 2: Fetch Events (SHARED by AI-1 + AI-2)
-            # ================================================================
-            logger.info("📊 Phase 2/6: Fetching events (SHARED by AI-1 + AI-2)...")
-
-            data_client = DataAPIClient(
-                base_url=settings.data_api_url,
-                influxdb_url=settings.influxdb_url,
-                influxdb_token=settings.influxdb_token,
-                influxdb_org=settings.influxdb_org,
-                influxdb_bucket=settings.influxdb_bucket
-            )
-            # Use 7 days lookback (or adjust based on available data)
-            # If no events found, try shorter periods
-            start_date = datetime.now(timezone.utc) - timedelta(days=7)
-
-            events_df = await data_client.fetch_events(
-                start_time=start_date,
-                limit=100000
-            )
-
-            # If no events with 7 days, try 24 hours
-            if events_df.empty:
-                logger.info("No events in last 7 days, trying last 24 hours...")
-                start_date = datetime.now(timezone.utc) - timedelta(hours=24)
-                events_df = await data_client.fetch_events(
-                    start_time=start_date,
-                    limit=100000
-                )
-
-            if events_df.empty:
-                logger.warning("❌ No events available for analysis")
-                job_result['status'] = 'no_data'
-                job_result['events_count'] = 0
-                return
-
-            logger.info(f"✅ Fetched {len(events_df)} events")
-            job_result['events_count'] = len(events_df)
+            # Phase 2: Fetch Events
+            events_df = await self._phase_2_fetch_events(data_client, job_result)
+            if events_df is None or events_df.empty:
+                return  # Early return if no events
 
             # ================================================================
             # Initialize Pattern Aggregate Client (Story AI5.4)
@@ -1207,53 +1317,8 @@ class DailyAnalysisScheduler:
                     except Exception as e:
                         logger.debug(f"   → Failed to close HA client: {e}")
 
-            # ================================================================
-            # Phase 4: Feature Analysis (Epic AI-2)
-            # ================================================================
-            logger.info("🧠 Phase 4/7: Feature Analysis (Epic AI-2)...")
-
-            try:
-                # Initialize Device Intelligence Service client
-                device_intelligence_client = DeviceIntelligenceClient(
-                    base_url=settings.device_intelligence_url
-                )
-
-                feature_analyzer = FeatureAnalyzer(
-                    device_intelligence_client=device_intelligence_client,
-                    db_session=get_db_session,
-                    influxdb_client=data_client.influxdb_client
-                )
-
-                analysis_result = await feature_analyzer.analyze_all_devices()
-
-                if analysis_result.get('skipped'):
-                    skip_reason = analysis_result.get('skip_reason', 'unknown')
-                    logger.warning(f"⚠️ Feature analysis skipped: {skip_reason}")
-                    opportunities = []
-                    job_result['feature_analysis_skipped'] = True
-                    job_result['feature_analysis_skip_reason'] = skip_reason
-                    job_result['stale_capabilities'] = analysis_result.get('stale_capabilities', {})
-                    job_result['devices_analyzed'] = 0
-                    job_result['opportunities_found'] = 0
-                    job_result['avg_utilization'] = 0
-                else:
-                    opportunities = analysis_result.get('opportunities', [])
-
-                    logger.info("✅ Feature analysis complete:")
-                    logger.info(f"   - Devices analyzed: {analysis_result.get('devices_analyzed', 0)}")
-                    logger.info(f"   - Opportunities found: {len(opportunities)}")
-                    logger.info(f"   - Average utilization: {analysis_result.get('avg_utilization', 0):.1f}%")
-
-                    job_result['devices_analyzed'] = analysis_result.get('devices_analyzed', 0)
-                    job_result['opportunities_found'] = len(opportunities)
-                    job_result['avg_utilization'] = analysis_result.get('avg_utilization', 0)
-
-            except Exception as e:
-                logger.error(f"⚠️ Feature analysis failed: {e}")
-                logger.info("   → Continuing with suggestions...")
-                opportunities = []
-                job_result['devices_analyzed'] = 0
-                job_result['opportunities_found'] = 0
+            # Phase 4: Feature Analysis
+            opportunities = await self._phase_4_feature_analysis(data_client, job_result)
 
             # ================================================================
             # Phase 5: Combined Suggestion Generation (AI-1 + AI-2 + AI-3)

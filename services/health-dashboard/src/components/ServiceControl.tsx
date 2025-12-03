@@ -49,7 +49,7 @@ export const ServiceControl: React.FC = () => {
     }
   };
 
-    const restartService = async (service: string) => {
+  const restartService = async (service: string) => {
     if (!confirm(`Restart ${service}?`)) return;
     
     setRestarting({ ...restarting, [service]: true });
@@ -64,7 +64,7 @@ export const ServiceControl: React.FC = () => {
     }
   };
 
-    const restartAll = async () => {
+  const restartAll = async () => {
     if (!confirm('Restart all services? This may take a few minutes.')) return;
     
     setLoading(true);

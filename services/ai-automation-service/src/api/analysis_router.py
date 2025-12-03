@@ -91,7 +91,124 @@ async def analyze_and_suggest(request: AnalysisRequest, timeout: int = 300):
 
 
 async def _run_analysis_pipeline(request: AnalysisRequest):
-    """Internal analysis pipeline function"""
+    """
+    Execute the complete analysis pipeline to detect patterns and generate automation suggestions.
+    
+    This is the core analysis function that orchestrates the entire pattern detection and
+    suggestion generation pipeline. It processes historical event data to identify behavioral
+    patterns (time-of-day and co-occurrence) and generates automation suggestions using OpenAI.
+    
+    The function performs the following major phases:
+    
+    Phase 1: Event Data Fetching
+    - Fetches historical events from Data API (InfluxDB)
+    - Configures time range based on request.days parameter
+    - Optimizes with reasonable limits (50,000 events max for performance)
+    - Returns early if no events available
+    
+    Phase 2: Pattern Detection
+    - Runs time-of-day pattern detector (if enabled)
+      - Detects recurring patterns based on time of day
+      - Uses configurable min_occurrences and min_confidence thresholds
+      - Applies domain-specific overrides for occurrence and confidence
+    - Runs co-occurrence pattern detector (if enabled)
+      - Detects devices that frequently change state together
+      - Uses time window (default: 5 minutes) for co-occurrence detection
+      - Selects optimized or standard detection based on event count
+      - Applies domain-specific support and confidence overrides
+    - Aggregates all detected patterns
+    - Returns early if no patterns detected
+    
+    Phase 3: Pattern Storage
+    - Stores all detected patterns in database
+    - Uses async database session for efficient writes
+    - Tracks storage performance metrics
+    
+    Phase 4: Suggestion Generation
+    - Ranks patterns by confidence score
+    - Selects top N patterns (based on max_suggestions)
+    - For each pattern:
+      - Builds prompt using UnifiedPromptBuilder
+      - Generates description-only suggestion (Story AI1.24: no YAML until approved)
+      - Calls OpenAI API with unified prompt method
+      - Parses response to extract title, description, rationale, category, priority
+      - Stores suggestion in database with pattern linkage
+      - Tracks success/failure for each suggestion
+    - Calculates OpenAI usage statistics (tokens, cost)
+    
+    Phase 5: Response Building
+    - Aggregates all metrics and statistics
+    - Calculates performance metrics per phase
+    - Builds comprehensive response with:
+      - Summary (events, patterns, suggestions)
+      - Pattern statistics (by type, confidence metrics)
+      - Generated suggestions list
+      - OpenAI usage and cost
+      - Performance timing per phase
+      - Time range analyzed
+    
+    Args:
+        request (AnalysisRequest): Analysis request containing:
+            - days (int): Number of days of historical data to analyze
+            - time_of_day_enabled (bool): Enable time-of-day pattern detection
+            - co_occurrence_enabled (bool): Enable co-occurrence pattern detection
+            - min_confidence (float): Minimum confidence threshold for patterns
+            - max_suggestions (int): Maximum number of suggestions to generate
+    
+    Returns:
+        AnalysisResponse: Comprehensive analysis result containing:
+            - success (bool): True if analysis completed successfully
+            - message (str): Human-readable summary message
+            - data (dict): Detailed analysis data:
+                - summary: High-level statistics (events, patterns, suggestions)
+                - patterns: Pattern statistics (total, by_type, confidence metrics)
+                - suggestions: List of generated suggestions with metadata
+                - openai_usage: Token usage and cost information
+                - performance: Timing metrics per phase
+                - time_range: Analyzed time range (start, end, days)
+    
+    Raises:
+        HTTPException 500: If analysis pipeline fails at any phase
+    
+    Examples:
+        >>> # Run full analysis (both pattern types)
+        >>> request = AnalysisRequest(
+        ...     days=30,
+        ...     time_of_day_enabled=True,
+        ...     co_occurrence_enabled=True,
+        ...     min_confidence=0.7,
+        ...     max_suggestions=10
+        ... )
+        >>> result = await _run_analysis_pipeline(request)
+        >>> result.success
+        True
+        >>> result.data['summary']['patterns_detected'] > 0
+        True
+        
+        >>> # Time-of-day only analysis
+        >>> request = AnalysisRequest(
+        ...     days=14,
+        ...     time_of_day_enabled=True,
+        ...     co_occurrence_enabled=False,
+        ...     min_confidence=0.8
+        ... )
+        >>> result = await _run_analysis_pipeline(request)
+        >>> # Only time-of-day patterns detected
+    
+    Performance Considerations:
+        - Event fetching limited to 50,000 events for performance
+        - Co-occurrence detection uses optimized algorithm for large datasets (>50k events)
+        - Suggestion generation processes patterns sequentially (could be parallelized)
+        - All database operations use async sessions for efficiency
+    
+    Complexity: C (14) - High complexity due to multiple phases, pattern detection algorithms,
+                 OpenAI integration, and comprehensive error handling. The function is
+                 well-structured with clear phase separation, but suggestion generation
+                 could be parallelized for better performance with many patterns.
+    Note: This function is typically called by scheduled jobs (DailyAnalysisScheduler)
+          or manual analysis endpoints. Consider extracting suggestion generation into
+          a separate service method to improve testability and enable parallel processing.
+    """
     start_time = datetime.now(timezone.utc)
     try:
         # ========================================================================

@@ -328,91 +328,91 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
           strokeDasharray={flow.active ? undefined : '5,5'}
         />
         
-            {/* Enhanced animated path overlay with stronger glow */}
-            {flow.active && (
+        {/* Enhanced animated path overlay with stronger glow */}
+        {flow.active && (
+          <>
+            {/* Base glow path */}
+            <path
+              d={path}
+              fill="none"
+              stroke={flow.color}
+              strokeWidth="4"
+              strokeLinecap="round"
+              opacity="0.4"
+              filter={`url(#glow-${flow.type})`}
+            />
+                
+            {/* Animated main path */}
+            <path
+              d={path}
+              fill="none"
+              stroke={flow.color}
+              strokeWidth="3"
+              strokeLinecap="round"
+              opacity="0.8"
+              filter={`url(#glow-${flow.type})`}
+            >
+              <animate
+                attributeName="stroke-dasharray"
+                values="8,4;16,12"
+                dur="1.2s"
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="stroke-dashoffset"
+                from="0"
+                to="24"
+                dur="1.8s"
+                repeatCount="indefinite"
+              />
+            </path>
+                
+            {/* Primary data particle with enhanced glow */}
+            <circle r="5" fill={flow.color} filter={`url(#glow-${flow.type})`} opacity="0.9">
+              <animateMotion
+                dur={`${1.5 + Math.random() * 1.5}s`}
+                repeatCount="indefinite"
+                path={path}
+              />
+              <animate
+                attributeName="r"
+                values="4;6;4"
+                dur="1.2s"
+                repeatCount="indefinite"
+              />
+            </circle>
+                
+            {/* Secondary particles for high throughput */}
+            {flow.throughput && flow.throughput > 0.1 && (
               <>
-                {/* Base glow path */}
-                <path
-                  d={path}
-                  fill="none"
-                  stroke={flow.color}
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  opacity="0.4"
-                  filter={`url(#glow-${flow.type})`}
-                />
-                
-                {/* Animated main path */}
-                <path
-                  d={path}
-                  fill="none"
-                  stroke={flow.color}
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  opacity="0.8"
-                  filter={`url(#glow-${flow.type})`}
-                >
-                  <animate
-                    attributeName="stroke-dasharray"
-                    values="8,4;16,12"
-                    dur="1.2s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="stroke-dashoffset"
-                    from="0"
-                    to="24"
-                    dur="1.8s"
-                    repeatCount="indefinite"
-                  />
-                </path>
-                
-                {/* Primary data particle with enhanced glow */}
-                <circle r="5" fill={flow.color} filter={`url(#glow-${flow.type})`} opacity="0.9">
+                <circle r="3" fill={flow.color} opacity="0.6">
                   <animateMotion
-                    dur={`${1.5 + Math.random() * 1.5}s`}
+                    dur="2.5s"
                     repeatCount="indefinite"
                     path={path}
+                    begin="0.5s"
                   />
                   <animate
-                    attributeName="r"
-                    values="4;6;4"
-                    dur="1.2s"
+                    attributeName="opacity"
+                    values="0.6;0.9;0.6"
+                    dur="1.5s"
                     repeatCount="indefinite"
                   />
                 </circle>
-                
-                {/* Secondary particles for high throughput */}
-                {flow.throughput && flow.throughput > 0.1 && (
-                  <>
-                    <circle r="3" fill={flow.color} opacity="0.6">
-                      <animateMotion
-                        dur="2.5s"
-                        repeatCount="indefinite"
-                        path={path}
-                        begin="0.5s"
-                      />
-                      <animate
-                        attributeName="opacity"
-                        values="0.6;0.9;0.6"
-                        dur="1.5s"
-                        repeatCount="indefinite"
-                      />
-                    </circle>
-                    {flow.throughput > 0.5 && (
-                      <circle r="2.5" fill={flow.color} opacity="0.5">
-                        <animateMotion
-                          dur="3s"
-                          repeatCount="indefinite"
-                          path={path}
-                          begin="1s"
-                        />
-                      </circle>
-                    )}
-                  </>
+                {flow.throughput > 0.5 && (
+                  <circle r="2.5" fill={flow.color} opacity="0.5">
+                    <animateMotion
+                      dur="3s"
+                      repeatCount="indefinite"
+                      path={path}
+                      begin="1s"
+                    />
+                  </circle>
                 )}
               </>
             )}
+          </>
+        )}
         
         {/* Throughput label */}
         {flow.throughput && flow.throughput > 0 && isHighlighted && (
