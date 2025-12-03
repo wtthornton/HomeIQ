@@ -1,0 +1,6647 @@
+[
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.75,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.72,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.67,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.69,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.67,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.84,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.69,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.74,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.68,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.72,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.88,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.84,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.71,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.68,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.74,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.82,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.82,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.77,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.65,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.81,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.68,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.69,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.88,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.82,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.64,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.64,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.84,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.7,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.72,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.73,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.65,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.8,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.69,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.66,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.9,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.9,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.72,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.6,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.6,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.62,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.89,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.72,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.85,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.75,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.79,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.6,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.6,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.87,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.72,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.76,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.69,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.85,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.85,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.67,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.72,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.84,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.75,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.74,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.87,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.81,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.87,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.75,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.83,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.6,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.6,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.85,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.77,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.89,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.8,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.69,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.72,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.64,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.85,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.76,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.8,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.67,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.64,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.79,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.75,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.85,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.68,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.74,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.64,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.66,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.79,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.62,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.81,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.87,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.69,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.73,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.8,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.65,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.85,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.87,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.82,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.74,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.74,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.61,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.89,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.85,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.69,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.69,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.9,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.9,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.79,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.68,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.62,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.61,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.69,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.72,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.72,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.8,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.7,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.88,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.84,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.79,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.88,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.81,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.8,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.86,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.85,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.85,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.84,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.86,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.88,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.88,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.85,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.83,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.8,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.62,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.7,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.78,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.71,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.77,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.75,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.68,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.76,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.87,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.87,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.75,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.84,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.64,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.84,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.88,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.64,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.73,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.85,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.86,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.89,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.81,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.8,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.82,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.67,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.85,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.87,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.6,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.6,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.74,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.75,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.79,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.64,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.8,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.84,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.79,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.71,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.66,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.69,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.8,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.84,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.79,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.89,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.71,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.66,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.7,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.72,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.77,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.88,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.66,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.81,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.67,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.79,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.87,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.76,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.88,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.72,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.74,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.85,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.7,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.71,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.87,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.76,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.72,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.64,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.89,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.87,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.85,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.65,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.85,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.9,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.9,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.66,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.81,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.83,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.65,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.89,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.66,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.79,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.82,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.85,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.68,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.61,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.73,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.65,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.65,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.88,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.73,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.75,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.79,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.68,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.82,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.79,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.88,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.71,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.81,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.77,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.9,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.9,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.62,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.6,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.6,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.86,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.62,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.82,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.81,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.73,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.62,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.71,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.76,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.73,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.69,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.61,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.67,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.81,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.84,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.6,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.6,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.68,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.88,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.84,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.71,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.74,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.81,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.77,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.67,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.74,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.84,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.6,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.6,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.88,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.81,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.69,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.78,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.78,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.64,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.81,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.66,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.62,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.68,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.87,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.74,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.65,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.72,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.72,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.76,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.79,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.68,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.62,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.65,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.69,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.73,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.82,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.77,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.71,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.77,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.75,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.73,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.81,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.8,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.88,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.67,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.7,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.7,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.89,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.89,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.66,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.66,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.76,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.66,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.65,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.79,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.77,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.89,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.65,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.77,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.84,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.84,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.82,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.77,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.69,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.69,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.8,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.74,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.74,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.74,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.61,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.7,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.7,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.75,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.75,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.88,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.66,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.88,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.77,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.67,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.8,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.65,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.64,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.88,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.76,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.76,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.66,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.66,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.8,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.81,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.8,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.89,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.71,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.71,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.71,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.71,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.77,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.64,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.64,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.79,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.68,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.61,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.85,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.68,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.68,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.89,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.89,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.62,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.62,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.7,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.83,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.77,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.63,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.63,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.6,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.6,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.84,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.88,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.88,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.71,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.74,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.74,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.76,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.87,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.83,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.73,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.73,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.74,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.82,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.61,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.61,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.82,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.87,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.87,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.81,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.79,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.79,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.75,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.85,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.85,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.72,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.65,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.73,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "light.kitchen",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.65,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.65,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.77,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.77,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.66,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.82,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.82,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.8,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.8,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "causal",
+      "strength": 0.81,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.86,
+    "relationship": {
+      "type": "spatial",
+      "strength": 0.86,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.78,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.living_room",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.81,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.81,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  },
+  {
+    "entity_1": "light.office",
+    "entity_2": "sensor.motion",
+    "synergy_type": "co_activation",
+    "confidence": 0.67,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.67,
+      "direction": "unidirectional"
+    },
+    "prediction": {
+      "confidence": 0.69,
+      "predicted_synergy": false
+    }
+  },
+  {
+    "entity_1": "switch.bedroom",
+    "entity_2": "sensor.temperature",
+    "synergy_type": "co_activation",
+    "confidence": 0.83,
+    "relationship": {
+      "type": "temporal",
+      "strength": 0.83,
+      "direction": "bidirectional"
+    },
+    "prediction": {
+      "confidence": 0.79,
+      "predicted_synergy": true
+    }
+  }
+]

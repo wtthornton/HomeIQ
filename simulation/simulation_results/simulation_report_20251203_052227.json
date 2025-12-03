@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-12-03T05:22:27.989440+00:00",
+  "3am_workflows": {
+    "total": 5,
+    "successful": 5,
+    "failed": 0,
+    "success_rate": 1.0,
+    "avg_duration_seconds": 0.0382092
+  },
+  "ask_ai_queries": {
+    "total": 3,
+    "successful": 3,
+    "failed": 0,
+    "success_rate": 1.0,
+    "avg_duration_seconds": 0.0009516666666666666
+  },
+  "validation": {},
+  "metrics": {
+    "start_time": "2025-12-03T05:22:26.381846+00:00",
+    "end_time": "2025-12-03T05:22:27.989453+00:00",
+    "duration_seconds": 1.607607,
+    "workflows": {},
+    "performance": {},
+    "quality": {}
+  }
+}

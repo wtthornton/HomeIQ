@@ -70,7 +70,7 @@ class AskAISimulator:
             step3_result = await self._simulate_suggestion_generation(home_id, query, step2_result)
             
             # Step 4: YAML Generation (real logic, mocked services)
-            step4_result = await self._simulate_yaml_generation(home_id, step3_result)
+            step4_result = await self._simulate_yaml_generation(home_id, step3_result, query)
             
             # Step 5: YAML Validation (real logic)
             step5_result = await self._simulate_yaml_validation(home_id, step4_result)
@@ -190,32 +190,57 @@ class AskAISimulator:
     async def _simulate_yaml_generation(
         self,
         home_id: str,
-        step3_result: dict[str, Any]
+        step3_result: dict[str, Any],
+        original_query: str = ""
     ) -> dict[str, Any]:
         """Simulate Step 4: YAML Generation (real logic, mocked services)."""
         logger.debug(f"Step 4: YAML Generation for {home_id}")
         
         # In real implementation, would use production YAML generator
-        # For now, return mock YAML
+        # Enhanced to return realistic data for training collection
         suggestions = step3_result.get("suggestions", [])
         
         yaml_content = ""
+        input_data = None
+        
         if suggestions:
-            # Mock YAML generation
-            yaml_content = """
+            # Handle both string and dict suggestions
+            suggestion_obj = suggestions[0]
+            if isinstance(suggestion_obj, str):
+                suggestion_text = suggestion_obj
+            elif isinstance(suggestion_obj, dict):
+                suggestion_text = suggestion_obj.get("description", suggestion_obj.get("text", str(suggestion_obj)))
+            else:
+                suggestion_text = str(suggestion_obj)
+            
+            # Mock YAML generation with realistic structure
+            import random
+            entity_ids = ["light.office", "light.living_room", "sensor.motion", "switch.bedroom"]
+            selected_entity = random.choice(entity_ids)
+            
+            yaml_content = f"""
 automation:
-  - alias: "Mock Automation"
+  - alias: "Automation for {selected_entity}"
     trigger:
       - platform: state
-        entity_id: light.office
+        entity_id: {selected_entity}
     action:
       - service: light.turn_on
-        entity_id: light.office
+        entity_id: {selected_entity}
 """
+            
+            input_data = {
+                "query": original_query or suggestion_text,
+                "entities": [selected_entity],
+                "suggestion": suggestion_text
+            }
         
         return {
             "yaml_generated": bool(yaml_content),
-            "yaml_content": yaml_content,
+            "yaml": yaml_content.strip(),
+            "yaml_content": yaml_content.strip(),  # Keep for backward compatibility
+            "input": input_data,
+            "ground_truth": None,  # Would be populated in production with validated YAML
             "status": "completed"
         }
 
@@ -237,8 +262,13 @@ automation:
             existing_automations=[]
         )
         
+        # Map validation result to expected format
+        # Mock validator returns "passed", production might return "is_valid"
+        is_valid = validation_result.get("is_valid", validation_result.get("passed", False))
+        
         return {
-            "yaml_valid": validation_result.get("is_valid", False),
+            "yaml_valid": is_valid,
+            "is_valid": is_valid,  # Also set is_valid for compatibility
             "validation_errors": validation_result.get("errors", []),
             "status": "completed"
         }

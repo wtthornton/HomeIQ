@@ -1,0 +1,12 @@
+{
+  "phase": "training",
+  "timestamp": "2025-12-03T16:55:29.508318+00:00",
+  "model_type": "soft_prompt",
+  "status": "failed",
+  "metrics": {},
+  "model_path": null,
+  "training_time_seconds": null,
+  "errors": [
+    "Training failed: INFO ============================================================\r\nINFO Starting soft prompt training\r\nINFO ============================================================\r\nINFO Run ID: auto-generated\r\nINFO Database: C:\\cursor\\HomeIQ\\services\\ai-automation-service\\data\\ai_automation.db\r\nINFO Output directory: data\\ask_ai_soft_prompt\r\nINFO Base model: google/flan-t5-small\r\nINFO Max samples: 2000\r\nINFO Epochs: 3\r\nINFO Dependencies verified successfully\r\nC:\\cursor\\HomeIQ\\services\\ai-automation-service\\scripts\\train_soft_prompt.py:254: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).\r\n  run_identifier = args.run_id or datetime.utcnow().strftime(\"run_%Y%m%d_%H%M%S\")\r\nINFO Loading training examples from database...\r\nERROR No Ask AI labelled data available. Nothing to train.\r\nERROR Ensure you have approved suggestions in the database.\r\n"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "phase": "training",
+  "timestamp": "2025-12-03T17:37:52.254176+00:00",
+  "model_type": "gnn_synergy",
+  "status": "failed",
+  "metrics": {},
+  "model_path": null,
+  "training_time_seconds": null,
+  "errors": [
+    "Message: '\\u274c Error during training: [Errno 11001] getaddrinfo failed'"
+  ]
+}

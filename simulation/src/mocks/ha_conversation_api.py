@@ -33,6 +33,20 @@ class MockHAConversationAPI:
         
         logger.info(f"MockHAConversationAPI initialized: ha_url={ha_url}")
 
+    async def extract_entities(self, text: str) -> list[dict[str, Any]]:
+        """
+        Extract entities from natural language text.
+        
+        Args:
+            text: Natural language input
+            
+        Returns:
+            List of entity dictionaries
+        """
+        entities = self._extract_entities(text)
+        logger.debug(f"Extracted {len(entities)} entities from: {text[:50]}...")
+        return entities
+
     async def process(self, text: str, language: str = "en") -> dict[str, Any]:
         """
         Process natural language and extract entities deterministically.

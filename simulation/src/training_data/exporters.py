@@ -66,11 +66,15 @@ class TrainingDataExporter:
         gnn_data = []
         for entry in synergy_data:
             synergy = entry.get("synergy", {})
+            # Support both entity_1/entity_2 and device1/device2 formats
+            entity_1 = synergy.get("entity_1") or synergy.get("device1")
+            entity_2 = synergy.get("entity_2") or synergy.get("device2")
+            synergy_score = synergy.get("synergy_score") or synergy.get("confidence", 0.0)
             gnn_data.append({
-                "entity_1": synergy.get("entity_1"),
-                "entity_2": synergy.get("entity_2"),
+                "entity_1": entity_1,
+                "entity_2": entity_2,
                 "synergy_type": synergy.get("synergy_type", "co_activation"),
-                "confidence": synergy.get("confidence", 0.0),
+                "confidence": synergy_score,
                 "relationship": entry.get("relationship", {}),
                 "prediction": entry.get("prediction", {})
             })

@@ -1,26 +1,24 @@
 # Simulation Framework Dependencies
 # Story AI17.1: Core framework dependencies
 # Story AI18.5: Training data exporters (Parquet support)
+# Updated January 2025 - All versions aligned with 2025 standards
 
 # Core dependencies
-pydantic>=2.0.0,<3.0.0
-pydantic-settings>=2.0.0,<3.0.0
+pydantic>=2.9.0,<3.0.0  # Stable Pydantic v2 (November 2025)
+pydantic-settings>=2.5.0,<3.0.0  # Compatible with Pydantic v2
 
 # Data processing
-pandas>=2.0.0
-numpy>=1.24.0
-pyarrow>=14.0.0  # For Parquet support
+pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (November 2025)
+numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (compatible with pandas and openvino)
+pyarrow>=22.0.0,<23.0.0  # For Parquet support (2025 stable - pre-built wheels)
 
 # YAML processing
-pyyaml>=6.0
+pyyaml>=6.0.1,<7.0.0  # Stable YAML parser (2025)
 
 # Testing
-pytest>=7.4.0
-pytest-asyncio>=0.23.0
-
-# Async support
-asyncio-compat>=0.1.0
+pytest>=8.3.0,<9.0.0  # Stable pytest (November 2025)
+pytest-asyncio>=0.24.0,<1.0.0  # Stable async pytest support
 
 # Type hints
-typing-extensions>=4.8.0
+typing-extensions>=4.12.0,<5.0.0  # Latest stable (2025)
 

@@ -81,20 +81,56 @@ async def train_gnn_synergy(
                 logger.info(f"   Training date: {detector.metadata.get('training_date', 'unknown')}")
             return 0
         
-        # Load entities
-        logger.info("📥 Loading entities from data-api...")
-        entities = await data_api_client.fetch_entities(limit=10000)
-        logger.info(f"✅ Loaded {len(entities)} entities")
+        # Load entities (support simulation mode with JSON file)
+        import os
+        from pathlib import Path as PathLib
+        simulation_entities_json = os.getenv("SIMULATION_ENTITIES_JSON")
+        if simulation_entities_json and PathLib(simulation_entities_json).exists():
+            logger.info("📥 Loading entities from simulation JSON...")
+            import json
+            with open(simulation_entities_json, "r") as f:
+                entities = json.load(f)
+            logger.info(f"✅ Loaded {len(entities)} entities from JSON")
+        else:
+            logger.info("📥 Loading entities from data-api...")
+            entities = await data_api_client.fetch_entities(limit=10000)
+            logger.info(f"✅ Loaded {len(entities)} entities")
         
         if not entities:
             logger.error("❌ Insufficient data for training: no entities found")
             return 1
         
-        # Load synergies from database
-        logger.info("📥 Loading synergies from database...")
-        async with get_db_session() as db:
-            synergies = await detector._load_synergies_from_database(db)
-        logger.info(f"✅ Loaded {len(synergies)} synergies from database")
+        # Load synergies from database (support simulation mode with custom DB)
+        import os
+        from pathlib import Path as PathLib
+        simulation_db = os.getenv("SIMULATION_SYNERGY_DB")
+        if simulation_db and PathLib(simulation_db).exists():
+            logger.info("📥 Loading synergies from simulation database...")
+            # Use simulation database directly
+            import sqlite3
+            conn = sqlite3.connect(simulation_db)
+            cursor = conn.cursor()
+            cursor.execute("SELECT device_ids, confidence, impact_score FROM synergy_opportunities")
+            rows = cursor.fetchall()
+            synergies = []
+            for row in rows:
+                device_ids = json.loads(row[0])
+                if len(device_ids) >= 2:
+                    synergies.append({
+                        'synergy_id': f"sim-{len(synergies)}",
+                        'device_ids': device_ids[:2],
+                        'impact_score': row[2],
+                        'confidence': row[1],
+                        'area': None,
+                        'validated_by_patterns': False
+                    })
+            conn.close()
+            logger.info(f"✅ Loaded {len(synergies)} synergies from simulation database")
+        else:
+            logger.info("📥 Loading synergies from database...")
+            async with get_db_session() as db:
+                synergies = await detector._load_synergies_from_database(db)
+            logger.info(f"✅ Loaded {len(synergies)} synergies from database")
         
         # Generate synthetic synergies if none exist (cold start scenario)
         if not synergies:

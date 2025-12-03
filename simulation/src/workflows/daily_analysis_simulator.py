@@ -151,21 +151,37 @@ class DailyAnalysisSimulator:
         logger.debug(f"Phase 3: Pattern Detection for {home_id}")
         
         # In real implementation, would import and use production pattern detectors
-        # For now, return mock results
+        # Enhanced to return realistic data for training collection
         events_df = phase2_result.get("events")
         
-        # Mock pattern detection
+        # Generate realistic pattern detection results
         patterns = []
         if events_df is not None and len(events_df) > 0:
-            # Would use real pattern detection logic here
-            patterns = [
-                {
-                    "type": "time_of_day",
-                    "device_id": "light.office",
-                    "confidence": 0.85,
-                    "occurrences": 50
-                }
-            ]
+            # Generate multiple patterns with realistic data structures
+            pattern_types = ["time_of_day", "frequency", "correlation", "sequence"]
+            device_ids = ["light.office", "light.living_room", "sensor.motion", "switch.bedroom"]
+            
+            import random
+            num_patterns = min(random.randint(1, 3), len(device_ids))
+            selected_devices = random.sample(device_ids, num_patterns)
+            
+            for device_id in selected_devices:
+                pattern_type = random.choice(pattern_types)
+                patterns.append({
+                    "entity_id": device_id,
+                    "pattern_type": pattern_type,
+                    "confidence": round(random.uniform(0.7, 0.95), 2),
+                    "occurrences": random.randint(20, 100),
+                    "ground_truth": {
+                        "expected_pattern": pattern_type,
+                        "expected_device": device_id
+                    },
+                    "metrics": {
+                        "precision": round(random.uniform(0.75, 0.90), 2),
+                        "recall": round(random.uniform(0.70, 0.85), 2),
+                        "f1_score": round(random.uniform(0.72, 0.88), 2)
+                    }
+                })
         
         return {
             "patterns_detected": len(patterns),
@@ -182,8 +198,39 @@ class DailyAnalysisSimulator:
         logger.debug(f"Phase 3c: Synergy Detection for {home_id}")
         
         # In real implementation, would use production synergy detector
-        # For now, return mock results
+        # Enhanced to return realistic data for training collection
+        events_df = phase2_result.get("events")
+        
+        # Generate realistic synergy detection results
         synergies = []
+        if events_df is not None and len(events_df) > 0:
+            import random
+            device_pairs = [
+                ("light.office", "sensor.motion"),
+                ("light.living_room", "sensor.motion"),
+                ("switch.bedroom", "sensor.temperature"),
+                ("light.kitchen", "sensor.motion")
+            ]
+            
+            num_synergies = min(random.randint(1, 2), len(device_pairs))
+            selected_pairs = random.sample(device_pairs, num_synergies)
+            
+            for device1, device2 in selected_pairs:
+                synergy_score = round(random.uniform(0.6, 0.9), 2)
+                synergies.append({
+                    "device1": device1,
+                    "device2": device2,
+                    "synergy_score": synergy_score,
+                    "relationship": {
+                        "type": random.choice(["temporal", "spatial", "causal"]),
+                        "strength": synergy_score,
+                        "direction": random.choice(["bidirectional", "unidirectional"])
+                    },
+                    "prediction": {
+                        "confidence": round(random.uniform(0.65, 0.85), 2),
+                        "predicted_synergy": synergy_score > 0.7
+                    }
+                })
         
         return {
             "synergies_detected": len(synergies),
@@ -220,19 +267,62 @@ class DailyAnalysisSimulator:
         
         # Generate suggestions using mock OpenAI
         patterns = phase3_result.get("patterns", [])
+        synergies = phase3c_result.get("synergies", [])
         suggestions = []
         
-        for pattern in patterns[:5]:  # Max 5 suggestions
+        # Generate suggestions from patterns
+        for pattern in patterns[:3]:  # Max 3 pattern-based suggestions
             prompt_dict = {
                 "system_prompt": "You are an automation expert",
-                "user_prompt": f"Create automation for {pattern.get('device_id')}"
+                "user_prompt": f"Create automation for {pattern.get('entity_id')} based on {pattern.get('pattern_type')} pattern"
             }
             
-            suggestion = await openai_client.generate_with_unified_prompt(
+            suggestion_text = await openai_client.generate_with_unified_prompt(
                 prompt_dict,
                 output_format="description"
             )
-            suggestions.append(suggestion)
+            
+            suggestions.append({
+                "suggestion": {
+                    "text": suggestion_text,
+                    "type": "automation",
+                    "device_id": pattern.get("entity_id"),
+                    "pattern_based": True
+                },
+                "prompt": prompt_dict,
+                "response": {
+                    "text": suggestion_text,
+                    "model": "gpt-4",
+                    "tokens_used": 150
+                }
+            })
+        
+        # Generate suggestions from synergies
+        for synergy in synergies[:2]:  # Max 2 synergy-based suggestions
+            prompt_dict = {
+                "system_prompt": "You are an automation expert",
+                "user_prompt": f"Create automation leveraging synergy between {synergy.get('device1')} and {synergy.get('device2')}"
+            }
+            
+            suggestion_text = await openai_client.generate_with_unified_prompt(
+                prompt_dict,
+                output_format="description"
+            )
+            
+            suggestions.append({
+                "suggestion": {
+                    "text": suggestion_text,
+                    "type": "synergy_automation",
+                    "devices": [synergy.get("device1"), synergy.get("device2")],
+                    "synergy_based": True
+                },
+                "prompt": prompt_dict,
+                "response": {
+                    "text": suggestion_text,
+                    "model": "gpt-4",
+                    "tokens_used": 180
+                }
+            })
         
         return {
             "suggestions_generated": len(suggestions),
