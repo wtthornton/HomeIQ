@@ -485,6 +485,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 ---
 
 ### Recent Updates
+- **Add simulation framework enhancements, training improvements, and implementation documentation** (December 03, 2025)
 
 - **Security Audit & Quality Improvements** (December 03, 2025)
   - Enhanced Flux query sanitization with length validation
