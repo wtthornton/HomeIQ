@@ -910,9 +910,12 @@ Upgrade RAG embedding model from all-MiniLM-L6-v2 (2019, 384-dim) to BAAI/bge-la
 
 ---
 
-## AI Enhancement Epics (AI-1 through AI-16)
+## AI Enhancement Epics (AI-1 through AI-19)
 
 **Note:** See individual epic entries above for detailed status. Epic AI-6, AI-11, and AI-13 are marked as ✅ **COMPLETE**.
+
+**Epic AI-19: HA AI Agent Service - Tier 1 Context Injection** 📋 **PLANNING**
+Establish foundational context injection system for new HA AI Agent Service (Port 8030). Implements Tier 1 essential context (entity summaries, areas, services, capabilities, sun info) to enable efficient automation generation without excessive tool calls. 6 stories, 14 points, 3-4 weeks estimated.
 
 **Stories:** 14 stories across 4 phases
 - Phase 1: Blueprint Opportunity Discovery (4 stories) ✅ **COMPLETE**
