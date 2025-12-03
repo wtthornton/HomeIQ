@@ -53,3 +53,13 @@ desktop.ini
 *.bak
 *.backup
 
+# Playwright MCP screenshots (test artifacts)
+.playwright-mcp/
+
+# Root-level temporary files (test artifacts, snapshots)
+test_results_*.txt
+homeiq-*.txt
+full_logs_*.txt
+logs_*.txt
+deployment_test_results.json
+
