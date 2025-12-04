@@ -1,16 +1,42 @@
 """
 OpenAI Function Schemas for Home Assistant Tools
 
-Simplified to a single tool: create_automation_from_prompt
-The agent's sole purpose is to take a user prompt and create a Home Assistant automation.
+2025 Preview-and-Approval Workflow:
+1. preview_automation_from_prompt - Generate detailed preview (no execution)
+2. create_automation_from_prompt - Execute approved automation creation
 """
 
 HA_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "preview_automation_from_prompt",
+            "description": "Generate a detailed preview of a Home Assistant automation from a user's natural language prompt. This tool ONLY generates a preview - it does NOT create the automation. Use this tool FIRST when a user requests an automation. The preview includes automation details, YAML, entities affected, and safety considerations. Wait for user approval before calling create_automation_from_prompt.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_prompt": {
+                        "type": "string",
+                        "description": "The user's natural language request for an automation (e.g., 'Make the office lights blink red every 15 minutes and then return back to the state they were'). Use this exact prompt to understand what automation to create."
+                    },
+                    "automation_yaml": {
+                        "type": "string",
+                        "description": "Complete Home Assistant automation YAML configuration. Must be valid YAML with required fields: alias, description, trigger, action. Include initial_state: true, proper mode selection, and use entities/areas/services from the provided context. Follow Home Assistant 2025.10+ format."
+                    },
+                    "alias": {
+                        "type": "string",
+                        "description": "Human-readable name for the automation. Should be descriptive and match the user's intent (e.g., 'Office lights blink red every 15 minutes')."
+                    }
+                },
+                "required": ["user_prompt", "automation_yaml", "alias"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "create_automation_from_prompt",
-            "description": "Create a Home Assistant automation from a user's natural language prompt. This is the ONLY tool available. Use the provided Home Assistant context (entities, areas, services, capabilities) to generate valid automation YAML and create it in Home Assistant. The tool handles entity resolution, YAML validation, and automation creation automatically.",
+            "description": "Create a Home Assistant automation from a user's natural language prompt. This tool ACTUALLY CREATES the automation in Home Assistant. ONLY call this tool after the user has approved a preview (via preview_automation_from_prompt). Use the provided Home Assistant context (entities, areas, services, capabilities) to generate valid automation YAML. The tool handles entity resolution, YAML validation, and automation creation automatically.",
             "parameters": {
                 "type": "object",
                 "properties": {

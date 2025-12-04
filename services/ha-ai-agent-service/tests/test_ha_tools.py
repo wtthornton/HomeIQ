@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 from src.tools.ha_tools import HAToolHandler
 from src.clients.ha_client import HomeAssistantClient
 from src.clients.data_api_client import DataAPIClient
+from src.clients.ai_automation_client import AIAutomationClient
 
 
 @pytest.fixture
@@ -44,9 +45,30 @@ def mock_data_api_client():
 
 
 @pytest.fixture
+def mock_ai_automation_client():
+    """Mock AI Automation Service client"""
+    client = MagicMock(spec=AIAutomationClient)
+    client.validate_yaml = AsyncMock(return_value={
+        "valid": True,
+        "errors": [],
+        "warnings": [],
+        "stages": {"syntax": True, "structure": True},
+        "fixed_yaml": None,
+        "summary": "✅ All validation checks passed"
+    })
+    return client
+
+
+@pytest.fixture
 def tool_handler(mock_ha_client, mock_data_api_client):
-    """Create tool handler with mocked clients"""
+    """Create tool handler with mocked clients (no AI automation client)"""
     return HAToolHandler(mock_ha_client, mock_data_api_client)
+
+
+@pytest.fixture
+def tool_handler_with_validation(mock_ha_client, mock_data_api_client, mock_ai_automation_client):
+    """Create tool handler with AI automation client for consolidated validation"""
+    return HAToolHandler(mock_ha_client, mock_data_api_client, mock_ai_automation_client)
 
 
 @pytest.mark.asyncio
@@ -79,7 +101,7 @@ async def test_get_entity_state_invalid_format(tool_handler):
 
 @pytest.mark.asyncio
 async def test_test_automation_yaml_valid(tool_handler):
-    """Test automation YAML validation with valid YAML"""
+    """Test automation YAML validation with valid YAML (fallback to basic validation)"""
     valid_yaml = """
 alias: Test Automation
 trigger:
@@ -96,6 +118,107 @@ action:
     assert result["success"] is True
     assert result["valid"] is True
     assert len(result["errors"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_validate_yaml_with_consolidated_validation(tool_handler_with_validation, mock_ai_automation_client):
+    """Test YAML validation using consolidated validation endpoint"""
+    valid_yaml = """
+alias: Test Automation
+trigger:
+  - platform: state
+    entity_id: light.kitchen
+    to: "on"
+action:
+  - service: light.turn_off
+    target:
+      entity_id: light.kitchen
+"""
+    
+    result = await tool_handler_with_validation._validate_yaml(valid_yaml)
+    
+    # Should use consolidated validation
+    mock_ai_automation_client.validate_yaml.assert_called_once()
+    assert result["valid"] is True
+    assert len(result["errors"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_validate_yaml_with_fixed_yaml(tool_handler_with_validation, mock_ai_automation_client):
+    """Test YAML validation that returns fixed YAML"""
+    yaml_with_issues = """
+alias: Test Automation
+triggers:
+  - platform: state
+    entity_id: light.kitchen
+actions:
+  - service: light.turn_off
+    target:
+      entity_id: light.kitchen
+"""
+    
+    # Mock validation response with fixed YAML
+    mock_ai_automation_client.validate_yaml.return_value = {
+        "valid": True,
+        "errors": [],
+        "warnings": ["Fixed plural keys"],
+        "stages": {"syntax": True, "structure": True},
+        "fixed_yaml": "alias: Test Automation\ntrigger:\n  - platform: state\n    entity_id: light.kitchen\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.kitchen",
+        "summary": "Validation passed with fixes"
+    }
+    
+    result = await tool_handler_with_validation._validate_yaml(yaml_with_issues)
+    
+    assert result["valid"] is True
+    assert "fixed_yaml" in result
+    assert result["fixed_yaml"] is not None
+
+
+@pytest.mark.asyncio
+async def test_validate_yaml_fallback_to_basic(tool_handler):
+    """Test YAML validation falls back to basic validation when AI automation client unavailable"""
+    valid_yaml = """
+alias: Test Automation
+trigger:
+  - platform: state
+    entity_id: light.kitchen
+    to: "on"
+action:
+  - service: light.turn_off
+    target:
+      entity_id: light.kitchen
+"""
+    
+    result = await tool_handler._validate_yaml(valid_yaml)
+    
+    # Should use basic validation (no AI automation client)
+    assert result["valid"] is True
+    assert "errors" in result
+    assert "warnings" in result
+
+
+@pytest.mark.asyncio
+async def test_validate_yaml_consolidated_validation_error(tool_handler_with_validation, mock_ai_automation_client):
+    """Test YAML validation when consolidated validation fails, falls back to basic"""
+    valid_yaml = """
+alias: Test Automation
+trigger:
+  - platform: state
+    entity_id: light.kitchen
+action:
+  - service: light.turn_off
+    target:
+      entity_id: light.kitchen
+"""
+    
+    # Mock validation error
+    mock_ai_automation_client.validate_yaml.side_effect = Exception("Service unavailable")
+    
+    result = await tool_handler_with_validation._validate_yaml(valid_yaml)
+    
+    # Should fall back to basic validation
+    assert "valid" in result
+    assert "errors" in result
 
 
 @pytest.mark.asyncio

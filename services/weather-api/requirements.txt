@@ -1,7 +1,7 @@
 # Weather API Service Dependencies
 # Updated to latest stable 2025 versions
 
-fastapi>=0.115.0,<0.116.0
+fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
 uvicorn[standard]>=0.32.0,<0.33.0
 aiohttp>=3.13.2,<4.0.0  # Latest stable (2025 - Epic 41)
 python-dotenv>=1.0.0,<2.0.0

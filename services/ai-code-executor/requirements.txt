@@ -1,7 +1,7 @@
 # AI Code Executor Dependencies
 # Updated to latest stable 2025 versions compatible with Python 3.12
 
-fastapi>=0.115.0,<0.116.0
+fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
 uvicorn[standard]>=0.32.0,<0.33.0
 pydantic>=2.9.0,<3.0.0
 pydantic-settings>=2.5.0,<3.0.0

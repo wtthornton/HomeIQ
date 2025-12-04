@@ -52,6 +52,22 @@ def get_ha_client() -> HomeAssistantClient:
     return _ha_client
 
 
+def get_ha_client_optional() -> HomeAssistantClient | None:
+    """
+    Dependency injection for Home Assistant client (optional).
+    
+    Returns None if HA client is not initialized, allowing endpoints to work
+    without HA connectivity (e.g., syntax-only validation).
+    
+    Usage:
+        @router.get("/endpoint")
+        async def endpoint(ha_client: HomeAssistantClient | None = Depends(get_ha_client_optional)):
+            ...
+    """
+    global _ha_client
+    return _ha_client
+
+
 def get_openai_client() -> OpenAIClient:
     """
     Dependency injection for OpenAI client.

@@ -1,3 +1,8 @@
+# Web Framework
+fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
+uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
+
+# HTTP Client (keep aiohttp for client usage, not web framework)
 aiohttp>=3.13.2,<4.0.0  # Latest stable (2025)
 asyncio-mqtt>=0.16.1,<1.0.0
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025)

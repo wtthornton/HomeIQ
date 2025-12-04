@@ -142,6 +142,17 @@ class PromptAssemblyService:
                 system_prompt = await self.context_builder.build_complete_system_prompt()
                 conversation.set_context_cache(system_prompt)
 
+        # Inject pending preview context if available (2025 Preview-and-Approval Workflow)
+        pending_preview = conversation.get_pending_preview()
+        if pending_preview:
+            preview_context = self._build_preview_context(pending_preview)
+            # Append preview context to system prompt
+            system_prompt = f"{system_prompt}\n\n---\n\nPENDING AUTOMATION PREVIEW:\n{preview_context}\n\n---\n\nIMPORTANT: If the user has approved this preview, call create_automation_from_prompt with the exact same parameters (user_prompt, automation_yaml, alias) from the preview above."
+            logger.info(
+                f"[Preview Context] Conversation {conversation_id}: "
+                f"Injected pending preview context for automation '{pending_preview.get('alias', 'unknown')}'"
+            )
+
         # Get conversation history (without system prompt)
         history_messages = conversation.get_openai_messages()
 
@@ -441,4 +452,76 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             "max_input_tokens": self.max_input_tokens,
             "within_budget": total_tokens <= self.max_input_tokens,
         }
+
+    def _build_preview_context(self, preview: dict) -> str:
+        """
+        Build context string from pending preview for system prompt injection.
+
+        Args:
+            preview: Preview dictionary from preview_automation_from_prompt tool
+
+        Returns:
+            Formatted context string
+        """
+        lines = [
+            f"Automation Name: {preview.get('alias', 'Unknown')}",
+            f"User Prompt: {preview.get('user_prompt', 'Unknown')}",
+            "",
+            "Automation YAML:",
+            "```yaml",
+            preview.get('automation_yaml', ''),
+            "```",
+        ]
+        
+        details = preview.get('details', {})
+        if details:
+            lines.extend([
+                "",
+                "Details:",
+                f"- Trigger: {details.get('trigger_description', 'Unknown')}",
+                f"- Action: {details.get('action_description', 'Unknown')}",
+                f"- Mode: {details.get('mode', 'single')}",
+            ])
+        
+        entities = preview.get('entities_affected', [])
+        if entities:
+            lines.append(f"- Entities Affected: {', '.join(entities)}")
+        
+        areas = preview.get('areas_affected', [])
+        if areas:
+            lines.append(f"- Areas Affected: {', '.join(areas)}")
+        
+        services = preview.get('services_used', [])
+        if services:
+            lines.append(f"- Services Used: {', '.join(services)}")
+        
+        warnings = preview.get('safety_warnings', [])
+        if warnings:
+            lines.extend([
+                "",
+                "Safety Warnings:",
+            ])
+            for warning in warnings:
+                lines.append(f"- {warning}")
+        
+        validation = preview.get('validation', {})
+        if validation:
+            errors = validation.get('errors', [])
+            warnings_list = validation.get('warnings', [])
+            if errors:
+                lines.extend([
+                    "",
+                    "Validation Errors:",
+                ])
+                for error in errors:
+                    lines.append(f"- {error}")
+            if warnings_list:
+                lines.extend([
+                    "",
+                    "Validation Warnings:",
+                ])
+                for warning in warnings_list:
+                    lines.append(f"- {warning}")
+        
+        return "\n".join(lines)
 

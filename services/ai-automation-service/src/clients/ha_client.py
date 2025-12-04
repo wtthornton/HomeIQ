@@ -315,6 +315,49 @@ class HomeAssistantClient:
 
         return None
 
+    async def get_automation_config(self, automation_id: str) -> dict | None:
+        """
+        Get automation configuration YAML from Home Assistant.
+        
+        Args:
+            automation_id: Automation entity ID (e.g., "automation.morning_lights")
+        
+        Returns:
+            Automation config dict or None if not found
+        """
+        try:
+            # First get the automation state to get the config ID
+            automation = await self.get_automation(automation_id)
+            if not automation:
+                return None
+            
+            # Extract config ID from attributes
+            attributes = automation.get('attributes', {})
+            config_id = attributes.get('id')
+            
+            if not config_id:
+                logger.warning(f"No config ID found for automation {automation_id}")
+                return None
+            
+            # Fetch config from HA
+            session = await self._get_session()
+            url = f"{self.ha_url}/api/config/automation/config/{config_id}"
+            
+            async with session.get(url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    config = await response.json()
+                    logger.info(f"✅ Retrieved config for automation {automation_id}")
+                    return config
+                elif response.status == 404:
+                    logger.debug(f"Config not found for automation {automation_id} (config_id: {config_id})")
+                    return None
+                else:
+                    logger.error(f"Error getting automation config {automation_id}: HTTP {response.status}")
+                    return None
+        except Exception as e:
+            logger.error(f"Error getting automation config {automation_id}: {e}", exc_info=True)
+            return None
+
     async def get_automations(self) -> list[dict]:
         """
         Get automation configurations from Home Assistant.

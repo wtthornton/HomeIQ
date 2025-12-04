@@ -17,6 +17,7 @@ from ..services.openai_client import (
     OpenAITokenBudgetExceededError,
 )
 from ..services.conversation_service import is_generic_welcome_message
+from ..services.approval_recognizer import is_approval_command, is_rejection_command
 from ..tools.tool_schemas import get_tool_schemas
 from .dependencies import (
     get_conversation_service,
@@ -114,6 +115,26 @@ async def chat(
                 f"Message count: {conversation.message_count}, "
                 f"User message: {request.message[:100]}..."
             )
+
+        # Check for approval/rejection commands if pending preview exists (2025 Preview-and-Approval Workflow)
+        pending_preview = await conversation_service.get_pending_preview(conversation_id)
+        if pending_preview:
+            if is_approval_command(request.message):
+                logger.info(
+                    f"[Approval] Conversation {conversation_id}: "
+                    f"User approved pending preview. Message: {request.message[:100]}..."
+                )
+                # Inject instruction to execute the pending preview
+                # The agent will see the pending preview and execute it
+                request.message = f"[USER APPROVED] {request.message}\n\nExecute the pending automation preview that was previously generated."
+            elif is_rejection_command(request.message):
+                logger.info(
+                    f"[Rejection] Conversation {conversation_id}: "
+                    f"User rejected pending preview. Message: {request.message[:100]}..."
+                )
+                # Clear pending preview and acknowledge rejection
+                await conversation_service.clear_pending_preview(conversation_id)
+                request.message = f"[USER REJECTED] {request.message}\n\nThe user has rejected the pending automation preview. Acknowledge and do not create the automation."
 
         # Assemble messages with context
         logger.info(
@@ -304,6 +325,25 @@ async def chat(
                     
                     # Execute tool call
                     tool_result = await tool_service.execute_tool_call(tool_call.model_dump())
+
+                    # Handle preview tool: store pending preview (2025 Preview-and-Approval Workflow)
+                    if tool_call.function.name == "preview_automation_from_prompt":
+                        if tool_result.get("result", {}).get("success") and tool_result.get("result", {}).get("preview"):
+                            preview_data = tool_result.get("result", {})
+                            await conversation_service.set_pending_preview(conversation_id, preview_data)
+                            logger.info(
+                                f"[Preview] Conversation {conversation_id}: "
+                                f"Stored pending preview for automation '{preview_data.get('alias', 'unknown')}'"
+                            )
+                    
+                    # Handle create tool: clear pending preview after execution (2025 Preview-and-Approval Workflow)
+                    if tool_call.function.name == "create_automation_from_prompt":
+                        if tool_result.get("result", {}).get("success"):
+                            await conversation_service.clear_pending_preview(conversation_id)
+                            logger.info(
+                                f"[Execution] Conversation {conversation_id}: "
+                                f"Cleared pending preview after successful automation creation"
+                            )
 
                     # Format tool result for OpenAI (must include tool_call_id)
                     tool_result_str = str(tool_result.get("result", ""))

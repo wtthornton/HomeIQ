@@ -2,7 +2,7 @@
 # Updated November 2025 - All versions verified stable for 2025
 
 # Web Framework
-fastapi>=0.115.0,<0.116.0  # Stable 0.115.x series (November 2025)
+fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
 uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 python-multipart>=0.0.12,<0.1.0  # Stable for FastAPI file uploads
 

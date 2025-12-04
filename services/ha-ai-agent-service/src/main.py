@@ -85,7 +85,13 @@ async def lifespan(_app: FastAPI):
             timeout=settings.ha_timeout
         )
         data_api_client = DataAPIClient(base_url=settings.data_api_url)
-        tool_service = ToolService(ha_client, data_api_client)
+        
+        # Initialize AI Automation Service client for consolidated YAML validation
+        from .clients.ai_automation_client import AIAutomationClient
+        ai_automation_client = AIAutomationClient(base_url=settings.ai_automation_service_url)
+        logger.info(f"✅ AI Automation Service client initialized ({settings.ai_automation_service_url})")
+        
+        tool_service = ToolService(ha_client, data_api_client, ai_automation_client)
         logger.info("✅ Tool service initialized")
 
         # Initialize OpenAI client (Epic AI-20)
@@ -163,8 +169,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-HomeIQ-API-Key"],
 )
 
 

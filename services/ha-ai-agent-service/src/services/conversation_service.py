@@ -321,3 +321,59 @@ class ConversationService:
                 session, conversation_id, ConversationState.ACTIVE
             )
 
+    async def set_pending_preview(self, conversation_id: str, preview: dict) -> bool:
+        """
+        Store pending automation preview for a conversation.
+
+        Args:
+            conversation_id: Conversation ID
+            preview: Preview dictionary from preview_automation_from_prompt tool
+
+        Returns:
+            True if stored, False if conversation not found
+        """
+        from .conversation_persistence import set_pending_preview
+        async for session in get_session():
+            result = await set_pending_preview(session, conversation_id, preview)
+            if result:
+                # Also update in-memory conversation if loaded
+                conversation = await self.get_conversation(conversation_id)
+                if conversation:
+                    conversation.set_pending_preview(preview)
+            return result
+
+    async def get_pending_preview(self, conversation_id: str) -> dict | None:
+        """
+        Get pending automation preview for a conversation.
+
+        Args:
+            conversation_id: Conversation ID
+
+        Returns:
+            Preview dictionary or None if not found
+        """
+        conversation = await self.get_conversation(conversation_id)
+        if not conversation:
+            return None
+        return conversation.get_pending_preview()
+
+    async def clear_pending_preview(self, conversation_id: str) -> bool:
+        """
+        Clear pending automation preview for a conversation.
+
+        Args:
+            conversation_id: Conversation ID
+
+        Returns:
+            True if cleared, False if conversation not found
+        """
+        from .conversation_persistence import clear_pending_preview
+        async for session in get_session():
+            result = await clear_pending_preview(session, conversation_id)
+            if result:
+                # Also update in-memory conversation if loaded
+                conversation = await self.get_conversation(conversation_id)
+                if conversation:
+                    conversation.clear_pending_preview()
+            return result
+

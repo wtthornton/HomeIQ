@@ -47,6 +47,10 @@ def _conversation_model_to_domain(model: ConversationModel) -> Conversation:
         )
         conversation.messages.append(message)
 
+    # Load pending preview (2025 Preview-and-Approval Workflow)
+    if model.pending_preview:
+        conversation.set_pending_preview(model.pending_preview)
+
     return conversation
 
 
@@ -269,4 +273,55 @@ async def cleanup_old_conversations(
         logger.info(f"Cleaned up {deleted_count} conversations older than {ttl_days} days")
 
     return deleted_count
+
+
+async def set_pending_preview(
+    session: AsyncSession, conversation_id: str, preview: dict
+) -> bool:
+    """
+    Store pending automation preview for a conversation.
+
+    Args:
+        session: Database session
+        conversation_id: Conversation ID
+        preview: Preview dictionary from preview_automation_from_prompt tool
+
+    Returns:
+        True if updated, False if conversation not found
+    """
+    conversation_model = await session.get(ConversationModel, conversation_id)
+    if not conversation_model:
+        return False
+
+    conversation_model.pending_preview = preview
+    conversation_model.updated_at = datetime.now()
+    await session.commit()
+
+    logger.debug(f"Stored pending preview for conversation {conversation_id}")
+    return True
+
+
+async def clear_pending_preview(
+    session: AsyncSession, conversation_id: str
+) -> bool:
+    """
+    Clear pending automation preview for a conversation.
+
+    Args:
+        session: Database session
+        conversation_id: Conversation ID
+
+    Returns:
+        True if cleared, False if conversation not found
+    """
+    conversation_model = await session.get(ConversationModel, conversation_id)
+    if not conversation_model:
+        return False
+
+    conversation_model.pending_preview = None
+    conversation_model.updated_at = datetime.now()
+    await session.commit()
+
+    logger.debug(f"Cleared pending preview for conversation {conversation_id}")
+    return True
 

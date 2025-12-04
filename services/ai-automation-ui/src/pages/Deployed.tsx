@@ -154,11 +154,53 @@ export const Deployed: React.FC = () => {
         throw new Error('Original prompt not found');
       }
       
+      // Step 2: Validate YAML using consolidated validation endpoint
+      toast.loading('🔍 Validating YAML...', { id: `self-correct-${automationId}` });
+      
+      const validationResult = await api.validateYAML({
+        yaml: suggestion.automation_yaml,
+        validate_entities: true,
+        validate_safety: true,
+        context: {
+          entities: suggestion.device_capabilities || {},
+          conversation_history: suggestion.conversation_history || []
+        }
+      });
+      
+      // Use fixed YAML if available, otherwise use original
+      const yamlToCorrect = validationResult.fixed_yaml || suggestion.automation_yaml;
+      
+      // Show validation results
+      if (!validationResult.valid) {
+        const errorCount = validationResult.errors?.length || 0;
+        const warningCount = validationResult.warnings?.length || 0;
+        toast(
+          `⚠️ Validation found ${errorCount} error(s) and ${warningCount} warning(s)`,
+          { 
+            icon: '⚠️',
+            duration: 5000 
+          }
+        );
+        console.log('Validation errors:', validationResult.errors);
+        console.log('Validation warnings:', validationResult.warnings);
+      } else {
+        toast.success('✅ YAML validation passed', { duration: 3000 });
+      }
+      
+      // Log validation details
+      console.log('Validation result:', {
+        valid: validationResult.valid,
+        stages: validationResult.stages,
+        errors: validationResult.errors,
+        warnings: validationResult.warnings,
+        fixed_yaml: validationResult.fixed_yaml ? 'Available' : 'None'
+      });
+      
+      // Step 3: Run self-correction with validated/fixed YAML
       toast.loading('🔄 Reverse engineering and self-correcting YAML...', { id: `self-correct-${automationId}` });
       
-      // Step 2: Run self-correction
       const response = await api.reverseEngineerYAML({
-        yaml: suggestion.automation_yaml,
+        yaml: yamlToCorrect,
         original_prompt: originalPrompt,
         context: {
           entities: suggestion.device_capabilities || {},
@@ -288,14 +330,14 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleToggle(automation.entity_id, automation.state)}
-                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
+                    className={`px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
                       automation.state === 'on'
                         ? darkMode
-                          ? 'bg-gray-700/60 hover:bg-gray-600/60 text-white border border-gray-600/50'
-                          : 'bg-white/80 hover:bg-white text-gray-900 border border-gray-200 shadow-sm hover:shadow-md'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                         : darkMode
-                        ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/30'
-                        : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg shadow-green-400/30'
+                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                        : 'bg-green-500 hover:bg-green-600 text-white'
                     }`}
                   >
                     {automation.state === 'on' ? 'Disable' : 'Enable'}
@@ -306,10 +348,10 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleTrigger(automation.entity_id)}
-                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
+                    className={`px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
                       darkMode
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-                        : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
                     }`}
                   >
                     ▶️ Trigger
@@ -320,10 +362,10 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleRedeploy(automation.entity_id)}
-                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
+                    className={`px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
                       darkMode
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
-                        : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
+                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                        : 'bg-purple-500 hover:bg-purple-600 text-white'
                     }`}
                     title="Re-generate YAML with latest improvements and re-deploy"
                   >
@@ -335,10 +377,10 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleShowCode(automation.entity_id)}
-                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
+                    className={`px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
                       darkMode
-                        ? 'bg-slate-800/60 hover:bg-slate-700/60 text-white border border-slate-700/50'
-                        : 'bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md'
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                     }`}
                     title={expandedCode.has(automation.entity_id) ? "Hide YAML code" : "Show YAML code"}
                   >
@@ -350,10 +392,10 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleSelfCorrect(automation.entity_id)}
-                    className={`px-3 py-1 text-xs rounded-xl font-medium transition-all ${
+                    className={`px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
                       darkMode
-                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/30'
-                        : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-400/30'
+                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                        : 'bg-green-500 hover:bg-green-600 text-white'
                     }`}
                     title="Reverse engineer and self-correct YAML to match original prompt"
                   >
@@ -385,10 +427,10 @@ export const Deployed: React.FC = () => {
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={loadAutomations}
-        className={`w-full px-4 py-2 text-xs rounded-xl font-semibold shadow-lg transition-all ${
+        className={`w-full px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
           darkMode
-            ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-            : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+            : 'bg-blue-500 hover:bg-blue-600 text-white'
         }`}
       >
         🔄 Refresh List

@@ -2,7 +2,7 @@
 # Epic 39, Story 39.9: Query Service Foundation
 
 # FastAPI and web server
-fastapi>=0.115.0,<0.116.0  # Latest stable (2025 - Epic 41)
+fastapi>=0.123.0,<0.124.0  # Latest stable (December 2025)
 uvicorn[standard]>=0.32.0,<0.33.0  # Latest stable (2025 - Epic 41)
 pydantic>=2.9.0,<3.0.0  # Latest stable (2025 - Epic 41)
 pydantic-settings>=2.5.0,<3.0.0  # Latest stable (2025 - Epic 41)

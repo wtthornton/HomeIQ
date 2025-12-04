@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
-from aiohttp import web
 from dotenv import load_dotenv
 
 # Add shared directory to path for imports
@@ -572,291 +571,27 @@ class WebSocketIngestionService:
             error_type="service_error"
         )
 
-    async def get_event_rate(self, request):
-        """Get standardized event rate metrics"""
-        try:
-            # Get processing statistics from async event processor
-            processing_stats = {}
-            if self.async_event_processor:
-                processing_stats = self.async_event_processor.get_processing_statistics()
-
-            # Get connection statistics
-            connection_stats = {}
-            if self.connection_manager and hasattr(self.connection_manager, 'event_subscription'):
-                event_subscription = self.connection_manager.event_subscription
-                if event_subscription:
-                    sub_status = event_subscription.get_subscription_status()
-                    connection_stats = {
-                        "is_connected": getattr(self.connection_manager, 'is_running', False),
-                        "is_subscribed": sub_status.get("is_subscribed", False),
-                        "total_events_received": sub_status.get("total_events_received", 0),
-                        "events_by_type": sub_status.get("events_by_type", {}),
-                        "last_event_time": sub_status.get("last_event_time")
-                    }
-
-            # Calculate event rate per second
-            events_per_second = processing_stats.get("processing_rate_per_second", 0)
-
-            # Calculate events per hour
-            events_per_hour = events_per_second * 3600
-
-            # Get uptime
-            uptime_seconds = (datetime.now() - self.start_time).total_seconds()
-
-            # Build response
-            response_data = {
-                "service": "websocket-ingestion",
-                "events_per_second": round(events_per_second, 2),
-                "events_per_hour": round(events_per_hour, 2),
-                "total_events_processed": processing_stats.get("processed_events", 0),
-                "uptime_seconds": round(uptime_seconds, 2),
-                "processing_stats": processing_stats,
-                "connection_stats": connection_stats,
-                "timestamp": datetime.now().isoformat()
-            }
-
-            return web.json_response(response_data, status=200)
-
-        except Exception as e:
-            logger.error(f"Error getting event rate: {e}")
-            return web.json_response(
-                {
-                    "service": "websocket-ingestion",
-                    "error": str(e),
-                    "events_per_second": 0,
-                    "events_per_hour": 0,
-                    "timestamp": datetime.now().isoformat()
-                },
-                status=500
-            )
+# Import FastAPI app from api module
+from .api.app import app
 
 
-async def websocket_handler(request):
-    """WebSocket handler for real-time data streaming"""
-    # Generate correlation ID for this WebSocket connection
-    corr_id = generate_correlation_id()
-    set_correlation_id(corr_id)
-
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
-
-    log_with_context(
-        logger, "INFO", "WebSocket client connected",
-        operation="websocket_connection",
-        correlation_id=corr_id,
-        client_ip=request.remote,
-        user_agent=request.headers.get('User-Agent', 'unknown')
-    )
-
-    try:
-        # Send initial connection message
-        await ws.send_json({
-            "type": "connection",
-            "status": "connected",
-            "message": "Connected to HA Ingestor WebSocket",
-            "correlation_id": corr_id
-        })
-
-        # Keep connection alive and handle messages
-        async for msg in ws:
-            if msg.type == aiohttp.WSMsgType.TEXT:
-                try:
-                    data = json.loads(msg.data)
-                    log_with_context(
-                        logger, "DEBUG", "Received WebSocket message",
-                        operation="websocket_message",
-                        correlation_id=corr_id,
-                        message_type=data.get("type", "unknown"),
-                        message_size=len(msg.data)
-                    )
-
-                    # Handle different message types
-                    if data.get("type") == "ping":
-                        await ws.send_json({
-                            "type": "pong",
-                            "timestamp": datetime.now().isoformat(),
-                            "correlation_id": corr_id
-                        })
-                    elif data.get("type") == "subscribe":
-                        # Handle subscription requests
-                        channels = data.get("channels", [])
-                        await ws.send_json({
-                            "type": "subscription",
-                            "status": "subscribed",
-                            "channels": channels,
-                            "correlation_id": corr_id
-                        })
-                        log_with_context(
-                            logger, "INFO", "WebSocket client subscribed to channels",
-                            operation="websocket_subscription",
-                            correlation_id=corr_id,
-                            channels=channels
-                        )
-                    else:
-                        # Echo back unknown messages
-                        await ws.send_json({
-                            "type": "echo",
-                            "original": data,
-                            "correlation_id": corr_id
-                        })
-
-                except json.JSONDecodeError as e:
-                    log_error_with_context(
-                        logger, "Invalid JSON in WebSocket message", e,
-                        operation="websocket_message_parse",
-                        correlation_id=corr_id,
-                        message_data=msg.data[:100]  # First 100 chars for debugging
-                    )
-                    await ws.send_json({
-                        "type": "error",
-                        "message": "Invalid JSON format",
-                        "correlation_id": corr_id
-                    })
-            elif msg.type == aiohttp.WSMsgType.ERROR:
-                log_error_with_context(
-                    logger, "WebSocket error occurred", ws.exception(),
-                    operation="websocket_error",
-                    correlation_id=corr_id
-                )
-                break
-
-    except Exception as e:
-        log_error_with_context(
-            logger, "WebSocket handler error", e,
-            operation="websocket_handler",
-            correlation_id=corr_id
-        )
-    finally:
-        log_with_context(
-            logger, "INFO", "WebSocket client disconnected",
-            operation="websocket_disconnection",
-            correlation_id=corr_id
-        )
-
-    return ws
-
-
-async def create_app():
-    """Create the web application"""
-    # Create web application with proper middleware factory
-    correlation_middleware = create_correlation_middleware()
-    app = web.Application(middlewares=[correlation_middleware])
-
-    # Create service instance
-    service = WebSocketIngestionService()
-
-    # Add health check endpoint
-    app.router.add_get('/health', service.health_handler.handle)
-
-    # Add standardized event rate endpoint
-    app.router.add_get('/api/v1/event-rate', service.get_event_rate)
-
-    # Add discovery trigger endpoint
-    async def trigger_discovery_handler(request):
-        """Endpoint to manually trigger device/entity discovery"""
-        service = request.app['service']
-        try:
-            if not service.connection_manager or not service.connection_manager.discovery_service:
-                return web.json_response({
-                    "success": False,
-                    "error": "Connection manager or discovery service not available"
-                }, status=503)
-
-            logger.info("Manual discovery trigger requested")
-            # Device discovery requires WebSocket (HA doesn't have HTTP API for device registry)
-            # Entity discovery uses HTTP API (no WebSocket needed)
-            websocket = None
-            if service.connection_manager.client and hasattr(service.connection_manager.client, 'websocket'):
-                websocket = service.connection_manager.client.websocket
-                logger.info("Using WebSocket connection for device discovery")
-            else:
-                logger.warning("⚠️  WebSocket not available - device discovery will be skipped (entities will still be discovered)")
-
-            try:
-                logger.info("Calling discover_all()...")
-                discovery_result = await service.connection_manager.discovery_service.discover_all(
-                    websocket=websocket,
-                    store=True
-                )
-                logger.info(f"Discovery completed: {len(discovery_result.get('devices', []))} devices, {len(discovery_result.get('entities', []))} entities")
-
-                return web.json_response({
-                    "success": True,
-                    "devices_discovered": len(discovery_result.get("devices", [])),
-                    "entities_discovered": len(discovery_result.get("entities", [])),
-                    "timestamp": datetime.now().isoformat()
-                })
-            except Exception as e:
-                logger.error(f"Error in discover_all(): {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-                raise
-        except Exception as e:
-            logger.error(f"Error triggering discovery: {e}")
-            return web.json_response({
-                "success": False,
-                "error": str(e)
-            }, status=500)
-
-    app.router.add_post('/api/v1/discovery/trigger', trigger_discovery_handler)
-
-    # Epic 45.2: Add entity filter statistics endpoint
-    async def filter_stats_handler(request):
-        """Endpoint to get entity filter statistics"""
-        service = request.app['service']
-        if not service.entity_filter:
-            return web.json_response({
-                "enabled": False,
-                "message": "Entity filter not configured"
-            })
-        
-        stats = service.entity_filter.get_statistics()
-        return web.json_response({
-            "enabled": True,
-            "statistics": stats
-        })
+def main():
+    """Main entry point - uses uvicorn to run FastAPI app"""
+    import uvicorn
     
-    app.router.add_get('/api/v1/filter/stats', filter_stats_handler)
-
-    # Add WebSocket endpoint
-    app.router.add_get('/ws', websocket_handler)
-
-    # Store service instance in app
-    app['service'] = service
-
-    return app
-
-
-async def main():
-    """Main entry point"""
-    logger.info("Starting WebSocket Ingestion Service...")
-
-    # Create web application
-    app = await create_app()
-    service = app['service']
-
-    # Start web server
-    runner = web.AppRunner(app)
-    await runner.setup()
-
     port = int(os.getenv('WEBSOCKET_INGESTION_PORT', '8000'))
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-
-    logger.info(f"WebSocket Ingestion Service started on port {port}")
-
-    # Start the service
-    await service.start()
-
-    # Keep the service running
-    try:
-        await asyncio.Future()  # Run forever
-    except KeyboardInterrupt:
-        logger.info("Shutting down WebSocket Ingestion Service...")
-    finally:
-        await service.stop()
-        await runner.cleanup()
+    host = os.getenv('WEBSOCKET_INGESTION_HOST', '0.0.0.0')
+    
+    logger.info(f"Starting WebSocket Ingestion Service on {host}:{port}...")
+    
+    # Run with uvicorn
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        log_level="info"
+    )
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

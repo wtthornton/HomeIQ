@@ -5,7 +5,6 @@ import logging
 import os
 import sys
 
-from aiohttp import web
 from dotenv import load_dotenv
 
 # Add shared directory to path for imports
@@ -178,17 +177,11 @@ class DataRetentionService:
 
         self.policy_manager.update_policy(policy)
 
-    def setup_epic2_endpoints(self, app: web.Application):
-        """Setup Epic 2 API endpoints"""
-        if self.view_manager and self.retention_manager and self.archival_manager and self.analytics:
-            self.retention_endpoints = RetentionEndpoints(
-                self.view_manager,
-                self.retention_manager,
-                self.archival_manager,
-                self.analytics
-            )
-            self.retention_endpoints.add_routes(app)
-            logger.info("Epic 2 retention endpoints registered")
+    def setup_epic2_endpoints(self, app):
+        """Setup Epic 2 API endpoints (deprecated - now handled by FastAPI routers)"""
+        # Epic 2 endpoints are now handled by FastAPI routers in api/routers/retention.py
+        # This method is kept for backward compatibility but does nothing
+        logger.info("Epic 2 retention endpoints are now handled by FastAPI routers")
 
     def remove_retention_policy(self, policy_name: str) -> None:
         """Remove a retention policy."""
@@ -299,81 +292,27 @@ class DataRetentionService:
 data_retention_service = DataRetentionService()
 
 
-async def main():
-    """Main entry point."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Import FastAPI app from api module
+from .api.app import app
+
+
+def main():
+    """Main entry point - uses uvicorn to run FastAPI app"""
+    import uvicorn
+    
+    port = int(os.getenv('PORT', '8080'))
+    host = os.getenv('HOST', '0.0.0.0')
+    
+    logger.info(f"Starting Data Retention Service on {host}:{port}...")
+    
+    # Run with uvicorn
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        log_level="info"
     )
 
-    try:
-        # Start the data retention service
-        await data_retention_service.start()
-
-        # Create and start the web application with all routes
-        app = web.Application()
-
-        # Import route handlers to avoid circular imports
-        from .health_check import (
-            add_policy,
-            cleanup_old_backups,
-            create_backup,
-            delete_policy,
-            get_backup_history,
-            get_backup_statistics,
-            get_policies,
-            get_statistics,
-            health_check,
-            restore_backup,
-            run_cleanup,
-            update_policy,
-        )
-
-        # Health check routes
-        app.router.add_get('/health', health_check)
-        app.router.add_get('/api/v1/health', health_check)
-        app.router.add_get('/stats', get_statistics)
-        app.router.add_get('/api/v1/stats', get_statistics)
-
-        # Policy management routes
-        app.router.add_get('/policies', get_policies)
-        app.router.add_post('/policies', add_policy)
-        app.router.add_put('/policies', update_policy)
-        app.router.add_delete('/policies/{policy_name}', delete_policy)
-
-        # Cleanup routes
-        app.router.add_post('/cleanup', run_cleanup)
-
-        # Backup and restore routes
-        app.router.add_post('/backup', create_backup)
-        app.router.add_post('/restore', restore_backup)
-        app.router.add_get('/backups', get_backup_history)
-        app.router.add_get('/backup-stats', get_backup_statistics)
-        app.router.add_delete('/backups/cleanup', cleanup_old_backups)
-
-        # Epic 2: Storage optimization routes
-        data_retention_service.setup_epic2_endpoints(app)
-
-        runner = web.AppRunner(app)
-        await runner.setup()
-
-        # Get port from environment
-        port = int(os.getenv('PORT', '8080'))
-        site = web.TCPSite(runner, '0.0.0.0', port)
-        await site.start()
-
-        logger.info(f"Data retention service started on port {port}")
-
-        # Keep service running
-        while True:
-            await asyncio.sleep(1)
-
-    except KeyboardInterrupt:
-        logger.info("Received shutdown signal")
-    except Exception as e:
-        logger.error(f"Service error: {e}")
-    finally:
-        await data_retention_service.stop()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

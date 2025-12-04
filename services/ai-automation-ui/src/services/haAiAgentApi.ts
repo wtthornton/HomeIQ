@@ -57,9 +57,10 @@ export interface Message {
 
 export interface ConversationListResponse {
   conversations: Conversation[];
-  total_count: number;
+  total: number;
   limit: number;
   offset: number;
+  has_more?: boolean;
 }
 
 export class HAIAgentAPIError extends Error {
@@ -122,21 +123,40 @@ async function fetchJSON<T>(
     headers,
   });
 
+  // Handle 204 No Content responses first (before checking response.ok)
+  // 204 is considered "ok" but has no body
+  if (response.status === 204) {
+    // Consume the response body to avoid potential issues
+    try {
+      await response.text();
+    } catch {
+      // Ignore errors when consuming empty body
+    }
+    return undefined as T;
+  }
+
   if (!response.ok) {
     let errorDetail: string | undefined;
     try {
-      const errorBody = await response.json();
-      errorDetail = errorBody.detail || errorBody.message || response.statusText;
-    } catch {
-      errorDetail = response.statusText;
+      // Try to read the response body as text first
+      const text = await response.text();
+      if (text && text.trim()) {
+        try {
+          const errorBody = JSON.parse(text);
+          errorDetail = errorBody.detail || errorBody.message || response.statusText;
+        } catch {
+          // If JSON parsing fails, use the text as-is or status text
+          errorDetail = text || response.statusText;
+        }
+      } else {
+        errorDetail = response.statusText;
+      }
+    } catch (error) {
+      // If reading the body fails, use status text
+      errorDetail = response.statusText || 'Unknown error';
     }
 
     throw new HAIAgentAPIError(response.status, `API Error: ${errorDetail}`, errorDetail);
-  }
-
-  // Handle 204 No Content responses (no body to parse)
-  if (response.status === 204) {
-    return undefined as T;
   }
 
   // Check content-length header - if 0, no body to parse
