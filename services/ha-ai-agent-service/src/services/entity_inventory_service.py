@@ -107,6 +107,10 @@ class EntityInventoryService:
             domain_samples: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
             for entity in entities:
+                # Skip None entities (defensive programming)
+                if entity is None:
+                    continue
+                    
                 domain = entity.get("domain", "unknown")
                 area_id = entity.get("area_id") or "unassigned"
                 domain_area_counts[domain][area_id] += 1
@@ -115,14 +119,17 @@ class EntityInventoryService:
                 # Collect sample entities for detailed info
                 if len(domain_samples[domain]) < 5:
                     entity_state = state_map.get(entity.get("entity_id", ""), {})
+                    # Handle None values explicitly - .get() returns None if key exists with None value
+                    aliases = entity.get("aliases") or []
+                    labels = entity.get("labels") or []
                     sample = {
                         "entity_id": entity.get("entity_id", ""),
                         "friendly_name": entity.get("friendly_name") or entity.get("name") or entity.get("entity_id", "").split(".", 1)[1] if "." in entity.get("entity_id", "") else entity.get("entity_id", ""),
                         "device_id": entity.get("device_id"),
                         "area_id": area_id,
                         "state": entity_state.get("state", "unknown"),
-                        "aliases": entity.get("aliases", [])[:3],  # Limit to 3 aliases
-                        "labels": entity.get("labels", [])[:3],  # Limit to 3 labels
+                        "aliases": aliases[:3] if isinstance(aliases, list) else [],  # Limit to 3 aliases
+                        "labels": labels[:3] if isinstance(labels, list) else [],  # Limit to 3 labels
                         "device_class": entity.get("device_class"),
                         "icon": entity.get("icon")
                     }

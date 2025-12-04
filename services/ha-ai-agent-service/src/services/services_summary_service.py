@@ -73,6 +73,36 @@ class ServicesSummaryService:
                 )
                 return summary
 
+            # Handle different response formats from Home Assistant API
+            # Format 1: Dict format {"light": {"turn_on": {...}, "turn_off": {...}}, ...}
+            # Format 2: List format [{"domain": "light", "service": "turn_on", ...}, ...]
+            if isinstance(services_data, list):
+                # Convert list format to dict format
+                logger.debug("Converting services list format to dict format")
+                services_dict: dict[str, dict[str, Any]] = {}
+                for service_item in services_data:
+                    if isinstance(service_item, dict):
+                        domain = service_item.get("domain", "unknown")
+                        service_name = service_item.get("service", "")
+                        if domain and service_name:
+                            if domain not in services_dict:
+                                services_dict[domain] = {}
+                            # Extract service info (fields, description, etc.)
+                            service_info = {
+                                "fields": service_item.get("fields", {}),
+                                "description": service_item.get("description", "")
+                            }
+                            services_dict[domain][service_name] = service_info
+                services_data = services_dict
+            elif not isinstance(services_data, dict):
+                # Unexpected format
+                logger.warning(f"Unexpected services data format: {type(services_data)}")
+                summary = "Services unavailable - unexpected format"
+                await self.context_builder._set_cached_value(
+                    self._cache_key, summary, self._cache_ttl
+                )
+                return summary
+
             # Format services by domain with enhanced parameter information
             summary_parts = []
             for domain in sorted(services_data.keys()):

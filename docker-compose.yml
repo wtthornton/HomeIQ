@@ -721,8 +721,10 @@ services:
       dockerfile: services/ai-automation-service/docker/ner-service.Dockerfile
     container_name: homeiq-ner-service
     restart: unless-stopped
-    ports:
-      - "8031:8031"
+    # Internal service - no external port mapping needed
+    # Port 8031 is used by proactive-agent-service
+    expose:
+      - "8031"
     networks:
       - homeiq-network
     deploy:
@@ -896,7 +898,7 @@ services:
       - HA_URL=${HA_HTTP_URL:-http://homeassistant:8123}
       - HA_TOKEN=${HA_TOKEN:-}
       - DATA_API_URL=http://data-api:8006
-      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
@@ -989,6 +991,9 @@ services:
     environment:
       - DATA_API_URL=http://data-api:8006
       - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      # Map API_KEY from .env to AI_AUTOMATION_API_KEY (backend expects this name)
+      - AI_AUTOMATION_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - AI_AUTOMATION_ADMIN_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
       # Map .env variables to service expected names
       - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
@@ -1049,8 +1054,10 @@ services:
       dockerfile: services/ai-code-executor/Dockerfile
     container_name: ai-code-executor
     restart: unless-stopped
-    ports:
-      - "8030:8030"
+    # Internal service - no external port mapping needed
+    # Port 8030 is used by ha-ai-agent-service
+    expose:
+      - "8030"
     environment:
       - EXECUTION_TIMEOUT=30
       - MAX_MEMORY_MB=128

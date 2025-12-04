@@ -39,18 +39,12 @@ class ToolService:
         self.tool_handler = HAToolHandler(ha_client, data_api_client)
 
         # Map tool names to handler methods
+        # Single tool: create_automation_from_prompt
         self.tool_handlers = {
-            "get_entity_state": self.tool_handler.get_entity_state,
-            "call_service": self.tool_handler.call_service,
-            "get_entities": self.tool_handler.get_entities,
-            "create_automation": self.tool_handler.create_automation,
-            "update_automation": self.tool_handler.update_automation,
-            "delete_automation": self.tool_handler.delete_automation,
-            "get_automations": self.tool_handler.get_automations,
-            "test_automation_yaml": self.tool_handler.test_automation_yaml,
+            "create_automation_from_prompt": self.tool_handler.create_automation_from_prompt,
         }
 
-        logger.info(f"ToolService initialized with {len(self.tool_handlers)} tools")
+        logger.info(f"ToolService initialized with {len(self.tool_handlers)} tool(s)")
 
     async def execute_tool(
         self,

@@ -69,7 +69,7 @@ const loadForceGraph = async (): Promise<any> => {
     try {
       const THREE = await import('three');
       // Handle both default and named exports
-      (window as any).THREE = THREE.default || THREE;
+      (window as any).THREE = THREE;
     } catch (err) {
       console.warn('Failed to load THREE.js:', err);
       // Continue anyway - react-force-graph might handle it
@@ -110,7 +110,7 @@ const loadForceGraph = async (): Promise<any> => {
           // Try to load THREE again and retry
           if (typeof window !== 'undefined') {
             return import('three').then((THREE) => {
-              (window as any).THREE = THREE.default || THREE;
+              (window as any).THREE = THREE;
               // Retry react-force-graph import
               loadPromise = null;
               return loadForceGraph();

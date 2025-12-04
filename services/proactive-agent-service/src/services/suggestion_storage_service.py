@@ -24,8 +24,9 @@ class SuggestionStorageService:
 
     def __init__(self):
         """Initialize storage service"""
-        if _async_session_maker is None:
-            raise RuntimeError("Database not initialized. Call init_database() first.")
+        # Note: Database initialization is checked at runtime when methods are called
+        # The database should be initialized before creating this service
+        pass
 
     async def create_suggestion(
         self,

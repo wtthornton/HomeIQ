@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { listConversations, deleteConversation, type Conversation } from '../../services/haAiAgentApi';
+import { listConversations, type Conversation } from '../../services/haAiAgentApi';
 import toast from 'react-hot-toast';
 
 interface ConversationSidebarProps {
@@ -18,6 +18,7 @@ interface ConversationSidebarProps {
   onDeleteConversation: (conversationId: string) => void;
   isOpen: boolean;
   onToggle: () => void;
+  refreshTrigger?: number; // Trigger to refresh conversation list
 }
 
 export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
@@ -28,6 +29,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   onDeleteConversation,
   isOpen,
   onToggle,
+  refreshTrigger = 0,
 }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +55,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     };
 
     loadConversations();
-  }, [filterState]);
+  }, [filterState, refreshTrigger]);
 
   // Generate conversation title from first message
   const getConversationTitle = (conversation: Conversation): string => {

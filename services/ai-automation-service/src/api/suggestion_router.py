@@ -1112,11 +1112,11 @@ async def get_usage_stats() -> dict[str, Any]:
     """
     try:
         if not openai_client:
-        raise HTTPException(
-            status_code=503,
-            detail="OpenAI client not configured. Set OPENAI_API_KEY environment variable."
-        )
-    stats = openai_client.get_usage_stats()
+            raise HTTPException(
+                status_code=503,
+                detail="OpenAI client not configured. Set OPENAI_API_KEY environment variable."
+            )
+        stats = openai_client.get_usage_stats()
 
         # Add budget alert
         from ..llm.cost_tracker import CostTracker

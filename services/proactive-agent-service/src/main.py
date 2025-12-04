@@ -115,7 +115,6 @@ async def lifespan(_app: FastAPI):
 
     # Cleanup on shutdown
     logger.info("Proactive Agent Service shutting down")
-    global scheduler_service
     if scheduler_service:
         scheduler_service.stop()
         scheduler_service = None

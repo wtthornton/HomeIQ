@@ -66,10 +66,11 @@ def mock_mqtt_client():
 def mock_openai_client():
     """Mock OpenAI client"""
     mock = AsyncMock()
-    mock.generate_automation_suggestion.return_value = {
+    # Use generate_with_unified_prompt instead of deprecated generate_automation_suggestion
+    mock.generate_with_unified_prompt.return_value = {
         "alias": "Test Automation",
         "description": "Test description",
-        "yaml_content": "test: yaml",
+        "automation_yaml": "test: yaml",
         "category": "convenience",
         "priority": "medium"
     }

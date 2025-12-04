@@ -36,6 +36,53 @@ from .conversation_persistence import (
 logger = logging.getLogger(__name__)
 
 
+def is_generic_welcome_message(content: str) -> bool:
+    """
+    Detect if message is a generic welcome message.
+    
+    Args:
+        content: Message content to check
+        
+    Returns:
+        True if message appears to be a generic welcome message
+    """
+    if not content or not content.strip():
+        return False
+    
+    content_lower = content.lower()
+    generic_patterns = [
+        "how can i assist you",
+        "what can i help you with",
+        "i'm here to help",
+        "how can i help you",
+        "what would you like to do",
+        "how can i assist you with your home assistant automations today",
+        "i can help you control your home assistant",
+    ]
+    
+    # Check if content matches generic patterns
+    matched_pattern = None
+    for pattern in generic_patterns:
+        if pattern in content_lower:
+            matched_pattern = pattern
+            # Additional check: if the message is very short and only contains generic text
+            if len(content.strip()) < 150:  # Generic messages are usually short
+                logger.debug(
+                    f"[Generic Detection] Matched pattern '{pattern}' in message "
+                    f"(length: {len(content.strip())}). Content: {content[:100]}..."
+                )
+                return True
+    
+    # Log if pattern matched but message was too long (might be false positive)
+    if matched_pattern:
+        logger.debug(
+            f"[Generic Detection] Pattern '{matched_pattern}' found but message too long "
+            f"({len(content.strip())} chars). Not flagged as generic."
+        )
+    
+    return False
+
+
 class ConversationService:
     """
     Manages conversations, message history, and context injection.

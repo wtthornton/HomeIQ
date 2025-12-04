@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # Device Intelligence Service Configuration
     device_intelligence_url: str = Field(
-        default="http://device-intelligence-service:8028",
+        default="http://device-intelligence-service:8019",
         description="Device Intelligence Service URL"
     )
     device_intelligence_enabled: bool = True

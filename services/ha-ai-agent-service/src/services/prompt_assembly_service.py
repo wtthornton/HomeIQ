@@ -10,7 +10,7 @@ import logging
 from ..config import Settings
 from ..utils.token_counter import count_message_tokens, count_tokens
 from .context_builder import ContextBuilder
-from .conversation_service import Conversation, ConversationService
+from .conversation_service import Conversation, ConversationService, is_generic_welcome_message
 
 logger = logging.getLogger(__name__)
 
@@ -78,27 +78,207 @@ class PromptAssemblyService:
         await self.conversation_service.add_message(
             conversation_id, "user", user_message
         )
+        
+        # Reload conversation to get updated message history (includes the message we just added)
+        conversation = await self.conversation_service.get_conversation(conversation_id)
+        if not conversation:
+            raise ValueError(f"Conversation {conversation_id} not found after adding message")
 
         # Get system prompt with context
         if refresh_context or not conversation.get_context_cache():
-            logger.debug(f"Building fresh context for conversation {conversation_id}")
-            system_prompt = await self.context_builder.build_complete_system_prompt()
-            conversation.set_context_cache(system_prompt)
+            logger.info(
+                f"[Context Building] Conversation {conversation_id}: "
+                f"Building fresh context (refresh_context={refresh_context}, "
+                f"has_cache={bool(conversation.get_context_cache())})"
+            )
+            try:
+                system_prompt = await self.context_builder.build_complete_system_prompt()
+                
+                # Verify system prompt was built correctly
+                if not system_prompt or len(system_prompt.strip()) < 100:
+                    logger.error(
+                        f"[Context Building] Conversation {conversation_id}: "
+                        f"⚠️ System prompt is too short or empty! Length: {len(system_prompt) if system_prompt else 0}"
+                    )
+                else:
+                    logger.info(
+                        f"[Context Building] Conversation {conversation_id}: "
+                        f"✅ System prompt built successfully. Length: {len(system_prompt)} chars. "
+                        f"Contains 'CRITICAL': {'CRITICAL' in system_prompt}, "
+                        f"Contains 'HOME ASSISTANT CONTEXT': {'HOME ASSISTANT CONTEXT' in system_prompt}"
+                    )
+                
+                conversation.set_context_cache(system_prompt)
+            except RuntimeError as e:
+                if "not initialized" in str(e):
+                    logger.error(
+                        f"[Context Building] Conversation {conversation_id}: "
+                        f"❌ CRITICAL: Context builder not initialized! Error: {e}"
+                    )
+                    raise
+                else:
+                    logger.error(
+                        f"[Context Building] Conversation {conversation_id}: "
+                        f"❌ Error building context: {e}"
+                    )
+                    raise
+            except Exception as e:
+                logger.error(
+                    f"[Context Building] Conversation {conversation_id}: "
+                    f"❌ Unexpected error building context: {e}",
+                    exc_info=True
+                )
+                raise
         else:
             logger.debug(f"Using cached context for conversation {conversation_id}")
             system_prompt = conversation.get_context_cache()
+            
+            # Verify cached prompt is valid
+            if not system_prompt or len(system_prompt.strip()) < 100:
+                logger.warning(
+                    f"[Context Building] Conversation {conversation_id}: "
+                    f"⚠️ Cached system prompt is invalid (too short/empty). Rebuilding..."
+                )
+                system_prompt = await self.context_builder.build_complete_system_prompt()
+                conversation.set_context_cache(system_prompt)
 
         # Get conversation history (without system prompt)
         history_messages = conversation.get_openai_messages()
 
+        # Filter out generic welcome messages from conversation history
+        # This prevents old generic responses from confusing the model
+        filtered_history = []
+        filtered_count = 0
+        original_count = len(history_messages)
+        
+        for msg in history_messages:
+            if msg["role"] == "assistant":
+                if is_generic_welcome_message(msg.get("content", "")):
+                    filtered_count += 1
+                    logger.info(
+                        f"[Generic Message Filter] Conversation {conversation_id}: "
+                        f"Filtered generic welcome message (count: {filtered_count}). "
+                        f"Content preview: {msg.get('content', '')[:100]}..."
+                    )
+                    continue  # Skip this generic message
+            filtered_history.append(msg)
+        
+        history_messages = filtered_history
+        
+        if filtered_count > 0:
+            logger.info(
+                f"[Generic Message Filter] Conversation {conversation_id}: "
+                f"Filtered {filtered_count} generic message(s) from history "
+                f"({original_count} -> {len(history_messages)} messages)"
+            )
+
+        # Emphasize the user's current request (the last message, which should be the one we just added)
+        emphasized_messages = history_messages.copy()
+        
+        # The user message we just added should be the last message in the history
+        # Check if the last message is a user message (it should be)
+        if history_messages and history_messages[-1]["role"] == "user":
+            # This is the message we just added - emphasize it
+            original_user_message = history_messages[-1]["content"]
+            emphasized_user_message = f"""USER REQUEST (process this immediately):
+{original_user_message}
+
+Instructions: Process this request now. Use tools if needed. Do not respond with generic welcome messages."""
+            
+            # Replace the last message with emphasized version
+            emphasized_messages[-1] = {
+                "role": "user",
+                "content": emphasized_user_message
+            }
+            
+            logger.debug(
+                f"[Message Emphasis] Conversation {conversation_id}: "
+                f"Emphasized user request (last message). "
+                f"Original length: {len(original_user_message)}, "
+                f"Emphasized length: {len(emphasized_user_message)}"
+            )
+        else:
+            # Fallback: find the last user message if the last message isn't a user message
+            # (shouldn't happen, but handle gracefully)
+            logger.warning(
+                f"[Message Emphasis] Conversation {conversation_id}: "
+                f"Last message is not a user message (role: {history_messages[-1]['role'] if history_messages else 'none'}). "
+                f"Using fallback to find last user message."
+            )
+            
+            last_user_idx = -1
+            for i in range(len(history_messages) - 1, -1, -1):
+                if history_messages[i]["role"] == "user":
+                    last_user_idx = i
+                    break
+            
+            if last_user_idx >= 0:
+                original_user_message = history_messages[last_user_idx]["content"]
+                emphasized_user_message = f"""USER REQUEST (process this immediately):
+{original_user_message}
+
+Instructions: Process this request now. Use tools if needed. Do not respond with generic welcome messages."""
+                emphasized_messages[last_user_idx] = {
+                    "role": "user",
+                    "content": emphasized_user_message
+                }
+                
+                logger.info(
+                    f"[Message Emphasis] Conversation {conversation_id}: "
+                    f"Emphasized user request using fallback (index {last_user_idx}). "
+                    f"Total messages: {len(history_messages)}"
+                )
+            else:
+                logger.error(
+                    f"[Message Emphasis] Conversation {conversation_id}: "
+                    f"No user message found in conversation history! "
+                    f"Total messages: {len(history_messages)}"
+                )
+
+        # Verify system prompt before assembly
+        if not system_prompt:
+            logger.error(
+                f"[Message Assembly] Conversation {conversation_id}: "
+                f"❌ CRITICAL: System prompt is None or empty!"
+            )
+            raise ValueError("System prompt is required but was None or empty")
+        
+        if len(system_prompt.strip()) < 100:
+            logger.error(
+                f"[Message Assembly] Conversation {conversation_id}: "
+                f"❌ CRITICAL: System prompt is too short ({len(system_prompt)} chars)! "
+                f"Expected at least 100 chars."
+            )
+        
         # Assemble complete message list
         messages = [
             {"role": "system", "content": system_prompt},
-            *history_messages,
+            *emphasized_messages,
         ]
+
+        # Log message assembly summary with verification
+        system_msg = messages[0] if messages else None
+        logger.info(
+            f"[Message Assembly] Conversation {conversation_id}: "
+            f"Assembled {len(messages)} messages "
+            f"(1 system + {len(emphasized_messages)} history). "
+            f"System prompt length: {len(system_prompt)} chars, "
+            f"System message role: {system_msg['role'] if system_msg else 'MISSING'}, "
+            f"System message has content: {bool(system_msg and system_msg.get('content'))}, "
+            f"Contains 'CRITICAL': {'CRITICAL' in system_prompt}, "
+            f"Contains 'HOME ASSISTANT CONTEXT': {'HOME ASSISTANT CONTEXT' in system_prompt}, "
+            f"User message: {user_message[:50]}..."
+        )
 
         # Enforce token budget
         messages = await self._enforce_token_budget(messages, conversation)
+        
+        if len(messages) < len([{"role": "system", "content": system_prompt}, *emphasized_messages]):
+            logger.info(
+                f"[Token Budget] Conversation {conversation_id}: "
+                f"Messages truncated due to token budget "
+                f"({len([{'role': 'system', 'content': system_prompt}, *emphasized_messages])} -> {len(messages)})"
+            )
 
         return messages
 

@@ -8,6 +8,7 @@
 import { API_CONFIG } from '../config/api';
 
 const BASE_URL = API_CONFIG.HA_AI_AGENT;
+const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
 
 export interface ChatRequest {
   message: string;
@@ -73,18 +74,52 @@ export class HAIAgentAPIError extends Error {
 }
 
 /**
+ * Add authentication headers to request options
+ */
+function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
+  const authHeaders: Record<string, string> = {
+    'Authorization': `Bearer ${API_KEY}`,
+    'X-HomeIQ-API-Key': API_KEY,
+  };
+
+  if (headers instanceof Headers) {
+    Object.entries(authHeaders).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+    return headers;
+  }
+
+  if (Array.isArray(headers)) {
+    // Filter out existing auth headers and add new ones
+    const filtered = headers.filter(([key]) =>
+      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-homeiq-api-key'
+    );
+    return [...filtered, ...Object.entries(authHeaders)];
+  }
+
+  return {
+    ...headers,
+    ...authHeaders,
+  };
+}
+
+/**
  * Fetch JSON with error handling
+ * Handles 204 No Content responses (no body to parse)
  */
 async function fetchJSON<T>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
+  // Add authentication headers to all requests
+  const headers = withAuthHeaders({
+    'Content-Type': 'application/json',
+    ...options?.headers,
+  });
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -99,7 +134,34 @@ async function fetchJSON<T>(
     throw new HAIAgentAPIError(response.status, `API Error: ${errorDetail}`, errorDetail);
   }
 
-  return response.json();
+  // Handle 204 No Content responses (no body to parse)
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  // Check content-length header - if 0, no body to parse
+  const contentLength = response.headers.get('content-length');
+  if (contentLength === '0') {
+    return undefined as T;
+  }
+
+  // Try to parse JSON, but handle empty responses gracefully
+  try {
+    const text = await response.text();
+    // If body is empty, return undefined
+    if (!text || text.trim() === '') {
+      return undefined as T;
+    }
+    return JSON.parse(text) as T;
+  } catch (error) {
+    // If parsing fails and we expected content, throw
+    // Otherwise, return undefined for empty responses
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      throw error;
+    }
+    return undefined as T;
+  }
 }
 
 /**
