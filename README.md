@@ -240,8 +240,8 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        HomeIQ Stack                          │
-│                  30 Active Microservices                     │
-│              (+ InfluxDB = 31 total containers)              │
+│                  31 Active Microservices                     │
+│              (+ InfluxDB = 32 total containers)              │
 ├─────────────────────────────────────────────────────────────┤
 │  Web Layer (2 services)                                      │
 │  ├─ Health Dashboard (React)            :3000 → nginx       │
@@ -253,9 +253,11 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │  ├─ Admin API                           :8003→8004          │
 │  └─ Data API (SQLite + InfluxDB)        :8006               │
 ├─────────────────────────────────────────────────────────────┤
-│  AI Services Layer (9 services)                             │
+│  AI Services Layer (10 services)                            │
 │  ├─ AI Automation Service               :8024→8018          │
 │  │   └─ Pattern detection + conversational flow             │
+│  ├─ HA AI Agent Service                 :8030               │
+│  │   └─ Conversational AI automation creation (Epic AI-20)   │
 │  ├─ AI Core Service                     :8018               │
 │  ├─ OpenVINO Service                    :8026→8019          │
 │  ├─ ML Service                          :8025→8020          │
@@ -274,6 +276,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │      ├─ ai_automation.db (11 tables)                        │
 │      ├─ automation_miner.db (community corpus)              │
 │      ├─ device_intelligence.db (7 tables)                   │
+│      ├─ ha_ai_agent.db (conversations, context cache)       │
 │      └─ webhooks.db                                         │
 ├─────────────────────────────────────────────────────────────┤
 │  Data Enrichment (5 active + 1 disabled - Epic 31 Direct)   │
@@ -354,6 +357,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 | **AI Automation UI** | Conversational automation | 3001 | 80 | React, TypeScript | ✅ Active |
 | **WebSocket Ingestion** | Real-time HA event capture | 8001 | 8001 | Python, aiohttp, WebSocket | ✅ Active |
 | **AI Automation Service** | Pattern detection & AI | 8024 | 8018 | Python, FastAPI, OpenAI, Self-Correction | ✅ Active |
+| **HA AI Agent Service** | Conversational AI automation creation | 8030 | 8030 | Python, FastAPI, OpenAI GPT-4o-mini | ✅ Active |
 | **Proactive Agent Service** | Context-aware suggestions | 8031 | 8031 | Python, FastAPI, APScheduler | ✅ Active |
 | **Data API** | Historical data queries | 8006 | 8006 | Python, FastAPI | ✅ Active |
 | **Admin API** | System control & config | 8003 | 8004 | Python, FastAPI | ✅ Active |

@@ -12,7 +12,7 @@ The HA AI Agent Service is a full-featured conversational AI agent that enables 
 ### Key Features
 
 - **Conversational Interface**: Full chat API with conversation persistence and history management
-- **Context-Aware**: Automatically injects Tier 1 context (entities, areas, services, capabilities) into every conversation
+- **Context-Aware**: Automatically injects Tier 1 context (entities, areas, services, capabilities, entity attributes) into every conversation
 - **Automation Creation**: Single unified tool (`create_automation_from_prompt`) that validates and creates Home Assistant automations
 - **OpenAI Integration**: Full integration with OpenAI API including retry logic, rate limiting, and token budget management
 - **Conversation Management**: SQLite-backed conversation persistence with message history, state management, and TTL-based cleanup
@@ -27,24 +27,26 @@ The service is now production-ready with full conversational AI capabilities, co
 
 This epic implemented the foundational context injection system with the following components:
 
-1. **Entity Inventory Summary** - Aggregated entity counts by domain and area
+1. **Entity Inventory Summary** - Aggregated entity counts by domain and area with entity state attributes
 2. **Areas/Rooms List** - All areas from Home Assistant
-3. **Available Services Summary** - Services by domain with common parameters
+3. **Available Services Summary** - Services by domain with common parameters and enum values
 4. **Device Capability Patterns** - Capability examples from device intelligence
 5. **Helpers & Scenes Summary** - Available helpers and scenes for reusable components
-6. **Context Builder** - Orchestrates all components and formats for OpenAI
-7. **System Prompt** - Defines agent role, behavior, and automation creation guidelines
+6. **Entity Attributes** - Effect lists, presets, themes, and other dynamic attributes from entity states (NEW)
+7. **Context Builder** - Orchestrates all components and formats for OpenAI
+8. **System Prompt** - Defines agent role, behavior, and automation creation guidelines
 
 ## Architecture
 
 ### Service Components
 
 1. **Context Builder** - Orchestrates Tier 1 context injection:
-   - Entity inventory summaries (cached 5 min)
+   - Entity inventory summaries with state attributes (cached 5 min)
    - Areas/rooms list (cached 10 min)
-   - Available services summary (cached 10 min)
+   - Available services summary with enum values (cached 10 min)
    - Device capability patterns (cached 15 min)
    - Helpers & scenes summary (cached 10 min)
+   - Entity attributes (effect lists, presets, themes) (cached 5 min)
 
 2. **Conversation Service** - Manages conversation state:
    - Conversation creation and persistence
@@ -223,11 +225,12 @@ python -m uvicorn src.main:app --host 0.0.0.0 --port 8030 --reload
 
 ### Epic AI-19: Tier 1 Context Injection ✅ Complete
 - **AI19.1** ✅ Service Foundation & Context Builder Structure
-- **AI19.2** ✅ Entity Inventory Summary Service
+- **AI19.2** ✅ Entity Inventory Summary Service (Enhanced with state attributes)
 - **AI19.3** ✅ Areas/Rooms List Service
-- **AI19.4** ✅ Available Services Summary Service
+- **AI19.4** ✅ Available Services Summary Service (Enhanced with enum values)
 - **AI19.5** ✅ Device Capability Patterns Service
 - **AI19.6** ✅ Helpers & Scenes Summary Service
+- **AI19.7** ✅ Entity Attributes Service (Effect lists, presets, themes)
 
 ### Epic AI-20: Completion & Production Readiness ✅ Complete
 - **AI20.1** ✅ OpenAI Client Integration
@@ -259,6 +262,7 @@ SQLite database (`ha_ai_agent.db`) stores:
 - Services summary (10 min TTL)
 - Capability patterns (15 min TTL)
 - Helpers & scenes summary (10 min TTL)
+- Entity attributes (effect lists, presets, themes) (5 min TTL)
 
 ### Conversation Persistence
 - Conversations table: conversation metadata, state, timestamps

@@ -56,6 +56,7 @@ This document describes performance targets, benchmarks, and optimization strate
 - Services Summary: 30-80ms
 - Capability Patterns: 100-200ms
 - Helpers & Scenes: 30-80ms
+- Entity Attributes: 50-100ms
 
 ### Chat Endpoint Performance
 
@@ -107,6 +108,7 @@ This document describes performance targets, benchmarks, and optimization strate
 - Services: 10 minutes
 - Capability Patterns: 15 minutes
 - Helpers & Scenes: 10 minutes
+- Entity Attributes: 5 minutes
 
 **Recommendation:**
 - ✅ Current TTLs are optimal
