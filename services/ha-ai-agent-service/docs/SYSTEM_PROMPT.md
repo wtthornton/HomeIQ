@@ -1,10 +1,11 @@
 # System Prompt Documentation
 
-**Epic AI-19:** System prompt for HA AI Agent Service
+**Epic AI-19:** System prompt foundation  
+**Epic AI-20:** Full conversational AI agent integration
 
 ## Overview
 
-The HA AI Agent Service includes a comprehensive system prompt that defines the agent's role, behavior, and guidelines for interacting with users and creating Home Assistant automations.
+The HA AI Agent Service includes a comprehensive system prompt that defines the agent's role, behavior, and guidelines for interacting with users and creating Home Assistant automations. This system prompt is automatically injected into every conversation along with Tier 1 context, enabling the agent to provide accurate, context-aware responses.
 
 ## System Prompt Location
 
@@ -162,7 +163,8 @@ To customize the system prompt:
 
 ## References
 
-- Epic AI-19: HA AI Agent Service - Tier 1 Context Injection
+- Epic AI-19: HA AI Agent Service - Tier 1 Context Injection (system prompt foundation)
+- Epic AI-20: HA AI Agent Service - Full Conversational AI Agent (system prompt integration)
 - Home Assistant Automation Best Practices
 - OpenAI System Prompt Best Practices
 

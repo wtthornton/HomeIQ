@@ -119,6 +119,7 @@ class EntityInventoryService:
                 # Collect sample entities for detailed info
                 if len(domain_samples[domain]) < 5:
                     entity_state = state_map.get(entity.get("entity_id", ""), {})
+                    entity_attributes = entity_state.get("attributes", {})
                     # Handle None values explicitly - .get() returns None if key exists with None value
                     aliases = entity.get("aliases") or []
                     labels = entity.get("labels") or []
@@ -131,7 +132,13 @@ class EntityInventoryService:
                         "aliases": aliases[:3] if isinstance(aliases, list) else [],  # Limit to 3 aliases
                         "labels": labels[:3] if isinstance(labels, list) else [],  # Limit to 3 labels
                         "device_class": entity.get("device_class"),
-                        "icon": entity.get("icon")
+                        "icon": entity.get("icon"),
+                        # Extract entity state attributes (effect_list, preset_list, etc.)
+                        "effect_list": entity_attributes.get("effect_list", []),
+                        "effect": entity_attributes.get("effect"),
+                        "preset_list": entity_attributes.get("preset_list", []),
+                        "theme_list": entity_attributes.get("theme_list", []),
+                        "supported_color_modes": entity_attributes.get("supported_color_modes", [])
                     }
                     domain_samples[domain].append(sample)
 
@@ -164,6 +171,24 @@ class EntityInventoryService:
                             sample_info += f", device_id: {sample['device_id']}"
                         if sample.get("state") and sample["state"] != "unknown":
                             sample_info += f", state: {sample['state']}"
+                        
+                        # Add entity state attributes for lights (effect_list, etc.)
+                        if domain == "light":
+                            effect_list = sample.get("effect_list", [])
+                            if effect_list:
+                                effect_count = len(effect_list)
+                                effect_preview = ", ".join(effect_list[:3])
+                                if effect_count > 3:
+                                    sample_info += f", effects: [{effect_preview}, ... ({effect_count} total)]"
+                                else:
+                                    sample_info += f", effects: [{effect_preview}]"
+                            elif sample.get("effect"):
+                                sample_info += f", current_effect: {sample['effect']}"
+                            
+                            color_modes = sample.get("supported_color_modes", [])
+                            if color_modes:
+                                sample_info += f", color_modes: {', '.join(color_modes)}"
+                        
                         sample_info += ")"
                         if sample.get("aliases"):
                             sample_info += f" [aliases: {', '.join(sample['aliases'][:2])}]"

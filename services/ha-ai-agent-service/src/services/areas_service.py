@@ -8,6 +8,7 @@ Enhanced: Added friendly names, aliases, icons, and labels mapping
 
 import logging
 
+from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
 from ..config import Settings
 from ..services.context_builder import ContextBuilder
@@ -37,6 +38,7 @@ class AreasService:
             ha_url=settings.ha_url,
             access_token=settings.ha_token
         )
+        self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
         self._cache_key = "areas_list"
         self._cache_ttl = 600  # 10 minutes
 
@@ -114,9 +116,60 @@ class AreasService:
             return areas_str
 
         except Exception as e:
-            logger.error(f"❌ Error fetching areas: {e}", exc_info=True)
-            # Return fallback
-            return "Areas unavailable. Please check Home Assistant connection."
+            logger.warning(f"⚠️ Error fetching areas from area registry: {e}")
+            logger.info("🔄 Falling back to entity-based area extraction...")
+            
+            # Fallback: Extract areas from entity area_id
+            try:
+                return await self._extract_areas_from_entities()
+            except Exception as fallback_error:
+                logger.error(f"❌ Fallback area extraction also failed: {fallback_error}", exc_info=True)
+                return "Areas unavailable. Please check Home Assistant connection."
+    
+    async def _extract_areas_from_entities(self) -> str:
+        """
+        Fallback: Extract areas from entity area_id values.
+        
+        Returns:
+            Formatted areas list string
+        """
+        try:
+            # Fetch entities from data-api
+            entities = await self.data_api_client.fetch_entities(limit=1000)
+            
+            if not entities:
+                return "No areas found"
+            
+            # Collect unique area_ids from entities
+            area_ids = set()
+            for entity in entities:
+                area_id = entity.get("area_id")
+                if area_id and area_id != "unassigned":
+                    area_ids.add(area_id)
+            
+            if not area_ids:
+                return "No areas found"
+            
+            # Format areas (use area_id as name if no friendly name available)
+            area_parts = []
+            for area_id in sorted(area_ids):
+                # Convert area_id to friendly name (replace underscores with spaces, title case)
+                friendly_name = area_id.replace("_", " ").title()
+                area_parts.append(f"{friendly_name} (area_id: {area_id})")
+            
+            areas_str = ", ".join(area_parts)
+            
+            # Cache the result
+            await self.context_builder._set_cached_value(
+                self._cache_key, areas_str, self._cache_ttl
+            )
+            
+            logger.info(f"✅ Extracted {len(area_ids)} areas from entities")
+            return areas_str
+            
+        except Exception as e:
+            logger.error(f"❌ Error extracting areas from entities: {e}", exc_info=True)
+            return "Areas unavailable."
 
     async def close(self):
         """Close service resources"""

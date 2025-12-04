@@ -108,6 +108,95 @@ description: Development environment setup and configuration
 - Use containerization for deployment
 - Use infrastructure as code where possible
 
+## PowerShell Commands (Windows)
+
+### ⚠️ CRITICAL: Never Use `docker-compose exec` with Python Commands
+
+**DO NOT USE:**
+```powershell
+# ❌ WRONG - This does NOT work in PowerShell
+docker-compose exec ha-ai-agent-service python -c "import ..."
+```
+
+**WHY IT FAILS:**
+- PowerShell interprets `curl` and `docker-compose exec` differently than bash
+- Complex Python commands with quotes fail to parse correctly
+- Path resolution issues in PowerShell vs bash
+
+**CORRECT ALTERNATIVES:**
+
+1. **Use API Endpoints (Preferred):**
+```powershell
+# ✅ CORRECT - Use Invoke-RestMethod for API calls
+$response = Invoke-RestMethod -Uri "http://localhost:8030/api/v1/complete-prompt" -Method Get
+$response.system_prompt
+
+# ✅ CORRECT - Use Invoke-WebRequest for HTTP calls
+$response = Invoke-WebRequest -Uri "http://localhost:8030/api/v1/health" -Method Get
+$response.Content
+```
+
+2. **Use Docker Logs:**
+```powershell
+# ✅ CORRECT - View logs instead of executing commands
+docker-compose logs --tail=100 ha-ai-agent-service
+```
+
+3. **Use Docker Run for One-off Commands:**
+```powershell
+# ✅ CORRECT - Use docker run for isolated execution
+docker run --rm -it homeiq-ha-ai-agent-service python -c "print('test')"
+```
+
+4. **Create Script Files:**
+```powershell
+# ✅ CORRECT - Create a script file and copy it into container
+# Create script locally, then:
+docker cp script.py container-name:/app/script.py
+docker-compose exec ha-ai-agent-service python /app/script.py
+```
+
+### PowerShell HTTP Commands Reference
+
+**For REST APIs:**
+```powershell
+# GET request
+$response = Invoke-RestMethod -Uri "http://localhost:8030/api/v1/endpoint" -Method Get
+
+# POST request with JSON
+$body = @{key="value"} | ConvertTo-Json
+$response = Invoke-RestMethod -Uri "http://localhost:8030/api/v1/endpoint" -Method Post -Body $body -ContentType "application/json"
+
+# Access response data
+$response.property_name
+```
+
+**For Health Checks:**
+```powershell
+# Check service health
+Invoke-RestMethod -Uri "http://localhost:8030/health" -Method Get
+
+# Check specific service
+Invoke-RestMethod -Uri "http://localhost:8030/api/v1/health/service-name" -Method Get
+```
+
+### Docker Compose Commands (PowerShell Compatible)
+
+```powershell
+# View logs (PowerShell compatible)
+docker-compose logs --tail=100 service-name
+
+# Filter logs
+docker-compose logs service-name 2>&1 | Select-String -Pattern "error|warning"
+
+# Restart service
+docker-compose restart service-name
+
+# Build and start
+docker-compose build service-name
+docker-compose up -d service-name
+```
+
 ## File Organization
 
 ```

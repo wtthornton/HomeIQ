@@ -159,12 +159,18 @@ class OpenAIClient:
             )
             
             # Prepare request parameters
+            # GPT-5.1 and newer models use max_completion_tokens instead of max_tokens
             request_params: dict[str, Any] = {
                 "model": self.model,
                 "messages": messages,
                 "temperature": temperature or self.temperature,
-                "max_tokens": max_tokens or self.max_tokens,
             }
+            
+            # Use max_completion_tokens for GPT-5.1, max_tokens for older models
+            if self.model.startswith("gpt-5"):
+                request_params["max_completion_tokens"] = max_tokens or self.max_tokens
+            else:
+                request_params["max_tokens"] = max_tokens or self.max_tokens
 
             # Add tools if provided
             if tools:

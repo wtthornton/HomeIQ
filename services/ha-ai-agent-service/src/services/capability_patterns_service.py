@@ -9,6 +9,7 @@ import logging
 from collections import defaultdict
 from typing import Any
 
+from ..clients.data_api_client import DataAPIClient
 from ..clients.device_intelligence_client import DeviceIntelligenceClient
 from ..config import Settings
 from ..services.context_builder import ContextBuilder
@@ -36,6 +37,7 @@ class CapabilityPatternsService:
         self.device_intelligence_client = DeviceIntelligenceClient(
             base_url=settings.device_intelligence_url
         )
+        self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
         self._cache_key = "capability_patterns"
         self._cache_ttl = 900  # 15 minutes
 
@@ -127,9 +129,78 @@ class CapabilityPatternsService:
             return patterns
 
         except Exception as e:
-            logger.error(f"❌ Error generating capability patterns: {e}", exc_info=True)
-            # Return fallback
-            return "Capability patterns unavailable. Please check device-intelligence-service."
+            logger.warning(f"⚠️ Error generating capability patterns from device-intelligence: {e}")
+            logger.info("🔄 Falling back to entity-based capability extraction...")
+            
+            # Fallback: Extract capabilities directly from entities
+            try:
+                return await self._extract_capabilities_from_entities()
+            except Exception as fallback_error:
+                logger.error(f"❌ Fallback capability extraction also failed: {fallback_error}", exc_info=True)
+                return "Capability patterns unavailable."
+    
+    async def _extract_capabilities_from_entities(self) -> str:
+        """
+        Fallback: Extract capability patterns directly from entity attributes.
+        
+        Returns:
+            Formatted capability patterns string
+        """
+        try:
+            # Fetch entities from data-api
+            entities = await self.data_api_client.fetch_entities(limit=500)
+            
+            if not entities:
+                return "No capability patterns found"
+            
+            # Group capabilities by domain
+            domain_capabilities: dict[str, set[str]] = defaultdict(set)
+            
+            for entity in entities:
+                domain = entity.get("domain", "")
+                if domain not in ["light", "fan", "climate", "cover", "media_player"]:
+                    continue
+                
+                attributes = entity.get("attributes", {})
+                
+                # Extract light capabilities
+                if domain == "light":
+                    supported_color_modes = attributes.get("supported_color_modes", [])
+                    if "rgb" in supported_color_modes:
+                        domain_capabilities["light"].add("rgb_color: [0-255, 0-255, 0-255]")
+                    if "hs" in supported_color_modes:
+                        domain_capabilities["light"].add("hs_color: [0-360, 0-100]")
+                    if "color_temp" in supported_color_modes:
+                        domain_capabilities["light"].add("color_temp: 153-500 (mireds)")
+                    if "brightness" in attributes:
+                        domain_capabilities["light"].add("brightness: 0-255")
+                    if "effect_list" in attributes:
+                        effects = attributes.get("effect_list", [])
+                        if effects:
+                            domain_capabilities["light"].add(f"effect: [{', '.join(effects[:5])}{'...' if len(effects) > 5 else ''}]")
+            
+            # Format patterns
+            pattern_parts = []
+            for domain in sorted(domain_capabilities.keys()):
+                capabilities = sorted(domain_capabilities[domain])
+                if capabilities:
+                    pattern_parts.append(f"{domain}:")
+                    for cap in capabilities:
+                        pattern_parts.append(f"  {cap}")
+            
+            patterns = "\n".join(pattern_parts) if pattern_parts else "No capability patterns found"
+            
+            # Cache the result
+            await self.context_builder._set_cached_value(
+                self._cache_key, patterns, self._cache_ttl
+            )
+            
+            logger.info(f"✅ Generated capability patterns from entities ({len(patterns)} chars)")
+            return patterns
+            
+        except Exception as e:
+            logger.error(f"❌ Error extracting capabilities from entities: {e}", exc_info=True)
+            return "Capability patterns unavailable."
 
     def _format_capability(self, cap_name: str, cap_type: str, properties: dict[str, Any]) -> str:
         """
