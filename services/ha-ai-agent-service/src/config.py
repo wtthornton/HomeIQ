@@ -41,19 +41,19 @@ class Settings(BaseSettings):
     # OpenAI Configuration
     openai_api_key: str | None = Field(
         default=None,
-        description="OpenAI API key for GPT-4o/GPT-4o-mini"
+        description="OpenAI API key for GPT-5.1 (better quality and 50% cost savings vs GPT-4o)"
     )
     openai_model: str = Field(
-        default="gpt-4o-mini",
-        description="OpenAI model to use (gpt-4o or gpt-4o-mini)"
+        default="gpt-5.1",
+        description="OpenAI model to use (gpt-5.1 recommended - better quality and 50% cost savings vs GPT-4o)"
     )
     openai_max_tokens: int = Field(
-        default=4096,
-        description="Maximum tokens for OpenAI responses"
+        default=2048,
+        description="Maximum tokens for OpenAI responses (GPT-5.1 generates concise YAML)"
     )
     openai_temperature: float = Field(
-        default=0.7,
-        description="Temperature for OpenAI responses (0.0-2.0)"
+        default=0.5,
+        description="Temperature for OpenAI responses (0.0-2.0). GPT-5.1 benefits from 0.4-0.6 for YAML generation"
     )
     openai_timeout: int = Field(
         default=30,

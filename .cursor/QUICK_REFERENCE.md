@@ -172,6 +172,26 @@ docker-compose up -d admin-api
 docker-compose down -v    # Includes volumes
 ```
 
+### ⚠️ PowerShell Users (Windows)
+
+**NEVER use `docker-compose exec` with Python commands:**
+```powershell
+# ❌ WRONG - Does NOT work in PowerShell
+docker-compose exec service python -c "import ..."
+```
+
+**Use API endpoints instead:**
+```powershell
+# ✅ CORRECT - Get system prompt
+$response = Invoke-RestMethod -Uri "http://localhost:8030/api/v1/complete-prompt"
+$response.system_prompt
+
+# ✅ CORRECT - Health check
+Invoke-RestMethod -Uri "http://localhost:8030/health"
+```
+
+**See `.cursor/rules/development-environment.mdc` for full PowerShell command reference.**
+
 ---
 
 ## 📝 Code Conventions

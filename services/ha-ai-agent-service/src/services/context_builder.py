@@ -36,12 +36,14 @@ class ContextBuilder:
         self._services_summary_service = None
         self._capability_patterns_service = None
         self._helpers_scenes_service = None
+        self._entity_attributes_service = None
 
     async def initialize(self) -> None:
         """Initialize context builder and all services"""
         # Lazy imports to avoid circular dependencies
         from .areas_service import AreasService
         from .capability_patterns_service import CapabilityPatternsService
+        from .entity_attributes_service import EntityAttributesService
         from .entity_inventory_service import EntityInventoryService
         from .helpers_scenes_service import HelpersScenesService
         from .services_summary_service import ServicesSummaryService
@@ -66,6 +68,10 @@ class ContextBuilder:
             settings=self.settings,
             context_builder=self
         )
+        self._entity_attributes_service = EntityAttributesService(
+            settings=self.settings,
+            context_builder=self
+        )
         self._initialized = True
         logger.info("✅ Context builder initialized with all services")
 
@@ -81,6 +87,8 @@ class ContextBuilder:
             await self._capability_patterns_service.close()
         if self._helpers_scenes_service:
             await self._helpers_scenes_service.close()
+        if self._entity_attributes_service:
+            await self._entity_attributes_service.close()
         self._initialized = False
         logger.info("✅ Context builder closed")
 
@@ -146,6 +154,18 @@ class ContextBuilder:
         except Exception as e:
             logger.warning(f"⚠️ Failed to get helpers/scenes: {e}")
             context_parts.append("HELPERS & SCENES: (unavailable)\n")
+
+        # Entity Attributes (effect_list, preset_list, themes, etc.)
+        try:
+            entity_attributes_summary = await self._entity_attributes_service.get_summary()
+            if entity_attributes_summary and len(entity_attributes_summary.strip()) > 0:
+                context_parts.append(f"ENTITY ATTRIBUTES:\n{entity_attributes_summary}\n")
+                logger.debug(f"✅ Entity attributes added ({len(entity_attributes_summary)} chars)")
+            else:
+                logger.debug("⚠️ Entity attributes summary is empty (no entities with attributes)")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to get entity attributes: {e}")
+            # Don't add unavailable marker - this is optional
 
         context = "\n".join(context_parts)
         
