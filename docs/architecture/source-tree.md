@@ -177,10 +177,11 @@ data-api/
 - **Integrations:** `/api/v1/integrations`, `/api/v1/services`
 - **WebSocket:** `/ws` (real-time streaming)
 
-### HA AI Agent Service (`services/ha-ai-agent-service/`) [Epic AI-19]
-**Purpose:** Tier 1 Context Injection for Home Assistant AI Agent
+### HA AI Agent Service (`services/ha-ai-agent-service/`) [Epic AI-19, AI-20]
+**Purpose:** Conversational AI Agent for Home Assistant Automation Creation
 **Port:** 8030
-**Database:** SQLite (context cache)
+**Database:** SQLite (context cache, conversation persistence)
+**Features:** Tier 1 context injection with entity attributes (effect lists, presets, themes)
 
 ```
 ha-ai-agent-service/
@@ -198,7 +199,8 @@ ha-ai-agent-service/
 │   │   ├── areas_service.py       # Areas/rooms list (AI19.3)
 │   │   ├── services_summary_service.py # Available services summary (AI19.4)
 │   │   ├── capability_patterns_service.py # Device capability patterns (AI19.5)
-│   │   └── helpers_scenes_service.py # Helpers & scenes summary (AI19.6)
+│   │   ├── helpers_scenes_service.py # Helpers & scenes summary (AI19.6)
+│   │   └── entity_attributes_service.py # Entity attributes (effect lists, presets) (AI19.7)
 │   └── prompts/                   # System prompts
 │       └── system_prompt.py       # Base system prompt for OpenAI agent
 ├── docs/                          # Service documentation

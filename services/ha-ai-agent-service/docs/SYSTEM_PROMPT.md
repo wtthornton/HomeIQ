@@ -23,8 +23,9 @@ The system prompt is organized into the following sections:
 
 ### 2. Context Awareness
 - Explains that the agent receives Tier 1 context at the start of each conversation
-- Lists the context components (Entity Inventory, Areas, Services, Capabilities, Helpers & Scenes)
+- Lists the context components (Entity Inventory, Areas, Services, Capabilities, Helpers & Scenes, Entity Attributes)
 - Instructs the agent to use context and tools appropriately
+- Mentions entity attributes (effect lists, presets, themes) for accurate automation generation
 
 ### 3. Communication Style
 - Conversational and natural
@@ -147,8 +148,8 @@ The system prompt follows these best practices:
 ## Token Budget
 
 - **Base System Prompt**: ~500 tokens
-- **Tier 1 Context**: ~1500 tokens
-- **Complete Prompt**: ~2000 tokens
+- **Tier 1 Context**: ~1500-2000 tokens (includes entity attributes)
+- **Complete Prompt**: ~2000-2500 tokens
 
 The system prompt is designed to be cached (90% discount on repeated calls) and the context is cached with TTL-based expiration.
 

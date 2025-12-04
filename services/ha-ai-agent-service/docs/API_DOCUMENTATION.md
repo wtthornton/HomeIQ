@@ -306,7 +306,8 @@ Comprehensive health check endpoint that verifies all dependencies in a single c
         "areas": true,
         "services": true,
         "capability_patterns": true,
-        "helpers_scenes": true
+        "helpers_scenes": true,
+        "entity_attributes": true
       }
     }
   },
@@ -360,11 +361,12 @@ Retrieve Tier 1 context formatted for OpenAI agent.
 - `token_count` (integer) - Rough token estimate (word count)
 
 **Context Sections:**
-1. Entity Inventory Summary
-2. Areas/Rooms List
-3. Available Services Summary
-4. Device Capability Patterns
-5. Helpers & Scenes Summary
+1. Entity Inventory Summary - Entity counts with state attributes (effect lists, color modes)
+2. Areas/Rooms List - All areas from Home Assistant
+3. Available Services Summary - Services with parameter schemas and enum values
+4. Device Capability Patterns - Capability examples from device intelligence
+5. Helpers & Scenes Summary - Available helpers and scenes
+6. Entity Attributes - Effect lists, presets, themes, and other dynamic attributes (NEW)
 
 **Status Codes:**
 - `200 OK` - Context retrieved successfully
@@ -537,6 +539,7 @@ Context components are cached with TTL-based expiration:
 - Services summary: 10 minutes
 - Capability patterns: 15 minutes
 - Helpers & scenes summary: 10 minutes
+- Entity attributes: 5 minutes
 
 Cache is stored in SQLite database (`ha_ai_agent.db`).
 
