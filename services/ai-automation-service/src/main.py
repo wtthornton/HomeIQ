@@ -73,6 +73,7 @@ from .api.v2.automation_router import router as automation_router_v2
 from .api.v2.conversation_router import router as conversation_router_v2
 from .api.v2.streaming_router import router as streaming_router_v2
 from .api.validation_router import router as validation_router
+from .api.yaml_validation_router import router as yaml_validation_router
 from .clients.data_api_client import DataAPIClient
 from .clients.device_intelligence_client import DeviceIntelligenceClient
 
@@ -411,6 +412,7 @@ app.include_router(preference_router)  # Epic AI-6 Story AI6.12: Frontend Prefer
 app.include_router(admin_router)  # Admin dashboard endpoints
 app.include_router(learning_router)  # Q&A Learning Enhancement Plan
 app.include_router(validation_router)  # Validation wall endpoint
+app.include_router(yaml_validation_router)  # Consolidated YAML validation endpoint
 app.include_router(ranking_router)  # Heuristic ranking endpoint
 app.include_router(mcp_router)  # MCP Code Execution Tools
 app.include_router(home_type_router)  # Home Type Categorization

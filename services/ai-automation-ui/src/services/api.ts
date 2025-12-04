@@ -606,6 +606,18 @@ export const api = {
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/entities/search?${queryParams}`);
   },
 
+  async validateYAML(data: {
+    yaml: string;
+    validate_entities?: boolean;
+    validate_safety?: boolean;
+    context?: any;
+  }): Promise<any> {
+    return fetchJSON(`${API_BASE_URL}/v1/yaml/validate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   async reverseEngineerYAML(data: {
     yaml: string;
     original_prompt: string;

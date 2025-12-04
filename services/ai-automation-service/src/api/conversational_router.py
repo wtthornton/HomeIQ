@@ -1418,6 +1418,9 @@ async def get_suggestion_by_automation_id(
     """
     Get suggestion by Home Assistant automation ID.
     Used for re-deploy functionality from Deployed page.
+    
+    Falls back to fetching YAML directly from Home Assistant if no suggestion exists
+    (e.g., for automations created via ha-ai-agent-service).
     """
     logger.info(f"📖 Get suggestion by automation_id: {automation_id}")
 
@@ -1427,29 +1430,79 @@ async def get_suggestion_by_automation_id(
         )
         suggestion = result.scalar_one_or_none()
 
-        if not suggestion:
-            raise HTTPException(status_code=404, detail=f"Suggestion not found for automation_id: {automation_id}")
-
+        if suggestion:
+            # Found in database - return suggestion data
+            return {
+                "id": suggestion.id,
+                "suggestion_id": f"suggestion-{suggestion.id}",
+                "title": suggestion.title,
+                "description": suggestion.description_only or suggestion.description,
+                "description_only": suggestion.description_only or suggestion.description,
+                "status": suggestion.status,
+                "ha_automation_id": suggestion.ha_automation_id,
+                "automation_yaml": suggestion.automation_yaml,
+                "conversation_history": suggestion.conversation_history or [],
+                "device_capabilities": suggestion.device_capabilities or {},
+                "refinement_count": suggestion.refinement_count or 0,
+                "confidence": suggestion.confidence,
+                "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
+                "deployed_at": suggestion.deployed_at.isoformat() if suggestion.deployed_at else None
+            }
+        
+        # Not found in database - try to fetch from Home Assistant
+        logger.info(f"⚠️ Suggestion not found in database, fetching from Home Assistant: {automation_id}")
+        
+        # Use the global ha_client instance from this module
+        global ha_client
+        if not ha_client:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Suggestion not found for automation_id: {automation_id} (HA client not available)"
+            )
+        
+        # Get automation config from Home Assistant
+        import yaml
+        config = await ha_client.get_automation_config(automation_id)
+        
+        if not config:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Automation not found in Home Assistant: {automation_id}"
+            )
+        
+        # Convert config to YAML string
+        automation_yaml = yaml.dump(config, default_flow_style=False, sort_keys=False)
+        
+        # Get automation state for metadata
+        automation_state = await ha_client.get_automation(automation_id)
+        attributes = automation_state.get('attributes', {}) if automation_state else {}
+        
+        # Extract alias from YAML config if available (for original prompt)
+        alias = config.get('alias', attributes.get('friendly_name', automation_id))
+        
+        # Return fallback response with YAML from HA
         return {
-            "id": suggestion.id,
-            "suggestion_id": f"suggestion-{suggestion.id}",
-            "title": suggestion.title,
-            "description": suggestion.description_only or suggestion.description,
-            "description_only": suggestion.description_only or suggestion.description,
-            "status": suggestion.status,
-            "ha_automation_id": suggestion.ha_automation_id,
-            "automation_yaml": suggestion.automation_yaml,
-            "conversation_history": suggestion.conversation_history or [],
-            "device_capabilities": suggestion.device_capabilities or {},
-            "refinement_count": suggestion.refinement_count or 0,
-            "confidence": suggestion.confidence,
-            "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
-            "deployed_at": suggestion.deployed_at.isoformat() if suggestion.deployed_at else None
+            "id": None,  # No database ID - operations requiring ID will fail gracefully
+            "suggestion_id": None,
+            "title": alias,
+            "description": alias,  # Use alias as description for self-correct
+            "description_only": alias,  # Use alias as original prompt for self-correct
+            "status": "deployed",  # Assume deployed if in HA
+            "ha_automation_id": automation_id,
+            "automation_yaml": automation_yaml,
+            "conversation_history": [],
+            "device_capabilities": {},
+            "refinement_count": 0,
+            "confidence": 1.0,
+            "created_at": None,
+            "deployed_at": None,
+            "_source": "home_assistant"  # Indicate this came from HA, not database
         }
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to get suggestion by automation_id: {e}")
+        logger.error(f"❌ Failed to get suggestion by automation_id: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get suggestion: {str(e)}")
 
 

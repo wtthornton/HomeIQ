@@ -1015,6 +1015,9 @@ CRITICAL RULES:
      ```
    - CRITICAL: scene_id in scene.create (e.g., "office_light_before_show") must match the scene entity ID (e.g., "scene.office_light_before_show")
    - If you reference scene.office_light_before_show, you MUST have a scene.create call with scene_id: office_light_before_show
+   - ❌ NEVER use template variables like {{ automation_id }} - they are NOT available in Home Assistant action context
+   - ✅ ALWAYS use static scene_id derived from automation alias: convert to lowercase, replace spaces with underscores, add "_restore" suffix
+   - Example: Alias "Office WLED Fireworks Every 15 Minutes" → scene_id: "office_wled_fireworks_every_15_minutes_restore"
    - Works for ANY entity: lights, climate, covers, media players, etc. - not specific to any device type
 
 COMMON MISTAKES TO AVOID:

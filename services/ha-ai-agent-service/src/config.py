@@ -31,6 +31,12 @@ class Settings(BaseSettings):
         description="Data API service URL"
     )
 
+    # AI Automation Service Configuration
+    ai_automation_service_url: str = Field(
+        default="http://ai-automation-service:8000",
+        description="AI Automation Service URL for YAML validation"
+    )
+
     # Device Intelligence Service Configuration
     device_intelligence_url: str = Field(
         default="http://device-intelligence-service:8019",

@@ -8,6 +8,7 @@ Implements tool call routing, result formatting, and error handling.
 import logging
 from typing import Any
 
+from ..clients.ai_automation_client import AIAutomationClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
 from ..tools.ha_tools import HAToolHandler
@@ -25,7 +26,8 @@ class ToolService:
     def __init__(
         self,
         ha_client: HomeAssistantClient,
-        data_api_client: DataAPIClient
+        data_api_client: DataAPIClient,
+        ai_automation_client: AIAutomationClient | None = None
     ):
         """
         Initialize tool service.
@@ -33,14 +35,16 @@ class ToolService:
         Args:
             ha_client: Home Assistant API client
             data_api_client: Data API client for entity queries
+            ai_automation_client: AI Automation Service client for YAML validation (optional)
         """
         self.ha_client = ha_client
         self.data_api_client = data_api_client
-        self.tool_handler = HAToolHandler(ha_client, data_api_client)
+        self.tool_handler = HAToolHandler(ha_client, data_api_client, ai_automation_client)
 
         # Map tool names to handler methods
-        # Single tool: create_automation_from_prompt
+        # 2025 Preview-and-Approval Workflow
         self.tool_handlers = {
+            "preview_automation_from_prompt": self.tool_handler.preview_automation_from_prompt,
             "create_automation_from_prompt": self.tool_handler.create_automation_from_prompt,
         }
 

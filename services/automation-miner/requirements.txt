@@ -13,7 +13,7 @@ pydantic>=2.9.0,<3.0.0  # Latest stable (2025 - Epic 41)
 pydantic-settings>=2.5.0,<3.0.0  # Latest stable (2025 - Epic 41)
 
 # API Framework
-fastapi>=0.115.0,<0.116.0  # Stable 0.115.x series (November 2025)
+fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
 uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 
 # Database (Context7 validated: async ORM)

@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func, JSON, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -65,6 +65,9 @@ class ConversationModel(Base):
         cascade="all, delete-orphan",
         order_by="MessageModel.created_at",
     )
+    
+    # Pending automation preview (2025 Preview-and-Approval Workflow)
+    pending_preview: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     def __repr__(self) -> str:
         return f"<ConversationModel(id={self.conversation_id}, state={self.state})>"
@@ -144,6 +147,44 @@ async def init_database(database_url: str) -> None:
         # Create tables
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        
+        # Migrate: Add pending_preview column if it doesn't exist
+        # This handles existing databases that were created before the column was added
+        # Run migration in separate transaction to ensure it commits
+        if database_url.startswith("sqlite"):
+            try:
+                logger.info("🔄 Checking for pending_preview column migration...")
+                async with _engine.begin() as conn:
+                    # Check if table exists first
+                    table_result = await conn.execute(
+                        text("SELECT name FROM sqlite_master WHERE type='table' AND name='conversations'")
+                    )
+                    table_row = table_result.fetchone()
+                    table_exists = table_row is not None
+                    
+                    if table_exists:
+                        # Check if column exists using pragma_table_info
+                        column_result = await conn.execute(
+                            text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'pending_preview'")
+                        )
+                        column_count = column_result.scalar() or 0
+                        column_exists = column_count > 0
+                        
+                        if not column_exists:
+                            logger.info("🔄 Adding missing column: pending_preview to conversations table")
+                            await conn.execute(
+                                text("ALTER TABLE conversations ADD COLUMN pending_preview JSON")
+                            )
+                            logger.info("✅ Successfully added pending_preview column")
+                        else:
+                            logger.debug("✅ Column pending_preview already exists")
+                    else:
+                        logger.debug("ℹ️  Conversations table doesn't exist yet (will be created with all columns)")
+            except Exception as e:
+                # Log error but don't fail initialization - migration is optional
+                logger.warning(f"⚠️  Migration check failed (non-fatal): {e}")
+                import traceback
+                logger.debug(traceback.format_exc())
 
         logger.info("✅ Database initialized successfully")
     except Exception as e:

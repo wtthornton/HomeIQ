@@ -84,6 +84,7 @@ class Conversation:
         self.messages: list[Message] = []
         self._context_cache: str | None = None
         self._context_updated_at: datetime | None = None
+        self._pending_preview: dict | None = None  # 2025 Preview-and-Approval Workflow
 
     @property
     def message_count(self) -> int:
@@ -154,4 +155,25 @@ class Conversation:
     def get_context_cache(self) -> str | None:
         """Get cached context if available"""
         return self._context_cache
+
+    def set_pending_preview(self, preview: dict) -> None:
+        """
+        Store pending automation preview.
+
+        Args:
+            preview: Preview dictionary from preview_automation_from_prompt tool
+        """
+        self._pending_preview = preview
+        self.updated_at = datetime.now()
+        logger.debug(f"Stored pending preview for conversation {self.conversation_id}")
+
+    def get_pending_preview(self) -> dict | None:
+        """Get pending automation preview if available"""
+        return self._pending_preview
+
+    def clear_pending_preview(self) -> None:
+        """Clear pending automation preview"""
+        self._pending_preview = None
+        self.updated_at = datetime.now()
+        logger.debug(f"Cleared pending preview for conversation {self.conversation_id}")
 

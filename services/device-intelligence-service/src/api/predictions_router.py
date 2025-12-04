@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from starlette.requests import Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -454,8 +455,8 @@ async def get_predictions_health():
 
 @router.post("/train/schedule")
 async def trigger_training_now(
-    mode: str | None = None,
-    request: Request | None = None
+    request: Request,
+    mode: str | None = None
 ):
     """
     Manually trigger model training immediately.
@@ -470,7 +471,7 @@ async def trigger_training_now(
     """
     try:
         # Get scheduler from app state
-        if not request or not hasattr(request.app.state, 'training_scheduler'):
+        if not hasattr(request.app.state, 'training_scheduler'):
             raise HTTPException(
                 status_code=503,
                 detail="Training scheduler not available"
@@ -497,7 +498,7 @@ async def trigger_training_now(
 
 
 @router.get("/train/status")
-async def get_training_status(request: Request | None = None):
+async def get_training_status(request: Request):
     """
     Get training scheduler status and information.
     
@@ -508,7 +509,7 @@ async def get_training_status(request: Request | None = None):
     """
     try:
         # Get scheduler from app state
-        if not request or not hasattr(request.app.state, 'training_scheduler'):
+        if not hasattr(request.app.state, 'training_scheduler'):
             return {
                 "enabled": False,
                 "message": "Training scheduler not available"

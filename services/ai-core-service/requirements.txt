@@ -2,7 +2,7 @@
 # Phase 1: Containerized AI Models
 
 # Web Framework
-fastapi>=0.115.0,<0.116.0  # Stable 0.115.x series (November 2025)
+fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
 uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 
 # Data Validation
