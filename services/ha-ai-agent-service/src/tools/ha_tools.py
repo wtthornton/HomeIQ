@@ -1,8 +1,11 @@
 """
 Home Assistant Tool Implementations
 
-Implements all tool functions for OpenAI function calling.
-Each tool function handles validation, execution, and error handling.
+Simplified to a single tool: create_automation_from_prompt
+This tool handles the complete automation creation workflow:
+1. Validates YAML syntax
+2. Creates the automation in Home Assistant
+3. Returns success/error status
 """
 
 import logging
@@ -21,7 +24,7 @@ class HAToolHandler:
     """
     Handler for Home Assistant tool execution.
 
-    Implements all tool functions defined in tool_schemas.py.
+    Implements the single unified tool: create_automation_from_prompt
     """
 
     def __init__(
@@ -39,242 +42,92 @@ class HAToolHandler:
         self.ha_client = ha_client
         self.data_api_client = data_api_client
 
-    async def get_entity_state(self, arguments: dict[str, Any]) -> dict[str, Any]:
+    async def create_automation_from_prompt(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """
-        Get current state of a Home Assistant entity.
+        Create a Home Assistant automation from a user prompt.
+
+        This is the ONLY tool available. It handles:
+        - YAML validation
+        - Automation creation in Home Assistant
+        - Error handling and reporting
 
         Args:
-            arguments: Tool arguments containing entity_id
-
-        Returns:
-            Dictionary with entity state information
-        """
-        entity_id = arguments.get("entity_id")
-        if not entity_id:
-            raise ValueError("entity_id is required")
-
-        # Validate entity ID format
-        if not re.match(r"^[a-z_]+\.[a-z0-9_]+$", entity_id):
-            raise ValueError(f"Invalid entity_id format: {entity_id}. Expected format: domain.entity_id")
-
-        try:
-            # Get all states and find the entity
-            states = await self.ha_client.get_states()
-            entity_state = None
-
-            for state in states:
-                if state.get("entity_id") == entity_id:
-                    entity_state = state
-                    break
-
-            if not entity_state:
-                return {
-                    "success": False,
-                    "error": f"Entity not found: {entity_id}",
-                    "entity_id": entity_id
-                }
-
-            return {
-                "success": True,
-                "entity_id": entity_id,
-                "state": entity_state.get("state"),
-                "attributes": entity_state.get("attributes", {}),
-                "last_changed": entity_state.get("last_changed"),
-                "last_updated": entity_state.get("last_updated")
-            }
-        except Exception as e:
-            logger.error(f"Error getting entity state for {entity_id}: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e),
-                "entity_id": entity_id
-            }
-
-    async def call_service(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        """
-        Call a Home Assistant service.
-
-        Args:
-            arguments: Tool arguments containing domain, service, and optional targets
-
-        Returns:
-            Dictionary with service call result
-        """
-        domain = arguments.get("domain")
-        service = arguments.get("service")
-
-        if not domain or not service:
-            raise ValueError("domain and service are required")
-
-        # Build service data
-        service_data: dict[str, Any] = arguments.get("service_data", {})
-
-        # Handle target (entity_id, area_id, or device_id)
-        entity_id = arguments.get("entity_id")
-        area_id = arguments.get("area_id")
-        device_id = arguments.get("device_id")
-
-        # Build target in service_data
-        if entity_id:
-            # Handle both string and list formats
-            if isinstance(entity_id, (str, list)):
-                service_data["entity_id"] = entity_id
-        elif area_id:
-            service_data["area_id"] = area_id
-        elif device_id:
-            service_data["device_id"] = device_id
-
-        try:
-            # Call service via HA client
-            # Note: We need to add call_service method to ha_client
-            # For now, we'll use aiohttp directly
-
-            session = await self.ha_client._get_session()
-            url = f"{self.ha_client.ha_url}/api/services/{domain}/{service}"
-
-            async with session.post(url, json=service_data) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return {
-                        "success": True,
-                        "domain": domain,
-                        "service": service,
-                        "service_data": service_data,
-                        "result": result
-                    }
-                else:
-                    error_text = await response.text()
-                    return {
-                        "success": False,
-                        "error": f"Service call failed: {response.status} - {error_text}",
-                        "domain": domain,
-                        "service": service
-                    }
-        except Exception as e:
-            logger.error(f"Error calling service {domain}.{service}: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e),
-                "domain": domain,
-                "service": service
-            }
-
-    async def get_entities(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        """
-        Search for entities by domain, area, or name.
-
-        Args:
-            arguments: Tool arguments with optional filters
-
-        Returns:
-            Dictionary with matching entities
-        """
-        domain = arguments.get("domain")
-        area_id = arguments.get("area_id")
-        search_term = arguments.get("search_term")
-
-        try:
-            # Fetch entities from Data API
-            entities = await self.data_api_client.fetch_entities(
-                domain=domain,
-                area_id=area_id,
-                limit=1000  # Reasonable limit for search
-            )
-
-            # Filter by search term if provided
-            if search_term:
-                search_lower = search_term.lower()
-                filtered = []
-                for entity in entities:
-                    entity_id = entity.get("entity_id", "")
-                    friendly_name = entity.get("friendly_name", "")
-                    aliases = entity.get("aliases", [])
-
-                    # Check if search term matches
-                    if (search_lower in entity_id.lower() or
-                        search_lower in friendly_name.lower() or
-                        any(search_lower in str(alias).lower() for alias in aliases)):
-                        filtered.append(entity)
-                entities = filtered
-
-            # Format response
-            formatted_entities = []
-            for entity in entities[:50]:  # Limit to 50 results
-                formatted_entities.append({
-                    "entity_id": entity.get("entity_id"),
-                    "friendly_name": entity.get("friendly_name"),
-                    "domain": entity.get("domain"),
-                    "area_id": entity.get("area_id"),
-                    "device_id": entity.get("device_id"),
-                    "state": entity.get("state")  # If available
-                })
-
-            return {
-                "success": True,
-                "count": len(formatted_entities),
-                "total_matched": len(entities),
-                "entities": formatted_entities
-            }
-        except Exception as e:
-            logger.error(f"Error searching entities: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e)
-            }
-
-    async def create_automation(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        """
-        Create a new Home Assistant automation.
-
-        Args:
-            arguments: Tool arguments containing automation_yaml and alias
+            arguments: Tool arguments containing:
+                - user_prompt: The user's natural language request
+                - automation_yaml: The complete automation YAML
+                - alias: Automation alias/name
 
         Returns:
             Dictionary with automation creation result
         """
+        user_prompt = arguments.get("user_prompt")
         automation_yaml = arguments.get("automation_yaml")
         alias = arguments.get("alias")
 
-        if not automation_yaml or not alias:
-            raise ValueError("automation_yaml and alias are required")
+        if not user_prompt or not automation_yaml or not alias:
+            return {
+                "success": False,
+                "error": "user_prompt, automation_yaml, and alias are all required",
+                "user_prompt": user_prompt,
+                "alias": alias
+            }
 
-        # Validate YAML first
+        logger.info(
+            f"Creating automation from prompt: '{user_prompt[:100]}...' "
+            f"with alias: '{alias}'"
+        )
+
+        # Step 1: Validate YAML syntax
+        validation_result = await self._validate_yaml(automation_yaml)
+        if not validation_result["valid"]:
+            return {
+                "success": False,
+                "error": "YAML validation failed",
+                "validation_errors": validation_result.get("errors", []),
+                "validation_warnings": validation_result.get("warnings", []),
+                "user_prompt": user_prompt,
+                "alias": alias
+            }
+
+        # Step 2: Create automation in Home Assistant
         try:
             automation_dict = yaml.safe_load(automation_yaml)
             if not isinstance(automation_dict, dict):
-                raise ValueError("Automation YAML must be a dictionary")
+                return {
+                    "success": False,
+                    "error": "Automation YAML must be a dictionary",
+                    "user_prompt": user_prompt,
+                    "alias": alias
+                }
 
             # Ensure required fields
             if "trigger" not in automation_dict:
-                raise ValueError("Automation must have a 'trigger' field")
+                return {
+                    "success": False,
+                    "error": "Automation must have a 'trigger' field",
+                    "user_prompt": user_prompt,
+                    "alias": alias
+                }
             if "action" not in automation_dict:
-                raise ValueError("Automation must have an 'action' field")
+                return {
+                    "success": False,
+                    "error": "Automation must have an 'action' field",
+                    "user_prompt": user_prompt,
+                    "alias": alias
+                }
 
-            # Set alias if not provided
+            # Set alias if not provided in YAML
             if "alias" not in automation_dict:
                 automation_dict["alias"] = alias
 
-        except yaml.YAMLError as e:
-            return {
-                "success": False,
-                "error": f"Invalid YAML: {str(e)}",
-                "alias": alias
-            }
-        except ValueError as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "alias": alias
-            }
-
-        try:
             # Create automation via HA API
-
             session = await self.ha_client._get_session()
-            url = f"{self.ha_client.ha_url}/api/config/automation/config/{alias}"
+            
+            # Generate a safe config ID from alias
+            config_id = re.sub(r'[^a-z0-9_]', '_', alias.lower().replace(' ', '_'))
+            url = f"{self.ha_client.ha_url}/api/config/automation/config/{config_id}"
 
             # Home Assistant expects automation config in specific format
-            # We need to convert YAML to the format HA expects
             automation_config = {
                 "alias": alias,
                 **automation_dict
@@ -283,231 +136,61 @@ class HAToolHandler:
             async with session.post(url, json=automation_config) as response:
                 if response.status in (200, 201):
                     result = await response.json()
+                    automation_id = result.get("id", f"automation.{config_id}")
+                    
+                    logger.info(
+                        f"✅ Automation created successfully: {automation_id} "
+                        f"for prompt: '{user_prompt[:100]}...'"
+                    )
+                    
                     return {
                         "success": True,
-                        "automation_id": result.get("id", f"automation.{alias.lower().replace(' ', '_')}"),
+                        "automation_id": automation_id,
                         "alias": alias,
-                        "message": "Automation created successfully"
+                        "user_prompt": user_prompt,
+                        "message": "Automation created successfully",
+                        "validation_warnings": validation_result.get("warnings", [])
                     }
                 else:
                     error_text = await response.text()
+                    logger.error(
+                        f"❌ Failed to create automation: {response.status} - {error_text} "
+                        f"for prompt: '{user_prompt[:100]}...'"
+                    )
                     return {
                         "success": False,
                         "error": f"Failed to create automation: {response.status} - {error_text}",
-                        "alias": alias
+                        "user_prompt": user_prompt,
+                        "alias": alias,
+                        "http_status": response.status
                     }
+        except yaml.YAMLError as e:
+            logger.error(f"YAML parsing error: {e}")
+            return {
+                "success": False,
+                "error": f"YAML parsing error: {str(e)}",
+                "user_prompt": user_prompt,
+                "alias": alias
+            }
         except Exception as e:
             logger.error(f"Error creating automation: {e}", exc_info=True)
             return {
                 "success": False,
-                "error": str(e),
+                "error": f"Unexpected error: {str(e)}",
+                "user_prompt": user_prompt,
                 "alias": alias
             }
 
-    async def update_automation(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        """
-        Update an existing Home Assistant automation.
-
-        Args:
-            arguments: Tool arguments containing automation_id and automation_yaml
-
-        Returns:
-            Dictionary with update result
-        """
-        automation_id = arguments.get("automation_id")
-        automation_yaml = arguments.get("automation_yaml")
-
-        if not automation_id or not automation_yaml:
-            raise ValueError("automation_id and automation_yaml are required")
-
-        # Validate YAML
-        try:
-            automation_dict = yaml.safe_load(automation_yaml)
-            if not isinstance(automation_dict, dict):
-                raise ValueError("Automation YAML must be a dictionary")
-        except yaml.YAMLError as e:
-            return {
-                "success": False,
-                "error": f"Invalid YAML: {str(e)}",
-                "automation_id": automation_id
-            }
-
-        try:
-            # Update automation via HA API
-
-            session = await self.ha_client._get_session()
-            # Extract ID from automation_id (e.g., "automation.morning_lights" -> "morning_lights")
-            config_id = automation_id.replace("automation.", "") if automation_id.startswith("automation.") else automation_id
-            url = f"{self.ha_client.ha_url}/api/config/automation/config/{config_id}"
-
-            async with session.put(url, json=automation_dict) as response:
-                if response.status == 200:
-                    return {
-                        "success": True,
-                        "automation_id": automation_id,
-                        "message": "Automation updated successfully"
-                    }
-                elif response.status == 404:
-                    return {
-                        "success": False,
-                        "error": f"Automation not found: {automation_id}",
-                        "automation_id": automation_id
-                    }
-                else:
-                    error_text = await response.text()
-                    return {
-                        "success": False,
-                        "error": f"Failed to update automation: {response.status} - {error_text}",
-                        "automation_id": automation_id
-                    }
-        except Exception as e:
-            logger.error(f"Error updating automation {automation_id}: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e),
-                "automation_id": automation_id
-            }
-
-    async def delete_automation(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        """
-        Delete a Home Assistant automation.
-
-        Args:
-            arguments: Tool arguments containing automation_id
-
-        Returns:
-            Dictionary with deletion result
-        """
-        automation_id = arguments.get("automation_id")
-        if not automation_id:
-            raise ValueError("automation_id is required")
-
-        try:
-            # Delete automation via HA API
-
-            session = await self.ha_client._get_session()
-            # Extract ID from automation_id
-            config_id = automation_id.replace("automation.", "") if automation_id.startswith("automation.") else automation_id
-            url = f"{self.ha_client.ha_url}/api/config/automation/config/{config_id}"
-
-            async with session.delete(url) as response:
-                if response.status == 200:
-                    return {
-                        "success": True,
-                        "automation_id": automation_id,
-                        "message": "Automation deleted successfully"
-                    }
-                elif response.status == 404:
-                    return {
-                        "success": False,
-                        "error": f"Automation not found: {automation_id}",
-                        "automation_id": automation_id
-                    }
-                else:
-                    error_text = await response.text()
-                    return {
-                        "success": False,
-                        "error": f"Failed to delete automation: {response.status} - {error_text}",
-                        "automation_id": automation_id
-                    }
-        except Exception as e:
-            logger.error(f"Error deleting automation {automation_id}: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e),
-                "automation_id": automation_id
-            }
-
-    async def get_automations(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        """
-        List all Home Assistant automations.
-
-        Args:
-            arguments: Tool arguments with optional search_term
-
-        Returns:
-            Dictionary with list of automations
-        """
-        search_term = arguments.get("search_term")
-
-        try:
-            # Get automations via HA API
-
-            session = await self.ha_client._get_session()
-            url = f"{self.ha_client.ha_url}/api/config/automation/config"
-
-            async with session.get(url) as response:
-                if response.status == 200:
-                    automations = await response.json()
-
-                    # Handle different response formats
-                    if isinstance(automations, dict):
-                        # HA may return dict with automations list
-                        if "automations" in automations:
-                            automations = automations["automations"]
-                        elif "data" in automations:
-                            automations = automations["data"]
-
-                    if not isinstance(automations, list):
-                        automations = []
-
-                    # Filter by search term if provided
-                    if search_term:
-                        search_lower = search_term.lower()
-                        filtered = []
-                        for automation in automations:
-                            alias = automation.get("alias", "")
-                            description = automation.get("description", "")
-                            automation_id = automation.get("id", "")
-
-                            if (search_lower in alias.lower() or
-                                search_lower in description.lower() or
-                                search_lower in str(automation_id).lower()):
-                                filtered.append(automation)
-                        automations = filtered
-
-                    # Format response
-                    formatted_automations = []
-                    for automation in automations:
-                        formatted_automations.append({
-                            "id": automation.get("id"),
-                            "alias": automation.get("alias"),
-                            "description": automation.get("description"),
-                            "enabled": automation.get("enabled", True)
-                        })
-
-                    return {
-                        "success": True,
-                        "count": len(formatted_automations),
-                        "automations": formatted_automations
-                    }
-                else:
-                    error_text = await response.text()
-                    return {
-                        "success": False,
-                        "error": f"Failed to get automations: {response.status} - {error_text}"
-                    }
-        except Exception as e:
-            logger.error(f"Error getting automations: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e)
-            }
-
-    async def test_automation_yaml(self, arguments: dict[str, Any]) -> dict[str, Any]:
+    async def _validate_yaml(self, automation_yaml: str) -> dict[str, Any]:
         """
         Validate Home Assistant automation YAML syntax.
 
         Args:
-            arguments: Tool arguments containing automation_yaml
+            automation_yaml: YAML string to validate
 
         Returns:
             Dictionary with validation result
         """
-        automation_yaml = arguments.get("automation_yaml")
-        if not automation_yaml:
-            raise ValueError("automation_yaml is required")
-
         errors = []
         warnings = []
 
@@ -518,7 +201,6 @@ class HAToolHandler:
             if not isinstance(automation_dict, dict):
                 errors.append("Automation YAML must be a dictionary")
                 return {
-                    "success": False,
                     "valid": False,
                     "errors": errors,
                     "warnings": warnings
@@ -542,6 +224,9 @@ class HAToolHandler:
             if "description" not in automation_dict:
                 warnings.append("Missing recommended field: 'description' (helps with automation management)")
 
+            if "initial_state" not in automation_dict:
+                warnings.append("Missing recommended field: 'initial_state' (should be 'true' for 2025.10+ compliance)")
+
             # Validate trigger structure
             if "trigger" in automation_dict:
                 trigger = automation_dict["trigger"]
@@ -556,13 +241,13 @@ class HAToolHandler:
                 action = automation_dict["action"]
                 if isinstance(action, list) and len(action) == 0:
                     errors.append("Action list cannot be empty")
-                elif isinstance(action, dict) and "service" not in action and "scene" not in action:
-                    errors.append("Action must have either 'service' or 'scene' field")
+                elif isinstance(action, dict):
+                    if "service" not in action and "scene" not in action:
+                        errors.append("Action must have either 'service' or 'scene' field")
 
             valid = len(errors) == 0
 
             return {
-                "success": True,
                 "valid": valid,
                 "errors": errors,
                 "warnings": warnings
@@ -570,7 +255,6 @@ class HAToolHandler:
 
         except yaml.YAMLError as e:
             return {
-                "success": True,
                 "valid": False,
                 "errors": [f"YAML syntax error: {str(e)}"],
                 "warnings": warnings
@@ -578,9 +262,7 @@ class HAToolHandler:
         except Exception as e:
             logger.error(f"Error validating automation YAML: {e}", exc_info=True)
             return {
-                "success": False,
                 "valid": False,
                 "errors": [str(e)],
                 "warnings": warnings
             }
-

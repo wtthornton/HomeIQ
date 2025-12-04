@@ -12,6 +12,7 @@ from src.services.conversation_service import (
     ConversationService,
     ConversationState,
     Message,
+    is_generic_welcome_message,
 )
 
 
@@ -317,4 +318,47 @@ async def test_conversation_to_dict(conversation_service):
     assert conv_dict["state"] == ConversationState.ACTIVE.value
     assert conv_dict["message_count"] == 1
     assert len(conv_dict["messages"]) == 1
+
+
+# Tests for is_generic_welcome_message function
+def test_is_generic_welcome_message_detects_generic_messages():
+    """Test that generic welcome messages are detected"""
+    generic_messages = [
+        "How can I assist you with your Home Assistant automations today?",
+        "What can I help you with?",
+        "I'm here to help you with your automations.",
+        "How can I help you?",
+        "What would you like to do?",
+    ]
+    
+    for msg in generic_messages:
+        assert is_generic_welcome_message(msg), f"Should detect generic message: {msg}"
+
+
+def test_is_generic_welcome_message_rejects_specific_responses():
+    """Test that specific, non-generic messages are not detected as generic"""
+    specific_messages = [
+        "I've created an automation that makes the office lights blink red every 15 minutes.",
+        "The automation has been created successfully with ID abc123.",
+        "I found 3 lights in the office area.",
+        "Here's the YAML for your automation:",
+        "The office lights are currently off.",
+    ]
+    
+    for msg in specific_messages:
+        assert not is_generic_welcome_message(msg), f"Should not detect as generic: {msg}"
+
+
+def test_is_generic_welcome_message_handles_empty_strings():
+    """Test that empty strings are not detected as generic"""
+    assert not is_generic_welcome_message("")
+    assert not is_generic_welcome_message("   ")
+    assert not is_generic_welcome_message(None)  # type: ignore
+
+
+def test_is_generic_welcome_message_case_insensitive():
+    """Test that detection is case-insensitive"""
+    assert is_generic_welcome_message("HOW CAN I ASSIST YOU?")
+    assert is_generic_welcome_message("how can i help you")
+    assert is_generic_welcome_message("How Can I Assist You Today?")
 

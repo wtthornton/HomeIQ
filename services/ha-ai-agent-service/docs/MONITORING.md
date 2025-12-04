@@ -11,18 +11,78 @@ This guide covers monitoring setup, health checks, logging, and metrics for the 
 
 **Endpoint:** `GET /health`
 
+Comprehensive health check that verifies all dependencies in a single API call.
+
+**Checks Performed:**
+- ✅ Database connectivity
+- ✅ Home Assistant connection
+- ✅ Data API connection
+- ✅ Device Intelligence Service connection
+- ✅ OpenAI configuration
+- ✅ Context builder services (all 5 components)
+
 **Response:**
 ```json
 {
   "status": "healthy",
   "service": "ha-ai-agent-service",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "message": "Database connection successful"
+    },
+    "home_assistant": {
+      "status": "healthy",
+      "message": "Home Assistant connection successful",
+      "entities_count": 544
+    },
+    "data_api": {
+      "status": "healthy",
+      "message": "Data API connection successful",
+      "entities_available": true
+    },
+    "device_intelligence": {
+      "status": "healthy",
+      "message": "Device Intelligence Service connection successful",
+      "devices_available": true
+    },
+    "openai": {
+      "status": "healthy",
+      "message": "OpenAI API key configured",
+      "model": "gpt-4o-mini"
+    },
+    "context_builder": {
+      "status": "healthy",
+      "message": "Context builder operational (5/5 components available)",
+      "components": {
+        "entity_inventory": true,
+        "areas": true,
+        "services": true,
+        "capability_patterns": true,
+        "helpers_scenes": true
+      }
+    }
+  },
+  "summary": {
+    "total": 6,
+    "healthy": 6,
+    "degraded": 0,
+    "unhealthy": 0,
+    "warnings": 0
+  }
 }
 ```
 
 **Status Codes:**
-- **200 OK:** Service is healthy
-- **503 Service Unavailable:** Service is unhealthy
+- **200 OK:** Service is healthy or degraded (still operational)
+- **503 Service Unavailable:** Service is unhealthy (critical dependencies failing)
+
+**Status Values:**
+- `healthy` - Component is working correctly
+- `degraded` - Component is operational but with reduced functionality
+- `unhealthy` - Component is not working
+- `warning` - Component has configuration issues but may still work
 
 ### Docker Health Check
 

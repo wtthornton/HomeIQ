@@ -1,11 +1,15 @@
-"""
-System Prompt for HA AI Agent Service
+# Full LLM Prompt Example
 
-Simplified to a single purpose: Create Home Assistant automations from user prompts.
-"""
+**Date:** December 4, 2025  
+**Conversation ID:** f28e7d1d-92fb-4cc5-8519-d79c3014657c  
+**User Request:** "Make the office lights blink red every 15 minutes and then return back to the state they were"
 
-# System prompt for OpenAI agent
-SYSTEM_PROMPT = """You are a Home Assistant automation creation assistant. Your ONLY job is to take a user's natural language prompt and create a Home Assistant automation.
+---
+
+## Complete System Prompt Sent to OpenAI
+
+```
+You are a Home Assistant automation creation assistant. Your ONLY job is to take a user's natural language prompt and create a Home Assistant automation.
 
 ## Your Single Purpose
 
@@ -156,4 +160,86 @@ When a user requests an automation:
 **Response:**
 "I've created an automation that makes the office lights blink red every 15 minutes and then returns them to their previous state. Automation ID: automation.office_lights_blink_red_15min"
 
-Remember: Your ONLY job is to create automations. Use the context, generate valid YAML, and call the tool immediately."""
+Remember: Your ONLY job is to create automations. Use the context, generate valid YAML, and call the tool immediately.
+
+---
+
+HOME ASSISTANT CONTEXT:
+
+ENTITY INVENTORY:
+Ai Task: 1 entities (unassigned: 1)
+Automation: 291 entities (unassigned: 291)
+Binary Sensor: 35 entities (Laundry Room: 1, unassigned: 34)
+Button: 16 entities (unassigned: 16)
+Camera: 4 entities (unassigned: 4)
+Conversation: 1 entities (unassigned: 1)
+Device Tracker: 3 entities (unassigned: 3)
+Event: 15 entities (unassigned: 15)
+Image: 4 entities (unassigned: 4)
+Input Boolean: 1 entities (unassigned: 1)
+Light: 52 entities (unassigned: 52)
+  Examples: Bottom Of Stairs (light.bottom_of_stairs, device_id: f5d4aa05fda5e82f073a256046febc7f, state: unavailable), Front Front Hallway (light.front_front_hallway, device_id: e70647f8a30b40f2d3396d5383a93880, state: unavailable), Dining Back (light.dining_back, device_id: edeb9a2f1fff430ae9a3d7e8d2710752, state: on)
+Media Player: 8 entities (unassigned: 8)
+Number: 21 entities (unassigned: 21)
+Person: 1 entities (unassigned: 1)
+Remote: 2 entities (unassigned: 2)
+Scene: 172 entities (Office: 2, unassigned: 170)
+Select: 27 entities (unassigned: 27)
+Sensor: 266 entities (unassigned: 266)
+  Examples: Next dawn (sensor.sun_next_dawn, device_id: 1ba44a8f25eab1397cb48dd7b743edcd, state: 2025-12-04T14:07:10+00:00), Next dusk (sensor.sun_next_dusk, device_id: 1ba44a8f25eab1397cb48dd7b743edcd, state: 2025-12-05T00:54:58+00:00), Next midnight (sensor.sun_next_midnight, device_id: 1ba44a8f25eab1397cb48dd7b743edcd, state: 2025-12-05T07:31:35+00:00)
+Siren: 3 entities (unassigned: 3)
+Stt: 1 entities (unassigned: 1)
+Switch: 58 entities (unassigned: 58)
+  Examples: Automation: Living Room Button (switch.automation_hue_tap_dial_switch_1, device_id: 5715678056939a0a647ef0ee2312a91e, state: on), Pre-release (switch.hacs_pre_release, device_id: 1dd3ab5e829b91cf88eee768a3c20f5b), Pre-release (switch.light_entity_card_pre_release, device_id: 34a115e84c4e99bbc1ff4b6662a46fa3)
+Time: 4 entities (unassigned: 4)
+Todo: 1 entities (unassigned: 1)
+Tts: 2 entities (unassigned: 2)
+Update: 25 entities (unassigned: 25)
+Vacuum: 1 entities (unassigned: 1)
+Weather: 1 entities (unassigned: 1)
+Zone: 1 entities (unassigned: 1)
+
+AREAS:
+No areas found
+
+AVAILABLE SERVICES:
+
+
+DEVICE CAPABILITY PATTERNS:
+No capability patterns found
+
+HELPERS & SCENES:
+input_boolean: Office Timer (office_timer, entity_id: input_boolean.office_timer, state: off) (1 helpers)
+Scenes: Backyard Bright (entity_id: scene.backyard_bright), Backyard Concentrate (entity_id: scene.backyard_concentrate), Backyard Dimmed (entity_id: scene.backyard_dimmed), Backyard Dreamy dusk (entity_id: scene.backyard_dreamy_dusk), Backyard Energize (entity_id: scene.backyard_energize), Backyard Honolulu (entity_id: scene.backyard_honolulu), Backyard Magneto (entity_id: scene.backyard_magneto), Backyard Motown (entity_id: scene.backyard_motown), Backyard Natural light 3 (entity_id: scene.backyard_natural_light_3), Backyard Nightlight (entity_id: scene.backyard_nightlight), Backyard Nighttime (entity_id: scene.backyard_nighttime), Backyard Read (entity_id: scene.backyard_read), Backyard Relax (entity_id: scene.backyard_relax), Backyard Rest (entity_id: scene.backyard_rest), Backyard Rio (entity_id: scene.backyard_rio), Backyard Scarlet dream (entity_id: scene.backyard_scarlet_dream), Backyard Sleepy (entity_id: scene.backyard_sleepy), Backyard Snow sparkle (entity_id: scene.backyard_snow_sparkle), Backyard Unwind (entity_id: scene.backyard_unwind), Downstairs Concentrate (entity_id: scene.downstairs_concentrate) ... (171 total scenes)
+```
+
+---
+
+## User Message Sent to OpenAI
+
+```
+USER REQUEST (process this immediately):
+Make the office lights blink red every 15 minutes and then return back to the state they were
+
+Instructions: Process this request now. Use tools if needed. Do not respond with generic welcome messages.
+```
+
+---
+
+## Total Prompt Statistics
+
+- **System Prompt Length:** 5,925 characters
+- **Context Length:** 3,488 characters
+- **Total System Message:** 9,420 characters
+- **User Message:** ~150 characters
+- **Total Tokens:** ~6,016 tokens (as logged)
+
+---
+
+## Notes
+
+- The system prompt includes the base instructions plus the full Home Assistant context
+- Context includes entity inventory, areas, services, device capabilities, and helpers/scenes
+- The user message is emphasized with "USER REQUEST (process this immediately)" wrapper
+- The agent has access to only ONE tool: `create_automation_from_prompt`
+

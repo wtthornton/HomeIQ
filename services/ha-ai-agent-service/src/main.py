@@ -178,15 +178,41 @@ app.include_router(conversation_router)
 # API Endpoints
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    if not context_builder:
+    """
+    Comprehensive health check endpoint.
+    
+    Verifies all dependencies in a single call:
+    - Database connectivity
+    - Home Assistant connection
+    - Data API connection
+    - Device Intelligence Service connection
+    - OpenAI configuration
+    - Context builder services
+    """
+    if not context_builder or not settings:
         raise HTTPException(status_code=503, detail="Service not ready")
 
-    return {
-        "status": "healthy",
-        "service": "ha-ai-agent-service",
-        "version": "1.0.0"
-    }
+    try:
+        from .services.health_check_service import HealthCheckService
+        
+        health_service = HealthCheckService(settings, context_builder)
+        health_result = await health_service.comprehensive_health_check()
+        await health_service.close()
+        
+        # Return appropriate status code based on overall health
+        status_code = 200
+        if health_result["status"] == "unhealthy":
+            status_code = 503
+        elif health_result["status"] == "degraded":
+            status_code = 200  # Still operational, just degraded
+        
+        return health_result
+    except Exception as e:
+        logger.exception("Error during health check")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Health check failed: {str(e)}"
+        )
 
 
 @app.get("/api/v1/context")

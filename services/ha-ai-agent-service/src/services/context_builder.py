@@ -92,16 +92,27 @@ class ContextBuilder:
             Formatted context string ready for OpenAI system/user prompts
         """
         if not self._initialized:
+            logger.error(
+                "❌ CRITICAL: Context builder not initialized! "
+                "Call context_builder.initialize() first."
+            )
             raise RuntimeError("Context builder not initialized")
 
+        logger.debug("Building Tier 1 context (entity inventory, areas, services, etc.)")
         context_parts = ["HOME ASSISTANT CONTEXT:\n"]
 
         # Story AI19.2 - Entity Inventory Summary
         try:
+            logger.debug("Fetching entity inventory summary...")
             entity_summary = await self._entity_inventory_service.get_summary()
-            context_parts.append(f"ENTITY INVENTORY:\n{entity_summary}\n")
+            if entity_summary and len(entity_summary.strip()) > 0:
+                context_parts.append(f"ENTITY INVENTORY:\n{entity_summary}\n")
+                logger.debug(f"✅ Entity inventory added ({len(entity_summary)} chars)")
+            else:
+                logger.warning("⚠️ Entity inventory summary is empty")
+                context_parts.append("ENTITY INVENTORY: (unavailable)\n")
         except Exception as e:
-            logger.warning(f"⚠️ Failed to get entity inventory: {e}")
+            logger.error(f"❌ Failed to get entity inventory: {e}", exc_info=True)
             context_parts.append("ENTITY INVENTORY: (unavailable)\n")
 
         # Story AI19.3 - Areas/Rooms List
@@ -136,7 +147,23 @@ class ContextBuilder:
             logger.warning(f"⚠️ Failed to get helpers/scenes: {e}")
             context_parts.append("HELPERS & SCENES: (unavailable)\n")
 
-        return "\n".join(context_parts)
+        context = "\n".join(context_parts)
+        
+        # Log context building result
+        context_length = len(context)
+        unavailable_count = context.count("(unavailable)")
+        
+        if unavailable_count > 0:
+            logger.warning(
+                f"⚠️ Context built with {unavailable_count} unavailable section(s). "
+                f"Total length: {context_length} chars"
+            )
+        else:
+            logger.info(
+                f"✅ Context built successfully. Total length: {context_length} chars"
+            )
+        
+        return context
 
     def get_system_prompt(self) -> str:
         """
@@ -157,8 +184,15 @@ class ContextBuilder:
         Returns:
             Complete system prompt with context injected
         """
+        logger.debug("Building complete system prompt with context injection...")
+        
         base_prompt = self.get_system_prompt()
+        base_length = len(base_prompt)
+        logger.debug(f"Base system prompt length: {base_length} chars")
+        
         context = await self.build_context()
+        context_length = len(context)
+        logger.debug(f"Context length: {context_length} chars")
 
         # Inject context into the system prompt
         # The system prompt mentions context will be provided, so we append it
@@ -167,6 +201,14 @@ class ContextBuilder:
 ---
 
 {context}"""
+
+        total_length = len(complete_prompt)
+        logger.info(
+            f"✅ Complete system prompt built: {total_length} chars "
+            f"(base: {base_length}, context: {context_length}). "
+            f"Contains 'CRITICAL': {'CRITICAL' in complete_prompt}, "
+            f"Contains 'HOME ASSISTANT CONTEXT': {'HOME ASSISTANT CONTEXT' in complete_prompt}"
+        )
 
         return complete_prompt
 

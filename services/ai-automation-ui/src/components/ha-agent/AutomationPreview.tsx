@@ -34,11 +34,11 @@ interface ParsedAutomation {
 export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
   automationYaml,
   alias: providedAlias,
-  toolCall,
+  toolCall: _toolCall,
   darkMode,
   onClose,
   onEdit,
-  conversationId,
+  conversationId: _conversationId,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [createdAutomationId, setCreatedAutomationId] = useState<string | null>(null);

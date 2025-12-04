@@ -12,10 +12,7 @@ import { useAppStore } from '../store';
 import {
   sendChatMessage,
   getConversation,
-  createConversation,
   deleteConversation,
-  listConversations,
-  type ChatResponse,
   type Conversation,
   type Message,
   type ToolCall,
@@ -49,7 +46,8 @@ export const HAAgentChat: React.FC = () => {
   const [automationPreviewOpen, setAutomationPreviewOpen] = useState(false);
   const [previewAutomationYaml, setPreviewAutomationYaml] = useState<string>('');
   const [previewAutomationAlias, setPreviewAutomationAlias] = useState<string | undefined>();
-  const [previewToolCall, setPreviewToolCall] = useState<ToolCall | null>(null);
+  const [previewToolCall, setPreviewToolCall] = useState<ToolCall | undefined>(undefined);
+  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -235,6 +233,9 @@ export const HAAgentChat: React.FC = () => {
         setMessages([]);
       }
       
+      // Refresh conversation list in sidebar
+      setSidebarRefreshTrigger(prev => prev + 1);
+      
       toast.success('Conversation deleted');
     } catch (error) {
       console.error('Failed to delete conversation:', error);
@@ -296,7 +297,7 @@ export const HAAgentChat: React.FC = () => {
     if (automation) {
       setPreviewAutomationYaml(automation.yaml);
       setPreviewAutomationAlias(automation.alias);
-      setPreviewToolCall(automation.toolCall);
+      setPreviewToolCall(automation.toolCall ?? undefined);
       setAutomationPreviewOpen(true);
     }
   };
@@ -323,6 +324,7 @@ export const HAAgentChat: React.FC = () => {
           onDeleteConversation={handleDeleteConversation}
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
+          refreshTrigger={sidebarRefreshTrigger}
         />
 
         {/* Main Chat Area */}
@@ -508,6 +510,7 @@ export const HAAgentChat: React.FC = () => {
               )}
             </button>
           </div>
+        </div>
         </div>
       </div>
 

@@ -15,7 +15,7 @@ if (typeof window !== 'undefined' && !(window as any).AFRAME) {
 // (Primary loading happens in index.html via Vite plugin)
 if (typeof window !== 'undefined' && !(window as any).THREE) {
   import('three').then((THREE) => {
-    (window as any).THREE = THREE.default || THREE;
+    (window as any).THREE = THREE;
   }).catch((err) => {
     console.warn('Failed to load THREE.js in main.tsx (fallback):', err);
   });
