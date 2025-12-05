@@ -23,6 +23,7 @@ import { DeleteConversationModal } from '../components/ha-agent/DeleteConversati
 import { ClearChatModal } from '../components/ha-agent/ClearChatModal';
 import { ToolCallIndicator } from '../components/ha-agent/ToolCallIndicator';
 import { AutomationPreview } from '../components/ha-agent/AutomationPreview';
+import { EnhancementButton } from '../components/ha-agent/EnhancementButton';
 
 interface ChatMessage extends Message {
   isLoading?: boolean;
@@ -47,6 +48,7 @@ export const HAAgentChat: React.FC = () => {
   const [previewAutomationYaml, setPreviewAutomationYaml] = useState<string>('');
   const [previewAutomationAlias, setPreviewAutomationAlias] = useState<string | undefined>();
   const [previewToolCall, setPreviewToolCall] = useState<ToolCall | undefined>(undefined);
+  const [originalPrompt, setOriginalPrompt] = useState<string>('');
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -267,10 +269,10 @@ export const HAAgentChat: React.FC = () => {
 
   // Detect automation YAML in message or tool calls
   const detectAutomation = (message: ChatMessage): { yaml: string; alias?: string; toolCall?: ToolCall } | null => {
-    // Check tool calls for create_automation or test_automation_yaml
+    // Check tool calls for create_automation_from_prompt or test_automation_yaml
     if (message.toolCalls) {
       for (const toolCall of message.toolCalls) {
-        if (toolCall.name === 'create_automation' || toolCall.name === 'test_automation_yaml') {
+        if (toolCall.name === 'create_automation_from_prompt' || toolCall.name === 'test_automation_yaml') {
           const yaml = toolCall.arguments?.automation_yaml;
           const alias = toolCall.arguments?.alias;
           if (yaml) {
@@ -299,6 +301,19 @@ export const HAAgentChat: React.FC = () => {
       setPreviewAutomationAlias(automation.alias);
       setPreviewToolCall(automation.toolCall ?? undefined);
       setAutomationPreviewOpen(true);
+      
+      // Extract original prompt from conversation
+      const userMessage = messages.find(m => m.role === 'user');
+      if (userMessage) {
+        setOriginalPrompt(userMessage.content);
+      }
+    }
+  };
+  
+  const handleEnhancementSelected = (enhancement: { enhanced_yaml: string; title?: string }) => {
+    setPreviewAutomationYaml(enhancement.enhanced_yaml);
+    if (enhancement.title) {
+      setPreviewAutomationAlias(enhancement.title);
     }
   };
 
@@ -487,6 +502,27 @@ export const HAAgentChat: React.FC = () => {
               }}
               disabled={isLoading}
             />
+            {(() => {
+              // Show button if preview modal is open OR if there's an automation in recent messages
+              const hasAutomation = messages.some(m => detectAutomation(m));
+              if (!hasAutomation && !automationPreviewOpen) return null;
+              if (!currentConversationId) return null;
+              
+              // Get the latest automation from messages
+              const latestAutomation = messages.slice().reverse().find(m => detectAutomation(m));
+              const automation = latestAutomation ? detectAutomation(latestAutomation) : null;
+              const userMsg = messages.find(m => m.role === 'user');
+              
+              return (
+                <EnhancementButton
+                  automationYaml={previewAutomationYaml || automation?.yaml || ''}
+                  originalPrompt={originalPrompt || userMsg?.content || ''}
+                  conversationId={currentConversationId}
+                  darkMode={darkMode}
+                  onEnhancementSelected={handleEnhancementSelected}
+                />
+              );
+            })()}
             <button
               onClick={handleSend}
               disabled={!inputValue.trim() || isLoading}

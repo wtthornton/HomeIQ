@@ -110,6 +110,32 @@ description: Development environment setup and configuration
 
 ## PowerShell Commands (Windows)
 
+### ⚠️ CRITICAL: Never Use Unix-Style curl Commands
+
+**DO NOT USE:**
+```powershell
+# ❌ WRONG - This does NOT work in PowerShell
+curl -s http://localhost:8024/health | ConvertFrom-Json | Select-Object -Property status
+```
+
+**WHY IT FAILS:**
+- `curl` in PowerShell is an alias for `Invoke-WebRequest`, not Unix curl
+- The `-s` flag doesn't exist for `Invoke-WebRequest`
+- Piping directly to `ConvertFrom-Json` doesn't work with `Invoke-WebRequest` output
+- This pattern will always fail in PowerShell
+
+**CORRECT ALTERNATIVES:**
+```powershell
+# ✅ CORRECT - Use Invoke-RestMethod (automatically parses JSON)
+$response = Invoke-RestMethod -Uri "http://localhost:8024/health"
+$response.status
+
+# ✅ CORRECT - One-liner
+(Invoke-RestMethod -Uri "http://localhost:8024/health").status
+```
+
+**See:** `docs/POWERSHELL_BEST_PRACTICES.md` for complete PowerShell command reference
+
 ### ⚠️ CRITICAL: Never Use `docker-compose exec` with Python Commands
 
 **DO NOT USE:**
@@ -119,7 +145,7 @@ docker-compose exec ha-ai-agent-service python -c "import ..."
 ```
 
 **WHY IT FAILS:**
-- PowerShell interprets `curl` and `docker-compose exec` differently than bash
+- PowerShell interprets commands differently than bash
 - Complex Python commands with quotes fail to parse correctly
 - Path resolution issues in PowerShell vs bash
 
@@ -173,11 +199,15 @@ $response.property_name
 
 **For Health Checks:**
 ```powershell
-# Check service health
-Invoke-RestMethod -Uri "http://localhost:8030/health" -Method Get
+# ✅ CORRECT - Check service health (returns parsed JSON object)
+$health = Invoke-RestMethod -Uri "http://localhost:8024/health"
+$health.status
 
-# Check specific service
-Invoke-RestMethod -Uri "http://localhost:8030/api/v1/health/service-name" -Method Get
+# ✅ CORRECT - One-liner to get status
+(Invoke-RestMethod -Uri "http://localhost:8024/health").status
+
+# ❌ NEVER DO THIS - curl doesn't work this way in PowerShell
+# curl -s http://localhost:8024/health | ConvertFrom-Json
 ```
 
 ### Docker Compose Commands (PowerShell Compatible)

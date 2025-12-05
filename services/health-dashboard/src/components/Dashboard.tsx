@@ -19,6 +19,7 @@ const TAB_COMPONENTS: Record<string, React.FC<Tabs.TabProps>> = {
   analytics: Tabs.AnalyticsTab,
   alerts: Tabs.AlertsTab,
   hygiene: Tabs.HygieneTab,
+  validation: Tabs.ValidationTab,
   configuration: Tabs.ConfigurationTab,
 };
 
@@ -36,6 +37,7 @@ const TAB_CONFIG = [
   { id: 'analytics', label: '📈 Analytics', icon: '📈', shortLabel: 'Analytics' },
   { id: 'alerts', label: '🚨 Alerts', icon: '🚨', shortLabel: 'Alerts' },
   { id: 'hygiene', label: '🧼 Device Hygiene', icon: '🧼', shortLabel: 'Hygiene' },
+  { id: 'validation', label: '🔍 HA Validation', icon: '🔍', shortLabel: 'Validation' },
   { id: 'configuration', label: '⚙️ Configuration', icon: '⚙️', shortLabel: 'Config' },
 ];
 

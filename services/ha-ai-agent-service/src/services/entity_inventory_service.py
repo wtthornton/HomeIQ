@@ -162,37 +162,68 @@ class EntityInventoryService:
                 domain_line = f"{domain_display}: {total} entities ({area_str})"
 
                 # Add sample entity details for key domains (light, switch, sensor, climate, cover, lock, fan)
-                if domain in ["light", "switch", "sensor", "climate", "cover", "lock", "fan"] and domain_samples[domain]:
-                    samples = domain_samples[domain][:3]  # Show max 3 examples
-                    sample_parts = []
-                    for sample in samples:
-                        sample_info = f"{sample['friendly_name']} ({sample['entity_id']}"
-                        if sample.get("device_id"):
-                            sample_info += f", device_id: {sample['device_id']}"
-                        if sample.get("state") and sample["state"] != "unknown":
-                            sample_info += f", state: {sample['state']}"
-                        
-                        # Add entity state attributes for lights (effect_list, etc.)
-                        if domain == "light":
-                            effect_list = sample.get("effect_list", [])
-                            if effect_list:
-                                effect_count = len(effect_list)
-                                effect_preview = ", ".join(effect_list[:3])
-                                if effect_count > 3:
-                                    sample_info += f", effects: [{effect_preview}, ... ({effect_count} total)]"
-                                else:
-                                    sample_info += f", effects: [{effect_preview}]"
-                            elif sample.get("effect"):
-                                sample_info += f", current_effect: {sample['effect']}"
+                # IMPORTANT: For lights, show ALL entities (not just 3) to enable proper entity resolution
+                if domain in ["light", "switch", "sensor", "climate", "cover", "lock", "fan"]:
+                    # For lights, show ALL entities to help with entity resolution
+                    if domain == "light":
+                        # Filter entities for this domain and rebuild samples with all lights
+                        domain_entities = [e for e in entities if e.get("domain") == "light"]
+                        samples = []
+                        for entity in domain_entities[:20]:  # Show up to 20 lights
+                            entity_state = state_map.get(entity.get("entity_id", ""), {})
+                            entity_attributes = entity_state.get("attributes", {})
+                            aliases = entity.get("aliases") or []
+                            labels = entity.get("labels") or []
+                            sample = {
+                                "entity_id": entity.get("entity_id", ""),
+                                "friendly_name": entity.get("friendly_name") or entity.get("name") or entity.get("entity_id", "").split(".", 1)[1] if "." in entity.get("entity_id", "") else entity.get("entity_id", ""),
+                                "device_id": entity.get("device_id"),
+                                "area_id": entity.get("area_id") or "unassigned",
+                                "state": entity_state.get("state", "unknown"),
+                                "aliases": aliases[:3] if isinstance(aliases, list) else [],
+                                "labels": labels[:3] if isinstance(labels, list) else [],
+                                "device_class": entity.get("device_class"),
+                                "icon": entity.get("icon"),
+                                "effect_list": entity_attributes.get("effect_list", []),
+                                "effect": entity_attributes.get("effect"),
+                                "preset_list": entity_attributes.get("preset_list", []),
+                                "theme_list": entity_attributes.get("theme_list", []),
+                                "supported_color_modes": entity_attributes.get("supported_color_modes", [])
+                            }
+                            samples.append(sample)
+                    else:
+                        samples = domain_samples[domain][:3] if domain_samples.get(domain) else []  # Show max 3 examples for other domains
+                    
+                    if samples:
+                        sample_parts = []
+                        for sample in samples:
+                            sample_info = f"{sample['friendly_name']} ({sample['entity_id']}"
+                            if sample.get("device_id"):
+                                sample_info += f", device_id: {sample['device_id']}"
+                            if sample.get("state") and sample["state"] != "unknown":
+                                sample_info += f", state: {sample['state']}"
                             
-                            color_modes = sample.get("supported_color_modes", [])
-                            if color_modes:
-                                sample_info += f", color_modes: {', '.join(color_modes)}"
-                        
-                        sample_info += ")"
-                        if sample.get("aliases"):
-                            sample_info += f" [aliases: {', '.join(sample['aliases'][:2])}]"
-                        sample_parts.append(sample_info)
+                            # Add entity state attributes for lights (effect_list, etc.)
+                            if domain == "light":
+                                effect_list = sample.get("effect_list", [])
+                                if effect_list:
+                                    effect_count = len(effect_list)
+                                    effect_preview = ", ".join(effect_list[:3])
+                                    if effect_count > 3:
+                                        sample_info += f", effects: [{effect_preview}, ... ({effect_count} total)]"
+                                    else:
+                                        sample_info += f", effects: [{effect_preview}]"
+                                elif sample.get("effect"):
+                                    sample_info += f", current_effect: {sample['effect']}"
+                                
+                                color_modes = sample.get("supported_color_modes", [])
+                                if color_modes:
+                                    sample_info += f", color_modes: {', '.join(color_modes)}"
+                            
+                            sample_info += ")"
+                            if sample.get("aliases"):
+                                sample_info += f" [aliases: {', '.join(sample['aliases'][:2])}]"
+                            sample_parts.append(sample_info)
                     if sample_parts:
                         domain_line += f"\n  Examples: {', '.join(sample_parts)}"
 

@@ -21,4 +21,5 @@ export { ConfigurationTab } from './ConfigurationTab';
 export { DevicesTab } from './DevicesTab';
 export { EnergyTab } from './EnergyTab';
 export { HygieneTab } from './HygieneTab';
+export { ValidationTab } from './ValidationTab';
 

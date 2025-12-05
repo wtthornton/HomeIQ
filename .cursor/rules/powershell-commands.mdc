@@ -1,0 +1,118 @@
+---
+description: PowerShell command guidelines - CRITICAL rules for Windows environments
+alwaysApply: true
+---
+
+# PowerShell Command Guidelines
+
+## ⚠️ CRITICAL: Never Use Unix-Style curl Commands
+
+### ❌ FORBIDDEN Pattern
+
+**NEVER use this pattern in PowerShell:**
+```powershell
+curl -s http://localhost:8024/health | ConvertFrom-Json | Select-Object -Property status
+```
+
+**Why it fails:**
+- `curl` in PowerShell is an alias for `Invoke-WebRequest`, not Unix curl
+- The `-s` (silent) flag doesn't exist for `Invoke-WebRequest`
+- Piping `Invoke-WebRequest` output directly to `ConvertFrom-Json` doesn't work
+- This pattern will **always fail** in PowerShell
+
+### ✅ CORRECT Patterns
+
+**Option 1: Use Invoke-RestMethod (Recommended)**
+```powershell
+# Simple health check - automatically parses JSON
+$response = Invoke-RestMethod -Uri "http://localhost:8024/health"
+$response.status
+
+# One-liner
+(Invoke-RestMethod -Uri "http://localhost:8024/health").status
+```
+
+**Option 2: Use Invoke-WebRequest (for non-JSON responses)**
+```powershell
+# Get response and parse JSON manually
+$response = Invoke-WebRequest -Uri "http://localhost:8024/health"
+$json = $response.Content | ConvertFrom-Json
+$json.status
+```
+
+## Command Equivalents
+
+| Unix/Bash Command | PowerShell Equivalent |
+|-------------------|----------------------|
+| `curl http://localhost:8001/health` | `Invoke-RestMethod -Uri "http://localhost:8001/health"` |
+| `curl -s http://localhost:8001/health \| jq .status` | `(Invoke-RestMethod -Uri "http://localhost:8001/health").status` |
+| `curl -X POST http://localhost:8001/api -d '{"key":"value"}'` | `Invoke-RestMethod -Uri "http://localhost:8001/api" -Method Post -Body '{"key":"value"}' -ContentType "application/json"` |
+| `curl -H "Authorization: Bearer $TOKEN" http://localhost:8001/api` | `Invoke-RestMethod -Uri "http://localhost:8001/api" -Headers @{Authorization="Bearer $TOKEN"}` |
+
+## Health Check Examples
+
+```powershell
+# Check service health
+$health = Invoke-RestMethod -Uri "http://localhost:8024/health"
+Write-Host "Status: $($health.status)"
+
+# Check multiple services
+$services = @(
+    @{Name="websocket-ingestion"; Port=8001},
+    @{Name="data-api"; Port=8006},
+    @{Name="ai-automation-service"; Port=8024}
+)
+
+foreach ($service in $services) {
+    try {
+        $health = Invoke-RestMethod -Uri "http://localhost:$($service.Port)/health"
+        Write-Host "$($service.Name): $($health.status)" -ForegroundColor Green
+    } catch {
+        Write-Host "$($service.Name): FAILED" -ForegroundColor Red
+    }
+}
+```
+
+## Error Handling
+
+```powershell
+# Always use try-catch for API calls
+try {
+    $response = Invoke-RestMethod -Uri "http://localhost:8024/health"
+    Write-Host "Service is healthy: $($response.status)" -ForegroundColor Green
+} catch {
+    if ($_.Exception.Response.StatusCode -eq 404) {
+        Write-Host "Service not found" -ForegroundColor Yellow
+    } elseif ($_.Exception.Response.StatusCode -eq 503) {
+        Write-Host "Service unavailable" -ForegroundColor Red
+    } else {
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+```
+
+## References
+
+- **Complete Guide:** `docs/POWERSHELL_BEST_PRACTICES.md`
+- **Development Environment Rules:** `.cursor/rules/development-environment.mdc`
+- **CLI Reference:** `docs/CLI_REFERENCE.md`
+
+## Agent Rules
+
+**When working in PowerShell/Windows environments:**
+1. ✅ Always use `Invoke-RestMethod` for JSON APIs
+2. ✅ Always use `Invoke-WebRequest` for HTML/text responses
+3. ✅ Never use `curl` with Unix-style flags (`-s`, `-X`, `-H`)
+4. ✅ Never pipe `curl` directly to `ConvertFrom-Json`
+5. ✅ Always test commands in PowerShell before suggesting them
+6. ✅ Provide PowerShell equivalents for all bash commands
+
+**If you see this pattern in code/documentation:**
+```powershell
+curl -s http://... | ConvertFrom-Json
+```
+**You MUST:**
+- Replace it with `Invoke-RestMethod`
+- Update documentation
+- Add a warning comment
+- Update this rule if needed

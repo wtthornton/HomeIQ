@@ -12,6 +12,7 @@ from ..clients.ai_automation_client import AIAutomationClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
 from ..tools.ha_tools import HAToolHandler
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,8 @@ class ToolService:
         self,
         ha_client: HomeAssistantClient,
         data_api_client: DataAPIClient,
-        ai_automation_client: AIAutomationClient | None = None
+        ai_automation_client: AIAutomationClient | None = None,
+        openai_client: Any = None
     ):
         """
         Initialize tool service.
@@ -36,16 +38,18 @@ class ToolService:
             ha_client: Home Assistant API client
             data_api_client: Data API client for entity queries
             ai_automation_client: AI Automation Service client for YAML validation (optional)
+            openai_client: OpenAI client for enhancement generation (optional)
         """
         self.ha_client = ha_client
         self.data_api_client = data_api_client
-        self.tool_handler = HAToolHandler(ha_client, data_api_client, ai_automation_client)
+        self.tool_handler = HAToolHandler(ha_client, data_api_client, ai_automation_client, openai_client)
 
         # Map tool names to handler methods
         # 2025 Preview-and-Approval Workflow
         self.tool_handlers = {
             "preview_automation_from_prompt": self.tool_handler.preview_automation_from_prompt,
             "create_automation_from_prompt": self.tool_handler.create_automation_from_prompt,
+            "suggest_automation_enhancements": self.tool_handler.suggest_automation_enhancements,
         }
 
         logger.info(f"ToolService initialized with {len(self.tool_handlers)} tool(s)")

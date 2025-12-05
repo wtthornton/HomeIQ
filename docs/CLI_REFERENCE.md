@@ -26,6 +26,8 @@ docker-compose logs -f <service-name>
 ## 🔍 **Health Check Commands**
 
 ### **System Health**
+
+**Linux/Mac (Bash):**
 ```bash
 # Check overall system health
 curl http://localhost:8080/api/v1/health
@@ -35,6 +37,24 @@ curl http://localhost:8080/api/v1/health/websocket-ingestion
 curl http://localhost:8080/api/v1/health/enrichment-pipeline
 curl http://localhost:8080/api/v1/health/data-retention
 ```
+
+**Windows (PowerShell):**
+```powershell
+# ⚠️ IMPORTANT: Do NOT use curl in PowerShell - use Invoke-RestMethod instead
+
+# ✅ CORRECT - Check overall system health
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/health"
+
+# ✅ CORRECT - Check specific service health
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/health/websocket-ingestion"
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/health/enrichment-pipeline"
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/health/data-retention"
+
+# ❌ WRONG - This does NOT work in PowerShell
+# curl -s http://localhost:8080/api/v1/health | ConvertFrom-Json
+```
+
+**See:** `docs/POWERSHELL_BEST_PRACTICES.md` for complete PowerShell command reference
 
 ### **Service Status**
 ```bash
@@ -69,6 +89,8 @@ docker-compose logs -f --tail=50
 ```
 
 ### **Metrics and Statistics**
+
+**Linux/Mac (Bash):**
 ```bash
 # Get system statistics
 curl http://localhost:8080/api/v1/stats
@@ -80,9 +102,23 @@ curl http://localhost:8080/api/v1/monitoring/metrics/current
 curl http://localhost:8080/api/v1/monitoring/metrics/summary
 ```
 
+**Windows (PowerShell):**
+```powershell
+# ✅ CORRECT - Get system statistics
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/stats"
+
+# ✅ CORRECT - Get current metrics
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/monitoring/metrics/current"
+
+# ✅ CORRECT - Get metrics summary
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/monitoring/metrics/summary"
+```
+
 ## 🔧 **Configuration Commands**
 
 ### **Configuration Management**
+
+**Linux/Mac (Bash):**
 ```bash
 # View current configuration
 curl http://localhost:8080/api/v1/config

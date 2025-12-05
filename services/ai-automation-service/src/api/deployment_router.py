@@ -614,6 +614,177 @@ async def trigger_automation(automation_id: str):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post("/automations/{automation_id}/redeploy")
+async def redeploy_automation_by_id(
+    automation_id: str,
+    auth=Depends(require_authenticated_user)
+):
+    """
+    Re-deploy an automation by automation_id (works for automations without suggestion records).
+    
+    This endpoint allows re-deploying automations that were created via ha-ai-agent-service
+    or other means that don't have a corresponding suggestion record in the database.
+    
+    Flow:
+    1. Fetch automation YAML from Home Assistant
+    2. Get suggestion by automation_id (creates fallback if not in DB)
+    3. Use self-correction to regenerate YAML
+    4. Deploy updated YAML back to Home Assistant
+    
+    Args:
+        automation_id: Home Assistant automation entity ID (e.g., "automation.office_wled_fireworks")
+        auth: Authenticated user (required)
+    
+    Returns:
+        Deployment result with updated YAML and validation
+    """
+    try:
+        logger.info(f"🔄 Re-deploying automation by ID: {automation_id}")
+        
+        # Step 1: Get suggestion data (will create fallback if not in DB)
+        from ..database.models import Suggestion
+        from ..database import get_db_session
+        
+        async with get_db_session() as db:
+            # Try to find suggestion in database
+            result = await db.execute(
+                select(Suggestion).where(Suggestion.ha_automation_id == automation_id)
+            )
+            suggestion = result.scalar_one_or_none()
+            
+            if suggestion:
+                # Found in database - use existing re-deploy flow
+                from ..api.conversational_router import approve_suggestion
+                suggestion_id = f"suggestion-{suggestion.id}"
+                logger.info(f"✅ Found suggestion record {suggestion_id}, using standard re-deploy")
+                
+                # Use existing approve endpoint for re-deploy
+                result = await approve_suggestion(
+                    suggestion_id=suggestion_id,
+                    request=None,
+                    db=db
+                )
+                return {
+                    "success": True,
+                    "message": "Automation re-deployed successfully",
+                    "data": result
+                }
+            
+            # Not in database - fetch from Home Assistant
+            logger.info(f"⚠️ Suggestion not found in database, fetching from Home Assistant")
+            
+            # Get automation config from Home Assistant
+            import yaml
+            config = await ha_client.get_automation_config(automation_id)
+            
+            if not config:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Automation not found in Home Assistant: {automation_id}"
+                )
+            
+            # Convert config to YAML string
+            automation_yaml = yaml.dump(config, default_flow_style=False, sort_keys=False)
+            
+            # Get automation state for metadata
+            automation_state = await ha_client.get_automation(automation_id)
+            attributes = automation_state.get('attributes', {}) if automation_state else {}
+            
+            # Extract alias from YAML config if available
+            alias = config.get('alias', attributes.get('friendly_name', automation_id))
+            
+            suggestion_data = {
+                "id": None,
+                "suggestion_id": None,
+                "title": alias,
+                "description": alias,
+                "description_only": alias,
+                "status": "deployed",
+                "ha_automation_id": automation_id,
+                "automation_yaml": automation_yaml,
+                "_source": "home_assistant"
+            }
+        
+        # Step 2: No suggestion record - use self-correction to regenerate YAML
+        logger.info(f"⚠️ No suggestion record found, using self-correction to regenerate YAML")
+        
+        # Get current YAML from suggestion data
+        current_yaml = suggestion_data.get("automation_yaml", "")
+        original_prompt = suggestion_data.get("description_only") or suggestion_data.get("description", "")
+        
+        if not current_yaml:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not retrieve automation YAML from Home Assistant"
+            )
+        
+        # Step 4: Run self-correction to regenerate YAML
+        from ..api.ask_ai_router import get_self_correction_service
+        
+        correction_service = get_self_correction_service()
+        if not correction_service:
+            raise HTTPException(
+                status_code=503,
+                detail="Self-correction service not available"
+            )
+        
+        logger.info(f"🔄 Running self-correction to regenerate YAML...")
+        correction_result = await correction_service.correct_yaml(
+            user_prompt=original_prompt,
+            generated_yaml=current_yaml,
+            context={},
+            enable_regeneration=True  # Enable Phase 2 regeneration
+        )
+        
+        # Step 5: Validate regenerated YAML
+        from ..services.automation.yaml_validator import AutomationYAMLValidator
+        validator = AutomationYAMLValidator(ha_client=ha_client)
+        validation_result = await validator.validate(
+            yaml_content=correction_result.final_yaml,
+            context={}
+        )
+        
+        if not validation_result.valid:
+            logger.warning(f"⚠️ Regenerated YAML has validation issues, but proceeding with deployment")
+        
+        # Step 6: Deploy updated YAML to Home Assistant
+        logger.info(f"🚀 Deploying updated YAML to Home Assistant...")
+        deployment_result = await ha_client.create_automation(
+            correction_result.final_yaml,
+            automation_id=automation_id,
+            force_new=False  # Update existing
+        )
+        
+        if not deployment_result.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to deploy to Home Assistant: {deployment_result.get('error', 'Unknown error')}"
+            )
+        
+        # Step 7: Return success response
+        return {
+            "success": True,
+            "message": "Automation re-deployed successfully with regenerated YAML",
+            "data": {
+                "automation_id": automation_id,
+                "yaml_source": correction_result.yaml_source,
+                "similarity": correction_result.final_similarity,
+                "regeneration_used": correction_result.regeneration_attempted,
+                "validation": {
+                    "valid": validation_result.valid,
+                    "errors": [e for stage in validation_result.stages for e in stage.errors],
+                    "warnings": [w for stage in validation_result.stages for w in stage.warnings]
+                }
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Re-deploy failed for {automation_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Re-deploy failed: {str(e)}") from e
+
+
 @router.get("/test-connection")
 async def test_ha_connection():
     """

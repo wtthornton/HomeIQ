@@ -25,7 +25,8 @@ This project includes comprehensive Cursor rules to enhance development workflow
 - **project-structure.mdc** - Project structure and file organization guidelines
 - **code-quality.mdc** - Code quality standards and best practices
 - **bmad-workflow.mdc** - BMAD workflow integration and process guidelines (UPDATED: Phase 1 features)
-- **development-environment.mdc** - Development environment setup and configuration
+- **development-environment.mdc** - Development environment setup and configuration (UPDATED: PowerShell warnings)
+- **powershell-commands.mdc** - PowerShell command guidelines - CRITICAL rules for Windows (NEW)
 - **documentation-standards.mdc** - Documentation standards and formatting guidelines
 - **security-best-practices.mdc** - Security best practices and guidelines
 - **epic-31-architecture.mdc** - Current architecture patterns (Epic 31 - enrichment-pipeline deprecated)

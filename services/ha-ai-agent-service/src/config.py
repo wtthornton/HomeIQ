@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # AI Automation Service Configuration
     ai_automation_service_url: str = Field(
-        default="http://ai-automation-service:8000",
+        default="http://ai-automation-service:8018",
         description="AI Automation Service URL for YAML validation"
     )
 

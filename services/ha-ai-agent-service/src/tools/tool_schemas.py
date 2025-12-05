@@ -56,6 +56,31 @@ HA_TOOLS = [
                 "required": ["user_prompt", "automation_yaml", "alias"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "suggest_automation_enhancements",
+            "description": "Generate 5 enhancement suggestions for an existing automation preview. Returns enhancements ranging from small tweaks to fun/crazy creative options. Use this when a user wants to see enhancement options for an automation preview. The enhancements include: 1-3 LLM-based (small, medium, large), 4 pattern-driven (advanced), and 5 synergy-driven (fun/crazy).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "automation_yaml": {
+                        "type": "string",
+                        "description": "The automation YAML to enhance. This should be the complete automation YAML from a preview."
+                    },
+                    "original_prompt": {
+                        "type": "string",
+                        "description": "The user's original request that generated this automation. Used for context when generating enhancements."
+                    },
+                    "conversation_id": {
+                        "type": "string",
+                        "description": "The conversation ID for tracking and context."
+                    }
+                },
+                "required": ["automation_yaml", "original_prompt", "conversation_id"]
+            }
+        }
     }
 ]
 

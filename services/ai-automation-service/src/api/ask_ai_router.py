@@ -399,18 +399,26 @@ _soft_prompt_adapter_initialized = False
 _guardrail_checker_initialized = False
 
 def get_self_correction_service() -> YAMLSelfCorrectionService | None:
-    """Get self-correction service singleton"""
+    """Get self-correction service singleton with regeneration support"""
     global _self_correction_service
     if _self_correction_service is None:
         if openai_client and hasattr(openai_client, 'client'):
             # Pass the AsyncOpenAI client from OpenAIClient wrapper
             # Also pass HA client and device intelligence client for device name lookup
+            # Phase 2: Enable regeneration via Ask AI when refinement fails
             _self_correction_service = YAMLSelfCorrectionService(
                 openai_client.client,
                 ha_client=ha_client,
-                device_intelligence_client=_device_intelligence_client
+                device_intelligence_client=_device_intelligence_client,
+                # Phase 2: Regeneration configuration
+                enable_regeneration=getattr(settings, 'self_correction_regeneration_enabled', True),
+                regeneration_threshold=getattr(settings, 'self_correction_regeneration_threshold', 0.70),
+                openai_client_wrapper=openai_client,  # For YAML generation
             )
-            logger.info("✅ YAML self-correction service initialized with device DB access")
+            logger.info(
+                f"✅ YAML self-correction service initialized with device DB access "
+                f"(regeneration={'enabled' if getattr(settings, 'self_correction_regeneration_enabled', True) else 'disabled'})"
+            )
         else:
             logger.warning("⚠️ Cannot initialize self-correction service - OpenAI client not available")
     return _self_correction_service
@@ -9856,11 +9864,12 @@ async def reverse_engineer_yaml(request: dict[str, Any]):
             f"✅ Self-correction complete: "
             f"similarity={result.final_similarity:.2%}, "
             f"iterations={result.iterations_completed}, "
-            f"converged={result.convergence_achieved}"
+            f"converged={result.convergence_achieved}, "
+            f"source={result.yaml_source}"
         )
 
-        # Format response
-        return {
+        # Format response with regeneration metrics
+        response_data = {
             "final_yaml": result.final_yaml,
             "final_similarity": result.final_similarity,
             "iterations_completed": result.iterations_completed,
@@ -9875,8 +9884,24 @@ async def reverse_engineer_yaml(request: dict[str, Any]):
                     "improvement_actions": iter_result.improvement_actions
                 }
                 for iter_result in result.iteration_history
-            ]
+            ],
+            # Phase 2: Regeneration metrics
+            "yaml_source": result.yaml_source,
+            "regeneration_attempted": result.regeneration_attempted,
+            "regeneration_successful": result.regeneration_successful,
+            "regeneration_similarity": result.regeneration_similarity,
+            "regeneration_validation_passed": result.regeneration_validation_passed,
         }
+        
+        # Add regeneration result details if available
+        if result.regeneration_result:
+            response_data["regeneration_details"] = {
+                "validation_errors": result.regeneration_result.validation_errors,
+                "tokens_used": result.regeneration_result.tokens_used,
+                "processing_time_ms": result.regeneration_result.processing_time_ms
+            }
+        
+        return response_data
 
     except ValueError as e:
         logger.error(f"Invalid request: {e}")

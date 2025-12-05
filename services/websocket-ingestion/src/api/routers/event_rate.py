@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request
 
 from ...api.models import EventRateResponse
+from ...utils.logger import logger
 
 router = APIRouter(prefix="/api/v1", tags=["metrics"])
 
@@ -62,7 +63,6 @@ async def get_event_rate(request: Request):
         return response_data
 
     except Exception as e:
-        from ...main import logger
         logger.error(f"Error getting event rate: {e}")
         raise HTTPException(
             status_code=500,

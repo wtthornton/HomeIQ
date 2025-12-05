@@ -255,6 +255,17 @@ export interface ExecuteToolCallRequest {
   arguments: Record<string, any>;
 }
 
+export interface Enhancement {
+  level: 'small' | 'medium' | 'large' | 'advanced' | 'fun';
+  title: string;
+  description: string;
+  enhanced_yaml: string;
+  changes: string[];
+  source: 'llm' | 'pattern' | 'synergy' | 'fallback';
+  pattern_id?: number;
+  synergy_id?: string;
+}
+
 export interface ExecuteToolCallResponse {
   success: boolean;
   result?: any;
@@ -262,6 +273,8 @@ export interface ExecuteToolCallResponse {
   automation_id?: string;
   alias?: string;
   message?: string;
+  enhancements?: Enhancement[];
+  conversation_id?: string;
 }
 
 export async function executeToolCall(
