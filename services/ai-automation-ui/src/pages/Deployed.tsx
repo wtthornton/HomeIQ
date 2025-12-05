@@ -76,20 +76,40 @@ export const Deployed: React.FC = () => {
       // Step 1: Find the suggestion by automation_id
       const suggestion = await api.getSuggestionByAutomationId(automationId);
       
-      if (!suggestion || !suggestion.id) {
-        throw new Error('Suggestion not found for this automation');
+      if (!suggestion) {
+        throw new Error('Could not retrieve automation from Home Assistant');
       }
       
-      toast.loading('🔄 Regenerating YAML with latest improvements...', { id: `redeploy-${automationId}` });
-      
-      // Step 2: Re-deploy (regenerate YAML and deploy)
-      // redeploySuggestion expects numeric ID, suggestion.id is already numeric from getSuggestionByAutomationId
-      const result = await api.redeploySuggestion(suggestion.id);
-      
-      toast.success(
-        `✅ Re-deployed successfully!\nNew YAML generated with latest improvements.\nSafety score: ${result.yaml_validation.safety_score}/100`,
-        { id: `redeploy-${automationId}`, duration: 6000 }
-      );
+      // Step 2: Check if suggestion has a database ID
+      if (suggestion.id) {
+        // Has database record - use standard re-deploy
+        toast.loading('🔄 Regenerating YAML with latest improvements...', { id: `redeploy-${automationId}` });
+        
+        const result = await api.redeploySuggestion(suggestion.id);
+        
+        toast.success(
+          `✅ Re-deployed successfully!\nNew YAML generated with latest improvements.\nSafety score: ${result.yaml_validation.safety_score}/100`,
+          { id: `redeploy-${automationId}`, duration: 6000 }
+        );
+      } else {
+        // No database record - use automation_id-based re-deploy
+        toast.loading('🔄 Regenerating YAML using self-correction...', { id: `redeploy-${automationId}` });
+        
+        const result = await api.redeployAutomationById(automationId);
+        
+        if (result.success) {
+          const validation = result.data.validation;
+          const errorCount = validation.errors.length;
+          const warningCount = validation.warnings.length;
+          
+          toast.success(
+            `✅ Re-deployed successfully!\nYAML regenerated via ${result.data.yaml_source}.\nSimilarity: ${(result.data.similarity * 100).toFixed(1)}%\n${errorCount > 0 ? `⚠️ ${errorCount} validation error(s)` : ''}${warningCount > 0 ? ` ${warningCount} warning(s)` : ''}`,
+            { id: `redeploy-${automationId}`, duration: 6000 }
+          );
+        } else {
+          throw new Error(result.message || 'Re-deploy failed');
+        }
+      }
       
       // Refresh the list
       await loadAutomations();

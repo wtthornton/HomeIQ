@@ -13,6 +13,7 @@ from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import get_settings
@@ -27,6 +28,7 @@ from .schemas import (
     IntegrationStatus,
 )
 from .setup_wizard import MQTTSetupWizard, Zigbee2MQTTSetupWizard
+from .validation_service import ValidationService
 from .zigbee_bridge_manager import ZigbeeBridgeManager
 from .zigbee_setup_wizard import SetupWizardRequest
 from .zigbee_setup_wizard import Zigbee2MQTTSetupWizard as ZigbeeSetupWizard
@@ -91,6 +93,10 @@ async def lifespan(app: FastAPI):
     # Initialize enhanced setup wizard
     health_services["zigbee_setup_wizard"] = ZigbeeSetupWizard()
     print("✅ Enhanced Zigbee2MQTT setup wizard initialized")
+
+    # Initialize validation service
+    health_services["validation_service"] = ValidationService()
+    print("✅ Validation service initialized")
 
     print("=" * 80)
     print("✨ HA Setup Service Ready")
@@ -653,6 +659,161 @@ async def cancel_zigbee_setup_wizard(wizard_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to cancel wizard: {str(e)}") from e
 
 
+# Validation Endpoints (Epic 32)
+
+@app.get(
+    "/api/v1/validation/ha-config",
+    tags=["validation"],
+    summary="Get Home Assistant configuration validation results"
+)
+async def get_ha_config_validation(
+    category: str | None = None,
+    min_confidence: float = 0.0
+):
+    """
+    Validate Home Assistant configuration and get suggestions
+    
+    Checks for:
+    - Missing area assignments
+    - Incorrect area assignments
+    
+    Args:
+        category: Optional filter by issue category (e.g., "missing_area_assignment")
+        min_confidence: Minimum confidence score (0-100) for suggestions
+        
+    Returns:
+        Validation results with issues and suggestions
+    """
+    try:
+        validation_service = health_services.get("validation_service")
+        if not validation_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Validation service not initialized"
+            )
+        
+        result = await validation_service.validate_ha_config(
+            category=category,
+            min_confidence=min_confidence
+        )
+        
+        return result.dict()
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Validation endpoint failed", extra={"error": str(e)})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error validating HA config: {str(e)}"
+        ) from e
+
+
+class ApplyFixRequest(BaseModel):
+    """Request to apply area assignment fix"""
+    entity_id: str
+    area_id: str
+
+
+class BulkFixRequest(BaseModel):
+    """Request to apply multiple area assignment fixes"""
+    fixes: list[dict[str, str]]
+
+
+@app.post(
+    "/api/v1/validation/apply-fix",
+    tags=["validation"],
+    summary="Apply area assignment fix"
+)
+async def apply_validation_fix(
+    request: ApplyFixRequest
+):
+    """
+    Apply area assignment fix to Home Assistant
+    
+    Args:
+        entity_id: Entity ID to update (e.g., "light.hue_office_back_left")
+        area_id: Area ID to assign (e.g., "office")
+        
+    Returns:
+        Success response with details
+    """
+    try:
+        validation_service = health_services.get("validation_service")
+        if not validation_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Validation service not initialized"
+            )
+        
+        result = await validation_service.apply_fix(request.entity_id, request.area_id)
+        
+        # Clear cache after applying fix
+        validation_service.clear_cache()
+        
+        logger.info(
+            f"Applied area fix: {request.entity_id} -> {request.area_id}",
+            extra={"entity_id": request.entity_id, "area_id": request.area_id}
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Apply fix endpoint failed", extra={"error": str(e)})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error applying fix: {str(e)}"
+        ) from e
+
+
+@app.post(
+    "/api/v1/validation/apply-bulk-fixes",
+    tags=["validation"],
+    summary="Apply multiple area assignment fixes"
+)
+async def apply_bulk_validation_fixes(
+    request: BulkFixRequest
+):
+    """
+    Apply multiple area assignment fixes in batch
+    
+    Args:
+        fixes: List of dicts with entity_id and area_id
+        
+    Returns:
+        Summary of applied fixes
+    """
+    try:
+        validation_service = health_services.get("validation_service")
+        if not validation_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Validation service not initialized"
+            )
+        
+        result = await validation_service.apply_bulk_fixes(request.fixes)
+        
+        # Clear cache after applying fixes
+        validation_service.clear_cache()
+        
+        logger.info(
+            f"Applied bulk fixes: {result['applied']} applied, {result['failed']} failed"
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Apply bulk fixes endpoint failed", extra={"error": str(e)})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error applying bulk fixes: {str(e)}"
+        ) from e
+
+
 # Root endpoint
 
 @app.get("/", tags=["info"])
@@ -684,6 +845,8 @@ async def root():
             "setup_wizard_start": "/api/zigbee2mqtt/setup/start",
             "setup_wizard_continue": "/api/zigbee2mqtt/setup/{wizard_id}/continue",
             "setup_wizard_status": "/api/zigbee2mqtt/setup/{wizard_id}/status",
+            "validation": "/api/v1/validation/ha-config",
+            "apply_fix": "/api/v1/validation/apply-fix",
             "docs": "/docs",
             "openapi": "/openapi.json"
         }

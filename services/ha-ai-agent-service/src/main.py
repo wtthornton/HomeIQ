@@ -91,12 +91,12 @@ async def lifespan(_app: FastAPI):
         ai_automation_client = AIAutomationClient(base_url=settings.ai_automation_service_url)
         logger.info(f"✅ AI Automation Service client initialized ({settings.ai_automation_service_url})")
         
-        tool_service = ToolService(ha_client, data_api_client, ai_automation_client)
-        logger.info("✅ Tool service initialized")
-
-        # Initialize OpenAI client (Epic AI-20)
+        # Initialize OpenAI client (Epic AI-20) - needed for tool service enhancements
         openai_client = OpenAIClient(settings)
         logger.info("✅ OpenAI client initialized")
+        
+        tool_service = ToolService(ha_client, data_api_client, ai_automation_client, openai_client.client if openai_client else None)
+        logger.info("✅ Tool service initialized")
 
         # Initialize conversation service (Epic AI-20)
         conversation_service = ConversationService(settings, context_builder)

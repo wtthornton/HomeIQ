@@ -160,6 +160,27 @@ export const api = {
     });
   },
 
+  async redeployAutomationById(automationId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      automation_id: string;
+      yaml_source: string;
+      similarity: number;
+      regeneration_used: boolean;
+      validation: {
+        valid: boolean;
+        errors: string[];
+        warnings: string[];
+      };
+    };
+  }> {
+    // Re-deploy automation by automation_id (works for automations without suggestion records)
+    return fetchJSON(`${API_BASE_URL}/deploy/automations/${automationId}/redeploy`, {
+      method: 'POST',
+    });
+  },
+
   // Story AI1.23: Generate new suggestions
   async generateSuggestion(patternId: number | undefined, patternType: string, deviceId: string, metadata: any): Promise<{
     suggestion_id: string;

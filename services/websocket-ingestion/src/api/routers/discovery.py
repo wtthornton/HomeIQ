@@ -5,7 +5,7 @@ Discovery router for websocket-ingestion service.
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request
 
-from ...main import logger
+from ...utils.logger import logger
 from ...api.models import DiscoveryTriggerResponse
 
 router = APIRouter(prefix="/api/v1/discovery", tags=["discovery"])

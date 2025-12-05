@@ -15,6 +15,7 @@ import yaml
 from ..clients.ai_automation_client import AIAutomationClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
+from ..services.enhancement_service import AutomationEnhancementService
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,8 @@ class HAToolHandler:
         self,
         ha_client: HomeAssistantClient,
         data_api_client: DataAPIClient,
-        ai_automation_client: AIAutomationClient | None = None
+        ai_automation_client: AIAutomationClient | None = None,
+        openai_client = None
     ):
         """
         Initialize tool handler.
@@ -41,10 +43,13 @@ class HAToolHandler:
             ha_client: Home Assistant API client
             data_api_client: Data API client for entity queries
             ai_automation_client: AI Automation Service client for YAML validation (optional)
+            openai_client: OpenAI client for enhancement generation (optional)
         """
         self.ha_client = ha_client
         self.data_api_client = data_api_client
         self.ai_automation_client = ai_automation_client
+        self.openai_client = openai_client
+        self._enhancement_service = None
 
     async def preview_automation_from_prompt(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """
@@ -638,3 +643,80 @@ class HAToolHandler:
             warnings.append("Time-based trigger with security entities detected. Consider adding conditions for safety.")
         
         return warnings
+    
+    @property
+    def enhancement_service(self) -> AutomationEnhancementService | None:
+        """Get or create enhancement service"""
+        if self._enhancement_service is None and self.openai_client:
+            from ..config import Settings
+            settings = Settings()
+            self._enhancement_service = AutomationEnhancementService(
+                openai_client=self.openai_client,
+                settings=settings
+            )
+        return self._enhancement_service
+    
+    async def suggest_automation_enhancements(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        """
+        Generate 5 enhancement suggestions for an automation.
+        
+        Uses:
+        - LLM for small/medium/large
+        - Patterns API for advanced
+        - Synergies API for fun/crazy
+        
+        Args:
+            arguments: Tool arguments containing:
+                - automation_yaml: The automation YAML to enhance
+                - original_prompt: User's original request
+                - conversation_id: Conversation ID for tracking
+                
+        Returns:
+            Dictionary with 5 enhancement suggestions
+        """
+        automation_yaml = arguments.get("automation_yaml")
+        original_prompt = arguments.get("original_prompt")
+        conversation_id = arguments.get("conversation_id")
+        
+        if not automation_yaml or not original_prompt:
+            return {
+                "success": False,
+                "error": "automation_yaml and original_prompt are required",
+                "conversation_id": conversation_id
+            }
+        
+        if not self.enhancement_service:
+            return {
+                "success": False,
+                "error": "Enhancement service not available (OpenAI client not initialized)",
+                "conversation_id": conversation_id
+            }
+        
+        try:
+            logger.info(f"Generating enhancements for automation in conversation {conversation_id}")
+            
+            # Extract entities and areas from YAML
+            entities = AutomationEnhancementService.extract_entities_from_yaml(automation_yaml)
+            areas = AutomationEnhancementService.extract_areas_from_yaml(automation_yaml)
+            
+            # Generate enhancements
+            enhancements = await self.enhancement_service.generate_enhancements(
+                automation_yaml=automation_yaml,
+                original_prompt=original_prompt,
+                entities=entities,
+                areas=areas
+            )
+            
+            return {
+                "success": True,
+                "enhancements": [e.to_dict() for e in enhancements],
+                "conversation_id": conversation_id
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating enhancements: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Failed to generate enhancements: {str(e)}",
+                "conversation_id": conversation_id
+            }

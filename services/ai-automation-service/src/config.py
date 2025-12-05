@@ -199,6 +199,28 @@ class Settings(BaseSettings):
     guardrail_model_name: str = "unitary/toxic-bert"
     guardrail_threshold: float = 0.6
 
+    # Self-Correction Configuration (Phase 2: Regeneration via Ask AI)
+    self_correction_regeneration_enabled: bool = True
+    """Enable Phase 2 regeneration when iterative refinement fails.
+    
+    When enabled, if refinement fails to achieve convergence (similarity < threshold),
+    the system regenerates YAML from scratch via the Ask AI pipeline.
+    """
+
+    self_correction_regeneration_threshold: float = 0.70
+    """Similarity threshold to trigger regeneration (default: 0.70).
+    
+    If final similarity after refinement is below this threshold,
+    Phase 2 regeneration is triggered. Set lower for less regeneration,
+    higher for more aggressive regeneration attempts.
+    """
+
+    self_correction_max_iterations: int = 5
+    """Maximum refinement iterations before considering regeneration."""
+
+    self_correction_similarity_target: float = 0.85
+    """Target similarity for self-correction convergence."""
+
     # OpenAI Rate Limiting (Performance Optimization)
     openai_concurrent_limit: int = 5  # Max concurrent API calls
 

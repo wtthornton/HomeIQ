@@ -2,19 +2,35 @@
 YAML Self-Correction Service
 Implements iterative refinement with reverse engineering and similarity comparison
 Based on 2025 research: Self-Refine, RPE, and ProActive Self-Refinement (PASR)
+
+Enhanced with Phase 2 Regeneration:
+- When iterative refinement fails to converge, regenerates YAML via Ask AI pipeline
+- Runs full YAML validation on regenerated content
+- Selects best result between refined and regenerated YAML
 """
 
 import logging
 import re
 import time
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Callable, Awaitable, TYPE_CHECKING
 
 import yaml
 from openai import AsyncOpenAI
 from sentence_transformers import SentenceTransformer
 
+if TYPE_CHECKING:
+    from ..llm.openai_client import OpenAIClient
+    from ..clients.ha_client import HomeAssistantClient
+    from sqlalchemy.ext.asyncio import AsyncSession
+
 logger = logging.getLogger(__name__)
+
+# Type alias for YAML generator callable (injected dependency to avoid circular imports)
+YAMLGeneratorFunc = Callable[
+    [dict[str, Any], str, Any, list[dict[str, Any]] | None, Any | None, Any | None],
+    Awaitable[str]
+]
 
 
 @dataclass
@@ -27,6 +43,19 @@ class CorrectionResult:
     yaml_content: str
     correction_feedback: str
     improvement_actions: list[str]
+
+
+@dataclass
+class RegenerationResult:
+    """Result of regeneration phase"""
+    attempted: bool
+    successful: bool
+    yaml_content: str | None = None
+    similarity_score: float | None = None
+    validation_passed: bool | None = None
+    validation_errors: list[str] = field(default_factory=list)
+    tokens_used: int = 0
+    processing_time_ms: int = 0
 
 
 @dataclass
@@ -47,6 +76,13 @@ class SelfCorrectionResponse:
     time_per_iteration_ms: float | None = None
     original_yaml: str | None = None
     yaml_changed: bool | None = None
+    # Phase 2: Regeneration metrics
+    regeneration_attempted: bool = False
+    regeneration_successful: bool = False
+    regeneration_similarity: float | None = None
+    regeneration_validation_passed: bool | None = None
+    yaml_source: str = "refinement"  # "refinement" | "regeneration" | "original"
+    regeneration_result: RegenerationResult | None = None
 
 
 class YAMLSelfCorrectionService:
@@ -72,7 +108,14 @@ class YAMLSelfCorrectionService:
         model: str = "gpt-4o-mini",
         similarity_model: str = "all-MiniLM-L6-v2",
         ha_client: Any | None = None,
-        device_intelligence_client: Any | None = None
+        device_intelligence_client: Any | None = None,
+        # Phase 2: Regeneration configuration
+        enable_regeneration: bool = True,
+        regeneration_threshold: float = 0.70,  # Trigger regen if similarity < 70% after refinement
+        max_regeneration_attempts: int = 1,
+        yaml_generator: YAMLGeneratorFunc | None = None,
+        openai_client_wrapper: Any | None = None,  # OpenAIClient wrapper for YAML generation
+        db_session: Any | None = None  # Database session for YAML generation
     ):
         self.openai_client = openai_client
         self.model = model
@@ -88,26 +131,49 @@ class YAMLSelfCorrectionService:
         self.min_similarity_threshold = 0.85  # 85% similarity target
         self.improvement_threshold = 0.02  # 2% minimum improvement per iteration
 
-        logger.info(f"YAMLSelfCorrectionService initialized with model={model}, similarity_model={similarity_model}")
+        # Phase 2: Regeneration configuration
+        self.enable_regeneration = enable_regeneration
+        self.regeneration_threshold = regeneration_threshold
+        self.max_regeneration_attempts = max_regeneration_attempts
+        self.yaml_generator = yaml_generator
+        self.openai_client_wrapper = openai_client_wrapper
+        self.db_session = db_session
+
+        regen_status = "enabled" if enable_regeneration else "disabled"
+        logger.info(
+            f"YAMLSelfCorrectionService initialized with model={model}, "
+            f"similarity_model={similarity_model}, regeneration={regen_status}"
+        )
 
     async def correct_yaml(
         self,
         user_prompt: str,
         generated_yaml: str,
         context: dict | None = None,
-        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None
+        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None,
+        validated_entities: dict[str, str] | None = None,
+        entities: list[dict[str, Any]] | None = None,
+        enable_regeneration: bool | None = None  # Override instance setting
     ) -> SelfCorrectionResponse:
         """
-        Main self-correction loop.
+        Main self-correction loop with Phase 2 regeneration fallback.
+        
+        Process:
+        - Phase 1: Iterative refinement (up to max_iterations)
+        - Phase 2: If refinement fails and similarity < threshold, regenerate via Ask AI
+        - Phase 3: Select best result between refined and regenerated YAML
         
         Args:
             user_prompt: Original user request
             generated_yaml: Initial YAML to refine
             context: Optional context (devices, entities, etc.)
             comprehensive_enriched_data: Optional comprehensive enriched entity data
+            validated_entities: Pre-validated entity mappings (friendly_name -> entity_id)
+            entities: List of entity dicts for YAML generation
+            enable_regeneration: Override instance-level regeneration setting
         
         Returns:
-            SelfCorrectionResponse with refined YAML and history
+            SelfCorrectionResponse with refined/regenerated YAML and history
         """
         logger.info(f"🔄 Starting self-correction for prompt: {user_prompt[:60]}...")
 
@@ -223,13 +289,14 @@ class YAMLSelfCorrectionService:
 
             # Step 7: Refine YAML based on feedback (with comprehensive data)
             if iteration < self.max_iterations:
-                refined_yaml = await self._refine_yaml(
+                refined_yaml, refine_tokens = await self._refine_yaml(
                     user_prompt,
                     current_yaml,
                     feedback_and_actions,
                     enhanced_context,
                     comprehensive_enriched_data=comprehensive_enriched_data
                 )
+                total_tokens += refine_tokens
                 current_yaml = refined_yaml
             else:
                 logger.info("Max iterations reached - using best result")
@@ -238,7 +305,75 @@ class YAMLSelfCorrectionService:
             iteration_history.append(correction_result)
 
         final_similarity = iteration_history[-1].similarity_score if iteration_history else initial_similarity
+        convergence_achieved = final_similarity >= self.min_similarity_threshold
+        yaml_source = "refinement"
+        regeneration_result: RegenerationResult | None = None
 
+        # ========================================================================
+        # PHASE 2: REGENERATION VIA ASK AI
+        # Triggered when refinement fails to achieve convergence
+        # ========================================================================
+        should_regenerate = (
+            (enable_regeneration if enable_regeneration is not None else self.enable_regeneration)
+            and not convergence_achieved
+            and final_similarity < self.regeneration_threshold
+        )
+
+        if should_regenerate:
+            logger.info(
+                f"🔄 Phase 2: Triggering regeneration "
+                f"(similarity={final_similarity:.2%} < threshold={self.regeneration_threshold:.2%})"
+            )
+            
+            regen_start = time.time()
+            regeneration_result = await self._regenerate_yaml_via_ask_ai(
+                user_prompt=user_prompt,
+                context=enhanced_context,
+                comprehensive_enriched_data=comprehensive_enriched_data,
+                validated_entities=validated_entities,
+                entities=entities
+            )
+            regen_time_ms = int((time.time() - regen_start) * 1000)
+            regeneration_result.processing_time_ms = regen_time_ms
+            total_tokens += regeneration_result.tokens_used
+
+            if regeneration_result.successful and regeneration_result.yaml_content:
+                # Calculate similarity for regenerated YAML
+                regen_reverse, regen_tokens = await self._reverse_engineer_yaml(
+                    regeneration_result.yaml_content,
+                    enhanced_context,
+                    comprehensive_enriched_data=comprehensive_enriched_data
+                )
+                total_tokens += regen_tokens
+                regen_similarity = await self._calculate_similarity(user_prompt, regen_reverse)
+                regeneration_result.similarity_score = regen_similarity
+
+                logger.info(
+                    f"📊 Regeneration similarity: {regen_similarity:.2%} vs refined: {final_similarity:.2%}"
+                )
+
+                # Phase 3: Select best result
+                if regen_similarity > final_similarity:
+                    logger.info(
+                        f"✅ Regenerated YAML is better: {regen_similarity:.2%} > {final_similarity:.2%}"
+                    )
+                    current_yaml = regeneration_result.yaml_content
+                    final_similarity = regen_similarity
+                    yaml_source = "regeneration"
+                    convergence_achieved = final_similarity >= self.min_similarity_threshold
+                else:
+                    logger.info(
+                        f"ℹ️ Keeping refined YAML: {final_similarity:.2%} >= {regen_similarity:.2%}"
+                    )
+            else:
+                logger.warning(
+                    f"⚠️ Regeneration failed: {', '.join(regeneration_result.validation_errors) if regeneration_result.validation_errors else 'Unknown error'}"
+                )
+
+        # ========================================================================
+        # BUILD FINAL RESPONSE
+        # ========================================================================
+        
         # Calculate total processing time
         total_processing_time_ms = int((time.time() - start_time) * 1000)
         time_per_iteration_ms = total_processing_time_ms / len(iteration_history) if iteration_history else 0.0
@@ -248,21 +383,22 @@ class YAMLSelfCorrectionService:
         improvement_percentage = ((final_similarity / initial_similarity - 1.0) * 100) if initial_similarity > 0 else 0.0
 
         logger.info(
-            f"✅ Reverse engineering complete: "
+            f"✅ Self-correction complete: "
             f"Similarity {initial_similarity:.2%} → {final_similarity:.2%} "
             f"(+{similarity_improvement:.2%}, {improvement_percentage:+.1f}%), "
             f"{len(iteration_history)} iterations, "
+            f"source={yaml_source}, "
             f"{total_processing_time_ms}ms, "
             f"{total_tokens} tokens"
         )
 
-        # Add initial similarity and timing to response (for metrics storage)
+        # Build response with all metrics
         response = SelfCorrectionResponse(
             final_yaml=current_yaml,
             final_similarity=final_similarity,
             iterations_completed=len(iteration_history),
             max_iterations=self.max_iterations,
-            convergence_achieved=final_similarity >= self.min_similarity_threshold,
+            convergence_achieved=convergence_achieved,
             iteration_history=iteration_history,
             total_tokens_used=total_tokens
         )
@@ -277,7 +413,216 @@ class YAMLSelfCorrectionService:
         response.final_yaml = current_yaml
         response.yaml_changed = (generated_yaml != current_yaml)
 
+        # Phase 2: Regeneration metrics
+        response.regeneration_attempted = regeneration_result is not None
+        response.regeneration_successful = regeneration_result.successful if regeneration_result else False
+        response.regeneration_similarity = regeneration_result.similarity_score if regeneration_result else None
+        response.regeneration_validation_passed = regeneration_result.validation_passed if regeneration_result else None
+        response.yaml_source = yaml_source
+        response.regeneration_result = regeneration_result
+
         return response
+
+    async def _regenerate_yaml_via_ask_ai(
+        self,
+        user_prompt: str,
+        context: dict[str, Any] | None = None,
+        comprehensive_enriched_data: dict[str, dict[str, Any]] | None = None,
+        validated_entities: dict[str, str] | None = None,
+        entities: list[dict[str, Any]] | None = None
+    ) -> RegenerationResult:
+        """
+        Regenerate YAML from scratch using the Ask AI YAML generation pipeline.
+        
+        This is Phase 2 of self-correction, triggered when iterative refinement
+        fails to achieve convergence. Uses the same pipeline as initial YAML
+        generation but with fresh context.
+        
+        Args:
+            user_prompt: Original user request
+            context: Optional context (devices, areas, etc.)
+            comprehensive_enriched_data: Entity enrichment data
+            validated_entities: Pre-validated entity mappings
+            entities: List of entity dicts for YAML generation
+            
+        Returns:
+            RegenerationResult with generated YAML and validation status
+        """
+        logger.info(f"📝 Regenerating YAML via Ask AI for prompt: {user_prompt[:60]}...")
+        
+        tokens_used = 0
+        
+        # Check if we have the required dependencies
+        if not self.yaml_generator and not self.openai_client_wrapper:
+            logger.warning("⚠️ Cannot regenerate: No YAML generator or OpenAI client wrapper available")
+            return RegenerationResult(
+                attempted=True,
+                successful=False,
+                validation_errors=["YAML generator not configured for regeneration"]
+            )
+        
+        try:
+            # Build suggestion dict from user prompt
+            suggestion: dict[str, Any] = {
+                "description": user_prompt,
+                "trigger_summary": "",
+                "action_summary": "",
+                "validated_entities": validated_entities or {},
+                "devices_involved": list(validated_entities.keys()) if validated_entities else []
+            }
+            
+            # Add enriched entity context if available
+            if comprehensive_enriched_data:
+                from .comprehensive_entity_enrichment import format_comprehensive_enrichment_for_prompt
+                suggestion["enriched_entity_context"] = format_comprehensive_enrichment_for_prompt(
+                    comprehensive_enriched_data
+                )
+            
+            # Generate YAML using injected generator or OpenAI client wrapper
+            regenerated_yaml: str = ""
+            
+            if self.yaml_generator:
+                # Use injected generator function
+                regenerated_yaml = await self.yaml_generator(
+                    suggestion,
+                    user_prompt,
+                    self.openai_client_wrapper,
+                    entities,
+                    self.db_session,
+                    self.ha_client
+                )
+            else:
+                # Fallback: Import and call generate_automation_yaml directly
+                from .automation.yaml_generation_service import generate_automation_yaml
+                regenerated_yaml = await generate_automation_yaml(
+                    suggestion=suggestion,
+                    original_query=user_prompt,
+                    openai_client=self.openai_client_wrapper,
+                    entities=entities,
+                    db_session=self.db_session,
+                    ha_client=self.ha_client
+                )
+            
+            if not regenerated_yaml:
+                logger.warning("⚠️ Regeneration produced empty YAML")
+                return RegenerationResult(
+                    attempted=True,
+                    successful=False,
+                    validation_errors=["Regeneration produced empty YAML"]
+                )
+            
+            logger.info(f"📄 Regenerated YAML ({len(regenerated_yaml)} chars)")
+            
+            # Validate the regenerated YAML
+            validation_result = await self._validate_regenerated_yaml(
+                regenerated_yaml,
+                context=context,
+                validated_entities=validated_entities
+            )
+            
+            if validation_result["valid"]:
+                logger.info("✅ Regenerated YAML validation passed")
+                return RegenerationResult(
+                    attempted=True,
+                    successful=True,
+                    yaml_content=validation_result.get("fixed_yaml", regenerated_yaml),
+                    validation_passed=True,
+                    tokens_used=tokens_used
+                )
+            else:
+                logger.warning(f"⚠️ Regenerated YAML validation failed: {validation_result.get('errors', [])}")
+                return RegenerationResult(
+                    attempted=True,
+                    successful=False,
+                    yaml_content=regenerated_yaml,
+                    validation_passed=False,
+                    validation_errors=validation_result.get("errors", []),
+                    tokens_used=tokens_used
+                )
+                
+        except Exception as e:
+            logger.error(f"❌ Regeneration failed with error: {e}", exc_info=True)
+            return RegenerationResult(
+                attempted=True,
+                successful=False,
+                validation_errors=[f"Regeneration error: {str(e)}"]
+            )
+
+    async def _validate_regenerated_yaml(
+        self,
+        yaml_content: str,
+        context: dict[str, Any] | None = None,
+        validated_entities: dict[str, str] | None = None
+    ) -> dict[str, Any]:
+        """
+        Run full validation pipeline on regenerated YAML.
+        
+        Uses AutomationYAMLValidator for comprehensive multi-stage validation.
+        
+        Args:
+            yaml_content: YAML string to validate
+            context: Optional context
+            validated_entities: Pre-validated entity mappings
+            
+        Returns:
+            Dict with validation results:
+            - valid: bool
+            - errors: list[str]
+            - warnings: list[str]
+            - fixed_yaml: str | None (if auto-fixes were applied)
+        """
+        try:
+            # Import validator
+            from .automation.yaml_validator import AutomationYAMLValidator
+            
+            # Initialize validator with HA client for entity validation
+            validator = AutomationYAMLValidator(ha_client=self.ha_client)
+            
+            # Prepare validation context
+            validation_context = {
+                "validated_entities": validated_entities or {},
+                **(context or {})
+            }
+            
+            # Run validation pipeline
+            result = await validator.validate(
+                yaml_content=yaml_content,
+                context=validation_context
+            )
+            
+            # Collect all errors and warnings
+            all_errors: list[str] = []
+            all_warnings: list[str] = []
+            
+            for stage in result.stages:
+                all_errors.extend(stage.errors)
+                all_warnings.extend(stage.warnings)
+            
+            return {
+                "valid": result.valid,
+                "errors": all_errors,
+                "warnings": all_warnings,
+                "fixed_yaml": result.fixed_yaml,
+                "all_checks_passed": result.all_checks_passed,
+                "stages": [
+                    {
+                        "name": stage.name,
+                        "valid": stage.valid,
+                        "errors": stage.errors,
+                        "warnings": stage.warnings
+                    }
+                    for stage in result.stages
+                ]
+            }
+            
+        except Exception as e:
+            logger.error(f"Validation failed with error: {e}")
+            return {
+                "valid": False,
+                "errors": [f"Validation error: {str(e)}"],
+                "warnings": [],
+                "fixed_yaml": None
+            }
 
     def _extract_entity_ids_from_yaml(self, parsed_yaml: dict) -> set[str]:
         """
@@ -403,15 +748,20 @@ class YAMLSelfCorrectionService:
         Uses Reverse Prompt Engineering (RPE) techniques to reconstruct intent.
         Now includes device database lookup for accurate device names.
         """
+        # Validate input type
+        if not isinstance(yaml_content, str):
+            logger.error(f"Invalid yaml_content type: {type(yaml_content)}, expected str")
+            return (f"Invalid YAML content type: {type(yaml_content).__name__}", 0)
+        
         # Parse YAML to extract key information
         try:
             parsed_yaml = yaml.safe_load(yaml_content)
         except yaml.YAMLError as e:
             logger.error(f"Invalid YAML in reverse engineering: {e}")
-            return "Invalid YAML configuration"
+            return ("Invalid YAML configuration", 0)
 
         if not parsed_yaml:
-            return "Empty YAML configuration"
+            return ("Empty YAML configuration", 0)
 
         # Extract all entity IDs from YAML
         entity_ids = self._extract_entity_ids_from_yaml(parsed_yaml)

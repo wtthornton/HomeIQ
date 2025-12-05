@@ -1,6 +1,8 @@
 # WebSocket Ingestion Service Production Dependencies
 # Updated to latest stable 2025 versions
 
+fastapi>=0.115.0,<1.0.0  # API framework
+uvicorn[standard]>=0.32.0,<1.0.0  # ASGI server
 aiohttp>=3.13.2,<4.0.0  # Latest stable (2025 - Epic 41)
 asyncio-mqtt>=0.16.0,<1.0.0
 python-dotenv>=1.0.0,<2.0.0

@@ -95,10 +95,11 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
 
     setIsCreating(true);
     try {
-      // Execute create_automation tool call
+      // Execute create_automation_from_prompt tool call
       const result = await executeToolCall({
-        tool_name: 'create_automation',
+        tool_name: 'create_automation_from_prompt',
         arguments: {
+          user_prompt: parsedAutomation.description || parsedAutomation.alias,
           automation_yaml: cleanYaml,
           alias: parsedAutomation.alias,
         },

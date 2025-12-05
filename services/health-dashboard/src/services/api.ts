@@ -780,10 +780,93 @@ class AIAutomationApiClient {
   }
 }
 
+/**
+ * HA Setup Service Client - Validation & Configuration
+ * Routes to ha-setup-service (port 8020) via /setup-service proxy
+ */
+class SetupServiceClient extends BaseApiClient {
+  constructor() {
+    super('/setup-service');  // Proxied through nginx
+  }
+
+  // Validation API (Epic 32)
+  async getValidationResults(params?: {
+    category?: string;
+    min_confidence?: number;
+  }): Promise<{
+    summary: {
+      total_issues: number;
+      by_category: Record<string, number>;
+      scan_timestamp: string;
+      ha_version: string | null;
+    };
+    issues: Array<{
+      entity_id: string;
+      category: string;
+      current_area: string | null;
+      suggestions: Array<{
+        area_id: string;
+        area_name: string;
+        confidence: number;
+        reasoning: string;
+      }>;
+      device_id: string | null;
+      entity_name: string | null;
+      confidence: number;
+    }>;
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.category) queryParams.append('category', params.category);
+    if (params?.min_confidence !== undefined) queryParams.append('min_confidence', params.min_confidence.toString());
+    
+    const url = `${this.baseUrl}/api/v1/validation/ha-config${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.fetchWithErrorHandling(url);
+  }
+
+  async applyValidationFix(entityId: string, areaId: string): Promise<{
+    success: boolean;
+    entity_id: string;
+    area_id: string;
+    applied_at: string;
+    result?: any;
+  }> {
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/v1/validation/apply-fix`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        entity_id: entityId,
+        area_id: areaId,
+      }),
+    });
+  }
+
+  async applyBulkFixes(fixes: Array<{ entity_id: string; area_id: string }>): Promise<{
+    success: boolean;
+    applied: number;
+    failed: number;
+    results: Array<{
+      entity_id: string;
+      success: boolean;
+      error?: string;
+    }>;
+  }> {
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/v1/validation/apply-bulk-fixes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fixes }),
+    });
+  }
+}
+
 // Export API client instances
 export const adminApi = new AdminApiClient();  // System monitoring
 export const dataApi = new DataApiClient();    // Feature data
 export const aiApi = new AIAutomationApiClient();  // AI Automation
+export const setupApi = new SetupServiceClient();  // HA Setup & Validation
 
 // Legacy export for backward compatibility (uses admin API)
 export const apiService = adminApi;

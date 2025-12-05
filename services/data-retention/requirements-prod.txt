@@ -1,3 +1,5 @@
+fastapi>=0.115.0,<1.0.0  # API framework
+uvicorn[standard]>=0.32.0,<1.0.0  # ASGI server
 aiohttp>=3.13.2,<4.0.0  # Latest stable (2025)
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025)
 influxdb3-python==0.3.0
