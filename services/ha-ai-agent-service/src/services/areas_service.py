@@ -61,6 +61,7 @@ class AreasService:
 
         try:
             # Fetch areas from Home Assistant
+            # 2025 Best Practice: Uses WebSocket API first, falls back to REST API
             logger.info("🏠 Fetching areas from Home Assistant...")
             areas = await self.ha_client.get_area_registry()
 

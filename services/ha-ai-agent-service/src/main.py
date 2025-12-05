@@ -88,7 +88,10 @@ async def lifespan(_app: FastAPI):
         
         # Initialize AI Automation Service client for consolidated YAML validation
         from .clients.ai_automation_client import AIAutomationClient
-        ai_automation_client = AIAutomationClient(base_url=settings.ai_automation_service_url)
+        ai_automation_client = AIAutomationClient(
+            base_url=settings.ai_automation_service_url,
+            api_key=settings.ai_automation_api_key
+        )
         logger.info(f"✅ AI Automation Service client initialized ({settings.ai_automation_service_url})")
         
         # Initialize OpenAI client (Epic AI-20) - needed for tool service enhancements

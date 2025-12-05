@@ -900,6 +900,7 @@ services:
       - DATA_API_URL=http://data-api:8006
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - AI_AUTOMATION_API_KEY=${API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       data-api:

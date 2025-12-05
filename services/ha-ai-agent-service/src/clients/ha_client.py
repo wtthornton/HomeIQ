@@ -2,20 +2,28 @@
 Home Assistant API Client for HA AI Agent Service
 
 Simplified client for fetching areas, services, and config from Home Assistant.
+Supports both REST API and WebSocket API (2025 best practice).
 """
 
 import asyncio
+import json
 import logging
 from typing import Any
 
 import aiohttp
+import websockets
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
 
 class HomeAssistantClient:
-    """Client for interacting with Home Assistant REST API"""
+    """
+    Client for interacting with Home Assistant API.
+    
+    Supports both REST API and WebSocket API (2025 best practice).
+    WebSocket API is preferred for area registry access.
+    """
 
     def __init__(
         self,
@@ -55,6 +63,82 @@ class HomeAssistantClient:
             )
         return self._session
 
+    async def _get_area_registry_websocket(self) -> list[dict[str, Any]]:
+        """
+        Get area registry using WebSocket API (2025 best practice).
+        
+        Uses WebSocket command: {"type": "config/area_registry/list"}
+        This is the official, recommended method for accessing area registry.
+        
+        Returns:
+            List of area dictionaries with keys: area_id, name, aliases, etc.
+            
+        Raises:
+            Exception: If WebSocket connection or command fails
+        """
+        # Convert HTTP URL to WebSocket URL
+        ws_url = self.ha_url.replace('http://', 'ws://').replace('https://', 'wss://')
+        ws_url = f"{ws_url}/api/websocket"
+        
+        try:
+            logger.debug(f"🔌 Connecting to Home Assistant WebSocket: {ws_url}")
+            
+            # Connect to WebSocket (authentication happens via messages, not headers)
+            async with websockets.connect(
+                ws_url,
+                ping_interval=20,
+                ping_timeout=10,
+                close_timeout=10
+            ) as websocket:
+                # Handle authentication
+                auth_response = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+                auth_data = json.loads(auth_response)
+                
+                if auth_data.get("type") == "auth_required":
+                    logger.debug("🔐 Authentication required, sending token...")
+                    await websocket.send(json.dumps({"type": "auth", "access_token": self.access_token}))
+                    
+                    auth_result = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+                    auth_result_data = json.loads(auth_result)
+                    
+                    if auth_result_data.get("type") != "auth_ok":
+                        raise Exception(f"WebSocket authentication failed: {auth_result_data}")
+                    logger.debug("✅ WebSocket authenticated")
+                elif auth_data.get("type") != "auth_ok":
+                    raise Exception(f"Unexpected WebSocket auth response: {auth_data}")
+                
+                # Send area registry list command
+                message_id = 1
+                command = {
+                    "id": message_id,
+                    "type": "config/area_registry/list"
+                }
+                await websocket.send(json.dumps(command))
+                
+                # Wait for response
+                response = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+                response_data = json.loads(response)
+                
+                # Parse response
+                if response_data.get("id") == message_id and response_data.get("type") == "result":
+                    if not response_data.get("success", False):
+                        error = response_data.get("error", {})
+                        raise Exception(f"WebSocket command failed: {error.get('message', 'Unknown error')}")
+                    
+                    # Extract areas from result
+                    areas = response_data.get("result", [])
+                    logger.info(f"✅ Fetched {len(areas)} areas via WebSocket API")
+                    return areas
+                else:
+                    raise Exception(f"Unexpected WebSocket response format: {response_data}")
+                    
+        except asyncio.TimeoutError:
+            raise Exception("WebSocket connection or response timeout")
+        except websockets.exceptions.InvalidStatusCode as e:
+            raise Exception(f"WebSocket connection failed: {e}")
+        except Exception as e:
+            raise Exception(f"WebSocket error: {str(e)}")
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -64,41 +148,49 @@ class HomeAssistantClient:
     async def get_area_registry(self) -> list[dict[str, Any]]:
         """
         Get area registry from Home Assistant.
-
-        Uses endpoint: GET /api/config/area_registry/list
-        Note: This endpoint may not be in basic REST API docs but is used in HA codebase.
-        Falls back gracefully if endpoint not available (404).
+        
+        2025 Best Practice: Tries WebSocket API first (official method),
+        falls back to REST API if WebSocket fails.
 
         Returns:
             List of area dictionaries with keys: area_id, name, aliases, etc.
 
         Raises:
-            Exception: If API request fails (except 404 which returns empty list)
+            Exception: If both WebSocket and REST API requests fail
         """
+        # Try WebSocket API first (2025 best practice)
         try:
-            session = await self._get_session()
-            url = f"{self.ha_url}/api/config/area_registry/list"
+            logger.debug("🔌 Attempting to fetch area registry via WebSocket API...")
+            return await self._get_area_registry_websocket()
+        except Exception as ws_error:
+            logger.warning(f"⚠️ WebSocket API failed: {ws_error}")
+            logger.info("🔄 Falling back to REST API...")
+            
+            # Fallback to REST API
+            try:
+                session = await self._get_session()
+                url = f"{self.ha_url}/api/config/area_registry/list"
 
-            async with session.get(url) as response:
-                if response.status == 404:
-                    # Some HA versions/configurations don't expose this endpoint
-                    logger.info("ℹ️ Area Registry API not available (404) - returning empty list")
-                    return []
-                response.raise_for_status()
-                data = await response.json()
-                # Handle both list format and dict with 'areas' key
-                if isinstance(data, dict) and "areas" in data:
-                    areas = data["areas"]
-                elif isinstance(data, list):
-                    areas = data
-                else:
-                    areas = []
-                logger.info(f"✅ Fetched {len(areas)} areas from Home Assistant")
-                return areas
-        except aiohttp.ClientError as e:
-            error_msg = f"Failed to fetch area registry: {str(e)}"
-            logger.error(f"❌ {error_msg}")
-            raise Exception(error_msg) from e
+                async with session.get(url) as response:
+                    if response.status == 404:
+                        # REST endpoint not available
+                        logger.info("ℹ️ Area Registry REST API not available (404) - returning empty list")
+                        return []
+                    response.raise_for_status()
+                    data = await response.json()
+                    # Handle both list format and dict with 'areas' key
+                    if isinstance(data, dict) and "areas" in data:
+                        areas = data["areas"]
+                    elif isinstance(data, list):
+                        areas = data
+                    else:
+                        areas = []
+                    logger.info(f"✅ Fetched {len(areas)} areas from Home Assistant via REST API")
+                    return areas
+            except aiohttp.ClientError as e:
+                error_msg = f"Failed to fetch area registry (both WebSocket and REST failed): {str(e)}"
+                logger.error(f"❌ {error_msg}")
+                raise Exception(error_msg) from e
 
     @retry(
         stop=stop_after_attempt(3),

@@ -24,6 +24,7 @@ import { ClearChatModal } from '../components/ha-agent/ClearChatModal';
 import { ToolCallIndicator } from '../components/ha-agent/ToolCallIndicator';
 import { AutomationPreview } from '../components/ha-agent/AutomationPreview';
 import { EnhancementButton } from '../components/ha-agent/EnhancementButton';
+import { DebugTab } from '../components/ha-agent/DebugTab';
 
 interface ChatMessage extends Message {
   isLoading?: boolean;
@@ -50,6 +51,7 @@ export const HAAgentChat: React.FC = () => {
   const [previewToolCall, setPreviewToolCall] = useState<ToolCall | undefined>(undefined);
   const [originalPrompt, setOriginalPrompt] = useState<string>('');
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
+  const [activeTab, setActiveTab] = useState<'chat' | 'debug'>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -371,20 +373,58 @@ export const HAAgentChat: React.FC = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleNewConversation}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              darkMode
-                ? 'bg-gray-700 text-white hover:bg-gray-600'
-                : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
-            }`}
-          >
-            New Chat
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Tab Switcher */}
+            <div className={`flex rounded-lg p-1 ${
+              darkMode ? 'bg-gray-700' : 'bg-gray-200'
+            }`}>
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'chat'
+                    ? darkMode
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-blue-500 text-white'
+                    : darkMode
+                    ? 'text-gray-300 hover:bg-gray-600'
+                    : 'text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                💬 Chat
+              </button>
+              <button
+                onClick={() => setActiveTab('debug')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'debug'
+                    ? darkMode
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-blue-500 text-white'
+                    : darkMode
+                    ? 'text-gray-300 hover:bg-gray-600'
+                    : 'text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                🔍 Debug
+              </button>
+            </div>
+            <button
+              onClick={handleNewConversation}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                darkMode
+                  ? 'bg-gray-700 text-white hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+              }`}
+            >
+              New Chat
+            </button>
+          </div>
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        {/* Tab Content */}
+        {activeTab === 'chat' ? (
+          <>
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
           {isInitializing ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -477,12 +517,12 @@ export const HAAgentChat: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
           )}
-        </div>
+            </div>
 
-        {/* Input Area */}
-        <div
-          className={`border-t px-6 py-4 ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}
-        >
+            {/* Input Area */}
+            <div
+              className={`border-t px-6 py-4 ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}
+            >
           <div className="flex gap-3 items-end">
             <textarea
               ref={inputRef}
@@ -546,7 +586,16 @@ export const HAAgentChat: React.FC = () => {
               )}
             </button>
           </div>
-        </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col min-w-0">
+            <DebugTab
+              conversationId={currentConversationId}
+              darkMode={darkMode}
+            />
+          </div>
+        )}
         </div>
       </div>
 

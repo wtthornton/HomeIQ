@@ -14,7 +14,6 @@ export const Navigation: React.FC = () => {
 
   const navItems = [
     { path: '/', label: '🤖 Suggestions', icon: '🤖' },
-    { path: '/ask-ai', label: '💬 Ask AI', icon: '💬' },
     { path: '/ha-agent', label: '🤖 Agent', icon: '🤖' },  // Epic AI-20, Story AI20.7
     { path: '/patterns', label: '📊 Patterns', icon: '📊' },
     { path: '/synergies', label: '🔮 Synergies', icon: '🔮' },  // Epic AI-3, Story AI3.8

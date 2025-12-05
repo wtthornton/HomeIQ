@@ -36,6 +36,10 @@ class Settings(BaseSettings):
         default="http://ai-automation-service:8018",
         description="AI Automation Service URL for YAML validation"
     )
+    ai_automation_api_key: str | None = Field(
+        default=None,
+        description="API key for AI Automation Service (required for patterns/synergies endpoints)"
+    )
 
     # Device Intelligence Service Configuration
     device_intelligence_url: str = Field(

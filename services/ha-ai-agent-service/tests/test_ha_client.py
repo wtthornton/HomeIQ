@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
+import json
 
 from src.clients.ha_client import HomeAssistantClient
 
@@ -17,13 +18,56 @@ def ha_client():
 
 
 @pytest.mark.asyncio
-async def test_get_area_registry_success(ha_client):
-    """Test successfully fetching area registry"""
+async def test_get_area_registry_websocket_success(ha_client):
+    """Test successfully fetching area registry via WebSocket API (2025 best practice)"""
     mock_areas = [
-        {"area_id": "office", "name": "Office"},
-        {"area_id": "kitchen", "name": "Kitchen"},
+        {"area_id": "office", "name": "Office", "aliases": ["workspace"]},
+        {"area_id": "kitchen", "name": "Kitchen", "aliases": []},
     ]
 
+    # Mock WebSocket connection and responses
+    mock_websocket = AsyncMock()
+    
+    # Auth required response
+    auth_required = json.dumps({"type": "auth_required", "ha_version": "2025.1.0"})
+    # Auth OK response
+    auth_ok = json.dumps({"type": "auth_ok"})
+    # Area registry response
+    area_response = json.dumps({
+        "id": 1,
+        "type": "result",
+        "success": True,
+        "result": mock_areas
+    })
+    
+    # Setup WebSocket receive sequence
+    mock_websocket.recv.side_effect = [auth_required, auth_ok, area_response]
+    mock_websocket.send = AsyncMock()
+    mock_websocket.__aenter__ = AsyncMock(return_value=mock_websocket)
+    mock_websocket.__aexit__ = AsyncMock(return_value=None)
+
+    with patch('websockets.connect', return_value=mock_websocket):
+        areas = await ha_client.get_area_registry()
+
+    assert len(areas) == 2
+    assert areas[0]["area_id"] == "office"
+    assert areas[0]["name"] == "Office"
+    # Verify WebSocket was used
+    assert mock_websocket.send.called
+
+
+@pytest.mark.asyncio
+async def test_get_area_registry_websocket_fallback_to_rest(ha_client):
+    """Test WebSocket failure falls back to REST API"""
+    mock_areas = [
+        {"area_id": "office", "name": "Office"},
+    ]
+
+    # Mock WebSocket failure
+    mock_websocket = AsyncMock()
+    mock_websocket.__aenter__.side_effect = Exception("WebSocket connection failed")
+    
+    # Mock REST API success
     mock_session = AsyncMock()
     mock_response = AsyncMock()
     mock_response.status = 200
@@ -34,7 +78,37 @@ async def test_get_area_registry_success(ha_client):
 
     ha_client._get_session = AsyncMock(return_value=mock_session)
 
-    areas = await ha_client.get_area_registry()
+    with patch('websockets.connect', return_value=mock_websocket):
+        areas = await ha_client.get_area_registry()
+
+    assert len(areas) == 1
+    assert areas[0]["area_id"] == "office"
+
+
+@pytest.mark.asyncio
+async def test_get_area_registry_success(ha_client):
+    """Test successfully fetching area registry via REST API (fallback)"""
+    mock_areas = [
+        {"area_id": "office", "name": "Office"},
+        {"area_id": "kitchen", "name": "Kitchen"},
+    ]
+
+    # Mock WebSocket failure
+    mock_websocket = AsyncMock()
+    mock_websocket.__aenter__.side_effect = Exception("WebSocket unavailable")
+    
+    mock_session = AsyncMock()
+    mock_response = AsyncMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value=mock_areas)
+    mock_response.raise_for_status = AsyncMock()
+    mock_session.get.return_value.__aenter__.return_value = mock_response
+    mock_session.get.return_value.__aexit__.return_value = None
+
+    ha_client._get_session = AsyncMock(return_value=mock_session)
+
+    with patch('websockets.connect', return_value=mock_websocket):
+        areas = await ha_client.get_area_registry()
 
     assert len(areas) == 2
     assert areas[0]["area_id"] == "office"

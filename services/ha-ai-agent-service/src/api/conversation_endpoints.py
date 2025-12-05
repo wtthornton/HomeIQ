@@ -20,7 +20,7 @@ from .conversation_models import (
     CreateConversationRequest,
     MessageResponse,
 )
-from .dependencies import get_conversation_service
+from .dependencies import get_conversation_service, get_prompt_assembly_service
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +125,126 @@ async def list_conversations(
         raise
     except Exception as e:
         logger.exception("Error listing conversations")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        ) from e
+
+
+@router.get("/{conversation_id}/debug/prompt")
+async def get_prompt_breakdown(
+    conversation_id: str,
+    user_message: str | None = Query(None, description="Optional user message to include in breakdown"),
+    refresh_context: bool = Query(False, description="Force context refresh"),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    prompt_assembly_service = Depends(get_prompt_assembly_service),
+):
+    """
+    Get full prompt breakdown for debugging.
+    
+    Returns the system prompt, user message, injected context, and full assembled messages.
+    
+    **Path Parameters:**
+    - `conversation_id`: Conversation ID
+    
+    **Query Parameters:**
+    - `user_message`: Optional user message to include (uses last user message if not provided)
+    - `refresh_context`: Force context refresh (default: False)
+    """
+    # Access context_builder from main module (global instance)
+    from .. import main as main_module
+    context_builder = main_module.context_builder
+    
+    try:
+        # Get conversation
+        conversation = await conversation_service.get_conversation(conversation_id)
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Conversation {conversation_id} not found",
+            )
+        
+        # Get user message (use provided or last user message)
+        if not user_message:
+            messages = conversation.get_messages()
+            user_messages = [m for m in messages if m.role == "user"]
+            if user_messages:
+                user_message = user_messages[-1].content
+            else:
+                # Use a placeholder message if no user messages exist
+                user_message = "[No user message found - this is a preview of the prompt structure]"
+        
+        # Get system prompt (base)
+        from ..prompts.system_prompt import SYSTEM_PROMPT
+        base_system_prompt = SYSTEM_PROMPT
+        
+        # Get complete system prompt with context
+        complete_system_prompt = conversation.get_context_cache()
+        if not complete_system_prompt or refresh_context:
+            if context_builder:
+                complete_system_prompt = await context_builder.build_complete_system_prompt()
+                conversation.set_context_cache(complete_system_prompt)
+            else:
+                complete_system_prompt = base_system_prompt
+        
+        # Extract injected context (everything after base system prompt)
+        injected_context = ""
+        if complete_system_prompt.startswith(base_system_prompt):
+            injected_context = complete_system_prompt[len(base_system_prompt):].strip()
+        
+        # Get pending preview context if available
+        pending_preview = conversation.get_pending_preview()
+        preview_context = ""
+        if pending_preview:
+            try:
+                preview_context = prompt_assembly_service._build_preview_context(pending_preview)
+            except Exception as e:
+                logger.warning(f"Could not build preview context: {e}")
+                preview_context = ""
+        
+        # Assemble full messages
+        try:
+            full_messages = await prompt_assembly_service.assemble_messages(
+                conversation_id, user_message, refresh_context=refresh_context
+            )
+        except Exception as e:
+            logger.warning(f"Could not assemble full messages: {e}")
+            full_messages = []
+        
+        # Get conversation history
+        history_messages = conversation.get_openai_messages()
+        
+        # Get token counts (handle errors gracefully)
+        try:
+            token_counts = await prompt_assembly_service.get_token_count(conversation_id, user_message)
+        except Exception as e:
+            logger.warning(f"Could not get token counts: {e}")
+            # Return default token counts
+            token_counts = {
+                "system_tokens": 0,
+                "history_tokens": 0,
+                "new_message_tokens": 0,
+                "total_tokens": 0,
+                "max_input_tokens": 16000,
+                "within_budget": True,
+            }
+        
+        return {
+            "conversation_id": conversation_id,
+            "base_system_prompt": base_system_prompt,
+            "injected_context": injected_context,
+            "preview_context": preview_context,
+            "complete_system_prompt": complete_system_prompt,
+            "user_message": user_message,
+            "conversation_history": history_messages,
+            "full_assembled_messages": full_messages,
+            "token_counts": token_counts,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error getting prompt breakdown for conversation {conversation_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
@@ -272,4 +392,3 @@ async def delete_conversation(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
         ) from e
-
