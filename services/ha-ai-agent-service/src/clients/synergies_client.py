@@ -27,6 +27,7 @@ class SynergiesClient:
         if settings is None:
             settings = Settings()
         self.base_url = (base_url or settings.ai_automation_service_url).rstrip("/")
+        self.api_key = settings.ai_automation_api_key
         self.timeout = aiohttp.ClientTimeout(total=10)
 
     async def get_synergies(
@@ -57,10 +58,15 @@ class SynergiesClient:
             if area:
                 params["area"] = area
 
+            headers = {}
+            if self.api_key:
+                headers["X-HomeIQ-API-Key"] = self.api_key
+            
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 async with session.get(
                     f"{self.base_url}/api/synergies",
-                    params=params
+                    params=params,
+                    headers=headers
                 ) as response:
                     if response.status == 200:
                         data = await response.json()

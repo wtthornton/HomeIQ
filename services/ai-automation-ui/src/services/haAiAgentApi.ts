@@ -286,3 +286,45 @@ export async function executeToolCall(
   });
 }
 
+/**
+ * Get prompt breakdown for debugging
+ */
+export interface PromptBreakdown {
+  conversation_id: string;
+  base_system_prompt: string;
+  injected_context: string;
+  preview_context: string;
+  complete_system_prompt: string;
+  user_message: string;
+  conversation_history: Array<{
+    role: string;
+    content: string;
+  }>;
+  full_assembled_messages: Array<{
+    role: string;
+    content: string;
+    tool_calls?: any[];
+  }>;
+  token_counts: {
+    system_tokens: number;
+    history_tokens: number;
+    new_message_tokens: number;
+    total_tokens: number;
+    max_input_tokens: number;
+    within_budget: boolean;
+  };
+}
+
+export async function getPromptBreakdown(
+  conversationId: string,
+  userMessage?: string,
+  refreshContext: boolean = false
+): Promise<PromptBreakdown> {
+  const queryParams = new URLSearchParams();
+  if (userMessage) queryParams.append('user_message', userMessage);
+  if (refreshContext) queryParams.append('refresh_context', 'true');
+  
+  const url = `${BASE_URL}/v1/conversations/${conversationId}/debug/prompt${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  return fetchJSON<PromptBreakdown>(url);
+}
+

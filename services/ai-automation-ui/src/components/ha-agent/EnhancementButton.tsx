@@ -29,6 +29,16 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
   const [showModal, setShowModal] = useState(false);
 
   const handleEnhance = async () => {
+    if (!conversationId) {
+      toast.error('No conversation active. Please start a conversation first.', { icon: '❌' });
+      return;
+    }
+    
+    if (!automationYaml || !originalPrompt) {
+      toast.error('Automation YAML and original prompt are required for enhancements.', { icon: '❌' });
+      return;
+    }
+    
     setIsLoading(true);
     setShowModal(true);
     
@@ -50,10 +60,11 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
         timeoutPromise
       ]) as any;
 
-      if (result.success && result.enhancements) {
+      if (result.success && result.enhancements && Array.isArray(result.enhancements) && result.enhancements.length > 0) {
         setEnhancements(result.enhancements);
         toast.success('Enhancements generated!', { icon: '✨' });
       } else {
+        console.error('Enhancement API response:', result);
         toast.error(result.error || 'Failed to generate enhancements', { icon: '❌' });
         setShowModal(false);
       }
@@ -156,11 +167,12 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
         )}
       </button>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {showModal && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm"
             onClick={() => setShowModal(false)}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -196,7 +208,7 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
                       Generating enhancements...
                     </span>
                   </div>
-                ) : enhancements ? (
+                ) : enhancements && enhancements.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {enhancements.map((enhancement, index) => (
                       <motion.div
@@ -243,7 +255,13 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
                       </motion.div>
                     ))}
                   </div>
-                ) : null}
+                ) : (
+                  <div className="flex items-center justify-center py-12">
+                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      No enhancements available. Please try again.
+                    </p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

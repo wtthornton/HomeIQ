@@ -16,14 +16,16 @@ logger = logging.getLogger(__name__)
 class AIAutomationClient:
     """Client for YAML validation via AI Automation Service"""
 
-    def __init__(self, base_url: str = "http://ai-automation-service:8000"):
+    def __init__(self, base_url: str = "http://ai-automation-service:8000", api_key: str | None = None):
         """
         Initialize AI Automation Service client.
 
         Args:
             base_url: Base URL for AI Automation Service (default: http://ai-automation-service:8000)
+            api_key: API key for authentication (optional)
         """
         self.base_url = base_url.rstrip('/')
+        self.api_key = api_key
         self.client = httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,
@@ -78,9 +80,14 @@ class AIAutomationClient:
 
             logger.debug(f"Validating YAML via AI Automation Service (entities={validate_entities}, safety={validate_safety})")
 
+            headers = {}
+            if self.api_key:
+                headers["X-HomeIQ-API-Key"] = self.api_key
+
             response = await self.client.post(
                 f"{self.base_url}/api/v1/yaml/validate",
-                json=payload
+                json=payload,
+                headers=headers
             )
             response.raise_for_status()
 

@@ -14,6 +14,9 @@ aiohttp>=3.13.2,<3.14.0  # Async HTTP client for HA API calls
 httpx>=0.28.1,<0.29.0  # Alternative HTTP client if needed
 tenacity>=8.3.0,<9.0.0  # Retry library for API calls
 
+# WebSocket Client (2025 Best Practice: Use WebSocket API for area registry)
+websockets>=12.0,<13.0  # WebSocket client for Home Assistant API
+
 # Database
 sqlalchemy>=2.0.44,<2.1.0  # Async ORM
 alembic>=1.14.0,<2.0.0  # Database migrations (Epic AI-20 Story AI20.6)

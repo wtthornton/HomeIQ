@@ -115,7 +115,7 @@ class AutomationEnhancementService:
         try:
             llm_enhancements = await asyncio.wait_for(
                 self._generate_llm_enhancements(automation_yaml, original_prompt, entities),
-                timeout=20.0  # 20 second timeout for 3 enhancements
+                timeout=45.0  # 45 second timeout for 3 enhancements (LLM can be slow)
             )
             enhancements.extend(llm_enhancements)
         except (asyncio.TimeoutError, APITimeoutError) as e:
@@ -138,7 +138,7 @@ class AutomationEnhancementService:
         try:
             pattern_enhancement = await asyncio.wait_for(
                 self._generate_pattern_enhancement(automation_yaml, entities, areas),
-                timeout=15.0
+                timeout=30.0  # Increased timeout for pattern + LLM enhancement
             )
             enhancements.append(pattern_enhancement)
         except (asyncio.TimeoutError, APITimeoutError) as e:
@@ -153,7 +153,7 @@ class AutomationEnhancementService:
         try:
             synergy_enhancement = await asyncio.wait_for(
                 self._generate_synergy_enhancement(automation_yaml, entities, areas),
-                timeout=15.0
+                timeout=30.0  # Increased timeout for synergy + LLM enhancement
             )
             enhancements.append(synergy_enhancement)
         except (asyncio.TimeoutError, APITimeoutError) as e:
