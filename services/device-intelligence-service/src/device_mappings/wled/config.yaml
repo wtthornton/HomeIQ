@@ -1,0 +1,15 @@
+device_type: wled
+manufacturer_patterns:
+  - "wled"
+  - "aircoookie"
+model_patterns:
+  - "wled"
+detection_rules:
+  is_master: "entity_id contains 'wled' and '_segment_' not in entity_id"
+  is_segment: "'_segment_' in entity_id"
+context_template: |
+  {name} ({entity_id}, WLED {type} - {description})
+relationship_rules:
+  segment_to_master: "Remove '_segment_N' suffix from entity_id to find master"
+  master_to_segments: "Find all entities with same base name + '_segment_'"
+

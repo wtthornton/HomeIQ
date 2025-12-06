@@ -178,9 +178,9 @@ class ServicesSummaryService:
                 # Use fallback if formatting produced empty result
                 return await self._get_fallback_services_summary()
 
-            # Truncate if too long (max ~3000 chars for enhanced version)
-            if len(summary) > 3000:
-                summary = summary[:3000] + "... (truncated)"
+            # Truncate if too long (optimized: max 1500 chars for token efficiency)
+            if len(summary) > 1500:
+                summary = summary[:1500] + "... (truncated)"
 
             # Cache the result
             await self.context_builder._set_cached_value(
@@ -352,85 +352,25 @@ class ServicesSummaryService:
             if "device_id" in fields:
                 target_options.append("device_id")
         
-        # Format parameters
-        param_parts = []
+        # Collect parameter names (optimized: just names for token efficiency)
+        param_names = []
         for param_name, param_info in fields.items():
             if param_name == "target":
                 continue
                 
             if not isinstance(param_info, dict):
                 continue
-                
-            param_type = param_info.get("type", "unknown")
-            required = param_info.get("required", False)
-            default = param_info.get("default")
-            param_desc = param_info.get("description", "")
             
-            # Get selector info for better type detection
-            selector = param_info.get("selector", {})
-            if isinstance(selector, dict):
-                selector_type = selector.get("type", "")
-                if selector_type == "color_rgb":
-                    param_type = "list[int] (0-255 each)"
-                elif selector_type == "number":
-                    min_val = selector.get("min", "")
-                    max_val = selector.get("max", "")
-                    if min_val is not None and max_val is not None:
-                        param_type = f"int ({min_val}-{max_val})"
-                    elif min_val is not None:
-                        param_type = f"int (min: {min_val})"
-                    elif max_val is not None:
-                        param_type = f"int (max: {max_val})"
-                elif selector_type == "select":
-                    # Extract enum values from select selector
-                    options = selector.get("options", [])
-                    if isinstance(options, list) and options:
-                        if len(options) <= 5:
-                            options_str = ", ".join(str(opt) for opt in options)
-                            param_type = f"string (enum: {options_str})"
-                        else:
-                            options_preview = ", ".join(str(opt) for opt in options[:3])
-                            param_type = f"string (enum: {options_preview}, ... {len(options)} total)"
-                    elif isinstance(options, dict):
-                        # Options might be a dict with value/label pairs
-                        option_values = list(options.keys())[:5] if isinstance(options, dict) else []
-                        if option_values:
-                            options_str = ", ".join(str(opt) for opt in option_values)
-                            param_type = f"string (enum: {options_str})"
-                elif selector_type == "text":
-                    # Text selector - keep as string
-                    pass
-            
-            param_str = f"      {param_name}: {param_type}"
-            if required:
-                param_str += " (required)"
-            if default is not None:
-                param_str += f" (default: {default})"
-            if param_desc and len(param_desc) < 50:
-                param_str += f" - {param_desc}"
-            
-            # Special handling for effect parameter - try to get enum values from selector
-            if param_name == "effect" and isinstance(selector, dict):
-                options = selector.get("options", [])
-                if isinstance(options, list) and len(options) > 5:
-                    # For effect, show more examples if available
-                    effect_preview = ", ".join(str(opt) for opt in options[:8])
-                    param_str += f" [examples: {effect_preview}, ... {len(options)} total]"
-            
-            param_parts.append(param_str)
+            # Add parameter name (limit to 8 params for token efficiency)
+            if len(param_names) < 8:
+                param_names.append(param_name)
         
-        # Build service format
-        service_format = f"{domain}.{service}:"
-        if target_options:
-            service_format += f"\n    target: {', '.join(target_options)}"
-        else:
-            service_format += "\n    target: N/A"
+        # Build service format (optimized: compact format for token efficiency)
+        # Format: domain.service(target: options, data: param1, param2, ...)
+        target_str = "|".join(target_options) if target_options else "N/A"
+        param_str = ", ".join(param_names) if param_names else "none"
         
-        service_format += "\n    data:"
-        if param_parts:
-            service_format += "\n" + "\n".join(param_parts)
-        else:
-            service_format += "\n      (no additional parameters)"
+        service_format = f"{domain}.{service}(target: {target_str}, data: {param_str})"
         
         return service_format
 

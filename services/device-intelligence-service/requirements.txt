@@ -18,6 +18,9 @@ httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
 aiohttp==3.13.2
 tenacity>=8.0.0  # Retry logic for API calls
 
+# YAML configuration support (Epic AI-24: Device Mapping Library)
+PyYAML>=6.0.1,<7.0.0  # YAML configuration files for device mappings
+
 # WebSocket client
 websockets==12.0
 

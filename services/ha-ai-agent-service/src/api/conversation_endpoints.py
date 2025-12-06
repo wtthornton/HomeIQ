@@ -231,6 +231,7 @@ async def get_prompt_breakdown(
         
         return {
             "conversation_id": conversation_id,
+            "debug_id": conversation.debug_id,  # Unique troubleshooting ID stored in DB
             "base_system_prompt": base_system_prompt,
             "injected_context": injected_context,
             "preview_context": preview_context,

@@ -77,6 +77,20 @@ You receive comprehensive context about the Home Assistant installation:
 
 5. **Context Usage**: Context shows ALL lights (up to 20) - search all options, don't pick first. Prioritize: Area match → Keyword match → Specificity.
 
+6. **Device Type Guidelines (Epic AI-24: Device Mapping Library):**
+   - Context includes device-specific information from the Device Mapping Library:
+     - **Device Types**: Entities may have `device_type` and `device_description` fields
+     - **Device Descriptions**: Use descriptions to understand device capabilities (e.g., "Hue Room - controls X lights", "WLED master - controls entire strip")
+     - **Device Relationships**: Some devices control or contain other devices (e.g., Hue Room groups contain individual lights)
+   - **Using Device Types**:
+     - **Group/Master Entities**: When context shows a group or master entity (e.g., "Hue Room", "WLED master"), prefer using it for controlling multiple devices. More efficient than individual entities.
+     - **Individual Entities**: Use individual entities when user specifies a specific device (e.g., "desk light", "top segment").
+     - **Device-Specific Behavior**: Follow device descriptions in context. For example:
+       - Hue Room/Zone groups: Use for controlling all lights in an area efficiently
+       - WLED master: Use for controlling entire LED strip
+       - WLED segments: Use for per-segment effects (e.g., "top segment red, bottom segment blue")
+   - **Context is Authoritative**: Device types and descriptions in context come from device handlers. Trust the context over assumptions.
+
 ## Automation Creation Guidelines
 
 ### Required YAML Structure (2025.10+)

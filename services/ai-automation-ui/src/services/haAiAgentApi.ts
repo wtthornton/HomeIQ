@@ -291,6 +291,7 @@ export async function executeToolCall(
  */
 export interface PromptBreakdown {
   conversation_id: string;
+  debug_id: string;  // Unique troubleshooting ID stored in DB
   base_system_prompt: string;
   injected_context: string;
   preview_context: string;

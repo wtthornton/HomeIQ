@@ -104,6 +104,99 @@ Get device capabilities and utilization
 curl http://localhost:8028/api/devices/abc123/capabilities
 ```
 
+### Device Mapping Library (Epic AI-24)
+
+The Device Mapping Library provides a plugin-based architecture for device-specific intelligence, enabling automatic detection of device types (e.g., Hue Room groups, WLED master/segments) and relationship mapping.
+
+#### `GET /api/device-mappings/status`
+Get device mapping registry status
+```bash
+curl http://localhost:8028/api/device-mappings/status
+```
+
+Returns:
+```json
+{
+  "status": "operational",
+  "handler_count": 2,
+  "handlers": ["hue", "wled"],
+  "cache_size": 15
+}
+```
+
+#### `POST /api/device-mappings/reload`
+Reload device mapping registry (clears cache and re-discovers handlers)
+```bash
+curl -X POST http://localhost:8028/api/device-mappings/reload
+```
+
+#### `POST /api/device-mappings/{device_id}/type`
+Get device type for a specific device
+```bash
+curl -X POST http://localhost:8028/api/device-mappings/hue_room_office/type \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "hue_room_office",
+    "manufacturer": "Signify",
+    "model": "Room",
+    "name": "Office"
+  }'
+```
+
+Returns:
+```json
+{
+  "device_id": "hue_room_office",
+  "type": "group",
+  "handler": "HueHandler",
+  "handler_name": "hue"
+}
+```
+
+#### `POST /api/device-mappings/{device_id}/relationships`
+Get device relationships (e.g., segments to master, groups to members)
+```bash
+curl -X POST http://localhost:8028/api/device-mappings/wled_master/relationships \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "wled_master",
+    "manufacturer": "WLED",
+    "name": "Office WLED"
+  }'
+```
+
+#### `POST /api/device-mappings/{device_id}/context`
+Get enriched context for a device
+```bash
+curl -X POST http://localhost:8028/api/device-mappings/hue_room_office/context \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "hue_room_office",
+    "manufacturer": "Signify",
+    "model": "Room",
+    "name": "Office"
+  }'
+```
+
+Returns:
+```json
+{
+  "device_id": "hue_room_office",
+  "context": "Office (Hue Room - controls all lights in Office)",
+  "handler": "HueHandler",
+  "handler_name": "hue"
+}
+```
+
+**Features:**
+- Plugin-based architecture - Add new device handlers without core code changes
+- Auto-discovery - Handlers automatically discovered and registered
+- Hot-reload - Reload handlers without service restart
+- Caching - 5-minute TTL cache for performance
+- Extensible - Easy to add new device types (Hue, WLED, LIFX, etc.)
+
+**See:** `docs/stories/story-ai24.1-device-mapping-library-core-infrastructure.md` for development guide
+
 ### Predictions & Machine Learning
 
 #### `GET /api/predictions/failures`

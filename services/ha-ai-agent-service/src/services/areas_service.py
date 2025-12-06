@@ -72,48 +72,28 @@ class AreasService:
                 )
                 return areas_str
 
-            # Format areas with enhanced information
+            # Format areas (optimized: simple area_id → name mapping)
             area_parts = []
-            area_mapping_parts = []
 
             for area in areas:
                 area_id = area.get("area_id", "")
                 name = area.get("name") or area_id
-                aliases = area.get("aliases", [])
-                icon = area.get("icon")
-                labels = area.get("labels", [])
 
                 if not area_id:
                     continue
 
-                # Build area description
-                area_desc = name
-                metadata_parts = [f"area_id: {area_id}"]
+                # Simple format: area_id: name (token-efficient)
+                area_parts.append(f"{area_id}: {name}")
 
-                if aliases:
-                    metadata_parts.append(f"aliases: {', '.join(aliases[:3])}")  # Limit to 3 aliases
-                if icon:
-                    metadata_parts.append(f"icon: {icon}")
-                if labels:
-                    metadata_parts.append(f"labels: {', '.join(labels[:3])}")  # Limit to 3 labels
-
-                area_info = f"{area_desc} ({', '.join(metadata_parts)})"
-                area_parts.append(area_info)
-
-                # Also build mapping for quick reference
-                area_mapping_parts.append(f"{area_id} → {name}")
-
-            # Combine: list format + mapping
+            # Simple comma-separated list
             areas_str = ", ".join(sorted(area_parts))
-            if area_mapping_parts:
-                areas_str += f"\nArea ID Mapping: {', '.join(sorted(area_mapping_parts))}"
 
             # Cache the result
             await self.context_builder._set_cached_value(
                 self._cache_key, areas_str, self._cache_ttl
             )
 
-            logger.info(f"✅ Generated enhanced areas list: {len(areas)} areas")
+            logger.info(f"✅ Generated optimized areas list: {len(areas)} areas ({len(areas_str)} chars)")
             return areas_str
 
         except Exception as e:

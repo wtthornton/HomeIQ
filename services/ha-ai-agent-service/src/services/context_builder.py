@@ -139,13 +139,10 @@ class ContextBuilder:
             logger.warning(f"⚠️ Failed to get services summary: {e}")
             context_parts.append("AVAILABLE SERVICES: (unavailable)\n")
 
-        # Story AI19.5 - Device Capability Patterns
-        try:
-            capability_patterns = await self._capability_patterns_service.get_patterns()
-            context_parts.append(f"DEVICE CAPABILITY PATTERNS:\n{capability_patterns}\n")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to get capability patterns: {e}")
-            context_parts.append("DEVICE CAPABILITY PATTERNS: (unavailable)\n")
+        # Story AI19.5 - Device Capability Patterns (OPTIONAL - consolidated into Entity Inventory)
+        # Skip capability patterns in default context to avoid duplication
+        # Capability patterns are already shown in Entity Inventory examples (effect_list, color_modes, etc.)
+        logger.debug("⏭️ Skipping capability patterns (consolidated into entity inventory for token efficiency)")
 
         # Story AI19.6 - Helpers & Scenes Summary
         try:
@@ -155,17 +152,10 @@ class ContextBuilder:
             logger.warning(f"⚠️ Failed to get helpers/scenes: {e}")
             context_parts.append("HELPERS & SCENES: (unavailable)\n")
 
-        # Entity Attributes (effect_list, preset_list, themes, etc.)
-        try:
-            entity_attributes_summary = await self._entity_attributes_service.get_summary()
-            if entity_attributes_summary and len(entity_attributes_summary.strip()) > 0:
-                context_parts.append(f"ENTITY ATTRIBUTES:\n{entity_attributes_summary}\n")
-                logger.debug(f"✅ Entity attributes added ({len(entity_attributes_summary)} chars)")
-            else:
-                logger.debug("⚠️ Entity attributes summary is empty (no entities with attributes)")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to get entity attributes: {e}")
-            # Don't add unavailable marker - this is optional
+        # Entity Attributes (OPTIONAL - now merged into Entity Inventory for token efficiency)
+        # Skip entity attributes in default context to avoid duplication
+        # Entity attributes are already included in Entity Inventory examples
+        logger.debug("⏭️ Skipping entity attributes (merged into entity inventory for token efficiency)")
 
         context = "\n".join(context_parts)
         

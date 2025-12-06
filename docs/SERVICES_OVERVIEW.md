@@ -669,6 +669,11 @@ TABLE webhook_deliveries (
 - **Inferred capabilities** for non-MQTT devices (Hue, Tuya, etc.)
 - 6-hour TTL cache for performance
 - Device health scoring
+- **Device Mapping Library (Epic AI-24)** - Plugin-based device intelligence
+  - Automatic device type detection (Hue Room groups, WLED master/segments)
+  - Device relationship mapping
+  - Context enrichment for AI agent
+  - Hot-reloadable handlers without service restart
 - Smart recommendations
 - Compatibility checking
 
@@ -689,6 +694,15 @@ TABLE webhook_deliveries (
 - Fan devices: speed (off, low, medium, high)
 - Climate devices: temperature (16-30°C)
 - Cover devices: position (0-100%)
+
+**Device Mapping API (Epic AI-24):**
+- `GET /api/device-mappings/status` - Registry status
+- `POST /api/device-mappings/reload` - Reload handlers
+- `POST /api/device-mappings/{device_id}/type` - Get device type
+- `POST /api/device-mappings/{device_id}/relationships` - Get relationships
+- `POST /api/device-mappings/{device_id}/context` - Get enriched context
+- **Handlers:** Hue (Room/Zone groups), WLED (master/segments)
+- **Caching:** 5-minute TTL for performance
 
 **Health Check:** `http://localhost:8028/health`
 

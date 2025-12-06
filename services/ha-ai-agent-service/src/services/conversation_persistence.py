@@ -20,10 +20,16 @@ logger = logging.getLogger(__name__)
 
 def _conversation_model_to_domain(model: ConversationModel) -> Conversation:
     """Convert ConversationModel to domain Conversation"""
+    # Get debug_id from model (generate if missing as fallback)
+    debug_id = getattr(model, 'debug_id', None)
+    if not debug_id:
+        debug_id = str(uuid4())  # Generate as fallback if missing
+    
     conversation = Conversation(
         conversation_id=model.conversation_id,
         created_at=model.created_at,
         state=ConversationState(model.state),
+        debug_id=debug_id,
     )
     conversation.updated_at = model.updated_at
 
@@ -69,10 +75,12 @@ async def create_conversation(
 ) -> Conversation:
     """Create a new conversation in the database"""
     conv_id = conversation_id or str(uuid4())
+    debug_id = str(uuid4())  # Generate unique troubleshooting ID
     now = datetime.now()
 
     conversation_model = ConversationModel(
         conversation_id=conv_id,
+        debug_id=debug_id,
         state=ConversationState.ACTIVE.value,
         created_at=now,
         updated_at=now,
@@ -85,7 +93,7 @@ async def create_conversation(
     # Mark messages as loaded (empty list for new conversation)
     conversation_model._messages_loaded = []
 
-    logger.info(f"Created conversation {conv_id} in database")
+    logger.info(f"Created conversation {conv_id} in database with debug_id {debug_id}")
     return _conversation_model_to_domain(conversation_model)
 
 
@@ -106,6 +114,13 @@ async def get_conversation(
 
     if not conversation_model:
         return None
+
+    # Ensure debug_id exists (generate if missing - handles edge cases)
+    if not conversation_model.debug_id:
+        conversation_model.debug_id = str(uuid4())
+        await session.commit()
+        await session.refresh(conversation_model)
+        logger.info(f"Generated missing debug_id for conversation {conversation_id}")
 
     # Messages are already loaded via selectinload
     conversation_model._messages_loaded = list(conversation_model.messages)
