@@ -82,34 +82,25 @@ class HelpersScenesService:
                             "state": state
                         })
 
-                # Format helpers by type with enhanced info
+                # Format helpers by type (optimized: names only)
                 helper_parts = []
                 for helper_type in sorted(helpers_by_type.keys()):
                     helper_list = sorted(helpers_by_type[helper_type], key=lambda x: x["id"])
                     count = len(helper_list)
 
-                    # Format helper descriptions
-                    helper_descriptions = []
-                    for helper in helper_list[:10]:  # Limit to 10 per type
-                        helper_desc = f"{helper['friendly_name']} ({helper['id']}"
-                        if helper.get("entity_id"):
-                            helper_desc += f", entity_id: {helper['entity_id']}"
-                        if helper.get("state") and helper["state"] != "unknown":
-                            helper_desc += f", state: {helper['state']}"
-                        helper_desc += ")"
-                        helper_descriptions.append(helper_desc)
-
-                    names_str = ", ".join(helper_descriptions)
-                    helper_parts.append(f"{helper_type}: {names_str} ({count} helpers)")
+                    # Simple format: just friendly names (token-efficient)
+                    helper_names = [helper['friendly_name'] for helper in helper_list[:10]]  # Limit to 10 per type
+                    names_str = ", ".join(helper_names)
+                    helper_parts.append(f"{helper_type}: {names_str} ({count})")
 
                 if helper_parts:
                     summary_parts.append("\n".join(helper_parts))
             else:
                 summary_parts.append("No helpers found")
 
-            # Format scenes with enhanced information
+            # Format scenes (optimized: names only)
             if scenes:
-                scene_descriptions = []
+                scene_names = []
                 for scene in scenes:
                     # Prefer friendly_name, fallback to entity_id name part, then id
                     scene_name = (
@@ -117,27 +108,16 @@ class HelpersScenesService:
                         scene.get("entity_id", "").split(".", 1)[1] if "." in scene.get("entity_id", "") else
                         scene.get("id", "")
                     )
-                    entity_id = scene.get("entity_id", "")
-                    state = scene.get("state", "unknown")
-
                     if scene_name:
-                        scene_desc = scene_name
-                        if entity_id:
-                            scene_desc += f" (entity_id: {entity_id}"
-                            if state != "unknown":
-                                scene_desc += f", state: {state}"
-                            scene_desc += ")"
-                        scene_descriptions.append(scene_desc)
+                        scene_names.append(scene_name)
 
-                if scene_descriptions:
-                    # Limit to 20 scenes to avoid overwhelming context
-                    if len(scene_descriptions) > 20:
-                        scene_descriptions = sorted(scene_descriptions)[:20]
-                        scenes_str = ", ".join(scene_descriptions) + f" ... ({len(scenes)} total scenes)"
+                if scene_names:
+                    # Limit to 15 scenes (token-efficient)
+                    if len(scene_names) > 15:
+                        scene_names = sorted(scene_names)[:15]
+                        scenes_str = ", ".join(scene_names) + f" ... ({len(scenes)} total)"
                     else:
-                        scenes_str = ", ".join(sorted(scene_descriptions))
-                        count = len(scene_descriptions)
-                        scenes_str += f" ({count} scenes)"
+                        scenes_str = ", ".join(sorted(scene_names))
                     summary_parts.append(f"Scenes: {scenes_str}")
                 else:
                     summary_parts.append("No scenes found")
@@ -146,9 +126,9 @@ class HelpersScenesService:
 
             summary = "\n".join(summary_parts)
 
-            # Truncate if too long (max 2000 chars for enhanced version)
-            if len(summary) > 2000:
-                summary = summary[:2000] + "... (truncated)"
+            # Truncate if too long (optimized: max 1000 chars for token efficiency)
+            if len(summary) > 1000:
+                summary = summary[:1000] + "... (truncated)"
 
             # Cache the result
             await self.context_builder._set_cached_value(

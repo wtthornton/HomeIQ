@@ -1,0 +1,19 @@
+device_type: hue
+manufacturer_patterns:
+  - "signify"
+  - "philips"
+group_models:
+  - "room"
+  - "zone"
+individual_models:
+  - "hue go"
+  - "hue color downlight"
+  - "hue white"
+  - "hue white ambiance"
+  - "hue color"
+detection_rules:
+  is_group: "device.model.lower() in ['room', 'zone']"
+  is_individual: "device.model.lower() not in ['room', 'zone']"
+context_template: |
+  {name} ({entity_id}, Hue {group_type} - controls all lights in the area)
+

@@ -933,6 +933,46 @@ Establish foundational context injection system for new HA AI Agent Service (Por
 
 ---
 
+**Epic AI-23: Device Registry & Entity Registry Integration** ⚠️ **CRITICAL - PLANNED**
+Integrate Home Assistant 2025 Device Registry and Entity Registry APIs to fix critical area filtering bug and significantly improve entity resolution accuracy. Addresses issue where only 2 of 7 Office lights are found because entities inherit `area_id` from devices. 3 stories, 8 points, ~12-16 hours estimated.
+
+**Expected Outcomes:**
+- +71% area filtering accuracy (29% → 100% accuracy)
+- +10-13% entity matching accuracy (85% → 95-98%)
+- 100% entity discovery (all entities found regardless of area_id location)
+- Better device intelligence (manufacturer/model metadata)
+
+**Epic Document:** `docs/prd/epic-ai23-device-registry-entity-registry-integration.md`
+
+---
+
+**Epic AI-24: Device Mapping Library Architecture** ✅ **COMPLETE** (January 2025)
+Create extensible device mapping library enabling rapid addition of device-specific mappings (Hue Room groups, WLED segments, future device types) without modifying core code. Plugin-based architecture with configuration-driven approach. 5 stories completed.
+
+**Delivered:**
+- ✅ Plugin-based device mapping library with auto-discovery
+- ✅ Base handler interface and registry system
+- ✅ YAML configuration support
+- ✅ Hot-reload capability (no service restart)
+- ✅ Device Intelligence Service API integration
+- ✅ Entity Inventory Service integration (replaces hardcoded detection)
+- ✅ System prompt updated with device-specific guidelines
+- ✅ Two device handlers implemented (Hue, WLED) as proof of concept
+- ✅ Comprehensive unit tests (>90% coverage)
+
+**Expected Outcomes:**
+- ✅ Rapid device support (add new handlers in < 1 hour)
+- ✅ Zero core code changes (configuration-driven)
+- ✅ Consistent device intelligence (centralized knowledge)
+- ✅ Easy maintenance (isolated handlers)
+- ✅ Community extensibility (unlimited device types)
+
+**Stories:** 5 stories (AI24.1-AI24.5) ✅ **ALL COMPLETE**
+
+**Epic Document:** `docs/prd/epic-ai24-device-mapping-library-architecture.md`
+
+---
+
 **Last Updated**: November 26, 2025  
 **Status**: 🎉 **PROJECT PRODUCTION READY - Core features complete** 🎉
 

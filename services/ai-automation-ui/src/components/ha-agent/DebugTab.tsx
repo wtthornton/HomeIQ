@@ -83,7 +83,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                 {breakdown.base_system_prompt.length} chars
               </span>
             </div>
-            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap ${
+            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
               darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
             }`}>
               {breakdown.base_system_prompt}
@@ -103,7 +103,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
               </span>
             </div>
             {breakdown.injected_context ? (
-              <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap ${
+              <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
                 darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
               }`}>
                 {breakdown.injected_context}
@@ -126,7 +126,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
               </span>
             </div>
             {breakdown.preview_context ? (
-              <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap ${
+              <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
                 darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
               }`}>
                 {breakdown.preview_context}
@@ -148,7 +148,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                 {breakdown.complete_system_prompt.length} chars
               </span>
             </div>
-            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap ${
+            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
               darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
             }`}>
               {breakdown.complete_system_prompt}
@@ -167,7 +167,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                 {breakdown.user_message.length} chars
               </span>
             </div>
-            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap ${
+            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
               darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
             }`}>
               {breakdown.user_message}
@@ -206,7 +206,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                       {msg.content.length} chars
                     </span>
                   </div>
-                  <pre className={`text-sm font-mono whitespace-pre-wrap ${
+                  <pre className={`text-sm font-mono whitespace-pre-wrap overflow-auto ${
                     darkMode ? 'text-gray-300' : 'text-gray-800'
                   }`}>
                     {msg.content}
@@ -259,7 +259,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                       {msg.content?.length || 0} chars
                     </span>
                   </div>
-                  <pre className={`text-sm font-mono whitespace-pre-wrap ${
+                  <pre className={`text-sm font-mono whitespace-pre-wrap overflow-auto ${
                     darkMode ? 'text-gray-300' : 'text-gray-800'
                   }`}>
                     {msg.content || '[No content]'}
@@ -376,13 +376,40 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
       <div className={`border-b px-6 py-4 flex items-center justify-between ${
         darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
       }`}>
-        <div>
+        <div className="flex-1">
           <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             🔍 Debug: Prompt Breakdown
           </h2>
-          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            View the full prompt sent to the LLM
-          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              View the full prompt sent to the LLM
+            </p>
+            {breakdown?.debug_id && (
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Troubleshooting ID:
+                </span>
+                <code 
+                  className={`px-2 py-1 rounded text-xs font-mono ${
+                    darkMode 
+                      ? 'bg-gray-700 text-green-400 border border-gray-600' 
+                      : 'bg-gray-100 text-green-600 border border-gray-300'
+                  }`}
+                  title="Copy to clipboard"
+                  onClick={() => {
+                    navigator.clipboard.writeText(breakdown.debug_id);
+                    toast.success('Debug ID copied to clipboard');
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {breakdown.debug_id}
+                </code>
+                <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  (click to copy)
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <label className={`flex items-center gap-2 text-sm ${
@@ -444,7 +471,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+      <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0 max-h-full">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -457,7 +484,6 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="min-h-full"
           >
             {renderContent()}
           </motion.div>

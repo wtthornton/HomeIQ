@@ -58,6 +58,12 @@ class ConversationModel(Base):
         index=True,
     )
 
+    # Unique troubleshooting ID for debug screen (stored in DB)
+    debug_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=True)
+
+    # Unique troubleshooting ID for debug screen (stored in DB)
+    debug_id: Mapped[str | None] = mapped_column(String(36), unique=True, index=True, nullable=True)
+
     # Relationship to messages
     messages: Mapped[list["MessageModel"]] = relationship(
         "MessageModel",
@@ -148,12 +154,12 @@ async def init_database(database_url: str) -> None:
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         
-        # Migrate: Add pending_preview column if it doesn't exist
-        # This handles existing databases that were created before the column was added
+        # Migrate: Add pending_preview and debug_id columns if they don't exist
+        # This handles existing databases that were created before these columns were added
         # Run migration in separate transaction to ensure it commits
         if database_url.startswith("sqlite"):
             try:
-                logger.info("🔄 Checking for pending_preview column migration...")
+                logger.info("🔄 Checking for database migrations...")
                 async with _engine.begin() as conn:
                     # Check if table exists first
                     table_result = await conn.execute(
@@ -163,14 +169,12 @@ async def init_database(database_url: str) -> None:
                     table_exists = table_row is not None
                     
                     if table_exists:
-                        # Check if column exists using pragma_table_info
+                        # Check and migrate pending_preview column
                         column_result = await conn.execute(
                             text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'pending_preview'")
                         )
                         column_count = column_result.scalar() or 0
-                        column_exists = column_count > 0
-                        
-                        if not column_exists:
+                        if column_count == 0:
                             logger.info("🔄 Adding missing column: pending_preview to conversations table")
                             await conn.execute(
                                 text("ALTER TABLE conversations ADD COLUMN pending_preview JSON")
@@ -178,6 +182,45 @@ async def init_database(database_url: str) -> None:
                             logger.info("✅ Successfully added pending_preview column")
                         else:
                             logger.debug("✅ Column pending_preview already exists")
+                        
+                        # Check and migrate debug_id column
+                        debug_id_result = await conn.execute(
+                            text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'debug_id'")
+                        )
+                        debug_id_count = debug_id_result.scalar() or 0
+                        if debug_id_count == 0:
+                            logger.info("🔄 Adding missing column: debug_id to conversations table")
+                            await conn.execute(
+                                text("ALTER TABLE conversations ADD COLUMN debug_id TEXT")
+                            )
+                            logger.info("✅ Successfully added debug_id column")
+                            
+                            # Generate debug_ids for existing conversations that don't have one
+                            from uuid import uuid4
+                            logger.info("🔄 Generating debug_ids for existing conversations...")
+                            result = await conn.execute(
+                                text("SELECT conversation_id FROM conversations WHERE debug_id IS NULL")
+                            )
+                            rows = result.fetchall()
+                            for row in rows:
+                                conv_id = row[0]
+                                debug_id = str(uuid4())
+                                await conn.execute(
+                                    text("UPDATE conversations SET debug_id = :debug_id WHERE conversation_id = :conv_id"),
+                                    {"debug_id": debug_id, "conv_id": conv_id}
+                                )
+                            logger.info(f"✅ Generated debug_ids for {len(rows)} existing conversations")
+                            
+                            # Create index on debug_id
+                            try:
+                                await conn.execute(
+                                    text("CREATE UNIQUE INDEX idx_conversations_debug_id ON conversations(debug_id)")
+                                )
+                                logger.info("✅ Created index on debug_id column")
+                            except Exception as idx_error:
+                                logger.warning(f"⚠️  Could not create index on debug_id (may already exist): {idx_error}")
+                        else:
+                            logger.debug("✅ Column debug_id already exists")
                     else:
                         logger.debug("ℹ️  Conversations table doesn't exist yet (will be created with all columns)")
             except Exception as e:

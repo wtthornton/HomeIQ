@@ -60,6 +60,53 @@ export const HAAgentChat: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Helper function to deduplicate messages using a Set-based approach (2025 pattern)
+  // Deduplicates by message_id first (most reliable), then by content+role to catch API duplicates
+  const deduplicateMessages = (messages: ChatMessage[]): ChatMessage[] => {
+    const seenById = new Set<string>();
+    const seenByContent = new Set<string>();
+    const uniqueMessages: ChatMessage[] = [];
+    
+    for (const msg of messages) {
+      // Skip empty loading messages
+      if (!msg.content.trim() && msg.isLoading) {
+        continue;
+      }
+      
+      const normalizedContent = msg.content.trim();
+      const isTemp = msg.message_id.startsWith('temp-') || msg.message_id.startsWith('loading-');
+      
+      // For real messages (from API), check both message_id and content+role
+      if (!isTemp && msg.message_id) {
+        const idKey = `id:${msg.message_id}`;
+        const contentKey = `content:${msg.role}:${normalizedContent}`;
+        
+        // Skip if we've seen this message_id OR this exact content+role combination
+        if (seenById.has(idKey) || seenByContent.has(contentKey)) {
+          continue;
+        }
+        
+        seenById.add(idKey);
+        seenByContent.add(contentKey);
+        uniqueMessages.push(msg);
+      } else {
+        // For temp/loading messages, use content+role+timestamp to allow same content at different times
+        const timestamp = new Date(msg.created_at).getTime();
+        const contentKey = `content:${msg.role}:${normalizedContent}:${timestamp}`;
+        
+        if (!seenByContent.has(contentKey)) {
+          seenByContent.add(contentKey);
+          uniqueMessages.push(msg);
+        }
+      }
+    }
+    
+    // Sort by creation time to maintain chronological order
+    return uniqueMessages.sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+  };
+
   // Load conversation on mount or when conversation ID changes
   useEffect(() => {
     const loadConversation = async () => {
@@ -68,12 +115,16 @@ export const HAAgentChat: React.FC = () => {
           setIsInitializing(true);
           const conversation = await getConversation(currentConversationId);
           setCurrentConversation(conversation);
-          setMessages(
-            conversation.messages?.map((msg) => ({
-              ...msg,
-              isLoading: false,
-            })) || []
-          );
+          const loadedMessages = conversation.messages?.map((msg) => ({
+            ...msg,
+            isLoading: false,
+          })) || [];
+          
+          // When loading a conversation, replace all messages (don't merge)
+          // Deduplicate to prevent duplicates from API or previous state
+          const deduplicated = deduplicateMessages(loadedMessages);
+          console.log(`[HAAgentChat] Loaded ${loadedMessages.length} messages, deduplicated to ${deduplicated.length}`);
+          setMessages(deduplicated);
         } catch (error) {
           console.error('Failed to load conversation:', error);
           toast.error('Failed to load conversation');
@@ -128,30 +179,48 @@ export const HAAgentChat: React.FC = () => {
       // Update conversation ID if this was a new conversation
       if (!currentConversationId && response.conversation_id) {
         setCurrentConversationId(response.conversation_id);
-        // Reload conversation to get full details
+        // Reload conversation to get full details - this will replace messages via useEffect
         try {
           const conversation = await getConversation(response.conversation_id);
           setCurrentConversation(conversation);
+          // Messages will be replaced by the useEffect when currentConversationId changes
+          // Don't add messages here - let the useEffect handle it to avoid duplicates
+          setIsLoading(false);
+          return; // Exit early to let useEffect handle message loading
         } catch (error) {
           console.error('Failed to reload conversation:', error);
+          // Fall through to add message manually if reload fails
         }
       }
 
       // Remove loading message and add assistant response
+      // Only add if conversation wasn't just reloaded (which would have returned early)
       setMessages((prev) => {
         const filtered = prev.filter((msg) => !msg.isLoading);
-        return [
-          ...filtered,
-          {
-            message_id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            content: response.message,
-            created_at: new Date().toISOString(),
-            isLoading: false,
-            toolCalls: response.tool_calls || [],
-            responseTimeMs: response.metadata?.response_time_ms,
-          },
-        ];
+        const assistantMessage: ChatMessage = {
+          message_id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: response.message,
+          created_at: new Date().toISOString(),
+          isLoading: false,
+          toolCalls: response.tool_calls || [],
+          responseTimeMs: response.metadata?.response_time_ms,
+        };
+        
+        // Check if this message already exists (by message_id or content)
+        const alreadyExists = filtered.some(
+          m => (m.message_id === assistantMessage.message_id && assistantMessage.message_id) ||
+               (m.role === 'assistant' && m.content.trim() === assistantMessage.content.trim() && 
+                !m.message_id.startsWith('temp-') && !m.message_id.startsWith('loading-'))
+        );
+        
+        if (alreadyExists) {
+          // Message already exists, just remove loading
+          return filtered;
+        }
+        
+        // Deduplicate to prevent adding the same message twice
+        return deduplicateMessages([...filtered, assistantMessage]);
       });
 
       // Show tool calls if any
@@ -304,8 +373,8 @@ export const HAAgentChat: React.FC = () => {
       setPreviewToolCall(automation.toolCall ?? undefined);
       setAutomationPreviewOpen(true);
       
-      // Extract original prompt from conversation
-      const userMessage = messages.find(m => m.role === 'user');
+      // Extract original prompt from conversation - get the most recent user message
+      const userMessage = messages.slice().reverse().find(m => m.role === 'user');
       if (userMessage) {
         setOriginalPrompt(userMessage.content);
       }
@@ -551,7 +620,8 @@ export const HAAgentChat: React.FC = () => {
               // Get the latest automation from messages
               const latestAutomation = messages.slice().reverse().find(m => detectAutomation(m));
               const automation = latestAutomation ? detectAutomation(latestAutomation) : null;
-              const userMsg = messages.find(m => m.role === 'user');
+              // Get the most recent user message (not just the first one)
+              const userMsg = messages.slice().reverse().find(m => m.role === 'user');
               
               return (
                 <EnhancementButton

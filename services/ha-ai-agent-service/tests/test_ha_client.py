@@ -280,3 +280,271 @@ async def test_close_no_session(ha_client):
     # Should not raise error
     await ha_client.close()
 
+
+# Device Registry Tests (Epic AI-23)
+@pytest.mark.asyncio
+async def test_get_device_registry_websocket_success(ha_client):
+    """Test successfully fetching device registry via WebSocket API (2025 best practice)"""
+    mock_devices = [
+        {
+            "id": "device1",
+            "name": "Office Light Device",
+            "area_id": "office",
+            "manufacturer": "Philips",
+            "model": "Hue Light",
+            "sw_version": "1.0.0"
+        },
+        {
+            "id": "device2",
+            "name": "Kitchen Light Device",
+            "area_id": "kitchen",
+            "manufacturer": "LIFX",
+            "model": "A19",
+            "sw_version": "2.0.0"
+        },
+    ]
+
+    # Mock WebSocket connection and responses
+    mock_websocket = AsyncMock()
+    
+    # Auth required response
+    auth_required = json.dumps({"type": "auth_required", "ha_version": "2025.1.0"})
+    # Auth OK response
+    auth_ok = json.dumps({"type": "auth_ok"})
+    # Device registry response
+    device_response = json.dumps({
+        "id": 2,
+        "type": "result",
+        "success": True,
+        "result": mock_devices
+    })
+    
+    # Setup WebSocket receive sequence
+    mock_websocket.recv.side_effect = [auth_required, auth_ok, device_response]
+    mock_websocket.send = AsyncMock()
+    mock_websocket.__aenter__ = AsyncMock(return_value=mock_websocket)
+    mock_websocket.__aexit__ = AsyncMock(return_value=None)
+
+    with patch('websockets.connect', return_value=mock_websocket):
+        devices = await ha_client.get_device_registry()
+
+    assert len(devices) == 2
+    assert devices[0]["id"] == "device1"
+    assert devices[0]["area_id"] == "office"
+    assert devices[0]["manufacturer"] == "Philips"
+    # Verify WebSocket was used
+    assert mock_websocket.send.called
+
+
+@pytest.mark.asyncio
+async def test_get_device_registry_websocket_fallback_to_rest(ha_client):
+    """Test WebSocket failure falls back to REST API"""
+    mock_devices = [
+        {
+            "id": "device1",
+            "name": "Office Light Device",
+            "area_id": "office",
+            "manufacturer": "Philips",
+            "model": "Hue Light"
+        },
+    ]
+
+    # Mock WebSocket failure
+    mock_websocket = AsyncMock()
+    mock_websocket.__aenter__.side_effect = Exception("WebSocket connection failed")
+    
+    # Mock REST API success
+    mock_session = AsyncMock()
+    mock_response = AsyncMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value=mock_devices)
+    mock_response.raise_for_status = AsyncMock()
+    mock_session.get.return_value.__aenter__.return_value = mock_response
+    mock_session.get.return_value.__aexit__.return_value = None
+
+    ha_client._get_session = AsyncMock(return_value=mock_session)
+
+    with patch('websockets.connect', return_value=mock_websocket):
+        devices = await ha_client.get_device_registry()
+
+    assert len(devices) == 1
+    assert devices[0]["id"] == "device1"
+    assert devices[0]["area_id"] == "office"
+
+
+@pytest.mark.asyncio
+async def test_get_device_registry_404(ha_client):
+    """Test handling 404 for device registry (endpoint not available)"""
+    mock_session = AsyncMock()
+    mock_response = AsyncMock()
+    mock_response.status = 404
+    mock_session.get.return_value.__aenter__.return_value = mock_response
+    mock_session.get.return_value.__aexit__.return_value = None
+
+    ha_client._get_session = AsyncMock(return_value=mock_session)
+
+    devices = await ha_client.get_device_registry()
+
+    # Should return empty list for 404
+    assert devices == []
+
+
+@pytest.mark.asyncio
+async def test_get_device_registry_dict_response(ha_client):
+    """Test handling dict response with 'devices' key"""
+    mock_response_data = {
+        "devices": [
+            {
+                "id": "device1",
+                "name": "Office Light Device",
+                "area_id": "office"
+            }
+        ]
+    }
+
+    mock_session = AsyncMock()
+    mock_response = AsyncMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value=mock_response_data)
+    mock_response.raise_for_status = AsyncMock()
+    mock_session.get.return_value.__aenter__.return_value = mock_response
+    mock_session.get.return_value.__aexit__.return_value = None
+
+    ha_client._get_session = AsyncMock(return_value=mock_session)
+
+    devices = await ha_client.get_device_registry()
+
+    assert len(devices) == 1
+    assert devices[0]["id"] == "device1"
+
+
+# Entity Registry Tests (Epic AI-23)
+@pytest.mark.asyncio
+async def test_get_entity_registry_websocket_success(ha_client):
+    """Test successfully fetching entity registry via WebSocket API (2025 best practice)"""
+    mock_entities = [
+        {
+            "entity_id": "light.office_1",
+            "name": "Office Light",
+            "aliases": ["workspace light", "desk light"],
+            "category": "light",
+            "disabled_by": None
+        },
+        {
+            "entity_id": "sensor.temp_1",
+            "name": "Temperature Sensor",
+            "aliases": [],
+            "category": "diagnostic",
+            "disabled_by": None
+        },
+    ]
+
+    # Mock WebSocket connection and responses
+    mock_websocket = AsyncMock()
+    
+    # Auth required response
+    auth_required = json.dumps({"type": "auth_required", "ha_version": "2025.1.0"})
+    # Auth OK response
+    auth_ok = json.dumps({"type": "auth_ok"})
+    # Entity registry response
+    entity_response = json.dumps({
+        "id": 3,
+        "type": "result",
+        "success": True,
+        "result": mock_entities
+    })
+    
+    # Setup WebSocket receive sequence
+    mock_websocket.recv.side_effect = [auth_required, auth_ok, entity_response]
+    mock_websocket.send = AsyncMock()
+    mock_websocket.__aenter__ = AsyncMock(return_value=mock_websocket)
+    mock_websocket.__aexit__ = AsyncMock(return_value=None)
+
+    with patch('websockets.connect', return_value=mock_websocket):
+        entities = await ha_client.get_entity_registry()
+
+    assert len(entities) == 2
+    assert entities[0]["entity_id"] == "light.office_1"
+    assert entities[0]["aliases"] == ["workspace light", "desk light"]
+    assert entities[0]["category"] == "light"
+    # Verify WebSocket was used
+    assert mock_websocket.send.called
+
+
+@pytest.mark.asyncio
+async def test_get_entity_registry_websocket_fallback_to_rest(ha_client):
+    """Test WebSocket failure falls back to REST API"""
+    mock_entities = [
+        {
+            "entity_id": "light.office_1",
+            "name": "Office Light",
+            "aliases": ["workspace light"]
+        },
+    ]
+
+    # Mock WebSocket failure
+    mock_websocket = AsyncMock()
+    mock_websocket.__aenter__.side_effect = Exception("WebSocket connection failed")
+    
+    # Mock REST API success
+    mock_session = AsyncMock()
+    mock_response = AsyncMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value=mock_entities)
+    mock_response.raise_for_status = AsyncMock()
+    mock_session.get.return_value.__aenter__.return_value = mock_response
+    mock_session.get.return_value.__aexit__.return_value = None
+
+    ha_client._get_session = AsyncMock(return_value=mock_session)
+
+    with patch('websockets.connect', return_value=mock_websocket):
+        entities = await ha_client.get_entity_registry()
+
+    assert len(entities) == 1
+    assert entities[0]["entity_id"] == "light.office_1"
+
+
+@pytest.mark.asyncio
+async def test_get_entity_registry_404(ha_client):
+    """Test handling 404 for entity registry (endpoint not available)"""
+    mock_session = AsyncMock()
+    mock_response = AsyncMock()
+    mock_response.status = 404
+    mock_session.get.return_value.__aenter__.return_value = mock_response
+    mock_session.get.return_value.__aexit__.return_value = None
+
+    ha_client._get_session = AsyncMock(return_value=mock_session)
+
+    entities = await ha_client.get_entity_registry()
+
+    # Should return empty list for 404
+    assert entities == []
+
+
+@pytest.mark.asyncio
+async def test_get_entity_registry_dict_response(ha_client):
+    """Test handling dict response with 'entities' key"""
+    mock_response_data = {
+        "entities": [
+            {
+                "entity_id": "light.office_1",
+                "name": "Office Light",
+                "aliases": ["workspace light"]
+            }
+        ]
+    }
+
+    mock_session = AsyncMock()
+    mock_response = AsyncMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value=mock_response_data)
+    mock_response.raise_for_status = AsyncMock()
+    mock_session.get.return_value.__aenter__.return_value = mock_response
+    mock_session.get.return_value.__aexit__.return_value = None
+
+    ha_client._get_session = AsyncMock(return_value=mock_session)
+
+    entities = await ha_client.get_entity_registry()
+
+    assert len(entities) == 1
+    assert entities[0]["entity_id"] == "light.office_1"

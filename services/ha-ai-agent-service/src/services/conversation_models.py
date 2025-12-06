@@ -68,6 +68,7 @@ class Conversation:
         conversation_id: str | None = None,
         created_at: datetime | None = None,
         state: ConversationState = ConversationState.ACTIVE,
+        debug_id: str | None = None,
     ):
         """
         Initialize a conversation.
@@ -76,8 +77,10 @@ class Conversation:
             conversation_id: Optional conversation ID (generated if not provided)
             created_at: Optional creation timestamp (current time if not provided)
             state: Conversation state (default: ACTIVE)
+            debug_id: Optional unique troubleshooting ID (generated if not provided)
         """
         self.conversation_id = conversation_id or str(uuid4())
+        self.debug_id = debug_id or str(uuid4())  # Generate unique troubleshooting ID
         self.created_at = created_at or datetime.now()
         self.updated_at = self.created_at
         self.state = state

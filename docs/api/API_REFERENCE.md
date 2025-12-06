@@ -1,9 +1,9 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** December 2025 (Epic AI-6: Blueprint-Enhanced Suggestion Intelligence)  
-**API Version:** v4.7  
+**Last Updated:** January 2025 (Epic AI-24: Device Mapping Library Architecture)  
+**API Version:** v4.8  
 **Status:** ✅ Production Ready  
-**Recent Updates:** Epic AI-6 Blueprint-Enhanced Suggestion Intelligence (December 2025), Preference API endpoints, Blueprint opportunity discovery, Pattern validation, Preference-aware ranking, Home Type Categorization System (ML-based classification, November 2025), Device Database enhancements (health monitoring, classification, setup assistant, recommendations), device-specific automation templates, HA API-only capability discovery
+**Recent Updates:** Epic AI-24 Device Mapping Library (January 2025), Device mapping API endpoints, Plugin-based device handlers, Epic AI-6 Blueprint-Enhanced Suggestion Intelligence (December 2025), Preference API endpoints, Blueprint opportunity discovery, Pattern validation, Preference-aware ranking, Home Type Categorization System (ML-based classification, November 2025), Device Database enhancements (health monitoring, classification, setup assistant, recommendations), device-specific automation templates, HA API-only capability discovery
 
 > **📌 This is the SINGLE SOURCE OF TRUTH for all HA Ingestor API documentation.**  
 > **Supersedes:** API_DOCUMENTATION.md, API_COMPREHENSIVE_REFERENCE.md, API_ENDPOINTS_REFERENCE.md
@@ -20,9 +20,10 @@
 6. [Sports Data Service](#sports-data-service) (Port 8005)
 7. [AI Automation Services](#ai-automation-services-epic-39-modularization) (Ports 8016-8018, 8021)
 8. [HA AI Agent Service](#ha-ai-agent-service) (Port 8030)
-9. [Statistics API](#statistics-api)
-10. [Error Handling](#error-handling)
-11. [Integration Examples](#integration-examples)
+9. [Device Intelligence Service](#device-intelligence-service) (Port 8028)
+10. [Statistics API](#statistics-api)
+11. [Error Handling](#error-handling)
+12. [Integration Examples](#integration-examples)
 
 ---
 
@@ -1847,6 +1848,69 @@ curl http://ha-ai-agent-service:8030/api/v1/complete-prompt
 - Service README: `services/ha-ai-agent-service/README.md`
 - API Documentation: `services/ha-ai-agent-service/docs/API_DOCUMENTATION.md`
 - System Prompt: `services/ha-ai-agent-service/docs/SYSTEM_PROMPT.md`
+
+---
+
+## Device Intelligence Service
+
+**Base URL:** `http://localhost:8028`  
+**Purpose:** Device capability discovery, health monitoring, and device mapping library (Epic AI-24)
+
+### Device Mapping Library API (Epic AI-24)
+
+The Device Mapping Library provides a plugin-based architecture for device-specific intelligence.
+
+#### GET /api/device-mappings/status
+
+Get device mapping registry status.
+
+**Response:**
+```json
+{
+  "status": "operational",
+  "handler_count": 2,
+  "handlers": ["hue", "wled"],
+  "cache_size": 15
+}
+```
+
+#### POST /api/device-mappings/reload
+
+Reload device mapping registry (clears cache and re-discovers handlers).
+
+#### POST /api/device-mappings/{device_id}/type
+
+Get device type for a specific device.
+
+**Request Body:**
+```json
+{
+  "device_id": "hue_room_office",
+  "manufacturer": "Signify",
+  "model": "Room",
+  "name": "Office"
+}
+```
+
+**Response:**
+```json
+{
+  "device_id": "hue_room_office",
+  "type": "group",
+  "handler": "HueHandler",
+  "handler_name": "hue"
+}
+```
+
+#### POST /api/device-mappings/{device_id}/relationships
+
+Get device relationships (e.g., segments to master, groups to members).
+
+#### POST /api/device-mappings/{device_id}/context
+
+Get enriched context for a device.
+
+**See:** `services/device-intelligence-service/README.md` for complete API documentation
 - Epic AI-19: `docs/prd/epic-ai19-ha-ai-agent-tier1-context-injection.md`
 
 ---
