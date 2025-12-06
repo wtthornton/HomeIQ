@@ -96,6 +96,11 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 - **Capability Discovery**: Infer device capabilities from Home Assistant API (HA API-only, no direct protocol access)
 - **Device Recommendations**: Get device recommendations based on requirements and compare similar devices
 - **Device Database Integration**: Optional integration with external Device Database for enriched metadata
+- **Device Mapping Library (Epic AI-24)**: Plugin-based architecture for device-specific intelligence
+  - Automatic device type detection (Hue Room groups, WLED master/segments)
+  - Device relationship mapping (segments to masters, groups to members)
+  - Hot-reloadable handlers without service restart
+  - Add new device handlers in < 1 hour without core code changes
 
 ### 📊 Single-Home Analytics
 
@@ -345,7 +350,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 | **OpenAI Service** | GPT-4o-mini API client | 8020 | 8020 | GPT-4o-mini | ✅ Active |
 | **AI Core Service** | Multi-model orchestration | 8018 | 8018 | Service coordinator | ✅ Active |
 | **AI Automation Service** | Pattern detection & automation | 8024 | 8018 | Orchestrator | ✅ Active |
-| **Device Intelligence** | Device capability discovery | 8028 | 8019 | MQTT-based | ✅ Active |
+| **Device Intelligence** | Device capability discovery + Device Mapping Library | 8028 | 8019 | MQTT-based | ✅ Active |
 | **Automation Miner** | Community automation mining | 8029 | 8019 | Web scraping | ✅ Active |
 | **HA Setup Service** | HA setup recommendations | 8027 | 8020 | N/A | ✅ Active |
 
@@ -361,7 +366,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 | **Proactive Agent Service** | Context-aware suggestions | 8031 | 8031 | Python, FastAPI, APScheduler | ✅ Active |
 | **Data API** | Historical data queries | 8006 | 8006 | Python, FastAPI | ✅ Active |
 | **Admin API** | System control & config | 8003 | 8004 | Python, FastAPI | ✅ Active |
-| **Device Intelligence** | Device capability discovery | 8028 | 8019 | Python, FastAPI, MQTT | ✅ Active |
+| **Device Intelligence** | Device capability discovery + Device Mapping Library | 8028 | 8019 | Python, FastAPI, MQTT | ✅ Active |
 | **Weather API** | Standalone weather service | 8009 | 8009 | Python, FastAPI | ✅ Active |
 | **Data Retention** | Data lifecycle management | 8080 | 8080 | Python, FastAPI | ✅ Active |
 | **Carbon Intensity** | Grid carbon footprint | 8010 | 8010 | Python, FastAPI | ✅ Active |
@@ -555,6 +560,16 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## 📝 Recent Updates
 
+- **Epic AI-24: Device Mapping Library Architecture** (January 2025) ✅
+  - Plugin-based device mapping library with auto-discovery
+  - Base DeviceHandler interface and registry system
+  - YAML configuration support with hot-reload capability
+  - Device Intelligence Service API integration (5 endpoints)
+  - Entity Inventory Service integration (replaces hardcoded detection)
+  - System prompt updated with device-specific guidelines
+  - Two device handlers implemented (Hue, WLED) as proof of concept
+  - Add new device handlers in < 1 hour without core code changes
+  - Comprehensive unit tests (>90% coverage)
 - **Add simulation framework enhancements, training improvements, and implementation documentation** (December 03, 2025)
 
 - **Epic AI-21: Proactive Conversational Agent Service** (December 2025) ✅
