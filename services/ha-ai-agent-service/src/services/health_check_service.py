@@ -41,9 +41,7 @@ class HealthCheckService:
             timeout=5  # Short timeout for health checks
         )
         self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
-        self.device_intelligence_client = DeviceIntelligenceClient(
-            base_url=settings.device_intelligence_url
-        )
+        self.device_intelligence_client = DeviceIntelligenceClient(settings)
 
     async def check_database(self) -> dict[str, Any]:
         """Check database connectivity"""
@@ -105,13 +103,17 @@ class HealthCheckService:
     async def check_device_intelligence(self) -> dict[str, Any]:
         """Check Device Intelligence Service connection"""
         try:
-            # Try to fetch a small number of devices (lightweight)
-            devices = await self.device_intelligence_client.get_devices(limit=1)
-            return {
-                "status": "healthy",
-                "message": "Device Intelligence Service connection successful",
-                "devices_available": len(devices) > 0
-            }
+            # Try to get device mapping status (lightweight check)
+            import httpx
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"{self.device_intelligence_client.base_url}/api/device-mappings/status")
+                response.raise_for_status()
+                data = response.json()
+                return {
+                    "status": "healthy",
+                    "message": "Device Intelligence Service connection successful",
+                    "handler_count": data.get("handler_count", 0)
+                }
         except Exception as e:
             logger.error(f"Device Intelligence health check failed: {e}")
             return {
@@ -223,6 +225,5 @@ class HealthCheckService:
             await self.ha_client.close()
         if self.data_api_client:
             await self.data_api_client.close()
-        if self.device_intelligence_client:
-            await self.device_intelligence_client.close()
+        # DeviceIntelligenceClient doesn't need explicit close (uses httpx context managers)
 
