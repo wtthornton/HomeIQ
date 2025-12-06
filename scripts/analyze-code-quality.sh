@@ -110,23 +110,46 @@ else
 fi
 
 # ============================================
-# TYPESCRIPT ANALYSIS
+# TYPESCRIPT ANALYSIS (2025: Both Services)
 # ============================================
 
 echo -e "${GREEN}[3/7] Analyzing TypeScript Code...${NC}\n"
 
+# Health Dashboard
+echo "Analyzing health-dashboard (React + TypeScript)..."
 cd services/health-dashboard
 
 # Type checking
 echo "Running TypeScript type checking..."
-npm run type-check 2>&1 | tee ../../reports/quality/typescript-typecheck.txt || true
+npm run type-check 2>&1 | tee ../../reports/quality/typescript-health-dashboard-typecheck.txt || true
 
 # ESLint with complexity rules
 echo -e "\nRunning ESLint with complexity analysis..."
-npm run lint -- --format json --output-file ../../reports/quality/eslint-report.json 2>/dev/null || true
-npm run lint 2>&1 | tee ../../reports/quality/eslint-report.txt || true
+npm run lint -- --format json --output-file ../../reports/quality/eslint-health-dashboard-report.json 2>/dev/null || true
+npm run lint 2>&1 | tee ../../reports/quality/eslint-health-dashboard-report.txt || true
 
 cd ../..
+echo -e "${GREEN}✓ health-dashboard analysis complete${NC}\n"
+
+# AI Automation UI
+echo "Analyzing ai-automation-ui (React + TypeScript + Zustand)..."
+cd services/ai-automation-ui
+
+# Type checking (using tsc directly if no type-check script)
+if [ -f "package.json" ] && grep -q '"type-check"' package.json; then
+    npm run type-check 2>&1 | tee ../../reports/quality/typescript-ai-automation-ui-typecheck.txt || true
+else
+    echo "Running TypeScript type checking (tsc)..."
+    npx tsc --noEmit --skipLibCheck 2>&1 | tee ../../reports/quality/typescript-ai-automation-ui-typecheck.txt || true
+fi
+
+# ESLint with complexity rules
+echo -e "\nRunning ESLint with complexity analysis..."
+npm run lint -- --format json --output-file ../../reports/quality/eslint-ai-automation-ui-report.json 2>/dev/null || true
+npm run lint 2>&1 | tee ../../reports/quality/eslint-ai-automation-ui-report.txt || true
+
+cd ../..
+echo -e "${GREEN}✓ ai-automation-ui analysis complete${NC}\n"
 
 echo -e "${GREEN}✓ TypeScript analysis complete${NC}\n"
 
@@ -145,6 +168,14 @@ if command -v jscpd &> /dev/null; then
     echo -e "\nAnalyzing TypeScript/React code..."
     jscpd services/health-dashboard/src/ \
         --config services/health-dashboard/.jscpd.json 2>/dev/null || echo "No duplicates found or jscpd error"
+    
+    # AI Automation UI duplication check
+    if [ -d "services/ai-automation-ui/src" ]; then
+        echo -e "\nAnalyzing ai-automation-ui..."
+        jscpd services/ai-automation-ui/src/ \
+            --format typescript --threshold 3 --min-lines 5 \
+            --output reports/duplication/typescript-ai-automation-ui 2>/dev/null || echo "No duplicates found or jscpd error"
+    fi
     
     echo -e "${GREEN}✓ Duplication reports saved to reports/duplication/${NC}\n"
 else
@@ -226,7 +257,8 @@ Reports in `../duplication/` directory.
 - (+ 15 other microservices)
 
 ### TypeScript Services
-- health-dashboard (React + TypeScript)
+- health-dashboard (React + TypeScript + TailwindCSS)
+- ai-automation-ui (React + TypeScript + Zustand + TailwindCSS)
 
 ## How to Read Reports
 
@@ -286,8 +318,10 @@ echo -e "Duplication reports in: ${YELLOW}reports/duplication/${NC}\n"
 echo "Next steps:"
 echo "  1. Review: cat reports/quality/SUMMARY.md"
 echo "  2. Check complexity: cat reports/quality/python-complexity.json"
-echo "  3. View duplication: open reports/duplication/html/index.html"
-echo "  4. Check ESLint: cat reports/quality/eslint-report.txt"
+echo "  3. Check Ruff: cat reports/quality/ruff-report.txt"
+echo "  4. Check mypy: cat reports/quality/mypy-report.txt"
+echo "  5. View duplication: open reports/duplication/html/index.html"
+echo "  6. Check ESLint: cat reports/quality/eslint-*-report.txt"
 
 echo -e "\n${GREEN}Done!${NC}"
 
