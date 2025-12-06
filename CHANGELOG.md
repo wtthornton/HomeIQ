@@ -25,6 +25,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Update project: code improvements, documentation, and training data** (2b88184) - wtthornton
 - **Update BMAD agents, Context7 integration, Epic AI-17/AI-18 implementation, and simulation framework** (25acb02) - wtthornton
 - **Update epic and story status to COMPLETE** (6bfbd86) - wtthornton
+
+### Removed
+
+- **Remove large binary files and runtime data from git tracking** (b5a0eaa) - wtthornton
+
+### Fixed
+
+- **Update DeviceIntelligenceClient initialization in health check and capability patterns services** (88e9e42) - wtthornton
+- **Fix enhancement timeout and entity resolution issues** (873420c) - wtthornton
+
+
+### Added
+
+- **Complete Epic AI-24 - Device Mapping Library Architecture** (9a417b4) - wtthornton
+- **Area registry implementation, UI cleanup, and service improvements** (91939d3) - wtthornton
+- **Add entity state attributes injection to prompt context** (706664e) - wtthornton
+- **Add Epic AI19-22 implementation: HA AI Agent service, UI updates, and documentation** (1c32857) - wtthornton
+- **Add simulation framework enhancements, training improvements, and implementation documentation** (9b51397) - wtthornton
+- **Create Epics AI-11 through AI-16 with comprehensive review and 2025 patterns** (5863015) - wtthornton
+
+### Changed
+
+- **Update quality scripts to 2025 patterns and versions** (b2ac994) - wtthornton
+- **Update Docker dependencies and service configurations** (7adecef) - wtthornton
+- **Update Epic AI20 PRD and submodule changes** (a52040e) - wtthornton
+- **Update epic list and submodule** (1473dcb) - wtthornton
+- **Update project: code improvements, documentation, and training data** (2b88184) - wtthornton
+- **Update BMAD agents, Context7 integration, Epic AI-17/AI-18 implementation, and simulation framework** (25acb02) - wtthornton
+- **Update epic and story status to COMPLETE** (6bfbd86) - wtthornton
 - **Update: Additional test and submodule changes** (cdff1a7) - wtthornton
 - **Update: AI automation improvements, HA 2025 API integration, and documentation updates** (1e79db9) - wtthornton
 
