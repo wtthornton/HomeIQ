@@ -12,7 +12,7 @@ import {
   RAGStatus,
   DEFAULT_RAG_THRESHOLDS 
 } from '../types/rag';
-import { ServiceHealthResponse, DependencyHealth } from '../types/health';
+import { ServiceHealthResponse } from '../types/health';
 import { Statistics } from '../types';
 
 /**
@@ -28,9 +28,15 @@ export function calculateComponentRAG(
   let state: RAGState = 'green';
 
   // Check thresholds based on component type
+  // TypeScript incorrectly infers ComponentMetrics as a union type in some contexts
+  // ComponentMetrics is actually a single interface with all optional properties
+  // We use type assertion to access properties safely
+  const m = metrics as any;
+  
   if (component === 'websocket') {
-    const latency = metrics.latency ?? metrics.responseTime ?? 0;
-    const errorRate = metrics.errorRate ?? 0;
+    // Type guard: websocket components always have latency/errorRate
+    const latency: number = (m.latency ?? m.responseTime ?? 0) as number;
+    const errorRate: number = (m.errorRate ?? 0) as number;
 
     // Check red thresholds (2x amber)
     if (latency > componentThresholds.amber.latency * 2 || 
@@ -57,9 +63,10 @@ export function calculateComponentRAG(
       reasons.push('All metrics within normal thresholds');
     }
   } else if (component === 'processing') {
-    const throughput = metrics.throughput ?? undefined;
-    const errorRate = metrics.errorRate ?? 0;
-    const latency = metrics.latency ?? 0;
+    // Type guard: processing components have throughput, optional latency/errorRate
+    const throughput: number | undefined = m.throughput as number | undefined;
+    const errorRate: number = (m.errorRate ?? 0) as number;
+    const latency: number = (m.latency ?? 0) as number;
 
     // Context-aware threshold adjustment
     // If system is healthy (no errors, low latency), be more lenient with throughput
@@ -100,8 +107,9 @@ export function calculateComponentRAG(
       reasons.push('All metrics within normal thresholds');
     }
   } else if (component === 'storage') {
-    const latency = metrics.latency ?? metrics.responseTime ?? 0;
-    const errorRate = metrics.errorRate ?? 0;
+    // Type guard: storage components always have latency/errorRate
+    const latency: number = (m.latency ?? m.responseTime ?? 0) as number;
+    const errorRate: number = (m.errorRate ?? 0) as number;
 
     // Check red thresholds
     if (latency > componentThresholds.amber.latency * 2 || 

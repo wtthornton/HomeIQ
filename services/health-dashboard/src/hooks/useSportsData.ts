@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { haClient } from '../services/haClient';
-import type { Game } from '../types/sports';
+import type { Game, Team } from '../types/sports';
 
 interface UseSportsDataProps {
   teamIds: string[];
@@ -65,9 +65,9 @@ export const useSportsData = ({
       }
 
       // Categorize games by status
-      const live = parsedGames.filter(g => g.status === 'LIVE' || g.status === 'IN_PROGRESS');
-      const upcoming = parsedGames.filter(g => g.status === 'SCHEDULED' || g.status === 'UPCOMING');
-      const completed = parsedGames.filter(g => g.status === 'FINAL' || g.status === 'COMPLETED');
+      const live = parsedGames.filter(g => g.status === 'live');
+      const upcoming = parsedGames.filter(g => g.status === 'scheduled');
+      const completed = parsedGames.filter(g => g.status === 'final');
 
       setLiveGames(live);
       setUpcomingGames(upcoming);
@@ -108,19 +108,56 @@ export const useSportsData = ({
 function parseTeamTrackerSensor(sensor: any): Game | null {
   try {
     const attrs = sensor.attributes || {};
+    // Create Team objects from attributes
+    const homeTeam: Team = {
+      id: attrs.home_team_id || attrs.team_id || '',
+      name: attrs.home_team || attrs.team || '',
+      abbreviation: attrs.home_team_abbr || attrs.team_abbr || '',
+      logo: attrs.home_team_logo || attrs.team_logo || '',
+      colors: {
+        primary: attrs.home_team_color || '#000000',
+        secondary: attrs.home_team_color_secondary || '#FFFFFF',
+      },
+      record: attrs.home_team_record ? {
+        wins: attrs.home_team_record.wins || 0,
+        losses: attrs.home_team_record.losses || 0,
+        ties: attrs.home_team_record.ties,
+      } : undefined,
+    };
+    
+    const awayTeam: Team = {
+      id: attrs.away_team_id || '',
+      name: attrs.away_team || '',
+      abbreviation: attrs.away_team_abbr || '',
+      logo: attrs.away_team_logo || '',
+      colors: {
+        primary: attrs.away_team_color || '#000000',
+        secondary: attrs.away_team_color_secondary || '#FFFFFF',
+      },
+      record: attrs.away_team_record ? {
+        wins: attrs.away_team_record.wins || 0,
+        losses: attrs.away_team_record.losses || 0,
+        ties: attrs.away_team_record.ties,
+      } : undefined,
+    };
+    
     return {
       id: sensor.entity_id,
-      league: attrs.league || 'NFL',
-      homeTeam: attrs.home_team || attrs.team || '',
-      awayTeam: attrs.away_team || '',
-      homeScore: parseInt(attrs.home_score || '0'),
-      awayScore: parseInt(attrs.away_score || '0'),
+      league: (attrs.league || 'NFL') as 'NFL' | 'NHL',
       status: mapStatus(sensor.state),
       startTime: attrs.start_time || new Date().toISOString(),
-      venue: attrs.venue || '',
-      period: attrs.period || attrs.quarter || '',
-      clock: attrs.clock || '',
-      isLive: sensor.state === 'LIVE',
+      homeTeam,
+      awayTeam,
+      score: {
+        home: parseInt(attrs.home_score || '0'),
+        away: parseInt(attrs.away_score || '0'),
+      },
+      period: {
+        current: parseInt(attrs.period || attrs.quarter || '1'),
+        total: attrs.total_periods || 4,
+        timeRemaining: attrs.clock || undefined,
+      },
+      isFavorite: attrs.is_favorite || false,
     };
   } catch (error) {
     console.error('Error parsing Team Tracker sensor:', error);
@@ -134,19 +171,56 @@ function parseTeamTrackerSensor(sensor: any): Game | null {
 function parseNHLSensor(sensor: any): Game | null {
   try {
     const attrs = sensor.attributes || {};
+    // Create Team objects from attributes
+    const homeTeam: Team = {
+      id: attrs.home_team_id || '',
+      name: attrs.home_team || '',
+      abbreviation: attrs.home_team_abbr || '',
+      logo: attrs.home_team_logo || '',
+      colors: {
+        primary: attrs.home_team_color || '#000000',
+        secondary: attrs.home_team_color_secondary || '#FFFFFF',
+      },
+      record: attrs.home_team_record ? {
+        wins: attrs.home_team_record.wins || 0,
+        losses: attrs.home_team_record.losses || 0,
+        ties: attrs.home_team_record.ties,
+      } : undefined,
+    };
+    
+    const awayTeam: Team = {
+      id: attrs.away_team_id || '',
+      name: attrs.away_team || '',
+      abbreviation: attrs.away_team_abbr || '',
+      logo: attrs.away_team_logo || '',
+      colors: {
+        primary: attrs.away_team_color || '#000000',
+        secondary: attrs.away_team_color_secondary || '#FFFFFF',
+      },
+      record: attrs.away_team_record ? {
+        wins: attrs.away_team_record.wins || 0,
+        losses: attrs.away_team_record.losses || 0,
+        ties: attrs.away_team_record.ties,
+      } : undefined,
+    };
+    
     return {
       id: sensor.entity_id,
       league: 'NHL',
-      homeTeam: attrs.home_team || '',
-      awayTeam: attrs.away_team || '',
-      homeScore: parseInt(attrs.home_score || '0'),
-      awayScore: parseInt(attrs.away_score || '0'),
       status: mapStatus(sensor.state),
       startTime: attrs.start_time || new Date().toISOString(),
-      venue: attrs.venue || '',
-      period: attrs.period || '',
-      clock: attrs.clock || '',
-      isLive: sensor.state === 'LIVE' || sensor.state === 'CRIT',
+      homeTeam,
+      awayTeam,
+      score: {
+        home: parseInt(attrs.home_score || '0'),
+        away: parseInt(attrs.away_score || '0'),
+      },
+      period: {
+        current: parseInt(attrs.period || '1'),
+        total: attrs.total_periods || 3,
+        timeRemaining: attrs.clock || undefined,
+      },
+      isFavorite: attrs.is_favorite || false,
     };
   } catch (error) {
     console.error('Error parsing NHL sensor:', error);
@@ -157,16 +231,20 @@ function parseNHLSensor(sensor: any): Game | null {
 /**
  * Map sensor state to game status
  */
-function mapStatus(state: string): string {
-  const stateMap: Record<string, string> = {
-    'LIVE': 'LIVE',
-    'CRIT': 'LIVE',
-    'PRE': 'SCHEDULED',
-    'FINAL': 'FINAL',
-    'OVER': 'FINAL',
-    'FIN': 'FINAL',
+function mapStatus(state: string): 'scheduled' | 'live' | 'final' {
+  const stateMap: Record<string, 'scheduled' | 'live' | 'final'> = {
+    'LIVE': 'live',
+    'CRIT': 'live',
+    'IN_PROGRESS': 'live',
+    'PRE': 'scheduled',
+    'SCHEDULED': 'scheduled',
+    'UPCOMING': 'scheduled',
+    'FINAL': 'final',
+    'OVER': 'final',
+    'FIN': 'final',
+    'COMPLETED': 'final',
   };
-  return stateMap[state] || state;
+  return stateMap[state.toUpperCase()] || 'scheduled';
 }
 
 /**
@@ -177,8 +255,14 @@ function shouldIncludeGame(game: Game, teamIds: string[], league: string): boole
     return false;
   }
   
-  const homeMatch = teamIds.some(id => game.homeTeam.toLowerCase().includes(id.toLowerCase()));
-  const awayMatch = teamIds.some(id => game.awayTeam.toLowerCase().includes(id.toLowerCase()));
+  const homeMatch = teamIds.some(id => 
+    game.homeTeam.id.toLowerCase().includes(id.toLowerCase()) ||
+    game.homeTeam.name.toLowerCase().includes(id.toLowerCase())
+  );
+  const awayMatch = teamIds.some(id => 
+    game.awayTeam.id.toLowerCase().includes(id.toLowerCase()) ||
+    game.awayTeam.name.toLowerCase().includes(id.toLowerCase())
+  );
   
   return homeMatch || awayMatch;
 }

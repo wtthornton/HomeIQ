@@ -73,16 +73,16 @@ export const LiveGameCard: React.FC<LiveGameCardProps> = ({
             <div className="flex flex-col items-center space-y-2">
               <div 
                 className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
-                style={{ backgroundColor: `${game.away_team.colors.primary}20` }}
+                style={{ backgroundColor: `${game.awayTeam.colors.primary}20` }}
               >
                 {game.league === 'NFL' ? '🏈' : '🏒'}
               </div>
               <div className={`font-semibold ${textPrimary}`}>
-                {game.away_team.name}
+                {game.awayTeam.name}
               </div>
               <div className={`text-xs ${textSecondary}`}>
-                {game.away_team.record && 
-                  `${game.away_team.record.wins}-${game.away_team.record.losses}`
+                {game.awayTeam.record && 
+                  `${game.awayTeam.record.wins}-${game.awayTeam.record.losses}`
                 }
               </div>
               <div className={`text-4xl font-bold ${textPrimary} ${
@@ -103,16 +103,16 @@ export const LiveGameCard: React.FC<LiveGameCardProps> = ({
             <div className="flex flex-col items-center space-y-2">
               <div 
                 className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
-                style={{ backgroundColor: `${game.home_team.colors.primary}20` }}
+                style={{ backgroundColor: `${game.homeTeam.colors.primary}20` }}
               >
                 {game.league === 'NFL' ? '🏈' : '🏒'}
               </div>
               <div className={`font-semibold ${textPrimary}`}>
-                {game.home_team.name}
+                {game.homeTeam.name}
               </div>
               <div className={`text-xs ${textSecondary}`}>
-                {game.home_team.record && 
-                  `${game.home_team.record.wins}-${game.home_team.record.losses}`
+                {game.homeTeam.record && 
+                  `${game.homeTeam.record.wins}-${game.homeTeam.record.losses}`
                 }
               </div>
               <div className={`text-4xl font-bold ${textPrimary} ${

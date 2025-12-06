@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useHealth } from '../useHealth';
 import { server } from '../../tests/mocks/server';
@@ -27,8 +27,8 @@ describe('useHealth Hook', () => {
     
     // Verify health data is populated
     expect(result.current.health).toBeDefined();
-    expect(result.current.health?.overall_status).toBe('healthy');
-    expect(result.current.health?.ingestion_service?.websocket_connection?.is_connected).toBe(true);
+    expect(result.current.health?.status).toBe('healthy');
+    expect(result.current.health?.service).toBeDefined();
     expect(result.current.error).toBeNull();
   });
 
@@ -84,17 +84,23 @@ describe('useHealth Hook', () => {
 
     const initialHealth = result.current.health;
     expect(initialHealth).toBeDefined();
-    expect(initialHealth?.overall_status).toBe('healthy');
+    expect(initialHealth?.status).toBe('healthy');
 
     // Mock a different response for the next fetch
     server.use(
       http.get('http://localhost/api/health', () => {
         return HttpResponse.json({
-          overall_status: 'degraded',
+          service: 'data-api',
+          status: 'degraded',
           timestamp: new Date().toISOString(),
-          ingestion_service: {
-            websocket_connection: { is_connected: false, connection_attempts: 10 },
-            event_processing: { status: 'degraded', events_per_minute: 10 },
+          uptime_seconds: 3600,
+          version: '1.0.0',
+          dependencies: [],
+          metrics: {
+            uptime_seconds: 3600,
+            uptime_human: '1h',
+            start_time: new Date().toISOString(),
+            current_time: new Date().toISOString(),
           },
         });
       })
@@ -102,7 +108,7 @@ describe('useHealth Hook', () => {
 
     // Wait for automatic refresh to complete (should happen after 100ms)
     await waitFor(() => {
-      expect(result.current.health?.overall_status).toBe('degraded');
+      expect(result.current.health?.status).toBe('degraded');
     }, { timeout: 1000 });
   });
 });

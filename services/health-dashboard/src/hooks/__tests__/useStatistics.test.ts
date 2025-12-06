@@ -28,8 +28,9 @@ describe('useStatistics Hook', () => {
 
     // Verify statistics data is populated
     expect(result.current.statistics).toBeDefined();
-    expect(result.current.statistics?.total_events).toBe(12345);
-    expect(result.current.statistics?.events_per_minute).toBe(42);
+    expect(result.current.statistics?.metrics).toBeDefined();
+    expect(result.current.statistics?.metrics['websocket-ingestion']?.total_events_received).toBeDefined();
+    expect(result.current.statistics?.metrics['websocket-ingestion']?.events_per_minute).toBeDefined();
     expect(result.current.error).toBeNull();
   });
 

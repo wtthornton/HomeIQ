@@ -27,7 +27,7 @@ export const UpcomingGameCard: React.FC<UpcomingGameCardProps> = ({
   useEffect(() => {
     const updateCountdown = () => {
       const now = new Date();
-      const start = new Date(game.start_time);
+      const start = new Date(game.startTime);
       const diff = start.getTime() - now.getTime();
 
       if (diff <= 0) {
@@ -50,7 +50,7 @@ export const UpcomingGameCard: React.FC<UpcomingGameCardProps> = ({
     const interval = setInterval(updateCountdown, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, [game.start_time]);
+  }, [game.startTime]);
 
   return (
     <div className={`card-base card-hover content-fade-in ${cardBg} border ${borderColor} p-4`}>
@@ -58,7 +58,7 @@ export const UpcomingGameCard: React.FC<UpcomingGameCardProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <span className={`text-sm font-semibold ${textSecondary}`}>
-          {new Date(game.start_time).toLocaleTimeString([], { 
+          {new Date(game.startTime).toLocaleTimeString([], { 
             hour: '2-digit', 
             minute: '2-digit' 
           })}
@@ -74,10 +74,10 @@ export const UpcomingGameCard: React.FC<UpcomingGameCardProps> = ({
           <span className="text-2xl">{game.league === 'NFL' ? '🏈' : '🏒'}</span>
           <div className="flex-1">
             <div className={`font-semibold ${textPrimary}`}>
-              {game.away_team.abbreviation} @ {game.home_team.abbreviation}
+              {game.awayTeam.abbreviation} @ {game.homeTeam.abbreviation}
             </div>
             <div className={`text-xs ${textSecondary}`}>
-              {game.away_team.name} at {game.home_team.name}
+              {game.awayTeam.name} at {game.homeTeam.name}
             </div>
           </div>
         </div>
