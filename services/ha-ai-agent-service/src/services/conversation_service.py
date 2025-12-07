@@ -28,6 +28,7 @@ from .conversation_persistence import (
 )
 from .conversation_persistence import (
     get_conversation as db_get_conversation,
+    get_conversation_by_debug_id as db_get_conversation_by_debug_id,
 )
 from .conversation_persistence import (
     list_conversations as db_list_conversations,
@@ -116,6 +117,11 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_create_conversation(session, conversation_id)
+
+    async def get_conversation_by_debug_id(self, debug_id: str) -> Conversation | None:
+        """Get a conversation by debug_id (troubleshooting ID)"""
+        async for session in get_session():
+            return await db_get_conversation_by_debug_id(session, debug_id)
 
     async def get_conversation(self, conversation_id: str) -> Conversation | None:
         """

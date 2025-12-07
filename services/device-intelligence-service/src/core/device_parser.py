@@ -430,6 +430,33 @@ class DeviceParser:
             if hours_since_seen > 24:
                 score -= min(30, int(hours_since_seen / 24) * 5)
 
+        # Zigbee2MQTT-specific health factors
+        if zigbee_device:
+            # Deduct for low LQI (Link Quality Indicator < 50)
+            if zigbee_device.lqi is not None:
+                if zigbee_device.lqi < 50:
+                    score -= 20
+                elif zigbee_device.lqi < 100:
+                    score -= 10
+            
+            # Deduct for disabled/unavailable status
+            if zigbee_device.availability:
+                if zigbee_device.availability == "disabled":
+                    score -= 30
+                elif zigbee_device.availability == "unavailable":
+                    score -= 20
+            
+            # Deduct for low battery
+            if zigbee_device.battery is not None:
+                if zigbee_device.battery < 20:
+                    score -= 15
+                elif zigbee_device.battery < 50:
+                    score -= 5
+            
+            # Deduct for battery low warning
+            if zigbee_device.battery_low:
+                score -= 10
+
         # Deduct for missing critical information
         if not ha_device or not ha_device.manufacturer:
             score -= 10

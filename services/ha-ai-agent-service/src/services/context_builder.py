@@ -32,6 +32,7 @@ class ContextBuilder:
         self.settings = settings
         self._initialized = False
         self._entity_inventory_service = None
+        self._devices_summary_service = None
         self._areas_service = None
         self._services_summary_service = None
         self._capability_patterns_service = None
@@ -43,12 +44,17 @@ class ContextBuilder:
         # Lazy imports to avoid circular dependencies
         from .areas_service import AreasService
         from .capability_patterns_service import CapabilityPatternsService
+        from .devices_summary_service import DevicesSummaryService
         from .entity_attributes_service import EntityAttributesService
         from .entity_inventory_service import EntityInventoryService
         from .helpers_scenes_service import HelpersScenesService
         from .services_summary_service import ServicesSummaryService
 
         self._entity_inventory_service = EntityInventoryService(
+            settings=self.settings,
+            context_builder=self
+        )
+        self._devices_summary_service = DevicesSummaryService(
             settings=self.settings,
             context_builder=self
         )
@@ -79,6 +85,8 @@ class ContextBuilder:
         """Cleanup resources"""
         if self._entity_inventory_service:
             await self._entity_inventory_service.close()
+        if self._devices_summary_service:
+            await self._devices_summary_service.close()
         if self._areas_service:
             await self._areas_service.close()
         if self._services_summary_service:
@@ -92,9 +100,12 @@ class ContextBuilder:
         self._initialized = False
         logger.info("✅ Context builder closed")
 
-    async def build_context(self) -> str:
+    async def build_context(self, skip_truncation: bool = False) -> str:
         """
         Build complete Tier 1 context for OpenAI agent.
+
+        Args:
+            skip_truncation: If True, skip truncation in all services (for debug display)
 
         Returns:
             Formatted context string ready for OpenAI system/user prompts
@@ -106,22 +117,31 @@ class ContextBuilder:
             )
             raise RuntimeError("Context builder not initialized")
 
-        logger.debug("Building Tier 1 context (entity inventory, areas, services, etc.)")
+        logger.debug(f"Building Tier 1 context (devices, areas, services, etc.) - skip_truncation={skip_truncation}")
         context_parts = ["HOME ASSISTANT CONTEXT:\n"]
 
-        # Story AI19.2 - Entity Inventory Summary
+        # Devices Summary - Device details with manufacturer, model, and area
         try:
-            logger.debug("Fetching entity inventory summary...")
-            entity_summary = await self._entity_inventory_service.get_summary()
-            if entity_summary and len(entity_summary.strip()) > 0:
-                context_parts.append(f"ENTITY INVENTORY:\n{entity_summary}\n")
-                logger.debug(f"✅ Entity inventory added ({len(entity_summary)} chars)")
+            logger.debug(f"🔍 Checking devices summary service: {self._devices_summary_service is not None}")
+            if self._devices_summary_service is None:
+                logger.error("❌ CRITICAL: _devices_summary_service is None! Service not initialized.")
+                context_parts.append("DEVICES: (unavailable - service not initialized)\n")
             else:
-                logger.warning("⚠️ Entity inventory summary is empty")
-                context_parts.append("ENTITY INVENTORY: (unavailable)\n")
+                logger.info("📱 Fetching devices summary for context injection...")
+                logger.debug(f"📱 DevicesSummaryService type: {type(self._devices_summary_service).__name__}")
+                devices_summary = await self._devices_summary_service.get_summary(skip_truncation=skip_truncation)
+                logger.debug(f"📱 Devices summary received: {len(devices_summary) if devices_summary else 0} chars")
+                if devices_summary and len(devices_summary.strip()) > 0:
+                    context_parts.append(f"DEVICES:\n{devices_summary}\n")
+                    logger.info(f"✅ Devices summary added to context ({len(devices_summary)} chars)")
+                else:
+                    logger.warning("⚠️ Devices summary is empty - will show 'unavailable' in context")
+                    context_parts.append("DEVICES: (unavailable)\n")
         except Exception as e:
-            logger.error(f"❌ Failed to get entity inventory: {e}", exc_info=True)
-            context_parts.append("ENTITY INVENTORY: (unavailable)\n")
+            logger.error(f"❌ Failed to get devices summary: {e}", exc_info=True)
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
+            context_parts.append("DEVICES: (unavailable)\n")
 
         # Story AI19.3 - Areas/Rooms List
         try:
@@ -133,7 +153,7 @@ class ContextBuilder:
 
         # Story AI19.4 - Available Services Summary
         try:
-            services_summary = await self._services_summary_service.get_summary()
+            services_summary = await self._services_summary_service.get_summary(skip_truncation=skip_truncation)
             context_parts.append(f"AVAILABLE SERVICES:\n{services_summary}\n")
         except Exception as e:
             logger.warning(f"⚠️ Failed to get services summary: {e}")
@@ -146,7 +166,7 @@ class ContextBuilder:
 
         # Story AI19.6 - Helpers & Scenes Summary
         try:
-            helpers_scenes_summary = await self._helpers_scenes_service.get_summary()
+            helpers_scenes_summary = await self._helpers_scenes_service.get_summary(skip_truncation=skip_truncation)
             context_parts.append(f"HELPERS & SCENES:\n{helpers_scenes_summary}\n")
         except Exception as e:
             logger.warning(f"⚠️ Failed to get helpers/scenes: {e}")
@@ -184,23 +204,26 @@ class ContextBuilder:
         """
         return SYSTEM_PROMPT
 
-    async def build_complete_system_prompt(self) -> str:
+    async def build_complete_system_prompt(self, skip_truncation: bool = False) -> str:
         """
         Build complete system prompt with context injection.
 
         This combines the base system prompt with the Tier 1 context,
         ready to be used as the system message in OpenAI API calls.
 
+        Args:
+            skip_truncation: If True, skip truncation in all services (for debug display)
+
         Returns:
             Complete system prompt with context injected
         """
-        logger.debug("Building complete system prompt with context injection...")
+        logger.debug(f"Building complete system prompt with context injection - skip_truncation={skip_truncation}")
         
         base_prompt = self.get_system_prompt()
         base_length = len(base_prompt)
         logger.debug(f"Base system prompt length: {base_length} chars")
         
-        context = await self.build_context()
+        context = await self.build_context(skip_truncation=skip_truncation)
         context_length = len(context)
         logger.debug(f"Context length: {context_length} chars")
 

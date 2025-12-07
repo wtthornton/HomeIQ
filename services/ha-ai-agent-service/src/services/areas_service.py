@@ -40,7 +40,7 @@ class AreasService:
         )
         self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
         self._cache_key = "areas_list"
-        self._cache_ttl = 600  # 10 minutes
+        self._cache_ttl = 1800  # 30 minutes (P1: Increased TTL for static data - areas rarely change)
 
     async def get_areas_list(self) -> str:
         """
@@ -60,17 +60,14 @@ class AreasService:
             return cached
 
         try:
-            # Fetch areas from Home Assistant
-            # 2025 Best Practice: Uses WebSocket API first, falls back to REST API
-            logger.info("🏠 Fetching areas from Home Assistant...")
-            areas = await self.ha_client.get_area_registry()
+            # 2025 Optimization: Fetch areas from Data API (local/cached) instead of HA API
+            logger.info("🏠 Fetching areas from Data API (local/cached)...")
+            areas = await self.data_api_client.get_areas()
 
             if not areas:
-                areas_str = "No areas found"
-                await self.context_builder._set_cached_value(
-                    self._cache_key, areas_str, self._cache_ttl
-                )
-                return areas_str
+                # Fallback to entity-based extraction
+                logger.info("🔄 No areas from Data API, falling back to entity extraction...")
+                return await self._extract_areas_from_entities()
 
             # Format areas (optimized: simple area_id → name mapping)
             area_parts = []

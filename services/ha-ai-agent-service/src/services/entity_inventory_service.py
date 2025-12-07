@@ -108,9 +108,12 @@ class EntityInventoryService:
             logger.debug(f"⚠️ Error getting device mapping info for {device_id}: {e}")
             return None
 
-    async def get_summary(self) -> str:
+    async def get_summary(self, skip_truncation: bool = False) -> str:
         """
         Get enhanced entity inventory summary with friendly names, device IDs, aliases, labels, and states.
+
+        Args:
+            skip_truncation: If True, skip truncation (for debug display)
 
         Returns:
             Formatted summary with entity counts, friendly names, device IDs, and key metadata
@@ -118,11 +121,12 @@ class EntityInventoryService:
         Raises:
             Exception: If unable to fetch or process entities
         """
-        # Check cache first
-        cached = await self.context_builder._get_cached_value(self._cache_key)
-        if cached:
-            logger.debug("✅ Using cached entity inventory summary")
-            return cached
+        # Check cache first (only if not skipping truncation, as cache may be truncated)
+        if not skip_truncation:
+            cached = await self.context_builder._get_cached_value(self._cache_key)
+            if cached:
+                logger.debug("✅ Using cached entity inventory summary")
+                return cached
 
         try:
             # Fetch all entities from data-api
@@ -271,10 +275,10 @@ class EntityInventoryService:
             domain_area_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
             domain_totals: dict[str, int] = defaultdict(int)
 
-            # Sample entities per domain for detailed examples (optimized: show unique patterns)
-            domain_samples: dict[str, list[dict[str, Any]]] = defaultdict(list)
-            # Track unique patterns for lights (by manufacturer/type)
-            light_patterns: dict[str, dict[str, Any]] = {}
+            # NOTE: Sample collection removed - generic examples violate "Area Filtering FIRST" principle
+            # These collections are kept for potential future area-specific filtering implementation
+            # domain_samples: dict[str, list[dict[str, Any]]] = defaultdict(list)  # Unused - kept for future area filtering
+            # light_patterns: dict[str, dict[str, Any]] = {}  # Unused - kept for future area filtering
 
             for entity in entities:
                 # Skip None entities (defensive programming)
@@ -311,80 +315,11 @@ class EntityInventoryService:
                 entity_category = entity_reg_data.get("category")
                 entity_disabled = entity_reg_data.get("disabled_by") is not None
 
-                # For lights: collect unique patterns (one per manufacturer/type)
-                if domain == "light":
-                    entity_state = state_map.get(entity_id, {})
-                    entity_attributes = entity_state.get("attributes", {})
-                    # Use device metadata if available (Epic AI-23)
-                    manufacturer = entity.get("manufacturer") or device_metadata.get("manufacturer") or "unknown"
-                    model = entity.get("model") or device_metadata.get("model") or ""
-                    pattern_key = f"{manufacturer}_{model}".lower()
-                    
-                    # Device type detection (Epic AI-24: Use Device Mapping Library)
-                    device_type = None
-                    device_description = None
-                    entity_device_id = entity.get("device_id")
-                    
-                    # Try device mapping library first
-                    if entity_device_id and entity_device_id in device_mapping_cache:
-                        mapping_result = device_mapping_cache[entity_device_id]
-                        device_type_result = mapping_result.get("type")
-                        context_result = mapping_result.get("context")
-                        
-                        if device_type_result:
-                            device_type = device_type_result
-                        if context_result:
-                            device_description = context_result
-                    # Fallback to legacy detection
-                    elif entity_device_id and entity_device_id in hue_room_devices:
-                        device_type = "hue_room"
-                        related_lights = device_relationships.get(entity_device_id, [])
-                        device_description = f"Hue Room - controls {len(related_lights)} lights"
-                    elif entity_id in wled_master_entities:
-                        device_type = "wled_segment"
-                        master_base = wled_master_entities[entity_id]
-                        device_description = f"WLED segment (master: {master_base})"
-                    elif "wled" in entity_id.lower() and entity_id not in wled_master_entities:
-                        device_type = "wled_master"
-                        device_description = "WLED master - controls entire strip"
-                    
-                    # Only add if we don't have this pattern yet (max 8 unique patterns)
-                    if pattern_key not in light_patterns and len(light_patterns) < 8:
-                        friendly_name = entity.get("friendly_name") or entity.get("name") or entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-                        light_patterns[pattern_key] = {
-                            "entity_id": entity_id,
-                            "friendly_name": friendly_name,
-                            "area_id": area_id,
-                            "effect_list": entity_attributes.get("effect_list", []),
-                            "preset_list": entity_attributes.get("preset_list", []),
-                            "theme_list": entity_attributes.get("theme_list", []),
-                            "supported_color_modes": entity_attributes.get("supported_color_modes", []),
-                            "manufacturer": manufacturer,
-                            "model": model,
-                            "aliases": entity_aliases,  # Epic AI-23: Include aliases
-                            "category": entity_category,  # Epic AI-23: Include category
-                            "device_type": device_type,  # Epic AI-23 Story AI23.3: Device type
-                            "device_description": device_description  # Epic AI-23 Story AI23.3: Device description
-                        }
-                # For other domains: collect samples (max 3 per domain)
-                elif domain in ["switch", "sensor", "climate", "cover", "lock", "fan"]:
-                    if len(domain_samples[domain]) < 3:
-                        friendly_name = entity.get("friendly_name") or entity.get("name") or entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-                        # Include device metadata and entity registry data in samples (Epic AI-23)
-                        sample_data = {
-                            "entity_id": entity_id,
-                            "friendly_name": friendly_name,
-                            "area_id": area_id
-                        }
-                        if device_metadata.get("manufacturer"):
-                            sample_data["manufacturer"] = device_metadata.get("manufacturer")
-                        if device_metadata.get("model"):
-                            sample_data["model"] = device_metadata.get("model")
-                        if entity_aliases:
-                            sample_data["aliases"] = entity_aliases  # Epic AI-23: Include aliases
-                        if entity_category:
-                            sample_data["category"] = entity_category  # Epic AI-23: Include category
-                        domain_samples[domain].append(sample_data)
+                # NOTE: Sample collection code removed - generic examples are no longer shown
+                # This code was collecting samples from all areas to show as "Examples:"
+                # but this violated "Area Filtering FIRST" principle and caused incorrect entity IDs
+                # Future: When area-specific filtering is implemented, we can collect samples
+                # only from the requested area(s) and show actual entity lists for those areas
 
             # Format summary with enhanced information
             summary_parts = []
@@ -405,97 +340,27 @@ class EntityInventoryService:
                 # Build domain summary line
                 domain_line = f"{domain_display}: {total} entities ({area_str})"
 
-                # Add sample entity details for key domains (optimized format)
-                if domain in ["light", "switch", "sensor", "climate", "cover", "lock", "fan"]:
-                    if domain == "light":
-                        # Show unique light patterns (5-8 examples)
-                        samples = list(light_patterns.values())[:8]
-                        sample_parts = []
-                        for sample in samples:
-                            # Format: friendly_name (entity_id)
-                            sample_info = f"{sample['friendly_name']} ({sample['entity_id']})"
-                            
-                            # Add device type description if available (Epic AI-23 Story AI23.3)
-                            device_description = sample.get("device_description")
-                            if device_description:
-                                sample_info = f"{sample['friendly_name']} ({sample['entity_id']}) - {device_description}"
-                            
-                            # Add aliases if available (Epic AI-23)
-                            aliases = sample.get("aliases", [])
-                            if aliases:
-                                alias_preview = ", ".join(aliases[:3])  # Show 3 aliases max
-                                if len(aliases) > 3:
-                                    sample_info += f", aliases: [{alias_preview}, ...]"
-                                else:
-                                    sample_info += f", aliases: [{alias_preview}]"
-                            
-                            # Add effect_list with count + examples (optimized)
-                            effect_list = sample.get("effect_list", [])
-                            if effect_list:
-                                effect_count = len(effect_list)
-                                effect_preview = ", ".join(effect_list[:5])  # Show 5 examples max
-                                if effect_count > 5:
-                                    sample_info += f", effects: {effect_count} [{effect_preview}, ...]"
-                                else:
-                                    sample_info += f", effects: [{effect_preview}]"
-                            
-                            # Add preset_list with count + examples
-                            preset_list = sample.get("preset_list", [])
-                            if preset_list:
-                                preset_count = len(preset_list)
-                                preset_preview = ", ".join(preset_list[:3])  # Show 3 examples max
-                                if preset_count > 3:
-                                    sample_info += f", presets: {preset_count} [{preset_preview}, ...]"
-                                else:
-                                    sample_info += f", presets: [{preset_preview}]"
-                            
-                            # Add theme_list with count + examples
-                            theme_list = sample.get("theme_list", [])
-                            if theme_list:
-                                theme_count = len(theme_list)
-                                theme_preview = ", ".join(theme_list[:3])  # Show 3 examples max
-                                if theme_count > 3:
-                                    sample_info += f", themes: {theme_count} [{theme_preview}, ...]"
-                                else:
-                                    sample_info += f", themes: [{theme_preview}]"
-                            
-                            # Add color modes (concise)
-                            color_modes = sample.get("supported_color_modes", [])
-                            if color_modes:
-                                sample_info += f", colors: {', '.join(color_modes)}"
-                            
-                            sample_parts.append(sample_info)
-                    else:
-                        # For other domains: include aliases if available (Epic AI-23)
-                        samples = domain_samples[domain][:3] if domain_samples.get(domain) else []
-                        sample_parts = []
-                        for s in samples:
-                            sample_str = f"{s['friendly_name']} ({s['entity_id']})"
-                            # Add aliases if available
-                            aliases = s.get("aliases", [])
-                            if aliases:
-                                alias_preview = ", ".join(aliases[:2])  # Show 2 aliases max
-                                if len(aliases) > 2:
-                                    sample_str += f" [aliases: {alias_preview}, ...]"
-                                else:
-                                    sample_str += f" [aliases: {alias_preview}]"
-                            sample_parts.append(sample_str)
-                    
-                    if sample_parts:
-                        domain_line += f"\n  Examples: {', '.join(sample_parts)}"
+                # REMOVED: Generic examples from all areas
+                # Rationale: Generic examples violate "Area Filtering FIRST" principle and cause
+                # assistant to assume examples are from requested area, leading to incorrect entity IDs.
+                # System prefers area-based targeting (target.area_id) over listing individual entities.
+                # When area-specific entities are needed, they should be provided via area filtering,
+                # not generic examples from anywhere in the system.
 
                 summary_parts.append(domain_line)
 
             summary = "\n".join(summary_parts)
 
             # Truncate if too long (optimized: max 2000 chars for token efficiency)
-            if len(summary) > 2000:
+            # Skip truncation for debug display
+            if not skip_truncation and len(summary) > 2000:
                 summary = summary[:2000] + "... (truncated)"
 
-            # Cache the result
-            await self.context_builder._set_cached_value(
-                self._cache_key, summary, self._cache_ttl
-            )
+            # Cache the result (only if not skipping truncation)
+            if not skip_truncation:
+                await self.context_builder._set_cached_value(
+                    self._cache_key, summary, self._cache_ttl
+                )
 
             logger.info(f"✅ Generated optimized entity inventory summary ({len(summary)} chars, ~{len(summary)//4} tokens)")
             return summary

@@ -127,6 +127,36 @@ async def get_conversation(
     return _conversation_model_to_domain(conversation_model)
 
 
+async def get_conversation_by_debug_id(
+    session: AsyncSession, debug_id: str
+) -> Conversation | None:
+    """Get a conversation by debug_id from the database"""
+    from sqlalchemy.orm import selectinload
+
+    stmt = (
+        select(ConversationModel)
+        .where(ConversationModel.debug_id == debug_id)
+        .options(selectinload(ConversationModel.messages))
+    )
+
+    result = await session.execute(stmt)
+    conversation_model = result.scalar_one_or_none()
+
+    if not conversation_model:
+        return None
+
+    # Ensure debug_id exists (should always exist if we found by it, but check anyway)
+    if not conversation_model.debug_id:
+        conversation_model.debug_id = str(uuid4())
+        await session.commit()
+        await session.refresh(conversation_model)
+        logger.warning(f"Conversation found but missing debug_id - regenerated")
+
+    # Messages are already loaded via selectinload
+    conversation_model._messages_loaded = list(conversation_model.messages)
+    return _conversation_model_to_domain(conversation_model)
+
+
 async def list_conversations(
     session: AsyncSession,
     state: ConversationState | None = None,

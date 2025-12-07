@@ -75,7 +75,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
       case 'system':
         return (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-shrink-0">
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 Base System Prompt
               </h3>
@@ -83,7 +83,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                 {breakdown.base_system_prompt.length} chars
               </span>
             </div>
-            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
+            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-x-auto ${
               darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
             }`}>
               {breakdown.base_system_prompt}
@@ -94,7 +94,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
       case 'injected':
         return (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-shrink-0">
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 Injected Context (Tier 1)
               </h3>
@@ -103,11 +103,11 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
               </span>
             </div>
             {breakdown.injected_context ? (
-              <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
-                darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
-              }`}>
-                {breakdown.injected_context}
-              </pre>
+            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-x-auto break-words ${
+              darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
+            }`}>
+              {breakdown.injected_context}
+            </pre>
             ) : (
               <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>No injected context</p>
             )}
@@ -117,7 +117,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
       case 'preview':
         return (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-shrink-0">
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 Pending Preview Context
               </h3>
@@ -126,11 +126,11 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
               </span>
             </div>
             {breakdown.preview_context ? (
-              <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
-                darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
-              }`}>
-                {breakdown.preview_context}
-              </pre>
+            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-x-auto ${
+              darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
+            }`}>
+              {breakdown.preview_context}
+            </pre>
             ) : (
               <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>No pending preview</p>
             )}
@@ -140,7 +140,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
       case 'complete':
         return (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-shrink-0">
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 Complete System Prompt (Base + Injected + Preview)
               </h3>
@@ -148,7 +148,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                 {breakdown.complete_system_prompt.length} chars
               </span>
             </div>
-            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
+            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-x-auto ${
               darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
             }`}>
               {breakdown.complete_system_prompt}
@@ -159,7 +159,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
       case 'user':
         return (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-shrink-0">
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 User Message
               </h3>
@@ -167,7 +167,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                 {breakdown.user_message.length} chars
               </span>
             </div>
-            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto ${
+            <pre className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-x-auto ${
               darkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
             }`}>
               {breakdown.user_message}
@@ -206,7 +206,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                       {msg.content.length} chars
                     </span>
                   </div>
-                  <pre className={`text-sm font-mono whitespace-pre-wrap overflow-auto ${
+                  <pre className={`text-sm font-mono whitespace-pre-wrap ${
                     darkMode ? 'text-gray-300' : 'text-gray-800'
                   }`}>
                     {msg.content}
@@ -259,7 +259,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                       {msg.content?.length || 0} chars
                     </span>
                   </div>
-                  <pre className={`text-sm font-mono whitespace-pre-wrap overflow-auto ${
+                  <pre className={`text-sm font-mono whitespace-pre-wrap ${
                     darkMode ? 'text-gray-300' : 'text-gray-800'
                   }`}>
                     {msg.content || '[No content]'}
@@ -271,7 +271,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                       }`}>
                         Tool Calls ({msg.tool_calls.length})
                       </summary>
-                      <pre className={`mt-2 p-2 rounded text-xs font-mono overflow-auto ${
+                      <pre className={`mt-2 p-2 rounded text-xs font-mono ${
                         darkMode ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-800'
                       }`}>
                         {JSON.stringify(msg.tool_calls, null, 2)}
@@ -371,9 +371,9 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
   };
 
   return (
-    <div className={`h-full flex flex-col ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className={`h-full flex flex-col overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className={`border-b px-6 py-4 flex items-center justify-between ${
+      <div className={`border-b px-6 py-4 flex items-center justify-between flex-shrink-0 ${
         darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
       }`}>
         <div className="flex-1">
@@ -384,28 +384,39 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               View the full prompt sent to the LLM
             </p>
-            {breakdown?.debug_id && (
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Troubleshooting ID:
-                </span>
-                <code 
-                  className={`px-2 py-1 rounded text-xs font-mono ${
-                    darkMode 
-                      ? 'bg-gray-700 text-green-400 border border-gray-600' 
-                      : 'bg-gray-100 text-green-600 border border-gray-300'
-                  }`}
-                  title="Copy to clipboard"
-                  onClick={() => {
-                    navigator.clipboard.writeText(breakdown.debug_id);
-                    toast.success('Debug ID copied to clipboard');
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {breakdown.debug_id}
-                </code>
+            {breakdown && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {breakdown.debug_id ? (
+                  <>
+                    <span className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Troubleshooting ID:
+                    </span>
+                    <code 
+                      className={`px-2 py-1 rounded text-xs font-mono ${
+                        darkMode 
+                          ? 'bg-gray-700 text-green-400 border border-gray-600' 
+                          : 'bg-gray-100 text-green-600 border border-gray-300'
+                      }`}
+                      title="Copy to clipboard"
+                      onClick={() => {
+                        navigator.clipboard.writeText(breakdown.debug_id!);
+                        toast.success('Troubleshooting ID copied to clipboard');
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {breakdown.debug_id}
+                    </code>
+                    <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                      (click to copy)
+                    </span>
+                  </>
+                ) : (
+                  <span className={`text-xs ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                    ⚠️ Troubleshooting ID not available
+                  </span>
+                )}
                 <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                  (click to copy)
+                  | Conversation: {breakdown.conversation_id}
                 </span>
               </div>
             )}
@@ -446,7 +457,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
       </div>
 
       {/* Section Tabs */}
-      <div className={`border-b px-6 overflow-x-auto ${
+      <div className={`border-b px-6 overflow-x-auto flex-shrink-0 ${
         darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
       }`}>
         <div className="flex gap-2 py-2">
@@ -471,7 +482,12 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0 max-h-full">
+      <div 
+        className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-4 min-h-0"
+        style={{ 
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

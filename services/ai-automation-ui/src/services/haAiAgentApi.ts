@@ -30,6 +30,7 @@ export interface ChatResponse {
     model: string;
     tokens_used: number;
     response_time_ms: number;
+    iterations?: number;
     token_breakdown?: {
       prompt_tokens?: number;
       completion_tokens?: number;

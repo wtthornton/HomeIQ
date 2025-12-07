@@ -38,11 +38,14 @@ class HelpersScenesService:
             access_token=settings.ha_token
         )
         self._cache_key = "helpers_scenes_summary"
-        self._cache_ttl = 600  # 10 minutes
+        self._cache_ttl = 900  # 15 minutes (P1: Increased TTL - helpers/scenes change occasionally)
 
-    async def get_summary(self) -> str:
+    async def get_summary(self, skip_truncation: bool = False) -> str:
         """
         Get helpers and scenes summary.
+
+        Args:
+            skip_truncation: If True, skip truncation (for debug display)
 
         Returns:
             Formatted summary like "input_boolean: morning_routine, night_mode (2 helpers); Scenes: Morning Scene, Evening Scene (2 scenes)"
@@ -50,11 +53,12 @@ class HelpersScenesService:
         Raises:
             Exception: If unable to fetch helpers/scenes
         """
-        # Check cache first
-        cached = await self.context_builder._get_cached_value(self._cache_key)
-        if cached:
-            logger.debug("✅ Using cached helpers/scenes summary")
-            return cached
+        # Check cache first (only if not skipping truncation, as cache may be truncated)
+        if not skip_truncation:
+            cached = await self.context_builder._get_cached_value(self._cache_key)
+            if cached:
+                logger.debug("✅ Using cached helpers/scenes summary")
+                return cached
 
         try:
             # Fetch helpers and scenes from Home Assistant
@@ -89,9 +93,14 @@ class HelpersScenesService:
                     count = len(helper_list)
 
                     # Simple format: just friendly names (token-efficient)
-                    helper_names = [helper['friendly_name'] for helper in helper_list[:10]]  # Limit to 10 per type
+                    # Limit to 10 per type unless skipping truncation
+                    limit = len(helper_list) if skip_truncation else min(10, len(helper_list))
+                    helper_names = [helper['friendly_name'] for helper in helper_list[:limit]]
                     names_str = ", ".join(helper_names)
-                    helper_parts.append(f"{helper_type}: {names_str} ({count})")
+                    if not skip_truncation and len(helper_list) > 10:
+                        helper_parts.append(f"{helper_type}: {names_str} ... ({count})")
+                    else:
+                        helper_parts.append(f"{helper_type}: {names_str} ({count})")
 
                 if helper_parts:
                     summary_parts.append("\n".join(helper_parts))
@@ -112,8 +121,8 @@ class HelpersScenesService:
                         scene_names.append(scene_name)
 
                 if scene_names:
-                    # Limit to 15 scenes (token-efficient)
-                    if len(scene_names) > 15:
+                    # Limit to 15 scenes (token-efficient) unless skipping truncation
+                    if not skip_truncation and len(scene_names) > 15:
                         scene_names = sorted(scene_names)[:15]
                         scenes_str = ", ".join(scene_names) + f" ... ({len(scenes)} total)"
                     else:
@@ -127,13 +136,15 @@ class HelpersScenesService:
             summary = "\n".join(summary_parts)
 
             # Truncate if too long (optimized: max 1000 chars for token efficiency)
-            if len(summary) > 1000:
+            # Skip truncation for debug display
+            if not skip_truncation and len(summary) > 1000:
                 summary = summary[:1000] + "... (truncated)"
 
-            # Cache the result
-            await self.context_builder._set_cached_value(
-                self._cache_key, summary, self._cache_ttl
-            )
+            # Cache the result (only if not skipping truncation)
+            if not skip_truncation:
+                await self.context_builder._set_cached_value(
+                    self._cache_key, summary, self._cache_ttl
+                )
 
             logger.info(f"✅ Generated helpers/scenes summary ({len(summary)} chars)")
             return summary
