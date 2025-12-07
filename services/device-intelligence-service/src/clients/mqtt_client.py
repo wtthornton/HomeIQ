@@ -36,6 +36,16 @@ class ZigbeeDevice:
     definition: dict[str, Any] | None
     exposes: list[dict[str, Any]]
     capabilities: dict[str, Any]
+    # Zigbee2MQTT-specific fields
+    lqi: int | None = None  # Link Quality Indicator (0-255)
+    availability: str | None = None  # "enabled", "disabled", "unavailable"
+    battery: int | None = None  # Battery level 0-100
+    battery_low: bool | None = None  # Battery low warning
+    device_type: str | None = None  # Device type from Zigbee2MQTT
+    network_address: int | None = None  # Zigbee network address
+    supported: bool | None = None  # Is device supported by Zigbee2MQTT
+    interview_completed: bool | None = None  # Has interview completed
+    settings: dict[str, Any] | None = None  # Device settings
 
 
 @dataclass
@@ -237,6 +247,18 @@ class MQTTClient:
         # Store all devices first
         for device_data in data:
             try:
+                # Parse last_seen with timezone handling
+                last_seen = None
+                if device_data.get("last_seen"):
+                    try:
+                        last_seen_str = device_data["last_seen"].replace('Z', '+00:00')
+                        last_seen = datetime.fromisoformat(last_seen_str)
+                    except Exception as e:
+                        logger.debug(f"Could not parse last_seen for {device_data.get('ieee_address')}: {e}")
+                
+                # Extract Zigbee2MQTT-specific fields
+                definition = device_data.get("definition", {})
+                
                 device = ZigbeeDevice(
                     ieee_address=device_data["ieee_address"],
                     friendly_name=device_data["friendly_name"],
@@ -249,10 +271,20 @@ class MQTTClient:
                     hardware_version=device_data.get("hardware_version"),
                     software_build_id=device_data.get("software_build_id"),
                     date_code=device_data.get("date_code"),
-                    last_seen=datetime.fromisoformat(device_data["last_seen"].replace('Z', '+00:00')) if device_data.get("last_seen") else None,
-                    definition=device_data.get("definition"),
-                    exposes=device_data.get("definition", {}).get("exposes", []),
-                    capabilities={}  # Will be populated by capability parser
+                    last_seen=last_seen,
+                    definition=definition,
+                    exposes=definition.get("exposes", []),
+                    capabilities={},  # Will be populated by capability parser
+                    # Zigbee2MQTT-specific fields
+                    lqi=device_data.get("lqi"),
+                    availability=device_data.get("availability"),  # "enabled", "disabled", "unavailable"
+                    battery=device_data.get("battery"),
+                    battery_low=device_data.get("battery_low"),
+                    device_type=device_data.get("type"),
+                    network_address=device_data.get("network_address"),
+                    supported=device_data.get("supported"),
+                    interview_completed=device_data.get("interview_completed"),
+                    settings=device_data.get("settings")
                 )
 
                 self.devices[device.ieee_address] = device

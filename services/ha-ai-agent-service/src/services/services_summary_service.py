@@ -42,11 +42,14 @@ class ServicesSummaryService:
             access_token=settings.ha_token
         )
         self._cache_key = "services_summary"
-        self._cache_ttl = 600  # 10 minutes
+        self._cache_ttl = 900  # 15 minutes (P1: Increased TTL - services change occasionally)
 
-    async def get_summary(self) -> str:
+    async def get_summary(self, skip_truncation: bool = False) -> str:
         """
         Get enhanced services summary with full parameter schemas.
+
+        Args:
+            skip_truncation: If True, skip truncation (for debug display)
 
         Returns:
             Formatted summary with service names and full parameter information including types,
@@ -55,11 +58,12 @@ class ServicesSummaryService:
         Raises:
             Exception: If unable to fetch services
         """
-        # Check cache first
-        cached = await self.context_builder._get_cached_value(self._cache_key)
-        if cached:
-            logger.debug("✅ Using cached services summary")
-            return cached
+        # Check cache first (only if not skipping truncation, as cache may be truncated)
+        if not skip_truncation:
+            cached = await self.context_builder._get_cached_value(self._cache_key)
+            if cached:
+                logger.debug("✅ Using cached services summary")
+                return cached
 
         try:
             # Fetch services from Home Assistant
@@ -117,58 +121,40 @@ class ServicesSummaryService:
                 logger.warning(f"Unexpected services data format: {type(services_data)}")
                 return await self._get_fallback_services_summary()
 
-            # 2025 Pattern: Focus on critical services with 2025 format
-            critical_services = {
-                "light": ["turn_on", "turn_off", "toggle"],
-                "scene": ["create", "turn_on", "reload"],
-                "automation": ["trigger", "toggle", "reload"],
-                "script": ["turn_on", "reload"],
-            }
-            
+            # Process ALL domains and ALL services
             summary_parts = []
             
-            # Process critical services first with 2025 format
-            for domain in sorted(critical_services.keys()):
-                if domain not in services_data:
-                    logger.debug(f"Domain {domain} not in services_data")
-                    continue
-                    
+            # Count total services for logging
+            total_domains = len(services_data)
+            total_services = sum(len(svcs) for svcs in services_data.values() if isinstance(svcs, dict))
+            logger.info(f"📊 Processing {total_domains} domains with {total_services} total services")
+            
+            # Process all domains with all their services
+            for domain in sorted(services_data.keys()):
                 domain_services = services_data[domain]
                 if not isinstance(domain_services, dict):
                     logger.warning(f"Domain {domain} services is not a dict: {type(domain_services)}")
                     continue
-                    
-                service_names = critical_services[domain]
                 
+                # Format all services in this domain
                 domain_parts = []
-                for service_name in service_names:
-                    if service_name not in domain_services:
-                        logger.debug(f"Service {domain}.{service_name} not found")
-                        continue
-                        
+                service_count = 0
+                
+                for service_name in sorted(domain_services.keys()):
                     service_info = domain_services[service_name]
                     if isinstance(service_info, dict):
                         formatted = self._format_service_2025(domain, service_name, service_info)
                         if formatted:
                             domain_parts.append(formatted)
-                            logger.debug(f"Formatted {domain}.{service_name}")
+                            service_count += 1
                     else:
-                        logger.warning(f"Service {domain}.{service_name} info is not a dict: {type(service_info)}")
+                        logger.debug(f"Service {domain}.{service_name} info is not a dict: {type(service_info)}")
                 
                 if domain_parts:
+                    # Add domain header with service count
+                    summary_parts.append(f"{domain} ({service_count} services):")
                     summary_parts.append("\n".join(domain_parts))
-                    logger.debug(f"Added {len(domain_parts)} services for domain {domain}")
-            
-            # Add other domains (limit to top 10 most common)
-            other_domains = [d for d in sorted(services_data.keys()) if d not in critical_services]
-            for domain in other_domains[:10]:
-                domain_services = services_data[domain]
-                if isinstance(domain_services, dict):
-                    service_names = list(domain_services.keys())[:5]  # Limit to 5 services per domain
-                    
-                    if service_names:
-                        services_str = ", ".join(service_names)
-                        summary_parts.append(f"{domain}: {services_str}")
+                    logger.debug(f"✅ Added {service_count} services for domain {domain}")
 
             summary = "\n".join(summary_parts)
             
@@ -178,16 +164,25 @@ class ServicesSummaryService:
                 # Use fallback if formatting produced empty result
                 return await self._get_fallback_services_summary()
 
-            # Truncate if too long (optimized: max 1500 chars for token efficiency)
-            if len(summary) > 1500:
-                summary = summary[:1500] + "... (truncated)"
+            # Truncate if too long (increased limit to accommodate all services)
+            # Skip truncation for debug display
+            max_length = 8000 if skip_truncation else 6000  # Increased from 1500 to 6000 for all services
+            original_length = len(summary)
+            if not skip_truncation and len(summary) > max_length:
+                truncation_msg = "\n... (truncated - too many services)"
+                summary = summary[:max_length] + truncation_msg
+                logger.warning(f"⚠️ Services summary truncated at {max_length} chars (original was {original_length} chars)")
 
-            # Cache the result
-            await self.context_builder._set_cached_value(
-                self._cache_key, summary, self._cache_ttl
+            # Cache the result (only if not skipping truncation)
+            if not skip_truncation:
+                await self.context_builder._set_cached_value(
+                    self._cache_key, summary, self._cache_ttl
+                )
+
+            logger.info(
+                f"✅ Generated services summary: {total_domains} domains, "
+                f"{total_services} total services ({len(summary)} chars)"
             )
-
-            logger.info(f"✅ Generated enhanced services summary ({len(summary)} chars)")
             return summary
 
         except Exception as e:

@@ -10,6 +10,7 @@ Endpoints for managing conversations:
 """
 
 import logging
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -131,21 +132,22 @@ async def list_conversations(
         ) from e
 
 
-@router.get("/{conversation_id}/debug/prompt")
-async def get_prompt_breakdown(
-    conversation_id: str,
+# IMPORTANT: This route must come BEFORE /{conversation_id}/debug/prompt to avoid route conflicts
+@router.get("/debug/{debug_id}/prompt")
+async def get_prompt_breakdown_by_debug_id(
+    debug_id: str,
     user_message: str | None = Query(None, description="Optional user message to include in breakdown"),
     refresh_context: bool = Query(False, description="Force context refresh"),
     conversation_service: ConversationService = Depends(get_conversation_service),
     prompt_assembly_service = Depends(get_prompt_assembly_service),
 ):
     """
-    Get full prompt breakdown for debugging.
+    Get full prompt breakdown for debugging by debug_id (Troubleshooting ID).
     
-    Returns the system prompt, user message, injected context, and full assembled messages.
+    This endpoint accepts the debug_id shown in the UI and returns the full prompt context.
     
     **Path Parameters:**
-    - `conversation_id`: Conversation ID
+    - `debug_id`: Debug ID / Troubleshooting ID (as shown in UI)
     
     **Query Parameters:**
     - `user_message`: Optional user message to include (uses last user message if not provided)
@@ -156,13 +158,18 @@ async def get_prompt_breakdown(
     context_builder = main_module.context_builder
     
     try:
-        # Get conversation
-        conversation = await conversation_service.get_conversation(conversation_id)
+        logger.info(f"Looking up conversation by debug_id: {debug_id}")
+        # Get conversation by debug_id
+        conversation = await conversation_service.get_conversation_by_debug_id(debug_id)
         if not conversation:
+            logger.warning(f"Conversation with debug_id {debug_id} not found in database")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Conversation {conversation_id} not found",
+                detail=f"Conversation with debug_id {debug_id} not found",
             )
+        logger.info(f"Found conversation {conversation.conversation_id} for debug_id {debug_id}")
+        
+        conversation_id = conversation.conversation_id
         
         # Get user message (use provided or last user message)
         if not user_message:
@@ -179,13 +186,23 @@ async def get_prompt_breakdown(
         base_system_prompt = SYSTEM_PROMPT
         
         # Get complete system prompt with context
+        # For debug display, always use skip_truncation=True to show full data
         complete_system_prompt = conversation.get_context_cache()
         if not complete_system_prompt or refresh_context:
             if context_builder:
-                complete_system_prompt = await context_builder.build_complete_system_prompt()
-                conversation.set_context_cache(complete_system_prompt)
+                # Use skip_truncation=True for debug to show full context
+                complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
+                # Don't cache the full (non-truncated) version, as it's only for debug
+                # The cached version should remain truncated for normal use
+                if not refresh_context:
+                    # Only set cache if we're not forcing refresh (to avoid overwriting with full version)
+                    conversation.set_context_cache(complete_system_prompt)
             else:
                 complete_system_prompt = base_system_prompt
+        else:
+            # If using cached, rebuild with skip_truncation for debug display
+            if context_builder:
+                complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
         
         # Extract injected context (everything after base system prompt)
         injected_context = ""
@@ -231,7 +248,157 @@ async def get_prompt_breakdown(
         
         return {
             "conversation_id": conversation_id,
-            "debug_id": conversation.debug_id,  # Unique troubleshooting ID stored in DB
+            "debug_id": debug_id,  # Return the debug_id used for lookup
+            "base_system_prompt": base_system_prompt,
+            "injected_context": injected_context,
+            "preview_context": preview_context,
+            "complete_system_prompt": complete_system_prompt,
+            "user_message": user_message,
+            "conversation_history": history_messages,
+            "full_assembled_messages": full_messages,
+            "token_counts": token_counts,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error getting prompt breakdown for debug_id {debug_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        ) from e
+
+
+@router.get("/{conversation_id}/debug/prompt")
+async def get_prompt_breakdown(
+    conversation_id: str,
+    user_message: str | None = Query(None, description="Optional user message to include in breakdown"),
+    refresh_context: bool = Query(False, description="Force context refresh"),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    prompt_assembly_service = Depends(get_prompt_assembly_service),
+):
+    """
+    Get full prompt breakdown for debugging.
+    
+    Accepts either conversation_id or debug_id (Troubleshooting ID).
+    If the provided ID matches a debug_id pattern and conversation_id lookup fails,
+    it will attempt to lookup by debug_id instead.
+    
+    Returns the system prompt, user message, injected context, and full assembled messages.
+    
+    **Path Parameters:**
+    - `conversation_id`: Conversation ID or Debug ID (Troubleshooting ID)
+    
+    **Query Parameters:**
+    - `user_message`: Optional user message to include (uses last user message if not provided)
+    - `refresh_context`: Force context refresh (default: False)
+    """
+    # Access context_builder from main module (global instance)
+    from .. import main as main_module
+    context_builder = main_module.context_builder
+    
+    try:
+        # Try as conversation_id first
+        conversation = await conversation_service.get_conversation(conversation_id)
+        
+        # If not found and looks like a debug_id (UUID format), try as debug_id
+        if not conversation and len(conversation_id) == 36 and conversation_id.count('-') == 4:
+            logger.info(f"Conversation ID '{conversation_id}' not found, trying as debug_id...")
+            conversation = await conversation_service.get_conversation_by_debug_id(conversation_id)
+            if conversation:
+                logger.info(f"Found conversation {conversation.conversation_id} by debug_id {conversation_id}")
+        
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Conversation or debug_id '{conversation_id}' not found",
+            )
+        
+        # Get user message (use provided or last user message)
+        if not user_message:
+            messages = conversation.get_messages()
+            user_messages = [m for m in messages if m.role == "user"]
+            if user_messages:
+                user_message = user_messages[-1].content
+            else:
+                # Use a placeholder message if no user messages exist
+                user_message = "[No user message found - this is a preview of the prompt structure]"
+        
+        # Get system prompt (base)
+        from ..prompts.system_prompt import SYSTEM_PROMPT
+        base_system_prompt = SYSTEM_PROMPT
+        
+        # Get complete system prompt with context
+        # For debug display, always use skip_truncation=True to show full data
+        complete_system_prompt = conversation.get_context_cache()
+        if not complete_system_prompt or refresh_context:
+            if context_builder:
+                # Use skip_truncation=True for debug to show full context
+                complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
+                # Don't cache the full (non-truncated) version, as it's only for debug
+                # The cached version should remain truncated for normal use
+                if not refresh_context:
+                    # Only set cache if we're not forcing refresh (to avoid overwriting with full version)
+                    conversation.set_context_cache(complete_system_prompt)
+            else:
+                complete_system_prompt = base_system_prompt
+        else:
+            # If using cached, rebuild with skip_truncation for debug display
+            if context_builder:
+                complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
+        
+        # Extract injected context (everything after base system prompt)
+        injected_context = ""
+        if complete_system_prompt.startswith(base_system_prompt):
+            injected_context = complete_system_prompt[len(base_system_prompt):].strip()
+        
+        # Get pending preview context if available
+        pending_preview = conversation.get_pending_preview()
+        preview_context = ""
+        if pending_preview:
+            try:
+                preview_context = prompt_assembly_service._build_preview_context(pending_preview)
+            except Exception as e:
+                logger.warning(f"Could not build preview context: {e}")
+                preview_context = ""
+        
+        # Assemble full messages
+        try:
+            full_messages = await prompt_assembly_service.assemble_messages(
+                conversation_id, user_message, refresh_context=refresh_context
+            )
+        except Exception as e:
+            logger.warning(f"Could not assemble full messages: {e}")
+            full_messages = []
+        
+        # Get conversation history
+        history_messages = conversation.get_openai_messages()
+        
+        # Get token counts (handle errors gracefully)
+        try:
+            token_counts = await prompt_assembly_service.get_token_count(conversation_id, user_message)
+        except Exception as e:
+            logger.warning(f"Could not get token counts: {e}")
+            # Return default token counts
+            token_counts = {
+                "system_tokens": 0,
+                "history_tokens": 0,
+                "new_message_tokens": 0,
+                "total_tokens": 0,
+                "max_input_tokens": 16000,
+                "within_budget": True,
+            }
+        
+        # Ensure debug_id exists (should always be set, but handle edge cases)
+        debug_id = conversation.debug_id
+        if not debug_id:
+            # This should never happen due to persistence layer, but handle gracefully
+            debug_id = str(uuid4())
+            logger.warning(f"Conversation {conversation_id} missing debug_id, generated: {debug_id}")
+        
+        return {
+            "conversation_id": conversation_id,
+            "debug_id": debug_id,  # Unique troubleshooting ID stored in DB
             "base_system_prompt": base_system_prompt,
             "injected_context": injected_context,
             "preview_context": preview_context,

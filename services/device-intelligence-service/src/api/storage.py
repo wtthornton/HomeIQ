@@ -30,6 +30,13 @@ class DeviceResponse(BaseModel):
     area_id: str | None
     entity_count: int
     timestamp: str
+    # Zigbee2MQTT fields
+    lqi: int | None = None
+    availability_status: str | None = None
+    battery_level: int | None = None
+    battery_low: bool | None = None
+    device_type: str | None = None
+    source: str | None = None
 
 class DeviceCapabilityResponse(BaseModel):
     device_id: str
@@ -89,7 +96,14 @@ async def get_devices(
                 sw_version=None,  # Not available in Device Intelligence Service yet
                 area_id=device.area_id,
                 entity_count=0,  # Not available in Device Intelligence Service yet
-                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat()
+                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
+                # Zigbee2MQTT fields
+                lqi=device.lqi,
+                availability_status=device.availability_status,
+                battery_level=device.battery_level,
+                battery_low=device.battery_low,
+                device_type=device.device_type,
+                source=device.source
             )
             for device in devices
         ]
@@ -171,7 +185,14 @@ async def get_device(
             sw_version=None,  # Not available in Device Intelligence Service yet
             area_id=device.area_id,
             entity_count=0,  # Not available in Device Intelligence Service yet
-            timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat()
+            timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
+            # Zigbee2MQTT fields
+            lqi=device.lqi,
+            availability_status=device.availability_status,
+            battery_level=device.battery_level,
+            battery_low=device.battery_low,
+            device_type=device.device_type,
+            source=device.source
         )
     except HTTPException:
         raise
@@ -196,7 +217,14 @@ async def get_devices_by_area(
                 sw_version=None,  # Not available in Device Intelligence Service yet
                 area_id=device.area_id,
                 entity_count=0,  # Not available in Device Intelligence Service yet
-                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat()
+                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
+                # Zigbee2MQTT fields
+                lqi=device.lqi,
+                availability_status=device.availability_status,
+                battery_level=device.battery_level,
+                battery_low=device.battery_low,
+                device_type=device.device_type,
+                source=device.source
             )
             for device in devices
         ]
@@ -221,7 +249,14 @@ async def get_devices_by_integration(
                 sw_version=None,  # Not available in Device Intelligence Service yet
                 area_id=device.area_id,
                 entity_count=0,  # Not available in Device Intelligence Service yet
-                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat()
+                timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
+                # Zigbee2MQTT fields
+                lqi=device.lqi,
+                availability_status=device.availability_status,
+                battery_level=device.battery_level,
+                battery_low=device.battery_low,
+                device_type=device.device_type,
+                source=device.source
             )
             for device in devices
         ]

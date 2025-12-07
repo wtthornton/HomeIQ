@@ -24,7 +24,9 @@ import { ClearChatModal } from '../components/ha-agent/ClearChatModal';
 import { ToolCallIndicator } from '../components/ha-agent/ToolCallIndicator';
 import { AutomationPreview } from '../components/ha-agent/AutomationPreview';
 import { EnhancementButton } from '../components/ha-agent/EnhancementButton';
+import { SendButton } from '../components/ha-agent/SendButton';
 import { DebugTab } from '../components/ha-agent/DebugTab';
+import { startTracking, endTracking, createReport } from '../utils/performanceTracker';
 
 interface ChatMessage extends Message {
   isLoading?: boolean;
@@ -148,6 +150,14 @@ export const HAAgentChat: React.FC = () => {
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return;
 
+    // Start performance tracking
+    const operationId = `send_message_${Date.now()}`;
+    const uiUpdateId = startTracking('ui_update', { operation: 'add_user_message' });
+    const apiCallId = startTracking('api_call', { 
+      operation: 'sendChatMessage',
+      conversation_id: currentConversationId || 'new',
+    });
+
     const userMessage: ChatMessage = {
       message_id: `temp-${Date.now()}`,
       role: 'user',
@@ -159,8 +169,10 @@ export const HAAgentChat: React.FC = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
+    endTracking(uiUpdateId, { message_length: userMessage.content.length });
 
     // Add loading message
+    const loadingId = startTracking('ui_update', { operation: 'add_loading_message' });
     const loadingMessage: ChatMessage = {
       message_id: `loading-${Date.now()}`,
       role: 'assistant',
@@ -169,25 +181,40 @@ export const HAAgentChat: React.FC = () => {
       isLoading: true,
     };
     setMessages((prev) => [...prev, loadingMessage]);
+    endTracking(loadingId);
 
     try {
       const response = await sendChatMessage({
         message: userMessage.content,
         conversation_id: currentConversationId || undefined,
       });
+      
+      endTracking(apiCallId, {
+        success: true,
+        response_time_ms: response.metadata?.response_time_ms,
+        tokens_used: response.metadata?.tokens_used,
+        tool_calls_count: response.tool_calls?.length || 0,
+        iterations: response.metadata?.iterations || 1,
+      });
 
       // Update conversation ID if this was a new conversation
       if (!currentConversationId && response.conversation_id) {
         setCurrentConversationId(response.conversation_id);
         // Reload conversation to get full details - this will replace messages via useEffect
+        const reloadId = startTracking('api_call', { operation: 'getConversation' });
         try {
           const conversation = await getConversation(response.conversation_id);
+          endTracking(reloadId, { success: true, message_count: conversation.message_count });
           setCurrentConversation(conversation);
           // Messages will be replaced by the useEffect when currentConversationId changes
           // Don't add messages here - let the useEffect handle it to avoid duplicates
           setIsLoading(false);
+          
+          // Create performance report
+          createReport(operationId, [uiUpdateId, loadingId, apiCallId, reloadId]);
           return; // Exit early to let useEffect handle message loading
         } catch (error) {
+          endTracking(reloadId, { success: false, error: error instanceof Error ? error.message : 'Unknown' });
           console.error('Failed to reload conversation:', error);
           // Fall through to add message manually if reload fails
         }
@@ -195,6 +222,7 @@ export const HAAgentChat: React.FC = () => {
 
       // Remove loading message and add assistant response
       // Only add if conversation wasn't just reloaded (which would have returned early)
+      const responseUpdateId = startTracking('ui_update', { operation: 'add_assistant_response' });
       setMessages((prev) => {
         const filtered = prev.filter((msg) => !msg.isLoading);
         const assistantMessage: ChatMessage = {
@@ -222,6 +250,10 @@ export const HAAgentChat: React.FC = () => {
         // Deduplicate to prevent adding the same message twice
         return deduplicateMessages([...filtered, assistantMessage]);
       });
+      endTracking(responseUpdateId, { 
+        response_length: response.message.length,
+        tool_calls_count: response.tool_calls?.length || 0,
+      });
 
       // Show tool calls if any
       if (response.tool_calls && response.tool_calls.length > 0) {
@@ -229,8 +261,15 @@ export const HAAgentChat: React.FC = () => {
           icon: '🔧',
         });
       }
+      
+      // Create performance report
+      createReport(operationId, [uiUpdateId, loadingId, apiCallId, responseUpdateId]);
     } catch (error) {
       console.error('Chat error:', error);
+      endTracking(apiCallId, { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
 
       // Remove loading message and add error message
       setMessages((prev) => {
@@ -259,6 +298,11 @@ export const HAAgentChat: React.FC = () => {
           ? error.detail || error.message
           : 'Failed to send message. Please try again.'
       );
+      
+      // Create performance report even on error
+      const errorUpdateId = startTracking('ui_update', { operation: 'add_error_message' });
+      endTracking(errorUpdateId);
+      createReport(operationId, [uiUpdateId, loadingId, apiCallId, errorUpdateId]);
     } finally {
       setIsLoading(false);
     }
@@ -633,33 +677,19 @@ export const HAAgentChat: React.FC = () => {
                 />
               );
             })()}
-            <button
+            <SendButton
               onClick={handleSend}
-              disabled={!inputValue.trim() || isLoading}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors min-h-[44px] ${
-                !inputValue.trim() || isLoading
-                  ? darkMode
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : darkMode
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-blue-500 text-white hover:bg-blue-600'
-              }`}
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Sending...</span>
-                </div>
-              ) : (
-                'Send'
-              )}
-            </button>
+              disabled={!inputValue.trim()}
+              isLoading={isLoading}
+              darkMode={darkMode}
+              label="Send"
+              loadingText="Sending..."
+            />
           </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             <DebugTab
               conversationId={currentConversationId}
               darkMode={darkMode}

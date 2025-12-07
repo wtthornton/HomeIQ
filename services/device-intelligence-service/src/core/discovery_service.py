@@ -381,7 +381,17 @@ class DiscoveryService:
                     "name_by_user": None,
                     "suggested_area": None,
                     "entry_type": None,
-                    "configuration_url": None
+                    "configuration_url": None,
+                    # Initialize Zigbee2MQTT fields
+                    "lqi": None,
+                    "lqi_updated_at": None,
+                    "availability_status": None,
+                    "availability_updated_at": None,
+                    "battery_level": None,
+                    "battery_low": None,
+                    "battery_updated_at": None,
+                    "device_type": None,
+                    "source": None
                 }
 
                 # Override with actual values if available
@@ -404,6 +414,34 @@ class DiscoveryService:
                     device_data["suggested_area"] = device.ha_device.suggested_area
                     device_data["entry_type"] = device.ha_device.entry_type
                     device_data["configuration_url"] = device.ha_device.configuration_url
+
+                # Add Zigbee2MQTT data if available
+                if device.zigbee_device:
+                    device_data["zigbee_ieee"] = device.zigbee_device.ieee_address
+                    device_data["source"] = "zigbee2mqtt"
+                    
+                    # Zigbee2MQTT-specific fields
+                    if device.zigbee_device.lqi is not None:
+                        device_data["lqi"] = device.zigbee_device.lqi
+                        device_data["lqi_updated_at"] = datetime.now(timezone.utc)
+                    
+                    if device.zigbee_device.availability:
+                        device_data["availability_status"] = device.zigbee_device.availability
+                        device_data["availability_updated_at"] = datetime.now(timezone.utc)
+                    
+                    if device.zigbee_device.battery is not None:
+                        device_data["battery_level"] = device.zigbee_device.battery
+                        device_data["battery_updated_at"] = datetime.now(timezone.utc)
+                    
+                    if device.zigbee_device.battery_low is not None:
+                        device_data["battery_low"] = device.zigbee_device.battery_low
+                    
+                    if device.zigbee_device.device_type:
+                        device_data["device_type"] = device.zigbee_device.device_type
+                    
+                    # Update last_seen from Zigbee2MQTT if available
+                    if device.zigbee_device.last_seen:
+                        device_data["last_seen"] = device.zigbee_device.last_seen
 
                 # Remove the JSON fields that were initialized to None to avoid SQLAlchemy issues
                 device_data.pop("connections_json", None)
@@ -441,6 +479,9 @@ class DiscoveryService:
                 # Store capabilities if any
                 if capabilities_data:
                     await device_service.bulk_upsert_capabilities(capabilities_data)
+                
+                # Store Zigbee2MQTT metadata if available
+                await self._store_zigbee_metadata(session, unified_devices)
 
                 # NEW: Generate name suggestions (optional, non-blocking)
                 if self.auto_generate_name_suggestions and self.name_generator:
@@ -468,6 +509,18 @@ class DiscoveryService:
 
             # Update Zigbee devices
             for device_data in data:
+                # Parse last_seen with timezone handling
+                last_seen = None
+                if device_data.get("last_seen"):
+                    try:
+                        last_seen_str = device_data["last_seen"].replace('Z', '+00:00')
+                        last_seen = datetime.fromisoformat(last_seen_str)
+                    except Exception as e:
+                        logger.debug(f"Could not parse last_seen for {device_data.get('ieee_address')}: {e}")
+                
+                # Extract Zigbee2MQTT-specific fields
+                definition = device_data.get("definition", {})
+                
                 zigbee_device = ZigbeeDevice(
                     ieee_address=device_data["ieee_address"],
                     friendly_name=device_data["friendly_name"],
@@ -480,10 +533,20 @@ class DiscoveryService:
                     hardware_version=device_data.get("hardware_version"),
                     software_build_id=device_data.get("software_build_id"),
                     date_code=device_data.get("date_code"),
-                    last_seen=datetime.fromisoformat(device_data["last_seen"].replace('Z', '+00:00')) if device_data.get("last_seen") else None,
-                    definition=device_data.get("definition"),
-                    exposes=device_data.get("definition", {}).get("exposes", []),
-                    capabilities={}
+                    last_seen=last_seen,
+                    definition=definition,
+                    exposes=definition.get("exposes", []),
+                    capabilities={},
+                    # Zigbee2MQTT-specific fields
+                    lqi=device_data.get("lqi"),
+                    availability=device_data.get("availability"),
+                    battery=device_data.get("battery"),
+                    battery_low=device_data.get("battery_low"),
+                    device_type=device_data.get("type"),
+                    network_address=device_data.get("network_address"),
+                    supported=device_data.get("supported"),
+                    interview_completed=device_data.get("interview_completed"),
+                    settings=device_data.get("settings")
                 )
 
                 self.zigbee_devices[zigbee_device.ieee_address] = zigbee_device
@@ -663,3 +726,59 @@ class DiscoveryService:
         except Exception as e:
             logger.warning(f"Name suggestion generation failed: {e}")
             # Graceful degradation: continue without suggestions
+
+    async def _store_zigbee_metadata(self, session: AsyncSession, unified_devices: list[UnifiedDevice]):
+        """Store Zigbee2MQTT-specific metadata in ZigbeeDeviceMetadata table."""
+        try:
+            from ..models.database import ZigbeeDeviceMetadata
+            from sqlalchemy import select
+            
+            metadata_to_store = []
+            
+            for device in unified_devices:
+                if not device.zigbee_device:
+                    continue
+                
+                zigbee = device.zigbee_device
+                
+                # Check if metadata already exists
+                result = await session.execute(
+                    select(ZigbeeDeviceMetadata).where(
+                        ZigbeeDeviceMetadata.device_id == device.id
+                    )
+                )
+                existing = result.scalar_one_or_none()
+                
+                metadata_data = {
+                    "device_id": device.id,
+                    "ieee_address": zigbee.ieee_address,
+                    "model_id": zigbee.model_id,
+                    "manufacturer_code": zigbee.manufacturer_code,
+                    "date_code": zigbee.date_code,
+                    "hardware_version": zigbee.hardware_version,
+                    "software_build_id": zigbee.software_build_id,
+                    "network_address": zigbee.network_address,
+                    "supported": zigbee.supported if zigbee.supported is not None else True,
+                    "interview_completed": zigbee.interview_completed if zigbee.interview_completed is not None else False,
+                    "definition_json": zigbee.definition,
+                    "settings_json": zigbee.settings,
+                    "last_seen_zigbee": zigbee.last_seen,
+                    "updated_at": datetime.now(timezone.utc)
+                }
+                
+                if existing:
+                    # Update existing metadata
+                    for key, value in metadata_data.items():
+                        setattr(existing, key, value)
+                else:
+                    # Create new metadata
+                    metadata_data["created_at"] = datetime.now(timezone.utc)
+                    metadata = ZigbeeDeviceMetadata(**metadata_data)
+                    session.add(metadata)
+            
+            await session.commit()
+            logger.info(f"✅ Stored Zigbee2MQTT metadata for {len(metadata_to_store)} devices")
+            
+        except Exception as e:
+            logger.error(f"❌ Error storing Zigbee metadata: {e}")
+            # Don't fail discovery if metadata storage fails

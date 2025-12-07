@@ -44,6 +44,17 @@ class Device(Base):
     zigbee_ieee: Mapped[str | None] = mapped_column(String, index=True)
     is_battery_powered: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Zigbee2MQTT-specific fields
+    lqi: Mapped[int | None] = mapped_column(Integer, index=True)  # Link Quality Indicator (0-255)
+    lqi_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    availability_status: Mapped[str | None] = mapped_column(String, index=True)  # "enabled", "disabled", "unavailable"
+    availability_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    battery_level: Mapped[int | None] = mapped_column(Integer)  # 0-100 percentage
+    battery_low: Mapped[bool | None] = mapped_column(Boolean, index=True)  # True if battery low warning
+    battery_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    device_type: Mapped[str | None] = mapped_column(String)  # From Zigbee2MQTT type field
+    source: Mapped[str | None] = mapped_column(String, index=True)  # "zigbee2mqtt", "homeassistant", etc.
+
     # Additional HA device attributes
     name_by_user: Mapped[str | None] = mapped_column(String)  # User-customized device name
     suggested_area: Mapped[str | None] = mapped_column(String)  # Suggested area for device
@@ -248,5 +259,34 @@ class TeamTrackerTeam(Base):
     priority: Mapped[int] = mapped_column(Integer, default=0)  # Priority for automation suggestions
 
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+
+
+class ZigbeeDeviceMetadata(Base):
+    """Zigbee2MQTT device-specific metadata and configuration."""
+    __tablename__ = 'zigbee_device_metadata'
+
+    device_id: Mapped[str] = mapped_column(String, ForeignKey('devices.id', ondelete='CASCADE'), primary_key=True)
+    ieee_address: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    
+    # Device identification
+    model_id: Mapped[str | None] = mapped_column(String)
+    manufacturer_code: Mapped[str | None] = mapped_column(String)
+    date_code: Mapped[str | None] = mapped_column(String)
+    hardware_version: Mapped[str | None] = mapped_column(String)
+    software_build_id: Mapped[str | None] = mapped_column(String)
+    
+    # Network information
+    network_address: Mapped[int | None] = mapped_column(Integer)  # Zigbee network address
+    supported: Mapped[bool] = mapped_column(Boolean, default=True)
+    interview_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Configuration
+    definition_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)  # Full device definition
+    settings_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)  # Device settings
+    
+    # Timestamps
+    last_seen_zigbee: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())

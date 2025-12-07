@@ -52,6 +52,7 @@ class PromptAssemblyService:
         conversation_id: str,
         user_message: str,
         refresh_context: bool = False,
+        skip_add_message: bool = False,
     ) -> list[dict[str, str]]:
         """
         Assemble complete message list for OpenAI API call.
@@ -65,6 +66,7 @@ class PromptAssemblyService:
             conversation_id: Conversation ID
             user_message: New user message to add
             refresh_context: Force context refresh (default: False, uses cache if available)
+            skip_add_message: If True, skip adding the user message (use when message already added)
 
         Returns:
             List of message dicts in OpenAI format
@@ -74,13 +76,13 @@ class PromptAssemblyService:
         if not conversation:
             raise ValueError(f"Conversation {conversation_id} not found")
 
-        # Add user message to conversation
-        await self.conversation_service.add_message(
-            conversation_id, "user", user_message
-        )
-        
-        # Reload conversation to get updated message history (includes the message we just added)
-        conversation = await self.conversation_service.get_conversation(conversation_id)
+        # Add user message to conversation (unless skipping)
+        if not skip_add_message:
+            await self.conversation_service.add_message(
+                conversation_id, "user", user_message
+            )
+            # Reload conversation to get updated message history (includes the message we just added)
+            conversation = await self.conversation_service.get_conversation(conversation_id)
         if not conversation:
             raise ValueError(f"Conversation {conversation_id} not found after adding message")
 
@@ -378,7 +380,10 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
         """
         Truncate message list to fit within token budget.
 
-        Removes oldest messages first until within budget.
+        P3: 2025 Optimization - Smart truncation strategy:
+        - Keep recent messages (last 5-10)
+        - Keep first user message (important context)
+        - Remove middle messages if needed
 
         Args:
             messages: List of message dicts
@@ -396,10 +401,43 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
         if total_tokens <= max_tokens:
             return messages
 
-        # Remove oldest messages until within budget
-        truncated = messages.copy()
+        # P3: Smart truncation - keep recent messages and first user message
+        # Strategy: Keep last 10 messages + first user message, remove middle
+        if len(messages) <= 10:
+            # Small conversation - just remove oldest
+            truncated = messages.copy()
+            while truncated and count_message_tokens(truncated, self.model) > max_tokens:
+                truncated.pop(0)
+            return truncated
+
+        # Find first user message
+        first_user_idx = -1
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "user":
+                first_user_idx = i
+                break
+
+        # Keep recent messages (last 10) and first user message if different
+        recent_messages = messages[-10:]
+        if first_user_idx >= 0 and first_user_idx < len(messages) - 10:
+            # First user message is not in recent messages, add it
+            first_user_msg = messages[first_user_idx]
+            # Combine: first user + recent (avoid duplicates)
+            if first_user_msg not in recent_messages:
+                truncated = [first_user_msg] + recent_messages
+            else:
+                truncated = recent_messages
+        else:
+            truncated = recent_messages
+
+        # If still too large, remove oldest from truncated list
         while truncated and count_message_tokens(truncated, self.model) > max_tokens:
-            truncated.pop(0)  # Remove oldest message
+            # Remove oldest, but keep first user message if present
+            if len(truncated) > 1 and truncated[0].get("role") == "user" and len(truncated) > 2:
+                # Keep first user, remove second oldest
+                truncated.pop(1)
+            else:
+                truncated.pop(0)
 
         return truncated
 

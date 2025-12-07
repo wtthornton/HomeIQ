@@ -222,6 +222,16 @@ class DeviceRepository:
                 model=bindparam("model"),
                 area_id=bindparam("area_id"),
                 health_score=bindparam("health_score"),
+                # Zigbee2MQTT fields
+                lqi=bindparam("lqi"),
+                lqi_updated_at=bindparam("lqi_updated_at"),
+                availability_status=bindparam("availability_status"),
+                availability_updated_at=bindparam("availability_updated_at"),
+                battery_level=bindparam("battery_level"),
+                battery_low=bindparam("battery_low"),
+                battery_updated_at=bindparam("battery_updated_at"),
+                device_type=bindparam("device_type"),
+                source=bindparam("source"),
                 updated_at=func.now()
             )
         )
@@ -398,9 +408,20 @@ class DeviceRepository:
             "via_device_id": device.via_device_id,
             "ha_device_id": device.ha_device_id,
             "zigbee_device_id": device.zigbee_device_id,
+            "zigbee_ieee": device.zigbee_ieee,
             "last_seen": device.last_seen.isoformat() if device.last_seen else None,
             "health_score": device.health_score,
             "disabled_by": device.disabled_by,
+            # Zigbee2MQTT fields
+            "lqi": device.lqi,
+            "lqi_updated_at": device.lqi_updated_at.isoformat() if device.lqi_updated_at else None,
+            "availability_status": device.availability_status,
+            "availability_updated_at": device.availability_updated_at.isoformat() if device.availability_updated_at else None,
+            "battery_level": device.battery_level,
+            "battery_low": device.battery_low,
+            "battery_updated_at": device.battery_updated_at.isoformat() if device.battery_updated_at else None,
+            "device_type": device.device_type,
+            "source": device.source,
             "created_at": device.created_at.isoformat(),
             "updated_at": device.updated_at.isoformat()
         }
