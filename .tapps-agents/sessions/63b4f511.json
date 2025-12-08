@@ -1,0 +1,110 @@
+{
+  "session_id": "63b4f511",
+  "metadata": {
+    "original_prompt": "Add full end to end testing to Tapps CodingAgents prompt enhancements",
+    "created_at": "2025-12-06T16:20:10.725314",
+    "config": {
+      "enhancement": {
+        "stages": {
+          "analysis": true,
+          "requirements": true,
+          "architecture": true,
+          "codebase_context": true,
+          "quality": true,
+          "implementation": true,
+          "synthesis": true
+        },
+        "analysis": {
+          "detect_domains": true,
+          "estimate_scope": true,
+          "recommend_workflow": true
+        },
+        "requirements": {
+          "consult_experts": true,
+          "min_expert_confidence": 0.7,
+          "include_nfr": true
+        },
+        "architecture": {
+          "context7_enabled": true,
+          "include_patterns": true,
+          "include_technologies": true
+        },
+        "codebase_context": {
+          "tier": "TIER3",
+          "include_related": true,
+          "max_related_files": 20
+        },
+        "quality": {
+          "include_security": true,
+          "include_performance": true,
+          "include_testing": true,
+          "scoring_threshold": 70.0
+        },
+        "implementation": {
+          "create_tasks": true,
+          "suggest_order": true,
+          "include_refactoring": true
+        },
+        "synthesis": {
+          "format": "markdown",
+          "include_metadata": true,
+          "include_provenance": true
+        }
+      }
+    }
+  },
+  "stages": {
+    "analysis": {
+      "original_prompt": "Add full end to end testing to Tapps CodingAgents prompt enhancements",
+      "intent": "feature",
+      "domains": [],
+      "scope": "medium",
+      "workflow_type": "greenfield",
+      "technologies": [],
+      "complexity": "medium",
+      "analysis": "```json\n{\n  \"intent\": \"feature\",\n  \"detected_domains\": [\"tapps\", \"codingagents\"],\n  \"estimated_scope\": \"small\",\n  \"recommended_workflow_type\": \"quick-fix\",\n  \"key_technologies_mentioned\": [\"end to end testing\", \"prompt enhancements\"],\n  \"complexity_level\": \"low\"\n}\n```"
+    },
+    "requirements": {
+      "functional_requirements": [],
+      "non_functional_requirements": [],
+      "technical_constraints": [],
+      "assumptions": [],
+      "expert_consultations": {},
+      "requirements_analysis": ""
+    },
+    "architecture": {
+      "system_design": {},
+      "design_patterns": [],
+      "technology_recommendations": [],
+      "architecture_guidance": ""
+    },
+    "codebase_context": {
+      "related_files": [],
+      "existing_patterns": [],
+      "cross_references": [],
+      "codebase_context": "No codebase context available"
+    },
+    "quality": {
+      "security_requirements": [],
+      "testing_requirements": [
+        "Unit tests required",
+        "Integration tests for APIs"
+      ],
+      "performance_requirements": [],
+      "code_quality_thresholds": {
+        "overall_score": 70.0,
+        "complexity_max": 5.0,
+        "security_min": 8.0
+      }
+    },
+    "implementation": {
+      "task_breakdown": [],
+      "implementation_order": [],
+      "dependencies": [],
+      "estimated_effort": {}
+    },
+    "synthesis": {
+      "error": "Synthesis failed: 'MALConfig' object has no attribute 'model'"
+    }
+  }
+}

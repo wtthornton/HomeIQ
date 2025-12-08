@@ -1951,14 +1951,23 @@ async def store_synergy_opportunities(
                 existing_synergy = result.scalar_one_or_none()
 
                 # Create metadata dict from synergy data
-                metadata = {
-                    'trigger_entity': synergy_data.get('trigger_entity'),
-                    'trigger_name': synergy_data.get('trigger_name'),
-                    'action_entity': synergy_data.get('action_entity'),
-                    'action_name': synergy_data.get('action_name'),
-                    'relationship': synergy_data.get('relationship'),
-                    'rationale': synergy_data.get('rationale')
-                }
+                # 2025 Enhancement: Preserve existing opportunity_metadata (e.g., event_context, event_type, suggested_action)
+                # and merge with standard fields to avoid losing event-specific data
+                existing_metadata = synergy_data.get('opportunity_metadata', {})
+                if not isinstance(existing_metadata, dict):
+                    existing_metadata = {}
+                
+                # Build base metadata with standard fields (only non-None values)
+                base_metadata = {}
+                for key in ['trigger_entity', 'trigger_name', 'action_entity', 'action_name', 'relationship', 'rationale']:
+                    value = synergy_data.get(key)
+                    if value is not None:
+                        base_metadata[key] = value
+                
+                # Merge: Start with existing_metadata (preserves event_context, event_type, suggested_action, etc.)
+                # Then overlay base_metadata to ensure standard fields are set
+                # This preserves event-specific fields while filling in standard fields
+                metadata = {**existing_metadata, **base_metadata}
 
                 # Phase 2: Validate with patterns if enabled
                 pattern_support_score = 0.0
