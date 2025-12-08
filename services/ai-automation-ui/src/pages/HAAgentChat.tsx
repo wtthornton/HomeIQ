@@ -391,10 +391,12 @@ export const HAAgentChat: React.FC = () => {
 
   // Detect automation YAML in message or tool calls
   const detectAutomation = (message: ChatMessage): { yaml: string; alias?: string; toolCall?: ToolCall } | null => {
-    // Check tool calls for create_automation_from_prompt or test_automation_yaml
+    // Check tool calls for preview_automation_from_prompt, create_automation_from_prompt, or test_automation_yaml
     if (message.toolCalls) {
       for (const toolCall of message.toolCalls) {
-        if (toolCall.name === 'create_automation_from_prompt' || toolCall.name === 'test_automation_yaml') {
+        if (toolCall.name === 'preview_automation_from_prompt' || 
+            toolCall.name === 'create_automation_from_prompt' || 
+            toolCall.name === 'test_automation_yaml') {
           const yaml = toolCall.arguments?.automation_yaml;
           const alias = toolCall.arguments?.alias;
           if (yaml) {
