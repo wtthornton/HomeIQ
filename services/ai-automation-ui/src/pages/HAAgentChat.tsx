@@ -23,10 +23,16 @@ import { DeleteConversationModal } from '../components/ha-agent/DeleteConversati
 import { ClearChatModal } from '../components/ha-agent/ClearChatModal';
 import { ToolCallIndicator } from '../components/ha-agent/ToolCallIndicator';
 import { AutomationPreview } from '../components/ha-agent/AutomationPreview';
+import { AutomationProposal } from '../components/ha-agent/AutomationProposal';
+import { ProposalErrorBoundary } from '../components/ha-agent/ProposalErrorBoundary';
+import { MessageContent } from '../components/ha-agent/MessageContent';
+import { MarkdownErrorBoundary } from '../components/ha-agent/MarkdownErrorBoundary';
+import { CTAActionButtons } from '../components/ha-agent/CTAActionButtons';
 import { EnhancementButton } from '../components/ha-agent/EnhancementButton';
 import { SendButton } from '../components/ha-agent/SendButton';
 import { DebugTab } from '../components/ha-agent/DebugTab';
 import { startTracking, endTracking, createReport } from '../utils/performanceTracker';
+import { parseProposal } from '../utils/proposalParser';
 
 interface ChatMessage extends Message {
   isLoading?: boolean;
@@ -109,36 +115,37 @@ export const HAAgentChat: React.FC = () => {
     );
   };
 
-  // Load conversation on mount or when conversation ID changes
-  useEffect(() => {
-    const loadConversation = async () => {
-      if (currentConversationId) {
-        try {
-          setIsInitializing(true);
-          const conversation = await getConversation(currentConversationId);
-          setCurrentConversation(conversation);
-          const loadedMessages = conversation.messages?.map((msg) => ({
-            ...msg,
-            isLoading: false,
-          })) || [];
-          
-          // When loading a conversation, replace all messages (don't merge)
-          // Deduplicate to prevent duplicates from API or previous state
-          const deduplicated = deduplicateMessages(loadedMessages);
-          console.log(`[HAAgentChat] Loaded ${loadedMessages.length} messages, deduplicated to ${deduplicated.length}`);
-          setMessages(deduplicated);
-        } catch (error) {
-          console.error('Failed to load conversation:', error);
-          toast.error('Failed to load conversation');
-        } finally {
-          setIsInitializing(false);
-        }
-      } else {
-        setCurrentConversation(null);
+  // Load conversation function
+  const loadConversation = async () => {
+    if (currentConversationId) {
+      try {
+        setIsInitializing(true);
+        const conversation = await getConversation(currentConversationId);
+        setCurrentConversation(conversation);
+        const loadedMessages = conversation.messages?.map((msg) => ({
+          ...msg,
+          isLoading: false,
+        })) || [];
+        
+        // When loading a conversation, replace all messages (don't merge)
+        // Deduplicate to prevent duplicates from API or previous state
+        const deduplicated = deduplicateMessages(loadedMessages);
+        console.log(`[HAAgentChat] Loaded ${loadedMessages.length} messages, deduplicated to ${deduplicated.length}`);
+        setMessages(deduplicated);
+      } catch (error) {
+        console.error('Failed to load conversation:', error);
+        toast.error('Failed to load conversation');
+      } finally {
         setIsInitializing(false);
       }
-    };
+    } else {
+      setCurrentConversation(null);
+      setIsInitializing(false);
+    }
+  };
 
+  // Load conversation on mount or when conversation ID changes
+  useEffect(() => {
     loadConversation();
   }, [currentConversationId]);
 
@@ -598,29 +605,110 @@ export const HAAgentChat: React.FC = () => {
                         </div>
                       ) : (
                         <div>
-                          <p className="whitespace-pre-wrap break-words">{message.content}</p>
-                          {message.error && (
-                            <p className="text-xs mt-1 text-red-300">Error: {message.error}</p>
-                          )}
-                          {message.toolCalls && message.toolCalls.length > 0 && (
-                            <ToolCallIndicator
-                              toolCalls={message.toolCalls}
-                              responseTimeMs={message.responseTimeMs}
-                              darkMode={darkMode}
-                            />
-                          )}
-                          {message.role === 'assistant' && detectAutomation(message) && (
-                            <button
-                              onClick={() => handlePreviewAutomation(message)}
-                              className={`mt-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                darkMode
-                                  ? 'bg-blue-700 text-white hover:bg-blue-600'
-                                  : 'bg-blue-500 text-white hover:bg-blue-600'
-                              }`}
-                            >
-                              ⚙️ Preview Automation
-                            </button>
-                          )}
+                          {(() => {
+                            // Check if this is a proposal message
+                            const proposal = parseProposal(message.content);
+                            
+                            if (proposal.hasProposal && proposal.sections.length > 0) {
+                              // Render structured proposal
+                              return (
+                                <>
+                                  <div className="mb-3">
+                                    <p className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                      Here's what I'll create for you:
+                                    </p>
+                                    <ProposalErrorBoundary>
+                                      <AutomationProposal sections={proposal.sections} darkMode={darkMode} />
+                                    </ProposalErrorBoundary>
+                                  </div>
+                                  {message.error && (
+                                    <p className="text-xs mt-1 text-red-300">Error: {message.error}</p>
+                                  )}
+                                  {message.toolCalls && message.toolCalls.length > 0 && (
+                                    <ToolCallIndicator
+                                      toolCalls={message.toolCalls}
+                                      responseTimeMs={message.responseTimeMs}
+                                      darkMode={darkMode}
+                                    />
+                                  )}
+                                  {detectAutomation(message) && (
+                                    <button
+                                      onClick={() => handlePreviewAutomation(message)}
+                                      className={`mt-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                        darkMode
+                                          ? 'bg-blue-700 text-white hover:bg-blue-600'
+                                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                                      }`}
+                                    >
+                                      ⚙️ Preview Automation
+                                    </button>
+                                  )}
+                                  {currentConversationId && (
+                                    <CTAActionButtons
+                                      messageContent={message.content}
+                                      automationYaml={detectAutomation(message)?.yaml}
+                                      conversationId={currentConversationId}
+                                      darkMode={darkMode}
+                                      onSuccess={(automationId) => {
+                                        toast.success(`Automation ${automationId} created successfully!`);
+                                        // Refresh conversation to show new message
+                                        if (currentConversationId) {
+                                          loadConversation();
+                                        }
+                                      }}
+                                    />
+                                  )}
+                                </>
+                              );
+                            }
+                            
+                            // Regular message rendering with markdown
+                            const automation = detectAutomation(message);
+                            return (
+                              <>
+                                <MarkdownErrorBoundary content={message.content} darkMode={darkMode}>
+                                  <MessageContent content={message.content} darkMode={darkMode} />
+                                </MarkdownErrorBoundary>
+                                {message.error && (
+                                  <p className="text-xs mt-1 text-red-300">Error: {message.error}</p>
+                                )}
+                                {message.toolCalls && message.toolCalls.length > 0 && (
+                                  <ToolCallIndicator
+                                    toolCalls={message.toolCalls}
+                                    responseTimeMs={message.responseTimeMs}
+                                    darkMode={darkMode}
+                                  />
+                                )}
+                                {message.role === 'assistant' && automation && (
+                                  <button
+                                    onClick={() => handlePreviewAutomation(message)}
+                                    className={`mt-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                      darkMode
+                                        ? 'bg-blue-700 text-white hover:bg-blue-600'
+                                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                                    }`}
+                                  >
+                                    ⚙️ Preview Automation
+                                  </button>
+                                )}
+                                {message.role === 'assistant' && currentConversationId && (
+                                  <CTAActionButtons
+                                    messageContent={message.content}
+                                    automationYaml={automation?.yaml}
+                                    conversationId={currentConversationId}
+                                    darkMode={darkMode}
+                                    onSuccess={(automationId) => {
+                                      toast.success(`Automation ${automationId} created successfully!`);
+                                      // Refresh conversation to show new message
+                                      if (currentConversationId) {
+                                        loadConversation();
+                                      }
+                                    }}
+                                  />
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -656,10 +744,23 @@ export const HAAgentChat: React.FC = () => {
               disabled={isLoading}
             />
             {(() => {
-              // Show button if preview modal is open OR if there's an automation in recent messages
-              const hasAutomation = messages.some(m => detectAutomation(m));
-              if (!hasAutomation && !automationPreviewOpen) return null;
+              // Show button if there's a conversation
               if (!currentConversationId) return null;
+              
+              // Check for automation in messages or in preview
+              const hasAutomation = messages.some(m => detectAutomation(m));
+              const hasPreviewYaml = !!previewAutomationYaml;
+              
+              // Check if any assistant message mentions automation creation (even without YAML yet)
+              const hasAutomationMention = messages.some(m => 
+                m.role === 'assistant' && 
+                (m.content.toLowerCase().includes('automation') || 
+                 m.content.toLowerCase().includes('create') ||
+                 m.content.toLowerCase().includes('here\'s what i\'ll create'))
+              );
+              
+              // Show button if there's an automation detected, preview is open, preview YAML exists, or automation is mentioned
+              if (!hasAutomation && !automationPreviewOpen && !hasPreviewYaml && !hasAutomationMention) return null;
               
               // Get the latest automation from messages
               const latestAutomation = messages.slice().reverse().find(m => detectAutomation(m));
@@ -667,9 +768,22 @@ export const HAAgentChat: React.FC = () => {
               // Get the most recent user message (not just the first one)
               const userMsg = messages.slice().reverse().find(m => m.role === 'user');
               
+              // If we don't have YAML yet but have a mention, try to get it from the most recent assistant message
+              let automationYaml = previewAutomationYaml || automation?.yaml || '';
+              if (!automationYaml && hasAutomationMention) {
+                // Try to extract YAML from the most recent assistant message
+                const latestAssistant = messages.slice().reverse().find(m => m.role === 'assistant');
+                if (latestAssistant) {
+                  const detected = detectAutomation(latestAssistant);
+                  if (detected) {
+                    automationYaml = detected.yaml;
+                  }
+                }
+              }
+              
               return (
                 <EnhancementButton
-                  automationYaml={previewAutomationYaml || automation?.yaml || ''}
+                  automationYaml={automationYaml}
                   originalPrompt={originalPrompt || userMsg?.content || ''}
                   conversationId={currentConversationId}
                   darkMode={darkMode}

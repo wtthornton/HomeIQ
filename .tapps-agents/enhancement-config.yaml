@@ -1,0 +1,51 @@
+# Enhancement Configuration for HomeIQ
+# This configures the Enhancer Agent for the HomeIQ IoT/home automation project
+
+enhancement:
+  # Stage enablement
+  stages:
+    analysis: true
+    requirements: true
+    architecture: true
+    codebase_context: true
+    quality: true
+    implementation: true
+    synthesis: true
+  
+  # Stage-specific configs
+  analysis:
+    detect_domains: true
+    estimate_scope: true
+    recommend_workflow: true
+  
+  requirements:
+    consult_experts: true
+    min_expert_confidence: 0.7  # Standard threshold for IoT project
+    include_nfr: true
+  
+  architecture:
+    context7_enabled: true
+    include_patterns: true
+    include_technologies: true
+  
+  codebase_context:
+    tier: TIER3  # More context needed for complex IoT system
+    include_related: true
+    max_related_files: 20  # IoT systems have many interconnected services
+  
+  quality:
+    include_security: true
+    include_performance: true
+    include_testing: true
+    scoring_threshold: 70.0  # Standard quality threshold
+  
+  implementation:
+    create_tasks: true
+    suggest_order: true
+    include_refactoring: true
+  
+  synthesis:
+    format: markdown  # markdown, json, yaml
+    include_metadata: true
+    include_provenance: true
+

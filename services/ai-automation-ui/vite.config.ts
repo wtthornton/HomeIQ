@@ -2,6 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+  },
   plugins: [
     react(),
     // Plugin to inject AFRAME stub and THREE.js preload before any modules load
@@ -49,7 +54,10 @@ export default defineConfig({
   },
   define: {
     // Provide AFRAME as a global for modules that check for it
-    'global.AFRAME': 'window.AFRAME'
+    // Only define in non-test environments
+    ...(process.env.NODE_ENV !== 'test' && {
+      'global.AFRAME': 'window.AFRAME'
+    })
   }
 })
 

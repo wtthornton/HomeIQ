@@ -138,34 +138,88 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
     return null;
   };
 
+  // Check prerequisites
+  const hasPrerequisites = !!(automationYaml && originalPrompt && conversationId);
+  const missingPrerequisites: string[] = [];
+  if (!conversationId) missingPrerequisites.push('active conversation');
+  if (!automationYaml) missingPrerequisites.push('automation YAML');
+  if (!originalPrompt) missingPrerequisites.push('original prompt');
+
   return (
     <>
-      <button
-        onClick={handleEnhance}
-        disabled={isLoading}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors min-h-[44px] flex items-center gap-2 ${
-          isLoading
-            ? darkMode
-              ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            : darkMode
-            ? 'bg-purple-600 text-white hover:bg-purple-700'
-            : 'bg-purple-500 text-white hover:bg-purple-600'
-        }`}
-        title="Generate enhancement suggestions"
-      >
-        {isLoading ? (
-          <>
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            <span>Enhancing...</span>
-          </>
-        ) : (
-          <>
-            <span>✨</span>
-            <span>Enhance</span>
-          </>
+      <div className="relative">
+        <button
+          onClick={handleEnhance}
+          disabled={isLoading || !hasPrerequisites}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors min-h-[44px] flex items-center gap-2 relative ${
+            isLoading
+              ? darkMode
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : !hasPrerequisites
+              ? darkMode
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed border-2 border-yellow-600'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed border-2 border-yellow-500'
+              : darkMode
+              ? 'bg-purple-600 text-white hover:bg-purple-700'
+              : 'bg-purple-500 text-white hover:bg-purple-600'
+          }`}
+          aria-label={
+            hasPrerequisites
+              ? 'Generate enhancement suggestions'
+              : `Enhancement button disabled. Missing: ${missingPrerequisites.join(', ')}`
+          }
+          aria-busy={isLoading}
+          aria-disabled={isLoading || !hasPrerequisites}
+          title={
+            hasPrerequisites
+              ? 'Generate enhancement suggestions'
+              : `Missing: ${missingPrerequisites.join(', ')}`
+          }
+        >
+          {isLoading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Enhancing...</span>
+            </>
+          ) : !hasPrerequisites ? (
+            <>
+              <span>⚠️</span>
+              <span>Enhance</span>
+            </>
+          ) : (
+            <>
+              <span>✨</span>
+              <span>Enhance</span>
+            </>
+          )}
+        </button>
+        
+        {/* Persistent warning tooltip when prerequisites missing */}
+        {!hasPrerequisites && !isLoading && (
+          <div
+            className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-xs whitespace-nowrap z-50 ${
+              darkMode
+                ? 'bg-yellow-900 border border-yellow-700 text-yellow-200'
+                : 'bg-yellow-50 border border-yellow-300 text-yellow-800'
+            } shadow-lg`}
+            role="tooltip"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true">⚠️</span>
+              <span>Missing: {missingPrerequisites.join(', ')}</span>
+            </div>
+            <div
+              className={`absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 ${
+                darkMode ? 'border-t-yellow-900' : 'border-t-yellow-50'
+              }`}
+              aria-hidden="true"
+            />
+          </div>
         )}
-      </button>
+      </div>
 
       <AnimatePresence mode="wait">
         {showModal && (

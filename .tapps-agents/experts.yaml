@@ -1,0 +1,60 @@
+# HomeIQ Industry Experts Configuration
+# .tapps-agents/experts.yaml
+
+experts:
+  # IoT & Home Automation Expert
+  - expert_id: expert-iot
+    expert_name: IoT & Home Automation Expert
+    primary_domain: iot-home-automation
+    rag_enabled: true
+    fine_tuned: false
+
+  # Time-Series Data & Analytics Expert
+  - expert_id: expert-time-series
+    expert_name: Time-Series Data & Analytics Expert
+    primary_domain: time-series-analytics
+    rag_enabled: true
+    fine_tuned: false
+
+  # AI & Machine Learning Expert
+  - expert_id: expert-ai-ml
+    expert_name: AI & Machine Learning Expert
+    primary_domain: ai-machine-learning
+    rag_enabled: true
+    fine_tuned: false
+
+  # Microservices Architecture Expert
+  - expert_id: expert-microservices
+    expert_name: Microservices Architecture Expert
+    primary_domain: microservices-architecture
+    rag_enabled: true
+    fine_tuned: false
+
+  # Security & Privacy Expert
+  - expert_id: expert-security
+    expert_name: Security & Privacy Expert
+    primary_domain: security-privacy
+    rag_enabled: true
+    fine_tuned: false
+
+  # Energy Management Expert
+  - expert_id: expert-energy
+    expert_name: Energy Management Expert
+    primary_domain: energy-management
+    rag_enabled: true
+    fine_tuned: false
+
+  # Frontend & User Experience Expert
+  - expert_id: expert-frontend
+    expert_name: Frontend & User Experience Expert
+    primary_domain: frontend-ux
+    rag_enabled: true
+    fine_tuned: false
+
+  # Home Assistant Expert
+  - expert_id: expert-home-assistant
+    expert_name: Home Assistant Expert
+    primary_domain: home-assistant
+    rag_enabled: true
+    fine_tuned: false
+
