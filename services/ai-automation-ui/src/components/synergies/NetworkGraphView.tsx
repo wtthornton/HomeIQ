@@ -65,11 +65,42 @@ const loadForceGraph = async (): Promise<any> => {
   }
   
   // Ensure THREE.js is available globally before importing react-force-graph
-  if (typeof window !== 'undefined' && !(window as any).THREE) {
+  // This must be done carefully to avoid "not extensible" errors
+  if (typeof window !== 'undefined') {
     try {
+      // Always reload THREE.js to ensure it's fresh and extensible
+      // Remove existing THREE if it exists
+      if ((window as any).THREE) {
+        delete (window as any).THREE;
+      }
+      
+      // Load THREE.js fresh
       const THREE = await import('three');
-      // Handle both default and named exports
-      (window as any).THREE = THREE;
+      // THREE.js exports as a namespace object
+      const THREE_export = THREE.default || THREE;
+      
+      // Create an extensible wrapper using Proxy to allow property additions
+      // This ensures react-force-graph can add ColladaLoader and other loaders
+      (window as any).THREE = new Proxy(THREE_export, {
+        get(target, prop) {
+          return (target as any)[prop];
+        },
+        set(target, prop, value) {
+          // Allow setting new properties (like ColladaLoader)
+          (target as any)[prop] = value;
+          return true;
+        },
+        defineProperty(target, prop, descriptor) {
+          // Allow defining new properties
+          return Reflect.defineProperty(target, prop, descriptor);
+        },
+        has(target, prop) {
+          return prop in target;
+        },
+        ownKeys(target) {
+          return Reflect.ownKeys(target);
+        }
+      });
     } catch (err) {
       console.warn('Failed to load THREE.js:', err);
       // Continue anyway - react-force-graph might handle it
@@ -104,18 +135,41 @@ const loadForceGraph = async (): Promise<any> => {
           loadPromise = null;
           return loadForceGraph();
         }
-        // Handle THREE-related errors
-        if (errorMessage.includes('THREE') || errorMessage.includes('three')) {
-          console.warn('THREE.js error detected, attempting to load THREE.js:', errorMessage);
-          // Try to load THREE again and retry
+        // Handle THREE-related errors (including ColladaLoader and extensibility issues)
+        if (errorMessage.includes('THREE') || errorMessage.includes('three') || 
+            errorMessage.includes('ColladaLoader') || errorMessage.includes('not extensible') ||
+            errorMessage.includes('extensible')) {
+          console.warn('THREE.js error detected, attempting to reload THREE.js with Proxy:', errorMessage);
+          // Try to load THREE again with Proxy wrapper to ensure extensibility
           if (typeof window !== 'undefined') {
             return import('three').then((THREE) => {
-              (window as any).THREE = THREE;
+              const THREE_export = THREE.default || THREE;
+              // Remove existing THREE
+              delete (window as any).THREE;
+              // Create extensible Proxy wrapper
+              (window as any).THREE = new Proxy(THREE_export, {
+                get(target, prop) {
+                  return (target as any)[prop];
+                },
+                set(target, prop, value) {
+                  (target as any)[prop] = value;
+                  return true;
+                },
+                defineProperty(target, prop, descriptor) {
+                  return Reflect.defineProperty(target, prop, descriptor);
+                },
+                has(target, prop) {
+                  return prop in target;
+                },
+                ownKeys(target) {
+                  return Reflect.ownKeys(target);
+                }
+              });
               // Retry react-force-graph import
               loadPromise = null;
               return loadForceGraph();
             }).catch((threeErr) => {
-              console.error('Failed to load THREE.js:', threeErr);
+              console.error('Failed to reload THREE.js:', threeErr);
               loadPromise = null;
               throw new Error('THREE.js is required but could not be loaded');
             });
