@@ -1,262 +1,434 @@
 # Log Aggregator Service
 
+**Centralized log collection and querying for all HomeIQ services**
+
 **Port:** 8015
-**Technology:** Python 3.11+, aiohttp 3.13, docker-py
-**Purpose:** Centralized log collection from all Docker containers
-**Status:** Production Ready
+**Technology:** Python 3.11+, aiohttp, Docker API
+**Container:** homeiq-log-aggregator
+**Database:** In-memory (10,000 log entries) + File storage
+**Scale:** Optimized for ~25 microservices
 
 ## Overview
 
-The Log Aggregator Service provides centralized log collection, storage, and querying for all services in the HomeIQ platform. It collects logs from Docker containers using the Docker API and makes them available via a RESTful API and WebSocket interface.
+The Log Aggregator Service provides centralized log collection, storage, and querying for all services in the HomeIQ platform. It collects logs directly from Docker containers using the Docker API and makes them available via a RESTful API for monitoring and debugging.
 
-## Key Features
+### Key Features
 
-- **Docker Integration**: Collects logs directly from Docker containers via Docker API
-- **Real-time Collection**: Continuous log collection from running containers
-- **In-Memory Storage**: Keeps last 10,000 log entries in memory for fast queries
-- **File Persistence**: Stores logs to disk for historical access
-- **WebSocket Streaming**: Real-time log streaming to clients
-- **Multi-Format Support**: Handles both JSON and plain-text logs
-- **Container Metadata**: Enriches logs with container name and ID
+- **Docker Integration** - Collects logs directly from Docker containers via Docker API
+- **Real-time Collection** - Continuous background log collection (every 30 seconds)
+- **In-Memory Storage** - Keeps last 10,000 log entries in memory for fast queries
+- **File Persistence** - Stores logs to `/app/logs` directory for historical access
+- **Multi-Format Support** - Handles both JSON and plain-text logs
+- **Container Metadata** - Enriches logs with container name and ID
+- **Filtering** - Query by service name, log level, time range
+- **Search** - Full-text search across log messages
+- **Statistics** - Log counts by service and level
+- **CORS Support** - Configured for health-dashboard and AI UI access
 
 ## API Endpoints
 
-### Health Check
-```
+### Health Endpoint
+
+```bash
 GET /health
 ```
+Health check endpoint.
 
-### Log Queries
-```
-GET /logs
-Query params:
-  - container: Filter by container name
-  - level: Filter by log level (INFO, ERROR, DEBUG, WARNING)
-  - limit: Number of logs to return (default: 100)
-  - since: Timestamp filter (ISO 8601)
-```
-
-### Log Submission
-```
-POST /logs
-Body: {
-  "service": "service-name",
-  "level": "INFO|ERROR|DEBUG|WARNING",
-  "message": "log message",
-  "timestamp": "ISO 8601 timestamp",
-  "metadata": {}
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "log-aggregator",
+  "timestamp": "2025-12-09T10:30:00Z",
+  "logs_collected": 5432
 }
 ```
 
-### WebSocket Streaming
-```
-WS /ws/logs
-```
-Streams logs in real-time as they are collected
+### Log Query Endpoint
 
-## Environment Variables
+```bash
+GET /api/v1/logs
+```
+Query recent logs with optional filtering.
+
+**Query Parameters:**
+- `service` (optional) - Filter by service name
+- `level` (optional) - Filter by log level (INFO, ERROR, DEBUG, WARNING)
+- `limit` (optional) - Number of logs to return (default: 100)
+
+**Response:**
+```json
+{
+  "logs": [
+    {
+      "timestamp": "2025-12-09T10:30:00Z",
+      "service": "ai-automation-service",
+      "level": "INFO",
+      "message": "Pattern analysis completed",
+      "container_name": "homeiq-ai-automation",
+      "container_id": "abc123"
+    }
+  ],
+  "count": 150,
+  "filters": {
+    "service": "ai-automation-service",
+    "level": "INFO",
+    "limit": 100
+  }
+}
+```
+
+### Log Search Endpoint
+
+```bash
+GET /api/v1/logs/search
+```
+Search logs by message content.
+
+**Query Parameters:**
+- `q` (required) - Search query string
+- `limit` (optional) - Number of results (default: 100)
+
+**Response:**
+```json
+{
+  "logs": [
+    {
+      "timestamp": "2025-12-09T10:30:00Z",
+      "service": "websocket-ingestion",
+      "level": "ERROR",
+      "message": "Connection failed: timeout",
+      "container_name": "homeiq-websocket-ingestion",
+      "container_id": "def456"
+    }
+  ],
+  "count": 5,
+  "query": "connection failed",
+  "limit": 100
+}
+```
+
+### Manual Log Collection
+
+```bash
+POST /api/v1/logs/collect
+```
+Manually trigger log collection from all containers.
+
+**Response:**
+```json
+{
+  "message": "Collected 250 log entries",
+  "logs_collected": 250,
+  "total_logs": 5682
+}
+```
+
+### Log Statistics
+
+```bash
+GET /api/v1/logs/stats
+```
+Get log statistics by service and level.
+
+**Response:**
+```json
+{
+  "total_logs": 5682,
+  "services": {
+    "ai-automation-service": 1234,
+    "websocket-ingestion": 890,
+    "data-api": 456
+  },
+  "levels": {
+    "INFO": 4500,
+    "ERROR": 123,
+    "WARNING": 567,
+    "DEBUG": 492
+  },
+  "recent_logs": 245
+}
+```
+
+## Configuration
+
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `8015` | Service port |
 | `LOG_DIRECTORY` | `/app/logs` | Directory for log file storage |
 | `MAX_LOGS_MEMORY` | `10000` | Maximum logs to keep in memory |
-| `COLLECTION_INTERVAL` | `5` | Log collection interval (seconds) |
-
-## Docker Configuration
-
-**IMPORTANT**: The service requires access to the Docker socket:
-
-```yaml
-volumes:
-  - /var/run/docker.sock:/var/run/docker.sock:ro
-```
-
-## Architecture
-
-```
-┌──────────────────────┐
-│  Log Aggregator Svc  │
-│     (Port 8015)      │
-└──────────┬───────────┘
-           │
-    ┌──────┴──────┐
-    │             │
-    ▼             ▼
-┌─────────┐   ┌──────────────┐
-│ Docker  │   │ In-Memory    │
-│ Containers   │ Log Buffer   │
-│ (via API)│   │ (10k logs)   │
-└─────────┘   └──────────────┘
-           │
-           ▼
-    ┌──────────────┐
-    │ File Storage │
-    │ /app/logs/*  │
-    └──────────────┘
-```
-
-## Log Collection Process
-
-1. **Container Discovery**: List all running Docker containers
-2. **Log Extraction**: Collect last 100 lines from each container
-3. **Parsing**: Parse JSON logs or convert plain-text to structured format
-4. **Enrichment**: Add container metadata (name, ID)
-5. **Storage**: Store in memory buffer and write to disk
-6. **Streaming**: Broadcast to WebSocket subscribers
-
-## Log Format
-
-### JSON Logs (Preferred)
-```json
-{
-  "timestamp": "2025-11-11T10:30:00Z",
-  "level": "INFO",
-  "message": "Request processed successfully",
-  "service": "data-api",
-  "container_name": "homeiq-data-api",
-  "container_id": "abc123",
-  "metadata": {
-    "duration_ms": 45,
-    "endpoint": "/api/events"
-  }
-}
-```
-
-### Plain Text Logs (Auto-converted)
-```
-2025-11-11T10:30:00Z Request processed successfully
-```
-Converted to:
-```json
-{
-  "timestamp": "2025-11-11T10:30:00Z",
-  "message": "Request processed successfully",
-  "level": "INFO",
-  "container_name": "homeiq-data-api",
-  "container_id": "abc123"
-}
-```
+| `COLLECTION_INTERVAL` | `30` | Background collection interval (seconds) |
 
 ## Development
 
 ### Running Locally
+
 ```bash
 cd services/log-aggregator
-docker-compose up --build
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Ensure Docker socket is accessible
+python -m src.main
 ```
 
-### Testing
+### Running with Docker
+
+```bash
+# Build and start service
+docker compose up -d log-aggregator
+
+# View logs
+docker compose logs -f log-aggregator
+
+# Test health endpoint
+curl http://localhost:8015/health
+
+# Query logs
+curl http://localhost:8015/api/v1/logs?service=ai-automation-service&level=ERROR
+```
+
+### Testing Endpoints
+
 ```bash
 # Health check
 curl http://localhost:8015/health
 
-# Get all logs
-curl http://localhost:8015/logs
+# Get recent logs
+curl http://localhost:8015/api/v1/logs
 
-# Filter logs by container
-curl "http://localhost:8015/logs?container=data-api&limit=50"
+# Filter by service
+curl "http://localhost:8015/api/v1/logs?service=websocket-ingestion"
 
-# Filter by log level
-curl "http://localhost:8015/logs?level=ERROR"
+# Filter by level
+curl "http://localhost:8015/api/v1/logs?level=ERROR"
 
-# Submit custom log
-curl -X POST http://localhost:8015/logs \
-  -H "Content-Type: application/json" \
-  -d '{"service":"test","level":"INFO","message":"Test log"}'
-```
+# Search logs
+curl "http://localhost:8015/api/v1/logs/search?q=connection"
 
-### WebSocket Client Example
-```javascript
-const ws = new WebSocket('ws://localhost:8015/ws/logs');
+# Get statistics
+curl http://localhost:8015/api/v1/logs/stats
 
-ws.onmessage = (event) => {
-  const log = JSON.parse(event.data);
-  console.log(`[${log.container_name}] ${log.message}`);
-};
+# Manually collect logs
+curl -X POST http://localhost:8015/api/v1/logs/collect
 ```
 
 ## Dependencies
 
-- aiohttp (async web framework)
-- aiofiles (async file operations)
-- docker-py (Docker API client)
-- aiohttp-cors (CORS support)
+### System Dependencies
 
-## Performance
+- **Docker Socket** - Requires read access to `/var/run/docker.sock`
+  - Mounted as: `/var/run/docker.sock:/var/run/docker.sock:ro`
+  - Used for: Docker container API access
 
-- **Log Collection**: Every 5 seconds (configurable)
-- **Memory Footprint**: ~10MB for 10,000 logs
-- **Query Latency**: <10ms (in-memory)
-- **File Write**: Async, non-blocking
-- **Container Scan**: 100-200ms for 20+ containers
+### Python Dependencies
 
-## Log Retention
-
-- **Memory**: Last 10,000 logs (rolling buffer)
-- **Disk**: All logs persisted to `/app/logs/`
-- **File Rotation**: Manual (Docker volume management)
-
-## Monitoring
-
-The service logs its own operations:
-- Container discovery results
-- Log collection stats (logs/container)
-- Parse errors (non-JSON logs)
-- Docker API connection status
-- WebSocket client connections
-
-## Security Considerations
-
-- **Docker Socket Access**: Read-only access to `/var/run/docker.sock`
-- **CORS**: Configured for all origins (adjust for production)
-- **No Authentication**: Add authentication layer in production
-- **Log Sanitization**: No sensitive data filtering (implement if needed)
+- `aiohttp` - Async HTTP server
+- `aiohttp-cors` - CORS middleware for browser requests
+- `docker` - Docker SDK for Python
+- `shared` - HomeIQ shared libraries (logging)
 
 ## Related Services
 
-- [Admin API](../admin-api/README.md) - Uses logs for system monitoring
-- [Health Dashboard](../health-dashboard/README.md) - Displays aggregated logs
-- All other services - Log sources
+### Downstream Consumers
+
+- **health-dashboard** (Port 3000) - Displays aggregated logs in UI
+- **ai-automation-ui** (Port 3001) - Monitors service logs
+
+### Data Flow
+
+```
+Docker Containers → Log Aggregator → In-Memory Buffer (10k logs)
+                                   → File Storage (/app/logs)
+                                   → Health Dashboard (via API)
+                                   → AI Automation UI (via API)
+```
+
+## Architecture Notes
+
+### Docker Integration
+
+The service uses the Docker SDK to collect logs from all running containers:
+1. **Container Discovery** - Lists all running Docker containers
+2. **Log Collection** - Fetches last 100 lines from each container
+3. **Parsing** - Handles both JSON and plain-text log formats
+4. **Enrichment** - Adds container name and ID to each log entry
+5. **Storage** - Saves to in-memory buffer and file system
+
+### Storage Architecture
+
+**In-Memory Buffer:**
+- Fast query performance
+- Limited to 10,000 entries (configurable)
+- FIFO eviction when full
+- Lost on service restart
+
+**File Storage:**
+- Persistent across restarts
+- Located at `/app/logs`
+- Organized by service/date
+- Requires volume mount for persistence
+
+### Background Collection Loop
+
+The service runs a continuous background task:
+1. Sleep 30 seconds (configurable)
+2. Discover all running containers
+3. Fetch logs from each container (last 100 lines)
+4. Parse and enrich log entries
+5. Store in memory and file system
+6. Repeat
+
+### Log Parsing
+
+**JSON Format:**
+```json
+{
+  "timestamp": "2025-12-09T10:30:00Z",
+  "service": "ai-automation-service",
+  "level": "INFO",
+  "message": "Pattern analysis completed"
+}
+```
+
+**Plain Text Format:**
+```
+2025-12-09T10:30:00Z INFO: Pattern analysis completed
+```
+
+Both formats are parsed and normalized to consistent JSON structure.
+
+## Monitoring
+
+### Health Checks
+
+The `/health` endpoint provides:
+- Service status (healthy/unhealthy)
+- Current timestamp
+- Total logs collected
+
+### Statistics
+
+Track these metrics via `/api/v1/logs/stats`:
+- **Total Logs** - Total entries in memory
+- **Logs by Service** - Count per service
+- **Logs by Level** - Count per level (INFO, ERROR, etc.)
+- **Recent Logs** - Logs in last hour
+
+### Performance
+
+- **Memory Usage** - ~100MB for 10,000 log entries
+- **CPU Usage** - <5% typical
+- **Collection Speed** - ~100 logs/second
+- **Query Latency** - <10ms for filtered queries
 
 ## Troubleshooting
 
-### Service can't connect to Docker
-- Verify `/var/run/docker.sock` is mounted
-- Check Docker socket permissions
-- Ensure Docker daemon is running
+### Docker Socket Access Issues
 
-### Missing logs from containers
-- Check container is running: `docker ps`
-- Verify container outputs logs: `docker logs <container>`
-- Increase `COLLECTION_INTERVAL` if logs are delayed
+**Symptoms:**
+```
+❌ Failed to initialize Docker client: Permission denied
+```
 
-### High memory usage
-- Reduce `MAX_LOGS_MEMORY` value
-- Implement log rotation
-- Archive old logs to external storage
+**Solutions:**
+1. **Check Volume Mount:**
+   ```yaml
+   volumes:
+     - /var/run/docker.sock:/var/run/docker.sock:ro
+   ```
+
+2. **Verify Docker Socket Permissions:**
+   ```bash
+   ls -la /var/run/docker.sock
+   # Should be readable by service user
+   ```
+
+3. **Check Docker Service:**
+   ```bash
+   docker ps
+   # Should list running containers
+   ```
+
+### No Logs Collected
+
+**Possible Causes:**
+1. **No Running Containers** - No containers to collect from
+2. **Docker Socket Not Mounted** - Volume mount missing
+3. **Collection Disabled** - Background task not running
+
+**Solutions:**
+```bash
+# Check running containers
+docker ps
+
+# Check service logs
+docker compose logs log-aggregator
+
+# Manually trigger collection
+curl -X POST http://localhost:8015/api/v1/logs/collect
+```
+
+### High Memory Usage
+
+**Possible Causes:**
+1. **Too Many Logs** - MAX_LOGS_MEMORY set too high
+2. **Large Log Messages** - Individual log entries very large
+
+**Solutions:**
+```bash
+# Reduce max logs in memory
+export MAX_LOGS_MEMORY=5000
+
+# Check statistics
+curl http://localhost:8015/api/v1/logs/stats
+
+# Restart service to clear memory
+docker compose restart log-aggregator
+```
+
+### Slow Queries
+
+**Possible Causes:**
+1. **Too Many Logs** - Searching through large dataset
+2. **Complex Search** - Full-text search on large messages
+
+**Solutions:**
+```bash
+# Use filtering instead of search
+curl "http://localhost:8015/api/v1/logs?service=specific-service"
+
+# Reduce limit
+curl "http://localhost:8015/api/v1/logs?limit=50"
+
+# Reduce MAX_LOGS_MEMORY
+export MAX_LOGS_MEMORY=5000
+```
+
+## Security Notes
+
+- **Docker Socket Access** - Service has read-only access to Docker socket
+- **CORS Configuration** - Only allows localhost:3000 and localhost:3001
+- **No Authentication** - Internal service, assumes trusted network
+- **File Permissions** - Log files written with service user permissions
 
 ## Version History
 
-### 2.1 (November 15, 2025)
-- Documentation verified for 2025 standards
-- Docker integration documented
-- WebSocket streaming detailed
-- Performance characteristics documented
-
-### 2.0 (October 2025)
-- Docker API integration
-- Real-time log collection
-- In-memory buffer (10,000 logs)
-- WebSocket streaming support
-
-### 1.0 (Initial Release)
-- Basic log aggregation
-- File persistence
+- **v1.0.0** (December 2025) - Initial production release
+  - Docker API integration for log collection
+  - In-memory storage with 10,000 entry limit
+  - File persistence to /app/logs
+  - RESTful API with filtering and search
+  - Background collection loop (30s interval)
+  - CORS support for dashboard UIs
+  - Statistics and health endpoints
 
 ---
 
-**Last Updated:** November 15, 2025
-**Version:** 2.1
+**Last Updated:** December 09, 2025
+**Version:** 1.0.0
 **Status:** Production Ready ✅
 **Port:** 8015

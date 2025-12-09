@@ -2,13 +2,17 @@
 
 **Classical Machine Learning for Pattern Detection and Analysis**
 
-**Port:** 8020
+**Port:** 8020 (internal), exposed as 8025 (external)
 **Technology:** Python 3.11+, FastAPI 0.121, scikit-learn 1.4, pandas 2.3
 **Container:** `homeiq-ml-service`
+**Database:** None (stateless ML service)
+**Scale:** Optimized for ~50-100 devices (single-home, not multi-home)
 
 ## Overview
 
 The ML Service provides classical machine learning algorithms for clustering, anomaly detection, and feature analysis. It complements deep learning models with traditional ML algorithms that are faster, more interpretable, and don't require pre-training for certain tasks.
+
+**Port Mapping Note:** The service runs on internal port 8020 but is exposed as port 8025 externally to avoid port conflicts with other services. All examples in this document use port 8025 (external) for production access. When developing locally without Docker, use port 8020.
 
 ### Key Features
 
@@ -53,7 +57,7 @@ docker compose up -d ml-service
 docker compose logs -f ml-service
 
 # Check health
-curl http://localhost:8020/health
+curl http://localhost:8025/health
 ```
 
 ## API Endpoints
@@ -63,7 +67,7 @@ curl http://localhost:8020/health
 #### `GET /health`
 Service health check
 ```bash
-curl http://localhost:8020/health
+curl http://localhost:8025/health
 ```
 
 ### Clustering
@@ -72,7 +76,7 @@ curl http://localhost:8020/health
 Group data points into clusters
 
 ```bash
-curl -X POST http://localhost:8020/cluster \
+curl -X POST http://localhost:8025/cluster \
   -H "Content-Type: application/json" \
   -d '{
     "data": [[1.0, 2.0], [1.5, 1.8], [5.0, 8.0], [5.5, 8.5]],
@@ -107,7 +111,7 @@ curl -X POST http://localhost:8020/cluster \
 Identify outliers in data
 
 ```bash
-curl -X POST http://localhost:8020/anomaly \
+curl -X POST http://localhost:8025/anomaly \
   -H "Content-Type: application/json" \
   -d '{
     "data": [[1.0, 1.0], [1.2, 1.1], [10.0, 10.0]],
@@ -139,7 +143,7 @@ curl -X POST http://localhost:8020/anomaly \
 Process multiple operations efficiently
 
 ```bash
-curl -X POST http://localhost:8020/batch/process \
+curl -X POST http://localhost:8025/batch/process \
   -H "Content-Type: application/json" \
   -d '{
     "operations": [
@@ -298,10 +302,10 @@ features = [
 
 ```bash
 # Health check
-curl http://localhost:8020/health
+curl http://localhost:8025/health
 
 # Test clustering
-curl -X POST http://localhost:8020/cluster \
+curl -X POST http://localhost:8025/cluster \
   -H "Content-Type: application/json" \
   -d '{
     "data": [[1.0, 2.0], [1.5, 1.8], [5.0, 8.0], [5.5, 8.5]],
@@ -310,7 +314,7 @@ curl -X POST http://localhost:8020/cluster \
   }'
 
 # Test anomaly detection
-curl -X POST http://localhost:8020/detect-anomalies \
+curl -X POST http://localhost:8025/detect-anomalies \
   -H "Content-Type: application/json" \
   -d '{
     "data": [[1.0, 1.0], [1.2, 1.1], [10.0, 10.0]],
@@ -422,10 +426,15 @@ pytest-asyncio==0.23.0    # Async test support
 
 - **Issues:** https://github.com/wtthornton/HomeIQ/issues
 - **Documentation:** `/docs` directory
-- **Health Check:** http://localhost:8020/health
-- **API Docs:** http://localhost:8020/docs
+- **Health Check:** http://localhost:8025/health
+- **API Docs:** http://localhost:8025/docs
 
 ## Version History
+
+### 2.2.1 (December 09, 2025)
+- Updated documentation to reflect port mapping (8020 internal, 8025 external)
+- Clarified port usage for Docker vs local development
+- Updated all API examples to use external port 8025
 
 ### 2.2 (November 15, 2025)
 - Added strict payload validation (10MB cap, 1000 dimensions, 100 clusters) and enforced documented batch limits
@@ -448,7 +457,7 @@ pytest-asyncio==0.23.0    # Async test support
 
 ---
 
-**Last Updated:** November 15, 2025
-**Version:** 2.1
+**Last Updated:** December 09, 2025
+**Version:** 2.2.1
 **Status:** Production Ready ✅
-**Port:** 8020
+**Port:** 8020 (internal), 8025 (external)
