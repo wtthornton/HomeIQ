@@ -2,14 +2,17 @@
 
 **Centralized Device Discovery and Intelligence Processing for HomeIQ**
 
-**Port:** 8028
+**Port:** 8019 (internal), exposed as 8028 (external)
 **Technology:** Python 3.11+, FastAPI 0.121, SQLAlchemy 2.0, scikit-learn 1.7.2
 **Container:** `homeiq-device-intelligence`
 **Database:** SQLite (device_intelligence.db - 7 tables)
+**Scale:** Optimized for ~50-100 devices (single-home, not multi-home)
 
 ## Overview
 
 The Device Intelligence Service provides comprehensive device discovery, capability analysis, and intelligent recommendations for Home Assistant devices. It powers **Epic AI-2 (Device Intelligence)** by maintaining a SQLite database of discovered devices, their capabilities, and usage patterns, enabling fast lookups and predictive analytics.
+
+**Port Mapping Note:** The service runs on internal port 8019 but is exposed as port 8028 externally to avoid port conflicts with other services. All examples in this document use port 8028 (external) for production access. When developing locally without Docker, use port 8019.
 
 ### Key Features
 
@@ -45,8 +48,8 @@ pip install -r requirements.txt
 # Run database migrations
 alembic upgrade head
 
-# Start service
-uvicorn src.main:app --reload --port 8028
+# Start service (use internal port 8019 for local development)
+uvicorn src.main:app --reload --port 8019
 ```
 
 ### Running with Docker
