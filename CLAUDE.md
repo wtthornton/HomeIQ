@@ -433,6 +433,11 @@ git push origin feature/amazing-feature
 - **USE:** [docs/api/API_REFERENCE.md](docs/api/API_REFERENCE.md) - All 65 endpoints
 - **IGNORE:** All other API_*.md files (marked with redirect notices)
 
+**Port Mapping:**
+- **USE:** [docs/PORT_MAPPING_REFERENCE.md](docs/PORT_MAPPING_REFERENCE.md) - All service port mappings (internal vs external)
+- **KEY INFO:** Docker port conflicts resolved via external:internal mapping (e.g., 8024:8018)
+- **CRITICAL:** Always use external ports for production access, internal ports for local dev
+
 **Architecture:**
 - **USE:** [docs/architecture/](docs/architecture/) - 27 current docs
 - **KEY FILES:**
@@ -450,6 +455,7 @@ git push origin feature/amazing-feature
 | Need | Location |
 |------|----------|
 | API endpoints | docs/api/API_REFERENCE.md |
+| Port mappings | docs/PORT_MAPPING_REFERENCE.md |
 | Architecture | docs/architecture/ |
 | Deployment | docs/DEPLOYMENT_GUIDE.md |
 | Quick start | docs/QUICK_START.md |
@@ -836,8 +842,13 @@ docker compose logs websocket-ingestion
 
 **Document Metadata:**
 - **Created:** October 23, 2025
-- **Last Updated:** December 08, 2025
-- **Version:** 5.0.0 (Comprehensive guide - includes structure, workflows, patterns)
-- **Previous Version:** 4.0.0 (Performance patterns only)
+- **Last Updated:** December 09, 2025
+- **Version:** 5.0.1 (Added PORT_MAPPING_REFERENCE.md documentation)
+- **Previous Version:** 5.0.0 (Comprehensive guide - includes structure, workflows, patterns)
 - **Next Review:** Quarterly or after major architectural changes
 - **Maintainer:** HomeIQ Development Team
+
+**Change Log v5.0.1:**
+- Added PORT_MAPPING_REFERENCE.md to documentation structure
+- Clarified external vs internal port usage for Docker services
+- Updated "Finding Documentation" table with port mapping reference

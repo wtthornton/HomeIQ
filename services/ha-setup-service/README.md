@@ -1,385 +1,686 @@
 # HA Setup & Recommendation Service
 
+**Automated health monitoring, setup assistance, and performance optimization for Home Assistant**
+
+**Port:** 8020 (internal), exposed as 8027 (external)
+**Technology:** Python 3.11+, FastAPI, SQLAlchemy, AsyncIO
+**Container:** homeiq-ha-setup-service
+**Database:** SQLite (ha-setup.db)
+**Scale:** Optimized for single Home Assistant instance
+
 ## Overview
 
-The HA Setup & Recommendation Service provides automated health monitoring, setup assistance, and performance optimization for Home Assistant environments integrated with HA Ingestor.
+The HA Setup & Recommendation Service provides comprehensive health monitoring, automated setup wizards, and performance optimization for Home Assistant environments integrated with HomeIQ. It continuously monitors the health of Home Assistant, integrations (MQTT, Zigbee2MQTT), and HomeIQ services, providing actionable recommendations.
 
-## Features
+**Port Mapping Note:** This service runs on port 8020 internally within the Docker network, but is exposed as port 8027 externally for host access. When making requests from outside Docker, use port 8027. Internal services should use port 8020.
 
-### ✅ Environment Health Monitoring
-- Real-time health score (0-100) with intelligent weighting
-- Home Assistant core status monitoring
-- Integration health verification
-- Performance metrics tracking
-- Automatic issue detection
+### Key Features
 
-### ✅ Integration Health Checks
-- **HA Authentication**: Token validation and permissions
-- **MQTT**: Broker connectivity and discovery status
-- **Zigbee2MQTT**: Addon status and device monitoring
-- **Device Discovery**: Registry sync verification
-- **HA Ingestor Services**: Data API and Admin API health
+- **Environment Health Monitoring** - Real-time health score (0-100) with intelligent weighting
+- **Integration Health Checks** - Monitor HA authentication, MQTT, Zigbee2MQTT, device discovery, HomeIQ services
+- **Continuous Monitoring** - Background health monitoring with configurable intervals
+- **Health Trends** - Track health score trends over time
+- **Setup Wizards** - Guided setup for MQTT and Zigbee2MQTT integrations
+- **Zigbee2MQTT Bridge Management** - Monitor and recover Zigbee2MQTT bridge connectivity
+- **Performance Optimization** - Automated performance analysis and recommendations
+- **Configuration Validation** - Detect and fix Home Assistant configuration issues (Epic 32)
+- **Area Assignment Fixes** - Automatically fix missing or incorrect area assignments
 
-### ⏳ Coming Soon
-- Automated setup wizards (Epic 29)
-- Performance optimization engine (Epic 30)
-- Continuous monitoring and alerting (Epic 28)
+## API Endpoints
 
-## Quick Start
-
-### Prerequisites
-
-- Docker and Docker Compose installed
-- Home Assistant running at `192.168.1.86:8123`
-- HA_TOKEN configured in `infrastructure/.env.websocket` ✅ (Already set up!)
-
-### Deployment
-
-#### Option 1: Docker Compose (Recommended)
+### Health Endpoints
 
 ```bash
-# The service automatically uses HA_TOKEN from infrastructure/.env.websocket
-docker-compose up -d ha-setup-service
+GET /health
 ```
+Simple health check for container orchestration.
 
-#### Option 2: Standalone Docker
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "ha-setup-service",
+  "timestamp": "2025-12-09T10:30:00Z",
+  "version": "1.0.0"
+}
+```
 
 ```bash
-# Build the image
-docker build -t homeiq-setup-service ./services/ha-setup-service
-
-# Run the container (HA_TOKEN from .env.websocket)
-docker run -d -p 8010:8010 \
-  --name homeiq-setup-service \
-  --env-file infrastructure/.env.websocket \
-  -e DATABASE_URL=sqlite+aiosqlite:///./data/ha-setup.db \
-  -e DATA_API_URL=http://homeiq-data-api:8006 \
-  -e ADMIN_API_URL=http://homeiq-admin-api:8003 \
-  -v ha_setup_data:/app/data \
-  homeiq-setup-service
+GET /api/health/environment
 ```
+Comprehensive environment health status.
 
-### Verify Deployment
+**Response:**
+```json
+{
+  "health_score": 95,
+  "ha_status": "healthy",
+  "integrations": [
+    {
+      "integration_name": "Home Assistant",
+      "integration_type": "core",
+      "status": "healthy",
+      "is_configured": true,
+      "is_connected": true,
+      "last_check": "2025-12-09T10:30:00Z"
+    }
+  ],
+  "performance_metrics": {
+    "cpu_usage": 15.5,
+    "memory_usage": 42.3,
+    "disk_usage": 35.7
+  },
+  "issues_detected": []
+}
+```
 
 ```bash
-# Check service health
-curl http://localhost:8010/health
-
-# Check environment health
-curl http://localhost:8010/api/health/environment
-
-# Check integration health
-curl http://localhost:8010/api/health/integrations
+GET /api/health/trends?hours=24
 ```
+Health trends over specified time period.
+
+**Query Parameters:**
+- `hours` (optional) - Number of hours to analyze (default: 24)
+
+**Response:**
+```json
+{
+  "average_score": 93.5,
+  "min_score": 85,
+  "max_score": 98,
+  "trend": "stable",
+  "data_points": 24
+}
+```
+
+```bash
+GET /api/health/integrations
+```
+Detailed integration health status.
+
+**Response:**
+```json
+{
+  "timestamp": "2025-12-09T10:30:00Z",
+  "total_integrations": 5,
+  "healthy_count": 4,
+  "warning_count": 1,
+  "error_count": 0,
+  "not_configured_count": 0,
+  "integrations": [
+    {
+      "integration_name": "MQTT",
+      "integration_type": "mqtt",
+      "status": "healthy",
+      "is_configured": true,
+      "is_connected": true,
+      "check_details": {
+        "broker": "192.168.1.86:1883",
+        "devices_discovered": 15
+      }
+    }
+  ]
+}
+```
+
+### Setup Wizard Endpoints
+
+```bash
+POST /api/setup/wizard/{integration_type}/start
+```
+Start setup wizard for integration (zigbee2mqtt, mqtt).
+
+**Response:**
+```json
+{
+  "session_id": "wizard-abc123",
+  "integration_type": "zigbee2mqtt",
+  "status": "started",
+  "timestamp": "2025-12-09T10:30:00Z"
+}
+```
+
+```bash
+POST /api/setup/wizard/{session_id}/step/{step_number}
+```
+Execute setup wizard step.
+
+**Request:**
+```json
+{
+  "mqtt_broker": "192.168.1.86",
+  "mqtt_port": 1883
+}
+```
+
+### Zigbee2MQTT Bridge Management
+
+```bash
+GET /api/zigbee2mqtt/bridge/status
+```
+Get comprehensive Zigbee2MQTT bridge health status.
+
+**Response:**
+```json
+{
+  "bridge_state": "online",
+  "is_connected": true,
+  "health_score": 95,
+  "device_count": 15,
+  "response_time_ms": 45,
+  "signal_strength_avg": -65,
+  "network_health_score": 90,
+  "consecutive_failures": 0,
+  "recommendations": [],
+  "last_check": "2025-12-09T10:30:00Z",
+  "recovery_attempts": []
+}
+```
+
+```bash
+POST /api/zigbee2mqtt/bridge/recovery
+```
+Attempt to recover Zigbee2MQTT bridge connectivity.
+
+**Query Parameters:**
+- `force` (optional) - Force recovery attempt (default: false)
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Bridge recovered successfully",
+  "timestamp": "2025-12-09T10:30:00Z"
+}
+```
+
+```bash
+POST /api/zigbee2mqtt/bridge/restart
+```
+Restart Zigbee2MQTT bridge (alias for forced recovery).
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Bridge restarted successfully",
+  "timestamp": "2025-12-09T10:30:00Z"
+}
+```
+
+```bash
+GET /api/zigbee2mqtt/bridge/health
+```
+Simple health check for bridge status.
+
+**Response:**
+```json
+{
+  "healthy": true,
+  "state": "online",
+  "health_score": 95,
+  "device_count": 15,
+  "last_check": "2025-12-09T10:30:00Z"
+}
+```
+
+### Zigbee2MQTT Setup Wizard
+
+```bash
+POST /api/zigbee2mqtt/setup/start
+```
+Start enhanced Zigbee2MQTT setup wizard.
+
+**Request:**
+```json
+{
+  "mqtt_broker": "192.168.1.86",
+  "mqtt_port": 1883,
+  "coordinator_type": "ConBee II"
+}
+```
+
+```bash
+POST /api/zigbee2mqtt/setup/{wizard_id}/continue
+```
+Continue wizard to next step.
+
+```bash
+GET /api/zigbee2mqtt/setup/{wizard_id}/status
+```
+Get current wizard status.
+
+```bash
+DELETE /api/zigbee2mqtt/setup/{wizard_id}
+```
+Cancel active setup wizard.
+
+### Performance Optimization
+
+```bash
+GET /api/optimization/analyze
+```
+Run comprehensive performance analysis.
+
+**Response:**
+```json
+{
+  "bottlenecks": [
+    {
+      "component": "database",
+      "severity": "moderate",
+      "description": "High query latency detected",
+      "recommendation": "Add database indexes"
+    }
+  ],
+  "overall_score": 75
+}
+```
+
+```bash
+GET /api/optimization/recommendations
+```
+Get prioritized optimization recommendations.
+
+**Response:**
+```json
+{
+  "timestamp": "2025-12-09T10:30:00Z",
+  "total_recommendations": 3,
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "performance",
+      "title": "Optimize database queries",
+      "description": "Add indexes to frequently queried tables",
+      "impact": "Reduce query latency by 50%"
+    }
+  ]
+}
+```
+
+### Configuration Validation (Epic 32)
+
+```bash
+GET /api/v1/validation/ha-config
+```
+Validate Home Assistant configuration and get suggestions.
+
+**Query Parameters:**
+- `category` (optional) - Filter by issue category (e.g., "missing_area_assignment")
+- `min_confidence` (optional) - Minimum confidence score 0-100 (default: 0)
+
+**Response:**
+```json
+{
+  "issues": [
+    {
+      "category": "missing_area_assignment",
+      "entity_id": "light.hue_office_back_left",
+      "description": "Entity is not assigned to an area",
+      "suggested_fix": {
+        "area_id": "office",
+        "confidence": 95
+      }
+    }
+  ],
+  "total_issues": 5,
+  "timestamp": "2025-12-09T10:30:00Z"
+}
+```
+
+```bash
+POST /api/v1/validation/apply-fix
+```
+Apply single area assignment fix.
+
+**Request:**
+```json
+{
+  "entity_id": "light.hue_office_back_left",
+  "area_id": "office"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "entity_id": "light.hue_office_back_left",
+  "area_id": "office",
+  "message": "Area assignment updated successfully"
+}
+```
+
+```bash
+POST /api/v1/validation/apply-bulk-fixes
+```
+Apply multiple area assignment fixes in batch.
+
+**Request:**
+```json
+{
+  "fixes": [
+    {
+      "entity_id": "light.hue_office_back_left",
+      "area_id": "office"
+    },
+    {
+      "entity_id": "light.hue_bedroom_main",
+      "area_id": "bedroom"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "applied": 2,
+  "failed": 0,
+  "results": [
+    {
+      "entity_id": "light.hue_office_back_left",
+      "success": true
+    }
+  ]
+}
+```
+
+### Service Info
+
+```bash
+GET /
+```
+Root endpoint with service information and available endpoints.
 
 ## Configuration
 
 ### Environment Variables
 
-**IMPORTANT**: `HA_TOKEN` is automatically loaded from `infrastructure/.env.websocket` - you don't need to set it!
+#### Service Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SERVICE_NAME` | `ha-setup-service` | Service name for logging |
+| `SERVICE_PORT` | `8020` | Internal service port |
+| `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
+
+#### Home Assistant Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HA_URL` | `http://192.168.1.86:8123` | Home Assistant URL |
-| `HA_TOKEN` | (from `.env.websocket`) | HA long-lived access token |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./data/ha-setup.db` | SQLite database URL |
+| `HA_TOKEN` | *From env* | HA long-lived access token (auto-loaded from infrastructure/.env.websocket) |
+| `HOME_ASSISTANT_TOKEN` | *From env* | Alternative token variable name |
+
+#### Database Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `sqlite+aiosqlite:////app/data/ha-setup.db` | SQLite database URL (absolute path for Docker) |
+
+#### API Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `DATA_API_URL` | `http://homeiq-data-api:8006` | Data API URL |
 | `ADMIN_API_URL` | `http://homeiq-admin-api:8003` | Admin API URL |
+
+#### Health Check Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `HEALTH_CHECK_INTERVAL` | `60` | Health check interval (seconds) |
 | `INTEGRATION_CHECK_INTERVAL` | `300` | Integration check interval (seconds) |
 
-### Where HA_TOKEN is Configured
+#### Performance Monitoring
 
-The service uses the existing `infrastructure/.env.websocket` file, which contains:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_PERFORMANCE_MONITORING` | `True` | Enable performance monitoring |
+| `PERFORMANCE_SAMPLE_INTERVAL` | `30` | Performance sampling interval (seconds) |
+
+## Development
+
+### Running Locally
+
 ```bash
-HA_TOKEN=eyJhbGci...  # Your existing long-lived access token
+cd services/ha-setup-service
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Set required environment variables
+export HA_TOKEN="your-ha-long-lived-token"
+
+uvicorn src.main:app --reload --port 8020
 ```
 
-**No additional configuration needed!** ✅
+### Running with Docker
 
-## API Endpoints
+```bash
+# Build and start service
+docker compose up -d ha-setup-service
+
+# View logs
+docker compose logs -f ha-setup-service
+
+# Test health endpoint (external port)
+curl http://localhost:8027/health
+
+# Test from inside Docker network (internal port)
+docker exec homeiq-health-dashboard curl http://ha-setup-service:8020/health
+```
+
+### Testing Endpoints
+
+```bash
+# Health check
+curl http://localhost:8027/health
+
+# Environment health
+curl http://localhost:8027/api/health/environment
+
+# Integration health
+curl http://localhost:8027/api/health/integrations
+
+# Health trends (24 hours)
+curl "http://localhost:8027/api/health/trends?hours=24"
+
+# Zigbee2MQTT bridge status
+curl http://localhost:8027/api/zigbee2mqtt/bridge/status
+
+# Configuration validation
+curl http://localhost:8027/api/v1/validation/ha-config
+
+# Performance analysis
+curl http://localhost:8027/api/optimization/analyze
+```
+
+## Dependencies
+
+### Service Dependencies
+
+- **Home Assistant** - External instance for integration health monitoring
+- **data-api** (Port 8006) - Historical data queries
+- **admin-api** (Port 8003) - System control
+- **MQTT Broker** (Optional) - MQTT integration health checks (typically 192.168.1.86:1883)
+- **Zigbee2MQTT** (Optional) - Zigbee integration monitoring
+- **SQLite Database** - Health history and validation results
+
+### Python Dependencies
+
+- `fastapi` - Web framework
+- `uvicorn` - ASGI server
+- `sqlalchemy` - Database ORM with async support
+- `aiosqlite` - Async SQLite driver
+- `pydantic` - Configuration management and validation
+- `pydantic-settings` - Environment variable loading
+- `aiohttp` - Async HTTP client for HA API calls
+- `shared` - HomeIQ shared libraries (logging, observability)
+
+## Related Services
+
+### Upstream Dependencies
+
+- **Home Assistant** - Core integration being monitored
+- **data-api** - Health metrics and historical data
+- **admin-api** - System administration
+
+### Downstream Consumers
+
+- **health-dashboard** - Displays health monitoring UI
+- **ai-automation-ui** - Shows integration status
+
+## Architecture Notes
+
+### Health Monitoring System
+
+The service implements a comprehensive health monitoring system:
+1. **Continuous Monitoring** - Background task runs at configurable intervals
+2. **Health Score Calculation** - Weighted scoring based on component health
+3. **Trend Analysis** - Track health over time to detect degradation
+4. **Issue Detection** - Automatically detect and report issues
+5. **Database Storage** - Store health history for analysis
+
+### Integration Health Checks
+
+Monitors these integrations:
+- **Home Assistant Core** - API authentication and availability
+- **MQTT Broker** - Connection and message delivery
+- **Zigbee2MQTT** - Addon status and device connectivity
+- **Device Discovery** - Registry sync verification
+- **Data API** - HomeIQ service health
+- **Admin API** - HomeIQ service health
+
+### Setup Wizards
+
+Guided setup processes for:
+- **MQTT Integration** - Configure MQTT broker connection
+- **Zigbee2MQTT Setup** - Configure Zigbee coordinator and devices
+- **Session Management** - Track wizard progress and state
+
+### Zigbee2MQTT Bridge Management
+
+Advanced bridge monitoring and recovery:
+- **Health Monitoring** - Track bridge state, device count, response time
+- **Signal Strength** - Monitor Zigbee network quality
+- **Automatic Recovery** - Attempt recovery on failures
+- **Recovery History** - Track recovery attempts and success rates
+
+### Configuration Validation (Epic 32)
+
+Validates Home Assistant configuration:
+- **Missing Area Assignments** - Detect entities without areas
+- **Incorrect Area Assignments** - Suggest better area assignments
+- **Bulk Fixes** - Apply multiple fixes in one operation
+- **Confidence Scoring** - AI-based confidence for suggestions
+
+## Monitoring
 
 ### Health Checks
 
-#### Simple Health Check
-```http
-GET /health
-```
-**Response**:
+- **Liveness:** `GET /health` - Service is running
+- **Environment Health:** `GET /api/health/environment` - Complete system status
+- **Integration Health:** `GET /api/health/integrations` - All integration statuses
+
+### Logging
+
+All logs follow structured logging format:
 ```json
 {
-  "status": "healthy",
+  "timestamp": "2025-12-09T10:30:00Z",
+  "level": "INFO",
   "service": "ha-setup-service",
-  "timestamp": "2025-01-18T16:00:00Z",
-  "version": "1.0.0"
+  "event": "environment_health",
+  "health_score": 95,
+  "issues_detected": 0
 }
 ```
 
-#### Environment Health
-```http
-GET /api/health/environment
-```
-**Response**:
-```json
-{
-  "health_score": 85,
-  "ha_status": "healthy",
-  "ha_version": "2025.1.0",
-  "integrations": [...],
-  "performance": {...},
-  "issues_detected": [],
-  "timestamp": "2025-01-18T16:00:00Z"
-}
-```
+### Database Schema
 
-#### Integration Health
-```http
-GET /api/health/integrations
-```
-**Response**:
-```json
-{
-  "timestamp": "2025-01-18T16:00:00Z",
-  "total_integrations": 6,
-  "healthy_count": 4,
-  "warning_count": 1,
-  "error_count": 0,
-  "not_configured_count": 1,
-  "integrations": [...]
-}
-```
+**Tables:**
+- `health_checks` - Historical health check results
+- `integration_health` - Integration health history
+- `wizard_sessions` - Setup wizard sessions
+- `recovery_attempts` - Zigbee2MQTT recovery attempts
+- `validation_results` - Configuration validation findings
 
-## Frontend Integration
+## Security Notes
 
-### Dashboard Tab
-
-The Setup tab is available at `http://localhost:3000` (Setup tab).
-
-Add to Dashboard.tsx:
-```typescript
-import { SetupTab } from './tabs/SetupTab';
-
-const tabs = [
-  // ... existing tabs
-  {
-    name: 'Setup',
-    icon: '🔧',
-    component: <SetupTab />
-  }
-];
-```
-
-### Custom Hook Usage
-
-```typescript
-import { useEnvironmentHealth } from '../hooks/useEnvironmentHealth';
-
-function MyComponent() {
-  const { health, loading, error, refetch } = useEnvironmentHealth();
-  
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  
-  return (
-    <div>
-      Health Score: {health?.health_score}
-      <button onClick={refetch}>Refresh</button>
-    </div>
-  );
-}
-```
-
-## Health Score Algorithm
-
-**Total Score**: 0-100 points
-
-**Component Weighting**:
-- **HA Core**: 40 points (healthy=40, warning=20, critical=0)
-- **Integrations**: 40 points (proportional to healthy count)
-- **Performance**: 20 points (based on response time)
-
-**Status Determination**:
-- **Healthy**: Score >= 80, no issues
-- **Warning**: Score >= 50
-- **Critical**: Score < 50
-
-## Integration Checks
-
-| Integration | What It Checks |
-|-------------|----------------|
-| **HA Authentication** | Token validity, permissions, HA version |
-| **MQTT** | Integration config, broker connectivity, discovery |
-| **Zigbee2MQTT** | Addon status, bridge state, device count |
-| **Device Discovery** | Registry access, HA Ingestor sync verification |
-| **Data API** | Service health, connectivity |
-| **Admin API** | Service health, connectivity |
-
-## Database Schema
-
-### EnvironmentHealth Table
-```sql
-CREATE TABLE environment_health (
-    id INTEGER PRIMARY KEY,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    health_score INTEGER NOT NULL,
-    ha_status TEXT NOT NULL,
-    ha_version TEXT,
-    integrations_status JSON NOT NULL,
-    performance_metrics JSON NOT NULL,
-    issues_detected JSON
-);
-```
-
-### IntegrationHealth Table
-```sql
-CREATE TABLE integration_health (
-    id INTEGER PRIMARY KEY,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    integration_name TEXT NOT NULL,
-    integration_type TEXT NOT NULL,
-    status TEXT NOT NULL,
-    is_configured BOOLEAN DEFAULT FALSE,
-    is_connected BOOLEAN DEFAULT FALSE,
-    error_message TEXT,
-    last_check DATETIME,
-    check_details JSON
-);
-```
+- **HA Token** - Automatically loaded from `infrastructure/.env.websocket`
+- **CORS Configuration** - Allows localhost:3000 and localhost:3001
+- **No Public Exposure** - Internal service, assumes trusted network
+- **SQLite Security** - Database file permissions restricted to service user
 
 ## Troubleshooting
 
 ### Service Won't Start
+
+**Check logs:**
 ```bash
-# Check if HA_TOKEN is set
-docker exec homeiq-setup-service env | grep HA_TOKEN
-
-# Check logs
-docker logs homeiq-setup-service
-
-# Verify HA connectivity
-curl http://192.168.1.86:8123/api/
+docker compose logs ha-setup-service
 ```
 
-### Health Check Fails
+**Common issues:**
+- Missing `HA_TOKEN` - Verify `infrastructure/.env.websocket`
+- Database initialization failed - Check `/app/data` volume permissions
+- Port 8027 in use - Change port in docker-compose.yml
+
+### HA Authentication Failures
+
+**Symptoms:**
+- Integration health shows "error" status
+- "Invalid authentication" errors in logs
+
+**Solutions:**
 ```bash
-# Check if service is running
-docker ps | grep setup-service
+# Verify HA token
+curl -H "Authorization: Bearer $HA_TOKEN" http://192.168.1.86:8123/api/
 
-# Test health endpoint
-curl http://localhost:8010/health
+# Check environment variable
+docker exec homeiq-ha-setup-service env | grep HA_TOKEN
 
-# Check database
-docker exec homeiq-setup-service ls -la /app/data/
+# Regenerate token in Home Assistant
+# Profile → Long-Lived Access Tokens → Create Token
 ```
 
-### Integration Checks Return Errors
+### Zigbee2MQTT Bridge Issues
+
+**Check bridge status:**
 ```bash
-# Verify HA is accessible
-curl -H "Authorization: Bearer YOUR_TOKEN" http://192.168.1.86:8123/api/
-
-# Check MQTT integration
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-  http://192.168.1.86:8123/api/config/config_entries/entry
-
-# Check Zigbee2MQTT
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-  http://192.168.1.86:8123/api/states | grep zigbee2mqtt
+curl http://localhost:8027/api/zigbee2mqtt/bridge/status
 ```
 
-## Development
-
-### Local Development
-
+**Attempt recovery:**
 ```bash
-# Install dependencies
-cd services/ha-setup-service
-pip install -r requirements.txt
-
-# Run locally (uses infrastructure/.env.websocket for HA_TOKEN)
-export $(cat ../../infrastructure/.env.websocket | xargs)
-python -m src.main
+curl -X POST http://localhost:8027/api/zigbee2mqtt/bridge/recovery
 ```
 
-### Testing
-
+**Force restart:**
 ```bash
-# Run tests (when implemented)
-pytest tests/
-
-# Run with coverage
-pytest --cov=src tests/
+curl -X POST http://localhost:8027/api/zigbee2mqtt/bridge/restart
 ```
-
-## Performance
-
-### Response Times
-- Simple health check: < 5ms
-- Environment health: 200-500ms
-- Integration checks: 200-500ms
-
-### Resource Usage
-- Memory: ~100MB
-- CPU: < 5% idle, < 20% under load
-- Disk: < 10MB SQLite database
-
-## Security
-
-- ✅ Non-root Docker user
-- ✅ HA_TOKEN from secure environment file
-- ✅ No hardcoded secrets
-- ✅ Proper exception handling (no sensitive data leaks)
-- ✅ CORS configured for frontend access only
-
-## Support
-
-For issues or questions:
-1. Check service logs: `docker logs homeiq-setup-service`
-2. Verify HA connectivity
-3. Check integration status via API
-4. Review documentation in `/docs`
-
-## Version
-
-**Current Version**: 1.0.0  
-**Last Updated**: January 18, 2025  
-**Epic**: 27 (HA Setup & Recommendation Service Foundation)  
-**Stories**: 27.1, 27.2 (Complete)
-
----
-
-**Note**: This service is part of the HA Ingestor ecosystem and requires:
-- Home Assistant running at 192.168.1.86:8123
-- HA_TOKEN configured in `infrastructure/.env.websocket` ✅
-- Data API service (port 8006)
-- Admin API service (port 8003)
-
-
-## Related Documentation
-
-- [Health Dashboard](../health-dashboard/README.md) - Frontend integration
-- [Admin API](../admin-api/README.md) - System control
-- [Data API](../data-api/README.md) - Historical queries
-- [API Reference](../../docs/api/API_REFERENCE.md)
-- [CLAUDE.md](../../CLAUDE.md)
 
 ## Version History
 
-### 1.1 (November 15, 2025)
-- Documentation verified for 2025 standards
-- Environment health monitoring documented
-- Integration health checks comprehensive guide
-- Frontend integration examples
-
-### 1.0 (January 2025 - Epic 27)
-- Environment health monitoring (Story 27.1)
-- Integration health checks (Story 27.2)
-- Health score algorithm
-- Frontend integration (Setup tab)
+- **v1.0.0** (December 2025) - Initial production release
+  - Environment health monitoring with 0-100 scoring
+  - Integration health checks (HA, MQTT, Zigbee2MQTT, HomeIQ services)
+  - Continuous monitoring with configurable intervals
+  - Health trend analysis
+  - Setup wizards for MQTT and Zigbee2MQTT
+  - Zigbee2MQTT bridge management and recovery
+  - Performance optimization engine
+  - Configuration validation (Epic 32)
+  - Area assignment fixes
+  - Lifespan context manager pattern (Context7 best practices)
 
 ---
 
-**Last Updated:** November 15, 2025
-**Version:** 1.1
+**Last Updated:** December 09, 2025
+**Version:** 1.0.0
 **Status:** Production Ready ✅
-**Port:** 8027 (External) → 8020 (Internal)
-**Epic:** 27 (HA Setup & Recommendation Service)
+**Port:** 8020 (internal) / 8027 (external)

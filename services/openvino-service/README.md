@@ -2,13 +2,17 @@
 
 **Transformer-Based Embeddings and Re-ranking Service**
 
-**Port:** 8019
+**Port:** 8019 (internal), exposed as 8026 (external)
 **Technology:** Python 3.11+, FastAPI 0.121, sentence-transformers 3.3, PyTorch 2.3 (CPU)
 **Container:** `homeiq-openvino-service`
+**Database:** None (model inference only)
+**Scale:** Optimized for ~50-100 devices (single-home, not multi-home)
 
 ## Overview
 
 The OpenVINO Service provides transformer-based model inference for embeddings, re-ranking, and classification tasks. Originally designed for Intel OpenVINO optimization, it currently uses sentence-transformers with CPU-optimized PyTorch for broad compatibility.
+
+**Port Mapping Note:** The service runs on internal port 8019 but is exposed as port 8026 externally to avoid port conflicts with other services. All examples in this document use port 8026 (external) for production access. When developing locally without Docker, use port 8019.
 
 **Note:** Service name retained for API compatibility. OpenVINO quantization temporarily removed due to dependency conflicts; currently using standard sentence-transformers models.
 
@@ -59,7 +63,7 @@ docker compose up -d openvino-service
 docker compose logs -f openvino-service
 
 # Check health
-curl http://localhost:8019/health
+curl http://localhost:8026/health
 ```
 
 ## API Endpoints
@@ -69,7 +73,7 @@ curl http://localhost:8019/health
 #### `GET /health`
 Service health check
 ```bash
-curl http://localhost:8019/health
+curl http://localhost:8026/health
 ```
 
 ### Text Embeddings
@@ -78,7 +82,7 @@ curl http://localhost:8019/health
 Convert text to 1024-dimensional embeddings (max 100 texts, 4,000 chars each by default) [Epic 47: BGE-Large]
 
 ```bash
-curl -X POST http://localhost:8019/embeddings \
+curl -X POST http://localhost:8026/embeddings \
   -H "Content-Type: application/json" \
   -d '{
     "texts": ["office light", "bedroom lamp"],
@@ -109,7 +113,7 @@ curl -X POST http://localhost:8019/embeddings \
 Re-rank candidates based on query relevance (max 200 candidates / top_k capped at 50)
 
 ```bash
-curl -X POST http://localhost:8019/rerank \
+curl -X POST http://localhost:8026/rerank \
   -H "Content-Type: application/json" \
   -d '{
     "query": "office light 1",
@@ -151,7 +155,7 @@ curl -X POST http://localhost:8019/rerank \
 Classify automation patterns (pattern description up to 4,000 chars by default)
 
 ```bash
-curl -X POST http://localhost:8019/classify \
+curl -X POST http://localhost:8026/classify \
   -H "Content-Type: application/json" \
   -d '{
     "pattern_description": "Turn on office lights at 6 PM on weekdays"
@@ -333,15 +337,15 @@ category = await classify(description)
 
 ```bash
 # Health check
-curl http://localhost:8019/health
+curl http://localhost:8026/health
 
 # Generate embeddings
-curl -X POST http://localhost:8019/embed \
+curl -X POST http://localhost:8026/embed \
   -H "Content-Type: application/json" \
   -d '{"texts": ["office light", "bedroom lamp"], "normalize": true}'
 
 # Re-rank candidates
-curl -X POST http://localhost:8019/rerank \
+curl -X POST http://localhost:8026/rerank \
   -H "Content-Type: application/json" \
   -d '{
     "query": "office light",
@@ -352,7 +356,7 @@ curl -X POST http://localhost:8019/rerank \
   }'
 
 # Classify pattern
-curl -X POST http://localhost:8019/classify \
+curl -X POST http://localhost:8026/classify \
   -H "Content-Type: application/json" \
   -d '{"pattern_description": "Turn on lights at sunset"}'
 ```
@@ -497,8 +501,8 @@ Logs include:
 
 - **Issues:** https://github.com/wtthornton/HomeIQ/issues
 - **Documentation:** `/docs` directory
-- **Health Check:** http://localhost:8019/health
-- **API Docs:** http://localhost:8019/docs
+- **Health Check:** http://localhost:8026/health
+- **API Docs:** http://localhost:8026/docs
 
 ## Version History
 
