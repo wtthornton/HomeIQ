@@ -178,6 +178,75 @@ class EnhancedHAConnectionManager:
         self.circuit_breakers: Dict[str, CircuitBreaker] = {}
         self.connection_stats: Dict[str, Dict[str, Any]] = {}
         self._load_connection_configs()
+    
+    def _normalize_websocket_url(self, url: str, connection_type: ConnectionType) -> str:
+        """
+        Normalize URL to WebSocket format
+        
+        Args:
+            url: Input URL (can be HTTP, HTTPS, or already WebSocket format)
+            connection_type: Type of connection for special handling
+            
+        Returns:
+            Normalized WebSocket URL
+        """
+        if not url:
+            raise ValueError("URL cannot be empty")
+        
+        # Remove trailing slashes
+        url = url.rstrip('/')
+        
+        # Handle already WebSocket URLs
+        if url.startswith('wss://') or url.startswith('ws://'):
+            # Already WebSocket format, just ensure /api/websocket is present
+            if not url.endswith('/api/websocket'):
+                if url.endswith('/api'):
+                    url += '/websocket'
+                else:
+                    url += '/api/websocket'
+            return url
+        
+        # Convert HTTP/HTTPS to WebSocket
+        if url.startswith('https://'):
+            ws_url = url.replace('https://', 'wss://')
+        elif url.startswith('http://'):
+            ws_url = url.replace('http://', 'ws://')
+        else:
+            # No protocol specified - assume HTTPS for Nabu Casa, HTTP for local
+            if connection_type == ConnectionType.NABU_CASA:
+                ws_url = f'wss://{url}'
+            else:
+                ws_url = f'ws://{url}'
+        
+        # Ensure /api/websocket path is present
+        if not ws_url.endswith('/api/websocket'):
+            if ws_url.endswith('/api'):
+                ws_url += '/websocket'
+            else:
+                ws_url += '/api/websocket'
+        
+        return ws_url
+    
+    def _normalize_http_url(self, ws_url: str) -> str:
+        """
+        Convert WebSocket URL to HTTP URL for API testing
+        
+        Args:
+            ws_url: WebSocket URL
+            
+        Returns:
+            HTTP URL without /api/websocket path
+        """
+        # Convert WebSocket protocol to HTTP
+        http_url = ws_url.replace('wss://', 'https://').replace('ws://', 'http://')
+        
+        # Remove /api/websocket suffix if present
+        if http_url.endswith('/api/websocket'):
+            http_url = http_url[:-14]  # Remove '/api/websocket'
+        elif http_url.endswith('/api'):
+            http_url = http_url[:-4]  # Remove '/api'
+        
+        return http_url.rstrip('/')
         
     def _load_connection_configs(self):
         """Load connection configurations from environment variables"""
@@ -190,11 +259,13 @@ class EnhancedHAConnectionManager:
         if ha_http_url and ha_token:
             # Use WebSocket URL if provided, otherwise derive from HTTP URL
             if ha_ws_url:
-                url = ha_ws_url
+                try:
+                    url = self._normalize_websocket_url(ha_ws_url, ConnectionType.PRIMARY_HA)
+                except Exception as e:
+                    logger.error(f"❌ Failed to normalize WebSocket URL: {e}. Using HTTP URL instead.")
+                    url = self._normalize_websocket_url(ha_http_url, ConnectionType.PRIMARY_HA)
             else:
-                url = ha_http_url.replace('http://', 'ws://').replace('https://', 'wss://')
-                if not url.endswith('/api/websocket'):
-                    url += '/api/websocket'
+                url = self._normalize_websocket_url(ha_http_url, ConnectionType.PRIMARY_HA)
             
             config = HAConnectionConfig(
                 name="Primary HA",
@@ -215,30 +286,25 @@ class EnhancedHAConnectionManager:
         nabu_casa_token = os.getenv('NABU_CASA_TOKEN')
         
         if nabu_casa_url and nabu_casa_token:
-            # Ensure Nabu Casa URL is WebSocket format
-            if nabu_casa_url.startswith('https://'):
-                ws_url = nabu_casa_url.replace('https://', 'wss://')
-            elif nabu_casa_url.startswith('http://'):
-                ws_url = nabu_casa_url.replace('http://', 'ws://')
-            else:
-                ws_url = nabu_casa_url
-            
-            if not ws_url.endswith('/api/websocket'):
-                ws_url += '/api/websocket'
-            
-            config = HAConnectionConfig(
-                name="Nabu Casa Fallback",
-                url=ws_url,
-                token=nabu_casa_token,
-                connection_type=ConnectionType.NABU_CASA,
-                priority=2,
-                timeout=45,  # Longer timeout for cloud connection
-                max_retries=5,
-                retry_delay=10.0
-            )
-            self.connections.append(config)
-            self._create_circuit_breaker(config)
-            logger.info(f"✅ Nabu Casa fallback configured: {ws_url}")
+            try:
+                # Normalize URL to WebSocket format
+                ws_url = self._normalize_websocket_url(nabu_casa_url, ConnectionType.NABU_CASA)
+                
+                config = HAConnectionConfig(
+                    name="Nabu Casa Fallback",
+                    url=ws_url,
+                    token=nabu_casa_token,
+                    connection_type=ConnectionType.NABU_CASA,
+                    priority=2,
+                    timeout=45,  # Longer timeout for cloud connection
+                    max_retries=5,
+                    retry_delay=10.0
+                )
+                self.connections.append(config)
+                self._create_circuit_breaker(config)
+                logger.info(f"✅ Nabu Casa fallback configured: {ws_url}")
+            except Exception as e:
+                logger.error(f"❌ Failed to configure Nabu Casa fallback: {e}. URL: {nabu_casa_url}")
         
         # Sort by priority
         self.connections.sort(key=lambda x: x.priority)
@@ -319,12 +385,20 @@ class EnhancedHAConnectionManager:
         return None
     
     async def _test_connection(self, config: HAConnectionConfig) -> bool:
-        """Test if a connection is working"""
+        """
+        Test if a connection is working by making an HTTP API call
+        
+        Args:
+            config: Connection configuration to test
+            
+        Returns:
+            True if connection is working, False otherwise
+        """
+        http_url = None
         try:
             # Convert WebSocket URL to HTTP URL for testing
-            http_url = config.url.replace('ws://', 'http://').replace('wss://', 'https://')
-            if http_url.endswith('/api/websocket'):
-                http_url = http_url.replace('/api/websocket', '')
+            http_url = self._normalize_http_url(config.url)
+            test_url = f"{http_url}/api/"
             
             # Test HTTP API endpoint
             headers = {
@@ -332,12 +406,48 @@ class EnhancedHAConnectionManager:
                 'Content-Type': 'application/json'
             }
             
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=config.timeout)) as session:
-                async with session.get(f"{http_url}/api/", headers=headers) as response:
-                    return response.status == 200
+            # SSL verification - disable for Nabu Casa if needed (some cert issues)
+            ssl_verify = os.getenv('NABU_CASA_SSL_VERIFY', 'true').lower() == 'true' if config.connection_type == ConnectionType.NABU_CASA else True
+            
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=config.timeout),
+                connector=aiohttp.TCPConnector(ssl=ssl_verify)
+            ) as session:
+                async with session.get(test_url, headers=headers) as response:
+                    if response.status == 200:
+                        logger.debug(f"✅ Connection test passed for {config.name} ({http_url})")
+                        return True
+                    else:
+                        error_text = await response.text()
+                        logger.warning(
+                            f"❌ Connection test failed for {config.name}: "
+                            f"HTTP {response.status} - {error_text[:200]}"
+                        )
+                        return False
                     
+        except aiohttp.ClientConnectorError as e:
+            logger.warning(
+                f"❌ Connection test failed for {config.name} ({http_url or config.url}): "
+                f"Connection error - {str(e)}"
+            )
+            return False
+        except aiohttp.ClientError as e:
+            logger.warning(
+                f"❌ Connection test failed for {config.name} ({http_url or config.url}): "
+                f"Client error - {str(e)}"
+            )
+            return False
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"❌ Connection test timed out for {config.name} ({http_url or config.url}) "
+                f"after {config.timeout}s"
+            )
+            return False
         except Exception as e:
-            logger.debug(f"Connection test failed for {config.name}: {e}")
+            logger.warning(
+                f"❌ Connection test failed for {config.name} ({http_url or config.url}): "
+                f"Unexpected error - {type(e).__name__}: {str(e)}"
+            )
             return False
     
     def get_connection_status(self) -> Dict[str, Any]:
