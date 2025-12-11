@@ -166,14 +166,16 @@ action:
     return client
 
 
-# Note: client fixture will be added once main.py is created
-# @pytest.fixture
-# def client(test_db: AsyncSession):
-#     """Create test client with database dependency override."""
-#     def override_get_db():
-#         return test_db
-#     
-#     app.dependency_overrides[get_db] = override_get_db
-#     yield TestClient(app)
-#     app.dependency_overrides.clear()
+@pytest.fixture
+def client(test_db: AsyncSession):
+    """Create test client with database dependency override."""
+    from src.database import get_db
+    from src.main import app
+    
+    def override_get_db():
+        return test_db
+    
+    app.dependency_overrides[get_db] = override_get_db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
 

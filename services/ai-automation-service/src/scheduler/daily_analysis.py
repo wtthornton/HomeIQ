@@ -1269,6 +1269,7 @@ class DailyAnalysisScheduler:
                         logger.debug("   → HA client connection closed")
                     except Exception as e:
                         logger.debug(f"   → Failed to close HA client: {e}")
+                
 
             # Phase 4: Feature Analysis
             opportunities = await self._phase_4_feature_analysis(data_client, job_result)
@@ -1283,6 +1284,43 @@ class DailyAnalysisScheduler:
 
             device_intel_client = DeviceIntelligenceClient(settings.device_intelligence_url)
             unified_builder = UnifiedPromptBuilder(device_intelligence_client=device_intel_client)
+
+            # Epic AI-12 Story AI12.8: Initialize personalized entity resolution for 3 AM workflow
+            personalized_resolver = None
+            try:
+                from ..clients.ha_client import HomeAssistantClient
+                from ..services.entity.index_builder import PersonalizedIndexBuilder
+                from ..services.entity.personalized_resolver import PersonalizedEntityResolver
+                from ..services.entity.resolver import EntityResolver
+
+                logger.info("  → Initializing personalized entity resolution...")
+                ha_client_for_resolver = HomeAssistantClient(
+                    ha_url=settings.ha_url,
+                    access_token=settings.ha_token,
+                    max_retries=settings.ha_max_retries,
+                    retry_delay=settings.ha_retry_delay,
+                    timeout=settings.ha_timeout
+                )
+
+                # Build personalized index
+                index_builder = PersonalizedIndexBuilder(ha_client=ha_client_for_resolver)
+                personalized_index = await index_builder.build_index()
+
+                # Create personalized resolver
+                personalized_resolver = PersonalizedEntityResolver(
+                    personalized_index=personalized_index,
+                    ha_client=ha_client_for_resolver
+                )
+
+                logger.info(f"  ✅ Personalized entity resolution initialized ({len(personalized_index._index)} entities indexed)")
+                job_result['personalized_resolution_enabled'] = True
+                job_result['personalized_entities_indexed'] = len(personalized_index._index)
+
+            except Exception as e:
+                logger.warning(f"  ⚠️ Failed to initialize personalized entity resolution: {e}, continuing without it")
+                personalized_resolver = None
+                job_result['personalized_resolution_enabled'] = False
+                job_result['personalized_resolution_error'] = str(e)
 
             # Initialize OpenAI client with classification model (Phase 1: gpt-5.1-mini for 80% cost savings)
             from ..config import settings
@@ -1383,6 +1421,23 @@ class DailyAnalysisScheduler:
                         'priority': priority,
                         'rationale': rationale
                     }
+
+                    # Epic AI-12 Story AI12.8: Use personalized resolver if available for device name resolution
+                    # (Currently suggestions use device_id/entity_id, but this enables future natural language support)
+                    if personalized_resolver and 'device_name' in pattern:
+                        try:
+                            # Resolve any natural language device names in the pattern
+                            resolved = await personalized_resolver.resolve_entities(
+                                device_names=[pattern.get('device_name', '')],
+                                query=description or title
+                            )
+                            if resolved.resolved_entities:
+                                suggestion['resolved_entities'] = {
+                                    entity_id: match.entity_id
+                                    for entity_id, match in resolved.resolved_entities.items()
+                                }
+                        except Exception as e:
+                            logger.debug(f"     Personalized resolution failed for pattern {pattern.get('id')}: {e}")
 
                     return suggestion
                 except Exception as e:
@@ -1754,6 +1809,15 @@ class DailyAnalysisScheduler:
             job_result['end_time'] = datetime.now(timezone.utc).isoformat()
 
         finally:
+            # Epic AI-12 Story AI12.8: Clean up personalized resolver HA client
+            if 'personalized_resolver' in locals() and personalized_resolver:
+                if hasattr(personalized_resolver, 'ha_client') and personalized_resolver.ha_client:
+                    try:
+                        await personalized_resolver.ha_client.close()
+                        logger.debug("   → Personalized resolver HA client closed (final cleanup)")
+                    except Exception as e:
+                        logger.debug(f"   → Failed to close personalized resolver HA client: {e}")
+            
             self.is_running = False
             self._store_job_history(job_result)
             try:

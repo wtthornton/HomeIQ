@@ -28,10 +28,16 @@ def validate_bucket_name(bucket: str) -> str:
     if not bucket:
         raise ValueError("Bucket name cannot be empty")
     
+    # Check length (InfluxDB limit is typically 255 characters)
+    if len(bucket) > 255:
+        raise ValueError(
+            f"Invalid bucket name: '{bucket}' exceeds maximum length of 255 characters."
+        )
+    
     # InfluxDB bucket names: alphanumeric, hyphens, underscores only
     if not re.match(r'^[a-zA-Z0-9_-]+$', bucket):
         raise ValueError(
-            f"Invalid bucket name: '{bucket}'. "
+            f"Invalid bucket name format: '{bucket}'. "
             "Bucket names must contain only alphanumeric characters, hyphens, and underscores."
         )
     
@@ -45,25 +51,39 @@ def validate_internal_request(request: web.Request, allowed_networks: Optional[l
     Args:
         request: The aiohttp request object
         allowed_networks: List of allowed CIDR networks (e.g., ['172.16.0.0/12', '192.168.0.0/16'])
+                         If provided, these networks are used. If None, defaults to internal ranges.
         
     Returns:
-        True if the request is from an allowed internal network or if no networks are specified,
+        True if the request is from an allowed internal network,
         False otherwise.
     """
-    if not allowed_networks:
-        # Default to common internal network ranges
-        allowed_networks = ['127.0.0.1/32', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
+    # Default to common internal network ranges if not specified
+    default_networks = ['127.0.0.1/32', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
+    
+    if allowed_networks is None:
+        allowed_networks = default_networks
+    else:
+        # Combine custom networks with defaults
+        allowed_networks = list(set(allowed_networks + default_networks))
     
     peername = request.remote
     if not peername:
         return False
     
+    # Extract IP from "IP:PORT" format if present
+    if ':' in peername:
+        peername = peername.split(':')[0]
+    
     try:
         request_ip = ipaddress.ip_address(peername)
         for network_str in allowed_networks:
-            network = ipaddress.ip_network(network_str, strict=False)
-            if request_ip in network:
-                return True
+            try:
+                network = ipaddress.ip_network(network_str, strict=False)
+                if request_ip in network:
+                    return True
+            except ValueError:
+                # Skip invalid network formats
+                continue
         return False
     except ValueError:
         return False

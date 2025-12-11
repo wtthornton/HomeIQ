@@ -4,11 +4,12 @@
 **Title**: Unified Contextual Intelligence Service (Phase 1 + Phase 2)  
 **Status**: Planning  
 **Priority**: High  
-**Estimated Duration**: 10 weeks (4 weeks Phase 1 + 6 weeks Phase 2)  
+**Estimated Duration**: 2-3 weeks (1-2 days Phase 1 + 1-2 weeks Phase 2) ⚠️ **SIMPLIFIED SCOPE**  
 **Value**: High (8/10)  
 **Complexity**: Medium (5/10)  
 **Created**: December 19, 2024  
-**Last Updated**: December 19, 2024  
+**Last Updated**: December 2025  
+**Scope Review**: Simplified Stories AI5.9 and AI5.10 (see `implementation/EPIC_AI5_SCOPE_REVIEW.md`)  
 
 ## Epic Description
 
@@ -46,28 +47,27 @@ Implement a comprehensive unified intelligence service that provides consistent 
 - [AI5.6: Add Event Context to Unified Service](story-ai5-6-add-event-context-unified-service.md) - Feature (2 points)
 - [AI5.7: Refactor Ask AI Router to Use Unified Service](story-ai5-7-refactor-ask-ai-router-unified-service.md) - Feature (3 points)
 - [AI5.8: Refactor Daily Analysis to Use Unified Service](story-ai5-8-refactor-daily-analysis-unified-service.md) - Feature (3 points)
-- [AI5.9: Add Advanced Configuration System](story-ai5-9-add-advanced-configuration-system.md) - Foundation (2 points)
-- [AI5.10: Add Monitoring and Health Checks](story-ai5-10-add-monitoring-health-checks.md) - Foundation (2 points)
+- [AI5.9: Simple Configuration Flags](story-ai5-9-simple-configuration-flags.md) - Foundation (1 point) ⚠️ **SIMPLIFIED**
+- [AI5.10: Basic Logging](story-ai5-10-basic-logging.md) - Foundation (1 point) ⚠️ **SIMPLIFIED**
 - [AI5.11: Comprehensive Testing Suite](story-ai5-11-comprehensive-testing-suite.md) - Polish (3 points)
 
 ## Timeline
 
-### Phase 1: Quick Integration (Weeks 1-4)
-- **Week 1-2**: Quick Weather Context Integration for Ask AI + Configuration
-- **Week 3-4**: Testing and polish of Phase 1 features
+### Phase 1: Quick Integration (1-2 days)
+- **Day 1**: Quick Weather Context Integration for Ask AI
+- **Day 2**: Weather Context Configuration and Testing
 
-### Phase 2: Unified Service Architecture (Weeks 5-10)
-- **Week 5-6**: Unified Suggestion Engine Foundation + Energy/Event Context Integration
-- **Week 7-8**: Ask AI Router Refactoring + Daily Analysis Integration
-- **Week 9-10**: Advanced Configuration/Monitoring + Testing/Documentation
+### Phase 2: Unified Service Architecture (1-2 weeks)
+- **Week 1**: Unified Suggestion Engine Foundation + Energy/Event Context Integration
+- **Week 2**: Ask AI Router Refactoring + Daily Analysis Integration + Simple Configuration/Logging + Testing
 
 ## Value Delivery Timeline
 
-- **Week 2**: First Value Delivery - Weather context working in Ask AI queries
-- **Week 4**: Phase 1 Complete - Weather context fully integrated and configured
-- **Week 6**: Energy and Event Context - All contextual patterns available in unified service
-- **Week 8**: Full Integration Complete - Both user queries and daily analysis use unified service
-- **Week 10**: Production Ready - Comprehensive testing and documentation
+- **Day 1**: First Value Delivery - Weather context working in Ask AI queries
+- **Day 2**: Phase 1 Complete - Weather context fully integrated and configured
+- **Week 1**: Energy and Event Context - All contextual patterns available in unified service
+- **Week 2**: Full Integration Complete - Both user queries and daily analysis use unified service
+- **Week 2**: Production Ready - Comprehensive testing and documentation
 
 ## Risk Mitigation
 
