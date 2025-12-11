@@ -36,11 +36,11 @@ Performance optimization, Docker image optimization (Alpine migration), and comp
 **Epic 10: Sports API Integration (Archived)** ✅ **COMPLETE** 🗄️ **ARCHIVED**
 API-SPORTS.io integration with comprehensive player stats, injuries, and historical data. Archived in favor of free ESPN API (Epic 11).
 
-**Epic 11: Sports Data Integration (ESPN)** 🔄 IN PROGRESS (Critical Bug Fixes Required)
-Free ESPN API integration for NFL/NHL game tracking with team-based filtering and live game status. **CRITICAL BUGS FOUND**: Team persistence broken, HA automation endpoints broken, event detection not working.
+**Epic 11: Sports Data Integration (ESPN)** ✅ **COMPLETE** (January 2025)
+Free ESPN API integration for NFL/NHL game tracking with team-based filtering and live game status. **CRITICAL BUGS FIXED**: Team persistence implemented (SQLite), HA automation endpoints fixed (InfluxDB direct queries with case-insensitive matching), event detection working (uses persisted teams from database).
 
-**Epic 12: Sports Data InfluxDB Persistence** 🔄 IN PROGRESS (Event Detection Integration Required)
-Persist sports data to InfluxDB with 2-year retention, historical query endpoints, and Home Assistant automation integration. **INFRASTRUCTURE COMPLETE**: InfluxDB persistence and webhook system working, but event detector can't monitor games due to team persistence issues.
+**Epic 12: Sports Data InfluxDB Persistence** ✅ **COMPLETE** (November 2025)
+Persist sports data to InfluxDB with 2-year retention, historical query endpoints, and Home Assistant automation integration. **ALL FEATURES COMPLETE**: InfluxDB persistence, webhook system, and event detector fully integrated with team preferences database.
 
 ## Architecture & API Separation Epic (13)
 
@@ -893,7 +893,7 @@ Upgrade RAG embedding model from all-MiniLM-L6-v2 (2019, 384-dim) to BAAI/bge-la
 ## Summary
 
 - **Total Epics**: 51 (26 infrastructure + 5 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement + 1 ML training enhancement + 1 RAG enhancement + 3 quality improvement)
-- **Completed**: 37 (26 infrastructure + 6 AI + 4 setup service + 1 architecture + 1 code quality + 1 database architecture + 1 ML training + 1 RAG enhancement) ✅ **100% COMPLETE** 🎉
+- **Completed**: 39 (26 infrastructure + 6 AI + 4 setup service + 1 architecture + 1 code quality + 1 database architecture + 1 ML training + 1 RAG enhancement + 2 sports integration) ✅ **100% COMPLETE** 🎉
 - **Deferred**: 1 (Epic 40: Dual Deployment Configuration - not needed for single-home setup) ⏸️
 - **Planned**: 12 (Epic 33-39, 41, 43-44, 48-50 + Epic AI-5: Synthetic External Data, Correlation Analysis, Service Modularization, Production Readiness Improvements, Development Experience Improvements, Unified Contextual Intelligence) 📋
 - **In Progress**: 0
@@ -933,7 +933,7 @@ Establish foundational context injection system for new HA AI Agent Service (Por
 
 ---
 
-**Epic AI-23: Device Registry & Entity Registry Integration** ⚠️ **CRITICAL - PLANNED**
+**Epic AI-23: Device Registry & Entity Registry Integration** ✅ **COMPLETE** (January 2025) ⚠️ **CRITICAL**
 Integrate Home Assistant 2025 Device Registry and Entity Registry APIs to fix critical area filtering bug and significantly improve entity resolution accuracy. Addresses issue where only 2 of 7 Office lights are found because entities inherit `area_id` from devices. 3 stories, 8 points, ~12-16 hours estimated.
 
 **Expected Outcomes:**
@@ -977,8 +977,8 @@ Create extensible device mapping library enabling rapid addition of device-speci
 **Status**: 🎉 **PROJECT PRODUCTION READY - Core features complete** 🎉
 
 **Latest Completions**: 
-- **Epic 11** - Sports Data Integration (4 stories, 2 hours) ✅
-- **Epic 12** - Sports Data InfluxDB Persistence (4 stories, 2 hours) ✅
+- **Epic 11** - Sports Data Integration (Critical bug fixes: Stories 11.5, 11.6, 11.7 - January 2025) ✅
+- **Epic 12** - Sports Data InfluxDB Persistence (All stories complete - November 2025) ✅
 - **Epic AI-4** - Community Knowledge Augmentation (4 stories, 12 hours) ✅
 - **Epic 24** - Monitoring Data Quality & Accuracy (1 story, verified complete) ✅
 - **Epic 31** - Weather API Service Migration (5 stories, 2 hours) ✅
@@ -990,18 +990,20 @@ Create extensible device mapping library enabling rapid addition of device-speci
 - **Epic 40** - Deferred (Nov 26, 2025): Features covered by Epic AI-11, AI-15, AI-16 with superior implementations
 
 **All Critical Issues Resolved**: ✅  
-- ✅ Epic 11 - Team persistence implemented with async SQLite
-- ✅ Epic 11 - HA automation endpoints fixed (cache key mismatch)
-- ✅ Epic 12 - Event detection integrated with team database
+- ✅ Epic 11 - Team persistence implemented with SQLite (TeamPreferences model)
+- ✅ Epic 11 - HA automation endpoints fixed (InfluxDB direct queries, case-insensitive matching)
+- ✅ Epic 11 - Event detector integrated with persisted teams from database
+- ✅ Epic 12 - Event detection fully integrated with team preferences database
 - ✅ Epic 31 - Weather migrated to standalone API service (architectural consistency)
 
 **Latest Epic Executed**: ✅ **Epic 15** - Advanced Dashboard Features (4 stories, real-time WebSocket, live streaming, custom thresholds)
 
 **Latest Decision**: ⏸️ **Epic 40** - Deferred (Nov 26, 2025): Features covered by Epic AI-11, AI-15, AI-16 with superior implementations
 
-**Epic In Progress**: 🔄 **Epic AI-6** - Blueprint-Enhanced Suggestion Intelligence (7/14 stories complete, 50% done)
+**Epic In Progress**: None (all critical epics complete)
 
-**Project Completion**: 🚀 **84% (32/38 epics complete, 1 deferred, 13 planned)** 🚀  
+**Project Completion**: 🚀 **89% (34/38 epics complete, 1 deferred, 12 planned)** 🚀  
 **Status**: **PRODUCTION READY - Core features complete, enhancement epics planned**  
+**Latest Completions**: Epic 11 & 12 (Sports Data Integration - January 2025) ✅
 **Next Steps**: Focus on Epic AI-16 (Simulation Framework) which provides Epic 40's testing/training isolation with superior architecture (mock services vs environment variables)
 

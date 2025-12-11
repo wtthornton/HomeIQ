@@ -6,7 +6,7 @@ import asyncio
 import logging
 from collections import deque
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from .state_machine import InvalidStateTransition, ProcessingState, ProcessingStateMachine
@@ -31,7 +31,7 @@ class AsyncEventProcessor:
         # Processing statistics
         self.processed_events = 0
         self.failed_events = 0
-        self.processing_start_time = datetime.now()
+        self.processing_start_time = datetime.now(timezone.utc)
         self.last_processing_time: datetime | None = None
 
         # Rate limiting
@@ -62,7 +62,7 @@ class AsyncEventProcessor:
             if current_state == ProcessingState.STOPPED or current_state == ProcessingState.ERROR:
                 self.state_machine.transition(ProcessingState.STARTING)
 
-            self.processing_start_time = datetime.now()
+            self.processing_start_time = datetime.now(timezone.utc)
 
             # Start worker tasks
             for i in range(self.max_workers):
@@ -145,9 +145,9 @@ class AsyncEventProcessor:
                 )
 
                 # Process the event
-                start_time = datetime.now()
+                start_time = datetime.now(timezone.utc)
                 await self._process_single_event(event_data)
-                processing_time = (datetime.now() - start_time).total_seconds()
+                processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
                 # Record processing time
                 self.processing_times.append(processing_time)
@@ -190,7 +190,7 @@ class AsyncEventProcessor:
                     logger.error(f"Error in event handler: {e}")
 
             self.processed_events += 1
-            self.last_processing_time = datetime.now()
+            self.last_processing_time = datetime.now(timezone.utc)
 
         except Exception as e:
             logger.error(f"Error processing event: {e}")
@@ -225,7 +225,7 @@ class AsyncEventProcessor:
 
     def get_processing_statistics(self) -> dict[str, Any]:
         """Get processing statistics"""
-        uptime = (datetime.now() - self.processing_start_time).total_seconds()
+        uptime = (datetime.now(timezone.utc) - self.processing_start_time).total_seconds()
 
         # Calculate average processing time
         avg_processing_time = 0
@@ -263,7 +263,7 @@ class AsyncEventProcessor:
         """Reset processing statistics"""
         self.processed_events = 0
         self.failed_events = 0
-        self.processing_start_time = datetime.now()
+        self.processing_start_time = datetime.now(timezone.utc)
         self.last_processing_time = None
         self.processing_times.clear()
         self.memory_usage_samples.clear()
@@ -282,7 +282,7 @@ class RateLimiter:
         """
         self.rate_limit = rate_limit
         self.tokens = rate_limit
-        self.last_update = datetime.now()
+        self.last_update = datetime.now(timezone.utc)
         self.lock = asyncio.Lock()
 
     async def acquire(self) -> bool:
@@ -293,7 +293,7 @@ class RateLimiter:
             True if token was acquired, False if rate limit exceeded
         """
         async with self.lock:
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             time_passed = (now - self.last_update).total_seconds()
 
             # Add tokens based on time passed

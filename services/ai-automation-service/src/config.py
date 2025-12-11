@@ -437,11 +437,9 @@ class Settings(BaseSettings):
     prevent performance degradation with large entity sets.
     """
 
-    # Blueprint Integration
-    automation_miner_url: str = "http://automation-miner:8029"
-    """Base URL for automation-miner service (default: http://automation-miner:8029)"""
-
-    blueprint_match_threshold: float = 0.8
+    # Blueprint Integration (REMOVED - Epic AI-22 Story AI22.1: Automation miner integration removed)
+    # automation_miner_url: str = "http://automation-miner:8029"  # REMOVED
+    # blueprint_match_threshold: float = 0.8  # REMOVED
     """Minimum fit score to use blueprint instead of AI generation (default: 0.8)
     
     Only blueprints with fit_score >= this threshold will be used.

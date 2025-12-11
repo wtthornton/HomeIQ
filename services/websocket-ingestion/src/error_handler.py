@@ -3,7 +3,7 @@ Error Handler for WebSocket Connection Management
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -87,7 +87,7 @@ class ErrorHandler:
             Dictionary with error information
         """
         category, severity = self.categorize_error(error)
-        timestamp = datetime.now()
+        timestamp = datetime.now(timezone.utc)
 
         # Create error record
         error_record = {
@@ -130,7 +130,7 @@ class ErrorHandler:
 
     def _clean_old_errors(self):
         """Remove errors older than the rate window"""
-        cutoff_time = datetime.now().timestamp() - (self.error_rate_window_minutes * 60)
+        cutoff_time = datetime.now(timezone.utc).timestamp() - (self.error_rate_window_minutes * 60)
         self.recent_errors = [ts for ts in self.recent_errors if ts.timestamp() > cutoff_time]
 
     def get_error_rate(self) -> float:

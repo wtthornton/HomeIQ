@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import aiohttp
@@ -40,13 +40,13 @@ class SimpleHTTPClient:
         # Check circuit breaker state
         if self.circuit_open:
             # Check if it's time to reset
-            if datetime.now() >= self.circuit_open_until:
+            if datetime.now(timezone.utc) >= self.circuit_open_until:
                 logging.info("Circuit breaker: Attempting to close circuit (half-open state)")
                 self.circuit_open = False
                 self.consecutive_failures = 0
             else:
                 # Circuit is open - fail fast to prevent CPU overload
-                remaining_seconds = (self.circuit_open_until - datetime.now()).total_seconds()
+                remaining_seconds = (self.circuit_open_until - datetime.now(timezone.utc)).total_seconds()
                 logging.warning(f"Circuit breaker OPEN - skipping request (reopens in {remaining_seconds:.1f}s)")
                 self.failed_requests += 1
                 return False
@@ -84,7 +84,7 @@ class SimpleHTTPClient:
         # Open circuit if too many consecutive failures
         if self.consecutive_failures >= self.max_consecutive_failures:
             self.circuit_open = True
-            self.circuit_open_until = datetime.now() + timedelta(seconds=self.circuit_reset_timeout)
+            self.circuit_open_until = datetime.now(timezone.utc) + timedelta(seconds=self.circuit_reset_timeout)
             logging.error(f"Circuit breaker OPENED after {self.consecutive_failures} consecutive failures "
                          f"(will retry in {self.circuit_reset_timeout}s)")
         else:

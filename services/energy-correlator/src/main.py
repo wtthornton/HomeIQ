@@ -18,10 +18,15 @@ from shared.logging_config import log_error_with_context, log_with_context, setu
 
 from .correlator import EnergyEventCorrelator
 from .health_check import HealthCheckHandler
+from .security import validate_bucket_name, validate_internal_request
 
 load_dotenv()
 
 logger = setup_logging("energy-correlator")
+
+# Set logger in security module for error logging
+from . import security as security_module
+security_module.logger = logger
 
 
 class EnergyCorrelatorService:
@@ -33,6 +38,12 @@ class EnergyCorrelatorService:
         self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'home_assistant_events')
+        
+        # Epic 48 Story 48.1: Validate bucket name on startup
+        try:
+            validate_bucket_name(self.influxdb_bucket)
+        except ValueError as e:
+            raise ValueError(f"Invalid InfluxDB bucket configuration: {e}")
 
         # Service configuration
         self.processing_interval = int(os.getenv('PROCESSING_INTERVAL', '60'))  # 1 minute
@@ -43,6 +54,8 @@ class EnergyCorrelatorService:
         self.correlation_window_seconds = int(os.getenv('CORRELATION_WINDOW_SECONDS', '10'))
         self.power_lookup_padding_seconds = int(os.getenv('POWER_LOOKUP_PADDING_SECONDS', '30'))
         self.min_power_delta = float(os.getenv('MIN_POWER_DELTA', '10.0'))
+        # Epic 48 Story 48.5: Make error retry interval configurable
+        self.error_retry_interval = int(os.getenv('ERROR_RETRY_INTERVAL', '60'))  # Default 60 seconds
 
         # Components
         self.correlator = EnergyEventCorrelator(
@@ -63,6 +76,12 @@ class EnergyCorrelatorService:
         # Validate configuration
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
+        
+        # Epic 48 Story 48.1: Get allowed networks for internal request validation
+        allowed_networks_env = os.getenv('ALLOWED_NETWORKS', '')
+        self.allowed_networks = [
+            net.strip() for net in allowed_networks_env.split(',') if net.strip()
+        ] if allowed_networks_env else None
 
         logger.info(
             f"Service configured: interval={self.processing_interval}s, "
@@ -129,8 +148,8 @@ class EnergyCorrelatorService:
                 )
                 self.health_handler.failed_fetches += 1
 
-                # Wait before retrying (shorter interval on error)
-                await asyncio.sleep(60)
+                # Epic 48 Story 48.5: Use configurable error retry interval
+                await asyncio.sleep(self.error_retry_interval)
 
 
 async def create_app(service: EnergyCorrelatorService):
@@ -148,9 +167,20 @@ async def create_app(service: EnergyCorrelatorService):
 
     app.router.add_get('/statistics', get_statistics)
 
-    # Reset statistics endpoint
+    # Reset statistics endpoint (Epic 48 Story 48.1: Internal network validation)
     async def reset_statistics(request):
-        """Reset correlation statistics"""
+        """Reset correlation statistics (requires internal network access)"""
+        # Validate request is from internal network
+        if not validate_internal_request(request, service.allowed_networks):
+            logger.warning(
+                f"Unauthorized reset attempt from {request.remote}",
+                extra={"service": "energy-correlator", "endpoint": "/statistics/reset"}
+            )
+            return web.json_response(
+                {"error": "Forbidden: This endpoint is only accessible from internal networks"},
+                status=403
+            )
+        
         service.correlator.reset_statistics()
         return web.json_response({"message": "Statistics reset"})
 

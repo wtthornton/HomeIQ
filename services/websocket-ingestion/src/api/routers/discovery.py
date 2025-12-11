@@ -2,7 +2,7 @@
 Discovery router for websocket-ingestion service.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request
 
 from ...utils.logger import logger
@@ -51,7 +51,7 @@ async def trigger_discovery(request: Request):
                 "success": True,
                 "devices_discovered": len(discovery_result.get("devices", [])),
                 "entities_discovered": len(discovery_result.get("entities", [])),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
             logger.error(f"Error in discover_all(): {e}")

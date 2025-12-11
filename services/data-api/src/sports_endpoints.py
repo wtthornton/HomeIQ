@@ -2,6 +2,7 @@
 Sports Data Endpoints for Data API
 Epic 12 Story 12.2: Historical Sports Data Queries
 Epic 13 Story 13.4: Integration into data-api service
+Epic 11 Story 11.5: Team Persistence Implementation
 """
 
 import logging
@@ -12,10 +13,14 @@ from datetime import datetime
 # Add shared directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.influxdb_query_client import InfluxDBQueryClient
+from .database import get_db
+from .models.team_preferences import TeamPreferences
 from .sports_influxdb_writer import get_sports_writer
 
 logger = logging.getLogger(__name__)
@@ -602,5 +607,133 @@ async def get_team_schedule(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get team schedule: {str(e)}"
+        )
+
+
+# Epic 11 Story 11.5: Team Persistence Implementation
+class UserTeamsRequest(BaseModel):
+    """Request model for saving user team preferences"""
+    nfl_teams: list[str] = []
+    nhl_teams: list[str] = []
+
+
+class UserTeamsResponse(BaseModel):
+    """Response model for user team preferences"""
+    user_id: str
+    nfl_teams: list[str]
+    nhl_teams: list[str]
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+@router.post("/sports/user/teams", response_model=UserTeamsResponse)
+async def save_user_teams(
+    teams: UserTeamsRequest,
+    user_id: str = Query(default="default", description="User identifier"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Save user's selected teams to database
+    
+    Epic 11 Story 11.5: Team Persistence Implementation
+    
+    Args:
+        teams: NFL and NHL team selections
+        user_id: User identifier (default: "default")
+        
+    Returns:
+        Saved team preferences
+    """
+    try:
+        # Validate team lists (max 5 teams per league)
+        if len(teams.nfl_teams) > 5:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Maximum 5 NFL teams allowed"
+            )
+        if len(teams.nhl_teams) > 5:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Maximum 5 NHL teams allowed"
+            )
+        
+        # Check if preferences exist
+        result = await db.execute(
+            select(TeamPreferences).where(TeamPreferences.user_id == user_id)
+        )
+        existing = result.scalar_one_or_none()
+        
+        if existing:
+            # Update existing preferences
+            existing.nfl_teams = teams.nfl_teams
+            existing.nhl_teams = teams.nhl_teams
+            existing.updated_at = datetime.utcnow()
+            await db.commit()
+            await db.refresh(existing)
+            logger.info(f"Updated team preferences for user {user_id}: NFL={len(teams.nfl_teams)}, NHL={len(teams.nhl_teams)}")
+            return UserTeamsResponse(**existing.to_dict())
+        else:
+            # Create new preferences
+            new_prefs = TeamPreferences(
+                user_id=user_id,
+                nfl_teams=teams.nfl_teams,
+                nhl_teams=teams.nhl_teams
+            )
+            db.add(new_prefs)
+            await db.commit()
+            await db.refresh(new_prefs)
+            logger.info(f"Created team preferences for user {user_id}: NFL={len(teams.nfl_teams)}, NHL={len(teams.nhl_teams)}")
+            return UserTeamsResponse(**new_prefs.to_dict())
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error saving team preferences: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save team preferences: {str(e)}"
+        )
+
+
+@router.get("/sports/user/teams", response_model=UserTeamsResponse)
+async def get_user_teams(
+    user_id: str = Query(default="default", description="User identifier"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get user's selected teams from database
+    
+    Epic 11 Story 11.5: Team Persistence Implementation
+    
+    Args:
+        user_id: User identifier (default: "default")
+        
+    Returns:
+        User's team preferences (empty lists if not found)
+    """
+    try:
+        result = await db.execute(
+            select(TeamPreferences).where(TeamPreferences.user_id == user_id)
+        )
+        prefs = result.scalar_one_or_none()
+        
+        if prefs:
+            return UserTeamsResponse(**prefs.to_dict())
+        else:
+            # Return empty preferences if not found
+            return UserTeamsResponse(
+                user_id=user_id,
+                nfl_teams=[],
+                nhl_teams=[],
+                created_at=None,
+                updated_at=None
+            )
+            
+    except Exception as e:
+        logger.error(f"Error getting team preferences: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get team preferences: {str(e)}"
         )
 

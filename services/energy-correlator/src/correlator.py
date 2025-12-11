@@ -5,6 +5,7 @@ Analyzes relationships between HA events and power consumption changes
 
 import logging
 from bisect import bisect_left
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -13,6 +14,42 @@ from influxdb_client import Point
 from .influxdb_wrapper import InfluxDBWrapper
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class DeferredEvent:
+    """
+    Dataclass for deferred events in retry queue
+    Epic 48 Story 48.5: Performance & Memory Optimization
+    
+    More memory-efficient than dictionaries for retry queue storage.
+    """
+    time: datetime
+    entity_id: str
+    domain: str
+    state: str
+    previous_state: str
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for compatibility"""
+        return {
+            'time': self.time,
+            'entity_id': self.entity_id,
+            'domain': self.domain,
+            'state': self.state,
+            'previous_state': self.previous_state
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> 'DeferredEvent':
+        """Create from dictionary"""
+        return cls(
+            time=data['time'],
+            entity_id=data.get('entity_id', ''),
+            domain=data.get('domain', ''),
+            state=data.get('state', ''),
+            previous_state=data.get('previous_state', '')
+        )
 
 
 class EnergyEventCorrelator:
@@ -53,7 +90,8 @@ class EnergyEventCorrelator:
         self.retry_window_minutes = max(1, int(retry_window_minutes))
 
         # Runtime caches
-        self._pending_events: list[dict[str, Any]] = []
+        # Epic 48 Story 48.5: Use dataclasses for memory efficiency
+        self._pending_events: list[DeferredEvent] = []
         self._power_cache: dict[str, list[float]] | None = None
 
         # Statistics
@@ -121,7 +159,8 @@ class EnergyEventCorrelator:
             power_cache_built = True
 
             batch_points: list[Point] = []
-            deferred_events: list[dict[str, Any]] = []
+            # Epic 48 Story 48.5: Use DeferredEvent for retry queue
+            deferred_events: list[DeferredEvent] = []
 
             # Process each event
             for event in events:
@@ -172,7 +211,8 @@ class EnergyEventCorrelator:
         """
 
         # Calculate time range
-        now = datetime.utcnow()
+        # Epic 48 Story 48.5: Use timezone-aware datetime
+        now = datetime.now(timezone.utc)
         start_time = now - timedelta(minutes=minutes)
 
         # Flux query for InfluxDB 2.x with batching limits
@@ -222,7 +262,7 @@ class EnergyEventCorrelator:
         self,
         event: dict,
         *,
-        retry_queue: list[dict[str, Any]] | None = None,
+        retry_queue: list[DeferredEvent] | None = None,
         write_result: bool = True
     ):
         """
@@ -252,7 +292,15 @@ class EnergyEventCorrelator:
         if power_before is None or power_after is None:
             logger.debug(f"No power data found for event {entity_id} at {event_time}")
             if retry_queue is not None:
-                retry_queue.append(event)
+                # Epic 48 Story 48.5: Use DeferredEvent dataclass
+                deferred = DeferredEvent(
+                    time=event_time,
+                    entity_id=entity_id or '',
+                    domain=domain or '',
+                    state=state or '',
+                    previous_state=previous_state or ''
+                )
+                retry_queue.append(deferred)
             return
 
         # Calculate delta
@@ -386,20 +434,28 @@ class EnergyEventCorrelator:
         new_events: list[dict[str, Any]],
         lookback_minutes: int
     ) -> list[dict[str, Any]]:
-        """Combine new events with pending retries, enforcing limits"""
+        """
+        Combine new events with pending retries, enforcing limits
+        Epic 48 Story 48.5: Updated to work with DeferredEvent dataclasses
+        """
         if not new_events and not self._pending_events:
             return []
 
-        cutoff = datetime.utcnow() - timedelta(
+        # Epic 48 Story 48.5: Use timezone-aware datetime
+        cutoff = datetime.now(timezone.utc) - timedelta(
             minutes=max(lookback_minutes, self.retry_window_minutes)
         )
 
+        # Filter pending events (now DeferredEvent instances)
         filtered_pending = [
             evt for evt in self._pending_events
-            if isinstance(evt.get('time'), datetime) and evt['time'] >= cutoff
+            if isinstance(evt, DeferredEvent) and evt.time >= cutoff
         ]
 
-        combined = filtered_pending + new_events
+        # Convert pending events to dicts for merging
+        pending_dicts = [evt.to_dict() for evt in filtered_pending]
+        combined = pending_dicts + new_events
+        
         if not combined:
             return []
 
@@ -434,26 +490,41 @@ class EnergyEventCorrelator:
 
     def _trim_pending_events(
         self,
-        events: list[dict[str, Any]],
+        events: list[DeferredEvent],
         lookback_minutes: int
-    ) -> list[dict[str, Any]]:
-        """Enforce retry queue retention and size"""
+    ) -> list[DeferredEvent]:
+        """
+        Enforce retry queue retention and size
+        Epic 48 Story 48.5: Returns DeferredEvent list, adds capacity monitoring
+        """
         if not events or self.max_retry_queue_size == 0:
             return []
 
-        cutoff = datetime.utcnow() - timedelta(
+        # Epic 48 Story 48.5: Use timezone-aware datetime
+        cutoff = datetime.now(timezone.utc) - timedelta(
             minutes=max(lookback_minutes, self.retry_window_minutes)
         )
 
+        # Filter events by cutoff time
         filtered = [
             event for event in events
-            if isinstance(event.get('time'), datetime) and event['time'] >= cutoff
+            if isinstance(event, DeferredEvent) and event.time >= cutoff
         ]
 
         if not filtered:
             return []
 
-        filtered.sort(key=lambda e: e['time'])
+        filtered.sort(key=lambda e: e.time)
+
+        # Epic 48 Story 48.5: Queue capacity monitoring
+        queue_size = len(filtered)
+        capacity_pct = (queue_size / self.max_retry_queue_size * 100) if self.max_retry_queue_size > 0 else 0
+        
+        if capacity_pct >= 80:
+            logger.warning(
+                f"Retry queue at {capacity_pct:.1f}% capacity "
+                f"({queue_size}/{self.max_retry_queue_size} events)"
+            )
 
         if len(filtered) > self.max_retry_queue_size:
             filtered = filtered[-self.max_retry_queue_size:]
@@ -558,6 +629,13 @@ class EnergyEventCorrelator:
             if self.correlations_found > 0 else 100
         )
 
+        # Epic 48 Story 48.5: Add queue size to statistics
+        queue_size = len(self._pending_events)
+        queue_capacity_pct = (
+            (queue_size / self.max_retry_queue_size * 100)
+            if self.max_retry_queue_size > 0 else 0
+        )
+        
         return {
             "total_events_processed": self.total_events_processed,
             "correlations_found": self.correlations_found,
@@ -565,11 +643,14 @@ class EnergyEventCorrelator:
             "correlation_rate_pct": round(correlation_rate, 2),
             "write_success_rate_pct": round(write_success_rate, 2),
             "errors": self.errors,
+            "retry_queue_size": queue_size,
+            "retry_queue_capacity_pct": round(queue_capacity_pct, 2),
             "config": {
                 "correlation_window_seconds": self.correlation_window_seconds,
                 "min_power_delta_w": self.min_power_delta,
                 "max_events_per_interval": self.max_events_per_interval,
-                "power_lookup_padding_seconds": self.power_lookup_padding_seconds
+                "power_lookup_padding_seconds": self.power_lookup_padding_seconds,
+                "max_retry_queue_size": self.max_retry_queue_size
             }
         }
 

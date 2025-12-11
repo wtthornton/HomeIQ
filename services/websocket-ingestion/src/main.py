@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -78,7 +78,7 @@ class WebSocketIngestionService:
     """Main service class for WebSocket ingestion"""
 
     def __init__(self):
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(timezone.utc)
         self.connection_manager: ConnectionManager | None = None
         self.health_handler = HealthCheckHandler()
         # Pass self reference to health handler for weather statistics

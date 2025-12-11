@@ -3,7 +3,7 @@ Health Check Handler for WebSocket Ingestion Service
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiohttp import web
 
@@ -14,7 +14,7 @@ class HealthCheckHandler:
     """Handles health check requests"""
 
     def __init__(self):
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(timezone.utc)
         self.connection_manager: object | None = None
         self.historical_counter: object | None = None
 
@@ -33,8 +33,8 @@ class HealthCheckHandler:
             health_data = {
                 "status": "healthy",
                 "service": "websocket-ingestion",
-                "uptime": str(datetime.now() - self.start_time),
-                "timestamp": datetime.now().isoformat()
+                "uptime": str(datetime.now(timezone.utc) - self.start_time),
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
             # Add minimal connection status without blocking operations
@@ -87,7 +87,7 @@ class HealthCheckHandler:
                                 end_time = datetime.fromisoformat(sub_status["last_event_time"])
                             else:
                                 # If no events yet, use current time to show 0 rate (correct behavior)
-                                end_time = datetime.now()
+                                end_time = datetime.now(timezone.utc)
                             
                             duration_minutes = (end_time - start_time).total_seconds() / 60
                             if duration_minutes > 0:
@@ -117,7 +117,7 @@ class HealthCheckHandler:
                 elif event_subscription and event_subscription.total_events_received == 0:
                     # Check if we've been subscribed for more than 60 seconds without events
                     if event_subscription.subscription_start_time:
-                        time_since_subscription = (datetime.now() - event_subscription.subscription_start_time).total_seconds()
+                        time_since_subscription = (datetime.now(timezone.utc) - event_subscription.subscription_start_time).total_seconds()
                         if time_since_subscription > 60:
                             health_data["status"] = "degraded"
                             health_data["reason"] = "No events received in 60+ seconds"
@@ -142,7 +142,7 @@ class HealthCheckHandler:
                     "status": "unhealthy",
                     "service": "websocket-ingestion",
                     "error": str(e),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 },
                 status=200
             )
@@ -154,8 +154,8 @@ class HealthCheckHandler:
             health_data = {
                 "status": "healthy",
                 "service": "websocket-ingestion",
-                "uptime": str(datetime.now() - self.start_time),
-                "timestamp": datetime.now().isoformat()
+                "uptime": str(datetime.now(timezone.utc) - self.start_time),
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
             # Add minimal connection status without blocking operations
@@ -208,7 +208,7 @@ class HealthCheckHandler:
                                 end_time = datetime.fromisoformat(sub_status["last_event_time"])
                             else:
                                 # If no events yet, use current time to show 0 rate (correct behavior)
-                                end_time = datetime.now()
+                                end_time = datetime.now(timezone.utc)
                             
                             duration_minutes = (end_time - start_time).total_seconds() / 60
                             if duration_minutes > 0:
@@ -238,7 +238,7 @@ class HealthCheckHandler:
                 elif event_subscription and event_subscription.total_events_received == 0:
                     # Check if we've been subscribed for more than 60 seconds without events
                     if event_subscription.subscription_start_time:
-                        time_since_subscription = (datetime.now() - event_subscription.subscription_start_time).total_seconds()
+                        time_since_subscription = (datetime.now(timezone.utc) - event_subscription.subscription_start_time).total_seconds()
                         if time_since_subscription > 60:
                             health_data["status"] = "degraded"
                             health_data["reason"] = "No events received in 60+ seconds"
@@ -260,5 +260,5 @@ class HealthCheckHandler:
                 "status": "unhealthy",
                 "service": "websocket-ingestion",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }

@@ -9,13 +9,14 @@ WORKDIR /app
 RUN pip install --upgrade pip==25.2
 
 # Install minimal dependencies (CPU-only)
+# Epic 41 Story 41.1: Updated to PyTorch 2.4.0+cpu, FastAPI 0.123.x, Uvicorn 0.32.x
 RUN pip install --no-cache-dir --user \
     --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.3.1+cpu \
+    "torch>=2.4.0,<3.0.0" \
  && pip install --no-cache-dir --user \
-    transformers==4.45.2 \
-    fastapi==0.104.1 \
-    uvicorn[standard]==0.38.0
+    "transformers>=4.46.1,<5.0.0" \
+    "fastapi>=0.123.0,<0.124.0" \
+    "uvicorn[standard]>=0.32.0,<0.33.0"
 
 # Pre-download and cache the NER model to a dedicated directory
 RUN python - <<'PY' \

@@ -33,14 +33,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Hugging Face stack so community pattern features work out of the box
+# Epic 41 Story 41.1: Updated to PyTorch 2.4.0+cpu and latest stable versions
 RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.2.2+cpu \
+    "torch>=2.4.0,<3.0.0" \
  && pip install --no-cache-dir \
-    transformers==4.45.2 \
-    sentence-transformers==3.3.1 \
-    openvino==2024.5.0 \
-    optimum-intel==1.20.0
+    "transformers>=4.46.1,<5.0.0" \
+    "sentence-transformers>=3.3.1,<4.0.0" \
+    "openvino>=2024.5.0,<2025.0.0" \
+    "optimum-intel>=1.21.0,<2.0.0"
 
 # Download spaCy English model for NER fallback
 RUN python -m spacy download en_core_web_sm || echo "spaCy model download failed, will retry on startup"
