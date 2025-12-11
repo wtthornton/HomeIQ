@@ -803,65 +803,65 @@ Enhance ML training infrastructure to support high-quality initial model trainin
 
 **Epic 47: BGE-M3 Embedding Model Upgrade (Phase 1)** ✅ **COMPLETE** (December 2025)
 
-**Epic 48: Energy Correlator Code Review Improvements** 📋 **PLANNING** ⭐ **NEW**
+**Epic 48: Energy Correlator Code Review Improvements** 🔄 **IN PROGRESS** (Critical Items Complete)
 Address critical security, testing, and code quality improvements identified in comprehensive 2025 code review of energy-correlator service. Enhances production readiness through security hardening, comprehensive test coverage (target 70%), integration tests, error scenario testing, and performance optimizations.
 
 **Key Improvements:**
-- Security: API endpoint authentication, input validation for InfluxDB bucket names
-- Testing: Integration test suite (InfluxDB queries, API endpoints, E2E flows)
-- Coverage: Increase from 40% to 70% target
-- Performance: Retry queue memory optimization, timezone standardization
-- Quality: Error scenario testing, comprehensive edge case coverage
+- Security: API endpoint authentication, input validation for InfluxDB bucket names ✅ **COMPLETE**
+- Testing: Integration test suite (InfluxDB queries, API endpoints, E2E flows) 📋 **PLANNING**
+- Coverage: Increase from 40% to 70% target 📋 **PLANNING**
+- Performance: Retry queue memory optimization, timezone standardization 🔄 **PARTIAL** (timezone ✅, queue optimization 📋)
+- Quality: Error scenario testing, comprehensive edge case coverage 📋 **PLANNING**
 
 **Stories:** 5 stories (14-18 hours)
-- 48.1: Security Hardening & Input Validation (High, 2-3 hours)
-- 48.2: Integration Test Suite (High, 4-6 hours)
-- 48.3: Error Scenario Testing (Medium, 2-3 hours)
-- 48.4: Test Coverage & Quality Improvements (Medium, 3-4 hours)
-- 48.5: Performance & Memory Optimization (Medium, 1-2 hours)
+- 48.1: Security Hardening & Input Validation ✅ **COMPLETE** (High, 2-3 hours)
+- 48.2: Integration Test Suite 📋 **PLANNING** (High, 4-6 hours)
+- 48.3: Error Scenario Testing 📋 **PLANNING** (Medium, 2-3 hours)
+- 48.4: Test Coverage & Quality Improvements 📋 **PLANNING** (Medium, 3-4 hours)
+- 48.5: Performance & Memory Optimization 🔄 **IN PROGRESS** (Medium, 1-2 hours) - Timezone & config complete, queue optimization pending
 
 **Epic Document:** `docs/prd/epic-48-energy-correlator-code-review-improvements.md`  
 **Code Review:** `docs/qa/code-review-energy-correlator-2025.md`
 
-**Epic 49: Electricity Pricing Service Code Review Improvements** 📋 **PLANNING** ⭐ **NEW**
+**Epic 49: Electricity Pricing Service Code Review Improvements** 🔄 **IN PROGRESS** (Critical Items Complete)
 Address critical security, testing, and performance improvements identified in comprehensive 2025 code review of electricity-pricing-service. Enhances production readiness through security hardening, batch write optimization, comprehensive test coverage (target 70%), and error scenario testing.
 
 **Key Improvements:**
-- Security: API endpoint input validation, query parameter bounds checking, authentication
-- Performance: Batch InfluxDB writes, async write context wrapping
-- Testing: Integration test suite (InfluxDB writes, API endpoints, provider integration)
-- Coverage: Increase from 50% to 70% target
-- Quality: Error scenario testing, provider-specific tests, comprehensive edge cases
+- Security: API endpoint input validation, query parameter bounds checking, authentication ✅ **COMPLETE**
+- Performance: Batch InfluxDB writes, async write context wrapping ✅ **COMPLETE**
+- Testing: Integration test suite (InfluxDB writes, API endpoints, provider integration) 📋 **PLANNING**
+- Coverage: Increase from 50% to 70% target 📋 **PLANNING**
+- Quality: Error scenario testing, provider-specific tests, comprehensive edge cases 📋 **PLANNING**
 
 **Stories:** 6 stories (12-16 hours)
-- 49.1: Security Hardening & Input Validation (High, 2-3 hours)
-- 49.2: Performance Optimization - Batch Writes (High, 1-2 hours)
-- 49.3: Integration Test Suite (Medium, 3-4 hours)
-- 49.4: Error Scenario Testing (Medium, 2-3 hours)
-- 49.5: Test Coverage & Quality Improvements (Medium, 2-3 hours)
-- 49.6: Provider-Specific Testing (Medium, 1-2 hours)
+- 49.1: Security Hardening & Input Validation ✅ **COMPLETE** (High, 2-3 hours)
+- 49.2: Performance Optimization - Batch Writes ✅ **COMPLETE** (High, 1-2 hours)
+- 49.3: Integration Test Suite 📋 **PLANNING** (Medium, 3-4 hours)
+- 49.4: Error Scenario Testing 📋 **PLANNING** (Medium, 2-3 hours)
+- 49.5: Test Coverage & Quality Improvements 📋 **PLANNING** (Medium, 2-3 hours)
+- 49.6: Provider-Specific Testing 📋 **PLANNING** (Medium, 1-2 hours)
 
 **Epic Document:** `docs/prd/epic-49-electricity-pricing-service-code-review-improvements.md`  
 **Code Review:** `docs/qa/code-review-electricity-pricing-service-2025.md`
 
-**Epic 50: WebSocket Ingestion Service Code Review Improvements** 📋 **PLANNING** ⭐ **NEW**
+**Epic 50: WebSocket Ingestion Service Code Review Improvements** 🔄 **IN PROGRESS** (Critical Items Complete)
 Address security, testing, and code quality improvements identified in comprehensive 2025 code review of websocket-ingestion service. Enhances production readiness through timezone standardization, security hardening, comprehensive integration tests, and documentation improvements while maintaining excellent architectural patterns.
 
 **Key Improvements:**
-- Code Quality: Timezone standardization (107 instances of datetime.now() → timezone-aware)
-- Security: WebSocket message input validation, SSL verification enabled, rate limiting
-- Testing: Integration test suite (WebSocket connections, event pipeline, discovery integration)
-- Coverage: Increase from 70% to 80% target
-- Quality: Error scenario testing, WebSocket handler tests, code organization
+- Code Quality: Timezone standardization (107 instances of datetime.now() → timezone-aware) ✅ **COMPLETE** (already compliant)
+- Security: WebSocket message input validation, SSL verification enabled, rate limiting ✅ **COMPLETE** (already implemented)
+- Testing: Integration test suite (WebSocket connections, event pipeline, discovery integration) 📋 **PLANNING**
+- Coverage: Increase from 70% to 80% target 📋 **PLANNING**
+- Quality: Error scenario testing, WebSocket handler tests, code organization 📋 **PLANNING**
 
 **Stories:** 7 stories (15-20 hours)
-- 50.1: Timezone Standardization (High, 2-3 hours)
-- 50.2: Security Hardening (High, 1-2 hours)
-- 50.3: Integration Test Suite (Medium, 4-6 hours)
-- 50.4: Error Scenario Testing (Medium, 2-3 hours)
-- 50.5: WebSocket Handler Tests (Medium, 1-2 hours)
-- 50.6: Test Coverage Improvement (Medium, 3-4 hours)
-- 50.7: Code Organization & Documentation (Medium, 1-2 hours)
+- 50.1: Timezone Standardization ✅ **COMPLETE** (High, 2-3 hours) - Verified already compliant
+- 50.2: Security Hardening ✅ **COMPLETE** (High, 1-2 hours) - Verified already implemented
+- 50.3: Integration Test Suite 📋 **PLANNING** (Medium, 4-6 hours)
+- 50.4: Error Scenario Testing 📋 **PLANNING** (Medium, 2-3 hours)
+- 50.5: WebSocket Handler Tests 📋 **PLANNING** (Medium, 1-2 hours)
+- 50.6: Test Coverage Improvement 📋 **PLANNING** (Medium, 3-4 hours)
+- 50.7: Code Organization & Documentation 📋 **PLANNING** (Medium, 1-2 hours)
 
 **Epic Document:** `docs/prd/epic-50-websocket-ingestion-code-review-improvements.md`  
 **Code Review:** `docs/qa/code-review-websocket-ingestion-2025.md`
@@ -895,8 +895,8 @@ Upgrade RAG embedding model from all-MiniLM-L6-v2 (2019, 384-dim) to BAAI/bge-la
 - **Total Epics**: 51 (26 infrastructure + 5 AI enhancement + 4 setup service + 1 architecture + 1 code quality + 3 synthetic external data + 3 correlation analysis + 1 service modularization + 1 deployment configuration + 1 vector database optimization + 3 production readiness improvements + 1 database architecture enhancement + 1 ML training enhancement + 1 RAG enhancement + 3 quality improvement)
 - **Completed**: 39 (26 infrastructure + 6 AI + 4 setup service + 1 architecture + 1 code quality + 1 database architecture + 1 ML training + 1 RAG enhancement + 2 sports integration) ✅ **100% COMPLETE** 🎉
 - **Deferred**: 1 (Epic 40: Dual Deployment Configuration - not needed for single-home setup) ⏸️
-- **Planned**: 12 (Epic 33-39, 41, 43-44, 48-50 + Epic AI-5: Synthetic External Data, Correlation Analysis, Service Modularization, Production Readiness Improvements, Development Experience Improvements, Unified Contextual Intelligence) 📋
-- **In Progress**: 0
+- **Planned**: 9 (Epic 33-39, 41, 43-44 + Epic AI-5: Synthetic External Data, Correlation Analysis, Service Modularization, Production Readiness Improvements, Development Experience Improvements, Unified Contextual Intelligence) 📋
+- **In Progress**: 3 (Epic 48, 49, 50 - Critical items complete, testing stories pending) 🔄
 - **Draft/Planned**: 0
 - **Active Services**: 21 total (18 microservices + InfluxDB infrastructure)
 - **Microservices**: 17 custom services (admin-api, data-api, websocket-ingestion, data-retention, sports-data, log-aggregator, **weather-api**, carbon-intensity, electricity-pricing, air-quality, calendar, smart-meter, energy-correlator, ai-automation, ha-setup-service, automation-miner, ai-ui) - Note: enrichment-pipeline deprecated in Epic 31

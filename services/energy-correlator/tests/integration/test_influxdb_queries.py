@@ -7,7 +7,7 @@ Tests for InfluxDB query operations and Flux query construction.
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -46,7 +46,7 @@ async def test_query_recent_events(correlator_with_mock, mock_influxdb_client):
     # Mock query results
     mock_results = [
         {
-            '_time': datetime.utcnow() - timedelta(minutes=2),
+            '_time': datetime.now(timezone.utc) - timedelta(minutes=2),
             'entity_id': 'switch.lamp',
             '_value': 'on',
             '_measurement': 'home_assistant_events'
@@ -72,7 +72,7 @@ async def test_get_power_at_time(correlator_with_mock, mock_influxdb_client):
     # Mock query results
     mock_results = [
         {
-            '_time': datetime.utcnow(),
+            '_time': datetime.now(timezone.utc),
             '_value': 2450.0,
             '_measurement': 'smart_meter',
             '_field': 'total_power_w'
@@ -82,7 +82,7 @@ async def test_get_power_at_time(correlator_with_mock, mock_influxdb_client):
     
     # Query power data at specific time
     power_data = await correlator_with_mock._get_power_at_time(
-        target_time=datetime.utcnow()
+        target_time=datetime.now(timezone.utc)
     )
     
     # Verify query was called (if power cache not built, will query)
@@ -119,7 +119,7 @@ async def test_query_error_handling(correlator_with_mock, mock_influxdb_client):
 @pytest.mark.asyncio
 async def test_query_time_range_validation(correlator_with_mock, mock_influxdb_client):
     """Test that queries use correct time ranges"""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     lookback_minutes = 5
     
     await correlator_with_mock._query_recent_events(lookback_minutes=lookback_minutes)
@@ -142,7 +142,7 @@ async def test_write_correlation_points(correlator_with_mock, mock_influxdb_clie
     point = Point("energy_correlations") \
         .tag("entity_id", "switch.lamp") \
         .field("power_delta", 60.0) \
-        .time(datetime.utcnow())
+        .time(datetime.now(timezone.utc))
     
     await correlator_with_mock._write_correlation_points([point])
     

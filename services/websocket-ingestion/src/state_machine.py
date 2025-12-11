@@ -71,15 +71,35 @@ class ConnectionState(Enum):
 
 class ConnectionStateMachine(StateMachine):
     """
-    State machine for connection management.
+    State machine for connection management with transition validation.
     
-    Valid transitions:
+    Provides formal state management for WebSocket connection lifecycle, preventing
+    invalid state transitions and ensuring reliable connection handling. Based on
+    the shared StateMachine base class from shared/state_machine.py.
+    
+    State Flow:
+    1. DISCONNECTED → CONNECTING (initial connection attempt)
+    2. CONNECTING → AUTHENTICATING (WebSocket established, authenticating)
+    3. AUTHENTICATING → CONNECTED (authentication successful)
+    4. CONNECTED → RECONNECTING (connection lost, attempting reconnect)
+    5. RECONNECTING → CONNECTING (reconnection attempt started)
+    6. Any state → FAILED (critical error occurred)
+    7. FAILED → RECONNECTING (automatic recovery)
+    
+    Valid Transitions:
     - DISCONNECTED → CONNECTING
     - CONNECTING → AUTHENTICATING, FAILED
     - AUTHENTICATING → CONNECTED, FAILED
     - CONNECTED → RECONNECTING, DISCONNECTED
     - RECONNECTING → CONNECTING, FAILED
     - FAILED → RECONNECTING
+    
+    Invalid transitions raise InvalidStateTransition exception.
+    
+    Example:
+        machine = ConnectionStateMachine()
+        machine.transition(ConnectionState.CONNECTING)  # Valid
+        machine.transition(ConnectionState.CONNECTED)   # Invalid, raises exception
     """
 
     VALID_TRANSITIONS = {

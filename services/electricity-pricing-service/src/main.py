@@ -6,7 +6,7 @@ Fetches real-time electricity pricing from utility APIs
 import asyncio
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
@@ -137,15 +137,15 @@ class ElectricityPricingService:
             data = await self.provider.fetch_pricing(self.session)
 
             # Add timestamp
-            data['timestamp'] = datetime.now()
+            data['timestamp'] = datetime.now(timezone.utc)
             data['provider'] = self.provider_name
 
             # Update cache
             self.cached_data = data
-            self.last_fetch_time = datetime.now()
+            self.last_fetch_time = datetime.now(timezone.utc)
 
             # Update health check
-            self.health_handler.last_successful_fetch = datetime.now()
+            self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
             self.health_handler.total_fetches += 1
 
             logger.info(f"Current price: {data['current_price']:.3f} {data['currency']}/kWh")

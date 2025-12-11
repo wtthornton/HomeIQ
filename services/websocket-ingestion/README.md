@@ -729,6 +729,53 @@ pytest-asyncio==0.23.0   # Async test support
 
 See `requirements-prod.txt` for minimal production dependencies.
 
+## Architecture
+
+### Component Overview
+
+The service follows a modular architecture with clear separation of concerns:
+
+- **ConnectionManager**: Manages WebSocket connection lifecycle with state machine pattern
+- **BatchProcessor**: High-performance batch processing with overflow protection
+- **EventProcessor**: Normalizes and enriches events with device/area metadata (Epic 23)
+- **DiscoveryService**: Automatic device and entity discovery with caching
+- **InfluxDBBatchWriter**: Direct writes to InfluxDB (Epic 31 architecture)
+- **StateMachine**: Formal state management for connection and processing states
+
+### Data Flow
+
+```
+Home Assistant WebSocket (192.168.1.86:8123)
+        ↓
+ConnectionManager (State Machine)
+        ↓
+EventSubscriptionManager
+        ↓
+BatchProcessor (100 events or 5s timeout)
+        ↓
+EventProcessor (Normalization + Epic 23 enrichment)
+        ↓
+InfluxDBBatchWriter
+        ↓
+InfluxDB (Port 8086) - bucket: home_assistant_events
+```
+
+### State Machine Patterns
+
+The service uses formal state machines for reliable state management:
+
+**ConnectionStateMachine:**
+- States: DISCONNECTED → CONNECTING → AUTHENTICATING → CONNECTED
+- Handles reconnection and failure states
+- Prevents invalid state transitions
+
+**ProcessingStateMachine:**
+- States: STOPPED → STARTING → RUNNING → STOPPING
+- Manages batch processing lifecycle
+- Ensures graceful shutdown
+
+See `src/state_machine.py` for implementation details.
+
 ## Related Documentation
 
 - [Troubleshooting Guide](../../docs/TROUBLESHOOTING_GUIDE.md)
