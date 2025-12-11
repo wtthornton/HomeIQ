@@ -2,9 +2,16 @@
 """
 Quick integration test for State Machine Pattern
 Tests that state machines work in runtime environment
+Epic 50 Story 50.7: Code Organization - Moved from src/ to tests/integration/
 """
 
 import sys
+from pathlib import Path
+
+# Add src directory to path for imports
+src_path = Path(__file__).parent.parent.parent / "src"
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
 
 from state_machine import ConnectionStateMachine, InvalidStateTransition, ProcessingStateMachine
 

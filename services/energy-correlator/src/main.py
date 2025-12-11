@@ -6,7 +6,7 @@ Post-processes HA events and power data to find causality relationships
 import asyncio
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiohttp import web
 from dotenv import load_dotenv
@@ -133,7 +133,7 @@ class EnergyCorrelatorService:
                 )
 
                 # Update health check
-                self.health_handler.last_successful_fetch = datetime.now()
+                self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
                 self.health_handler.total_fetches += 1
 
                 # Wait for next interval

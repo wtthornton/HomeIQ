@@ -4,7 +4,7 @@ Shared test fixtures for energy-correlator service
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -190,6 +190,6 @@ def mock_power_query_result():
             '_measurement': 'smart_meter',
             '_field': 'total_power_w',
             '_value': 2450.0,
-            '_time': datetime.utcnow()
+            '_time': datetime.now(timezone.utc)
         }
     ]

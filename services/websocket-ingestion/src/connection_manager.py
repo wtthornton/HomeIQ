@@ -22,7 +22,35 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
-    """Manages WebSocket connection with automatic retry and reconnection"""
+    """
+    Manages WebSocket connection with automatic retry and reconnection.
+    
+    This is the core component that orchestrates the WebSocket connection lifecycle,
+    event processing, and service discovery. It uses a state machine pattern for
+    reliable connection state management and includes infinite retry capability
+    for maximum uptime.
+    
+    Key Features:
+    - State machine-based connection management (ConnectionStateMachine)
+    - Infinite retry with exponential backoff (configurable)
+    - Automatic device/entity discovery with periodic refresh
+    - Event rate monitoring and health tracking
+    - Circuit breaker pattern for graceful degradation
+    
+    State Transitions:
+    - DISCONNECTED → CONNECTING → AUTHENTICATING → CONNECTED
+    - CONNECTED → RECONNECTING (on connection loss)
+    - Any state → FAILED (on critical errors)
+    - FAILED → RECONNECTING (automatic recovery)
+    
+    Example:
+        manager = ConnectionManager(
+            base_url="http://192.168.1.86:8123",
+            token="your-token",
+            influxdb_manager=influxdb_manager
+        )
+        await manager.start()
+    """
 
     def __init__(self, base_url: str, token: str, influxdb_manager=None):
         self.base_url = base_url
