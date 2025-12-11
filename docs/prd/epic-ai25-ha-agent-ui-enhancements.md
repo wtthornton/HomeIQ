@@ -1,5 +1,7 @@
 # Epic AI-25: HA Agent UI Enhancements - Brownfield Enhancement
 
+**Status:** ✅ **COMPLETE** (December 2025)
+
 ## Epic Goal
 
 Enhance the HA Agent chat interface to provide structured automation proposal rendering, interactive call-to-action buttons, and improved markdown formatting to match the AI-generated proposal format and improve user experience.

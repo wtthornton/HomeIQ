@@ -47,7 +47,8 @@ class EntityResolver:
         self,
         ha_client: HomeAssistantClient | None = None,
         data_api_client: DataAPIClient | None = None,
-        rag_client: Any | None = None  # RAGClient type, but optional
+        rag_client: Any | None = None,  # RAGClient type, but optional
+        personalized_resolver: Any | None = None  # PersonalizedEntityResolver, optional
     ):
         """
         Initialize unified entity resolver.
@@ -56,15 +57,19 @@ class EntityResolver:
             ha_client: Home Assistant client
             data_api_client: Data API client
             rag_client: Optional RAG client for semantic entity disambiguation
+            personalized_resolver: Optional PersonalizedEntityResolver for personalized matching
         """
         self.ha_client = ha_client
         self.data_api_client = data_api_client or DataAPIClient()
         self.rag_client = rag_client
+        self.personalized_resolver = personalized_resolver
 
         # Initialize validator for resolution
         self._validator: LegacyEntityValidator | None = None
 
-        if rag_client:
+        if personalized_resolver:
+            logger.info("EntityResolver initialized with PersonalizedEntityResolver")
+        elif rag_client:
             logger.info("EntityResolver initialized with RAG client for semantic disambiguation")
         else:
             logger.info("EntityResolver initialized (RAG client not available)")
@@ -87,7 +92,7 @@ class EntityResolver:
         """
         Resolve device names to entity IDs.
         
-        Uses RAG for semantic disambiguation when exact matches are ambiguous.
+        Uses personalized resolver if available, otherwise falls back to RAG or exact matching.
         
         Args:
             device_names: List of device names to resolve
@@ -101,16 +106,42 @@ class EntityResolver:
             return {}
 
         try:
+            # Step 1: Try personalized resolver first (if available)
+            if self.personalized_resolver:
+                try:
+                    mapping = await self.personalized_resolver.resolve_device_names(
+                        device_names=device_names,
+                        query=query,
+                        area_id=area_id,
+                        use_fallback=False  # We'll handle fallback here
+                    )
+                    
+                    # Check if all names resolved
+                    unresolved_names = [name for name in device_names if name not in mapping]
+                    if not unresolved_names:
+                        logger.info(f"✅ Personalized resolver resolved all {len(device_names)} device names")
+                        return mapping
+                    
+                    # Continue with fallback for unresolved names
+                    logger.debug(f"Personalized resolver resolved {len(mapping)}/{len(device_names)}, using fallback for {len(unresolved_names)}")
+                except Exception as e:
+                    logger.warning(f"Personalized resolver failed, falling back to standard resolution: {e}")
+                    mapping = {}
+                    unresolved_names = device_names
+            else:
+                mapping = {}
+                unresolved_names = device_names
+
+            # Step 2: Use standard validator for unresolved names
             validator = self._get_validator()
-
-            # Step 1: Try exact matching first
-            mapping = await validator.map_query_to_entities(
-                query=query or " ".join(device_names),
-                device_names=device_names
+            standard_mapping = await validator.map_query_to_entities(
+                query=query or " ".join(unresolved_names),
+                device_names=unresolved_names
             )
+            mapping.update(standard_mapping)
 
-            # Step 2: Use RAG for unresolved or ambiguous matches
-            unresolved_names = [name for name in device_names if name not in mapping]
+            # Step 3: Use RAG for still-unresolved or ambiguous matches
+            unresolved_names = [name for name in unresolved_names if name not in mapping]
 
             if unresolved_names and self.rag_client:
                 try:

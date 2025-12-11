@@ -3227,6 +3227,38 @@ async def generate_suggestions_from_query(
             ) if settings.ha_url and settings.ha_token else None
 
             if ha_client:
+                # Epic AI-12 Story AI12.9: Initialize personalized entity resolution for Ask AI
+                personalized_resolver = None
+                entity_resolver = None
+                try:
+                    from ..services.entity.index_builder import PersonalizedIndexBuilder
+                    from ..services.entity.personalized_resolver import PersonalizedEntityResolver
+                    from ..services.entity.resolver import EntityResolver
+
+                    logger.info("  → Initializing personalized entity resolution for Ask AI...")
+                    index_builder = PersonalizedIndexBuilder(ha_client=ha_client)
+                    personalized_index = await index_builder.build_index()
+
+                    personalized_resolver = PersonalizedEntityResolver(
+                        personalized_index=personalized_index,
+                        ha_client=ha_client
+                    )
+
+                    # Create EntityResolver with personalized resolver
+                    from ..clients.data_api_client import DataAPIClient
+                    data_api_client = DataAPIClient()
+                    entity_resolver = EntityResolver(
+                        ha_client=ha_client,
+                        data_api_client=data_api_client,
+                        personalized_resolver=personalized_resolver
+                    )
+
+                    logger.info(f"  ✅ Personalized entity resolution initialized ({len(personalized_index._index)} entities indexed)")
+                except Exception as e:
+                    logger.warning(f"  ⚠️ Failed to initialize personalized entity resolution: {e}, continuing without it")
+                    personalized_resolver = None
+                    entity_resolver = None
+
                 # Step 1: Fetch ALL entities matching query context (location + domain)
                 # This finds all lights in the office (e.g., all 6 lights including WLED)
                 # instead of just mapping generic names to single entities
@@ -3359,10 +3391,37 @@ async def generate_suggestions_from_query(
                     device_names = [e.get('name') for e in entities if e.get('name')]
                     if device_names:
                         logger.info("🔍 No entities found by location/domain, trying device name mapping...")
-                        entity_mapping = await entity_validator.map_query_to_entities(query, device_names)
-                        if entity_mapping:
-                            resolved_entity_ids = list(entity_mapping.values())
-                            logger.info(f"✅ Resolved {len(entity_mapping)} device names to {len(resolved_entity_ids)} entity IDs")
+                        
+                        # Epic AI-12 Story AI12.9: Use personalized resolver if available
+                        if entity_resolver:
+                            try:
+                                logger.info("  → Using personalized entity resolver for device name mapping...")
+                                entity_mapping = await entity_resolver.resolve_device_names(
+                                    device_names=device_names,
+                                    query=query,
+                                    area_id=query_location
+                                )
+                                if entity_mapping:
+                                    resolved_entity_ids = list(entity_mapping.values())
+                                    logger.info(f"✅ Personalized resolver: {len(entity_mapping)} device names resolved to {len(resolved_entity_ids)} entity IDs")
+                                else:
+                                    # Fallback to legacy validator
+                                    entity_mapping = await entity_validator.map_query_to_entities(query, device_names)
+                                    if entity_mapping:
+                                        resolved_entity_ids = list(entity_mapping.values())
+                                        logger.info(f"✅ Legacy resolver: {len(entity_mapping)} device names resolved to {len(resolved_entity_ids)} entity IDs")
+                            except Exception as e:
+                                logger.warning(f"  ⚠️ Personalized resolution failed: {e}, falling back to legacy validator")
+                                entity_mapping = await entity_validator.map_query_to_entities(query, device_names)
+                                if entity_mapping:
+                                    resolved_entity_ids = list(entity_mapping.values())
+                                    logger.info(f"✅ Legacy resolver (fallback): {len(entity_mapping)} device names resolved")
+                        else:
+                            # Use legacy validator
+                            entity_mapping = await entity_validator.map_query_to_entities(query, device_names)
+                            if entity_mapping:
+                                resolved_entity_ids = list(entity_mapping.values())
+                                logger.info(f"✅ Resolved {len(entity_mapping)} device names to {len(resolved_entity_ids)} entity IDs")
 
                             # Expand group entities to individual members
                             resolved_entity_ids = await expand_group_entities_to_members(
@@ -4811,6 +4870,131 @@ async def generate_suggestions_from_query(
 
         logger.info(f"Generated {len(suggestions)} suggestions for query: {query}")
         
+        # Epic AI-5 Story AI5.1: Quick Weather Context Integration for Ask AI
+        # Add weather-aware suggestions if climate entities are detected
+        try:
+            # Check if query contains climate entities
+            has_climate_entities = False
+            if entities:
+                for entity in entities:
+                    domain = entity.get('domain', '')
+                    entity_id = entity.get('entity_id', '')
+                    if domain == 'climate' or (entity_id and entity_id.startswith('climate.')):
+                        has_climate_entities = True
+                        break
+            
+            # Also check enriched entities
+            if not has_climate_entities and enriched_entities:
+                for entity in enriched_entities:
+                    entity_id = entity.get('entity_id', '')
+                    if entity_id and entity_id.startswith('climate.'):
+                        has_climate_entities = True
+                        break
+            
+            # Also check query text for climate-related terms
+            if not has_climate_entities and query:
+                climate_terms = ['climate', 'thermostat', 'heating', 'cooling', 'temperature', 'hvac', 'ac', 'heat']
+                query_lower = query.lower()
+                if any(term in query_lower for term in climate_terms):
+                    has_climate_entities = True
+            
+            if has_climate_entities:
+                logger.info("🌤️ Climate entities detected - adding weather context suggestions...")
+                
+                try:
+                    from ..contextual_patterns import WeatherOpportunityDetector
+                    from ..clients.data_api_client import DataAPIClient
+                    
+                    # Initialize data API client (which has InfluxDB client)
+                    data_api_client = DataAPIClient()
+                    
+                    # Check if InfluxDB client is available
+                    if hasattr(data_api_client, 'influxdb_client') and data_api_client.influxdb_client:
+                        # Initialize weather detector with 1-day lookback for performance
+                        weather_detector = WeatherOpportunityDetector(
+                            influxdb_client=data_api_client.influxdb_client,
+                            data_api_client=data_api_client,
+                            frost_threshold_f=32.0,
+                            heat_threshold_f=85.0,
+                            min_confidence=0.7
+                        )
+                        
+                        # Detect weather opportunities (1-day lookback for Ask AI performance)
+                        weather_opportunities = await weather_detector.detect_opportunities(days=1)
+                        
+                        if weather_opportunities:
+                            logger.info(f"  ✅ Found {len(weather_opportunities)} weather opportunities")
+                            
+                            # Convert weather opportunities to Ask AI suggestion format
+                            for opp in weather_opportunities:
+                                metadata = opp.get('opportunity_metadata', {})
+                                relationship = opp.get('relationship', 'weather_aware')
+                                
+                                # Build description based on relationship type
+                                if relationship == 'frost_protection':
+                                    description = f"🌡️ {metadata.get('suggested_action', 'Enable frost protection')} - {metadata.get('rationale', 'Protect against freezing temperatures')}"
+                                elif relationship == 'precooling':
+                                    description = f"🌡️ {metadata.get('suggested_action', 'Pre-cool before hot weather')} - {metadata.get('rationale', 'Save energy by pre-cooling')}"
+                                else:
+                                    description = f"🌤️ Weather-aware automation: {metadata.get('suggested_action', 'Climate control based on weather')}"
+                                
+                                # Build trigger and action summaries
+                                trigger_summary = metadata.get('weather_condition', 'Weather forecast')
+                                action_summary = metadata.get('suggested_action', 'Adjust climate settings')
+                                
+                                # Get devices from opportunity
+                                opp_devices = opp.get('devices', [])
+                                if not opp_devices:
+                                    continue
+                                
+                                # Build validated entities mapping
+                                validated_entities_weather = {}
+                                devices_involved_weather = []
+                                
+                                for device_id in opp_devices:
+                                    if device_id.startswith('climate.'):
+                                        # Use entity_id as both key and value for climate entities
+                                        device_name = device_id.split('.')[-1].replace('_', ' ').title()
+                                        validated_entities_weather[device_name] = device_id
+                                        devices_involved_weather.append(device_name)
+                                
+                                if not validated_entities_weather:
+                                    continue
+                                
+                                # Create weather-aware suggestion
+                                weather_suggestion = {
+                                    'suggestion_id': f'weather-{uuid.uuid4().hex[:8]}',
+                                    'description': description,
+                                    'trigger_summary': trigger_summary,
+                                    'action_summary': action_summary,
+                                    'devices_involved': devices_involved_weather,
+                                    'validated_entities': validated_entities_weather,
+                                    'enriched_entity_context': '',  # Weather suggestions don't need full context
+                                    'capabilities_used': [],
+                                    'confidence': opp.get('confidence', 0.75),
+                                    'status': 'draft',
+                                    'created_at': datetime.now().isoformat(),
+                                    'metadata': {
+                                        'source': 'weather_context',
+                                        'synergy_type': 'weather_context',
+                                        'relationship': relationship,
+                                        'weather_opportunity': True,
+                                        'label': 'Weather-Aware'  # Label for UI display
+                                    }
+                                }
+                                
+                                suggestions.append(weather_suggestion)
+                                logger.info(f"  ✅ Added weather-aware suggestion: {description[:60]}...")
+                        else:
+                            logger.info("  ℹ️  No weather opportunities found for current conditions")
+                    else:
+                        logger.warning("  ⚠️ InfluxDB client not available in DataAPIClient - skipping weather context")
+                except Exception as e:
+                    logger.warning(f"  ⚠️ Weather context integration failed: {e}, continuing without weather suggestions")
+                    # Don't fail the entire query if weather context fails
+        except Exception as e:
+            logger.warning(f"⚠️ Weather context check failed: {e}, continuing without weather suggestions")
+        
         # Log skipped suggestions if any
         if skipped_suggestions_count > 0:
             logger.warning(f"⚠️ Skipped {skipped_suggestions_count} suggestion(s) due to entity mapping failures:")
@@ -4827,6 +5011,7 @@ async def generate_suggestions_from_query(
             logger.error(f"📊 FAILURE_METRIC: entity_mapping_failed, skipped_count={skipped_suggestions_count}, reasons={skipped_reasons[:3]}")
             raise ValueError(error_msg)
         
+        logger.info(f"✅ Final suggestion count: {len(suggestions)} (including weather context)")
         return suggestions
 
     except Exception as e:
@@ -8981,6 +9166,38 @@ async def approve_suggestion_from_query(
                         logger.info(f"✅ Auto-corrected {len(entity_replacements)} entity IDs in YAML")
                         # Re-parse after correction
                         parsed_yaml = yaml_lib.safe_load(automation_yaml)
+
+            # Epic AI-12 Story AI12.9: Learn from user approval - track feedback for active learning
+            try:
+                from ..services.learning.active_learner import ActiveLearner
+                from ..services.learning.feedback_tracker import FeedbackTracker
+                
+                # Track approval feedback
+                feedback_tracker = FeedbackTracker(db_session=db)
+                active_learner = ActiveLearner(
+                    feedback_tracker=feedback_tracker,
+                    db_session=db
+                )
+                
+                # Extract device names and entity IDs from suggestion for learning
+                validated_entities = final_suggestion.get('validated_entities', {})
+                if validated_entities:
+                    # Track approval for each resolved entity
+                    for device_name, entity_id in validated_entities.items():
+                        await feedback_tracker.track_approval(
+                            device_name=device_name,
+                            query=query.original_query if hasattr(query, 'original_query') else "",
+                            suggested_entity_id=entity_id,
+                            actual_entity_id=entity_id,  # Approved, so actual matches suggested
+                            confidence_score=suggestion.get('confidence', 0.8),
+                            area_id=None  # Could extract from suggestion if available
+                        )
+                    
+                    # Process feedback to update personalized index
+                    await active_learner.process_feedback()
+                    logger.info(f"✅ Tracked approval feedback for {len(validated_entities)} entities")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to track approval feedback: {e}")
 
             # Update metrics: Mark suggestion as approved
             if suggestion_model_used:
