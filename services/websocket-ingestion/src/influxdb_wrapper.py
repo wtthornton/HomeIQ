@@ -4,7 +4,7 @@ InfluxDB Client for Time-Series Data Storage
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 try:
@@ -131,7 +131,7 @@ class InfluxDBConnectionManager:
 
             self.is_connected = True
             self.successful_connections += 1
-            self.last_connection_time = datetime.now()
+            self.last_connection_time = datetime.now(timezone.utc)
             self.last_error = None
 
             logger.info("Successfully connected to InfluxDB")
@@ -220,7 +220,7 @@ class InfluxDBConnectionManager:
                 # Test existing connection
                 await self._test_connection()
 
-            self.last_health_check = datetime.now()
+            self.last_health_check = datetime.now(timezone.utc)
 
         except Exception as e:
             logger.warning(f"InfluxDB health check failed: {e}")

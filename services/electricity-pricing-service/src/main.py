@@ -19,6 +19,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from health_check import HealthCheckHandler
 from providers import AwattarProvider
+from security import require_internal_network, validate_hours_parameter
 
 from shared.logging_config import log_error_with_context, log_with_context, setup_logging
 
@@ -45,6 +46,12 @@ class ElectricityPricingService:
         # Service configuration
         self.fetch_interval = 3600  # 1 hour in seconds
         self.cache_duration = 60  # minutes
+        
+        # Epic 49 Story 49.1: Security configuration
+        self.allowed_networks = os.getenv('ALLOWED_NETWORKS', '').split(',') if os.getenv('ALLOWED_NETWORKS') else None
+        if self.allowed_networks:
+            # Filter out empty strings
+            self.allowed_networks = [net.strip() for net in self.allowed_networks if net.strip()]
 
         # Cache
         self.cached_data: dict[str, Any] | None = None
@@ -65,6 +72,10 @@ class ElectricityPricingService:
         # Validate configuration
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
+        
+        # Epic 49 Story 49.1: Set logger for security module
+        import security
+        security.logger = logger
 
     def _get_provider(self):
         """Get pricing provider based on configuration"""
@@ -159,24 +170,30 @@ class ElectricityPricingService:
             return None
 
     async def store_in_influxdb(self, data: dict[str, Any]):
-        """Store pricing data in InfluxDB"""
+        """
+        Store pricing data in InfluxDB
+        Epic 49 Story 49.2: Batch writes for performance optimization
+        """
 
         if not data:
             logger.warning("No data to store in InfluxDB")
             return
 
         try:
+            # Epic 49 Story 49.2: Collect all points for batch write
+            points = []
+            
             # Store current pricing
-            point = Point("electricity_pricing") \
+            current_point = Point("electricity_pricing") \
                 .tag("provider", data['provider']) \
                 .tag("currency", data['currency']) \
                 .field("current_price", float(data['current_price'])) \
                 .field("peak_period", bool(data['peak_period'])) \
                 .time(data['timestamp'])
+            
+            points.append(current_point)
 
-            self.influxdb_client.write(point)
-
-            # Store forecast
+            # Store forecast (collect all forecast points)
             for forecast in data.get('forecast_24h', []):
                 forecast_point = Point("electricity_pricing_forecast") \
                     .tag("provider", data['provider']) \
@@ -184,9 +201,14 @@ class ElectricityPricingService:
                     .field("hour_offset", int(forecast['hour'])) \
                     .time(forecast['timestamp'])
 
-                self.influxdb_client.write(forecast_point)
+                points.append(forecast_point)
 
-            logger.info("Electricity pricing data written to InfluxDB")
+            # Epic 49 Story 49.2: Batch write all points in async context
+            if points:
+                # Wrap synchronous write in async context
+                await asyncio.to_thread(self.influxdb_client.write, points)
+
+            logger.info(f"Electricity pricing data written to InfluxDB ({len(points)} points)")
 
         except Exception as e:
             log_error_with_context(
@@ -197,9 +219,26 @@ class ElectricityPricingService:
             )
 
     async def get_cheapest_hours(self, request):
-        """API endpoint to get cheapest hours"""
-
-        hours_needed = int(request.query.get('hours', 4))
+        """
+        API endpoint to get cheapest hours
+        Epic 49 Story 49.1: Added input validation and security
+        """
+        # Epic 49 Story 49.1: Validate hours parameter
+        try:
+            hours_needed = validate_hours_parameter(
+                request.query.get('hours'),
+                default=4
+            )
+        except ValueError as e:
+            return web.json_response({
+                'error': str(e)
+            }, status=400)
+        
+        # Epic 49 Story 49.1: Require internal network access (if configured)
+        try:
+            await require_internal_network(request, self.allowed_networks)
+        except web.HTTPForbidden:
+            raise  # Re-raise to return 403 response
 
         if self.cached_data and 'cheapest_hours' in self.cached_data:
             cheapest = self.cached_data['cheapest_hours'][:hours_needed]

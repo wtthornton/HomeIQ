@@ -99,12 +99,16 @@ async def get_game_status(team: str):
         Quick status (no_game, upcoming, live, finished)
     """
     try:
+        # Normalize team name for case-insensitive matching
+        team_lower = team.lower().strip()
+        
         # Query only latest game for this team (last 7 days)
+        # Use case-insensitive matching by converting to lowercase in Flux
         query = f'''
             from(bucket: "sports_data")
                 |> range(start: -7d)
                 |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
-                |> filter(fn: (r) => r.home_team == "{team}" or r.away_team == "{team}")
+                |> filter(fn: (r) => strings.toLower(v: r.home_team) == "{team_lower}" or strings.toLower(v: r.away_team) == "{team_lower}")
                 |> sort(columns: ["_time"], desc: true)
                 |> limit(n: 1)
         '''
@@ -160,12 +164,15 @@ async def get_game_context(team: str):
         Complete game context
     """
     try:
-        # Query latest game
+        # Normalize team name for case-insensitive matching
+        team_lower = team.lower().strip()
+        
+        # Query latest game with case-insensitive matching
         query = f'''
             from(bucket: "sports_data")
                 |> range(start: -7d)
                 |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
-                |> filter(fn: (r) => r.home_team == "{team}" or r.away_team == "{team}")
+                |> filter(fn: (r) => strings.toLower(v: r.home_team) == "{team_lower}" or strings.toLower(v: r.away_team) == "{team_lower}")
                 |> sort(columns: ["_time"], desc: true)
                 |> limit(n: 1)
         '''
@@ -360,30 +367,60 @@ async def deliver_webhook(webhook: WebhookRegistration, event_type: str, payload
 
 
 # Helper function to get user-selected teams
-async def get_monitored_teams() -> list[str]:
+async def get_monitored_teams(user_id: str = "default") -> list[str]:
     """
     Get list of teams to monitor for webhook events
     
+    Epic 11 Story 11.5: Team Persistence Implementation
     Epic 12 Story 12.4: Event Detector Team Integration
-    Gets teams from:
+    
+    Gets teams from (in priority order):
     1. Registered webhooks (teams with webhooks)
-    2. Environment variable (SPORTS_MONITORED_TEAMS)
-    3. Default: empty list (monitor all if no teams specified)
+    2. Database (user's selected teams from TeamPreferences)
+    3. Environment variable (SPORTS_MONITORED_TEAMS) - fallback
+    4. Default: empty list (monitor all if no teams specified)
     """
     teams = set()
     
-    # Get teams from registered webhooks
+    # Get teams from registered webhooks (highest priority)
     for webhook in webhooks.values():
         if webhook.team:
             teams.add(webhook.team.lower())
     
-    # Get teams from environment variable (comma-separated)
-    env_teams = os.getenv("SPORTS_MONITORED_TEAMS", "")
-    if env_teams:
-        for team in env_teams.split(","):
-            team = team.strip().lower()
-            if team:
-                teams.add(team)
+    # Get teams from database (Epic 11 Story 11.5)
+    try:
+        from sqlalchemy import select
+        from .database import AsyncSessionLocal
+        from .models.team_preferences import TeamPreferences
+        
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(TeamPreferences).where(TeamPreferences.user_id == user_id)
+            )
+            prefs = result.scalar_one_or_none()
+            
+            if prefs:
+                # Add NFL teams
+                for team in prefs.nfl_teams:
+                    if team:
+                        teams.add(team.lower())
+                # Add NHL teams
+                for team in prefs.nhl_teams:
+                    if team:
+                        teams.add(team.lower())
+                logger.debug(f"Loaded {len(prefs.nfl_teams)} NFL and {len(prefs.nhl_teams)} NHL teams from database for user {user_id}")
+    except Exception as e:
+        logger.warning(f"Failed to load teams from database: {e}, falling back to environment variable")
+    
+    # Fallback: Get teams from environment variable (comma-separated)
+    if not teams:
+        env_teams = os.getenv("SPORTS_MONITORED_TEAMS", "")
+        if env_teams:
+            for team in env_teams.split(","):
+                team = team.strip().lower()
+                if team:
+                    teams.add(team)
+            logger.debug(f"Loaded teams from environment variable: {list(teams)}")
     
     return list(teams)
 
@@ -416,8 +453,8 @@ async def webhook_event_detector():
                 logger.debug("InfluxDB client not ready, skipping webhook detection cycle")
                 continue
 
-            # Get teams to monitor (Story 12.4)
-            monitored_teams = await get_monitored_teams()
+            # Get teams to monitor (Story 12.4, Epic 11 Story 11.5)
+            monitored_teams = await get_monitored_teams(user_id="default")
             
             if not monitored_teams and not webhooks:
                 # No teams to monitor and no webhooks registered - skip this cycle
@@ -426,8 +463,11 @@ async def webhook_event_detector():
             
             # Build query - filter by monitored teams if specified
             if monitored_teams:
-                # Build team filter (OR condition for home_team or away_team)
-                team_filters = " or ".join([f'r.home_team == "{team}" or r.away_team == "{team}"' for team in monitored_teams])
+                # Build team filter with case-insensitive matching (OR condition for home_team or away_team)
+                team_filters = " or ".join([
+                    f'strings.toLower(v: r.home_team) == "{team.lower()}" or strings.toLower(v: r.away_team) == "{team.lower()}"' 
+                    for team in monitored_teams
+                ])
                 query = f'''
                     from(bucket: "sports_data")
                         |> range(start: -24h)

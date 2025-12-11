@@ -650,12 +650,52 @@ docker compose logs websocket-ingestion | grep "discovery"
 - ✅ Health endpoint has no sensitive data
 - ✅ CORS protection on WebSocket endpoint
 
+### Security Hardening (Epic 50 Story 50.2)
+
+**WebSocket Message Validation:**
+- ✅ Message size limits (64KB maximum)
+- ✅ JSON structure validation (only objects allowed)
+- ✅ Clear error messages for invalid messages
+
+**Rate Limiting:**
+- ✅ 60 messages per minute per connection (configurable)
+- ✅ Automatic cleanup of old rate limit entries
+- ✅ Per-connection rate limiting (independent limits)
+
+**SSL Verification:**
+- ✅ SSL verification enabled by default
+- ✅ Configurable via `SSL_VERIFY` environment variable
+- ✅ Secure by default, can be disabled for internal networks
+
+**Configuration:**
+```bash
+# WebSocket rate limiting
+WEBSOCKET_RATE_LIMIT_MESSAGES=60  # Messages per window (default: 60)
+WEBSOCKET_RATE_LIMIT_WINDOW=60    # Window in seconds (default: 60)
+
+# SSL verification (default: enabled)
+SSL_VERIFY=true   # Enable SSL verification (default)
+SSL_VERIFY=false  # Disable for internal/local networks
+```
+
+**Error Responses:**
+When security validations fail, the WebSocket endpoint returns clear error messages:
+```json
+{
+  "type": "error",
+  "message": "Message size (65537 bytes) exceeds maximum allowed size (65536 bytes)",
+  "correlation_id": "abc123"
+}
+```
+
 ### Best Practices
 - Use long-lived access tokens (not short-lived)
 - Rotate tokens periodically (90 days)
 - Use environment variables for secrets
 - Enable HTTPS/WSS in production
 - Limit token permissions to minimum required
+- Keep SSL verification enabled unless on isolated internal networks
+- Monitor rate limit violations for potential abuse
 
 ### Token Creation
 

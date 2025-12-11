@@ -3,7 +3,7 @@ Event Processor for Home Assistant Events
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -180,7 +180,7 @@ class EventProcessor:
         try:
             extracted = {
                 "event_type": event_data.get("event_type"),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "raw_data": event_data.copy()
             }
 
@@ -200,7 +200,7 @@ class EventProcessor:
             logger.error(f"Error extracting event data: {e}")
             return {
                 "event_type": "error",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": str(e),
                 "raw_data": event_data
             }
@@ -361,7 +361,7 @@ class EventProcessor:
 
             # Update statistics
             self.processed_events += 1
-            self.last_processed_time = datetime.now()
+            self.last_processed_time = datetime.now(timezone.utc)
 
             # Log processed event
             self._log_processed_event(processed_data)

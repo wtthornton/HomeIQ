@@ -2,10 +2,12 @@
 Home Assistant Device & Entity Discovery Service
 
 Queries Home Assistant registries to discover connected devices, entities, and integrations.
+Epic 50 Story 50.2: Added configurable SSL verification
 """
 
 import asyncio
 import logging
+import os
 import time
 from typing import Any
 
@@ -193,8 +195,12 @@ class DiscoveryService:
                 "Content-Type": "application/json"
             }
 
-            # Create session with connector to avoid SSL issues
-            connector = aiohttp.TCPConnector(ssl=False)
+            # Epic 50 Story 50.2: Use configurable SSL verification (default: enabled)
+            # For internal/local networks, SSL can be disabled via SSL_VERIFY=false
+            ssl_verify = os.getenv('SSL_VERIFY', 'true').lower() in ('true', '1', 'yes', 'on')
+            # For Home Assistant connections, use SSL verification unless explicitly disabled
+            # Internal service calls (data-api) can disable SSL separately
+            connector = aiohttp.TCPConnector(ssl=ssl_verify)
             async with aiohttp.ClientSession(connector=connector) as session:
                 logger.info(f"📡 Fetching entity registry from: {ha_url}/api/config/entity_registry/list")
                 async with session.get(

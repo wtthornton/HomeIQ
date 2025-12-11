@@ -3,7 +3,7 @@ Historical Event Counter for Persistent Total Event Tracking
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from .influxdb_wrapper import InfluxDBConnectionManager
@@ -76,7 +76,7 @@ class HistoricalEventCounter:
                 'total_events_received': total_events,
                 'total_events_processed': total_events,  # Assuming all received events are processed
                 'events_by_type': events_by_type,
-                'last_updated': datetime.now()
+                'last_updated': datetime.now(timezone.utc)
             }
 
             self._initialized = True
@@ -93,7 +93,7 @@ class HistoricalEventCounter:
                 'total_events_received': 0,
                 'total_events_processed': 0,
                 'events_by_type': {},
-                'last_updated': datetime.now()
+                'last_updated': datetime.now(timezone.utc)
             }
             self._initialized = True
             return self.historical_totals
@@ -201,7 +201,7 @@ class HistoricalEventCounter:
 
         self.historical_totals['total_events_received'] += events_received
         self.historical_totals['total_events_processed'] += events_processed
-        self.historical_totals['last_updated'] = datetime.now()
+        self.historical_totals['last_updated'] = datetime.now(timezone.utc)
 
         # Update events by type
         for event_type, count in events_by_type.items():

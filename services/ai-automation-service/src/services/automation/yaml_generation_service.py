@@ -1080,20 +1080,16 @@ Use this entity information to:
     # NEW: Try blueprint matching first (if enabled)
     if settings.blueprint_enabled:
         try:
-            from ..blueprints.matcher import BlueprintMatcher
-            from ..blueprints.filler import BlueprintInputFiller
-            from ..blueprints.renderer import BlueprintRenderer
-            from ...utils.miner_integration import get_miner_integration
-
-            miner = get_miner_integration(settings.automation_miner_url)
-            matcher = BlueprintMatcher(miner)
-
-            # Search for matching blueprints
-            matching_blueprint = await matcher.find_best_match(
-                suggestion=suggestion,
-                validated_entities=validated_entities,
-                devices_involved=suggestion.get('devices_involved', [])
-            )
+            # Epic AI-22 Story AI22.1: Automation miner integration removed
+            # from ..blueprints.matcher import BlueprintMatcher
+            # from ..blueprints.filler import BlueprintInputFiller
+            # from ..blueprints.renderer import BlueprintRenderer
+            # from ...utils.miner_integration import get_miner_integration
+            # miner = get_miner_integration(settings.automation_miner_url)
+            # matcher = BlueprintMatcher(miner)
+            
+            # Blueprint matching disabled - return None
+            matching_blueprint = None
 
             if matching_blueprint and matching_blueprint['fit_score'] >= settings.blueprint_match_threshold:
                 # Use blueprint (fast, reliable)

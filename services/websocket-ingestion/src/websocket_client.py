@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from aiohttp import ClientSession, ClientWebSocketResponse, WSMsgType
@@ -285,5 +285,5 @@ class HomeAssistantWebSocketClient:
             "max_retries": self.max_retries,
             "base_url": self.base_url,
             "token_info": self.token_validator.get_token_info(self.token),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }

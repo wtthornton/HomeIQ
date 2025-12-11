@@ -8,7 +8,7 @@ Supports filtering by entity ID patterns, domain, device class, and area.
 import logging
 import re
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class EntityFilter:
         self.filtered_count = 0
         self.passed_count = 0
         self.exception_count = 0
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(timezone.utc)
         
         # Compile regex patterns for performance
         self._compiled_patterns: list[tuple[re.Pattern, dict[str, Any]]] = []
@@ -236,7 +236,7 @@ class EntityFilter:
         Returns:
             Dictionary with filter statistics
         """
-        uptime = (datetime.now() - self.start_time).total_seconds()
+        uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()
         total_processed = self.filtered_count + self.passed_count + self.exception_count
         
         return {

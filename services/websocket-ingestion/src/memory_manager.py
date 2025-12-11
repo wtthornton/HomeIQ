@@ -7,7 +7,7 @@ import gc
 import logging
 import weakref
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import psutil
@@ -46,7 +46,7 @@ class MemoryManager:
         # Statistics
         self.total_gc_runs = 0
         self.total_memory_cleanups = 0
-        self.monitoring_start_time = datetime.now()
+        self.monitoring_start_time = datetime.now(timezone.utc)
 
         # Monitoring task
         self.monitoring_task: asyncio.Task | None = None
@@ -62,7 +62,7 @@ class MemoryManager:
             return
 
         self.is_running = True
-        self.monitoring_start_time = datetime.now()
+        self.monitoring_start_time = datetime.now(timezone.utc)
 
         # Start monitoring task
         self.monitoring_task = asyncio.create_task(self._monitoring_loop())
@@ -111,7 +111,7 @@ class MemoryManager:
 
             # Record memory sample
             self.memory_samples.append({
-                "timestamp": datetime.now(),
+                "timestamp": datetime.now(timezone.utc),
                 "memory_mb": memory_mb,
                 "memory_percent": self.process.memory_percent()
             })
@@ -133,7 +133,7 @@ class MemoryManager:
 
         # Record alert
         alert = {
-            "timestamp": datetime.now(),
+            "timestamp": datetime.now(timezone.utc),
             "type": "memory_overflow",
             "current_memory_mb": current_memory_mb,
             "max_memory_mb": self.max_memory_mb,
@@ -161,7 +161,7 @@ class MemoryManager:
 
             # Record GC run
             self.gc_count_samples.append({
-                "timestamp": datetime.now(),
+                "timestamp": datetime.now(timezone.utc),
                 "collected": collected,
                 "counts_before": gc_counts_before,
                 "counts_after": gc_counts_after
@@ -255,7 +255,7 @@ class MemoryManager:
                 total_collected = sum(sample["collected"] for sample in self.gc_count_samples)
 
             # Calculate uptime
-            uptime = (datetime.now() - self.monitoring_start_time).total_seconds()
+            uptime = (datetime.now(timezone.utc) - self.monitoring_start_time).total_seconds()
 
             return {
                 "is_running": self.is_running,
@@ -311,5 +311,5 @@ class MemoryManager:
         self.memory_alerts.clear()
         self.total_gc_runs = 0
         self.total_memory_cleanups = 0
-        self.monitoring_start_time = datetime.now()
+        self.monitoring_start_time = datetime.now(timezone.utc)
         logger.info("Memory statistics reset")

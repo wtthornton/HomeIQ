@@ -15,7 +15,8 @@ import numpy as np
 from .quality_model import PatternQualityModel
 from .feature_extractor import PatternFeatureExtractor
 from .features import PatternFeatures
-from utils.miner_integration import MinerIntegration
+# Epic AI-22 Story AI22.1: Automation miner integration removed
+# from utils.miner_integration import MinerIntegration
 
 logger = logging.getLogger(__name__)
 
@@ -100,17 +101,18 @@ class BlueprintTransferLearner:
     
     def __init__(
         self,
-        miner_integration: MinerIntegration | None = None,
+        miner_integration=None,  # Epic AI-22 Story AI22.1: MinerIntegration removed
         feature_extractor: PatternFeatureExtractor | None = None
     ):
         """
         Initialize transfer learner.
         
         Args:
-            miner_integration: Integration with automation-miner (default: create new)
+            miner_integration: REMOVED - Epic AI-22 Story AI22.1: Automation miner integration removed
             feature_extractor: Feature extractor for patterns (default: create new)
         """
-        self.miner_integration = miner_integration or MinerIntegration()
+        # Epic AI-22 Story AI22.1: Automation miner integration removed
+        self.miner_integration = None
         self.feature_extractor = feature_extractor or PatternFeatureExtractor()
     
     async def load_blueprint_corpus(
@@ -132,16 +134,18 @@ class BlueprintTransferLearner:
         """
         logger.info(f"Loading blueprint corpus (min_quality={min_quality}, limit={limit})")
         
-        # Check if miner is available
-        if not await self.miner_integration.is_available():
-            logger.warning("Automation miner not available, returning empty corpus")
-            return np.array([]).reshape(0, PatternFeatures.feature_count()), np.array([])
+        # Epic AI-22 Story AI22.1: Automation miner integration removed
+        logger.warning("Automation miner integration removed, returning empty corpus")
+        return np.array([]).reshape(0, PatternFeatures.feature_count()), np.array([])
         
-        # Load blueprints
-        blueprints = await self.miner_integration.search_blueprints(
-            min_quality=min_quality,
-            limit=limit
-        )
+        # Removed: Load blueprints from miner
+        # if not await self.miner_integration.is_available():
+        #     logger.warning("Automation miner not available, returning empty corpus")
+        #     return np.array([]).reshape(0, PatternFeatures.feature_count()), np.array([])
+        # blueprints = await self.miner_integration.search_blueprints(
+        #     min_quality=min_quality,
+        #     limit=limit
+        # )
         
         if not blueprints:
             logger.warning(f"No blueprints found (min_quality={min_quality}, limit={limit})")
