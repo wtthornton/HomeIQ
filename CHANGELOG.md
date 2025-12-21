@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Add Docker optimization, TappsCodingAgents integration, and Enterprise workflow configuration** (f2f4e87) - wtthornton
+- **Add Docker optimization testing and build performance monitoring** (5e6642e) - wtthornton
+- **Add comprehensive TappsCodingAgents command guide for AI agents** (5b1f7c1) - wtthornton
+- **Implement TappsCodingAgents integration strategy for Cursor AI** (50d4fad) - wtthornton
+- **Add energy-management knowledge base and update documentation** (713a9a1) - wtthornton
+- **Add Context7 integration, knowledge base expansion, and agent configuration updates** (cc87b64) - wtthornton
+- **Add Windows PowerShell support for all quality scripts (2025)** (e62329b) - wtthornton
+- **Complete Epic AI-24 - Device Mapping Library Architecture** (9a417b4) - wtthornton
+- **Area registry implementation, UI cleanup, and service improvements** (91939d3) - wtthornton
+
+### Changed
+
+- **Update quality scripts to 2025 patterns and versions** (b2ac994) - wtthornton
+- **Update Docker dependencies and service configurations** (7adecef) - wtthornton
+
+### Fixed
+
+- **Fix Nabu Casa fallback connection - Improve URL normalization and error logging** (7dbf326) - wtthornton
+- **Enable Enhance button for preview automations** (2a0eb45) - wtthornton
+- **Preserve event_context in synergy metadata (2025 Enhancement)** (90762e0) - wtthornton
+- **Devices summary injection - Include all devices including Zigbee** (2a39e76) - wtthornton
+- **Fix TypeScript type errors in health-dashboard** (b320624) - wtthornton
+- **Update DeviceIntelligenceClient initialization in health check and capability patterns services** (88e9e42) - wtthornton
+- **Fix enhancement timeout and entity resolution issues** (873420c) - wtthornton
+
+
+### Added
+
 - **Add Docker optimization testing and build performance monitoring** (5e6642e) - wtthornton
 - **Add comprehensive TappsCodingAgents command guide for AI agents** (5b1f7c1) - wtthornton
 - **Implement TappsCodingAgents integration strategy for Cursor AI** (50d4fad) - wtthornton
