@@ -234,12 +234,21 @@ class EventSubscriptionManager:
         """
         try:
             if event_data.get("event_type") == "state_changed":
-                old_state = event_data.get("old_state", {})
-                new_state = event_data.get("new_state", {})
+                old_state = event_data.get("old_state") or {}
+                new_state = event_data.get("new_state") or {}
 
-                entity_id = new_state.get("entity_id", old_state.get("entity_id", "unknown"))
-                old_state_value = old_state.get("state", "unknown")
-                new_state_value = new_state.get("state", "unknown")
+                # CRITICAL FIX: Handle entity deletion (new_state can be None)
+                # When entity is deleted, new_state is None, so we need to safely extract entity_id
+                if isinstance(new_state, dict):
+                    entity_id = new_state.get("entity_id")
+                elif isinstance(old_state, dict):
+                    entity_id = old_state.get("entity_id")
+                else:
+                    entity_id = "unknown"
+
+                # Safely extract state values (handle None states)
+                old_state_value = old_state.get("state", "unknown") if isinstance(old_state, dict) else "unknown"
+                new_state_value = new_state.get("state", "deleted") if isinstance(new_state, dict) else "deleted"
 
                 return f"entity_id={entity_id}, {old_state_value} -> {new_state_value}"
             else:

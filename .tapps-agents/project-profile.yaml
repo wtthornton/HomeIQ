@@ -1,0 +1,37 @@
+deployment_type: local
+deployment_type_confidence: 0.5
+deployment_type_indicators:
+- has_docker_compose
+- no_cloud_infrastructure
+tenancy: multi-tenant
+tenancy_confidence: 0.8
+tenancy_indicators:
+- tenant_pattern_in_test_detector.py
+- tenant_pattern_in_background_context_agent.py
+- tenant_pattern_in_context_artifact.py
+- tenant_pattern_in_test_artifacts.py
+- tenant_pattern_in_test_fs.py
+user_scale: small-team
+user_scale_confidence: 0.6
+user_scale_indicators:
+- has_redis
+- has_docker
+- has_database
+compliance_requirements:
+- name: GDPR
+  confidence: 0.3
+  indicators:
+  - gdpr_pattern_in_paths
+- name: HIPAA
+  confidence: 0.3
+  indicators:
+  - hipaa_pattern_in_paths
+- name: PCI
+  confidence: 0.3
+  indicators:
+  - pci_pattern_in_paths
+security_level: basic
+security_level_confidence: 0.5
+security_level_indicators:
+- no_security_files
+detected_at: 2025-12-21T18:06:02.720546+00:00Z

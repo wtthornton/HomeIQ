@@ -157,17 +157,64 @@ Rules with `description` can be manually invoked:
 
 ## Best Practices
 
-1. **Use Appropriate Agents**: Choose the right BMAD agent for your task
-2. **Follow Standards**: Adhere to code quality and documentation standards
-3. **Security First**: Always consider security implications
-4. **Document Everything**: Keep documentation up-to-date
-5. **Test Thoroughly**: Write tests for all new functionality
-6. **Run Unit Tests**: Use `python scripts/simple-unit-tests.py` before committing changes
-7. **Leverage Context7 KB**: All agents automatically use KB-first approach - check cache before API calls
-8. **Know the Architecture**: Understand Epic 31 changes (enrichment-pipeline deprecated, direct InfluxDB writes)
-9. **Customize Agents**: Create customizations in `.bmad-core/customizations/` for team-specific preferences
-10. **Progressive Reviews**: Use `*review-task` during development for early feedback (QA agent)
-11. **Manage Context**: Start new chats frequently, use focused queries, close unused files (see Context Management Guide)
+1. **⚠️ CRITICAL: Use TappsCodingAgents & Simple Mode** - **ALWAYS** use `@simple-mode` commands for code creation, reviews, testing, and fixes. This ensures quality, comprehensive testing, and proper workflow orchestration.
+2. **Use Appropriate Agents**: Choose the right BMAD agent for your task
+3. **Follow Standards**: Adhere to code quality and documentation standards
+4. **Security First**: Always consider security implications
+5. **Document Everything**: Keep documentation up-to-date
+6. **Test Thoroughly**: Write tests for all new functionality using `@simple-mode *test` or `python -m tapps_agents.cli tester test`
+7. **Run Code Reviews**: **ALWAYS** run `@simple-mode *review` or `python -m tapps_agents.cli reviewer review` before finalizing code
+8. **Check Quality Scores**: Verify code meets quality thresholds (70+ overall, 80+ for critical services) using `python -m tapps_agents.cli reviewer score`
+9. **Run Unit Tests**: Use `python scripts/simple-unit-tests.py` before committing changes
+10. **Leverage Context7 KB**: All agents automatically use KB-first approach - check cache before API calls
+11. **Know the Architecture**: Understand Epic 31 changes (enrichment-pipeline deprecated, direct InfluxDB writes)
+12. **Customize Agents**: Create customizations in `.bmad-core/customizations/` for team-specific preferences
+13. **Progressive Reviews**: Use `*review-task` during development for early feedback (QA agent)
+14. **Manage Context**: Start new chats frequently, use focused queries, close unused files (see Context Management Guide)
+
+## 🤖 TappsCodingAgents Integration
+
+**This project uses TappsCodingAgents for AI-assisted development. AI assistants MUST use these tools:**
+
+### Simple Mode (Primary Interface)
+
+**Use `@simple-mode` for all development tasks:**
+- `@simple-mode *build "{description}"` - Build new features (full workflow)
+- `@simple-mode *review {file}` - Review code quality
+- `@simple-mode *fix {file} {description}"` - Fix bugs
+- `@simple-mode *test {file}` - Generate tests
+- `@simple-mode *full "{description}"` - Full SDLC workflow
+
+### Direct Agent Commands
+
+**For specific tasks, use direct agent commands:**
+```bash
+# Code quality
+python -m tapps_agents.cli reviewer score {file}
+python -m tapps_agents.cli reviewer review {file}
+
+# Testing
+python -m tapps_agents.cli tester test {file}
+
+# Code improvement
+python -m tapps_agents.cli improver improve {file} "{description}"
+
+# Feature planning
+python -m tapps_agents.cli planner plan "{description}"
+python -m tapps_agents.cli enhancer enhance "{description}"
+```
+
+### Quality Requirements
+
+**All code MUST meet these thresholds:**
+- Overall quality score: ≥ 70 (≥ 80 for critical services)
+- Security score: ≥ 7.0/10
+- Maintainability score: ≥ 7.0/10
+- Test coverage: ≥ 80%
+
+**See:**
+- [Simple Mode Guide](mdc:.cursor/rules/simple-mode.mdc) - Complete Simple Mode documentation
+- [Agent Capabilities](mdc:.cursor/rules/agent-capabilities.mdc) - All 13 workflow agents
 
 ## Getting Help
 

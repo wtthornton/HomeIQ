@@ -1,0 +1,235 @@
+---
+description: Intelligent workflow selection guide for TappsCodingAgents in HomeIQ. ALWAYS APPLY to ensure Cursor uses the right execution tier (Simple Mode, Direct Agents, or Custom Workflows).
+globs: []
+alwaysApply: true
+---
+
+# TappsCodingAgents Workflow Selection Guide
+
+**For HomeIQ Development** - Choose the right execution tier for every task.
+
+## Quick Decision Tree
+
+```
+User Request
+    │
+    ├─ Single file operation? (review, test, fix single file)
+    │   └─ YES → Simple Mode (*review, *test, *fix)
+    │
+    ├─ Standard feature/bug fix? (single service)
+    │   └─ YES → Simple Mode (*build, *fix)
+    │
+    ├─ Single-step operation? (enhance prompt, analyze error only)
+    │   └─ YES → Direct Agent Command (enhancer, debugger)
+    │
+    ├─ Pattern repeated 3+ times? OR HomeIQ-specific pattern?
+    │   ├─ Microservice creation → Custom Workflow (homeiq-microservice-creation.yaml)
+    │   ├─ Service integration → Custom Workflow (homeiq-service-integration.yaml)
+    │   ├─ Multi-service audit → Custom Workflow (homeiq-quality-audit.yaml)
+    │   └─ Other pattern → Create Custom Workflow
+    │
+    └─ Default → Simple Mode
+```
+
+## Decision Matrix
+
+| Scenario | Execution Tier | Command/Workflow |
+|----------|---------------|------------------|
+| **Review single file** | Simple Mode | `@simple-mode *review {file}` |
+| **Fix bug in single service** | Simple Mode | `@simple-mode *fix {file} "{description}"` |
+| **Create new feature** | Simple Mode | `@simple-mode *build "{description}"` |
+| **Generate tests for file** | Simple Mode | `@simple-mode *test {file}` |
+| **Quick prompt enhancement** | Direct Agent | `python -m tapps_agents.cli enhancer enhance-quick "{prompt}"` |
+| **Error analysis only** | Direct Agent | `python -m tapps_agents.cli debugger analyze-error "{error}" --file {file}` |
+| **Create new microservice** | Custom Workflow | `python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-microservice-creation.yaml --prompt "{description}"` |
+| **Integrate new service** | Custom Workflow | `python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-service-integration.yaml --prompt "{description}"` |
+| **Quality audit (multi-service)** | Custom Workflow | `python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-quality-audit.yaml` |
+| **Same workflow 3+ times** | Create Custom Workflow | Document pattern → Create YAML → Use for future instances |
+
+## Pattern Recognition
+
+### When to Use Custom Workflows
+
+**Create a custom workflow when:**
+1. ✅ **Frequency**: Same sequence used 3+ times
+2. ✅ **HomeIQ-Specific**: Microservice creation, service integration, quality audits
+3. ✅ **Multi-Service**: Coordinated operations across multiple services
+4. ✅ **Complex Logic**: Conditional gates, parallel execution, loopbacks
+5. ✅ **Standardization**: Need to enforce consistent process
+
+### HomeIQ-Specific Patterns
+
+**Available Custom Workflows:**
+- `homeiq-microservice-creation.yaml` - Create new microservice (Docker, InfluxDB, Epic 31 patterns)
+- `homeiq-service-integration.yaml` - Integrate service with existing infrastructure
+- `homeiq-quality-audit.yaml` - Multi-service quality audit with parallel execution
+
+**Pattern Recognition Examples:**
+- **Creating microservices**: Always use `homeiq-microservice-creation.yaml`
+- **Integrating external APIs**: Consider `homeiq-service-integration.yaml`
+- **Reviewing multiple services**: Use `homeiq-quality-audit.yaml`
+
+## Tier 1: Simple Mode (Default Choice)
+
+**Use Simple Mode for:**
+- ✅ Single-feature development
+- ✅ Code reviews (single files or services)
+- ✅ Bug fixes in existing code
+- ✅ Test generation for specific files
+- ✅ Standard development workflows
+
+**Commands:**
+```bash
+@simple-mode *build "Create new InfluxDB query endpoint"
+@simple-mode *review services/websocket-ingestion/src/main.py
+@simple-mode *fix services/data-api/src/main.py "Fix connection timeout"
+@simple-mode *test services/data-api/src/main.py
+```
+
+**What It Does:**
+- Automatically orchestrates: enhancer → planner → architect → implementer → reviewer → tester
+- Enforces quality gates with loopbacks
+- Generates documentation
+- Consults HomeIQ domain experts
+
+## Tier 2: Direct Agent Commands (Specialized)
+
+**Use Direct Agents for:**
+- ✅ Single-step operations (enhancement, error analysis)
+- ✅ Specific agent capabilities needed
+- ✅ Custom orchestration (manual sequencing)
+
+**Commands:**
+```bash
+python -m tapps_agents.cli enhancer enhance "Add device health monitoring"
+python -m tapps_agents.cli debugger analyze-error "Connection timeout" --file services/data-api/src/main.py
+python -m tapps_agents.cli reviewer review services/websocket-ingestion/src/main.py
+python -m tapps_agents.cli tester test services/ai-automation-service/src/main.py
+```
+
+**Note:** Simple Mode usually provides better orchestration. Use direct agents only when Simple Mode doesn't fit.
+
+## Tier 3: Custom Workflow YAMLs (Repeatable Patterns)
+
+**Use Custom Workflows for:**
+- ✅ HomeIQ-specific patterns (microservice creation, service integration)
+- ✅ Multi-service operations (parallel reviews, coordinated deployments)
+- ✅ Complex orchestration (conditional logic, parallel execution)
+- ✅ Patterns repeated 3+ times
+
+**Execution:**
+```bash
+# Execute custom workflow
+python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-microservice-creation.yaml --prompt "Create new weather-api service"
+```
+
+**Workflow Locations:**
+- `workflows/custom/` - HomeIQ-specific workflows
+- `workflows/presets/` - Framework-provided workflows (full-sdlc, rapid-dev, quick-fix, etc.)
+
+## HomeIQ Architecture Context
+
+**Epic 31 Architecture Patterns (MUST FOLLOW):**
+- ✅ Direct InfluxDB writes (no enrichment-pipeline)
+- ✅ Services write directly to InfluxDB
+- ✅ Query via data-api
+- ✅ Standalone services (no service-to-service HTTP dependencies)
+
+**Quality Standards:**
+- Overall score: 70+ (80+ for critical services)
+- Security: 7.0+/10
+- Maintainability: 7.0+/10
+- Test coverage: 80% target (currently 0% in core services - critical gap)
+
+**Reference:** See `.cursor/rules/epic-31-architecture.mdc` for architecture patterns.
+
+## Decision Process
+
+### Step 1: Analyze Request
+- What is the scope? (single file, single service, multi-service)
+- Is it a standard operation or specialized?
+- Is it a repeatable pattern?
+
+### Step 2: Check for Patterns
+- Is this a HomeIQ-specific pattern? (microservice, service integration, quality audit)
+- Has this pattern been used 3+ times?
+- Is there an existing custom workflow?
+
+### Step 3: Select Tier
+- **Tier 1 (Simple Mode)**: Default for most operations
+- **Tier 2 (Direct Agents)**: Single-step or specialized operations
+- **Tier 3 (Custom Workflows)**: Repeatable patterns or HomeIQ-specific operations
+
+### Step 4: Execute
+- Use the appropriate command/workflow
+- Verify quality gates passed
+- Document pattern if it's repeated
+
+### Step 5: Consider Workflow Creation
+- If pattern used 3+ times, propose creating custom workflow
+- Document pattern (steps, dependencies, quality gates)
+- Create workflow YAML in `workflows/custom/`
+
+## Examples
+
+### Example 1: Review Service
+**Request:** "Review the websocket-ingestion service"
+**Decision:** Single file operation → Simple Mode
+**Command:** `@simple-mode *review services/websocket-ingestion/src/main.py`
+
+### Example 2: Create Microservice
+**Request:** "Create a new weather-api service"
+**Decision:** HomeIQ-specific pattern → Custom Workflow
+**Command:** `python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-microservice-creation.yaml --prompt "Create weather-api service"`
+
+### Example 3: Quick Enhancement
+**Request:** "Enhance this prompt: 'Add device health monitoring'"
+**Decision:** Single-step operation → Direct Agent
+**Command:** `python -m tapps_agents.cli enhancer enhance-quick "Add device health monitoring"`
+
+### Example 4: Fix Bug
+**Request:** "Fix the connection timeout in data-api"
+**Decision:** Standard bug fix → Simple Mode
+**Command:** `@simple-mode *fix services/data-api/src/main.py "Fix connection timeout"`
+
+## Anti-Patterns
+
+### ❌ Don't: Bypass Simple Mode for standard operations
+```bash
+# Bad: Manual orchestration
+python -m tapps_agents.cli planner plan "Feature"
+python -m tapps_agents.cli architect design "Feature"
+python -m tapps_agents.cli implementer implement "Feature"
+
+# Good: Use Simple Mode
+@simple-mode *build "Feature"
+```
+
+### ❌ Don't: Use Simple Mode for single-step operations
+```bash
+# Bad: Overkill for simple enhancement
+@simple-mode *build "Enhance prompt: 'Add monitoring'"
+
+# Good: Direct agent for single-step
+python -m tapps_agents.cli enhancer enhance-quick "Add monitoring"
+```
+
+### ❌ Don't: Repeat same workflow manually 5+ times
+```bash
+# Bad: Manual repetition
+@simple-mode *build "Service 1"
+@simple-mode *build "Service 2"
+@simple-mode *build "Service 3"
+# ... repeat
+
+# Good: Create custom workflow after 3rd repetition
+python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-microservice-creation.yaml --prompt "Service 4"
+```
+
+## Reference
+
+- **Complete Strategy:** [docs/CURSOR_TAPPS_AGENTS_INTEGRATION_STRATEGY.md](../docs/CURSOR_TAPPS_AGENTS_INTEGRATION_STRATEGY.md)
+- **Workflow Creation Guide:** [docs/HOMEIQ_CUSTOM_WORKFLOWS_GUIDE.md](../docs/HOMEIQ_CUSTOM_WORKFLOWS_GUIDE.md)
+- **Quick Reference:** [docs/TAPPS_AGENTS_QUICK_REFERENCE.md](../docs/TAPPS_AGENTS_QUICK_REFERENCE.md)
+- **Simple Mode Guide:** [.cursor/rules/simple-mode.mdc](./simple-mode.mdc)
+- **Epic 31 Architecture:** [.cursor/rules/epic-31-architecture.mdc](./epic-31-architecture.mdc)

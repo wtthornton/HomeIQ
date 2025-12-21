@@ -85,3 +85,58 @@ description: Code quality standards and best practices
 - [ ] Code is readable and maintainable
 - [ ] No commented-out code or debug statements
 - [ ] Dependencies are justified and documented
+
+## ⚠️ CRITICAL: Use TappsCodingAgents for Quality Assurance
+
+**AI assistants MUST use TappsCodingAgents and Simple Mode for all code quality checks, testing, and code creation.**
+
+### Required Workflow
+
+**Before creating or modifying code:**
+1. ✅ Use `@simple-mode *build` for new features (orchestrates: enhancer → planner → architect → designer → implementer → reviewer → tester)
+2. ✅ Use `@simple-mode *review {file}` for code quality checks (orchestrates: reviewer → improver)
+3. ✅ Use `@simple-mode *test {file}` for test generation (orchestrates: tester)
+4. ✅ Use `@simple-mode *fix {file} {description}` for bug fixes (orchestrates: debugger → implementer → tester)
+
+**After creating or modifying code:**
+1. ✅ **ALWAYS** run code review: `python -m tapps_agents.cli reviewer review {file}` or `@simple-mode *review {file}`
+2. ✅ **ALWAYS** check quality score: `python -m tapps_agents.cli reviewer score {file}` (minimum 70/100, 80+ for critical services)
+3. ✅ **ALWAYS** generate tests: `python -m tapps_agents.cli tester test {file}` or `@simple-mode *test {file}`
+4. ✅ **ALWAYS** verify test coverage meets threshold (80% minimum)
+
+### Quality Gates
+
+**Code MUST pass these quality gates before being considered complete:**
+- ✅ Overall quality score ≥ 70 (80+ for critical services like websocket-ingestion, data-api)
+- ✅ Security score ≥ 7.0/10
+- ✅ Maintainability score ≥ 7.0/10
+- ✅ Test coverage ≥ 80%
+- ✅ No critical security vulnerabilities
+- ✅ All linting and type checking passes
+
+### Quick Commands
+
+```bash
+# Quick quality check (fast, no LLM)
+python -m tapps_agents.cli reviewer score {file}
+
+# Full code review with detailed feedback
+python -m tapps_agents.cli reviewer review {file}
+
+# Generate comprehensive tests
+python -m tapps_agents.cli tester test {file}
+
+# Generate quality reports
+python -m tapps_agents.cli reviewer report . json markdown html
+```
+
+### Why This Matters
+
+TappsCodingAgents provides:
+- **Objective quality metrics** (5-metric scoring system)
+- **Expert consultation** (security, performance, testing experts)
+- **Automated test generation** with coverage analysis
+- **Comprehensive code review** with actionable feedback
+- **Workflow orchestration** ensuring proper SDLC stages
+
+**DO NOT skip these steps.** They are essential for maintaining code quality in a 30+ microservice architecture.
