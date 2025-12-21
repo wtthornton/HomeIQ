@@ -13,7 +13,7 @@ Context7 must be available to every agent session. We ship a ready-to-edit MCP c
     "context7": {
       "url": "https://context7.com/api/v2",
       "headers": {
-        "CONTEXT7_API_KEY": "ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2"
+        "CONTEXT7_API_KEY": "ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc"
       }
     }
   }

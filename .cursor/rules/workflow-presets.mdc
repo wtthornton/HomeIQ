@@ -1,0 +1,155 @@
+---
+description: Documentation of TappsCodingAgents workflow presets and how to use them in Cursor AI
+alwaysApply: false
+---
+
+# Workflow Presets - Quick Commands
+
+## Overview
+
+TappsCodingAgents provides 5 preset workflows that can be executed with simple one-word commands. These workflows automatically orchestrate multiple agents to complete common SDLC tasks.
+
+## Available Workflow Presets
+
+### 1. Full SDLC Pipeline (`full` / `enterprise`)
+
+**Command:** `python -m tapps_agents.cli workflow full`
+
+**Best for:** Enterprise projects, new applications, compliance-heavy systems
+
+**Agent Sequence:**
+1. Analyst - Requirements gathering
+2. Planner - Story creation
+3. Architect - System design
+4. Designer - API contracts
+5. Implementer - Code generation
+6. Reviewer - Code review with quality gates
+7. Tester - Test generation
+8. Ops - Security scan
+9. Documenter - Documentation
+
+**Quality Gates:**
+- Overall score: ≥70
+- Security: ≥7.0
+- Maintainability: ≥7.0
+
+### 2. Rapid Development (`rapid` / `feature`)
+
+**Command:** `python -m tapps_agents.cli workflow rapid`
+
+**Best for:** Feature development, sprint work, iterative development
+
+**Agent Sequence:**
+1. Enhancer - Prompt enhancement
+2. Planner - Story breakdown
+3. Implementer - Code generation
+4. Reviewer - Quick review
+5. Tester - Test generation
+
+**Quality Gates:**
+- Overall score: ≥65
+- Security: ≥6.5
+
+### 3. Maintenance & Bug Fixing (`fix` / `refactor`)
+
+**Command:** `python -m tapps_agents.cli workflow fix`
+
+**Best for:** Existing codebases, bug fixes, refactoring, technical debt
+
+**Agent Sequence:**
+1. Debugger - Error analysis
+2. Improver - Refactoring
+3. Reviewer - Code review
+4. Tester - Test updates
+5. Documenter - Documentation updates
+
+**Quality Gates:**
+- Overall score: ≥70
+- Maintainability: ≥7.5
+
+### 4. Quality Improvement (`quality` / `improve`)
+
+**Command:** `python -m tapps_agents.cli workflow quality`
+
+**Best for:** Code quality initiatives, refactoring sprints, quality gates
+
+**Agent Sequence:**
+1. Reviewer - Initial analysis
+2. Improver - Refactoring
+3. Reviewer - Re-review validation
+4. Tester - Test verification
+5. Ops - Security audit
+
+**Quality Gates:**
+- Overall score: ≥75
+- Maintainability: ≥8.0
+- Security: ≥7.5
+
+### 5. Quick Fix (`hotfix` / `urgent`)
+
+**Command:** `python -m tapps_agents.cli workflow hotfix`
+
+**Best for:** Production bugs, hotfixes, urgent patches
+
+**Agent Sequence:**
+1. Debugger - Error analysis
+2. Implementer - Fix implementation
+3. Reviewer - Quick review
+4. Tester - Regression tests
+
+**Quality Gates:**
+- Overall score: ≥60
+- Security: ≥7.0
+
+## Usage in Cursor AI
+
+When working in Cursor AI, you can:
+
+1. **Run workflows directly:**
+   - Type: "Run rapid development workflow"
+   - Or: "Execute full SDLC pipeline"
+   - Or: "Start quality improvement"
+
+2. **Use voice commands:**
+   - "run rapid dev"
+   - "execute enterprise workflow"
+   - "start quick fix"
+
+3. **Reference in conversations:**
+   - "Use the rapid workflow for this feature"
+   - "This needs the full enterprise workflow"
+   - "Run the quality improvement cycle"
+
+## When to Use Each Workflow
+
+- **New Enterprise Project** → `workflow enterprise`
+- **New Feature** → `workflow rapid` or `workflow feature`
+- **Bug Fix** → `workflow hotfix` or `workflow urgent`
+- **Refactoring** → `workflow fix` or `workflow refactor`
+- **Quality Sprint** → `workflow quality` or `workflow improve`
+
+## Integration
+
+These workflows integrate with:
+- ✅ Expert consultation (domain experts)
+- ✅ Quality gates (scoring thresholds)
+- ✅ Context tiers (token optimization)
+- ✅ Multi-agent orchestration
+- ✅ Git worktree isolation
+
+## List All Presets
+
+```bash
+python -m tapps_agents.cli workflow list
+```
+
+## Customization
+
+Workflow presets are defined in `workflows/presets/`:
+- `full-sdlc.yaml`
+- `rapid-dev.yaml`
+- `maintenance.yaml`
+- `quality.yaml`
+- `quick-fix.yaml`
+
+You can modify these files or create your own presets.

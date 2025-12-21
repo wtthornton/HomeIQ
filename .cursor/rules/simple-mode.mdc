@@ -1,0 +1,198 @@
+---
+description: Simple Mode - Natural language orchestrator for TappsCodingAgents. ALWAYS APPLY to enable skill orchestration.
+globs: []
+alwaysApply: true
+---
+
+# Simple Mode - Cursor-Native Skill Orchestrator
+
+## What is Simple Mode?
+
+Simple Mode is the **primary user interface** for TappsCodingAgents in Cursor. It provides natural language commands that automatically orchestrate multiple specialized skills.
+
+## How to Use Simple Mode
+
+### Invoke with @simple-mode
+
+```
+@simple-mode *build "Create a user authentication feature"
+@simple-mode *review src/api/auth.py
+@simple-mode *fix src/buggy.py "Fix the error"
+@simple-mode *test src/api/auth.py
+@simple-mode *full "Build a complete REST API"
+```
+
+### Or Use Natural Language
+
+```
+@simple-mode Build a user authentication feature
+@simple-mode Review my authentication code
+@simple-mode Fix the error in auth.py
+@simple-mode Add tests for service.py
+```
+
+## Simple Mode Commands
+
+| Command | Description | Skills Invoked |
+|---------|-------------|----------------|
+| `*build {description}` | Build new features | @enhancer → @planner → @architect → @designer → @implementer → @reviewer → @tester |
+| `*review {file}` | Review code quality | @reviewer → @improver |
+| `*fix {file} {description}` | Fix bugs/errors | @debugger → @implementer → @tester |
+| `*test {file}` | Generate tests | @tester |
+| `*full {description}` | Full SDLC workflow | All skills in sequence |
+| `*help` | Show help | - |
+| `*status` | Check status | - |
+
+## Intent Detection
+
+Simple Mode detects intent from keywords:
+
+- **Build**: build, create, make, generate, add, implement, develop, write, new, feature
+- **Review**: review, check, analyze, inspect, examine, score, quality, audit
+- **Fix**: fix, repair, resolve, debug, error, bug, issue, problem, broken
+- **Test**: test, verify, validate, coverage, testing
+- **Full**: full, complete, sdlc, lifecycle, everything
+
+## Skill Orchestration Workflows
+
+### Build Workflow
+```
+1. @enhancer *enhance "{description}"      → Enhanced prompt
+2. @planner *plan "{enhanced}"             → User stories
+3. @architect *design "{enhanced}"         → Architecture
+4. @designer *design-api "{enhanced}"      → API design
+5. @implementer *implement "{spec}" {file} → Code
+6. @reviewer *review {file}                → Quality check
+7. @tester *test {file}                    → Tests
+```
+
+### Review Workflow
+```
+1. @reviewer *review {file}                → Quality scores
+2. @improver *improve {file} "{issues}"    → Improvements (if needed)
+```
+
+### Fix Workflow
+```
+1. @debugger *debug "{error}" --file {file} → Root cause
+2. @implementer *refactor {file} "{fix}"    → Fix applied
+3. @tester *test {file}                     → Verification
+```
+
+### Test Workflow
+```
+1. @tester *test {file}                    → Tests generated
+```
+
+### Full SDLC Workflow
+```
+1. @analyst *requirements "{description}"  → Requirements
+2. @planner *plan "{requirements}"         → Stories
+3. @architect *design "{specification}"    → Architecture
+4. @designer *design-api "{spec}"          → API design
+5. @implementer *implement "{spec}" {file} → Code
+6. @reviewer *review {file}                → Quality (loop if < 70)
+7. @tester *test {file}                    → Tests
+8. @ops *security-scan {file}              → Security
+9. @documenter *document-api {file}        → Documentation
+```
+
+## Available Skills Reference
+
+| Skill | Purpose |
+|-------|---------|
+| `@enhancer` | Prompt enhancement (7-stage pipeline) |
+| `@planner` | User story creation |
+| `@architect` | System architecture design |
+| `@designer` | API and data model design |
+| `@implementer` | Code generation and refactoring |
+| `@reviewer` | Code review with 5-metric scoring |
+| `@tester` | Test generation and execution |
+| `@debugger` | Error analysis and debugging |
+| `@improver` | Code improvement suggestions |
+| `@analyst` | Requirements gathering |
+| `@documenter` | Documentation generation |
+| `@ops` | Security scanning and deployment |
+| `@orchestrator` | YAML workflow coordination |
+
+## Examples
+
+### Build a Feature
+```
+User: @simple-mode *build "Create JWT authentication with refresh tokens"
+
+Simple Mode:
+✅ Starting Build Workflow...
+
+📝 Step 1: @enhancer *enhance "Create JWT authentication with refresh tokens"
+[Enhanced prompt with security requirements, architecture guidance, etc.]
+
+📝 Step 2: @planner *plan "JWT authentication system..."
+[User stories created]
+
+📝 Step 3: @architect *design "JWT auth architecture..."
+[Architecture design]
+
+📝 Step 4: @designer *design-api "Auth API endpoints..."
+[API specification]
+
+📝 Step 5: @implementer *implement "JWT auth service" src/api/auth.py
+[Code generated]
+
+📝 Step 6: @reviewer *review src/api/auth.py
+[Quality score: 85/100 ✅]
+
+📝 Step 7: @tester *test src/api/auth.py
+[Tests generated]
+
+✅ Build Complete!
+```
+
+### Review Code
+```
+User: @simple-mode *review src/api/users.py
+
+Simple Mode:
+✅ Starting Review Workflow...
+
+📝 @reviewer *review src/api/users.py
+
+Quality Scores:
+- Complexity: 7.5/10 ✅
+- Security: 8.0/10 ✅
+- Maintainability: 7.2/10 ✅
+- Test Coverage: 65% ⚠️
+- Performance: 7.8/10 ✅
+- Overall: 76/100 ✅
+
+Issues Found: 2
+📝 @improver *improve src/api/users.py "Add input validation, increase test coverage"
+
+✅ Review Complete!
+```
+
+## Configuration
+
+Simple Mode is configured in `.tapps-agents/config.yaml`:
+
+```yaml
+simple_mode:
+  enabled: true
+  auto_detect: true
+  show_advanced: false
+  natural_language: true
+```
+
+## Why Use Simple Mode?
+
+1. **Natural Language** - Use plain English instead of learning multiple skill commands
+2. **Automatic Orchestration** - Skills are coordinated automatically in the right sequence
+3. **Quality Gates** - Automatic quality checks with loopback on failures
+4. **Progressive Disclosure** - Start simple, unlock advanced features as you learn
+5. **Best Practices** - Follows TappsCodingAgents workflow patterns automatically
+
+## Related Documentation
+
+- See `.claude/skills/simple-mode/SKILL.md` for full skill definition
+- See `docs/SIMPLE_MODE_GUIDE.md` for complete documentation
+- See `.cursor/rules/agent-capabilities.mdc` for all agent capabilities

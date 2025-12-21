@@ -54,3 +54,39 @@ A comprehensive home automation system that transforms Home Assistant into an in
 - **Description**: Home Assistant platform integration, REST API, WebSocket API, entity management, state management, automation YAML, integrations, custom components
 - **Key Areas**: Home Assistant REST API, WebSocket event streaming, entity states, service calls, automation rules, integration patterns, custom component development
 
+### Domain 9: Automation Strategy
+
+- **Primary Expert**: expert-automation-strategy
+- **Description**: Automation best practices, user behavior patterns, automation lifecycle management, ROI analysis, automation success factors
+- **Key Areas**: Automation adoption patterns, automation strategy principles, lifecycle management, cost-benefit analysis, success metrics
+
+### Domain 10: Proactive Intelligence
+
+- **Primary Expert**: expert-proactive-intelligence
+- **Description**: Proactive AI recommendations, notification timing, context-aware suggestions, suggestion prioritization, user preference learning
+- **Key Areas**: Recommendation strategies, timing optimization, context-aware systems, prioritization algorithms, preference learning
+
+### Domain 11: Smart Home User Experience
+
+- **Primary Expert**: expert-smart-home-ux
+- **Description**: Smart home UX design, feature discoverability, user journey mapping, adoption barriers, user mental models
+- **Key Areas**: UX principles, feature discovery strategies, user journey optimization, barrier mitigation, accessibility considerations
+
+### Domain 12: Energy Economics
+
+- **Primary Expert**: expert-energy-economics
+- **Description**: Energy pricing models, cost-benefit analysis, demand response strategies, energy optimization economics, ROI calculations
+- **Key Areas**: Pricing models (TOU, RTP, tiered), cost analysis, demand response participation, optimization economics, lifecycle value
+
+### Domain 13: Pattern Recognition & Analytics
+
+- **Primary Expert**: expert-pattern-analytics
+- **Description**: Pattern detection principles, statistical significance, pattern presentation, actionable pattern identification, pattern quality metrics
+- **Key Areas**: Temporal patterns, co-occurrence patterns, statistical analysis, pattern visualization, actionability assessment
+
+### Domain 14: Device Ecosystem
+
+- **Primary Expert**: expert-device-ecosystem
+- **Description**: Device manufacturer ecosystems, compatibility patterns, feature ecosystems, device lifecycle management, cross-brand integration
+- **Key Areas**: Manufacturer ecosystems, protocol compatibility, feature relationships, device health monitoring, replacement planning
+

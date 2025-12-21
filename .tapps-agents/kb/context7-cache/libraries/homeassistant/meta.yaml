@@ -1,0 +1,11 @@
+library: homeassistant
+context7_id: /home-assistant/core
+trust_score: null
+topics:
+- websocket
+total_docs: 0
+total_size_bytes: 0
+total_tokens: 0
+last_updated: null
+last_accessed: 2025-12-21T00:42:12.072988+00:00Z
+cache_hits: 1
