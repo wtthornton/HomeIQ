@@ -11,7 +11,7 @@ RUN pip install --upgrade pip==25.2
 RUN apk add --no-cache gcc musl-dev linux-headers
 
 # Copy requirements and install Python dependencies
-COPY services/carbon-intensity-service/requirements-prod.txt .
+COPY requirements-prod.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements-prod.txt
 
@@ -32,8 +32,8 @@ RUN addgroup -g 1001 -S appgroup && \
 COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code and shared modules
-COPY services/carbon-intensity-service/src/ ./src/
-COPY shared/ ./shared/
+COPY src/ ./src/
+COPY ../shared/ ./shared/
 
 # Set ownership of all files to appuser
 RUN chown -R appuser:appgroup /app /home/appuser/.local

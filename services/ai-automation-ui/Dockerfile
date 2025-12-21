@@ -6,11 +6,11 @@ FROM node:20.11.0-alpine AS deps
 WORKDIR /app
 
 # Copy dependency files
-COPY services/ai-automation-ui/package*.json ./
-COPY services/ai-automation-ui/tsconfig*.json ./
-COPY services/ai-automation-ui/vite.config.ts ./
-COPY services/ai-automation-ui/tailwind.config.js ./
-COPY services/ai-automation-ui/postcss.config.js ./
+COPY package*.json ./
+COPY tsconfig*.json ./
+COPY vite.config.ts ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
 
 # Install dependencies
 RUN --mount=type=cache,target=/root/.npm \
@@ -32,7 +32,7 @@ ENV VITE_API_KEY=${VITE_API_KEY}
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source code
-COPY services/ai-automation-ui/ .
+COPY . .
 
 # Clean any existing build artifacts and cache
 RUN rm -rf dist node_modules/.cache .vite 2>/dev/null || true
@@ -52,7 +52,7 @@ RUN apk add --no-cache curl tzdata
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
-COPY services/ai-automation-ui/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Set timezone to Los Angeles (PST/PDT)
 RUN ln -snf /usr/share/zoneinfo/America/Los_Angeles /etc/localtime && \

@@ -10,10 +10,11 @@ WORKDIR /app
 RUN pip install --upgrade pip==25.2
 
 # Copy requirements first for better caching
-COPY services/openvino-service/requirements.txt .
+COPY requirements.txt .
 
-# Install Python dependencies with CPU-only torch wheels
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Install Python dependencies with CPU-only torch wheels and cache mount
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt
 
 FROM python:3.12-slim
 
@@ -30,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /root/.local /root/.local
 
 # Copy application code
-COPY services/openvino-service/src/ ./src/
+COPY src/ ./src/
 
 # Set environment variables
 ENV PATH=/root/.local/bin:$PATH \

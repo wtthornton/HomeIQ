@@ -76,8 +76,8 @@ const loadForceGraph = async (): Promise<any> => {
       
       // Load THREE.js fresh
       const THREE = await import('three');
-      // THREE.js exports as a namespace object
-      const THREE_export = THREE.default || THREE;
+      // THREE.js exports as a namespace object (no .default in ES modules)
+      const THREE_export = THREE as any;
       
       // Create an extensible wrapper using Proxy to allow property additions
       // This ensures react-force-graph can add ColladaLoader and other loaders
@@ -143,7 +143,7 @@ const loadForceGraph = async (): Promise<any> => {
           // Try to load THREE again with Proxy wrapper to ensure extensibility
           if (typeof window !== 'undefined') {
             return import('three').then((THREE) => {
-              const THREE_export = THREE.default || THREE;
+              const THREE_export = THREE as any;
               // Remove existing THREE
               delete (window as any).THREE;
               // Create extensible Proxy wrapper

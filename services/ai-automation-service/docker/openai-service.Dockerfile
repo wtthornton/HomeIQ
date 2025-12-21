@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir \
     httpx==0.25.2
 
 # Create OpenAI service
-COPY services/ai-automation-service/src/model_services/openai_service.py ./openai_service.py
+COPY src/model_services/openai_service.py ./openai_service.py
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \

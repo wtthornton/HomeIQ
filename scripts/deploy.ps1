@@ -161,19 +161,32 @@ function Invoke-PullImages {
     }
 }
 
-# Build custom images
+# Build custom images with parallel builds and caching
 function Invoke-BuildImages {
-    Write-Info "Building custom images..."
+    Write-Info "Building custom images (using parallel builds and BuildKit cache)..."
     
     Push-Location $ProjectRoot
     
     try {
+        # Enable BuildKit for better caching
+        $env:DOCKER_BUILDKIT = "1"
+        $env:COMPOSE_DOCKER_CLI_BUILD = "1"
+        
+        $buildStart = Get-Date
+        
+        # Remove --no-cache to enable BuildKit cache mounts
         if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-            & docker-compose -f $ComposeFile --env-file $EnvFile build --no-cache
+            & docker-compose -f $ComposeFile --env-file $EnvFile build --parallel
         } else {
-            & docker compose -f $ComposeFile --env-file $EnvFile build --no-cache
+            & docker compose -f $ComposeFile --env-file $EnvFile build --parallel
         }
-        Write-Success "Images built successfully"
+        
+        $buildEnd = Get-Date
+        $buildDuration = ($buildEnd - $buildStart)
+        $buildMinutes = [math]::Floor($buildDuration.TotalMinutes)
+        $buildSeconds = [math]::Floor($buildDuration.TotalSeconds % 60)
+        
+        Write-Success "Images built successfully in ${buildMinutes}m ${buildSeconds}s"
     }
     finally {
         Pop-Location

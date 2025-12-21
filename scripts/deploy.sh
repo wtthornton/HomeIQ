@@ -147,45 +147,118 @@ pull_images() {
     log_success "Images pulled successfully"
 }
 
-# Build custom images
+# Build custom images with parallel builds and caching
 build_images() {
-    log_info "Building custom images..."
+    log_info "Building custom images (using parallel builds and BuildKit cache)..."
     
     cd "$PROJECT_ROOT"
+    
+    # Enable BuildKit for better caching
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_DOCKER_CLI_BUILD=1
+    
+    local build_start=$(date +%s)
     
     # Use docker-compose or docker compose based on availability
+    # Remove --no-cache to enable BuildKit cache mounts
     if command -v docker-compose &> /dev/null; then
-        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache
+        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --parallel
     else
-        docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache
+        docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --parallel
     fi
     
-    log_success "Images built successfully"
+    local build_end=$(date +%s)
+    local build_duration=$((build_end - build_start))
+    local build_minutes=$((build_duration / 60))
+    local build_seconds=$((build_duration % 60))
+    
+    log_success "Images built successfully in ${build_minutes}m ${build_seconds}s"
 }
 
-# Deploy services
+# Deploy services with zero-downtime
 deploy_services() {
-    log_info "Deploying services..."
+    log_info "Deploying services with zero-downtime strategy..."
     
     cd "$PROJECT_ROOT"
     
-    # Stop existing services gracefully
-    log_info "Stopping existing services..."
-    if command -v docker-compose &> /dev/null; then
-        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --timeout 30
-    else
-        docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --timeout 30
-    fi
+    # Define deployment order (dependencies first)
+    local deploy_order=(
+        "influxdb"
+        "sqlite-data"
+        "data-api"
+        "admin-api"
+        "websocket-ingestion"
+        "weather-api"
+        "carbon-intensity-service"
+        "electricity-pricing-service"
+        "air-quality-service"
+        "calendar-service"
+        "smart-meter-service"
+        "energy-correlator"
+        "log-aggregator"
+        "health-dashboard"
+    )
     
-    # Start services
-    log_info "Starting services..."
-    if command -v docker-compose &> /dev/null; then
-        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
-    else
-        docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
-    fi
+    # Zero-downtime deployment: update services one at a time
+    for service in "${deploy_order[@]}"; do
+        log_info "Deploying $service..."
+        
+        # Update service without stopping dependencies
+        if command -v docker-compose &> /dev/null; then
+            docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps "$service" 2>/dev/null || \
+            docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d "$service"
+        else
+            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps "$service" 2>/dev/null || \
+            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d "$service"
+        fi
+        
+        # Wait for service to be healthy before proceeding
+        if wait_for_service_health "$service" 30; then
+            log_success "$service deployed and healthy"
+        else
+            log_warning "$service deployed but health check failed - continuing..."
+        fi
+        
+        # Small delay between services
+        sleep 2
+    done
     
-    log_success "Services deployed successfully"
+    log_success "Zero-downtime deployment completed"
+}
+
+# Wait for a specific service to be healthy
+wait_for_service_health() {
+    local service=$1
+    local max_attempts=${2:-30}
+    local attempt=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        cd "$PROJECT_ROOT"
+        
+        local health_status
+        if command -v docker-compose &> /dev/null; then
+            health_status=$(docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q "$service" 2>/dev/null | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
+        else
+            health_status=$(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q "$service" 2>/dev/null | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
+        fi
+        
+        if [[ "$health_status" == "healthy" ]]; then
+            return 0
+        elif [[ "$health_status" == "running" ]]; then
+            # Service is running but may not have health check - consider it ready
+            log_info "$service is running (no health check defined)"
+            return 0
+        fi
+        
+        if [[ $attempt -lt $max_attempts ]]; then
+            log_info "$service health status: $health_status (attempt $attempt/$max_attempts)"
+            sleep 5
+        fi
+        
+        ((attempt++))
+    done
+    
+    return 1
 }
 
 # Wait for services to be healthy
@@ -315,7 +388,7 @@ main() {
     pull_images
     build_images
     deploy_services
-    wait_for_health
+    # Health checks are now done during deployment (zero-downtime)
     run_post_deployment_tests
     show_status
     

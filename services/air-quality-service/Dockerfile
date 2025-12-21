@@ -8,7 +8,7 @@ RUN pip install --upgrade pip==25.2
 
 RUN apk add --no-cache gcc musl-dev linux-headers
 
-COPY services/air-quality-service/requirements-prod.txt .
+COPY requirements-prod.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements-prod.txt
 
@@ -21,8 +21,8 @@ RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup
 
 COPY --from=builder /root/.local /home/appuser/.local
-COPY services/air-quality-service/src/ ./src/
-COPY shared/ ./shared/
+COPY src/ ./src/
+COPY ../shared/ ./shared/
 
 RUN chown -R appuser:appgroup /app /home/appuser/.local
 

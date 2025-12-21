@@ -1,0 +1,144 @@
+{
+  "workflow_id": "quick-fix",
+  "workflow_name": "Quick Fix",
+  "workflow_version": "1.0.0",
+  "workflow_type": "brownfield",
+  "schema_version": "2.0",
+  "settings": {
+    "quality_gates": true,
+    "code_scoring": true,
+    "context_tier_default": 2,
+    "auto_detect": true
+  },
+  "step_graph": {
+    "debug": {
+      "id": "debug",
+      "agent": "debugger",
+      "action": "analyze_error",
+      "context_tier": 2,
+      "creates": [
+        "debug-report.md"
+      ],
+      "requires": [],
+      "consults": [],
+      "condition": "required",
+      "next": "fix",
+      "optional_steps": [],
+      "repeats": false,
+      "has_gate": false,
+      "gate": null,
+      "scoring": null,
+      "metadata": {}
+    },
+    "fix": {
+      "id": "fix",
+      "agent": "implementer",
+      "action": "write_code",
+      "context_tier": 3,
+      "creates": [
+        "fixed-code/"
+      ],
+      "requires": [
+        "debug-report.md"
+      ],
+      "consults": [],
+      "condition": "required",
+      "next": "review",
+      "optional_steps": [],
+      "repeats": false,
+      "has_gate": false,
+      "gate": null,
+      "scoring": null,
+      "metadata": {}
+    },
+    "review": {
+      "id": "review",
+      "agent": "reviewer",
+      "action": "review_code",
+      "context_tier": 2,
+      "creates": [],
+      "requires": [
+        "fixed-code/"
+      ],
+      "consults": [],
+      "condition": "required",
+      "next": "testing",
+      "optional_steps": [],
+      "repeats": false,
+      "has_gate": true,
+      "gate": {
+        "condition": "scoring.passed == true",
+        "on_pass": "testing",
+        "on_fail": "fix"
+      },
+      "scoring": {
+        "enabled": true,
+        "thresholds": {
+          "overall_min": 60,
+          "security_min": 7.0
+        }
+      },
+      "metadata": {}
+    },
+    "testing": {
+      "id": "testing",
+      "agent": "tester",
+      "action": "write_tests",
+      "context_tier": 2,
+      "creates": [
+        "tests/"
+      ],
+      "requires": [
+        "fixed-code/"
+      ],
+      "consults": [],
+      "condition": "required",
+      "next": "complete",
+      "optional_steps": [],
+      "repeats": false,
+      "has_gate": false,
+      "gate": null,
+      "scoring": null,
+      "metadata": {}
+    },
+    "complete": {
+      "id": "complete",
+      "agent": "orchestrator",
+      "action": "finalize",
+      "context_tier": 1,
+      "creates": [],
+      "requires": [],
+      "consults": [],
+      "condition": "required",
+      "next": null,
+      "optional_steps": [],
+      "repeats": false,
+      "has_gate": false,
+      "gate": null,
+      "scoring": null,
+      "metadata": {}
+    }
+  },
+  "dependency_graph": {
+    "debug": [
+      "fix"
+    ],
+    "fix": [
+      "review",
+      "testing"
+    ],
+    "review": [],
+    "testing": [],
+    "complete": []
+  },
+  "entry_points": [
+    "debug",
+    "complete"
+  ],
+  "exit_points": [
+    "complete"
+  ],
+  "total_steps": 5,
+  "steps_with_gates": 1,
+  "steps_with_retry": 0
+}
