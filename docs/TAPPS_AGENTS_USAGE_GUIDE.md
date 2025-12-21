@@ -2,9 +2,13 @@
 
 **Quick Reference Guide** - Get started with TappsCodingAgents in your HomeIQ project.
 
+> **📖 New to TappsCodingAgents?** Start with the [Integration Strategy](./CURSOR_TAPPS_AGENTS_INTEGRATION_STRATEGY.md) to understand when to use Simple Mode, direct agents, or custom workflows.
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Simple Mode (Recommended)](#simple-mode-recommended)
+- [Custom Workflows](#custom-workflows)
 - [Enhancer Agent (Prompt Enhancement)](#enhancer-agent-prompt-enhancement)
 - [Reviewer Agent (Code Review)](#reviewer-agent-code-review)
 - [Other Useful Agents](#other-useful-agents)
@@ -31,6 +35,72 @@ HomeIQ is already configured with:
 - ✅ 8 domain experts (IoT, Time-Series, AI/ML, etc.)
 - ✅ Knowledge bases in `.tapps-agents/knowledge/`
 - ✅ Enhancement configuration in `.tapps-agents/enhancement-config.yaml`
+
+---
+
+## Simple Mode (Recommended)
+
+**Best for:** Most development tasks (features, reviews, fixes, tests)
+
+Simple Mode is the **primary interface** for TappsCodingAgents in Cursor. It automatically orchestrates multiple agents through structured workflows.
+
+### Quick Commands
+
+```powershell
+# Build new feature (orchestrates: enhancer → planner → architect → implementer → reviewer → tester)
+@simple-mode *build "Create new InfluxDB query endpoint"
+
+# Review code quality
+@simple-mode *review services/websocket-ingestion/src/main.py
+
+# Fix bug (orchestrates: debugger → implementer → tester)
+@simple-mode *fix services/data-api/src/main.py "Fix connection timeout"
+
+# Generate tests
+@simple-mode *test services/data-api/src/main.py
+
+# Full SDLC workflow
+@simple-mode *full "Build complete REST API"
+```
+
+### Why Use Simple Mode?
+
+- ✅ **Automatic Orchestration** - Multiple agents coordinated automatically
+- ✅ **Quality Gates** - Automatic quality checks with loopbacks
+- ✅ **Expert Consultation** - HomeIQ domain experts consulted automatically
+- ✅ **Natural Language** - Plain English commands, no complex syntax
+
+**Learn More:** See [Simple Mode Guide](../.cursor/rules/simple-mode.mdc) and [Integration Strategy](./CURSOR_TAPPS_AGENTS_INTEGRATION_STRATEGY.md)
+
+---
+
+## Custom Workflows
+
+**Best for:** HomeIQ-specific patterns, multi-service operations, repeatable workflows
+
+HomeIQ includes custom workflows for common patterns:
+
+### Available Workflows
+
+```powershell
+# Create new microservice (Docker, InfluxDB, Epic 31 patterns)
+python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-microservice-creation.yaml --prompt "Create weather-api service"
+
+# Integrate service with existing infrastructure
+python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-service-integration.yaml --prompt "Integrate external API"
+
+# Multi-service quality audit
+python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-quality-audit.yaml
+```
+
+### When to Use Custom Workflows
+
+- ✅ Creating new microservices (use `homeiq-microservice-creation.yaml`)
+- ✅ Integrating services with HomeIQ infrastructure (use `homeiq-service-integration.yaml`)
+- ✅ Quality audits across multiple services (use `homeiq-quality-audit.yaml`)
+- ✅ Patterns repeated 3+ times (create new workflow)
+
+**Learn More:** See [Custom Workflows Guide](./HOMEIQ_CUSTOM_WORKFLOWS_GUIDE.md) and [Quick Reference](./TAPPS_AGENTS_QUICK_REFERENCE.md)
 
 ---
 
@@ -405,6 +475,12 @@ python -m tapps_agents.cli planner --help
 
 ### Documentation
 
+**HomeIQ Integration:**
+- [Integration Strategy](./CURSOR_TAPPS_AGENTS_INTEGRATION_STRATEGY.md) - Complete strategy for using TappsCodingAgents with HomeIQ
+- [Custom Workflows Guide](./HOMEIQ_CUSTOM_WORKFLOWS_GUIDE.md) - Creating HomeIQ-specific workflows
+- [Quick Reference](./TAPPS_AGENTS_QUICK_REFERENCE.md) - Quick decision guide
+
+**TappsCodingAgents Framework:**
 - [Enhancer Agent Guide](../../TappsCodingAgents/docs/ENHANCER_AGENT.md)
 - [Reviewer Agent Guide](../../TappsCodingAgents/docs/README.md)
 - [Deployment Guide](implementation/TAPPS_AGENTS_DEPLOYMENT.md)

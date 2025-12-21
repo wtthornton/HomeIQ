@@ -448,6 +448,100 @@ AIRNOW_API_KEY=your-airnow-key  # AirNow API key (optional)
 
 ## 🧪 Development
 
+### 🤖 AI-Assisted Development with TappsCodingAgents
+
+**HomeIQ uses TappsCodingAgents for enhanced code quality, testing, and development workflows.** AI assistants working on this project should **ALWAYS** use tapps-agents and Simple Mode commands to ensure high-quality code, comprehensive testing, and proper documentation.
+
+#### Quick Start with Simple Mode
+
+**Simple Mode** provides natural language commands that automatically orchestrate multiple specialized agents:
+
+```bash
+# In Cursor chat, use @simple-mode for all development tasks:
+@simple-mode *build "Create a new microservice for device monitoring"
+@simple-mode *review services/websocket-ingestion/src/main.py
+@simple-mode *fix services/data-api/src/main.py "Fix the database connection error"
+@simple-mode *test services/ai-automation-service/src/main.py
+@simple-mode *full "Build a complete REST API for automation management"
+```
+
+#### Available TappsCodingAgents Commands
+
+**For Code Quality & Review:**
+```bash
+# Quick quality score (fast, no LLM)
+python -m tapps_agents.cli reviewer score services/websocket-ingestion/src/main.py
+
+# Full code review with detailed feedback
+python -m tapps_agents.cli reviewer review services/data-api/src/main.py
+
+# Generate quality reports (JSON, Markdown, HTML)
+python -m tapps_agents.cli reviewer report . json markdown html
+```
+
+**For Test Generation:**
+```bash
+# Generate comprehensive tests
+python -m tapps_agents.cli tester test services/ai-automation-service/src/main.py
+
+# Generate integration tests
+python -m tapps_agents.cli tester generate-tests services/data-api/src/main.py --integration
+```
+
+**For Code Improvement:**
+```bash
+# Refactor and improve code
+python -m tapps_agents.cli improver improve services/websocket-ingestion/src/main.py "Add type hints and improve error handling"
+
+# Optimize performance
+python -m tapps_agents.cli improver optimize services/data-api/src/main.py "Improve database query performance"
+```
+
+**For Feature Development:**
+```bash
+# Plan new features
+python -m tapps_agents.cli planner plan "Add device health monitoring dashboard"
+
+# Design architecture
+python -m tapps_agents.cli architect design "Microservice architecture for device intelligence"
+
+# Enhance prompts before implementation
+python -m tapps_agents.cli enhancer enhance "Create REST API for automation suggestions"
+```
+
+#### Why Use TappsCodingAgents?
+
+1. **Quality Assurance**: Automatic code scoring (complexity, security, maintainability, test coverage, performance)
+2. **Comprehensive Testing**: Automated test generation with coverage analysis
+3. **Code Review**: LLM-powered code review with detailed feedback
+4. **Expert Consultation**: Automatic consultation with domain experts (security, performance, testing, etc.)
+5. **Workflow Orchestration**: Structured workflows ensure proper planning → design → implementation → testing → review
+6. **Documentation**: Automatic documentation generation for APIs and code
+
+#### AI Assistant Guidelines
+
+**When working on HomeIQ, AI assistants should:**
+
+1. ✅ **Always use Simple Mode** (`@simple-mode`) for feature development, bug fixes, and code reviews
+2. ✅ **Run code reviews** before committing: `@simple-mode *review {file}` or `python -m tapps_agents.cli reviewer review {file}`
+3. ✅ **Generate tests** for all new code: `@simple-mode *test {file}` or `python -m tapps_agents.cli tester test {file}`
+4. ✅ **Use enhancer** for complex features: `python -m tapps_agents.cli enhancer enhance "{description}"`
+5. ✅ **Check quality scores** before finalizing code: `python -m tapps_agents.cli reviewer score {file}`
+6. ✅ **Follow workflow patterns**: Use `*build`, `*review`, `*fix`, `*test` commands instead of direct implementation
+
+**Configuration:**
+- TappsCodingAgents is configured in `.tapps-agents/config.yaml`
+- Simple Mode is **enabled** and ready to use
+- Quality thresholds: 70+ overall score, 80+ for critical services
+- Test coverage threshold: 80% minimum
+
+**See Also:**
+- [Simple Mode Guide](.cursor/rules/simple-mode.mdc) - Complete Simple Mode documentation
+- [Agent Capabilities](.cursor/rules/agent-capabilities.mdc) - All 13 workflow agents
+- [TappsCodingAgents Documentation](https://github.com/wtthornton/TappsCodingAgents) - Framework documentation
+
+---
+
 ### Local Development Setup (Single NUC)
 
 **Note:** This project is designed for **single-home Home Assistant deployment on an Intel NUC**. All services run in Docker containers on the same NUC host. This is a single-home application, not a multi-home or enterprise solution.

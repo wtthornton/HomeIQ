@@ -1,14 +1,31 @@
 ---
-description: Simple Mode - Natural language orchestrator for TappsCodingAgents. ALWAYS APPLY to enable skill orchestration.
+description: Simple Mode - Natural language orchestrator for TappsCodingAgents. ALWAYS APPLY to enable skill orchestration. CRITICAL: AI assistants MUST use Simple Mode for all code creation, reviews, testing, and fixes.
 globs: []
 alwaysApply: true
 ---
 
 # Simple Mode - Cursor-Native Skill Orchestrator
 
+## ⚠️ CRITICAL: AI Assistant Requirements
+
+**AI assistants working on HomeIQ MUST use Simple Mode and TappsCodingAgents for:**
+- ✅ **All code creation** - Use `@simple-mode *build` instead of direct implementation
+- ✅ **All code reviews** - Use `@simple-mode *review` before finalizing any code
+- ✅ **All testing** - Use `@simple-mode *test` to generate comprehensive tests
+- ✅ **All bug fixes** - Use `@simple-mode *fix` for structured debugging and fixes
+
+**Why?** Simple Mode orchestrates multiple specialized agents (enhancer, planner, architect, designer, implementer, reviewer, tester) ensuring:
+- Comprehensive quality checks (5-metric scoring system)
+- Expert consultation (security, performance, testing experts)
+- Automated test generation with coverage analysis
+- Proper workflow orchestration (planning → design → implementation → testing → review)
+- Documentation generation
+
+**DO NOT skip Simple Mode workflows.** They are essential for maintaining code quality in a 30+ microservice architecture.
+
 ## What is Simple Mode?
 
-Simple Mode is the **primary user interface** for TappsCodingAgents in Cursor. It provides natural language commands that automatically orchestrate multiple specialized skills.
+Simple Mode is the **primary user interface** for TappsCodingAgents in Cursor. It provides natural language commands that automatically orchestrate multiple specialized skills through structured workflows that produce better, more maintainable code with comprehensive documentation and testing.
 
 ## How to Use Simple Mode
 
@@ -191,8 +208,33 @@ simple_mode:
 4. **Progressive Disclosure** - Start simple, unlock advanced features as you learn
 5. **Best Practices** - Follows TappsCodingAgents workflow patterns automatically
 
+## When to Delegate to Custom Workflows
+
+**Simple Mode should delegate to custom workflows when:**
+- ✅ **HomeIQ-Specific Patterns**: Microservice creation, service integration, quality audits
+- ✅ **Pattern Recognition**: Same workflow used 3+ times
+- ✅ **Multi-Service Operations**: Coordinated operations across multiple services
+
+**Examples:**
+```bash
+# Creating new microservice → Use custom workflow instead
+python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-microservice-creation.yaml --prompt "Create weather-api service"
+
+# Quality audit across services → Use custom workflow instead
+python -m tapps_agents.cli orchestrator workflow workflows/custom/homeiq-quality-audit.yaml
+```
+
+**Decision Logic:** See [tapps-agents-workflow-selection.mdc](./tapps-agents-workflow-selection.mdc) for complete workflow selection guide.
+
 ## Related Documentation
 
+**HomeIQ Integration:**
+- [Integration Strategy](../docs/CURSOR_TAPPS_AGENTS_INTEGRATION_STRATEGY.md) - Complete strategy for TappsCodingAgents integration
+- [Workflow Selection Guide](./tapps-agents-workflow-selection.mdc) - When to use Simple Mode vs workflows vs direct agents
+- [Custom Workflows Guide](../docs/HOMEIQ_CUSTOM_WORKFLOWS_GUIDE.md) - Creating HomeIQ-specific workflows
+- [Quick Reference](../docs/TAPPS_AGENTS_QUICK_REFERENCE.md) - Quick decision guide
+
+**TappsCodingAgents Framework:**
 - See `.claude/skills/simple-mode/SKILL.md` for full skill definition
 - See `docs/SIMPLE_MODE_GUIDE.md` for complete documentation
 - See `.cursor/rules/agent-capabilities.mdc` for all agent capabilities
