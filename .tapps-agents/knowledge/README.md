@@ -13,19 +13,86 @@ This directory contains knowledge bases for all HomeIQ Industry Experts. Each ex
 ├── security-privacy/             # Security & Privacy Expert
 ├── energy-management/            # Energy Management Expert
 ├── frontend-ux/                  # Frontend & User Experience Expert
-└── home-assistant/               # Home Assistant Expert
+├── home-assistant/               # Home Assistant Expert
+├── automation-strategy/          # Automation Strategy Expert (Business)
+├── proactive-intelligence/       # Proactive Intelligence Expert (Business)
+├── smart-home-ux/                # Smart Home UX Expert (Business)
+├── energy-economics/             # Energy Economics Expert (Business)
+├── pattern-analytics/            # Pattern Analytics Expert (Business)
+└── device-ecosystem/             # Device Ecosystem Expert (Business)
 ```
 
 ## Current Status
 
-✅ **109 files** populated from existing HomeIQ documentation
-- IoT & Home Automation: 5 files
-- Time-Series Analytics: 16 files
-- AI & Machine Learning: 5 files
-- Microservices Architecture: 68 files
-- Security & Privacy: 1 file
-- Frontend & UX: 4 files
-- Home Assistant: 10 files
+✅ **140+ files** populated across 14 expert knowledge bases
+- **Technical Experts**: 109 files (IoT, Time-Series, AI/ML, Microservices, Security, Energy Management, Frontend, Home Assistant)
+- **Business Experts**: 31 files (Automation Strategy: 5, Proactive Intelligence: 5, Smart Home UX: 4, Energy Economics: 4, Pattern Analytics: 4, Device Ecosystem: 4, Energy Management: 5)
+- All files updated for December 2025 standards
+
+## Knowledge Base Types: Local KB vs Context7 KB
+
+**IMPORTANT**: Understand when to use Local KB (domain-specific) vs Context7 KB (library documentation).
+
+### Local KB (Domain-Specific Knowledge)
+
+**Location**: `.tapps-agents/knowledge/{domain}/`  
+**Purpose**: Domain-specific business logic, project patterns, and internal knowledge
+
+**Use Local KB for**:
+- ✅ Domain-specific business knowledge ("Automation ROI analysis patterns", "User behavior adoption rates")
+- ✅ Project-specific patterns ("HomeIQ event processing patterns", "Our InfluxDB schema")
+- ✅ Industry best practices and principles ("Automation strategy principles", "Energy optimization strategies")
+- ✅ Internal documentation and processes
+
+**Examples**:
+- Automation strategy principles and best practices
+- Energy consumption tracking patterns
+- User experience design principles
+- Pattern detection methodologies
+
+### Context7 KB Cache (Library Documentation)
+
+**Location**: `.tapps-agents/kb/context7-cache/` (auto-populated)  
+**Purpose**: External library and API documentation
+
+**Use Context7 KB for**:
+- ✅ Technology/library documentation (FastAPI routing, React hooks, SQLAlchemy)
+- ✅ External API documentation (Home Assistant REST API, WebSocket API)
+- ✅ Framework documentation (React, FastAPI, InfluxDB)
+- ✅ Any external library reference material
+
+**Examples**:
+- Home Assistant WebSocket API documentation
+- FastAPI routing and dependency injection
+- React component patterns and hooks
+- InfluxDB query syntax
+
+**How It Works**:
+1. Agents/experts request library docs via `*context7-docs` commands
+2. System checks Context7 KB cache first (instant if cached)
+3. If cache miss → calls Context7 API, stores in shared cache
+4. All future requests (from any expert) use cached version
+5. Auto-refresh system keeps cache current
+
+**Key Point**: Context7 KB is **SHARED** across all experts. No need to populate per-expert.
+
+### Decision Guide
+
+| Knowledge Type | Storage | Example |
+|---|---|---|
+| "How do I use FastAPI routing?" | Context7 KB | FastAPI library docs |
+| "What are HomeIQ automation patterns?" | Local KB | Project-specific patterns |
+| "How do I query InfluxDB?" | Context7 KB | InfluxDB query syntax |
+| "What are energy optimization strategies?" | Local KB | Domain knowledge |
+| "Home Assistant REST API endpoints" | Context7 KB | External API docs |
+| "User behavior adoption patterns" | Local KB | Business domain knowledge |
+
+### When Adding New Knowledge
+
+1. **Ask**: Is this project/domain-specific or external library documentation?
+2. **Project/domain-specific** → Add to Local KB (`knowledge/{domain}/`)
+3. **External library/API** → Use Context7 KB (auto-populated via `*context7-docs` commands)
+4. **If unsure**: Default to Local KB for business/domain knowledge, Context7 KB for technical APIs
 
 ## Adding 2025 Best Practices
 
@@ -166,6 +233,12 @@ The enhancer will:
 - Include keywords in first paragraph
 - Use more specific search terms
 - Organize knowledge better
+
+## Related Documentation
+
+- [Knowledge Base Recommendations](KNOWLEDGE_BASE_RECOMMENDATIONS.md) - Comprehensive recommendations and next steps
+- [Next Steps Summary](NEXT_STEPS_SUMMARY.md) - Quick reference for immediate actions
+- [2025 Knowledge Base Verification](2025_KNOWLEDGE_BASE_VERIFICATION.md) - Verification results
 
 ## See Also
 
