@@ -25,7 +25,7 @@ The AI Automation UI provides a user-friendly, conversational interface for revi
 
 ### Prerequisites
 
-- Node.js 18+ or 20+
+- Node.js 20+ (LTS recommended)
 - npm or yarn
 - AI Automation Service running (port 8024/8018)
 
@@ -300,13 +300,13 @@ npm run lint
 
 ```dockerfile
 # Stage 1: Install dependencies
-FROM node:18-alpine AS deps
+FROM node:20.11.0-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
 # Stage 2: Build production bundle
-FROM node:18-alpine AS builder
+FROM node:20.11.0-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN npm ci
@@ -451,7 +451,7 @@ curl -X POST http://localhost:8024/api/analysis/trigger
 ### "Build Fails"
 
 **Common issues:**
-- Node version mismatch → Use Node 18+ or 20+
+- Node version mismatch → Use Node 20+ (LTS recommended)
 - Missing dependencies → Run `npm install`
 - TypeScript errors → Run `npm run lint` to see all errors
 - Vite cache issues → Delete `node_modules/.vite` and rebuild

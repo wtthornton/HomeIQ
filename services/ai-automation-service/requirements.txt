@@ -12,7 +12,7 @@ pydantic-settings>=2.5.0,<3.0.0  # Compatible with Pydantic v2
 
 # Database
 sqlalchemy>=2.0.35,<3.0.0  # Stable SQLAlchemy 2.0.x (November 2025)
-aiosqlite>=0.20.0,<0.21.0  # Stable async SQLite driver
+aiosqlite>=0.21.0,<0.22.0  # Stable async SQLite driver - updated to match other services
 alembic>=1.13.0,<2.0.0  # Stable database migration tool
 
 # MQTT

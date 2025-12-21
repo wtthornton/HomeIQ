@@ -24,7 +24,7 @@ The Health Dashboard is a modern React-based web interface that provides real-ti
 
 ### Prerequisites
 
-- Node.js 18+ or 20+
+- Node.js 20+ (LTS recommended)
 - npm or yarn
 - Admin API running (port 8004)
 - Data API running (port 8006)
@@ -638,12 +638,12 @@ wscat -c ws://localhost:8001/ws
 
 ```dockerfile
 # Multi-stage build
-FROM node:18-alpine AS deps
+FROM node:20.11.0-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-FROM node:18-alpine AS builder
+FROM node:20.11.0-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN npm ci

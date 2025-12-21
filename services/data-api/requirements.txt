@@ -1,35 +1,35 @@
 # Data API Service Dependencies
-# Python 3.11
+# Python 3.12
 
 # Web Framework
 fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
 uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
-python-multipart==0.0.20
+python-multipart>=0.0.20,<0.1.0  # Unpinned for patch updates
 
 # HTTP Client
-aiohttp==3.13.2
+aiohttp>=3.13.2,<4.0.0  # Unpinned for patch updates
 
 # Database
-influxdb-client==1.49.0
-sqlalchemy==2.0.44
-aiosqlite==0.21.0
-alembic==1.17.2
+influxdb-client>=1.49.0,<2.0.0  # Unpinned for patch updates
+sqlalchemy>=2.0.44,<3.0.0  # Unpinned for patch updates
+aiosqlite>=0.21.0,<0.22.0  # Unpinned for patch updates
+alembic>=1.17.2,<2.0.0  # Unpinned for patch updates
 
 # Data Validation
-pydantic==2.12.4
-pydantic-settings==2.12.0
+pydantic>=2.12.4,<3.0.0  # Unpinned for patch updates
+pydantic-settings>=2.12.0,<3.0.0  # Unpinned for patch updates
 
 # Configuration
-python-dotenv==1.2.1
+python-dotenv>=1.2.1,<2.0.0  # Unpinned for patch updates
 
 # Utilities
-python-jose[cryptography]==3.5.0
-passlib[bcrypt]==1.7.4
+python-jose[cryptography]>=3.5.0,<4.0.0  # Unpinned for patch updates
+passlib[bcrypt]>=1.7.4,<2.0.0  # Unpinned for patch updates
 psutil>=5.9.0,<6.0.0
 
 # Testing (development)
-pytest==8.3.3
-pytest-asyncio==0.23.0
-pytest-cov==4.1.0
+pytest>=8.3.3,<9.0.0  # Unpinned for patch updates
+pytest-asyncio>=0.23.0,<1.0.0  # Unpinned for patch updates
+pytest-cov>=4.1.0,<5.0.0  # Unpinned for patch updates
 httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
 
