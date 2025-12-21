@@ -30,6 +30,7 @@ This project includes comprehensive Cursor rules to enhance development workflow
 - **documentation-standards.mdc** - Documentation standards and formatting guidelines
 - **security-best-practices.mdc** - Security best practices and guidelines
 - **epic-31-architecture.mdc** - Current architecture patterns (Epic 31 - enrichment-pipeline deprecated)
+- **tapps-agents-command-guide.mdc** - Comprehensive guide for AI agents on when and how to use TappsCodingAgents commands (NEW - CRITICAL for all agents)
 
 ## How to Use
 
@@ -127,6 +128,7 @@ When referencing files in rules, use the format:
 Rules with `alwaysApply: true` are automatically applied to every request:
 - **project-structure.mdc** - Project structure guidance
 - **epic-31-architecture.mdc** - Current architecture (Epic 31 - critical for accuracy)
+- **tapps-agents-command-guide.mdc** - TappsCodingAgents command usage guide (critical for AI agents)
 - **README.mdc** - This overview
 
 ### File-Specific Rules
@@ -213,8 +215,10 @@ python -m tapps_agents.cli enhancer enhance "{description}"
 - Test coverage: ≥ 80%
 
 **See:**
+- [TappsCodingAgents Command Guide](mdc:.cursor/rules/tapps-agents-command-guide.mdc) - **CRITICAL:** Complete guide for when and how to use all TappsCodingAgents commands (ALWAYS APPLIED)
 - [Simple Mode Guide](mdc:.cursor/rules/simple-mode.mdc) - Complete Simple Mode documentation
 - [Agent Capabilities](mdc:.cursor/rules/agent-capabilities.mdc) - All 13 workflow agents
+- [Workflow Selection Guide](mdc:.cursor/rules/tapps-agents-workflow-selection.mdc) - When to use Simple Mode vs workflows vs direct agents
 
 ## Getting Help
 
