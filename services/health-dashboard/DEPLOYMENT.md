@@ -14,7 +14,7 @@ This document provides comprehensive instructions for building and deploying the
 
 ## Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20+ (LTS recommended) and npm
 - Docker and Docker Compose
 - Git (for version tracking)
 

@@ -1,7 +1,7 @@
 # Data API Service - Development Dockerfile
 # With hot reload for faster development
 
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 
 WORKDIR /app
 
