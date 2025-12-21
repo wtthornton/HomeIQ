@@ -1,0 +1,597 @@
+---
+description: Comprehensive guide for AI agents on when and how to use TappsCodingAgents commands
+alwaysApply: true
+---
+
+# TappsCodingAgents Command Guide for AI Agents
+
+**CRITICAL:** AI agents working in this codebase MUST use TappsCodingAgents commands for code creation, reviews, testing, and fixes. This ensures quality, comprehensive testing, and proper workflow orchestration.
+
+## When to Use TappsCodingAgents Commands
+
+### ✅ ALWAYS Use TappsCodingAgents For:
+
+1. **Code Creation** - Use `@simple-mode *build` or `implementer implement` instead of direct code generation
+2. **Code Reviews** - Use `@simple-mode *review` or `reviewer review` before finalizing any code
+3. **Testing** - Use `@simple-mode *test` or `tester test` to generate comprehensive tests
+4. **Bug Fixes** - Use `@simple-mode *fix` or `debugger debug` + `implementer refactor` for structured debugging
+5. **Quality Checks** - Use `reviewer score`, `reviewer lint`, `reviewer type-check` before commits
+6. **Code Improvement** - Use `improver improve-quality` or `improver refactor` for enhancements
+
+### ❌ NEVER Skip TappsCodingAgents For:
+
+- New feature implementation
+- Code reviews before commits
+- Test generation for new code
+- Bug fixes and debugging
+- Quality improvements
+- Security scanning
+
+## Quick Decision Tree: Which Command to Use?
+
+```
+User Request
+    │
+    ├─ New Feature/Code Creation?
+    │   └─ YES → @simple-mode *build "{description}"
+    │       OR → python -m tapps_agents.cli workflow rapid --prompt "{description}"
+    │
+    ├─ Code Review Needed?
+    │   └─ YES → @simple-mode *review {file}
+    │       OR → python -m tapps_agents.cli reviewer review {file}
+    │
+    ├─ Bug Fix Needed?
+    │   └─ YES → @simple-mode *fix {file} "{description}"
+    │       OR → python -m tapps_agents.cli debugger debug "{error}" --file {file}
+    │
+    ├─ Tests Needed?
+    │   └─ YES → @simple-mode *test {file}
+    │       OR → python -m tapps_agents.cli tester test {file}
+    │
+    ├─ Quality Check?
+    │   └─ YES → python -m tapps_agents.cli reviewer score {file}
+    │
+    └─ Code Improvement?
+        └─ YES → python -m tapps_agents.cli improver improve-quality {file}
+```
+
+## Command Reference by Task Type
+
+### 1. Creating New Features
+
+**When:** User wants to add new functionality, create new files, or implement features
+
+**Commands (in order of preference):**
+
+1. **Simple Mode (Recommended for AI agents):**
+   ```bash
+   @simple-mode *build "Create user authentication with JWT tokens"
+   ```
+   - Orchestrates: enhancer → planner → architect → designer → implementer → reviewer → tester
+   - Automatically ensures quality gates are met
+   - Generates tests and documentation
+
+2. **Workflow Preset:**
+   ```bash
+   python -m tapps_agents.cli workflow rapid --prompt "Add user authentication" --auto
+   ```
+   - For sprint work and features
+   - Faster than full workflow
+   - Quality gates: Overall ≥65, Security ≥6.5
+
+3. **Full SDLC Workflow:**
+   ```bash
+   python -m tapps_agents.cli workflow full --prompt "Build complete authentication system" --auto
+   ```
+   - For enterprise projects or complex features
+   - Complete lifecycle: requirements → architecture → implementation → testing → documentation
+   - Quality gates: Overall ≥70, Security ≥7.0, Maintainability ≥7.0
+
+4. **Manual Agent Sequence (Advanced):**
+   ```bash
+   # Step 1: Plan
+   python -m tapps_agents.cli planner plan "Add user authentication"
+   
+   # Step 2: Design API
+   python -m tapps_agents.cli designer api-design "Authentication API with JWT"
+   
+   # Step 3: Implement
+   python -m tapps_agents.cli implementer implement "Create auth service" src/auth/service.py
+   
+   # Step 4: Test
+   python -m tapps_agents.cli tester test src/auth/service.py
+   
+   # Step 5: Review
+   python -m tapps_agents.cli reviewer review src/auth/service.py
+   ```
+
+**Why Use:** Ensures comprehensive implementation with testing, quality checks, and documentation. Prevents incomplete features.
+
+---
+
+### 2. Code Reviews
+
+**When:** Before committing code, after code changes, or during pull request reviews
+
+**Commands (in order of preference):**
+
+1. **Simple Mode (Recommended):**
+   ```bash
+   @simple-mode *review {file}
+   ```
+   - Orchestrates reviewer → improver (if issues found)
+   - Provides comprehensive feedback
+
+2. **Full Review with AI Analysis:**
+   ```bash
+   python -m tapps_agents.cli reviewer review {file} --format json
+   ```
+   - Comprehensive AI-powered analysis
+   - Identifies bugs, security issues, performance problems
+   - Provides improvement suggestions
+   - Use for: pre-commit reviews, PR reviews, quality audits
+
+3. **Quick Score Check (Fast, No LLM):**
+   ```bash
+   python -m tapps_agents.cli reviewer score {file}
+   ```
+   - Fast objective metrics (complexity, security, maintainability, test coverage)
+   - No LLM calls - instant results
+   - Use for: quick quality checks, CI/CD pipelines
+
+4. **Linting (Style and Quality Issues):**
+   ```bash
+   python -m tapps_agents.cli reviewer lint {file} --pattern "**/*.py"
+   ```
+   - Finds PEP 8 violations, bugs, unused imports
+   - Use for: style checks, code smell detection
+
+5. **Type Checking:**
+   ```bash
+   python -m tapps_agents.cli reviewer type-check {file}
+   ```
+   - Finds type annotation errors
+   - Use for: type safety validation
+
+6. **Comprehensive Quality Report:**
+   ```bash
+   python -m tapps_agents.cli reviewer report src/ json markdown html
+   ```
+   - Complete quality analysis across project
+   - Use for: project-wide quality assessment
+
+**Why Use:** Catches bugs early, ensures code quality standards, identifies security vulnerabilities, maintains code consistency.
+
+---
+
+### 3. Testing
+
+**When:** After implementing code, before commits, or when adding new tests
+
+**Commands (in order of preference):**
+
+1. **Simple Mode (Recommended):**
+   ```bash
+   @simple-mode *test {file}
+   ```
+   - Generates and runs tests automatically
+
+2. **Generate and Run Tests:**
+   ```bash
+   python -m tapps_agents.cli tester test {file} --integration
+   ```
+   - Generates comprehensive tests (unit + integration if specified)
+   - Automatically runs tests and reports results
+   - Use for: new code, ensuring test coverage
+
+3. **Generate Tests Only (No Execution):**
+   ```bash
+   python -m tapps_agents.cli tester generate-tests {file} --test-file tests/test_service.py
+   ```
+   - Generates test code without running
+   - Use for: reviewing tests before running, CI/CD integration
+
+4. **Run Existing Tests:**
+   ```bash
+   python -m tapps_agents.cli tester run-tests tests/unit/
+   ```
+   - Runs existing test suite
+   - Generates coverage reports
+   - Use for: continuous testing, coverage validation
+
+**Why Use:** Ensures code reliability, catches regressions, validates functionality, maintains test coverage standards (target: 80%).
+
+---
+
+### 4. Bug Fixes and Debugging
+
+**When:** Encountering errors, fixing bugs, or addressing issues
+
+**Commands (in order of preference):**
+
+1. **Simple Mode (Recommended):**
+   ```bash
+   @simple-mode *fix {file} "Fix connection timeout error"
+   ```
+   - Orchestrates: debugger → implementer → tester
+   - Structured debugging and fixing
+
+2. **Full Fix Workflow:**
+   ```bash
+   python -m tapps_agents.cli workflow fix --file {file} --auto
+   ```
+   - Complete bug fixing workflow
+   - Includes: debugging → fixing → testing → review
+
+3. **Debug Error:**
+   ```bash
+   python -m tapps_agents.cli debugger debug "KeyError: 'user_id'" --file src/api.py --line 42
+   ```
+   - Analyzes error messages and stack traces
+   - Identifies root causes
+   - Suggests fixes
+   - Use for: understanding errors, root cause analysis
+
+4. **Analyze Error (Detailed):**
+   ```bash
+   python -m tapps_agents.cli debugger analyze-error "{error_message}" --stack-trace "traceback.txt"
+   ```
+   - In-depth error analysis
+   - Execution path analysis
+   - Use for: complex errors with stack traces
+
+5. **Trace Code Execution:**
+   ```bash
+   python -m tapps_agents.cli debugger trace src/main.py --function process_data
+   ```
+   - Traces execution paths
+   - Use for: understanding control flow, finding logic errors
+
+6. **Hotfix Workflow (Urgent):**
+   ```bash
+   python -m tapps_agents.cli workflow hotfix --file {file} --auto
+   ```
+   - Fastest path for critical production bugs
+   - Minimal testing, essential checks only
+   - Use ONLY for: urgent production fixes
+
+**Why Use:** Structured debugging approach, identifies root causes, ensures fixes don't break existing functionality, maintains code quality even in urgent situations.
+
+---
+
+### 5. Code Quality Improvement
+
+**When:** Improving existing code, refactoring, reducing technical debt
+
+**Commands (in order of preference):**
+
+1. **Quality Improvement Workflow:**
+   ```bash
+   python -m tapps_agents.cli workflow quality --file {file} --auto
+   ```
+   - Complete quality improvement cycle
+   - Analysis → improvement → review → testing
+
+2. **Improve Code Quality:**
+   ```bash
+   python -m tapps_agents.cli improver improve-quality {file}
+   ```
+   - Comprehensive quality improvements
+   - Addresses multiple quality aspects
+   - Use for: general code improvements
+
+3. **Refactor Code:**
+   ```bash
+   python -m tapps_agents.cli improver refactor {file} --instruction "Extract common logic into helper functions"
+   ```
+   - Refactors for better structure
+   - Use for: specific refactoring goals
+
+4. **Optimize Performance:**
+   ```bash
+   python -m tapps_agents.cli improver optimize {file} --type both
+   ```
+   - Performance and memory optimizations
+   - Use for: performance-critical code
+
+5. **Project-Wide Quality Analysis:**
+   ```bash
+   python -m tapps_agents.cli reviewer analyze-project
+   ```
+   - Comprehensive project analysis
+   - Identifies improvement opportunities
+   - Use for: quality initiatives, technical debt assessment
+
+**Why Use:** Maintains code quality, reduces technical debt, improves maintainability, ensures best practices.
+
+---
+
+### 6. Planning and Design
+
+**When:** Starting new features, planning implementations, designing systems
+
+**Commands:**
+
+1. **Create Implementation Plan:**
+   ```bash
+   python -m tapps_agents.cli planner plan "Add payment processing feature"
+   ```
+   - Task breakdown, dependencies, effort estimates
+   - Use for: feature planning, sprint planning
+
+2. **Gather Requirements:**
+   ```bash
+   python -m tapps_agents.cli analyst gather-requirements "Build e-commerce platform"
+   ```
+   - Extracts functional/non-functional requirements
+   - Use for: project initiation, requirements documentation
+
+3. **Design System Architecture:**
+   ```bash
+   python -m tapps_agents.cli architect design-system "Microservices architecture for e-commerce"
+   ```
+   - System architecture design
+   - Use for: system design, technology decisions
+
+4. **Design API:**
+   ```bash
+   python -m tapps_agents.cli designer api-design "User management API" --api-type REST
+   ```
+   - API specifications
+   - Use for: API design before implementation
+
+5. **Enhance Prompt (Before Implementation):**
+   ```bash
+   python -m tapps_agents.cli enhancer enhance "Add user authentication"
+   ```
+   - Transforms simple prompts into detailed specifications
+   - Use for: enriching requirements before implementation
+
+**Why Use:** Ensures proper planning, identifies requirements early, designs scalable architectures, prevents rework.
+
+---
+
+### 7. Security and Compliance
+
+**When:** Security audits, compliance checks, before deployments
+
+**Commands:**
+
+1. **Security Scan:**
+   ```bash
+   python -m tapps_agents.cli ops security-scan --target src/ --type all
+   ```
+   - Detects vulnerabilities (SQL injection, XSS, secrets, etc.)
+   - Use for: security audits, pre-deployment checks
+
+2. **Compliance Check:**
+   ```bash
+   python -m tapps_agents.cli ops compliance-check --type GDPR
+   ```
+   - Validates regulatory compliance
+   - Use for: compliance audits (GDPR, HIPAA, SOC 2)
+
+3. **Audit Dependencies:**
+   ```bash
+   python -m tapps_agents.cli ops audit-dependencies --severity-threshold high
+   ```
+   - Checks dependencies for vulnerabilities
+   - Use for: dependency security audits
+
+**Why Use:** Ensures security, meets compliance requirements, prevents vulnerabilities, protects user data.
+
+---
+
+### 8. Documentation
+
+**When:** Creating/updating documentation, after code changes
+
+**Commands:**
+
+1. **Update README:**
+   ```bash
+   python -m tapps_agents.cli documenter update-readme --project-root .
+   ```
+   - Generates/updates project README
+   - Use for: maintaining project documentation
+
+2. **Generate API Documentation:**
+   ```bash
+   python -m tapps_agents.cli documenter generate-docs src/api.py --output-format openapi
+   ```
+   - API documentation generation
+   - Use for: API documentation
+
+3. **Update Docstrings:**
+   ```bash
+   python -m tapps_agents.cli documenter update-docstrings src/models.py --write-file
+   ```
+   - Updates/adds docstrings
+   - Use for: code documentation
+
+**Why Use:** Keeps documentation current, improves code understanding, facilitates onboarding.
+
+---
+
+## Quality Thresholds (MUST MEET)
+
+**All code MUST meet these thresholds:**
+
+- **Overall Quality Score:** ≥ 70 (≥ 80 for critical services)
+- **Security Score:** ≥ 7.0/10
+- **Maintainability Score:** ≥ 7.0/10
+- **Test Coverage:** ≥ 80% (target)
+- **Complexity Score:** ≤ 7.0/10 (lower is better)
+
+**If thresholds not met:**
+1. Run `improver improve-quality {file}` to address issues
+2. Re-run `reviewer review {file}` to verify
+3. Loop until thresholds are met
+
+---
+
+## Simple Mode vs Direct Commands
+
+### Use Simple Mode When:
+- ✅ Standard development tasks (build, review, test, fix)
+- ✅ You want automatic orchestration
+- ✅ You want quality gates enforced automatically
+- ✅ You're working in Cursor AI (native integration)
+
+### Use Direct Commands When:
+- ✅ You need specific agent capabilities
+- ✅ You want fine-grained control
+- ✅ You're running in CI/CD (headless mode)
+- ✅ You need batch processing
+
+---
+
+## Workflow Presets Decision Guide
+
+| Workflow | When to Use | Quality Gates |
+|----------|-------------|---------------|
+| **rapid** / **feature** | Sprint work, well-understood features | Overall ≥65, Security ≥6.5 |
+| **full** / **enterprise** | Enterprise projects, complex features, compliance | Overall ≥70, Security ≥7.0, Maintainability ≥7.0 |
+| **fix** / **refactor** | Bug fixes, technical debt, refactoring | Overall ≥70, Maintainability ≥7.5 |
+| **quality** / **improve** | Quality improvement initiatives | Overall ≥75, Maintainability ≥8.0 |
+| **hotfix** / **urgent** | Critical production bugs (URGENT ONLY) | Essential tests only |
+
+---
+
+## Command Execution in Cursor
+
+### For AI Agents in Cursor:
+
+1. **Prefer Simple Mode Commands:**
+   ```
+   @simple-mode *build "Create feature"
+   @simple-mode *review {file}
+   @simple-mode *test {file}
+   @simple-mode *fix {file} "Fix issue"
+   ```
+
+2. **Use Python CLI for Advanced Needs:**
+   ```bash
+   python -m tapps_agents.cli reviewer review {file}
+   python -m tapps_agents.cli tester test {file}
+   ```
+
+3. **For Workflows:**
+   ```bash
+   python -m tapps_agents.cli workflow rapid --prompt "{description}" --auto
+   ```
+
+---
+
+## Common Patterns
+
+### Pattern 1: New Feature Implementation
+```bash
+# 1. Plan
+python -m tapps_agents.cli planner plan "Feature description"
+
+# 2. Implement with Simple Mode (recommended)
+@simple-mode *build "Feature description"
+
+# OR implement manually
+python -m tapps_agents.cli implementer implement "Feature" src/feature.py
+
+# 3. Test
+python -m tapps_agents.cli tester test src/feature.py
+
+# 4. Review
+python -m tapps_agents.cli reviewer review src/feature.py
+
+# 5. Verify quality threshold
+python -m tapps_agents.cli reviewer score src/feature.py
+```
+
+### Pattern 2: Bug Fix
+```bash
+# 1. Debug
+python -m tapps_agents.cli debugger debug "Error message" --file {file}
+
+# 2. Fix with Simple Mode (recommended)
+@simple-mode *fix {file} "Fix description"
+
+# OR fix manually
+python -m tapps_agents.cli implementer refactor {file} "Fix the bug"
+
+# 3. Test
+python -m tapps_agents.cli tester test {file}
+
+# 4. Review
+python -m tapps_agents.cli reviewer score {file}
+```
+
+### Pattern 3: Code Review Before Commit
+```bash
+# Quick check
+python -m tapps_agents.cli reviewer score {file}
+
+# Full review
+python -m tapps_agents.cli reviewer review {file}
+
+# Fix issues if found
+python -m tapps_agents.cli improver improve-quality {file}
+
+# Verify fix
+python -m tapps_agents.cli reviewer score {file}
+```
+
+---
+
+## Important Notes for AI Agents
+
+1. **ALWAYS use TappsCodingAgents for code creation** - Don't write code directly, use `@simple-mode *build` or `implementer implement`
+
+2. **ALWAYS review code before finalizing** - Use `@simple-mode *review` or `reviewer review`
+
+3. **ALWAYS generate tests** - Use `@simple-mode *test` or `tester test` for new code
+
+4. **ALWAYS check quality scores** - Ensure code meets thresholds (≥70 overall, ≥80 for critical services)
+
+5. **ALWAYS use structured debugging** - Use `debugger debug` or `@simple-mode *fix` for bugs
+
+6. **Verify quality thresholds are met** - Don't commit code that doesn't meet quality standards
+
+7. **Use Simple Mode for standard tasks** - It provides automatic orchestration and quality gates
+
+8. **Consult this guide when unsure** - Reference this document for command selection
+
+---
+
+## Quick Reference: Most Common Commands
+
+```bash
+# Create new feature
+@simple-mode *build "Feature description"
+
+# Review code
+@simple-mode *review {file}
+
+# Test code
+@simple-mode *test {file}
+
+# Fix bug
+@simple-mode *fix {file} "Bug description"
+
+# Quick quality check
+python -m tapps_agents.cli reviewer score {file}
+
+# Full workflow
+python -m tapps_agents.cli workflow rapid --prompt "Description" --auto
+```
+
+---
+
+## Related Documentation
+
+- [Agent Capabilities Guide](mdc:.cursor/rules/agent-capabilities.mdc) - Detailed agent capabilities
+- [Simple Mode Guide](mdc:.cursor/rules/simple-mode.mdc) - Simple Mode usage
+- [Workflow Selection Guide](mdc:.cursor/rules/tapps-agents-workflow-selection.mdc) - When to use which workflow
+- [Quick Reference](mdc:.cursor/rules/quick-reference.mdc) - Quick command reference
+
+---
+
+**Remember:** Using TappsCodingAgents commands ensures quality, comprehensive testing, proper workflow orchestration, and maintains code standards across the entire project. Always prefer TappsCodingAgents over direct code generation or manual processes.
