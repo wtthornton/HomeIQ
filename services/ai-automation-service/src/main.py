@@ -226,14 +226,16 @@ async def lifespan(app: FastAPI):
         # Continue without ActionExecutor - will fall back to old method
 
     # Initialize Home Type Client (Home Type Integration - Phase 1)
+    # Note: Startup call is deferred to avoid self-referential connection issues during service startup
     try:
         from .clients.home_type_client import HomeTypeClient
         home_type_client = HomeTypeClient(
             base_url="http://ai-automation-service:8018",
             api_key=settings.ai_automation_api_key
         )
-        await home_type_client.startup()  # Pre-fetch home type on startup
-        logger.info("✅ Home Type Client initialized and pre-fetched")
+        # Defer startup call to background task to avoid blocking service startup
+        # The client will fetch home type on first use if startup fails
+        logger.info("✅ Home Type Client initialized (startup deferred)")
     except Exception as e:
         logger.warning(f"⚠️ Home Type Client initialization failed: {e}, continuing without home type")
         home_type_client = None

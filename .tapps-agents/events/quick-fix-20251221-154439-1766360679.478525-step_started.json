@@ -1,0 +1,12 @@
+{
+  "event_type": "step_started",
+  "workflow_id": "quick-fix-20251221-154439",
+  "step_id": "debug",
+  "data": {
+    "agent": "debugger",
+    "action": "analyze-error",
+    "step_id": "debug"
+  },
+  "timestamp": "2025-12-21T15:44:39.478525",
+  "correlation_id": null
+}

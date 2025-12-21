@@ -18,30 +18,22 @@ RUN pip install --no-cache-dir --user \
     "fastapi>=0.123.0,<0.124.0" \
     "uvicorn[standard]>=0.32.0,<0.33.0"
 
-# Pre-download and cache the NER model to a dedicated directory
-RUN python - <<'PY' \
-    || echo "NER model download skipped during build"
-from pathlib import Path
-from transformers import pipeline
-
-cache_dir = Path("/app/model-cache")
-cache_dir.mkdir(parents=True, exist_ok=True)
-pipeline("ner", model="dslim/bert-base-NER", cache_dir=str(cache_dir))
-PY
+# Note: NER model download removed from build-time to reduce image size
+# Model will be downloaded at startup by the service (first request will be slower)
+# This reduces image size by ~400MB+ (model weights)
 
 # Final stage keeps runtime lean
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy Python dependencies and model cache from builder
+# Copy Python dependencies from builder
 COPY --from=builder /root/.local /root/.local
-COPY --from=builder /app/model-cache /app/model-cache
 
 # Create model service
-COPY services/ai-automation-service/src/model_services/ner_service.py ./ner_service.py
+COPY src/model_services/ner_service.py ./ner_service.py
 
-# Ensure model cache directory exists even if build download skipped
+# Create model cache directory (will be populated at startup)
 RUN mkdir -p /app/model-cache
 
 # Ensure PATH includes user-installed binaries and set model cache directory

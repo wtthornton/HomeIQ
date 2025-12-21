@@ -23,8 +23,10 @@ services:
       resources:
         limits:
           memory: 512M
+          cpus: '1.0'
         reservations:
           memory: 256M
+          cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
       interval: 30s
@@ -40,8 +42,10 @@ services:
 
   websocket-ingestion:
     build:
-      context: .
-      dockerfile: services/websocket-ingestion/Dockerfile
+      context: ./services/websocket-ingestion
+      dockerfile: Dockerfile
+      cache_from:
+        - websocket-ingestion:latest
     container_name: homeiq-websocket
     restart: unless-stopped
     ports:
@@ -106,8 +110,10 @@ services:
       resources:
         limits:
           memory: 512M
+          cpus: '1.0'
         reservations:
           memory: 256M
+          cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
@@ -117,8 +123,10 @@ services:
 
   admin-api:
     build:
-      context: .
-      dockerfile: services/admin-api/Dockerfile
+      context: ./services/admin-api
+      dockerfile: Dockerfile
+      cache_from:
+        - admin-api:latest
     container_name: homeiq-admin
     restart: unless-stopped
     ports:
@@ -166,8 +174,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -183,8 +193,10 @@ services:
 
   data-api:
     build:
-      context: .
-      dockerfile: services/data-api/Dockerfile
+      context: ./services/data-api
+      dockerfile: Dockerfile
+      cache_from:
+        - data-api:latest
     container_name: homeiq-data-api
     restart: unless-stopped
     ports:
@@ -218,8 +230,10 @@ services:
       resources:
         limits:
           memory: 1G
+          cpus: '1.0'
         reservations:
           memory: 512M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -235,8 +249,8 @@ services:
 
   data-retention:
     build:
-      context: .
-      dockerfile: services/data-retention/Dockerfile
+      context: ./services/data-retention
+      dockerfile: Dockerfile
     container_name: homeiq-data-retention
     restart: unless-stopped
     ports:
@@ -265,8 +279,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -284,8 +300,8 @@ services:
 
   carbon-intensity:
     build:
-      context: .
-      dockerfile: services/carbon-intensity-service/Dockerfile
+      context: ./services/carbon-intensity-service
+      dockerfile: Dockerfile
     container_name: homeiq-carbon-intensity
     restart: unless-stopped
     ports:
@@ -316,8 +332,10 @@ services:
       resources:
         limits:
           memory: 192M  # Increased from 128M (was at 53% usage)
+          cpus: '0.5'
         reservations:
           memory: 96M   # Increased from 64M
+          cpus: '0.25'
     logging:
       driver: "json-file"
       options:
@@ -336,8 +354,8 @@ services:
 
   electricity-pricing:
     build:
-      context: .
-      dockerfile: services/electricity-pricing-service/Dockerfile
+      context: ./services/electricity-pricing-service
+      dockerfile: Dockerfile
     container_name: homeiq-electricity-pricing
     restart: unless-stopped
     ports:
@@ -382,8 +400,8 @@ services:
 
   air-quality:
     build:
-      context: .
-      dockerfile: services/air-quality-service/Dockerfile
+      context: ./services/air-quality-service
+      dockerfile: Dockerfile
     container_name: homeiq-air-quality
     restart: unless-stopped
     ports:
@@ -431,8 +449,8 @@ services:
 
   weather-api:
     build:
-      context: .
-      dockerfile: services/weather-api/Dockerfile
+      context: ./services/weather-api
+      dockerfile: Dockerfile
     container_name: homeiq-weather-api
     restart: unless-stopped
     ports:
@@ -459,8 +477,10 @@ services:
       resources:
         limits:
           memory: 192M
+          cpus: '0.5'
         reservations:
           memory: 96M
+          cpus: '0.25'
     logging:
       driver: "json-file"
       options:
@@ -479,8 +499,8 @@ services:
 
   calendar:
     build:
-      context: .
-      dockerfile: services/calendar-service/Dockerfile
+      context: ./services/calendar-service
+      dockerfile: Dockerfile
     container_name: homeiq-calendar
     restart: unless-stopped
     ports:
@@ -531,8 +551,8 @@ services:
 
   smart-meter:
     build:
-      context: .
-      dockerfile: services/smart-meter-service/Dockerfile
+      context: ./services/smart-meter-service
+      dockerfile: Dockerfile
     container_name: homeiq-smart-meter
     restart: unless-stopped
     ports:
@@ -585,8 +605,8 @@ services:
 
   energy-correlator:
     build:
-      context: .
-      dockerfile: services/energy-correlator/Dockerfile
+      context: ./services/energy-correlator
+      dockerfile: Dockerfile
     container_name: homeiq-energy-correlator
     restart: unless-stopped
     ports:
@@ -613,8 +633,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -657,8 +679,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -674,8 +698,8 @@ services:
 
   log-aggregator:
     build:
-      context: .
-      dockerfile: services/log-aggregator/Dockerfile
+      context: ./services/log-aggregator
+      dockerfile: Dockerfile
     container_name: homeiq-log-aggregator
     restart: unless-stopped
     ports:
@@ -699,8 +723,10 @@ services:
       resources:
         limits:
           memory: 128M
+          cpus: '0.5'
         reservations:
           memory: 64M
+          cpus: '0.25'
     logging:
       driver: "json-file"
       options:
@@ -717,8 +743,8 @@ services:
   # NER Model Service - Pre-built container with dslim/bert-base-NER
   ner-service:
     build:
-      context: .
-      dockerfile: services/ai-automation-service/docker/ner-service.Dockerfile
+      context: ./services/ai-automation-service
+      dockerfile: docker/ner-service.Dockerfile
     container_name: homeiq-ner-service
     restart: unless-stopped
     # Internal service - no external port mapping needed
@@ -731,8 +757,10 @@ services:
       resources:
         limits:
           memory: 1G  # NER model + inference
+          cpus: '2.0'
         reservations:
           memory: 512M
+          cpus: '1.0'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8031/health')"]
       interval: 30s
@@ -749,8 +777,8 @@ services:
   # OpenAI Client Service - Lightweight OpenAI API client
   openai-service:
     build:
-      context: .
-      dockerfile: services/ai-automation-service/docker/openai-service.Dockerfile
+      context: ./services/ai-automation-service
+      dockerfile: docker/openai-service.Dockerfile
     container_name: homeiq-openai-service
     restart: unless-stopped
     ports:
@@ -763,8 +791,10 @@ services:
       resources:
         limits:
           memory: 256M  # Minimal memory for API client
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
       interval: 30s
@@ -781,8 +811,8 @@ services:
   # OpenVINO Service - Optimized Model Inference (Phase 1)
   openvino-service:
     build:
-      context: .
-      dockerfile: services/openvino-service/Dockerfile
+      context: ./services/openvino-service
+      dockerfile: Dockerfile
     container_name: homeiq-openvino-service
     restart: unless-stopped
     ports:
@@ -793,8 +823,10 @@ services:
       resources:
         limits:
           memory: 1.5G  # 3 OpenVINO models + runtime
+          cpus: '2.0'
         reservations:
           memory: 1G
+          cpus: '1.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8019/health"]
       interval: 30s
@@ -811,8 +843,8 @@ services:
   # ML Service - Classical Machine Learning (Phase 1)
   ml-service:
     build:
-      context: .
-      dockerfile: services/ml-service/Dockerfile
+      context: ./services/ml-service
+      dockerfile: Dockerfile
     container_name: homeiq-ml-service
     restart: unless-stopped
     ports:
@@ -823,8 +855,10 @@ services:
       resources:
         limits:
           memory: 512M  # scikit-learn + pandas + numpy
+          cpus: '2.0'
         reservations:
           memory: 256M
+          cpus: '1.0'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
       interval: 30s
@@ -841,8 +875,8 @@ services:
   # AI Core Service - Orchestrator (Phase 1)
   ai-core-service:
     build:
-      context: .
-      dockerfile: services/ai-core-service/Dockerfile
+      context: ./services/ai-core-service
+      dockerfile: Dockerfile
     container_name: homeiq-ai-core-service
     restart: unless-stopped
     ports:
@@ -869,8 +903,10 @@ services:
       resources:
         limits:
           memory: 512M  # Orchestrator + business logic
+          cpus: '2.0'
         reservations:
           memory: 256M
+          cpus: '1.0'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8018/health')"]
       interval: 30s
@@ -886,8 +922,8 @@ services:
 
   ha-ai-agent-service:
     build:
-      context: .
-      dockerfile: services/ha-ai-agent-service/Dockerfile
+      context: ./services/ha-ai-agent-service
+      dockerfile: Dockerfile
     container_name: homeiq-ha-ai-agent-service
     restart: unless-stopped
     ports:
@@ -915,8 +951,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8030/health"]
       interval: 30s
@@ -932,8 +970,8 @@ services:
 
   proactive-agent-service:
     build:
-      context: .
-      dockerfile: services/proactive-agent-service/Dockerfile
+      context: ./services/proactive-agent-service
+      dockerfile: Dockerfile
     container_name: homeiq-proactive-agent-service
     restart: unless-stopped
     ports:
@@ -963,8 +1001,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8031/health"]
       interval: 30s
@@ -980,8 +1020,8 @@ services:
 
   ai-automation-service:
     build:
-      context: .
-      dockerfile: services/ai-automation-service/Dockerfile
+      context: ./services/ai-automation-service
+      dockerfile: Dockerfile
     container_name: ai-automation-service
     restart: unless-stopped
     ports:
@@ -1034,8 +1074,10 @@ services:
       resources:
         limits:
           memory: 2G  # Increased for training runs (model loading + training needs ~1.5GB)
+          cpus: '2.0'
         reservations:
           memory: 512M  # Increased base reservation
+          cpus: '1.0'
     logging:
       driver: "json-file"
       options:
@@ -1051,8 +1093,8 @@ services:
 
   ai-code-executor:
     build:
-      context: .
-      dockerfile: services/ai-code-executor/Dockerfile
+      context: ./services/ai-code-executor
+      dockerfile: Dockerfile
     container_name: ai-code-executor
     restart: unless-stopped
     # Internal service - no external port mapping needed
@@ -1076,8 +1118,10 @@ services:
       resources:
         limits:
           memory: 192M
+          cpus: '0.5'
         reservations:
           memory: 96M
+          cpus: '0.25'
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8030/health', timeout=5.0)"]
       interval: 30s
@@ -1094,8 +1138,8 @@ services:
   # AI Training Service - Epic 39, Story 39.1: Training Service Foundation
   ai-training-service:
     build:
-      context: .
-      dockerfile: services/ai-training-service/Dockerfile
+      context: ./services/ai-training-service
+      dockerfile: Dockerfile
     container_name: ai-training-service
     restart: unless-stopped
     ports:
@@ -1120,8 +1164,10 @@ services:
       resources:
         limits:
           memory: 512M
+          cpus: '2.0'
         reservations:
           memory: 256M
+          cpus: '1.0'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8022/health"]
       interval: 30s
@@ -1137,8 +1183,8 @@ services:
 
   ai-pattern-service:
     build:
-      context: .
-      dockerfile: services/ai-pattern-service/Dockerfile
+      context: ./services/ai-pattern-service
+      dockerfile: Dockerfile
     container_name: ai-pattern-service
     restart: unless-stopped
     ports:
@@ -1174,8 +1220,8 @@ services:
 
   ai-query-service:
     build:
-      context: .
-      dockerfile: services/ai-query-service/Dockerfile
+      context: ./services/ai-query-service
+      dockerfile: Dockerfile
     container_name: ai-query-service
     restart: unless-stopped
     ports:
@@ -1206,8 +1252,10 @@ services:
       resources:
         limits:
           memory: 512M
+          cpus: '2.0'
         reservations:
           memory: 256M
+          cpus: '1.0'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8018/health"]
       interval: 30s
@@ -1223,8 +1271,8 @@ services:
 
   ai-automation-ui:
     build:
-      context: .
-      dockerfile: services/ai-automation-ui/Dockerfile
+      context: ./services/ai-automation-ui
+      dockerfile: Dockerfile
       args:
         - VITE_API_URL=
         - VITE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
@@ -1246,8 +1294,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -1263,8 +1313,8 @@ services:
 
   automation-miner:
     build:
-      context: .
-      dockerfile: services/automation-miner/Dockerfile
+      context: ./services/automation-miner
+      dockerfile: Dockerfile
     container_name: automation-miner
     restart: unless-stopped
     ports:
@@ -1292,8 +1342,10 @@ services:
       resources:
         limits:
           memory: 512M  # Increased for crawler
+          cpus: '1.0'
         reservations:
           memory: 256M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -1303,8 +1355,8 @@ services:
 
   ha-setup-service:
     build:
-      context: .
-      dockerfile: services/ha-setup-service/Dockerfile
+      context: ./services/ha-setup-service
+      dockerfile: Dockerfile
     container_name: homeiq-setup-service
     restart: unless-stopped
     ports:
@@ -1340,8 +1392,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
       interval: 30s
@@ -1357,8 +1411,8 @@ services:
 
   device-intelligence-service:
     build:
-      context: .
-      dockerfile: services/device-intelligence-service/Dockerfile
+      context: ./services/device-intelligence-service
+      dockerfile: Dockerfile
     container_name: homeiq-device-intelligence
     restart: unless-stopped
     ports:
@@ -1407,8 +1461,10 @@ services:
       resources:
         limits:
           memory: 512M
+          cpus: '1.0'
         reservations:
           memory: 256M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -1418,8 +1474,8 @@ services:
 
   device-health-monitor:
     build:
-      context: .
-      dockerfile: services/device-health-monitor/Dockerfile
+      context: ./services/device-health-monitor
+      dockerfile: Dockerfile
     container_name: homeiq-device-health-monitor
     restart: unless-stopped
     ports:
@@ -1446,8 +1502,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -1457,8 +1515,8 @@ services:
 
   device-context-classifier:
     build:
-      context: .
-      dockerfile: services/device-context-classifier/Dockerfile
+      context: ./services/device-context-classifier
+      dockerfile: Dockerfile
     container_name: homeiq-device-context-classifier
     restart: unless-stopped
     ports:
@@ -1485,8 +1543,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -1496,8 +1556,8 @@ services:
 
   device-setup-assistant:
     build:
-      context: .
-      dockerfile: services/device-setup-assistant/Dockerfile
+      context: ./services/device-setup-assistant
+      dockerfile: Dockerfile
     container_name: homeiq-device-setup-assistant
     restart: unless-stopped
     ports:
@@ -1524,8 +1584,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -1535,8 +1597,8 @@ services:
 
   device-database-client:
     build:
-      context: .
-      dockerfile: services/device-database-client/Dockerfile
+      context: ./services/device-database-client
+      dockerfile: Dockerfile
     container_name: homeiq-device-database-client
     restart: unless-stopped
     ports:
@@ -1564,8 +1626,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -1575,8 +1639,8 @@ services:
 
   device-recommender:
     build:
-      context: .
-      dockerfile: services/device-recommender/Dockerfile
+      context: ./services/device-recommender
+      dockerfile: Dockerfile
     container_name: homeiq-device-recommender
     restart: unless-stopped
     ports:
@@ -1605,8 +1669,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -1640,8 +1706,10 @@ services:
       resources:
         limits:
           memory: 512M
+          cpus: '1.0'
         reservations:
           memory: 256M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:
@@ -1652,8 +1720,8 @@ services:
   # WebSocket Ingestion Test Service (Optional - use --profile test)
   websocket-ingestion-test:
     build:
-      context: .
-      dockerfile: services/websocket-ingestion/Dockerfile
+      context: ./services/websocket-ingestion
+      dockerfile: Dockerfile
     container_name: homeiq-websocket-test
     restart: unless-stopped
     ports:
@@ -1710,8 +1778,10 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: '1.0'
         reservations:
           memory: 128M
+          cpus: '0.5'
     logging:
       driver: "json-file"
       options:

@@ -11,9 +11,10 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
-COPY services/device-intelligence-service/requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+# Copy requirements and install dependencies with cache mount
+COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --user --no-cache-dir -r requirements.txt
 
 # Production stage
 FROM python:3.12-slim
@@ -28,13 +29,13 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /root/.local /root/.local
 
 # Copy shared utilities
-COPY shared/ /app/shared
+COPY ../shared/ /app/shared
 
 # Copy application source
-COPY services/device-intelligence-service/src/ /app/src/
+COPY src/ /app/src/
 
 # Copy models directory (ML models for predictive analytics)
-COPY services/device-intelligence-service/models/ /app/models/
+COPY models/ /app/models/
 
 # Set working directory
 WORKDIR /app

@@ -15,13 +15,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY services/proactive-agent-service/requirements.txt .
+COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Install Python dependencies with cache mount
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # Copy application code
-COPY services/proactive-agent-service/src/ ./src/
+COPY src/ ./src/
 
 # Set environment variables
 ENV PATH=/root/.local/bin:$PATH

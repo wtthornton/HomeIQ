@@ -3422,21 +3422,21 @@ async def generate_suggestions_from_query(
                             if entity_mapping:
                                 resolved_entity_ids = list(entity_mapping.values())
                                 logger.info(f"✅ Resolved {len(entity_mapping)} device names to {len(resolved_entity_ids)} entity IDs")
-
-                            # Expand group entities to individual members
-                            resolved_entity_ids = await expand_group_entities_to_members(
-                                resolved_entity_ids,
-                                ha_client,
-                                entity_validator
-                            )
-                        else:
-                            # Last fallback: extract entity IDs directly from entities
-                            resolved_entity_ids = [e.get('entity_id') for e in entities if e.get('entity_id')]
-                            if resolved_entity_ids:
-                                logger.info(f"⚠️ Using {len(resolved_entity_ids)} entity IDs from extracted entities")
+                                
+                                # Expand group entities to individual members
+                                resolved_entity_ids = await expand_group_entities_to_members(
+                                    resolved_entity_ids,
+                                    ha_client,
+                                    entity_validator
+                                )
                             else:
-                                logger.warning("⚠️ No entity IDs found for enrichment")
-                                resolved_entity_ids = []
+                                # Last fallback: extract entity IDs directly from entities
+                                resolved_entity_ids = [e.get('entity_id') for e in entities if e.get('entity_id')]
+                                if resolved_entity_ids:
+                                    logger.info(f"⚠️ Using {len(resolved_entity_ids)} entity IDs from extracted entities")
+                                else:
+                                    logger.warning("⚠️ No entity IDs found for enrichment")
+                                    resolved_entity_ids = []
                     else:
                         resolved_entity_ids = []
                         logger.warning("⚠️ No entities found and no device names to map")

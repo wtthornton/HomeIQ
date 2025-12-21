@@ -12,10 +12,11 @@ RUN pip install --upgrade pip==25.2
 RUN apk add --no-cache gcc musl-dev python3-dev libffi-dev openssl-dev cargo
 
 # Copy requirements
-COPY services/data-api/requirements-prod.txt .
+COPY requirements-prod.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements-prod.txt
+# Install Python dependencies with cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements-prod.txt
 
 # Production stage
 FROM python:3.12-alpine
@@ -32,14 +33,14 @@ COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
 # Copy shared utilities
-COPY shared/ /app/shared
+COPY ../shared/ /app/shared
 
 # Copy application code
-COPY services/data-api/src/ /app/src/
+COPY src/ /app/src/
 
 # Copy Alembic migrations
-COPY services/data-api/alembic/ /app/alembic/
-COPY services/data-api/alembic.ini /app/
+COPY alembic/ /app/alembic/
+COPY alembic.ini /app/
 
 # Expose port
 EXPOSE 8006

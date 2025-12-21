@@ -11,11 +11,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY services/ai-code-executor/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source
-COPY services/ai-code-executor/src/ ./src/
+COPY src/ ./src/
 
 # Create MCP workspace directory
 RUN mkdir -p /tmp/mcp_workspace

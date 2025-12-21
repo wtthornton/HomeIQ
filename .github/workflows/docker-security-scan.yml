@@ -1,0 +1,84 @@
+name: Docker Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'services/**/Dockerfile'
+      - '.github/workflows/docker-security-scan.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'services/**/Dockerfile'
+      - '.github/workflows/docker-security-scan.yml'
+  schedule:
+    # Run weekly security scan
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  scan-images:
+    name: Security Scan Docker Images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - websocket-ingestion
+          - data-api
+          - admin-api
+          - weather-api
+          - health-dashboard
+          - ai-automation-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: false
+          tags: homeiq-${{ matrix.service }}:scan
+          load: true
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: homeiq-${{ matrix.service }}:scan
+          format: 'sarif'
+          output: 'trivy-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-${{ matrix.service }}.sarif'
+
+  scan-all:
+    name: Security Scan All Services
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build all services
+        run: |
+          docker compose build --parallel
+
+      - name: Scan all images with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          scan-ref: 'docker-compose.yml'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+

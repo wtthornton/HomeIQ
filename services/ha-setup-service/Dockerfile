@@ -9,9 +9,10 @@ RUN apk add --no-cache gcc musl-dev libffi-dev
 
 WORKDIR /app
 
-# Copy requirements and install dependencies
-COPY services/ha-setup-service/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Copy requirements and install dependencies with cache mount
+COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # Production stage
 FROM python:3.12-alpine
@@ -24,7 +25,7 @@ WORKDIR /app
 
 # Copy dependencies from builder
 COPY --from=builder /root/.local /home/appuser/.local
-COPY --chown=appuser:appuser services/ha-setup-service/ .
+COPY --chown=appuser:appuser . .
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
