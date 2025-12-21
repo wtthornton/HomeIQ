@@ -1,0 +1,178 @@
+tooling:
+  targets:
+    python: 3.13.3
+    python_requires: '>=3.13'
+    os_targets:
+    - windows
+    - linux
+  policy:
+    external_tools_mode: soft
+    mypy_staged: true
+    mypy_stage_paths:
+    - tapps_agents/core
+    - tapps_agents/workflow
+    - tapps_agents/context7
+agents:
+  reviewer:
+    quality_threshold: 70.0
+    include_scoring: true
+    include_llm_feedback: true
+    max_file_size: 1048576
+    min_confidence_threshold: 0.8
+  planner:
+    default_priority: medium
+    min_confidence_threshold: 0.6
+  implementer:
+    require_review: true
+    auto_approve_threshold: 80.0
+    backup_files: true
+    max_file_size: 10485760
+    min_confidence_threshold: 0.7
+  tester:
+    test_framework: pytest
+    coverage_threshold: 80.0
+    auto_write_tests: true
+    min_confidence_threshold: 0.7
+  debugger:
+    include_code_examples: true
+    max_context_lines: 50
+    min_confidence_threshold: 0.7
+  documenter:
+    include_examples: true
+    docstring_format: google
+    min_confidence_threshold: 0.5
+  architect:
+    min_confidence_threshold: 0.75
+  designer:
+    min_confidence_threshold: 0.65
+  ops:
+    min_confidence_threshold: 0.75
+  enhancer:
+    min_confidence_threshold: 0.6
+  analyst:
+    min_confidence_threshold: 0.65
+  orchestrator:
+    min_confidence_threshold: 0.6
+scoring:
+  weights:
+    complexity: 0.2
+    security: 0.3
+    maintainability: 0.25
+    test_coverage: 0.15
+    performance: 0.1
+  quality_threshold: 70.0
+expert:
+  agent_confidence_thresholds:
+    reviewer: 0.8
+    architect: 0.75
+    implementer: 0.7
+    designer: 0.65
+    tester: 0.7
+    ops: 0.75
+    enhancer: 0.6
+    analyst: 0.65
+    planner: 0.6
+    debugger: 0.7
+    documenter: 0.5
+    orchestrator: 0.6
+    default: 0.7
+  weight_max_confidence: 0.35
+  weight_agreement: 0.25
+  weight_rag_quality: 0.2
+  weight_domain_relevance: 0.1
+  weight_project_context: 0.1
+  high_agreement_threshold: 0.75
+  similarity_threshold: 0.6
+  rag_max_length: 2000
+  rag_max_results: 5
+  rag_default_quality: 0.8
+  profile_confidence_threshold: 0.7
+  supporting_expert_weight: 0.15
+context7:
+  enabled: true
+  default_token_limit: 3000
+  cache_duration: 3600
+  integration_level: optional
+  bypass_forbidden: true
+  knowledge_base:
+    enabled: true
+    location: .tapps-agents/kb/context7-cache
+    sharding: true
+    indexing: true
+    max_cache_size: 100MB
+    hit_rate_threshold: 0.7
+    fuzzy_match_threshold: 0.7
+  refresh:
+    enabled: true
+    default_max_age_days: 30
+    check_on_access: true
+    auto_queue: true
+    auto_process_on_startup: false
+quality_tools:
+  ruff_enabled: true
+  mypy_enabled: true
+  mypy_strict: false
+  jscpd_enabled: true
+  duplication_threshold: 3.0
+  min_duplication_lines: 5
+  typescript_enabled: true
+  pip_audit_enabled: true
+  dependency_audit_threshold: high
+workflow:
+  auto_execution_enabled: true
+  polling_interval: 5.0
+  timeout_seconds: 3600.0
+  state_persistence:
+    enabled: true
+    storage_location: .tapps-agents/workflow-state
+    format: json
+    compression: false
+    checkpoint:
+      mode: every_step
+      interval: 1
+      enabled: true
+    cleanup:
+      enabled: true
+      cleanup_schedule: daily
+      keep_latest: 10
+simple_mode:
+  enabled: true
+  auto_detect: true
+  show_advanced: false
+  natural_language: true
+workflow_defaults:
+  recommended_track: bmad-method
+  recommended_workflow: brownfield-service.yaml
+  reasoning: Libraries require comprehensive API design and backward compatibility
+quality_thresholds:
+  reviewer:
+    quality_threshold: 80.0
+    min_confidence_threshold: 0.9
+  tester:
+    coverage_threshold: 90.0
+    backward_compat_test_required: true
+  ops:
+    api_stability_check_required: true
+    versioning_strategy_required: true
+docs_skeleton:
+  required_sections:
+  - api-reference
+  - examples
+  - migration-guides
+  - changelog
+  recommended_format: api-docs
+expert_priorities:
+  expert-software-architecture: 1.0
+  expert-api-design: 0.9
+  expert-testing: 0.9
+  expert-documentation: 0.8
+  expert-performance: 0.7
+testing_strategy:
+  focus_areas:
+  - api-contracts
+  - edge-cases
+  - performance-benchmarks
+  test_types:
+  - unit
+  - property-based
+  mock_strategy: minimal

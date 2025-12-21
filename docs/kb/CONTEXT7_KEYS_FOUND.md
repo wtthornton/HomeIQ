@@ -10,7 +10,7 @@
 
 ### Key 1: Documented Key (Primary)
 **Location:** Multiple documentation files  
-**Key:** `ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2`  
+**Key:** `ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc`  
 **Status:** ✅ Documented in setup instructions  
 **Found In:**
 - `.cursor/MCP_SETUP_INSTRUCTIONS.md`
@@ -25,7 +25,7 @@
     "context7": {
       "url": "https://context7.com/api/v2",
       "headers": {
-        "CONTEXT7_API_KEY": "ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2"
+        "CONTEXT7_API_KEY": "ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc"
       }
     }
   }
@@ -57,7 +57,7 @@ Unauthorized. Please check your API key. The API key you provided (possibly inco
 |--------|---------------------|----------------|
 | **Status** | ✅ Documented | ❌ Invalid/Expired |
 | **Location** | Documentation files | `.cursor/mcp.json` |
-| **Format** | `ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2` | `ctx7sk-b6f...2e49` (truncated) |
+| **Format** | `ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc` | `ctx7sk-b6f...2e49` (truncated) |
 | **Authentication** | Not tested (not in use) | ❌ Failing |
 | **Action** | Should be used | Should be replaced |
 
@@ -95,7 +95,7 @@ The documentation mentions environment variable support:
 ### Immediate Fix
 1. **Update `.cursor/mcp.json`** with Key 1 (documented key):
    - Replace current key (`ctx7sk-b6f...2e49`) 
-   - Use: `ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2`
+   - Use: `ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc`
    - Ensure URL is: `https://context7.com/api/v2`
 
 2. **Restart Cursor** to reload MCP configuration
@@ -108,7 +108,7 @@ The documentation mentions environment variable support:
 
 ### If Key 1 Also Fails
 1. **Check Context7 Console:**
-   - Verify if `ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2` is still valid
+   - Verify if `ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc` is still valid
    - Check if key has expired or been revoked
 
 2. **Generate New Key:**

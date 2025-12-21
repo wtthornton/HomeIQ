@@ -63,3 +63,6 @@ full_logs_*.txt
 logs_*.txt
 deployment_test_results.json
 
+
+# Agent customizations (project-specific, gitignored by default)
+.tapps-agents/customizations/

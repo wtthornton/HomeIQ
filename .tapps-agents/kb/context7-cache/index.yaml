@@ -1,4 +1,47 @@
 version: '1.0'
-last_updated: null
-total_entries: 0
-libraries: {}
+last_updated: 2025-12-21T00:41:07.382382+00:00Z
+total_entries: 11
+libraries:
+  fastapi:
+    context7_id: /fastapi/fastapi
+    topics:
+      routing:
+        cached_at: 2025-12-21T00:40:07.505937+00:00Z
+      dependency-injection:
+        cached_at: 2025-12-21T00:41:07.080064+00:00Z
+      async:
+        cached_at: 2025-12-21T00:41:07.121569+00:00Z
+  pydantic:
+    context7_id: /pydantic/pydantic
+    topics:
+      validation:
+        cached_at: 2025-12-21T00:41:07.147981+00:00Z
+      settings:
+        cached_at: 2025-12-21T00:41:07.186788+00:00Z
+  sqlalchemy:
+    context7_id: /sqlalchemy/sqlalchemy
+    topics:
+      async:
+        cached_at: 2025-12-21T00:41:07.213079+00:00Z
+  pytest:
+    context7_id: /pytest-dev/pytest
+    topics:
+      async:
+        cached_at: 2025-12-21T00:41:07.245289+00:00Z
+      fixtures:
+        cached_at: 2025-12-21T00:41:07.292841+00:00Z
+  aiosqlite:
+    context7_id: /omnilib/aiosqlite
+    topics:
+      async:
+        cached_at: 2025-12-21T00:41:07.322864+00:00Z
+  homeassistant:
+    context7_id: /home-assistant/core
+    topics:
+      websocket:
+        cached_at: 2025-12-21T00:41:07.353599+00:00Z
+  influxdb:
+    context7_id: /influxdata/influxdb-client-python
+    topics:
+      write:
+        cached_at: 2025-12-21T00:41:07.382368+00:00Z

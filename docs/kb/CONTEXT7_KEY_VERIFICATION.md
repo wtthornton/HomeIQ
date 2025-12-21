@@ -10,7 +10,7 @@
 
 ### Primary Key (Documented)
 **Location:** `.cursor/MCP_SETUP_INSTRUCTIONS.md`  
-**Key:** `ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2`  
+**Key:** `ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc`  
 **Status:** ✅ Documented in setup instructions
 
 ### Configuration File
@@ -29,7 +29,7 @@ The `.cursor/mcp.json` file should contain:
     "context7": {
       "url": "https://context7.com/api/v2",
       "headers": {
-        "CONTEXT7_API_KEY": "ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2"
+        "CONTEXT7_API_KEY": "ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc"
       }
     }
   }
@@ -51,7 +51,7 @@ The `.cursor/mcp.json` file should contain:
 cat .cursor/mcp.json
 ```
 
-**Expected:** Should contain the key `ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2`
+**Expected:** Should contain the key `ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc`
 
 ### 2. Test Context7 Connection
 ```bash
@@ -91,7 +91,7 @@ cat .cursor/mcp.json
 
 ### Immediate
 1. **Verify `.cursor/mcp.json`** contains the correct key:
-   - Key: `ctx7sk-037328d6-1bf5-4799-a54c-43340396ddd2`
+   - Key: `ctx7sk-a2043cb5-8c75-46cc-8ee1-0d137fdc56cc`
    - URL: `https://context7.com/api/v2`
    - Header: `CONTEXT7_API_KEY`
 
