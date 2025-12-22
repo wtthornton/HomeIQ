@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { executeToolCall, type Enhancement } from '../../services/haAiAgentApi';
-import { getPreferences, type Preferences } from '../../api/preferences';
+import { getPreferences } from '../../api/preferences';
 import toast from 'react-hot-toast';
 
 interface EnhancementButtonProps {

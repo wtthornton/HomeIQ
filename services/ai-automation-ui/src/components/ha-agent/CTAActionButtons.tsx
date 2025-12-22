@@ -48,28 +48,23 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
     return null;
   };
 
+  // Compute YAML availability at render time
+  const yamlToUse = automationYaml || extractAutomationYaml(messageContent);
+  const hasYaml = !!yamlToUse;
+
   const handleCreateAutomation = async () => {
-    if (isCreating || createdAutomationId) return;
+    if (isCreating || createdAutomationId || !hasYaml) return;
 
     setIsCreating(true);
 
     try {
-      // Prioritize provided automationYaml prop, then try to extract from message
-      let yamlToUse = automationYaml || extractAutomationYaml(messageContent);
-
-      if (!yamlToUse) {
-        // If we can't extract YAML, send the action as a message to the AI
-        // The AI will handle it via the conversation flow
-        toast.error('Could not extract automation YAML. Please use the Preview Automation button instead.');
-        setIsCreating(false);
-        return;
-      }
 
       // Execute create_automation_from_prompt tool call
+      // yamlToUse is guaranteed to be non-null here due to hasYaml check
       const result: ExecuteToolCallResponse = await executeToolCall({
         tool_name: 'create_automation_from_prompt',
         arguments: {
-          automation_yaml: yamlToUse,
+          automation_yaml: yamlToUse!,
           conversation_id: conversationId,
         },
       });
@@ -119,19 +114,29 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
     >
       <button
         onClick={handleCreateAutomation}
-        disabled={isCreating}
+        disabled={isCreating || !hasYaml}
         className={`px-6 py-3 rounded-lg text-base font-medium transition-all ${
           darkMode
-            ? 'bg-blue-700 text-white hover:bg-blue-600 disabled:bg-blue-800 disabled:opacity-50'
-            : 'bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-400 disabled:opacity-50'
-        } ${isCreating ? 'cursor-not-allowed' : 'cursor-pointer'} shadow-md hover:shadow-lg`}
+            ? hasYaml
+              ? 'bg-blue-700 text-white hover:bg-blue-600 disabled:bg-blue-800 disabled:opacity-50'
+              : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+            : hasYaml
+            ? 'bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-400 disabled:opacity-50'
+            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+        } ${isCreating || !hasYaml ? 'cursor-not-allowed' : 'cursor-pointer'} shadow-md hover:shadow-lg`}
         aria-label="Create automation"
         aria-busy={isCreating}
-        aria-disabled={isCreating || createdAutomationId !== null}
+        aria-disabled={isCreating || createdAutomationId !== null || !hasYaml}
+        title={!hasYaml ? 'Preview automation first to generate YAML' : undefined}
       >
         <span className="mr-2" aria-hidden="true">🚀</span>
-        {isCreating ? 'Creating Automation...' : 'Create Automation'}
+        {isCreating ? 'Creating Automation...' : !hasYaml ? 'Create Automation (Preview first)' : 'Create Automation'}
       </button>
+      {!hasYaml && (
+        <p className={`mt-2 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          ⚠️ Preview the automation first to generate YAML
+        </p>
+      )}
     </motion.div>
   );
 };
