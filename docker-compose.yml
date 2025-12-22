@@ -44,8 +44,6 @@ services:
     build:
       context: .
       dockerfile: services/websocket-ingestion/Dockerfile
-      cache_from:
-        - websocket-ingestion:latest
     container_name: homeiq-websocket
     restart: unless-stopped
     ports:
@@ -123,10 +121,8 @@ services:
 
   admin-api:
     build:
-      context: ./services/admin-api
-      dockerfile: Dockerfile
-      cache_from:
-        - admin-api:latest
+      context: .
+      dockerfile: services/admin-api/Dockerfile
     container_name: homeiq-admin
     restart: unless-stopped
     ports:
@@ -195,8 +191,6 @@ services:
     build:
       context: .
       dockerfile: services/data-api/Dockerfile
-      cache_from:
-        - data-api:latest
     container_name: homeiq-data-api
     restart: unless-stopped
     ports:
@@ -249,8 +243,8 @@ services:
 
   data-retention:
     build:
-      context: ./services/data-retention
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/data-retention/Dockerfile
     container_name: homeiq-data-retention
     restart: unless-stopped
     ports:
@@ -300,8 +294,8 @@ services:
 
   carbon-intensity:
     build:
-      context: ./services/carbon-intensity-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/carbon-intensity-service/Dockerfile
     container_name: homeiq-carbon-intensity
     restart: unless-stopped
     ports:
@@ -354,8 +348,8 @@ services:
 
   electricity-pricing:
     build:
-      context: ./services/electricity-pricing-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/electricity-pricing-service/Dockerfile
     container_name: homeiq-electricity-pricing
     restart: unless-stopped
     ports:
@@ -400,8 +394,8 @@ services:
 
   air-quality:
     build:
-      context: ./services/air-quality-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/air-quality-service/Dockerfile
     container_name: homeiq-air-quality
     restart: unless-stopped
     ports:
@@ -499,8 +493,8 @@ services:
 
   calendar:
     build:
-      context: ./services/calendar-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/calendar-service/Dockerfile
     container_name: homeiq-calendar
     restart: unless-stopped
     ports:
@@ -551,8 +545,8 @@ services:
 
   smart-meter:
     build:
-      context: ./services/smart-meter-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/smart-meter-service/Dockerfile
     container_name: homeiq-smart-meter
     restart: unless-stopped
     ports:
@@ -605,8 +599,8 @@ services:
 
   energy-correlator:
     build:
-      context: ./services/energy-correlator
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/energy-correlator/Dockerfile
     container_name: homeiq-energy-correlator
     restart: unless-stopped
     ports:
@@ -698,8 +692,8 @@ services:
 
   log-aggregator:
     build:
-      context: ./services/log-aggregator
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/log-aggregator/Dockerfile
     container_name: homeiq-log-aggregator
     restart: unless-stopped
     ports:
@@ -1021,8 +1015,8 @@ services:
 
   ai-automation-service:
     build:
-      context: ./services/ai-automation-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ai-automation-service/Dockerfile
     container_name: ai-automation-service
     restart: unless-stopped
     ports:
@@ -1139,8 +1133,8 @@ services:
   # AI Training Service - Epic 39, Story 39.1: Training Service Foundation
   ai-training-service:
     build:
-      context: ./services/ai-training-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ai-training-service/Dockerfile
     container_name: ai-training-service
     restart: unless-stopped
     ports:
@@ -1184,8 +1178,8 @@ services:
 
   ai-pattern-service:
     build:
-      context: ./services/ai-pattern-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ai-pattern-service/Dockerfile
     container_name: ai-pattern-service
     restart: unless-stopped
     ports:
@@ -1221,8 +1215,8 @@ services:
 
   ai-query-service:
     build:
-      context: ./services/ai-query-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ai-query-service/Dockerfile
     container_name: ai-query-service
     restart: unless-stopped
     ports:
@@ -1412,8 +1406,8 @@ services:
 
   device-intelligence-service:
     build:
-      context: ./services/device-intelligence-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/device-intelligence-service/Dockerfile
     container_name: homeiq-device-intelligence
     restart: unless-stopped
     ports:
@@ -1475,8 +1469,8 @@ services:
 
   device-health-monitor:
     build:
-      context: ./services/device-health-monitor
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/device-health-monitor/Dockerfile
     container_name: homeiq-device-health-monitor
     restart: unless-stopped
     ports:
@@ -1516,8 +1510,8 @@ services:
 
   device-context-classifier:
     build:
-      context: ./services/device-context-classifier
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/device-context-classifier/Dockerfile
     container_name: homeiq-device-context-classifier
     restart: unless-stopped
     ports:
@@ -1557,8 +1551,8 @@ services:
 
   device-setup-assistant:
     build:
-      context: ./services/device-setup-assistant
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/device-setup-assistant/Dockerfile
     container_name: homeiq-device-setup-assistant
     restart: unless-stopped
     ports:
@@ -1598,8 +1592,8 @@ services:
 
   device-database-client:
     build:
-      context: ./services/device-database-client
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/device-database-client/Dockerfile
     container_name: homeiq-device-database-client
     restart: unless-stopped
     ports:
@@ -1640,8 +1634,8 @@ services:
 
   device-recommender:
     build:
-      context: ./services/device-recommender
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/device-recommender/Dockerfile
     container_name: homeiq-device-recommender
     restart: unless-stopped
     ports:

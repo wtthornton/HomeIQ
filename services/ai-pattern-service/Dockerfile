@@ -11,15 +11,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements.txt ./requirements.txt
+COPY services/ai-pattern-service/requirements.txt ./requirements.txt
 
 # Install Python dependencies with cache mount
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy service code
-COPY src ./src
-COPY ../shared ./shared
+COPY services/ai-pattern-service/src ./src
+COPY shared ./shared
 
 # Create data directory
 RUN mkdir -p /app/data

@@ -5,7 +5,7 @@
  * Chat interface for interacting with the HA AI Agent
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
@@ -418,6 +418,17 @@ export const HAAgentChat: React.FC = () => {
     return null;
   };
 
+  // Memoize latest user message to avoid repeated array operations
+  const latestUserMessage = useMemo(() => {
+    // Reverse iteration is more efficient than slice().reverse()
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        return messages[i];
+      }
+    }
+    return undefined;
+  }, [messages]);
+
   const handlePreviewAutomation = (message: ChatMessage) => {
     const automation = detectAutomation(message);
     if (automation) {
@@ -426,10 +437,9 @@ export const HAAgentChat: React.FC = () => {
       setPreviewToolCall(automation.toolCall ?? undefined);
       setAutomationPreviewOpen(true);
       
-      // Extract original prompt from conversation - get the most recent user message
-      const userMessage = messages.slice().reverse().find(m => m.role === 'user');
-      if (userMessage) {
-        setOriginalPrompt(userMessage.content);
+      // Use memoized latest user message
+      if (latestUserMessage) {
+        setOriginalPrompt(latestUserMessage.content);
       }
     }
   };
@@ -669,6 +679,7 @@ export const HAAgentChat: React.FC = () => {
                                       messageContent={message.content}
                                       automationYaml={previewAutomationYaml || detectAutomation(message)?.yaml}
                                       conversationId={currentConversationId}
+                                      originalUserPrompt={latestUserMessage?.content}
                                       darkMode={darkMode}
                                       onSuccess={(automationId) => {
                                         toast.success(`Automation ${automationId} created successfully!`);
@@ -717,6 +728,7 @@ export const HAAgentChat: React.FC = () => {
                                     messageContent={message.content}
                                     automationYaml={previewAutomationYaml || automation?.yaml}
                                     conversationId={currentConversationId}
+                                    originalUserPrompt={latestUserMessage?.content}
                                     darkMode={darkMode}
                                     onSuccess={(automationId) => {
                                       toast.success(`Automation ${automationId} created successfully!`);

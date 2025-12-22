@@ -8,7 +8,7 @@ RUN pip install --upgrade pip==25.2
 
 RUN apk add --no-cache gcc musl-dev linux-headers
 
-COPY requirements-prod.txt .
+COPY services/electricity-pricing-service/requirements-prod.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements-prod.txt
 
@@ -22,8 +22,8 @@ RUN addgroup -g 1001 -S appgroup && \
 
 COPY --from=builder /root/.local /home/appuser/.local
 
-COPY src/ ./src/
-COPY ../shared/ ./shared/
+COPY services/electricity-pricing-service/src/ ./src/
+COPY shared/ ./shared/
 
 RUN chown -R appuser:appgroup /app /home/appuser/.local
 
