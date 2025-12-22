@@ -435,9 +435,28 @@ export const HAAgentChat: React.FC = () => {
   };
   
   const handleEnhancementSelected = (enhancement: { enhanced_yaml: string; title?: string }) => {
-    setPreviewAutomationYaml(enhancement.enhanced_yaml);
-    if (enhancement.title) {
-      setPreviewAutomationAlias(enhancement.title);
+    // Detect if this is a prompt enhancement (no YAML structure) or YAML enhancement
+    const isPromptEnhancement = !previewAutomationYaml && 
+                                 enhancement.enhanced_yaml && 
+                                 !enhancement.enhanced_yaml.includes('alias:') &&
+                                 !enhancement.enhanced_yaml.includes('trigger:') &&
+                                 !enhancement.enhanced_yaml.includes('action:');
+    
+    if (isPromptEnhancement) {
+      // Prompt enhancement: Insert enhanced prompt into input field
+      setInputValue(enhancement.enhanced_yaml);
+      toast.success(`Enhanced prompt applied: ${enhancement.title}`, { icon: '✨' });
+      // Focus input after a brief delay
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    } else {
+      // YAML enhancement: Apply YAML to preview (existing behavior)
+      setPreviewAutomationYaml(enhancement.enhanced_yaml);
+      if (enhancement.title) {
+        setPreviewAutomationAlias(enhancement.title);
+      }
+      toast.success(`Enhancement applied: ${enhancement.title}`, { icon: '✅' });
     }
   };
 
@@ -785,7 +804,7 @@ export const HAAgentChat: React.FC = () => {
               
               return (
                 <EnhancementButton
-                  automationYaml={automationYaml}
+                  automationYaml={automationYaml || undefined}  // Optional - pass only if available
                   originalPrompt={originalPrompt || userMsg?.content || ''}
                   conversationId={currentConversationId}
                   darkMode={darkMode}
