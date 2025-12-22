@@ -28,7 +28,7 @@ from .cache import cache
 # Story 22.2: SQLite models and database
 from .database import get_db
 from .flux_utils import sanitize_flux_value
-from .models import Device, Entity
+from .models import Device, Entity, Service
 from .services.entity_registry import EntityRegistry
 from .services.device_health import get_health_service
 from .services.device_classifier import get_classifier_service
@@ -1382,6 +1382,86 @@ async def bulk_upsert_entities(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to bulk upsert entities: {str(e)}"
+        ) from e
+
+
+@router.post("/internal/services/bulk_upsert")
+async def bulk_upsert_services(
+    services: dict[str, dict[str, Any]],
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Internal endpoint for websocket-ingestion to bulk upsert services from HA Services API
+    
+    Accepts services in format: {domain: {service_name: service_data}}
+    Flattens to list of services with domain and service_name
+    
+    Epic 2025: Stores available services per domain for service validation
+    """
+    try:
+        upserted_count = 0
+        
+        # Flatten services dict to list of service records
+        for domain, domain_services in services.items():
+            if not isinstance(domain_services, dict):
+                logger.warning(f"Skipping invalid domain services format for domain: {domain}")
+                continue
+                
+            for service_name, service_data in domain_services.items():
+                if not isinstance(service_data, dict):
+                    logger.warning(f"Skipping invalid service data for {domain}.{service_name}")
+                    continue
+                
+                # Check if service exists
+                result = await db.execute(
+                    select(Service).where(
+                        Service.domain == domain,
+                        Service.service_name == service_name
+                    )
+                )
+                existing_service = result.scalar_one_or_none()
+                
+                # Prepare service values
+                service_values = {
+                    'domain': domain,
+                    'service_name': service_name,
+                    'name': service_data.get('name'),
+                    'description': service_data.get('description'),
+                    'fields': service_data.get('fields'),
+                    'target': service_data.get('target'),
+                    'last_updated': datetime.now()
+                }
+                
+                if existing_service:
+                    # Update existing service
+                    for key, value in service_values.items():
+                        if key not in ('domain', 'service_name'):  # Don't update primary keys
+                            setattr(existing_service, key, value)
+                else:
+                    # Insert new service
+                    new_service = Service(**service_values)
+                    db.add(new_service)
+                
+                upserted_count += 1
+        
+        await db.commit()
+        
+        logger.info(f"Bulk upserted {upserted_count} services from HA Services API")
+        
+        return {
+            "success": True,
+            "upserted": upserted_count,
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error bulk upserting services: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to bulk upsert services: {str(e)}"
         ) from e
 
 

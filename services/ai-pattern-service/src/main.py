@@ -87,8 +87,10 @@ async def lifespan(app: FastAPI):
                 password=settings.mqtt_password,
                 enabled=True
             )
-            mqtt_client.connect()
-            logger.info(f"✅ MQTT client connected to {settings.mqtt_broker}:{settings.mqtt_port}")
+            if mqtt_client.connect():
+                logger.info(f"✅ MQTT client connected to {mqtt_client.broker}:{mqtt_client.port}")
+            else:
+                logger.warning(f"⚠️ MQTT client connection failed to {mqtt_client.broker}:{mqtt_client.port}")
         except Exception as e:
             logger.warning(f"⚠️ MQTT client initialization failed: {e}")
             mqtt_client = None

@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy shared utilities
-COPY ../shared/ /app/shared
+COPY ../shared/ ./shared/
 
 # Copy source
 COPY src/ ./src/

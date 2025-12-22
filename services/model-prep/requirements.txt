@@ -1,0 +1,16 @@
+# Model Preparation Container Dependencies
+# Minimal dependencies for downloading and caching models
+
+# Core ML libraries
+transformers>=4.46.0
+sentence-transformers>=3.3.0
+torch>=2.5.0
+
+# OpenVINO for optimized models (optional, but recommended)
+openvino>=2024.5.0
+optimum-intel>=1.20.0
+
+# Utilities
+huggingface-hub>=0.24.0
+tqdm>=4.66.0
+

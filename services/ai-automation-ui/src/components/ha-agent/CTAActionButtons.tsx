@@ -1,7 +1,7 @@
 /**
  * CTA Action Buttons Component
  * 
- * Displays interactive buttons (Approve, Create, Yes, Go Ahead)
+ * Displays an interactive "Create Automation" button
  * to replace text prompts for automation approval
  */
 
@@ -48,7 +48,7 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
     return null;
   };
 
-  const handleCreateAutomation = async (_action: 'approve' | 'create' | 'yes' | 'go-ahead') => {
+  const handleCreateAutomation = async () => {
     if (isCreating || createdAutomationId) return;
 
     setIsCreating(true);
@@ -111,39 +111,27 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
     );
   }
 
-  const buttons = [
-    { label: 'Approve', action: 'approve' as const, icon: '✅' },
-    { label: 'Create', action: 'create' as const, icon: '🚀' },
-    { label: 'Yes', action: 'yes' as const, icon: '👍' },
-    { label: 'Go Ahead', action: 'go-ahead' as const, icon: '▶️' },
-  ];
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mt-4 flex flex-wrap gap-2"
-      role="group"
-      aria-label="Automation approval actions"
+      className="mt-4"
     >
-      {buttons.map((button) => (
-        <button
-          key={button.action}
-          onClick={() => handleCreateAutomation(button.action)}
-          disabled={isCreating}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            darkMode
-              ? 'bg-blue-700 text-white hover:bg-blue-600 disabled:bg-blue-800 disabled:opacity-50'
-              : 'bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-400 disabled:opacity-50'
-          } ${isCreating ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-          aria-label={`${button.label} automation creation`}
-          aria-busy={isCreating}
-          aria-disabled={isCreating || createdAutomationId !== null}
-        >
-          <span className="mr-2" aria-hidden="true">{button.icon}</span>
-          {isCreating ? 'Creating...' : button.label}
-        </button>
-      ))}
+      <button
+        onClick={handleCreateAutomation}
+        disabled={isCreating}
+        className={`px-6 py-3 rounded-lg text-base font-medium transition-all ${
+          darkMode
+            ? 'bg-blue-700 text-white hover:bg-blue-600 disabled:bg-blue-800 disabled:opacity-50'
+            : 'bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-400 disabled:opacity-50'
+        } ${isCreating ? 'cursor-not-allowed' : 'cursor-pointer'} shadow-md hover:shadow-lg`}
+        aria-label="Create automation"
+        aria-busy={isCreating}
+        aria-disabled={isCreating || createdAutomationId !== null}
+      >
+        <span className="mr-2" aria-hidden="true">🚀</span>
+        {isCreating ? 'Creating Automation...' : 'Create Automation'}
+      </button>
     </motion.div>
   );
 };

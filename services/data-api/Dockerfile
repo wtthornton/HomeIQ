@@ -12,7 +12,7 @@ RUN pip install --upgrade pip==25.2
 RUN apk add --no-cache gcc musl-dev python3-dev libffi-dev openssl-dev cargo
 
 # Copy requirements
-COPY requirements-prod.txt .
+COPY services/data-api/requirements-prod.txt .
 
 # Install Python dependencies with cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -32,15 +32,16 @@ COPY --from=builder /root/.local /root/.local
 # Make sure scripts in .local are usable
 ENV PATH=/root/.local/bin:$PATH
 
-# Copy shared utilities
-COPY ../shared/ /app/shared
+# Copy shared utilities (from root shared directory)
+# Note: Build context must be root directory for this to work
+COPY shared/ ./shared/
 
 # Copy application code
-COPY src/ /app/src/
+COPY services/data-api/src/ ./src/
 
 # Copy Alembic migrations
-COPY alembic/ /app/alembic/
-COPY alembic.ini /app/
+COPY services/data-api/alembic/ ./alembic/
+COPY services/data-api/alembic.ini ./
 
 # Expose port
 EXPOSE 8006
