@@ -42,8 +42,8 @@ services:
 
   websocket-ingestion:
     build:
-      context: ./services/websocket-ingestion
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/websocket-ingestion/Dockerfile
       cache_from:
         - websocket-ingestion:latest
     container_name: homeiq-websocket
@@ -130,7 +130,7 @@ services:
     container_name: homeiq-admin
     restart: unless-stopped
     ports:
-      - "8003:8004"
+      - "8004:8004"
     env_file:
       - .env
     volumes:
@@ -193,8 +193,8 @@ services:
 
   data-api:
     build:
-      context: ./services/data-api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/data-api/Dockerfile
       cache_from:
         - data-api:latest
     container_name: homeiq-data-api
@@ -981,7 +981,8 @@ services:
     environment:
       - HA_AI_AGENT_URL=http://ha-ai-agent-service:8030
       - WEATHER_API_URL=http://weather-api:8009
-      - SPORTS_DATA_URL=http://sports-data:8005
+      # SPORTS_DATA_URL removed - sports data now accessed via data-api service (port 8006)
+      # See: implementation/sports-architecture-simplification-summary.md
       - CARBON_INTENSITY_URL=http://carbon-intensity:8010
       - DATA_API_URL=http://data-api:8006
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -1206,7 +1207,7 @@ services:
       data-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

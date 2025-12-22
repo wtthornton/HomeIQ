@@ -34,8 +34,8 @@ COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
 # Copy service code
-COPY services/ai-automation-service-new/src /app/src
-COPY shared /app/shared
+COPY services/ai-automation-service-new/src ./src
+COPY shared ./shared
 
 # Create data directory for database
 RUN mkdir -p /app/data /app/models

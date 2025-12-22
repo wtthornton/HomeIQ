@@ -31,14 +31,25 @@ class MQTTNotificationClient:
         Initialize MQTT client.
         
         Args:
-            broker: MQTT broker host (optional)
-            port: MQTT broker port
+            broker: MQTT broker host (optional) - can be URL (mqtt://host:port) or hostname
+            port: MQTT broker port (used if broker is hostname, ignored if broker is URL)
             username: Optional MQTT username
             password: Optional MQTT password
             enabled: Whether MQTT is enabled
         """
-        self.broker = broker
-        self.port = port
+        # Parse broker URL if provided (e.g., mqtt://host:port)
+        if broker:
+            if broker.startswith(('mqtt://', 'mqtts://', 'ws://', 'wss://')):
+                from urllib.parse import urlparse
+                parsed = urlparse(broker)
+                self.broker = parsed.hostname or parsed.netloc.split(':')[0]
+                self.port = parsed.port or port
+            else:
+                self.broker = broker
+                self.port = port
+        else:
+            self.broker = broker
+            self.port = port
         self.username = username
         self.password = password
         self.enabled = enabled

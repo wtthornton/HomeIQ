@@ -29,13 +29,13 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /root/.local /root/.local
 
 # Copy shared utilities
-COPY ../shared/ /app/shared
+COPY ../shared/ ./shared/
 
 # Copy application source
-COPY src/ /app/src/
+COPY src/ ./src/
 
 # Copy models directory (ML models for predictive analytics)
-COPY models/ /app/models/
+COPY models/ ./models/
 
 # Set working directory
 WORKDIR /app
