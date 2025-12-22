@@ -10,9 +10,9 @@ import { executeToolCall, type Enhancement } from '../../services/haAiAgentApi';
 import toast from 'react-hot-toast';
 
 interface EnhancementButtonProps {
-  automationYaml: string;
-  originalPrompt: string;
-  conversationId: string;
+  automationYaml?: string;  // Optional - only needed for YAML enhancement mode
+  originalPrompt: string;   // Required
+  conversationId: string;   // Required
   darkMode: boolean;
   onEnhancementSelected: (enhancement: Enhancement) => void;
 }
@@ -27,6 +27,7 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [enhancements, setEnhancements] = useState<Enhancement[] | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [enhancementMode, setEnhancementMode] = useState<'prompt' | 'yaml' | null>(null);
 
   const handleEnhance = async () => {
     if (!conversationId) {
@@ -34,8 +35,8 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
       return;
     }
     
-    if (!automationYaml || !originalPrompt) {
-      toast.error('Automation YAML and original prompt are required for enhancements.', { icon: '❌' });
+    if (!originalPrompt) {
+      toast.error('Original prompt is required for enhancements.', { icon: '❌' });
       return;
     }
     
@@ -52,7 +53,7 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
         executeToolCall({
           tool_name: 'suggest_automation_enhancements',
           arguments: {
-            automation_yaml: automationYaml,
+            automation_yaml: automationYaml || undefined,  // Optional
             original_prompt: originalPrompt,
             conversation_id: conversationId,
           },
@@ -62,6 +63,7 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
 
       if (result.success && result.enhancements && Array.isArray(result.enhancements) && result.enhancements.length > 0) {
         setEnhancements(result.enhancements);
+        setEnhancementMode(result.mode || (automationYaml ? 'yaml' : 'prompt'));
         toast.success('Enhancements generated!', { icon: '✨' });
       } else {
         console.error('Enhancement API response:', result);
@@ -139,11 +141,11 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
   };
 
   // Check prerequisites
-  const hasPrerequisites = !!(automationYaml && originalPrompt && conversationId);
+  const hasPrerequisites = !!(originalPrompt && conversationId);
   const missingPrerequisites: string[] = [];
   if (!conversationId) missingPrerequisites.push('active conversation');
-  if (!automationYaml) missingPrerequisites.push('automation YAML');
   if (!originalPrompt) missingPrerequisites.push('original prompt');
+  // Note: automationYaml is optional - enhancement works with or without it
 
   return (
     <>
@@ -241,6 +243,11 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
                 <div className="flex items-center justify-between">
                   <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     ✨ Enhancement Suggestions
+                    {enhancementMode && (
+                      <span className={`ml-2 text-sm font-normal ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        ({enhancementMode === 'prompt' ? 'Prompt Enhancement' : 'YAML Enhancement'})
+                      </span>
+                    )}
                   </h2>
                   <button
                     onClick={() => setShowModal(false)}
@@ -250,7 +257,9 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
                   </button>
                 </div>
                 <p className={`mt-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Choose an enhancement to apply to your automation
+                  {enhancementMode === 'prompt' 
+                    ? 'Choose an enhanced prompt to use for generating your automation'
+                    : 'Choose an enhancement to apply to your automation'}
                 </p>
               </div>
 

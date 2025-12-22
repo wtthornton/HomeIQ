@@ -169,6 +169,131 @@ class AutomationEnhancementService:
         
         return enhancements[:5]  # Return up to 5
     
+    async def generate_prompt_enhancements(
+        self,
+        original_prompt: str
+    ) -> list[Enhancement]:
+        """
+        Generate prompt enhancement suggestions (no YAML required).
+        
+        Enhances the user's prompt to make it more comprehensive, specific, and
+        context-aware. Returns enhanced prompt suggestions that can be used to
+        generate better automations.
+        
+        Args:
+            original_prompt: User's original request
+            
+        Returns:
+            List of 5 Enhancement objects with enhanced prompts (stored in enhanced_yaml field)
+        """
+        try:
+            prompt = f"""You are a prompt enhancement expert for Home Assistant automations. 
+Given this user prompt, generate 5 enhancement suggestions that make the prompt more comprehensive:
+
+Original Prompt: {original_prompt}
+
+Generate 5 enhancement suggestions with increasing detail:
+
+1. **Small Enhancement**: Add minor details (timing, colors, brightness, simple conditions)
+2. **Medium Enhancement**: Add functional details (notifications, multi-room, time conditions)
+3. **Large Enhancement**: Add feature details (multi-device coordination, scenes, weather triggers)
+4. **Advanced Enhancement**: Add smart features (time-based conditions, energy optimization, adaptive behavior)
+5. **Creative Enhancement**: Add fun/creative elements (themed effects, interactive patterns, surprise elements)
+
+For each enhancement, provide:
+- Title: Short descriptive name
+- Description: What the enhanced prompt does
+- Enhanced Prompt: Complete enhanced prompt text (more detailed than original)
+- Changes: List of 2-3 key additions made
+
+Return your response as a JSON object with this structure:
+{{
+  "enhancements": [
+    {{
+      "level": "small",
+      "title": "...",
+      "description": "...",
+      "enhanced_prompt": "...",
+      "changes": ["...", "..."]
+    }},
+    ...
+  ]
+}}
+
+Ensure enhanced prompts are more comprehensive and specific than the original."""
+
+            response = await self.openai_client.chat.completions.create(
+                model=self.settings.openai_model,
+                messages=[
+                    {"role": "system", "content": "You are an expert at enhancing Home Assistant automation prompts. Always return valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+            
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError("Empty response from OpenAI")
+            
+            import json
+            data = json.loads(content)
+            
+            enhancements = []
+            for enh_data in data.get("enhancements", []):
+                enhancements.append(Enhancement(
+                    level=enh_data.get("level", "small"),
+                    title=enh_data.get("title", "Enhancement"),
+                    description=enh_data.get("description", ""),
+                    enhanced_yaml=enh_data.get("enhanced_prompt", original_prompt),  # Store enhanced prompt in yaml field for compatibility
+                    changes=enh_data.get("changes", []),
+                    source="llm"
+                ))
+            
+            # Ensure we have at least 3 enhancements
+            while len(enhancements) < 3:
+                enhancements.append(self._create_fallback_prompt_enhancement(
+                    original_prompt, len(enhancements) + 1
+                ))
+            
+            return enhancements[:5]
+            
+        except Exception as e:
+            logger.error(f"Error generating prompt enhancements: {e}", exc_info=True)
+            # Return fallback enhancements
+            return [
+                self._create_fallback_prompt_enhancement(original_prompt, 1),
+                self._create_fallback_prompt_enhancement(original_prompt, 2),
+                self._create_fallback_prompt_enhancement(original_prompt, 3),
+                self._create_fallback_prompt_enhancement(original_prompt, 4),
+                self._create_fallback_prompt_enhancement(original_prompt, 5)
+            ]
+    
+    def _create_fallback_prompt_enhancement(
+        self,
+        original_prompt: str,
+        level_num: int
+    ) -> Enhancement:
+        """Create a simple fallback prompt enhancement"""
+        level_map = {
+            1: ("small", "Small Enhancement", "Add minor details"),
+            2: ("medium", "Medium Enhancement", "Add functional details"),
+            3: ("large", "Large Enhancement", "Add feature details"),
+            4: ("advanced", "Advanced Enhancement", "Add smart features"),
+            5: ("fun", "Creative Enhancement", "Add creative elements")
+        }
+        
+        level, title, description = level_map.get(level_num, ("small", "Enhancement", "Prompt enhancement"))
+        
+        return Enhancement(
+            level=level,
+            title=title,
+            description=description,
+            enhanced_yaml=original_prompt,  # Store prompt in yaml field for compatibility
+            changes=["Enhancement applied"],
+            source="fallback"
+        )
+    
     async def _generate_llm_enhancements(
         self,
         automation_yaml: str,

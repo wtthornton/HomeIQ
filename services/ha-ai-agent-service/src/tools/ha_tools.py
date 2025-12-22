@@ -660,6 +660,10 @@ class HAToolHandler:
         """
         Generate 5 enhancement suggestions for an automation.
         
+        Supports two modes:
+        - Prompt Enhancement Mode: Enhance user prompts before YAML generation (no YAML required)
+        - YAML Enhancement Mode: Enhance existing automation YAML (YAML required)
+        
         Uses:
         - LLM for small/medium/large
         - Patterns API for advanced
@@ -667,21 +671,21 @@ class HAToolHandler:
         
         Args:
             arguments: Tool arguments containing:
-                - automation_yaml: The automation YAML to enhance
-                - original_prompt: User's original request
+                - automation_yaml: The automation YAML to enhance (optional)
+                - original_prompt: User's original request (required)
                 - conversation_id: Conversation ID for tracking
                 
         Returns:
-            Dictionary with 5 enhancement suggestions
+            Dictionary with 5 enhancement suggestions and mode indicator
         """
-        automation_yaml = arguments.get("automation_yaml")
-        original_prompt = arguments.get("original_prompt")
+        automation_yaml = arguments.get("automation_yaml")  # Optional
+        original_prompt = arguments.get("original_prompt")  # Required
         conversation_id = arguments.get("conversation_id")
         
-        if not automation_yaml or not original_prompt:
+        if not original_prompt:
             return {
                 "success": False,
-                "error": "automation_yaml and original_prompt are required",
+                "error": "original_prompt is required",
                 "conversation_id": conversation_id
             }
         
@@ -693,24 +697,32 @@ class HAToolHandler:
             }
         
         try:
-            logger.info(f"Generating enhancements for automation in conversation {conversation_id}")
+            logger.info(f"Generating enhancements (mode: {'yaml' if automation_yaml else 'prompt'}) for conversation {conversation_id}")
             
-            # Extract entities and areas from YAML
-            entities = AutomationEnhancementService.extract_entities_from_yaml(automation_yaml)
-            areas = AutomationEnhancementService.extract_areas_from_yaml(automation_yaml)
-            
-            # Generate enhancements
-            enhancements = await self.enhancement_service.generate_enhancements(
-                automation_yaml=automation_yaml,
-                original_prompt=original_prompt,
-                entities=entities,
-                areas=areas
-            )
+            if automation_yaml:
+                # YAML Enhancement Mode (existing behavior)
+                entities = AutomationEnhancementService.extract_entities_from_yaml(automation_yaml)
+                areas = AutomationEnhancementService.extract_areas_from_yaml(automation_yaml)
+                
+                enhancements = await self.enhancement_service.generate_enhancements(
+                    automation_yaml=automation_yaml,
+                    original_prompt=original_prompt,
+                    entities=entities,
+                    areas=areas
+                )
+                mode = "yaml"
+            else:
+                # Prompt Enhancement Mode (new behavior)
+                enhancements = await self.enhancement_service.generate_prompt_enhancements(
+                    original_prompt=original_prompt
+                )
+                mode = "prompt"
             
             return {
                 "success": True,
                 "enhancements": [e.to_dict() for e in enhancements],
-                "conversation_id": conversation_id
+                "conversation_id": conversation_id,
+                "mode": mode  # Indicate which mode was used
             }
             
         except Exception as e:
