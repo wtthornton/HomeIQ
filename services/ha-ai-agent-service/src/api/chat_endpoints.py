@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import time
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -70,6 +71,40 @@ class SimpleRateLimiter:
 
 # Global rate limiter instance
 _rate_limiter = SimpleRateLimiter(requests_per_minute=100)
+
+
+def _safe_parse_tool_arguments(arguments: Any) -> dict[str, Any]:
+    """
+    Safely parse tool call arguments from OpenAI format.
+    
+    OpenAI may return arguments as either:
+    - dict: Already parsed arguments
+    - str: JSON string that needs parsing
+    
+    Args:
+        arguments: Tool call arguments (dict or str)
+        
+    Returns:
+        Parsed arguments as dict, or empty dict if parsing fails
+    """
+    if isinstance(arguments, dict):
+        return arguments
+    
+    if isinstance(arguments, str):
+        try:
+            parsed = json.loads(arguments)
+            if isinstance(parsed, dict):
+                return parsed
+            else:
+                logger.warning(f"Parsed tool arguments are not a dict, got {type(parsed)}: {parsed}")
+                return {}
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse tool arguments as JSON: {e}, arguments: {arguments[:200] if len(str(arguments)) > 200 else arguments}")
+            return {}
+    
+    # If it's neither dict nor str, log and return empty dict
+    logger.warning(f"Unexpected tool arguments type {type(arguments)}, expected dict or str")
+    return {}
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -442,13 +477,12 @@ async def chat(
                             })
                             
                             # Format tool call for response
+                            parsed_arguments = _safe_parse_tool_arguments(tool_call.function.arguments)
                             tool_calls.append(
                                 ToolCall(
                                     id=tool_call.id,
                                     name=tool_call.function.name,
-                                    arguments=tool_call.function.arguments
-                                    if isinstance(tool_call.function.arguments, dict)
-                                    else {},
+                                    arguments=parsed_arguments,
                                 )
                             )
                             
@@ -506,13 +540,12 @@ async def chat(
                     })
 
                     # Format tool call for response
+                    parsed_arguments = _safe_parse_tool_arguments(tool_call.function.arguments)
                     tool_calls.append(
                         ToolCall(
                             id=tool_call.id,
                             name=tool_call.function.name,
-                            arguments=tool_call.function.arguments
-                            if isinstance(tool_call.function.arguments, dict)
-                            else {},
+                            arguments=parsed_arguments,
                         )
                     )
                     

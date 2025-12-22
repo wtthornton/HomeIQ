@@ -236,3 +236,83 @@ async def test_chat_endpoint_logic_invalid_conversation(
     conversation = await conversation_service.get_conversation("invalid-id")
     assert conversation is None
 
+
+@pytest.mark.asyncio
+async def test_safe_parse_tool_arguments():
+    """Test that _safe_parse_tool_arguments correctly parses JSON string arguments"""
+    import json
+    from src.api.chat_endpoints import _safe_parse_tool_arguments
+
+    # Test with dict (already parsed) - should return as-is
+    dict_args = {"automation_yaml": "alias: test", "alias": "Test Automation"}
+    result = _safe_parse_tool_arguments(dict_args)
+    assert result == dict_args
+    assert result["automation_yaml"] == "alias: test"
+    assert result["alias"] == "Test Automation"
+
+    # Test with JSON string - should parse correctly
+    json_string = json.dumps({"automation_yaml": "alias: test", "alias": "Test Automation"})
+    result = _safe_parse_tool_arguments(json_string)
+    assert isinstance(result, dict)
+    assert result["automation_yaml"] == "alias: test"
+    assert result["alias"] == "Test Automation"
+
+    # Test with invalid JSON string - should return empty dict
+    invalid_json = "{invalid json"
+    result = _safe_parse_tool_arguments(invalid_json)
+    assert result == {}
+
+    # Test with non-dict, non-string - should return empty dict
+    result = _safe_parse_tool_arguments(123)
+    assert result == {}
+
+
+def test_tool_call_arguments_preserved_in_response_model():
+    """Test that ChatResponse tool_calls preserve parsed arguments from JSON strings"""
+    import json
+
+    # Simulate tool call arguments as they would appear from OpenAI (JSON string)
+    tool_arguments_json = json.dumps({
+        "user_prompt": "Turn on office lights",
+        "automation_yaml": "alias: Office Lights\n  trigger:\n    - platform: state\n  action:\n    - service: light.turn_on",
+        "alias": "Office Lights Automation"
+    })
+
+    # Test that the helper function parses this correctly
+    from src.api.chat_endpoints import _safe_parse_tool_arguments
+    
+    parsed_args = _safe_parse_tool_arguments(tool_arguments_json)
+    
+    # Verify arguments are properly parsed as dict
+    assert isinstance(parsed_args, dict)
+    assert "automation_yaml" in parsed_args
+    assert "alias" in parsed_args
+    assert "user_prompt" in parsed_args
+    assert parsed_args["alias"] == "Office Lights Automation"
+    assert "alias: Office Lights" in parsed_args["automation_yaml"]
+    
+    # Verify we can create a ToolCall with these parsed arguments
+    tool_call = ToolCall(
+        id="call_abc123",
+        name="preview_automation_from_prompt",
+        arguments=parsed_args
+    )
+    
+    # Verify the ToolCall has the expected structure
+    assert tool_call.arguments["automation_yaml"] is not None
+    assert tool_call.arguments["alias"] == "Office Lights Automation"
+    
+    # Verify we can create a ChatResponse with this tool call
+    response = ChatResponse(
+        message="Preview generated",
+        conversation_id="conv-123",
+        tool_calls=[tool_call],
+        metadata={}
+    )
+    
+    # Verify the response preserves the arguments
+    assert len(response.tool_calls) == 1
+    assert response.tool_calls[0].name == "preview_automation_from_prompt"
+    assert "automation_yaml" in response.tool_calls[0].arguments
+    assert response.tool_calls[0].arguments["automation_yaml"] is not None
+    assert response.tool_calls[0].arguments["alias"] == "Office Lights Automation"
