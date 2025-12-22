@@ -54,10 +54,10 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
     setIsCreating(true);
 
     try {
-      // Extract automation YAML from the message
-      const automationYaml = extractAutomationYaml(messageContent);
+      // Prioritize provided automationYaml prop, then try to extract from message
+      let yamlToUse = automationYaml || extractAutomationYaml(messageContent);
 
-      if (!automationYaml) {
+      if (!yamlToUse) {
         // If we can't extract YAML, send the action as a message to the AI
         // The AI will handle it via the conversation flow
         toast.error('Could not extract automation YAML. Please use the Preview Automation button instead.');
@@ -69,7 +69,7 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
       const result: ExecuteToolCallResponse = await executeToolCall({
         tool_name: 'create_automation_from_prompt',
         arguments: {
-          automation_yaml: automationYaml,
+          automation_yaml: yamlToUse,
           conversation_id: conversationId,
         },
       });

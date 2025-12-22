@@ -171,7 +171,10 @@ class AutomationEnhancementService:
     
     async def generate_prompt_enhancements(
         self,
-        original_prompt: str
+        original_prompt: str,
+        creativity_level: str = "balanced",
+        entities: list[str] | None = None,
+        areas: list[str] | None = None
     ) -> list[Enhancement]:
         """
         Generate prompt enhancement suggestions (no YAML required).
@@ -182,11 +185,84 @@ class AutomationEnhancementService:
         
         Args:
             original_prompt: User's original request
+            creativity_level: Creativity level ("conservative", "balanced", "creative")
+            entities: Optional list of entity IDs for pattern/synergy lookup
+            areas: Optional list of area IDs for pattern/synergy lookup
             
         Returns:
             List of 5 Enhancement objects with enhanced prompts (stored in enhanced_yaml field)
         """
         try:
+            # For creative/balanced levels, try to use patterns and synergies
+            use_patterns_synergies = creativity_level in ("balanced", "creative")
+            pattern_enhancement = None
+            synergy_enhancement = None
+            
+            if use_patterns_synergies and entities and areas:
+                try:
+                    # Try to get pattern-based enhancement for advanced level
+                    if entities:
+                        patterns = await self.patterns_client.get_patterns(
+                            device_ids=entities,
+                            min_confidence=0.6 if creativity_level == "creative" else 0.7,
+                            limit=5
+                        )
+                        if patterns:
+                            relevant_pattern = self._find_best_pattern(patterns, "")
+                            if relevant_pattern:
+                                pattern_enhancement = await self._generate_pattern_prompt_enhancement(
+                                    original_prompt, relevant_pattern
+                                )
+                except Exception as e:
+                    logger.warning(f"Failed to generate pattern enhancement for prompt: {e}")
+                
+                try:
+                    # Try to get synergy-based enhancement for fun/creative level
+                    if areas and entities:
+                        area = areas[0] if areas else None
+                        synergies = await self.synergies_client.get_synergies(
+                            area=area,
+                            device_ids=entities,
+                            min_confidence=0.5 if creativity_level == "creative" else 0.6,
+                            limit=5
+                        )
+                        if synergies:
+                            relevant_synergy = self._find_best_synergy(synergies, entities, areas)
+                            if relevant_synergy:
+                                synergy_enhancement = await self._generate_synergy_prompt_enhancement(
+                                    original_prompt, relevant_synergy
+                                )
+                except Exception as e:
+                    logger.warning(f"Failed to generate synergy enhancement for prompt: {e}")
+            
+            # Adjust enhancement levels based on creativity level
+            if creativity_level == "conservative":
+                enhancement_levels = [
+                    ("Small Enhancement", "Add minor details (timing, colors, brightness, simple conditions)"),
+                    ("Medium Enhancement", "Add functional details (notifications, multi-room, time conditions)"),
+                    ("Large Enhancement", "Add feature details (multi-device coordination, scenes)"),
+                    ("Advanced Enhancement", "Add smart features (time-based conditions, energy optimization)"),
+                    ("Practical Enhancement", "Add practical improvements (error handling, validation)")
+                ]
+            elif creativity_level == "creative":
+                enhancement_levels = [
+                    ("Small Enhancement", "Add minor details (timing, colors, brightness, simple conditions)"),
+                    ("Medium Enhancement", "Add functional details (notifications, multi-room, time conditions)"),
+                    ("Large Enhancement", "Add feature details (multi-device coordination, scenes, weather triggers)"),
+                    ("Advanced Enhancement", "Add smart features (time-based conditions, energy optimization, adaptive behavior, patterns)"),
+                    ("Creative Enhancement", "Add fun/creative elements (themed effects, interactive patterns, surprise elements, synergies)")
+                ]
+            else:  # balanced
+                enhancement_levels = [
+                    ("Small Enhancement", "Add minor details (timing, colors, brightness, simple conditions)"),
+                    ("Medium Enhancement", "Add functional details (notifications, multi-room, time conditions)"),
+                    ("Large Enhancement", "Add feature details (multi-device coordination, scenes, weather triggers)"),
+                    ("Advanced Enhancement", "Add smart features (time-based conditions, energy optimization, adaptive behavior)"),
+                    ("Creative Enhancement", "Add fun/creative elements (themed effects, interactive patterns, surprise elements)")
+                ]
+            
+            enhancement_list = "\n".join([f"{i+1}. **{title}**: {desc}" for i, (title, desc) in enumerate(enhancement_levels)])
+            
             prompt = f"""You are a prompt enhancement expert for Home Assistant automations. 
 Given this user prompt, generate 5 enhancement suggestions that make the prompt more comprehensive:
 
@@ -194,11 +270,7 @@ Original Prompt: {original_prompt}
 
 Generate 5 enhancement suggestions with increasing detail:
 
-1. **Small Enhancement**: Add minor details (timing, colors, brightness, simple conditions)
-2. **Medium Enhancement**: Add functional details (notifications, multi-room, time conditions)
-3. **Large Enhancement**: Add feature details (multi-device coordination, scenes, weather triggers)
-4. **Advanced Enhancement**: Add smart features (time-based conditions, energy optimization, adaptive behavior)
-5. **Creative Enhancement**: Add fun/creative elements (themed effects, interactive patterns, surprise elements)
+{enhancement_list}
 
 For each enhancement, provide:
 - Title: Short descriptive name
@@ -249,6 +321,22 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
                     changes=enh_data.get("changes", []),
                     source="llm"
                 ))
+            
+            # Replace advanced enhancement with pattern-based if available
+            if pattern_enhancement:
+                # Find and replace the advanced enhancement (usually index 3)
+                if len(enhancements) > 3:
+                    enhancements[3] = pattern_enhancement
+                else:
+                    enhancements.append(pattern_enhancement)
+            
+            # Replace creative/fun enhancement with synergy-based if available
+            if synergy_enhancement:
+                # Find and replace the last enhancement (creative/fun, usually index 4)
+                if len(enhancements) > 4:
+                    enhancements[4] = synergy_enhancement
+                else:
+                    enhancements.append(synergy_enhancement)
             
             # Ensure we have at least 3 enhancements
             while len(enhancements) < 3:
@@ -752,6 +840,121 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
             changes=["Enhancement applied"],
             source="fallback"
         )
+    
+    async def _generate_pattern_prompt_enhancement(
+        self,
+        original_prompt: str,
+        pattern: dict[str, Any]
+    ) -> Enhancement:
+        """Generate pattern-based prompt enhancement"""
+        try:
+            pattern_type = pattern.get("pattern_type", "")
+            pattern_metadata = pattern.get("pattern_metadata", {})
+            
+            prompt = f"""You are a prompt enhancement expert. Enhance this automation prompt using this detected pattern:
+
+Pattern Type: {pattern_type}
+Pattern Details: {pattern_metadata}
+
+Original Prompt: {original_prompt}
+
+Create an enhanced prompt that leverages this pattern to make the automation more intelligent and efficient.
+
+Return JSON with:
+- level: "advanced"
+- title: Descriptive title incorporating the pattern
+- description: What the enhanced prompt does
+- enhanced_prompt: Complete enhanced prompt text
+- changes: List of 2-3 key additions related to the pattern"""
+            
+            response = await self.openai_client.chat.completions.create(
+                model=self.settings.openai_model,
+                messages=[
+                    {"role": "system", "content": "You are an expert at enhancing Home Assistant automation prompts with patterns. Always return valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.6,
+                response_format={"type": "json_object"}
+            )
+            
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError("Empty response from OpenAI")
+            
+            import json
+            data = json.loads(content)
+            
+            return Enhancement(
+                level=data.get("level", "advanced"),
+                title=data.get("title", f"Pattern-Based: {pattern_type.replace('_', ' ').title()}"),
+                description=data.get("description", f"Leverages {pattern_type} pattern"),
+                enhanced_yaml=data.get("enhanced_prompt", original_prompt),
+                changes=data.get("changes", ["Pattern-based optimization"]),
+                source="pattern",
+                pattern_id=pattern.get("id")
+            )
+        except Exception as e:
+            logger.error(f"Error generating pattern prompt enhancement: {e}", exc_info=True)
+            return self._create_fallback_prompt_enhancement(original_prompt, 4)
+    
+    async def _generate_synergy_prompt_enhancement(
+        self,
+        original_prompt: str,
+        synergy: dict[str, Any]
+    ) -> Enhancement:
+        """Generate synergy-based prompt enhancement"""
+        try:
+            synergy_type = synergy.get("synergy_type", "")
+            device_ids = synergy.get("device_ids", [])
+            explanation = synergy.get("explanation", {})
+            description = explanation.get("summary", "") if isinstance(explanation, dict) else str(explanation)
+            
+            prompt = f"""You are a prompt enhancement expert. Enhance this automation prompt using this detected device synergy:
+
+Synergy Type: {synergy_type}
+Devices: {', '.join(device_ids)}
+Description: {description}
+
+Original Prompt: {original_prompt}
+
+Create an enhanced prompt that coordinates multiple devices in a creative, fun way.
+
+Return JSON with:
+- level: "fun"
+- title: Creative title incorporating the synergy
+- description: What the enhanced prompt does
+- enhanced_prompt: Complete enhanced prompt text
+- changes: List of 2-3 key additions related to the synergy"""
+            
+            response = await self.openai_client.chat.completions.create(
+                model=self.settings.openai_model,
+                messages=[
+                    {"role": "system", "content": "You are an expert at creating fun, creative Home Assistant automation prompts with synergies. Always return valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.8,  # Higher temperature for creativity
+                response_format={"type": "json_object"}
+            )
+            
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError("Empty response from OpenAI")
+            
+            import json
+            data = json.loads(content)
+            
+            return Enhancement(
+                level=data.get("level", "fun"),
+                title=data.get("title", f"Synergy-Based: {synergy_type.replace('_', ' ').title()}"),
+                description=data.get("description", f"Creative multi-device coordination"),
+                enhanced_yaml=data.get("enhanced_prompt", original_prompt),
+                changes=data.get("changes", ["Synergy-based coordination"]),
+                source="synergy",
+                synergy_id=synergy.get("synergy_id")
+            )
+        except Exception as e:
+            logger.error(f"Error generating synergy prompt enhancement: {e}", exc_info=True)
+            return self._create_fallback_prompt_enhancement(original_prompt, 5)
     
     @staticmethod
     def extract_entities_from_yaml(yaml_str: str) -> list[str]:
