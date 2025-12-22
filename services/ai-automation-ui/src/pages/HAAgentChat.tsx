@@ -667,7 +667,7 @@ export const HAAgentChat: React.FC = () => {
                                   {currentConversationId && (
                                     <CTAActionButtons
                                       messageContent={message.content}
-                                      automationYaml={detectAutomation(message)?.yaml}
+                                      automationYaml={previewAutomationYaml || detectAutomation(message)?.yaml}
                                       conversationId={currentConversationId}
                                       darkMode={darkMode}
                                       onSuccess={(automationId) => {
@@ -715,7 +715,7 @@ export const HAAgentChat: React.FC = () => {
                                 {message.role === 'assistant' && currentConversationId && (
                                   <CTAActionButtons
                                     messageContent={message.content}
-                                    automationYaml={automation?.yaml}
+                                    automationYaml={previewAutomationYaml || automation?.yaml}
                                     conversationId={currentConversationId}
                                     darkMode={darkMode}
                                     onSuccess={(automationId) => {

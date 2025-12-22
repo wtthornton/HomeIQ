@@ -674,6 +674,7 @@ class HAToolHandler:
                 - automation_yaml: The automation YAML to enhance (optional)
                 - original_prompt: User's original request (required)
                 - conversation_id: Conversation ID for tracking
+                - creativity_level: Creativity level - "conservative", "balanced", or "creative" (optional, default: "balanced")
                 
         Returns:
             Dictionary with 5 enhancement suggestions and mode indicator
@@ -681,6 +682,7 @@ class HAToolHandler:
         automation_yaml = arguments.get("automation_yaml")  # Optional
         original_prompt = arguments.get("original_prompt")  # Required
         conversation_id = arguments.get("conversation_id")
+        creativity_level = arguments.get("creativity_level", "balanced")  # Optional, default to balanced
         
         if not original_prompt:
             return {
@@ -713,8 +715,16 @@ class HAToolHandler:
                 mode = "yaml"
             else:
                 # Prompt Enhancement Mode (new behavior)
+                # Try to extract entities/areas from prompt for pattern/synergy lookup
+                entities = None
+                areas = None
+                # For now, we'll skip entity extraction from prompt text (could be enhanced later)
+                
                 enhancements = await self.enhancement_service.generate_prompt_enhancements(
-                    original_prompt=original_prompt
+                    original_prompt=original_prompt,
+                    creativity_level=creativity_level,
+                    entities=entities,
+                    areas=areas
                 )
                 mode = "prompt"
             

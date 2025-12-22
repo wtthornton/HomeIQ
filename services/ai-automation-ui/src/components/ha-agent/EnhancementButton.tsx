@@ -4,9 +4,10 @@
  * Button that appears next to Send button when automation preview is shown.
  * Generates 5 enhancement suggestions (small, medium, large, advanced, fun).
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { executeToolCall, type Enhancement } from '../../services/haAiAgentApi';
+import { getPreferences, type Preferences } from '../../api/preferences';
 import toast from 'react-hot-toast';
 
 interface EnhancementButtonProps {
@@ -28,6 +29,23 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
   const [enhancements, setEnhancements] = useState<Enhancement[] | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [enhancementMode, setEnhancementMode] = useState<'prompt' | 'yaml' | null>(null);
+  const [creativityLevel, setCreativityLevel] = useState<'conservative' | 'balanced' | 'creative'>('balanced');
+  
+  // Fetch user preferences on mount
+  useEffect(() => {
+    const fetchPreferences = async () => {
+      try {
+        const prefs = await getPreferences();
+        if (prefs?.creativity_level) {
+          setCreativityLevel(prefs.creativity_level);
+        }
+      } catch (error) {
+        // Default to balanced if preferences can't be fetched
+        console.warn('Failed to fetch preferences, using default creativity level:', error);
+      }
+    };
+    fetchPreferences();
+  }, []);
 
   const handleEnhance = async () => {
     if (!conversationId) {
@@ -56,6 +74,7 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
             automation_yaml: automationYaml || undefined,  // Optional
             original_prompt: originalPrompt,
             conversation_id: conversationId,
+            creativity_level: creativityLevel,  // Pass user's creativity level preference
           },
         }),
         timeoutPromise
