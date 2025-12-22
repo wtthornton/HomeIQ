@@ -9,7 +9,7 @@ WORKDIR /app
 RUN pip install --upgrade pip==25.2
 
 # Copy requirements from service directory
-COPY requirements.txt .
+COPY services/ai-query-service/requirements.txt .
 
 # Install Python dependencies with cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -34,8 +34,8 @@ COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
 # Copy service code
-COPY src ./src
-COPY ../shared ./shared
+COPY services/ai-query-service/src ./src
+COPY shared ./shared
 
 # Create data directory for database
 RUN mkdir -p /app/data /app/models

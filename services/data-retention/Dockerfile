@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies with pre-compiled wheels
-COPY requirements-prod.txt .
+COPY services/data-retention/requirements-prod.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements-prod.txt
 
@@ -42,8 +42,8 @@ RUN groupadd -g 1001 appgroup && \
 COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy source code and shared modules
-COPY src/ ./src/
-COPY ../shared/ ./shared/
+COPY services/data-retention/src/ ./src/
+COPY shared/ ./shared/
 
 # Set ownership of all files to appuser
 RUN chown -R appuser:appgroup /app /home/appuser/.local

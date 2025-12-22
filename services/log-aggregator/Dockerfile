@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies with cache mount
-COPY requirements.txt .
+COPY services/log-aggregator/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements.txt
 
@@ -39,8 +39,8 @@ RUN groupadd -g 999 docker || true && \
 COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy source code and shared modules
-COPY src/ ./src/
-COPY ../shared/ ./shared/
+COPY services/log-aggregator/src/ ./src/
+COPY shared/ ./shared/
 
 # Set ownership of all files to appuser
 RUN chown -R appuser:appgroup /app /home/appuser/.local
