@@ -135,9 +135,10 @@ async def get_pattern_stats(
         patterns = await get_patterns(db, limit=10000)
         
         total_patterns = len(patterns)
-        pattern_types = {}
+        by_type = {}
         total_confidence = 0.0
         total_occurrences = 0
+        unique_device_set = set()
         
         for p in patterns:
             # Handle both dict and Pattern object
@@ -145,23 +146,34 @@ async def get_pattern_stats(
                 pattern_type = p.get("pattern_type", "unknown")
                 confidence = p.get("confidence", 0.0)
                 occurrences = p.get("occurrences", 0)
+                device_id = p.get("device_id")
             else:
                 pattern_type = p.pattern_type
                 confidence = p.confidence
                 occurrences = p.occurrences
+                device_id = p.device_id
             
-            pattern_types[pattern_type] = pattern_types.get(pattern_type, 0) + 1
+            # Count pattern types
+            by_type[pattern_type] = by_type.get(pattern_type, 0) + 1
             total_confidence += confidence
             total_occurrences += occurrences
+            
+            # Collect unique devices (handle co-occurrence patterns with '+' separator)
+            if device_id:
+                # Split by '+' to handle co-occurrence patterns (e.g., "device1+device2")
+                individual_devices = device_id.split('+')
+                unique_device_set.update(individual_devices)
         
         avg_confidence = total_confidence / total_patterns if total_patterns > 0 else 0.0
+        unique_devices = len(unique_device_set)
         
         return {
             "success": True,
             "data": {
                 "total_patterns": total_patterns,
-                "pattern_types": pattern_types,
-                "average_confidence": round(avg_confidence, 3),
+                "by_type": by_type,  # Changed from pattern_types to by_type
+                "avg_confidence": round(avg_confidence, 3),  # Changed from average_confidence to avg_confidence
+                "unique_devices": unique_devices,  # Added missing unique_devices
                 "total_occurrences": total_occurrences
             },
             "message": "Pattern statistics retrieved successfully"
