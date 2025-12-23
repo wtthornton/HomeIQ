@@ -28,6 +28,9 @@ RUN apt-get update && apt-get install -y \
 # Copy installed packages from builder stage
 COPY --from=builder /root/.local /root/.local
 
+# Set working directory first
+WORKDIR /app
+
 # Copy shared utilities
 COPY shared/ ./shared/
 
@@ -36,9 +39,6 @@ COPY services/device-intelligence-service/src/ ./src/
 
 # Copy models directory (ML models for predictive analytics)
 COPY services/device-intelligence-service/models/ ./models/
-
-# Set working directory
-WORKDIR /app
 
 # Add user packages to PATH
 ENV PATH=/root/.local/bin:$PATH
@@ -50,5 +50,5 @@ EXPOSE 8019
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8019/health/ || exit 1
 
-# Run the application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8019"]
+# Run the application (using python -m for proper module resolution)
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8019"]

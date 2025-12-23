@@ -460,7 +460,7 @@ export const apiV2 = {
     fixed_yaml?: string;
     fixes_applied?: string[];
   }> {
-    // Call yaml-validation-service directly (port 8026)
+    // Call yaml-validation-service directly (port 8037)
     const validationUrl = import.meta.env.VITE_VALIDATION_SERVICE_URL || 'http://localhost:8026';
     return fetchJSON<{
       valid: boolean;

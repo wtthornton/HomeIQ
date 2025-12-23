@@ -34,7 +34,8 @@ except ImportError:
     logger.warning("Shared error handler not available, using default error handling")
     register_error_handlers = None
 
-from .api import health_router, validation_router
+from .api.health_router import router as health_router
+from .api.validation_router import router as validation_router
 from .config import settings
 
 # Lifespan context manager
@@ -81,8 +82,8 @@ if register_error_handlers:
     register_error_handlers(app)
 
 # Include routers
-app.include_router(health_router, tags=["health"])
-app.include_router(validation_router, tags=["validation"])
+app.include_router(health_router)
+app.include_router(validation_router)
 
 @app.get("/")
 async def root() -> dict[str, str]:

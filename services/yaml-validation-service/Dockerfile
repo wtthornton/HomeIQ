@@ -41,12 +41,12 @@ COPY shared ./shared
 WORKDIR /app
 
 # Expose port
-EXPOSE 8026
+EXPOSE 8037
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8026/health || exit 1
+    CMD curl -f http://localhost:8037/health || exit 1
 
-# Run service
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8026"]
+# Run service (port will be overridden by SERVICE_PORT env var if set)
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8037"]
 

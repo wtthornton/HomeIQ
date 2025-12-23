@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any
 
-from yaml_validation_service.schema import (
+from shared.yaml_validation_service.schema import (
     ActionSpec,
     AutomationMode,
     AutomationSpec,

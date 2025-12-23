@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     enable_yaml_correction: bool = True
     
     # YAML Validation Service Configuration (Epic 51)
-    yaml_validation_service_url: str = "http://yaml-validation-service:8026"
+    yaml_validation_service_url: str = "http://yaml-validation-service:8037"
     yaml_validation_api_key: str | None = None
     
     # Suggestion Generation Settings

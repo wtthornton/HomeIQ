@@ -27,8 +27,8 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
         const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
         
         // Fetch entities to get unique domains (device types)
-        // Note: using proxied API endpoint
-        const entitiesResponse = await fetch('/api/data/entities?limit=10000', {
+        // Note: using proxied API endpoint - data-api has /api/entities, not /api/data/entities
+        const entitiesResponse = await fetch('/api/entities?limit=10000', {
           headers: {
             'Authorization': `Bearer ${API_KEY}`,
             'X-HomeIQ-API-Key': API_KEY,
