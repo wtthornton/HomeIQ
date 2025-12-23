@@ -72,7 +72,7 @@ interface ConversationalSuggestion {
   title: string;
   category: string;
   confidence: number;
-  status: 'draft' | 'refining' | 'yaml_generated' | 'deployed' | 'rejected';
+  status: 'draft' | 'refining' | 'yaml_generated' | 'deployed' | 'rejected' | 'pending' | 'approved';
   refinement_count: number;
   source_type?: 'pattern' | 'predictive' | 'cascade' | 'feature' | 'synergy'; // Phase 1 improvement
   energy_savings?: EnergySavings; // Phase 2 - Energy savings data

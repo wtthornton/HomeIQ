@@ -1314,7 +1314,7 @@ services:
     container_name: ai-automation-service-new
     restart: unless-stopped
     ports:
-      - "8025:8025"
+      - "8036:8025"  # External port 8036, internal port 8025 (8025 external already used by ml-service)
     env_file:
       - .env
     environment:

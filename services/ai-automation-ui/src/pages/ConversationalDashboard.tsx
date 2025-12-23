@@ -199,17 +199,13 @@ export const ConversationalDashboard: React.FC = () => {
       const idMatch = suggestionId.match(/-(\d+)$/);
       const id = idMatch ? parseInt(idMatch[1]) : Date.now();
       
-      const suggestion = {
+      const suggestion: Suggestion = {
         id: id,
-        suggestion_id: suggestionId,
         title: `Automation: ${response.devices_involved?.[0]?.friendly_name || 'Living Room Light'}`,
         description: response.description || '',
         description_only: response.description || '',
-        trigger_summary: response.trigger_summary || '',
-        action_summary: response.action_summary || '',
-        devices_involved: response.devices_involved || [],
         confidence: response.confidence || 0.85,
-        status: response.status || 'draft',
+        status: (response.status || 'draft') as Suggestion['status'],
         created_at: response.created_at || new Date().toISOString(),
         conversation_history: [],
         refinement_count: 0,
@@ -281,7 +277,7 @@ export const ConversationalDashboard: React.FC = () => {
                 ...s,
                 description_only: result.updated_description,
                 refinement_count: result.refinement_count,
-                status: result.status,
+                status: result.status as Suggestion['status'],
                 conversation_history: [
                   ...(s.conversation_history || []),
                   {
@@ -326,7 +322,7 @@ export const ConversationalDashboard: React.FC = () => {
           s.id === id
             ? {
                 ...s,
-                status: result.status,
+                status: result.status as Suggestion['status'],
                 automation_yaml: result.automation_yaml,
                 yaml_generated_at: new Date().toISOString(),
                 ha_automation_id: result.automation_id
@@ -363,10 +359,10 @@ export const ConversationalDashboard: React.FC = () => {
           s.id === id
             ? {
                 ...s,
-                status: result.status,
+                status: result.status as Suggestion['status'],
                 automation_yaml: result.automation_yaml,
-                category: result.category || s.category,
-                priority: result.priority || s.priority,
+                category: (result.category || s.category) as Suggestion['category'],
+                priority: (result.priority || s.priority) as Suggestion['priority'],
                 yaml_generated_at: new Date().toISOString(),
                 ha_automation_id: result.automation_id || s.ha_automation_id
               }
@@ -721,7 +717,26 @@ export const ConversationalDashboard: React.FC = () => {
               {filteredSuggestions.map((suggestion) => (
                 <ConversationalSuggestionCard
                   key={suggestion.id}
-                  suggestion={suggestion}
+                  suggestion={{
+                    ...suggestion,
+                    description_only: suggestion.description_only || suggestion.description || '',
+                    category: suggestion.category || 'convenience',
+                    status: suggestion.status as 'draft' | 'refining' | 'yaml_generated' | 'deployed' | 'rejected' | 'pending' | 'approved',
+                    refinement_count: suggestion.refinement_count || 0,
+                    created_at: suggestion.created_at || new Date().toISOString(),
+                    conversation_history: (suggestion.conversation_history || []).map(entry => ({
+                      timestamp: entry.timestamp,
+                      user_input: entry.user_input,
+                      updated_description: entry.updated_description,
+                      changes: entry.changes || [],
+                      validation: entry.validation && typeof entry.validation === 'object' && 'ok' in entry.validation
+                        ? { ok: (entry.validation as any).ok, error: (entry.validation as any).error }
+                        : { ok: true }
+                    })),
+                    device_capabilities: suggestion.device_capabilities && typeof suggestion.device_capabilities === 'object' && 'entity_id' in suggestion.device_capabilities
+                      ? suggestion.device_capabilities as any
+                      : undefined
+                  }}
                   onRefine={handleRefine}
                   onApprove={handleApprove}
                   onReject={handleReject}

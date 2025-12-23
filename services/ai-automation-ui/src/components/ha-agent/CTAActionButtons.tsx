@@ -22,7 +22,7 @@ interface CTAActionButtonsProps {
 export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
   messageContent,
   automationYaml,
-  conversationId,
+  conversationId: _conversationId,
   originalUserPrompt,
   onSuccess,
   darkMode,
