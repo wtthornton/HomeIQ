@@ -61,6 +61,13 @@ scoring:
     test_coverage: 0.15
     performance: 0.1
   quality_threshold: 70.0
+  quality_gates:
+    enabled: true
+    test_coverage:
+      enabled: true
+      threshold: 0.8
+      critical_services_threshold: 0.8
+      warning_threshold: 0.6
 expert:
   agent_confidence_thresholds:
     reviewer: 0.8
