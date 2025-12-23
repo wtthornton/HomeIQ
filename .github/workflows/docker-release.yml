@@ -1,0 +1,276 @@
+name: Docker Release to GitHub Container Registry
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Semantic version tags (e.g., v1.2.3)
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version (e.g., 1.2.3)'
+        required: true
+        type: string
+      services:
+        description: 'Comma-separated service list (empty = all services)'
+        required: false
+        type: string
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/wtthornton/homeiq
+
+jobs:
+  determine-version:
+    name: Determine Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+    steps:
+      - name: Extract version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ "$VERSION" =~ -.* ]]; then
+            echo "is-prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is-prerelease=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Use manual version
+        if: github.event_name == 'workflow_dispatch'
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ "$VERSION" =~ -.* ]]; then
+            echo "is-prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is-prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: determine-version
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - websocket-ingestion
+          - data-api
+          - admin-api
+          - weather-api
+          - health-dashboard
+          - ai-automation-service
+          - ai-automation-service-new
+          - ai-automation-ui
+          - carbon-intensity-service
+          - electricity-pricing-service
+          - air-quality-service
+          - calendar-service
+          - smart-meter-service
+          - energy-correlator
+          - log-aggregator
+          - ml-service
+          - ai-core-service
+          - ai-pattern-service
+          - ai-query-service
+          - ai-training-service
+          - ha-ai-agent-service
+          - proactive-agent-service
+          - device-intelligence-service
+          - automation-miner
+          - openvino-service
+          - ha-setup-service
+          - data-retention
+          - ner-service
+          - openai-service
+          - device-setup-assistant
+          - device-database-client
+          - device-recommender
+          - device-context-classifier
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version detection
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' && !needs.determine-version.outputs.is-prerelease }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ needs.determine-version.outputs.version }}
+          format: cyclonedx-json
+          output-file: sbom-${{ matrix.service }}.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.service }}
+          path: sbom-${{ matrix.service }}.json
+          retention-days: 90
+
+  security-scan:
+    name: Security Scan Images
+    runs-on: ubuntu-latest
+    needs: [determine-version, build-and-push]
+    strategy:
+      matrix:
+        service:
+          - websocket-ingestion
+          - data-api
+          - admin-api
+          - weather-api
+          - health-dashboard
+          - ai-automation-service
+          - ai-automation-service-new
+          - ai-automation-ui
+          - carbon-intensity-service
+          - electricity-pricing-service
+          - air-quality-service
+          - calendar-service
+          - smart-meter-service
+          - energy-correlator
+          - log-aggregator
+          - ml-service
+          - ai-core-service
+          - ai-pattern-service
+          - ai-query-service
+          - ai-training-service
+          - ha-ai-agent-service
+          - proactive-agent-service
+          - device-intelligence-service
+          - automation-miner
+          - openvino-service
+          - ha-setup-service
+          - data-retention
+          - ner-service
+          - openai-service
+          - device-setup-assistant
+          - device-database-client
+          - device-recommender
+          - device-context-classifier
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ needs.determine-version.outputs.version }}
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
+
+      - name: Trivy scan summary
+        run: |
+          echo "## Security Scan: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+          trivy image --format table --exit-code 0 --severity CRITICAL,HIGH \
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ needs.determine-version.outputs.version }} || true
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [determine-version, build-and-push, security-scan]
+    if: needs.determine-version.outputs.is-prerelease == 'false'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          VERSION="${{ needs.determine-version.outputs.version }}"
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          cat > release-notes.md << EOF
+          # Release v${VERSION}
+          
+          ## Docker Images
+          
+          All images are available at \`ghcr.io/wtthornton/homeiq-*\`:
+          
+          - \`ghcr.io/wtthornton/homeiq-*:${VERSION}\` - Full version tag
+          - \`ghcr.io/wtthornton/homeiq-*:${VERSION%.*}\` - Minor version tag
+          - \`ghcr.io/wtthornton/homeiq-*:${VERSION%%.*}\` - Major version tag
+          - \`ghcr.io/wtthornton/homeiq-*:latest\` - Latest stable
+          
+          ## Changes
+          
+          ${CHANGELOG}
+          
+          ## Security
+          
+          All images have been scanned for vulnerabilities using Trivy.
+          EOF
+          
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          cat release-notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.determine-version.outputs.version }}
+          name: Release v${{ needs.determine-version.outputs.version }}
+          body: ${{ steps.release-notes.outputs.notes }}
+          draft: false
+          prerelease: ${{ needs.determine-version.outputs.is-prerelease == 'true' }}
+

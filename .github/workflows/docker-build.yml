@@ -2,13 +2,13 @@ name: Docker Build and Test
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ master, main, develop ]
     paths:
       - 'services/**'
       - 'docker-compose.yml'
       - '.github/workflows/docker-build.yml'
   pull_request:
-    branches: [ main, develop ]
+    branches: [ master, main, develop ]
     paths:
       - 'services/**'
       - 'docker-compose.yml'
@@ -32,6 +32,8 @@ jobs:
           - weather-api
           - health-dashboard
           - ai-automation-service
+          - ai-automation-service-new
+          - ai-automation-ui
           - carbon-intensity-service
           - electricity-pricing-service
           - air-quality-service
@@ -53,6 +55,10 @@ jobs:
           - data-retention
           - ner-service
           - openai-service
+          - device-setup-assistant
+          - device-database-client
+          - device-recommender
+          - device-context-classifier
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,12 +66,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub (if needed)
+      - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
@@ -73,7 +80,9 @@ jobs:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
           push: false
-          tags: homeiq-${{ matrix.service }}:latest
+          tags: |
+            homeiq-${{ matrix.service }}:latest
+            ghcr.io/wtthornton/homeiq-${{ matrix.service }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -87,7 +96,7 @@ jobs:
     name: Build All Services (Parallel)
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -123,20 +132,79 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - websocket-ingestion
+          - data-api
+          - admin-api
+          - weather-api
+          - health-dashboard
+          - ai-automation-service
+          - ai-automation-service-new
+          - ai-automation-ui
+          - carbon-intensity-service
+          - electricity-pricing-service
+          - air-quality-service
+          - calendar-service
+          - smart-meter-service
+          - energy-correlator
+          - log-aggregator
+          - ml-service
+          - ai-core-service
+          - ai-pattern-service
+          - ai-query-service
+          - ai-training-service
+          - ha-ai-agent-service
+          - proactive-agent-service
+          - device-intelligence-service
+          - automation-miner
+          - openvino-service
+          - ha-setup-service
+          - data-retention
+          - ner-service
+          - openai-service
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: false
+          tags: scan-${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner (filesystem)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-fs-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL,HIGH'
 
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Run Trivy vulnerability scanner (image)
+        uses: aquasecurity/trivy-action@master
         with:
-          sarif_file: 'trivy-results.sarif'
+          image-ref: 'scan-${{ matrix.service }}:latest'
+          format: 'sarif'
+          output: 'trivy-image-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy filesystem results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-fs-${{ matrix.service }}.sarif'
+
+      - name: Upload Trivy image results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-image-${{ matrix.service }}.sarif'
 
