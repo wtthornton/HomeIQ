@@ -86,6 +86,29 @@ async def init_db():
         async with engine.begin() as conn:
             # Test connection
             await conn.execute(text("SELECT 1"))
+            
+            # Check if suggestions table exists and add missing description column if needed
+            # This handles schema mismatch between model and existing database
+            result = await conn.execute(text("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='suggestions'
+            """))
+            table_exists = result.scalar() is not None
+            
+            if table_exists:
+                # Check if description column exists
+                result = await conn.execute(text("PRAGMA table_info(suggestions)"))
+                columns = result.fetchall()
+                column_names = [col[1] for col in columns]  # Column name is at index 1
+                
+                if 'description' not in column_names:
+                    logger.info("Adding missing 'description' column to suggestions table")
+                    await conn.execute(text("""
+                        ALTER TABLE suggestions 
+                        ADD COLUMN description TEXT
+                    """))
+                    logger.info("✅ Added 'description' column to suggestions table")
+            
         logger.info("✅ Database connection initialized")
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
