@@ -43,7 +43,7 @@ class Settings(BaseSettings):
 
     # YAML Validation Service Configuration (Epic 51)
     yaml_validation_service_url: str = Field(
-        default="http://yaml-validation-service:8026",
+        default="http://yaml-validation-service:8037",
         description="YAML Validation Service URL for comprehensive YAML validation"
     )
     yaml_validation_api_key: str | None = Field(

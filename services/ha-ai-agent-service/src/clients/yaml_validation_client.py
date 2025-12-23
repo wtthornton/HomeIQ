@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 class YAMLValidationClient:
     """Client for YAML validation via yaml-validation-service"""
 
-    def __init__(self, base_url: str = "http://yaml-validation-service:8026", api_key: str | None = None):
+    def __init__(self, base_url: str = "http://yaml-validation-service:8037", api_key: str | None = None):
         """
         Initialize YAML Validation Service client.
 
         Args:
-            base_url: Base URL for YAML Validation Service (default: http://yaml-validation-service:8026)
+            base_url: Base URL for YAML Validation Service (default: http://yaml-validation-service:8037)
             api_key: API key for authentication (optional)
         """
         self.base_url = base_url.rstrip('/')
