@@ -59,7 +59,7 @@ describe('useAppStore', () => {
     it('should set suggestions', () => {
       const mockSuggestions: Suggestion[] = [
         {
-          id: '1',
+          id: 1,
           title: 'Test Suggestion',
           description: 'Test Description',
           confidence: 0.8,
@@ -74,10 +74,10 @@ describe('useAppStore', () => {
 
     it('should replace existing suggestions', () => {
       const initialSuggestions: Suggestion[] = [
-        { id: '1', title: 'Suggestion 1', description: 'Desc 1', confidence: 0.5, status: 'pending' },
+        { id: 1, title: 'Suggestion 1', description: 'Desc 1', confidence: 0.5, status: 'pending' },
       ];
       const newSuggestions: Suggestion[] = [
-        { id: '2', title: 'Suggestion 2', description: 'Desc 2', confidence: 0.9, status: 'approved' },
+        { id: 2, title: 'Suggestion 2', description: 'Desc 2', confidence: 0.9, status: 'approved' },
       ];
 
       useAppStore.getState().setSuggestions(initialSuggestions);
@@ -89,7 +89,7 @@ describe('useAppStore', () => {
 
     it('should handle empty suggestions array', () => {
       const mockSuggestions: Suggestion[] = [
-        { id: '1', title: 'Test', description: 'Test', confidence: 0.5, status: 'pending' },
+        { id: 1, title: 'Test', description: 'Test', confidence: 0.5, status: 'pending' },
       ];
       useAppStore.getState().setSuggestions(mockSuggestions);
       useAppStore.getState().setSuggestions([]);
@@ -106,9 +106,10 @@ describe('useAppStore', () => {
 
     it('should set schedule info', () => {
       const mockScheduleInfo: ScheduleInfo = {
-        nextRun: '2025-12-23T10:00:00Z',
-        frequency: 'daily',
-        lastRun: '2025-12-22T10:00:00Z',
+        schedule: 'daily',
+        next_run: '2025-12-23T10:00:00Z',
+        is_running: false,
+        recent_jobs: [],
       };
 
       useAppStore.getState().setScheduleInfo(mockScheduleInfo);
@@ -118,8 +119,10 @@ describe('useAppStore', () => {
 
     it('should clear schedule info when set to null', () => {
       const mockScheduleInfo: ScheduleInfo = {
-        nextRun: '2025-12-23T10:00:00Z',
-        frequency: 'daily',
+        schedule: 'daily',
+        next_run: '2025-12-23T10:00:00Z',
+        is_running: false,
+        recent_jobs: [],
       };
       useAppStore.getState().setScheduleInfo(mockScheduleInfo);
       useAppStore.getState().setScheduleInfo(null);
@@ -137,8 +140,16 @@ describe('useAppStore', () => {
     it('should set analysis status', () => {
       const mockStatus: AnalysisStatus = {
         status: 'running',
-        progress: 50,
-        message: 'Processing...',
+        patterns: {
+          total_patterns: 0,
+          by_type: {},
+          unique_devices: 0,
+          avg_confidence: 0,
+        },
+        suggestions: {
+          pending_count: 0,
+          recent: [],
+        },
       };
 
       useAppStore.getState().setAnalysisStatus(mockStatus);
@@ -149,7 +160,16 @@ describe('useAppStore', () => {
     it('should clear analysis status when set to null', () => {
       const mockStatus: AnalysisStatus = {
         status: 'completed',
-        progress: 100,
+        patterns: {
+          total_patterns: 0,
+          by_type: {},
+          unique_devices: 0,
+          avg_confidence: 0,
+        },
+        suggestions: {
+          pending_count: 0,
+          recent: [],
+        },
       };
       useAppStore.getState().setAnalysisStatus(mockStatus);
       useAppStore.getState().setAnalysisStatus(null);
@@ -161,10 +181,8 @@ describe('useAppStore', () => {
   describe('Dark Mode Management', () => {
     it('should initialize dark mode from localStorage', () => {
       localStorageMock.setItem('darkMode', 'true');
-      const { darkMode } = useAppStore.getState();
       // Note: Initial state is set at store creation, so we need to test initializeDarkMode
       useAppStore.getState().initializeDarkMode();
-      const { darkMode: updatedDarkMode } = useAppStore.getState();
       expect(localStorageMock.getItem).toHaveBeenCalledWith('darkMode');
     });
 
@@ -213,9 +231,8 @@ describe('useAppStore', () => {
     });
 
     it('should handle missing window object (SSR)', () => {
-      const originalWindow = global.window;
-      // @ts-expect-error - Testing SSR scenario
-      delete global.window;
+      const originalWindow = (globalThis as any).window;
+      delete (globalThis as any).window;
 
       const { initializeDarkMode } = useAppStore.getState();
       expect(() => initializeDarkMode()).not.toThrow();
@@ -223,7 +240,7 @@ describe('useAppStore', () => {
       const { darkMode } = useAppStore.getState();
       expect(darkMode).toBe(false);
 
-      global.window = originalWindow;
+      (globalThis as any).window = originalWindow;
     });
   });
 
@@ -268,15 +285,17 @@ describe('useAppStore', () => {
   describe('Integration Tests', () => {
     it('should handle multiple state updates correctly', () => {
       const mockSuggestion: Suggestion = {
-        id: '1',
+        id: 1,
         title: 'Test',
         description: 'Test',
         confidence: 0.8,
         status: 'pending',
       };
       const mockSchedule: ScheduleInfo = {
-        nextRun: '2025-12-23T10:00:00Z',
-        frequency: 'daily',
+        schedule: 'daily',
+        next_run: '2025-12-23T10:00:00Z',
+        is_running: false,
+        recent_jobs: [],
       };
 
       useAppStore.getState().setSuggestions([mockSuggestion]);
@@ -295,8 +314,8 @@ describe('useAppStore', () => {
       const { setSuggestions, setSelectedStatus, setIsLoading } = useAppStore.getState();
       
       setSuggestions([
-        { id: '1', title: 'Test 1', description: 'Desc 1', confidence: 0.5, status: 'pending' },
-        { id: '2', title: 'Test 2', description: 'Desc 2', confidence: 0.7, status: 'approved' },
+        { id: 1, title: 'Test 1', description: 'Desc 1', confidence: 0.5, status: 'pending' },
+        { id: 2, title: 'Test 2', description: 'Desc 2', confidence: 0.7, status: 'approved' },
       ]);
       setSelectedStatus('approved');
       setIsLoading(true);

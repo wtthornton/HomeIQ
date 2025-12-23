@@ -10,7 +10,7 @@ RUN pip install --upgrade pip==25.2
 RUN apk add --no-cache gcc musl-dev linux-headers
 
 # Copy requirements and install dependencies with cache mount
-COPY requirements.txt .
+COPY services/energy-correlator/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --user --no-cache-dir -r requirements.txt
 
@@ -30,8 +30,8 @@ WORKDIR /app
 COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy source code
-COPY src/ ./src/
-COPY ../shared/ ./shared/
+COPY services/energy-correlator/src/ ./src/
+COPY shared/ ./shared/
 
 # Set ownership
 RUN chown -R appuser:appgroup /app /home/appuser/.local
