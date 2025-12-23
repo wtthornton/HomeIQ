@@ -72,8 +72,13 @@ async def store_synergy_opportunities(
                     'action_entity': synergy_data.get('action_entity'),
                     'action_name': synergy_data.get('action_name'),
                     'relationship': synergy_data.get('relationship'),
-                    'rationale': synergy_data.get('rationale')
+                    'rationale': synergy_data.get('rationale'),
+                    'context_metadata': synergy_data.get('context_metadata')
                 }
+                
+                # 2025 Enhancement: Store XAI explanation and context breakdown as separate fields
+                explanation = synergy_data.get('explanation')
+                context_breakdown = synergy_data.get('context_breakdown')
 
                 # Extract n-level synergy fields
                 synergy_depth = synergy_data.get('synergy_depth', 2)
@@ -93,6 +98,11 @@ async def store_synergy_opportunities(
                         existing_synergy.synergy_depth = synergy_depth
                     if hasattr(existing_synergy, 'chain_devices'):
                         existing_synergy.chain_devices = json.dumps(chain_devices) if chain_devices else None
+                    # 2025 Enhancement: Update explanation and context_breakdown if fields exist
+                    if hasattr(existing_synergy, 'explanation'):
+                        existing_synergy.explanation = explanation
+                    if hasattr(existing_synergy, 'context_breakdown'):
+                        existing_synergy.context_breakdown = context_breakdown
                     updated_count += 1
                     logger.debug(f"Updated existing synergy: {synergy_id}")
                 else:
@@ -113,6 +123,11 @@ async def store_synergy_opportunities(
                         synergy.synergy_depth = synergy_depth
                     if hasattr(synergy, 'chain_devices'):
                         synergy.chain_devices = json.dumps(chain_devices) if chain_devices else None
+                    # 2025 Enhancement: Set explanation and context_breakdown if fields exist
+                    if hasattr(synergy, 'explanation'):
+                        synergy.explanation = explanation
+                    if hasattr(synergy, 'context_breakdown'):
+                        synergy.context_breakdown = context_breakdown
                     
                     db.add(synergy)
                     stored_count += 1
@@ -179,10 +194,16 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                 'trigger_entity': synergy_data.get('trigger_entity'),
                 'action_entity': synergy_data.get('action_entity'),
                 'relationship': synergy_data.get('relationship'),
+                'context_metadata': synergy_data.get('context_metadata')
             }
             
+            # 2025 Enhancement: Extract explanation and context_breakdown
+            explanation = synergy_data.get('explanation')
+            context_breakdown = synergy_data.get('context_breakdown')
+            
             if existing:
-                # Update
+                # Update - include 2025 enhancement fields if they exist in table
+                # Check if columns exist (SQLite doesn't support IF EXISTS in ALTER, so we'll try to update)
                 update_query = text("""
                     UPDATE synergy_opportunities 
                     SET synergy_type = :synergy_type,
@@ -192,42 +213,86 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                         complexity = :complexity,
                         confidence = :confidence,
                         area = :area
+                        -- Note: explanation and context_breakdown will be added via migration script
                     WHERE synergy_id = :synergy_id
                 """)
-                await db.execute(
-                    update_query,
-                    {
-                        "synergy_id": synergy_id,
-                        "synergy_type": synergy_data['synergy_type'],
-                        "device_ids": json.dumps(synergy_data['devices']),
-                        "metadata": json.dumps(metadata),
-                        "impact_score": synergy_data['impact_score'],
-                        "complexity": synergy_data['complexity'],
-                        "confidence": synergy_data['confidence'],
-                        "area": synergy_data.get('area', '')
-                    }
-                )
+                params = {
+                    "synergy_id": synergy_id,
+                    "synergy_type": synergy_data['synergy_type'],
+                    "device_ids": json.dumps(synergy_data['devices']),
+                    "metadata": json.dumps(metadata),
+                    "impact_score": synergy_data['impact_score'],
+                    "complexity": synergy_data['complexity'],
+                    "confidence": synergy_data['confidence'],
+                    "area": synergy_data.get('area', '')
+                }
+                
+                # Try to update explanation and context_breakdown if columns exist
+                if explanation is not None:
+                    try:
+                        update_explanation_query = text("""
+                            UPDATE synergy_opportunities 
+                            SET explanation = :explanation
+                            WHERE synergy_id = :synergy_id
+                        """)
+                        await db.execute(update_explanation_query, {"synergy_id": synergy_id, "explanation": json.dumps(explanation)})
+                    except Exception:
+                        pass  # Column may not exist yet, migration will add it
+                
+                if context_breakdown is not None:
+                    try:
+                        update_context_query = text("""
+                            UPDATE synergy_opportunities 
+                            SET context_breakdown = :context_breakdown
+                            WHERE synergy_id = :synergy_id
+                        """)
+                        await db.execute(update_context_query, {"synergy_id": synergy_id, "context_breakdown": json.dumps(context_breakdown)})
+                    except Exception:
+                        pass  # Column may not exist yet, migration will add it
+                
+                await db.execute(update_query, params)
             else:
-                # Insert
+                # Insert - include 2025 enhancement fields if columns exist
                 insert_query = text("""
                     INSERT INTO synergy_opportunities 
                     (synergy_id, synergy_type, device_ids, opportunity_metadata, impact_score, complexity, confidence, area, created_at)
                     VALUES (:synergy_id, :synergy_type, :device_ids, :metadata, :impact_score, :complexity, :confidence, :area, :created_at)
                 """)
-                await db.execute(
-                    insert_query,
-                    {
-                        "synergy_id": synergy_id,
-                        "synergy_type": synergy_data['synergy_type'],
-                        "device_ids": json.dumps(synergy_data['devices']),
-                        "metadata": json.dumps(metadata),
-                        "impact_score": synergy_data['impact_score'],
-                        "complexity": synergy_data['complexity'],
-                        "confidence": synergy_data['confidence'],
-                        "area": synergy_data.get('area', ''),
-                        "created_at": now
-                    }
-                )
+                params = {
+                    "synergy_id": synergy_id,
+                    "synergy_type": synergy_data['synergy_type'],
+                    "device_ids": json.dumps(synergy_data['devices']),
+                    "metadata": json.dumps(metadata),
+                    "impact_score": synergy_data['impact_score'],
+                    "complexity": synergy_data['complexity'],
+                    "confidence": synergy_data['confidence'],
+                    "area": synergy_data.get('area', ''),
+                    "created_at": now
+                }
+                await db.execute(insert_query, params)
+                
+                # Try to update explanation and context_breakdown if columns exist (added via migration)
+                if explanation is not None:
+                    try:
+                        update_explanation_query = text("""
+                            UPDATE synergy_opportunities 
+                            SET explanation = :explanation
+                            WHERE synergy_id = :synergy_id
+                        """)
+                        await db.execute(update_explanation_query, {"synergy_id": synergy_id, "explanation": json.dumps(explanation)})
+                    except Exception:
+                        pass  # Column may not exist yet, migration will add it
+                
+                if context_breakdown is not None:
+                    try:
+                        update_context_query = text("""
+                            UPDATE synergy_opportunities 
+                            SET context_breakdown = :context_breakdown
+                            WHERE synergy_id = :synergy_id
+                        """)
+                        await db.execute(update_context_query, {"synergy_id": synergy_id, "context_breakdown": json.dumps(context_breakdown)})
+                    except Exception:
+                        pass  # Column may not exist yet, migration will add it
             
             stored_count += 1
         except Exception as e:
