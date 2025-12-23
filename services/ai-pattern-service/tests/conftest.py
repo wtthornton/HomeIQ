@@ -78,7 +78,23 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
                 complexity TEXT NOT NULL,
                 confidence REAL NOT NULL,
                 area TEXT,
+                explanation JSON,
+                context_breakdown JSON,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        # Create synergy_feedback table for RL feedback loop
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS synergy_feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                synergy_id TEXT NOT NULL,
+                accepted BOOLEAN NOT NULL,
+                feedback_text TEXT,
+                rating INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (synergy_id) REFERENCES synergy_opportunities(synergy_id)
             )
             """
         )
