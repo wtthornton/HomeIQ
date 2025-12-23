@@ -25,6 +25,16 @@ The AI Pattern Service is a microservice extracted from ai-automation-service (E
 - **Incremental Updates** - Enable/disable incremental pattern analysis
 - **Observability** - OpenTelemetry tracing, correlation middleware, structured logging
 
+### 2025 Enhancements (Epic 39, Story 39.8)
+
+- **Multi-Modal Context Integration** - Enhances synergy scores with external context (weather, energy, time)
+- **Explainable AI (XAI)** - Generates human-readable explanations for synergy recommendations
+- **Reinforcement Learning (RL) Feedback Loop** - Optimizes synergy scores based on user feedback using Thompson Sampling
+- **Transformer-Based Sequence Modeling** - Optional transformer models for sequence predictions (framework ready)
+- **Graph Neural Network (GNN) Integration** - Optional GNN models for advanced relationship learning (framework ready)
+- **Enhanced API Endpoints** - Synergy router with XAI explanations and RL feedback endpoints
+- **Community Pattern Router** - API endpoints for community pattern sharing and discovery
+
 ## API Endpoints
 
 ### Health Endpoints
@@ -81,6 +91,132 @@ Root endpoint with service information.
   "status": "operational"
 }
 ```
+
+### Pattern Endpoints
+
+```bash
+GET /api/v1/patterns/list
+```
+List detected patterns with optional filters (pattern_type, device_id, min_confidence, limit).
+
+### Synergy Endpoints (2025 Enhanced)
+
+```bash
+GET /api/v1/synergies/list
+```
+List synergy opportunities with enhanced features:
+- **Filters**: synergy_type, min_confidence, synergy_depth, limit
+- **Ordering**: By priority score (impact + confidence)
+- **Enhanced Response**: Includes `explanation` (XAI) and `context_breakdown` (multi-modal context)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "synergies": [
+      {
+        "id": 1,
+        "synergy_id": "device_pair_abc123",
+        "synergy_type": "device_pair",
+        "devices": ["light.living_room", "switch.kitchen"],
+        "impact_score": 0.85,
+        "confidence": 0.92,
+        "complexity": "medium",
+        "area": "Living Room",
+        "explanation": {
+          "summary": "These devices work well together because...",
+          "reasoning": ["Reason 1", "Reason 2"],
+          "confidence_factors": ["High co-occurrence", "Similar time patterns"]
+        },
+        "context_breakdown": {
+          "weather_impact": 0.1,
+          "energy_impact": 0.05,
+          "time_impact": 0.15
+        }
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+```bash
+GET /api/v1/synergies/{synergy_id}
+```
+Get detailed synergy opportunity by ID with full explanation and context breakdown.
+
+```bash
+GET /api/v1/synergies/stats
+```
+Get synergy statistics (total count, types, depths, average scores).
+
+```bash
+POST /api/v1/synergies/{synergy_id}/feedback
+```
+Submit user feedback for RL optimization.
+
+**Request Body:**
+```json
+{
+  "accepted": true,
+  "feedback_text": "This synergy worked perfectly!",
+  "rating": 5
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "synergy_id": "device_pair_abc123",
+    "feedback_received": true,
+    "accepted": true,
+    "rating": 5,
+    "rl_updated": true
+  }
+}
+```
+
+### Community Pattern Endpoints (2025 New)
+
+```bash
+GET /api/v1/community/patterns/list
+```
+List community patterns with filters (pattern_type, min_rating, tags, limit, order_by).
+
+```bash
+POST /api/v1/community/patterns/submit
+```
+Submit a pattern to the community.
+
+**Request Body:**
+```json
+{
+  "pattern_type": "time_of_day",
+  "device_id": "light.living_room",
+  "pattern_metadata": {...},
+  "description": "Lights turn on automatically at sunset",
+  "tags": ["automation", "lighting", "schedule"],
+  "author": "John Doe"
+}
+```
+
+```bash
+GET /api/v1/community/patterns/{pattern_id}
+```
+Get detailed community pattern by ID.
+
+```bash
+POST /api/v1/community/patterns/{pattern_id}/rate
+```
+Rate a community pattern (1-5 stars with optional comment).
+
+```bash
+GET /api/v1/community/patterns/{pattern_id}/ratings
+```
+Get ratings and comments for a community pattern.
 
 ## Configuration
 
@@ -179,6 +315,7 @@ curl http://localhost:8034/
 
 ### Python Dependencies
 
+**Core Dependencies:**
 - `fastapi` - Web framework
 - `uvicorn` - ASGI server
 - `sqlalchemy` - Database ORM
@@ -186,6 +323,14 @@ curl http://localhost:8034/
 - `pydantic` - Configuration management
 - `pydantic-settings` - Environment variable loading
 - `shared` - HomeIQ shared libraries (logging, observability, error handling)
+
+**2025 Enhancement Dependencies (Optional):**
+- `numpy` - Required for RL optimizer (Thompson Sampling)
+- `torch` - Required for transformer and GNN models (optional, framework ready)
+- `torch-geometric` - Required for GNN models (optional, framework ready)
+- `transformers` - Required for transformer models (optional, framework ready)
+
+**Note:** The service works without optional dependencies. Multi-modal context, XAI, and RL feedback loop work with core dependencies. Transformer and GNN features are framework-ready but require additional dependencies for full functionality.
 
 ## Related Services
 
@@ -214,9 +359,35 @@ This service was extracted from ai-automation-service in Epic 39, Story 39.5 to:
 
 The service runs pattern analysis on a configurable cron schedule (default: 3 AM daily):
 1. **Pattern Detection** - Time-of-day and co-occurrence patterns
-2. **Synergy Analysis** - Multi-hop device relationships
+2. **Synergy Analysis** - Multi-hop device relationships with 2025 enhancements:
+   - Multi-modal context integration (weather, energy, time)
+   - Explainable AI explanations
+   - RL-optimized scoring based on user feedback
+   - Optional transformer/GNN models for advanced detection
 3. **Community Patterns** - Integration with automation-miner
 4. **MQTT Notifications** - Optional alerts for new patterns
+
+### 2025 Synergy Detection Pipeline
+
+The enhanced synergy detection pipeline includes:
+
+1. **Base Detection** - Traditional multi-hop relationship discovery
+2. **Context Enhancement** - Multi-modal context integration:
+   - Weather data impact
+   - Energy consumption patterns
+   - Time-of-day context
+   - Device metadata (area, manufacturer, model)
+3. **Explainable AI** - Human-readable explanations:
+   - Summary of why devices work well together
+   - Reasoning factors
+   - Confidence breakdown
+4. **RL Optimization** - Reinforcement learning feedback loop:
+   - Thompson Sampling for exploration/exploitation
+   - User feedback integration
+   - Score optimization over time
+5. **Advanced Models (Optional)**:
+   - Transformer-based sequence modeling
+   - Graph Neural Network (GNN) relationship learning
 
 ### Database Sharing
 
@@ -224,6 +395,24 @@ This service shares the `ai_automation.db` SQLite database with ai-automation-se
 - **Pattern Storage** - Detected patterns, synergy relationships
 - **Community Patterns** - Mined automation patterns
 - **Configuration** - Pattern detection thresholds and overrides
+
+### 2025 Database Schema Updates
+
+The following fields and tables were added for 2025 enhancements:
+
+**Synergy Opportunities Table (`synergy_opportunities`):**
+- `explanation` (JSON) - XAI-generated explanations
+- `context_breakdown` (JSON) - Multi-modal context impact breakdown
+- `rl_feedback` (JSON) - RL optimizer state (optional)
+
+**Synergy Feedback Table (`synergy_feedback`):**
+- `synergy_id` - Reference to synergy opportunity
+- `accepted` - Boolean feedback (accepted/rejected)
+- `feedback_text` - Optional text feedback
+- `rating` - Optional 1-5 rating
+- `created_at` - Timestamp
+
+**Migration:** Run `python scripts/add_2025_synergy_fields.py` to add new columns and tables.
 
 ## Monitoring
 
@@ -255,6 +444,17 @@ All logs follow structured logging format with correlation IDs:
 
 ## Version History
 
+- **v1.1.0** (January 2025) - 2025 Synergy Improvements (Epic 39, Story 39.8)
+  - Multi-modal context integration for enhanced synergy scoring
+  - Explainable AI (XAI) for human-readable explanations
+  - Reinforcement Learning feedback loop with Thompson Sampling
+  - Transformer-based sequence modeling (optional, framework ready)
+  - Graph Neural Network (GNN) integration (optional, framework ready)
+  - Enhanced synergy API endpoints with explanations and context breakdown
+  - Community pattern router for pattern sharing
+  - Database schema updates (explanation, context_breakdown, synergy_feedback table)
+  - Comprehensive integration tests
+
 - **v1.0.0** (December 2025) - Initial service extraction from ai-automation-service (Epic 39, Story 39.5)
   - Scheduled pattern analysis with cron support
   - MQTT notification integration
@@ -263,7 +463,7 @@ All logs follow structured logging format with correlation IDs:
 
 ---
 
-**Last Updated:** December 09, 2025
-**Version:** 1.0.0
+**Last Updated:** January 2025
+**Version:** 1.1.0
 **Status:** Production Ready ✅
 **Port:** 8020 (internal) / 8034 (external)

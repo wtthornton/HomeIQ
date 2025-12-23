@@ -14,6 +14,15 @@ Epic 39, Story 39.8: Pattern Service Testing & Validation
 
 ### Integration Tests
 - `test_scheduler.py` - Scheduler functionality tests
+- `test_integration_synergy_improvements.py` - End-to-end integration tests for 2025 synergy improvements:
+  - Multi-modal context integration
+  - Explainable AI (XAI) explanations
+  - Reinforcement Learning feedback loop
+  - Transformer-based sequence modeling (optional)
+  - Graph Neural Network (GNN) integration (optional)
+  - API endpoint testing with enhanced features
+  - Error handling and edge cases
+  - Performance testing with large device sets
 
 ## Running Tests
 
@@ -59,12 +68,18 @@ pytest --cov=src --cov-report=html
 ## Test Coverage Goals
 
 - **Unit Tests**: >80% coverage for core modules
-- **Integration Tests**: Critical paths covered
+- **Integration Tests**: Critical paths covered, including 2025 enhancements
 - **Scheduler Tests**: All scheduler functionality verified
+- **2025 Enhancement Tests**: End-to-end flow with all improvements (multi-modal context, XAI, RL, transformer, GNN)
 
 ## Notes
 
 - Pattern and SynergyOpportunity models are in shared database
 - Tests use in-memory SQLite with minimal schema
 - Some tests may require external services (marked with `@pytest.mark.requires_data_api` or `@pytest.mark.requires_mqtt`)
+- Integration tests for 2025 enhancements include:
+  - Mocked external context data (weather, energy)
+  - XAI explanation generation testing
+  - RL feedback loop validation
+  - Optional transformer/GNN framework testing (requires dependencies)
 
