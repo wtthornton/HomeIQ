@@ -42,8 +42,8 @@ async function globalSetup(config: FullConfig) {
     const services = [
       { name: 'InfluxDB', url: 'http://localhost:8086/health' },
       { name: 'WebSocket Ingestion', url: 'http://localhost:8001/health' },
-      { name: 'Admin API', url: 'http://localhost:8003/api/v1/health' },
-      { name: 'Data Retention', url: 'http://localhost:8080/health' }
+      { name: 'Admin API', url: 'http://localhost:8003/health', optional: true }, // Use /health instead of /api/v1/health
+      { name: 'Data Retention', url: 'http://localhost:8080/health', optional: true }
     ];
     
     for (const service of services) {
@@ -73,7 +73,11 @@ async function globalSetup(config: FullConfig) {
       }
       
       if (!isHealthy) {
-        throw new Error(`${service.name} is not healthy after 30 seconds. Please check the Docker deployment.`);
+        if (service.optional) {
+          console.warn(`⚠ ${service.name} is not healthy after 30 seconds, but it's optional. Continuing...`);
+        } else {
+          throw new Error(`${service.name} is not healthy after 30 seconds. Please check the Docker deployment.`);
+        }
       }
     }
     

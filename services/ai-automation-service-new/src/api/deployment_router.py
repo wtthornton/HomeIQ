@@ -7,17 +7,18 @@ Handles deployment of automations to Home Assistant.
 """
 
 import logging
-from typing import Any
+from typing import Any, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import get_db
+from ..api.dependencies import DatabaseSession, get_deployment_service
+from ..api.error_handlers import handle_route_errors
+from ..services.deployment_service import DeploymentService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["deployment"])
+router = APIRouter(prefix="/api/deploy", tags=["deployment"])
 
 
 class DeployRequest(BaseModel):
@@ -27,87 +28,73 @@ class DeployRequest(BaseModel):
 
 
 @router.post("/{suggestion_id}")
+@handle_route_errors("deploy suggestion")
 async def deploy_suggestion(
     suggestion_id: int,
     request: DeployRequest = DeployRequest(),
-    db: AsyncSession = Depends(get_db)
+    db: DatabaseSession = None,
+    service: Annotated[DeploymentService, Depends(get_deployment_service)] = None
 ) -> dict[str, Any]:
     """
     Deploy an approved automation suggestion to Home Assistant.
-    
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation from deployment_router.py
-    return {
-        "message": "Deployment endpoint - implementation in progress",
-        "suggestion_id": suggestion_id,
-        "status": "foundation_ready"
-    }
+    result = await service.deploy_suggestion(
+        suggestion_id=suggestion_id,
+        skip_validation=request.skip_validation,
+        force_deploy=request.force_deploy
+    )
+    return result
 
 
 @router.post("/batch")
+@handle_route_errors("batch deploy")
 async def batch_deploy(
     suggestion_ids: list[int],
-    db: AsyncSession = Depends(get_db)
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
 ) -> dict[str, Any]:
     """
     Deploy multiple automations in batch.
-    
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation
-    return {
-        "message": "Batch deployment endpoint - implementation in progress",
-        "suggestion_ids": suggestion_ids,
-        "status": "foundation_ready"
-    }
+    result = await service.batch_deploy(suggestion_ids)
+    return result
 
 
 @router.get("/automations")
+@handle_route_errors("list automations")
 async def list_deployed_automations(
-    db: AsyncSession = Depends(get_db)
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
 ) -> dict[str, Any]:
     """
     List all deployed automations.
-    
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation
-    return {
-        "automations": [],
-        "message": "List automations endpoint - implementation in progress"
-    }
+    automations = await service.list_deployed_automations()
+    return {"automations": automations}
 
 
 @router.get("/automations/{automation_id}")
+@handle_route_errors("get automation status")
 async def get_automation_status(
     automation_id: str,
-    db: AsyncSession = Depends(get_db)
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
 ) -> dict[str, Any]:
     """
     Get status of a deployed automation.
-    
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation
-    return {
-        "automation_id": automation_id,
-        "status": "unknown",
-        "message": "Get automation status endpoint - implementation in progress"
-    }
+    status = await service.get_automation_status(automation_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return status
 
 
 @router.post("/automations/{automation_id}/enable")
 async def enable_automation(
     automation_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: DatabaseSession
 ) -> dict[str, Any]:
     """Enable a deployed automation."""
-    # TODO: Story 39.10 - Migrate full implementation
+    # TODO: Epic 39, Story 39.10 - Migrate enable/disable functionality from archived service
+    # Current: Placeholder endpoint
+    # Future: Full implementation with HA API integration
     return {
         "automation_id": automation_id,
         "status": "enabled",
@@ -118,10 +105,12 @@ async def enable_automation(
 @router.post("/automations/{automation_id}/disable")
 async def disable_automation(
     automation_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: DatabaseSession
 ) -> dict[str, Any]:
     """Disable a deployed automation."""
-    # TODO: Story 39.10 - Migrate full implementation
+    # TODO: Epic 39, Story 39.10 - Migrate enable/disable functionality from archived service
+    # Current: Placeholder endpoint
+    # Future: Full implementation with HA API integration
     return {
         "automation_id": automation_id,
         "status": "disabled",
@@ -131,7 +120,7 @@ async def disable_automation(
 
 @router.get("/test-connection")
 async def test_ha_connection(
-    db: AsyncSession = Depends(get_db)
+    db: DatabaseSession
 ) -> dict[str, Any]:
     """
     Test connection to Home Assistant.
@@ -139,7 +128,9 @@ async def test_ha_connection(
     Note: Full implementation will be migrated from ai-automation-service
     in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation
+    # TODO: Epic 39, Story 39.10 - Migrate HA connection testing from archived service
+    # Current: Placeholder endpoint
+    # Future: Full HA connectivity check with health status reporting
     return {
         "status": "unknown",
         "message": "Test connection endpoint - implementation in progress"
@@ -147,39 +138,27 @@ async def test_ha_connection(
 
 
 @router.post("/{automation_id}/rollback")
+@handle_route_errors("rollback automation")
 async def rollback_automation(
     automation_id: str,
-    db: AsyncSession = Depends(get_db)
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
 ) -> dict[str, Any]:
     """
     Rollback automation to previous version.
-    
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation
-    return {
-        "automation_id": automation_id,
-        "status": "rolled_back",
-        "message": "Rollback endpoint - implementation in progress"
-    }
+    result = await service.rollback_automation(automation_id)
+    return result
 
 
 @router.get("/{automation_id}/versions")
+@handle_route_errors("get automation versions")
 async def get_automation_versions(
     automation_id: str,
-    db: AsyncSession = Depends(get_db)
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
 ) -> dict[str, Any]:
     """
     Get version history for an automation.
-    
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation
-    return {
-        "automation_id": automation_id,
-        "versions": [],
-        "message": "Get versions endpoint - implementation in progress"
-    }
+    versions = await service.get_automation_versions(automation_id)
+    return {"automation_id": automation_id, "versions": versions}
 
