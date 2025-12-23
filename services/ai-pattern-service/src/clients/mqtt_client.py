@@ -90,6 +90,11 @@ class MQTTNotificationClient:
                 self.client.on_connect = self._on_connect
                 self.client.on_disconnect = self._on_disconnect
 
+                # Enable automatic reconnection with exponential backoff
+                # reconnect_delay_set(min_delay=1, max_delay=120)
+                # This enables automatic reconnection on disconnect
+                self.client.reconnect_delay_set(min_delay=1, max_delay=120)
+
                 # Set connection timeout
                 self.client.connect(self.broker, self.port, 60)
                 self.client.loop_start()
@@ -124,14 +129,22 @@ class MQTTNotificationClient:
 
         return False
 
-    def _on_connect(self, client, userdata, flags, rc):
-        """Callback for when client connects to broker."""
+    def _on_connect(self, client: mqtt.Client, userdata: dict, flags: dict, rc: int) -> None:
+        """
+        Callback for when client connects to broker.
+        
+        Args:
+            client: MQTT client instance
+            userdata: User data passed to callbacks
+            flags: Connection flags
+            rc: Return code (0 = success, non-zero = error)
+        """
         if rc == 0:
             logger.info("✅ MQTT connection established")
             self.is_connected = True
         else:
             # MQTT connection result codes
-            error_messages = {
+            error_messages: dict[int, str] = {
                 1: "Connection refused - incorrect protocol version",
                 2: "Connection refused - invalid client identifier",
                 3: "Connection refused - server unavailable",
@@ -142,8 +155,15 @@ class MQTTNotificationClient:
             logger.error(f"❌ MQTT connection failed with code {rc}: {error_msg}")
             self.is_connected = False
 
-    def _on_disconnect(self, client, userdata, rc):
-        """Callback for when client disconnects from broker"""
+    def _on_disconnect(self, client: mqtt.Client, userdata: dict, rc: int) -> None:
+        """
+        Callback for when client disconnects from broker.
+        
+        Args:
+            client: MQTT client instance
+            userdata: User data passed to callbacks
+            rc: Disconnect reason code (0 = manual disconnect, non-zero = unexpected)
+        """
         logger.warning(f"⚠️ MQTT disconnected (code: {rc})")
         self.is_connected = False
 
@@ -153,7 +173,8 @@ class MQTTNotificationClient:
             import threading
             import time
 
-            def reconnect():
+            def reconnect() -> None:
+                """Reconnect to MQTT broker after delay."""
                 time.sleep(2)  # Wait 2 seconds before reconnecting
                 if not self.is_connected:
                     self.connect(max_retries=1, retry_delay=1.0)
@@ -213,8 +234,13 @@ class MQTTNotificationClient:
         }
         return self.publish(topic, message)
 
-    def disconnect(self):
-        """Disconnect from MQTT broker"""
+    def disconnect(self) -> None:
+        """
+        Disconnect from MQTT broker.
+        
+        Stops the MQTT client loop and disconnects from the broker.
+        Safe to call even if not connected.
+        """
         try:
             if self.client:
                 self.client.loop_stop()

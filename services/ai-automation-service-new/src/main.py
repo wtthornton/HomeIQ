@@ -2,8 +2,26 @@
 AI Automation Service - Main FastAPI Application
 
 Epic 39, Story 39.10: Automation Service Foundation
-Extracted from ai-automation-service for independent scaling and maintainability.
-Handles suggestion generation, YAML generation, and deployment to Home Assistant.
+
+This service was extracted from ai-automation-service for independent scaling and maintainability.
+It handles:
+- Automation suggestion generation
+- YAML generation for Home Assistant automations
+- Deployment of automations to Home Assistant
+- Automation lifecycle management (enable/disable/rollback)
+
+Architecture:
+- FastAPI application with async/await support
+- SQLAlchemy async database layer
+- Authentication middleware (mandatory)
+- Rate limiting middleware
+- CORS support for frontend integration
+- Observability integration (OpenTelemetry, if available)
+
+Dependencies:
+- shared.logging_config: Centralized logging
+- shared.error_handler: Error handling
+- shared.observability: Tracing and metrics (optional)
 """
 
 import logging
@@ -55,7 +73,24 @@ from .database import init_db
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize service on startup and cleanup on shutdown"""
+    """
+    Initialize service on startup and cleanup on shutdown.
+    
+    This lifespan context manager handles:
+    - Database initialization
+    - Observability setup (if available)
+    - Rate limiting cleanup task startup
+    - Graceful shutdown of background tasks
+    
+    Args:
+        app: FastAPI application instance
+        
+    Yields:
+        None: Control is yielded to the application runtime
+        
+    Raises:
+        Exception: If database initialization fails (prevents service startup)
+    """
     logger.info("=" * 60)
     logger.info("AI Automation Service Starting Up")
     logger.info("=" * 60)
@@ -146,8 +181,13 @@ app.include_router(suggestion_router, tags=["suggestions"])
 app.include_router(deployment_router, tags=["deployment"])
 
 @app.get("/")
-async def root():
-    """Root endpoint"""
+async def root() -> dict[str, str]:
+    """
+    Root endpoint providing service information.
+    
+    Returns:
+        dict: Service metadata including name, version, status, and implementation note
+    """
     return {
         "service": "ai-automation-service",
         "version": "1.0.0",

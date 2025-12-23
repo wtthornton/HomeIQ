@@ -9,7 +9,19 @@
 
 // Use relative path - nginx will proxy to ai-automation-service
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+
+// SECURITY: Never hardcode API keys. Always use environment variables.
+// In production, VITE_API_KEY must be set via environment variables.
+// If not set, throw an error to prevent insecure fallback.
+const API_KEY = import.meta.env.VITE_API_KEY;
+if (!API_KEY) {
+  console.error('VITE_API_KEY environment variable is not set. API requests will fail.');
+  // In development, we can allow requests without key for local testing
+  // but log a warning. In production, this should be enforced.
+  if (import.meta.env.MODE === 'production') {
+    throw new Error('VITE_API_KEY is required in production mode. Please set the environment variable.');
+  }
+}
 
 export class APIError extends Error {
   constructor(public status: number, message: string) {
@@ -22,10 +34,12 @@ export class APIError extends Error {
  * Add authentication headers to request options
  */
 function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
-  const authHeaders: Record<string, string> = {
-    'Authorization': `Bearer ${API_KEY}`,
-    'X-HomeIQ-API-Key': API_KEY,
-  };
+  // Only add auth headers if API_KEY is available
+  const authHeaders: Record<string, string> = {};
+  if (API_KEY) {
+    authHeaders['Authorization'] = `Bearer ${API_KEY}`;
+    authHeaders['X-HomeIQ-API-Key'] = API_KEY;
+  }
 
   if (headers instanceof Headers) {
     Object.entries(authHeaders).forEach(([key, value]) => {

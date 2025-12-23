@@ -8,6 +8,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { CustomToaster } from './components/CustomToast';
 import { SelectionProvider } from './context/SelectionContext';
 import { Navigation } from './components/Navigation';
+import { PageErrorBoundaryWrapper } from './components/PageErrorBoundary';
 import { ConversationalDashboard } from './pages/ConversationalDashboard';  // Story AI1.23 - Conversational UI
 import { Patterns } from './pages/Patterns';
 import { Synergies } from './pages/Synergies';  // Epic AI-3, Story AI3.8
@@ -20,14 +21,22 @@ import { HAAgentChat } from './pages/HAAgentChat';  // Epic AI-20, Story AI20.7
 import { useAppStore } from './store';
 
 export const App: React.FC = () => {
-  const { darkMode } = useAppStore();
+  const { darkMode, initializeDarkMode } = useAppStore();
+
+  // Initialize dark mode on mount
+  useEffect(() => {
+    initializeDarkMode();
+  }, [initializeDarkMode]);
 
   // Apply dark mode class to document
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    // SECURITY: Only manipulate DOM in browser environment
+    if (typeof document !== 'undefined') {
+      if (darkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     }
   }, [darkMode]);
 
@@ -39,15 +48,78 @@ export const App: React.FC = () => {
         
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Routes>
-            <Route path="/" element={<ConversationalDashboard />} />
-            <Route path="/patterns" element={<Patterns />} />
-            <Route path="/synergies" element={<Synergies />} />
-            <Route path="/deployed" element={<Deployed />} />
-            <Route path="/discovery" element={<DiscoveryPage />} />
-            <Route path="/name-enhancement" element={<NameEnhancementDashboard />} />
-            <Route path="/ha-agent" element={<HAAgentChat />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/admin" element={<Admin />} />
+            <Route 
+              path="/" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Dashboard">
+                  <ConversationalDashboard />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
+            <Route 
+              path="/patterns" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Patterns">
+                  <Patterns />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
+            <Route 
+              path="/synergies" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Synergies">
+                  <Synergies />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
+            <Route 
+              path="/deployed" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Deployed">
+                  <Deployed />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
+            <Route 
+              path="/discovery" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Discovery">
+                  <DiscoveryPage />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
+            <Route 
+              path="/name-enhancement" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Name Enhancement">
+                  <NameEnhancementDashboard />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
+            <Route 
+              path="/ha-agent" 
+              element={
+                <PageErrorBoundaryWrapper pageName="HA Agent Chat">
+                  <HAAgentChat />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Settings">
+                  <Settings />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Admin">
+                  <Admin />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
           </Routes>
         </main>
 

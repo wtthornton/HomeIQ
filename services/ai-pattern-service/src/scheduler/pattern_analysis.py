@@ -52,12 +52,22 @@ class PatternAnalysisScheduler:
             f"incremental={enable_incremental}"
         )
 
-    def set_mqtt_client(self, mqtt_client: MQTTNotificationClient):
-        """Set the MQTT client for notifications"""
+    def set_mqtt_client(self, mqtt_client: MQTTNotificationClient) -> None:
+        """
+        Set the MQTT client for notifications.
+        
+        Args:
+            mqtt_client: MQTT client instance for publishing notifications
+        """
         self.mqtt_client = mqtt_client
 
-    def start(self):
-        """Start the scheduler and register the daily analysis job"""
+    def start(self) -> None:
+        """
+        Start the scheduler and register the daily analysis job.
+        
+        Raises:
+            Exception: If scheduler fails to start
+        """
         try:
             # Add daily analysis job
             self.scheduler.add_job(
@@ -75,8 +85,12 @@ class PatternAnalysisScheduler:
             logger.error(f"❌ Failed to start scheduler: {e}", exc_info=True)
             raise
 
-    def stop(self):
-        """Stop the scheduler"""
+    def stop(self) -> None:
+        """
+        Stop the scheduler.
+        
+        Gracefully shuts down the scheduler and all running jobs.
+        """
         try:
             self.scheduler.shutdown(wait=True)
             self.is_running = False
