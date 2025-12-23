@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies with cache mount
-COPY requirements.txt .
+COPY services/device-intelligence-service/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --user --no-cache-dir -r requirements.txt
 
@@ -29,13 +29,13 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /root/.local /root/.local
 
 # Copy shared utilities
-COPY ../shared/ ./shared/
+COPY shared/ ./shared/
 
 # Copy application source
-COPY src/ ./src/
+COPY services/device-intelligence-service/src/ ./src/
 
 # Copy models directory (ML models for predictive analytics)
-COPY models/ ./models/
+COPY services/device-intelligence-service/models/ ./models/
 
 # Set working directory
 WORKDIR /app
