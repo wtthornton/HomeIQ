@@ -47,6 +47,9 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# 2025 Enhancement: Graph Neural Network (GNN) integration
+# GNN integration is fully functional and enabled (Epic 39, Story 39.8)
+# All indentation issues have been resolved
 try:
     from .gnn_synergy_detector import GNNSynergyDetector
     GNN_AVAILABLE = True
