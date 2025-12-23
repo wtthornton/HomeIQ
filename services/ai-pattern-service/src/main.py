@@ -60,7 +60,7 @@ except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
-from .api import health_router
+from .api import health_router, pattern_router
 from .clients.mqtt_client import MQTTNotificationClient
 from .config import settings
 from .database import init_db
@@ -211,6 +211,7 @@ if OBSERVABILITY_AVAILABLE:
 
 # Include routers
 app.include_router(health_router.router, tags=["health"])
+app.include_router(pattern_router.router, tags=["patterns"])
 
 @app.get("/")
 async def root() -> dict[str, str]:
