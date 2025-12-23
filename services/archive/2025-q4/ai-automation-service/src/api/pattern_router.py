@@ -4,6 +4,7 @@ Pattern Detection Router
 Endpoints for detecting and managing automation patterns.
 """
 
+import json
 import logging
 import math
 import time
@@ -284,12 +285,27 @@ async def list_patterns(
         )
 
         # Convert to dictionaries
-        patterns_list = [
-            {
+        patterns_list = []
+        for p in patterns:
+            # Handle pattern_metadata safely - it might be string, dict, or None
+            metadata = p.pattern_metadata
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"Failed to parse pattern_metadata for pattern {p.id}: {metadata}")
+                    metadata = {}
+            elif not isinstance(metadata, dict) and metadata is not None:
+                logger.warning(f"Unexpected pattern_metadata type for pattern {p.id}: {type(metadata)}")
+                metadata = {}
+            elif metadata is None:
+                metadata = {}
+            
+            patterns_list.append({
                 "id": p.id,
                 "pattern_type": p.pattern_type,
                 "device_id": p.device_id,
-                "metadata": p.pattern_metadata,
+                "metadata": metadata,
                 "confidence": p.confidence,
                 "occurrences": p.occurrences,
                 "created_at": p.created_at.isoformat() if p.created_at else None,
@@ -299,9 +315,7 @@ async def list_patterns(
                 "trend_direction": p.trend_direction,
                 "trend_strength": p.trend_strength,
                 "confidence_history_count": p.confidence_history_count
-            }
-            for p in patterns
-        ]
+            })
 
         return {
             "success": True,

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment"""
 
     # Service Configuration
-    service_port: int = 8026
+    service_port: int = 8037
     service_name: str = "yaml-validation-service"
     
     # Data API Configuration

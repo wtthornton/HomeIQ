@@ -16,7 +16,7 @@ from ..clients.openai_client import OpenAIClient
 from ..clients.yaml_validation_client import YAMLValidationClient
 from ..database.models import Suggestion
 from ..services.plan_parser import PlanParser
-from yaml_validation_service.renderer import AutomationRenderer
+from shared.yaml_validation_service.renderer import AutomationRenderer
 
 logger = logging.getLogger(__name__)
 

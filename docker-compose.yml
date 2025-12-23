@@ -1314,14 +1314,14 @@ services:
     container_name: yaml-validation-service
     restart: unless-stopped
     ports:
-      - "8026:8026"
+      - "8037:8037"
     env_file:
       - .env
     environment:
       - DATA_API_URL=http://data-api:8006
       - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
-      - SERVICE_PORT=8026
+      - SERVICE_PORT=8037
       - VALIDATION_LEVEL=moderate
       - ENABLE_NORMALIZATION=true
       - ENABLE_ENTITY_VALIDATION=true
@@ -1340,7 +1340,7 @@ services:
           memory: 128M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8026/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8037/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1367,7 +1367,7 @@ services:
       - DATA_API_URL=http://data-api:8006
       - QUERY_SERVICE_URL=http://ai-query-service:8018
       - PATTERN_SERVICE_URL=http://ai-pattern-service:8020
-      - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8026
+      - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
       - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}

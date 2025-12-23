@@ -64,8 +64,12 @@ async def list_synergies(
 
         # Convert to dict format for JSON response
         # 2025 Enhancement: Generate explanations for synergies
-        from ..synergy_detection.explainable_synergy import ExplainableSynergyGenerator
-        explainer = ExplainableSynergyGenerator()
+        explainer = None
+        try:
+            from ..synergy_detection.explainable_synergy import ExplainableSynergyGenerator
+            explainer = ExplainableSynergyGenerator()
+        except ImportError as e:
+            logger.warning(f"ExplainableSynergyGenerator not available: {e}. Synergies will be returned without explanations.")
         
         synergies_list = []
         for s in synergies:
@@ -89,29 +93,35 @@ async def list_synergies(
                 }
                 
                 # 2025 Enhancement: Add explainable AI data
-                try:
-                    # Convert to dict format for explainer
-                    synergy_for_explanation = {
-                        'synergy_id': s.synergy_id,
-                        'trigger_entity': s.opportunity_metadata.get('trigger_entity') if isinstance(s.opportunity_metadata, dict) else None,
-                        'action_entity': s.opportunity_metadata.get('action_entity') if isinstance(s.opportunity_metadata, dict) else None,
-                        'trigger_name': s.opportunity_metadata.get('trigger_name') if isinstance(s.opportunity_metadata, dict) else None,
-                        'action_name': s.opportunity_metadata.get('action_name') if isinstance(s.opportunity_metadata, dict) else None,
-                        'relationship_type': s.synergy_type,
-                        'impact_score': s.impact_score,
-                        'confidence': s.confidence,
-                        'area': s.area,
-                        'complexity': s.complexity,
-                        'validated_by_patterns': validated_by_patterns_value,
-                        'pattern_support_score': getattr(s, 'pattern_support_score', 0.0)
-                    }
-                    explanation = explainer.generate_explanation(synergy_for_explanation)
-                    synergy_dict['explanation'] = explanation
-                    # Add rationale and explanation_breakdown for API contract
-                    synergy_dict['rationale'] = explanation.get('summary', '')
-                    synergy_dict['explanation_breakdown'] = explanation.get('score_breakdown', {})
-                except Exception as e:
-                    logger.warning(f"Failed to generate explanation for synergy {s.synergy_id}: {e}", exc_info=True)
+                if explainer is not None:
+                    try:
+                        # Convert to dict format for explainer
+                        synergy_for_explanation = {
+                            'synergy_id': s.synergy_id,
+                            'trigger_entity': s.opportunity_metadata.get('trigger_entity') if isinstance(s.opportunity_metadata, dict) else None,
+                            'action_entity': s.opportunity_metadata.get('action_entity') if isinstance(s.opportunity_metadata, dict) else None,
+                            'trigger_name': s.opportunity_metadata.get('trigger_name') if isinstance(s.opportunity_metadata, dict) else None,
+                            'action_name': s.opportunity_metadata.get('action_name') if isinstance(s.opportunity_metadata, dict) else None,
+                            'relationship_type': s.synergy_type,
+                            'impact_score': s.impact_score,
+                            'confidence': s.confidence,
+                            'area': s.area,
+                            'complexity': s.complexity,
+                            'validated_by_patterns': validated_by_patterns_value,
+                            'pattern_support_score': getattr(s, 'pattern_support_score', 0.0)
+                        }
+                        explanation = explainer.generate_explanation(synergy_for_explanation)
+                        synergy_dict['explanation'] = explanation
+                        # Add rationale and explanation_breakdown for API contract
+                        synergy_dict['rationale'] = explanation.get('summary', '')
+                        synergy_dict['explanation_breakdown'] = explanation.get('score_breakdown', {})
+                    except Exception as e:
+                        logger.warning(f"Failed to generate explanation for synergy {s.synergy_id}: {e}", exc_info=True)
+                else:
+                    # If explainer is not available, set default values
+                    synergy_dict['explanation'] = {}
+                    synergy_dict['rationale'] = ''
+                    synergy_dict['explanation_breakdown'] = {}
 
                 # Phase 2: Add pattern validation fields (use getattr with defaults)
                 synergy_dict['pattern_support_score'] = getattr(s, 'pattern_support_score', 0.0)
