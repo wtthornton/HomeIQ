@@ -2,6 +2,8 @@
 Tests for Event Processor
 """
 
+from unittest.mock import MagicMock
+
 from src.event_processor import EventProcessor
 
 
@@ -259,3 +261,328 @@ class TestEventProcessor:
 
         assert extracted["event_type"] == "error"
         assert "error" in extracted
+
+    def test_validate_state_changed_with_data_field(self):
+        """Test validation of state_changed event with Home Assistant 'data' field structure"""
+        event_data = {
+            "event_type": "state_changed",
+            "time_fired": "2023-01-01T12:00:00.000Z",
+            "origin": "LOCAL",
+            "context": {"id": "context-123"},
+            "data": {
+                "entity_id": "light.living_room",
+                "old_state": {"state": "off", "last_changed": "2023-01-01T12:00:00.000Z"},
+                "new_state": {"state": "on", "entity_id": "light.living_room", "last_changed": "2023-01-01T12:01:00.000Z"}
+            }
+        }
+
+        is_valid, error_msg = self.processor.validate_event(event_data)
+
+        assert is_valid is True
+        assert error_msg == ""
+
+    def test_validate_state_changed_with_data_field_missing_entity_id(self):
+        """Test validation of state_changed event with data field but missing entity_id"""
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "old_state": {"state": "off"},
+                "new_state": {"state": "on"}
+            }
+        }
+
+        is_valid, error_msg = self.processor.validate_event(event_data)
+
+        assert is_valid is False
+        assert "entity_id" in error_msg
+
+    def test_validate_state_changed_with_data_field_null_new_state(self):
+        """Test validation of state_changed event with null new_state (entity deletion)"""
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "entity_id": "sensor.deleted",
+                "old_state": {"state": "on"},
+                "new_state": None  # Valid for entity deletion
+            }
+        }
+
+        is_valid, error_msg = self.processor.validate_event(event_data)
+
+        assert is_valid is True
+        assert error_msg == ""
+
+    def test_extract_event_data_with_data_field(self):
+        """Test extracting data from state_changed event with Home Assistant 'data' field structure"""
+        event_data = {
+            "event_type": "state_changed",
+            "time_fired": "2023-01-01T12:00:00.000Z",
+            "origin": "LOCAL",
+            "context": {"id": "context-123", "parent_id": "parent-456", "user_id": "user-789"},
+            "data": {
+                "entity_id": "light.living_room",
+                "old_state": {"state": "off", "last_changed": "2023-01-01T12:00:00.000Z"},
+                "new_state": {"state": "on", "entity_id": "light.living_room", "last_changed": "2023-01-01T12:01:00.000Z"}
+            }
+        }
+
+        extracted = self.processor.extract_event_data(event_data)
+
+        assert extracted["event_type"] == "state_changed"
+        assert extracted["entity_id"] == "light.living_room"
+        assert extracted["domain"] == "light"
+        assert extracted["time_fired"] == "2023-01-01T12:00:00.000Z"
+        assert extracted["origin"] == "LOCAL"
+        assert extracted["context"]["id"] == "context-123"
+        assert extracted["context_id"] == "context-123"
+        assert extracted["context_parent_id"] == "parent-456"
+        assert extracted["context_user_id"] == "user-789"
+
+    def test_extract_event_data_with_discovery_service_epic_23_2(self):
+        """Test Epic 23.2: Device and area lookups with discovery_service"""
+        # Mock discovery service
+        mock_discovery = MagicMock()
+        mock_discovery.get_device_id.return_value = "device-123"
+        mock_discovery.get_area_id.return_value = "area-kitchen"
+        mock_discovery.get_device_metadata.return_value = {
+            "manufacturer": "Philips",
+            "model": "Hue Light",
+            "sw_version": "1.0.0"
+        }
+
+        processor = EventProcessor(discovery_service=mock_discovery)
+
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "entity_id": "light.living_room",
+                "old_state": {"state": "off"},
+                "new_state": {"state": "on", "entity_id": "light.living_room"}
+            }
+        }
+
+        extracted = processor.extract_event_data(event_data)
+
+        assert extracted["device_id"] == "device-123"
+        assert extracted["area_id"] == "area-kitchen"
+        assert extracted["device_metadata"]["manufacturer"] == "Philips"
+        assert extracted["device_metadata"]["model"] == "Hue Light"
+        mock_discovery.get_device_id.assert_called_once_with("light.living_room")
+        mock_discovery.get_area_id.assert_called_once_with("light.living_room", "device-123")
+        mock_discovery.get_device_metadata.assert_called_once_with("device-123")
+
+    def test_extract_event_data_with_discovery_service_no_device(self):
+        """Test Epic 23.2: Event processing when discovery_service returns None for device"""
+        mock_discovery = MagicMock()
+        mock_discovery.get_device_id.return_value = None
+        mock_discovery.get_area_id.return_value = None
+
+        processor = EventProcessor(discovery_service=mock_discovery)
+
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "entity_id": "light.unknown",
+                "old_state": {"state": "off"},
+                "new_state": {"state": "on", "entity_id": "light.unknown"}
+            }
+        }
+
+        extracted = processor.extract_event_data(event_data)
+
+        assert extracted["device_id"] is None
+        assert extracted["area_id"] is None
+        assert extracted["device_metadata"] is None
+
+    def test_extract_event_data_duration_calculation_epic_23_3(self):
+        """Test Epic 23.3: Duration calculation for time-based analytics"""
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "entity_id": "light.living_room",
+                "old_state": {
+                    "state": "off",
+                    "last_changed": "2023-01-01T12:00:00.000Z"
+                },
+                "new_state": {
+                    "state": "on",
+                    "entity_id": "light.living_room",
+                    "last_changed": "2023-01-01T12:00:30.000Z"  # 30 seconds later
+                }
+            }
+        }
+
+        extracted = self.processor.extract_event_data(event_data)
+
+        assert extracted["duration_in_state"] == 30.0
+        assert isinstance(extracted["duration_in_state"], float)
+
+    def test_extract_event_data_duration_calculation_without_z_suffix(self):
+        """Test Epic 23.3: Duration calculation with timestamps without 'Z' suffix"""
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "entity_id": "light.living_room",
+                "old_state": {
+                    "state": "off",
+                    "last_changed": "2023-01-01T12:00:00+00:00"
+                },
+                "new_state": {
+                    "state": "on",
+                    "entity_id": "light.living_room",
+                    "last_changed": "2023-01-01T12:00:15+00:00"  # 15 seconds later
+                }
+            }
+        }
+
+        extracted = self.processor.extract_event_data(event_data)
+
+        assert extracted["duration_in_state"] == 15.0
+
+    def test_extract_event_data_duration_calculation_negative_duration(self):
+        """Test Epic 23.3: Negative duration is clamped to 0"""
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "entity_id": "light.living_room",
+                "old_state": {
+                    "state": "off",
+                    "last_changed": "2023-01-01T12:00:30.000Z"  # Later time
+                },
+                "new_state": {
+                    "state": "on",
+                    "entity_id": "light.living_room",
+                    "last_changed": "2023-01-01T12:00:00.000Z"  # Earlier time (invalid)
+                }
+            }
+        }
+
+        extracted = self.processor.extract_event_data(event_data)
+
+        assert extracted["duration_in_state"] == 0  # Clamped to 0
+
+    def test_extract_event_data_duration_calculation_missing_timestamps(self):
+        """Test Epic 23.3: Duration is None when timestamps are missing"""
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "entity_id": "light.living_room",
+                "old_state": {"state": "off"},  # No last_changed
+                "new_state": {"state": "on", "entity_id": "light.living_room"}  # No last_changed
+            }
+        }
+
+        extracted = self.processor.extract_event_data(event_data)
+
+        assert extracted["duration_in_state"] is None
+
+    def test_extract_event_data_duration_calculation_invalid_timestamp(self):
+        """Test Epic 23.3: Duration is None when timestamp parsing fails"""
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "entity_id": "light.living_room",
+                "old_state": {
+                    "state": "off",
+                    "last_changed": "invalid-timestamp"
+                },
+                "new_state": {
+                    "state": "on",
+                    "entity_id": "light.living_room",
+                    "last_changed": "2023-01-01T12:00:00.000Z"
+                }
+            }
+        }
+
+        extracted = self.processor.extract_event_data(event_data)
+
+        assert extracted["duration_in_state"] is None
+
+    def test_extract_event_data_very_long_duration(self):
+        """Test Epic 23.3: Very long durations (>7 days) are logged but kept"""
+        event_data = {
+            "event_type": "state_changed",
+            "data": {
+                "entity_id": "light.living_room",
+                "old_state": {
+                    "state": "off",
+                    "last_changed": "2023-01-01T12:00:00.000Z"
+                },
+                "new_state": {
+                    "state": "on",
+                    "entity_id": "light.living_room",
+                    "last_changed": "2023-01-10T12:00:00.000Z"  # 9 days later
+                }
+            }
+        }
+
+        extracted = self.processor.extract_event_data(event_data)
+
+        # Should calculate duration (9 days = 777600 seconds)
+        assert extracted["duration_in_state"] == 777600.0
+
+    def test_validate_state_changed_with_data_field_invalid_data_type(self):
+        """Test validation when data field is not a dictionary"""
+        event_data = {
+            "event_type": "state_changed",
+            "data": "not_a_dict"
+        }
+
+        is_valid, error_msg = self.processor.validate_event(event_data)
+
+        assert is_valid is False
+        assert "dictionary" in error_msg
+
+    def test_extract_event_data_legacy_structure_fallback(self):
+        """Test extraction with legacy event structure (no 'data' field)"""
+        event_data = {
+            "event_type": "state_changed",
+            "entity_id": "light.living_room",
+            "old_state": {"state": "off", "entity_id": "light.living_room"},
+            "new_state": {"state": "on", "entity_id": "light.living_room"}
+        }
+
+        extracted = self.processor.extract_event_data(event_data)
+
+        assert extracted["entity_id"] == "light.living_room"
+        assert extracted["domain"] == "light"
+        assert extracted["old_state"]["state"] == "off"
+        assert extracted["new_state"]["state"] == "on"
+
+    def test_validate_service_registered_event(self):
+        """Test validation of service_registered event"""
+        event_data = {
+            "event_type": "service_registered",
+            "domain": "light",
+            "service": "turn_on"
+        }
+
+        is_valid, error_msg = self.processor.validate_event(event_data)
+
+        assert is_valid is True
+        assert error_msg == ""
+
+    def test_validate_service_removed_event(self):
+        """Test validation of service_removed event"""
+        event_data = {
+            "event_type": "service_removed",
+            "domain": "light",
+            "service": "turn_on"
+        }
+
+        is_valid, error_msg = self.processor.validate_event(event_data)
+
+        assert is_valid is True
+        assert error_msg == ""
+
+    def test_validate_unknown_event_type(self):
+        """Test validation of unknown event type (should pass basic validation)"""
+        event_data = {
+            "event_type": "unknown_event",
+            "custom_field": "value"
+        }
+
+        is_valid, error_msg = self.processor.validate_event(event_data)
+
+        assert is_valid is True
+        assert error_msg == ""

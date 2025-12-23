@@ -5,10 +5,11 @@
  * to replace text prompts for automation approval
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { executeToolCall, type ExecuteToolCallResponse } from '../../services/haAiAgentApi';
+import { apiV2 } from '../../services/api-v2';
 
 interface CTAActionButtonsProps {
   messageContent: string;
@@ -29,6 +30,13 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [createdAutomationId, setCreatedAutomationId] = useState<string | null>(null);
+  const [validationResult, setValidationResult] = useState<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    score: number;
+  } | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   // Detect if message contains CTA prompt
   const hasCTAPrompt = /(?:say|type|enter|use)\s+['"](?:approve|create|yes|go ahead)['"]/i.test(messageContent) ||
@@ -114,6 +122,34 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
   // Compute YAML availability at render time
   const yamlToUse = automationYaml || extractAutomationYaml(messageContent);
   const hasYaml = !!yamlToUse;
+
+  // Validate YAML when available (Epic 51, Story 51.9)
+  useEffect(() => {
+    const validateYAML = async () => {
+      if (!yamlToUse) {
+        setValidationResult(null);
+        return;
+      }
+      
+      setIsValidating(true);
+      try {
+        const cleanYaml = yamlToUse.replace(/```yaml\n?/g, '').replace(/```\n?/g, '').trim();
+        const result = await apiV2.validateYAML(cleanYaml, {
+          normalize: false, // Don't normalize in CTA buttons, just validate
+          validateEntities: true,
+          validateServices: false,
+        });
+        setValidationResult(result);
+      } catch (error) {
+        console.error('Failed to validate YAML:', error);
+        // Don't show error toast here, just log it
+      } finally {
+        setIsValidating(false);
+      }
+    };
+
+    validateYAML();
+  }, [yamlToUse]);
 
   // Memoize alias extraction to avoid repeated regex calls
   const extractedAlias = useMemo(() => {
@@ -214,28 +250,89 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
     >
       <button
         onClick={handleCreateAutomation}
-        disabled={isCreating || !hasYaml || !extractedAlias}
+        disabled={
+          isCreating ||
+          !hasYaml ||
+          !extractedAlias ||
+          (validationResult && !validationResult.valid) ||
+          isValidating
+        }
         className={`px-6 py-3 rounded-lg text-base font-medium transition-all ${
           darkMode
-            ? hasYaml && extractedAlias
+            ? hasYaml && extractedAlias && (!validationResult || validationResult.valid) && !isValidating
               ? 'bg-blue-700 text-white hover:bg-blue-600 disabled:bg-blue-800 disabled:opacity-50'
               : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-            : hasYaml && extractedAlias
+            : hasYaml && extractedAlias && (!validationResult || validationResult.valid) && !isValidating
             ? 'bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-400 disabled:opacity-50'
             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-        } ${isCreating || !hasYaml || !extractedAlias ? 'cursor-not-allowed' : 'cursor-pointer'} shadow-md hover:shadow-lg`}
+        } ${isCreating || !hasYaml || !extractedAlias || (validationResult && !validationResult.valid) || isValidating ? 'cursor-not-allowed' : 'cursor-pointer'} shadow-md hover:shadow-lg`}
         aria-label="Create automation"
-        aria-busy={isCreating}
-        aria-disabled={isCreating || createdAutomationId !== null || !hasYaml || !extractedAlias}
-        title={!hasYaml ? 'Preview automation first to generate YAML' : !extractedAlias ? 'YAML must contain an "alias" field' : undefined}
+        aria-busy={isCreating || isValidating}
+        aria-disabled={
+          isCreating ||
+          createdAutomationId !== null ||
+          !hasYaml ||
+          !extractedAlias ||
+          (validationResult && !validationResult.valid) ||
+          isValidating
+        }
+        title={
+          !hasYaml
+            ? 'Preview automation first to generate YAML'
+            : !extractedAlias
+            ? 'YAML must contain an "alias" field'
+            : validationResult && !validationResult.valid
+            ? `Validation failed: ${validationResult.errors.join('; ')}`
+            : isValidating
+            ? 'Validating automation...'
+            : undefined
+        }
       >
         <span className="mr-2" aria-hidden="true">🚀</span>
-        {isCreating ? 'Creating Automation...' : !hasYaml ? 'Create Automation (Preview first)' : !extractedAlias ? 'Create Automation (Missing alias)' : 'Create Automation'}
+        {isCreating
+          ? 'Creating Automation...'
+          : isValidating
+          ? 'Validating...'
+          : !hasYaml
+          ? 'Create Automation (Preview first)'
+          : !extractedAlias
+          ? 'Create Automation (Missing alias)'
+          : validationResult && !validationResult.valid
+          ? `Create Automation (${validationResult.errors.length} errors)`
+          : 'Create Automation'}
       </button>
       {!hasYaml && (
         <p className={`mt-2 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           ⚠️ Preview the automation first to generate YAML
         </p>
+      )}
+      {validationResult && !validationResult.valid && (
+        <div className={`mt-2 p-2 rounded text-xs ${
+          darkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'
+        }`}>
+          <p className={`font-medium mb-1 ${darkMode ? 'text-red-400' : 'text-red-700'}`}>
+            ⚠️ Validation Errors ({validationResult.errors.length}):
+          </p>
+          <ul className={`list-disc list-inside space-y-1 ${
+            darkMode ? 'text-red-300' : 'text-red-600'
+          }`}>
+            {validationResult.errors.slice(0, 3).map((error, idx) => (
+              <li key={idx}>{error}</li>
+            ))}
+            {validationResult.errors.length > 3 && (
+              <li>... and {validationResult.errors.length - 3} more</li>
+            )}
+          </ul>
+        </div>
+      )}
+      {validationResult && validationResult.valid && validationResult.warnings.length > 0 && (
+        <div className={`mt-2 p-2 rounded text-xs ${
+          darkMode ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-yellow-50 border border-yellow-200'
+        }`}>
+          <p className={`${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+            ⚠️ {validationResult.warnings.length} warning(s) - automation will work but may have issues
+          </p>
+        </div>
       )}
     </motion.div>
   );

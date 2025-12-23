@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     enable_yaml_validation: bool = True
     enable_yaml_correction: bool = True
     
+    # YAML Validation Service Configuration (Epic 51)
+    yaml_validation_service_url: str = "http://yaml-validation-service:8026"
+    yaml_validation_api_key: str | None = None
+    
     # Suggestion Generation Settings
     max_suggestions_per_request: int = 50
     suggestion_cache_ttl: int = 3600  # 1 hour cache

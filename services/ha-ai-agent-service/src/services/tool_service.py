@@ -11,6 +11,7 @@ from typing import Any
 from ..clients.ai_automation_client import AIAutomationClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
+from ..clients.yaml_validation_client import YAMLValidationClient
 from ..tools.ha_tools import HAToolHandler
 from typing import Any
 
@@ -29,6 +30,7 @@ class ToolService:
         ha_client: HomeAssistantClient,
         data_api_client: DataAPIClient,
         ai_automation_client: AIAutomationClient | None = None,
+        yaml_validation_client: YAMLValidationClient | None = None,
         openai_client: Any = None
     ):
         """
@@ -37,12 +39,13 @@ class ToolService:
         Args:
             ha_client: Home Assistant API client
             data_api_client: Data API client for entity queries
-            ai_automation_client: AI Automation Service client for YAML validation (optional)
+            ai_automation_client: AI Automation Service client (legacy, optional)
+            yaml_validation_client: YAML Validation Service client for comprehensive validation (Epic 51, optional)
             openai_client: OpenAI client for enhancement generation (optional)
         """
         self.ha_client = ha_client
         self.data_api_client = data_api_client
-        self.tool_handler = HAToolHandler(ha_client, data_api_client, ai_automation_client, openai_client)
+        self.tool_handler = HAToolHandler(ha_client, data_api_client, ai_automation_client, yaml_validation_client, openai_client)
 
         # Map tool names to handler methods
         # 2025 Preview-and-Approval Workflow

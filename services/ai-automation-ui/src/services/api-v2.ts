@@ -444,6 +444,41 @@ export const apiV2 = {
     const response = await fetchJSON<{ automations: AutomationSummary[] }>(url);
     return response.automations || [];
   },
+
+  /**
+   * Validate automation YAML (Epic 51, Story 51.9)
+   */
+  async validateYAML(yamlContent: string, options?: {
+    normalize?: boolean;
+    validateEntities?: boolean;
+    validateServices?: boolean;
+  }): Promise<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    score: number;
+    fixed_yaml?: string;
+    fixes_applied?: string[];
+  }> {
+    // Call yaml-validation-service directly (port 8026)
+    const validationUrl = import.meta.env.VITE_VALIDATION_SERVICE_URL || 'http://localhost:8026';
+    return fetchJSON<{
+      valid: boolean;
+      errors: string[];
+      warnings: string[];
+      score: number;
+      fixed_yaml?: string;
+      fixes_applied?: string[];
+    }>(`${validationUrl}/api/v1/validation`, {
+      method: 'POST',
+      body: JSON.stringify({
+        yaml_content: yamlContent,
+        normalize: options?.normalize ?? true,
+        validate_entities: options?.validateEntities ?? true,
+        validate_services: options?.validateServices ?? false,
+      }),
+    });
+  },
 };
 
 export default apiV2;

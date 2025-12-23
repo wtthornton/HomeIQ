@@ -1,0 +1,114 @@
+# Epic 51: YAML Validation Examples
+# These examples demonstrate the validation and normalization capabilities
+
+---
+# Example 1: BAD YAML - Common errors that will be auto-fixed
+# Errors: triggers: (plural), actions: (plural), action: instead of service:
+- alias: "Bad Example - Will Be Fixed"
+  description: "This YAML has common errors that the normalizer will fix"
+  triggers:
+    - platform: state
+      entity_id: binary_sensor.motion_sensor
+      to: "on"
+  actions:
+    - action: light.turn_on
+      entity_id: light.office_light
+      continue_on_error: true
+
+---
+# Example 2: GOOD YAML - Correct format
+- alias: "Good Example - Correct Format"
+  description: "This YAML follows 2025 Home Assistant standards"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.motion_sensor
+      to: "on"
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.office_light
+      error: continue
+
+---
+# Example 3: BAD YAML - Missing required fields
+# Errors: No trigger, no action
+- alias: "Incomplete Automation"
+  description: "This automation is missing required fields"
+
+---
+# Example 4: GOOD YAML - Complex automation with conditions
+- alias: "Complex Automation Example"
+  description: "Automation with conditions, multiple triggers, and parallel actions"
+  initial_state: true
+  mode: parallel
+  max_exceeded: silent
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.motion_sensor
+      to: "on"
+    - platform: time
+      at: "08:00:00"
+  condition:
+    - condition: state
+      entity_id: light.office_light
+      state: "off"
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.office_light
+      data:
+        brightness: 255
+    - service: notify.mobile_app
+      data:
+        message: "Office lights turned on"
+
+---
+# Example 5: BAD YAML - Invalid entity reference
+# Error: Entity doesn't exist
+- alias: "Invalid Entity"
+  description: "References an entity that doesn't exist"
+  trigger:
+    - platform: state
+      entity_id: sensor.nonexistent_entity
+      to: "on"
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.nonexistent_light
+
+---
+# Example 6: GOOD YAML - Scene creation and activation
+- alias: "Scene Example"
+  description: "Creates and activates a scene"
+  trigger:
+    - platform: state
+      entity_id: switch.evening_mode
+      to: "on"
+  action:
+    - service: scene.create
+      scene_id: evening_scene
+      scene_state:
+        light.living_room:
+          state: "on"
+          brightness: 128
+        light.kitchen:
+          state: "on"
+          brightness: 100
+    - service: scene.turn_on
+      target:
+        entity_id: scene.evening_scene
+
+---
+# Example 7: BAD YAML - Critical device without safety check
+# Warning: Controls critical device (lock)
+- alias: "Unsafe Automation"
+  description: "Controls a lock without proper safety checks"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.door_sensor
+      to: "on"
+  action:
+    - service: lock.unlock
+      target:
+        entity_id: lock.front_door
+
