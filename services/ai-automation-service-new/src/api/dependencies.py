@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
 from ..clients.openai_client import OpenAIClient
+from ..clients.yaml_validation_client import YAMLValidationClient
 from ..config import settings
 from ..database import get_db
 from ..services.deployment_service import DeploymentService
@@ -81,16 +82,26 @@ def get_openai_client() -> OpenAIClient:
     )
 
 
+def get_yaml_validation_client() -> YAMLValidationClient:
+    """Get YAML Validation Service client instance (Epic 51)."""
+    return YAMLValidationClient(
+        base_url=settings.yaml_validation_service_url,
+        api_key=settings.yaml_validation_api_key
+    )
+
+
 # Service dependencies
 def get_yaml_generation_service(
     db: DatabaseSession,
     openai_client: Annotated[OpenAIClient, Depends(get_openai_client)],
-    data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)]
+    data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)],
+    yaml_validation_client: Annotated[YAMLValidationClient, Depends(get_yaml_validation_client)]
 ) -> YAMLGenerationService:
-    """Get YAML generation service instance."""
+    """Get YAML generation service instance (Epic 51: integrated with validation service)."""
     return YAMLGenerationService(
         openai_client=openai_client,
-        data_api_client=data_api_client
+        data_api_client=data_api_client,
+        yaml_validation_client=yaml_validation_client
     )
 
 

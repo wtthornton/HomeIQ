@@ -140,6 +140,19 @@ action:
 
 
 @pytest.fixture
+def auth_headers():
+    """
+    Authentication headers for test requests.
+    
+    Tests use internal service header to bypass API key requirements
+    (simplified internal service-to-service communication).
+    """
+    return {
+        "X-Internal-Service": "true"
+    }
+
+
+@pytest.fixture
 async def client(test_db: AsyncSession):
     """Create test client with database dependency override."""
     from httpx import AsyncClient, ASGITransport

@@ -757,7 +757,7 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 **Latest Code Review:** December 23, 2025
 
-See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](docs/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) for detailed findings including:
+See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](implementation/analysis/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) for detailed findings including:
 - Complete service inventory (30 active microservices)
 - Database architecture analysis (5 SQLite + InfluxDB)
 - Shared libraries documentation (3,947 lines, 11 modules)

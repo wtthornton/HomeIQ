@@ -41,6 +41,16 @@ class Settings(BaseSettings):
         description="API key for AI Automation Service (required for patterns/synergies endpoints)"
     )
 
+    # YAML Validation Service Configuration (Epic 51)
+    yaml_validation_service_url: str = Field(
+        default="http://yaml-validation-service:8026",
+        description="YAML Validation Service URL for comprehensive YAML validation"
+    )
+    yaml_validation_api_key: str | None = Field(
+        default=None,
+        description="API key for YAML Validation Service (optional)"
+    )
+
     # Device Intelligence Service Configuration
     device_intelligence_url: str = Field(
         default="http://device-intelligence-service:8019",

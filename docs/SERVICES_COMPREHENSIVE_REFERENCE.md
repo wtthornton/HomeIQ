@@ -963,6 +963,6 @@ curl http://localhost:3001/       # AI Automation UI
 **Last Reviewed:** November 4, 2025
 **Maintained By:** HomeIQ Development Team
 **Related Documents:**
-- [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](CODE_REVIEW_COMPREHENSIVE_FINDINGS.md)
+- [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](../implementation/analysis/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md)
 - [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md)
 - [architecture/database-schema.md](architecture/database-schema.md)
