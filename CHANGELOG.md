@@ -31,6 +31,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fix degraded performance and 502 Bad Gateway issues** (8810847) - wtthornton
 - **Fix Nabu Casa fallback connection - Improve URL normalization and error logging** (7dbf326) - wtthornton
 - **Enable Enhance button for preview automations** (2a0eb45) - wtthornton
+
+
+### Added
+
+- **Add Docker release workflows, update TappsCodingAgents config, and add implementation docs** (8fe848a) - wtthornton
+- **Comprehensive service quality improvements using TappsCodingAgents** (bb88b6e) - wtthornton
+- **Add Docker optimization, TappsCodingAgents integration, and Enterprise workflow configuration** (f2f4e87) - wtthornton
+- **Add Docker optimization testing and build performance monitoring** (5e6642e) - wtthornton
+- **Add comprehensive TappsCodingAgents command guide for AI agents** (5b1f7c1) - wtthornton
+- **Implement TappsCodingAgents integration strategy for Cursor AI** (50d4fad) - wtthornton
+- **Add energy-management knowledge base and update documentation** (713a9a1) - wtthornton
+- **Add Context7 integration, knowledge base expansion, and agent configuration updates** (cc87b64) - wtthornton
+
+### Changed
+
+- **Update TappsCodingAgents submodule with config, knowledge base, and implementation files** (73bbb55) - wtthornton
+- **Update Dockerfiles, HA Agent UI components, and add implementation documentation** (631f664) - wtthornton
+- **Update AI automation UI components and HA agent service endpoints** (af831b7) - wtthornton
+- **Update AI automation UI and service components** (5e864fa) - wtthornton
+
+### Fixed
+
+- **Fix TypeScript errors and port conflicts for ai-automation services** (3aaef97) - wtthornton
+- **Fix degraded performance and 502 Bad Gateway issues** (8810847) - wtthornton
+- **Fix Nabu Casa fallback connection - Improve URL normalization and error logging** (7dbf326) - wtthornton
+- **Enable Enhance button for preview automations** (2a0eb45) - wtthornton
 - **Preserve event_context in synergy metadata (2025 Enhancement)** (90762e0) - wtthornton
 
 
