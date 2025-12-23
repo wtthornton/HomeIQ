@@ -43,6 +43,12 @@ except ImportError:
     OBSERVABILITY_AVAILABLE = False
 
 from .api import health_router, suggestion_router, deployment_router
+from .api.middlewares import (
+    AuthenticationMiddleware,
+    RateLimitMiddleware,
+    start_rate_limit_cleanup,
+    stop_rate_limit_cleanup
+)
 from .config import settings
 from .database import init_db
 
@@ -74,6 +80,13 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Observability setup failed: {e}")
     
+    # Start rate limit cleanup task
+    try:
+        await start_rate_limit_cleanup()
+        logger.info("✅ Rate limiting initialized")
+    except Exception as e:
+        logger.warning(f"Rate limit cleanup setup failed: {e}")
+    
     logger.info("✅ AI Automation Service startup complete")
     logger.info("=" * 60)
     
@@ -83,6 +96,12 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info("AI Automation Service Shutting Down")
     logger.info("=" * 60)
+    
+    # Stop rate limit cleanup
+    try:
+        await stop_rate_limit_cleanup()
+    except Exception as e:
+        logger.warning(f"Rate limit cleanup shutdown failed: {e}")
 
 # Create FastAPI app
 app = FastAPI(
@@ -115,13 +134,16 @@ if OBSERVABILITY_AVAILABLE:
     except Exception as e:
         logger.warning(f"Failed to instrument FastAPI: {e}")
 
-# TODO: Story 39.10 - Add authentication middleware
-# TODO: Story 39.10 - Add rate limiting middleware
+# Authentication middleware (MANDATORY - cannot be disabled)
+app.add_middleware(AuthenticationMiddleware)
+
+# Rate limiting middleware
+app.add_middleware(RateLimitMiddleware)
 
 # Include routers
-app.include_router(health_router.router, tags=["health"])
-app.include_router(suggestion_router.router, prefix="/api/suggestions", tags=["suggestions"])
-app.include_router(deployment_router.router, prefix="/api/deploy", tags=["deployment"])
+app.include_router(health_router, tags=["health"])
+app.include_router(suggestion_router, tags=["suggestions"])
+app.include_router(deployment_router, tags=["deployment"])
 
 @app.get("/")
 async def root():

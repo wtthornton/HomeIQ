@@ -160,10 +160,17 @@ full_logs_*.txt
 logs_*.txt
 deployment_test_results.json
 
-# Test reports (regeneratable - don't track in git)
-services/tests/datasets/home-assistant-datasets/reports/**/*.yaml
-services/tests/datasets/home-assistant-datasets/reports/**/*.csv
-services/tests/datasets/home-assistant-datasets/reports/**/*.json
+# Third-party library: home-assistant-datasets (git submodule)
+# Allow the submodule directory itself (git tracks it)
+!services/tests/datasets/home-assistant-datasets/
+# But ignore generated reports and cache files
+services/tests/datasets/home-assistant-datasets/reports/
+services/tests/datasets/home-assistant-datasets/.pytest_cache/
+services/tests/datasets/home-assistant-datasets/.mypy_cache/
+services/tests/datasets/home-assistant-datasets/__pycache__/
+services/tests/datasets/home-assistant-datasets/**/__pycache__/
+# Keep datasets directory structure
+!services/tests/datasets/datasets/
 
 # AI Training Data (large binary files - checkpoints, models, optimizer states)
 services/*/data/**/checkpoint-*/
