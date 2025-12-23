@@ -1,6 +1,6 @@
 # CLAUDE.md - HomeIQ AI Assistant Guide
 
-**Last Updated:** December 22, 2025
+**Last Updated:** December 23, 2025
 **Version:** 5.0.0
 **Purpose:** Comprehensive guide for AI assistants working on HomeIQ
 
@@ -842,7 +842,7 @@ docker compose logs websocket-ingestion
 
 **Document Metadata:**
 - **Created:** October 23, 2025
-- **Last Updated:** December 22, 2025
+- **Last Updated:** December 23, 2025
 - **Version:** 5.0.1 (Added PORT_MAPPING_REFERENCE.md documentation)
 - **Previous Version:** 5.0.0 (Comprehensive guide - includes structure, workflows, patterns)
 - **Next Review:** Quarterly or after major architectural changes
