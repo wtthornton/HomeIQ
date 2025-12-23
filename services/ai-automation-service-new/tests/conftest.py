@@ -44,37 +44,10 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
         echo=False,
     )
     
-    # Create basic tables for automation service (would be in shared DB in production)
+    # Create tables using SQLAlchemy models
+    from src.database.models import Base
     async with engine.begin() as conn:
-        # Create suggestions table (simplified for testing)
-        await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS suggestions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                pattern_id INTEGER,
-                title TEXT NOT NULL,
-                description TEXT,
-                automation_yaml TEXT,
-                confidence REAL,
-                category TEXT,
-                priority TEXT,
-                status TEXT DEFAULT 'draft',
-                device_id TEXT,
-                devices_involved JSON,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                deployed_at TIMESTAMP
-            )
-        """))
-        
-        # Create automation_versions table for rollback testing
-        await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS automation_versions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                automation_id TEXT NOT NULL,
-                yaml_content TEXT NOT NULL,
-                safety_score REAL,
-                deployed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
+        await conn.run_sync(Base.metadata.create_all)
     
     # Create session factory
     async_session_maker = async_sessionmaker(

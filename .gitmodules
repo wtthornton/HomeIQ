@@ -1,0 +1,3 @@
+[submodule "services/tests/datasets/home-assistant-datasets"]
+	path = services/tests/datasets/home-assistant-datasets
+	url = https://github.com/allenporter/home-assistant-datasets.git

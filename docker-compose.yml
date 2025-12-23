@@ -156,7 +156,7 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminpass}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
-      - AI_AUTOMATION_URL=http://ai-automation-service:8018
+      - AI_AUTOMATION_URL=http://ai-automation-service-new:8025
     depends_on:
       influxdb:
         condition: service_healthy
@@ -737,7 +737,7 @@ services:
   # NER Model Service - Pre-built container with dslim/bert-base-NER
   ner-service:
     build:
-      context: ./services/ai-automation-service
+      context: ./services/archive/2025-q4/ai-automation-service
       dockerfile: docker/ner-service.Dockerfile
     container_name: homeiq-ner-service
     restart: unless-stopped
@@ -771,7 +771,7 @@ services:
   # OpenAI Client Service - Lightweight OpenAI API client
   openai-service:
     build:
-      context: ./services/ai-automation-service
+      context: ./services/archive/2025-q4/ai-automation-service
       dockerfile: docker/openai-service.Dockerfile
     container_name: homeiq-openai-service
     restart: unless-stopped
@@ -1013,78 +1013,78 @@ services:
         max-file: "3"
         labels: "service=proactive-agent-service,environment=production"
 
-  ai-automation-service:
-    build:
-      context: .
-      dockerfile: services/ai-automation-service/Dockerfile
-    container_name: ai-automation-service
-    restart: unless-stopped
-    ports:
-      - "8024:8018"  # Fixed port conflict with energy-correlator
-    env_file:
-      - .env
-      - infrastructure/env.ai-automation
-    environment:
-      - DATA_API_URL=http://data-api:8006
-      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
-      # Map API_KEY from .env to AI_AUTOMATION_API_KEY (backend expects this name)
-      - AI_AUTOMATION_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
-      - AI_AUTOMATION_ADMIN_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
-      # Map .env variables to service expected names
-      - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - NER_SERVICE_URL=http://ner-service:8031
-      - OPENAI_SERVICE_URL=http://openai-service:8020
-      - OPENVINO_SERVICE_URL=http://openvino-service:8019
-      - ML_SERVICE_URL=http://ml-service:8020
-      - AI_CORE_SERVICE_URL=http://ai-core-service:8018
-      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
-      # Dataset testing
-      - DATASET_ROOT=/app/datasets/home-assistant-datasets/datasets
-    depends_on:
-      data-api:
-        condition: service_healthy
-      ner-service:
-        condition: service_healthy
-      openai-service:
-        condition: service_healthy
-      openvino-service:
-        condition: service_healthy
-      ml-service:
-        condition: service_healthy
-      ai-core-service:
-        condition: service_healthy
-    volumes:
-      - ai_automation_data:/app/data
-      - ai_automation_models:/app/models  # Phase 1: OpenVINO model cache
-      - ./services/tests/datasets:/app/datasets:ro  # Dataset testing (separate location)
-      - ./services/ai-automation-service/tests:/app/tests:ro  # Test files
-      - ./services/tests/datasets:/app/tests/datasets:ro  # Dataset testing
-      - ./services/ai-automation-service/src:/app/src:ro  # Source code (mounted for development, no rebuild needed)
-      - ./services/ai-automation-service/scripts:/app/scripts:ro  # Scripts (mounted for development, no rebuild needed)
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 2G  # Increased for training runs (model loading + training needs ~1.5GB)
-          cpus: '2.0'
-        reservations:
-          memory: 512M  # Increased base reservation
-          cpus: '1.0'
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=ai-automation,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8018/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+  # DEPRECATED: ai-automation-service (Archived December 22, 2025)
+  # This service has been replaced by ai-automation-service-new (Story 39.10)
+  # Archived location: services/archive/2025-q4/ai-automation-service/
+  # ai-automation-service:
+  #   build:
+  #     context: .
+  #     dockerfile: services/archive/2025-q4/ai-automation-service/Dockerfile
+  #   container_name: ai-automation-service
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8024:8018"  # Fixed port conflict with energy-correlator
+  #   env_file:
+  #     - .env
+  #     - infrastructure/env.ai-automation
+  #   environment:
+  #     - DATA_API_URL=http://data-api:8006
+  #     - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+  #     - AI_AUTOMATION_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+  #     - AI_AUTOMATION_ADMIN_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+  #     - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
+  #     - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+  #     - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+  #     - NER_SERVICE_URL=http://ner-service:8031
+  #     - OPENAI_SERVICE_URL=http://openai-service:8020
+  #     - OPENVINO_SERVICE_URL=http://openvino-service:8019
+  #     - ML_SERVICE_URL=http://ml-service:8020
+  #     - AI_CORE_SERVICE_URL=http://ai-core-service:8018
+  #     - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
+  #     - DATASET_ROOT=/app/datasets/home-assistant-datasets/datasets
+  #   depends_on:
+  #     data-api:
+  #       condition: service_healthy
+  #     ner-service:
+  #       condition: service_healthy
+  #     openai-service:
+  #       condition: service_healthy
+  #     openvino-service:
+  #       condition: service_healthy
+  #     ml-service:
+  #       condition: service_healthy
+  #     ai-core-service:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ai_automation_data:/app/data
+  #     - ai_automation_models:/app/models
+  #     - ./services/tests/datasets:/app/datasets:ro
+  #     - ./services/archive/2025-q4/ai-automation-service/tests:/app/tests:ro
+  #     - ./services/tests/datasets:/app/tests/datasets:ro
+  #     - ./services/archive/2025-q4/ai-automation-service/src:/app/src:ro
+  #     - ./services/archive/2025-q4/ai-automation-service/scripts:/app/scripts:ro
+  #   networks:
+  #     - homeiq-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 2G
+  #         cpus: '2.0'
+  #       reservations:
+  #         memory: 512M
+  #         cpus: '1.0'
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #       labels: "service=ai-automation,environment=production"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8018/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
 
   ai-code-executor:
     build:
@@ -1105,7 +1105,7 @@ services:
     depends_on:
       data-api:
         condition: service_healthy
-      ai-automation-service:
+      ai-automation-service-new:
         condition: service_healthy
     networks:
       - homeiq-network
@@ -1152,7 +1152,7 @@ services:
     volumes:
       - ai_automation_data:/app/data  # Shared database
       - ai_automation_models:/app/models  # Shared model storage
-      - ./services/ai-automation-service/scripts:/app/scripts:ro  # Training scripts
+      - ./services/archive/2025-q4/ai-automation-service/scripts:/app/scripts:ro  # Training scripts (archived)
     networks:
       - homeiq-network
     deploy:
@@ -1281,7 +1281,7 @@ services:
     depends_on:
       ai-core-service:
         condition: service_healthy
-      ai-automation-service:
+      ai-automation-service-new:
         condition: service_healthy
     networks:
       - homeiq-network
@@ -1305,6 +1305,55 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # AI Automation Service (New) - Epic 39, Story 39.10: Automation Service Foundation
+  ai-automation-service-new:
+    build:
+      context: .
+      dockerfile: services/ai-automation-service-new/Dockerfile
+    container_name: ai-automation-service-new
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+    env_file:
+      - .env
+    environment:
+      - DATA_API_URL=http://data-api:8006
+      - QUERY_SERVICE_URL=http://ai-query-service:8018
+      - PATTERN_SERVICE_URL=http://ai-pattern-service:8020
+      - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_automation.db
+      - SERVICE_PORT=8025
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      data-api:
+        condition: service_healthy
+    volumes:
+      - ai_automation_data:/app/data  # Shared database with other AI services
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8025/health', timeout=5.0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-automation-service-new,environment=production"
 
   automation-miner:
     build:

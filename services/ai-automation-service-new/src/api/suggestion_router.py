@@ -6,79 +6,85 @@ Extracted from ai-automation-service for independent scaling.
 """
 
 import logging
-from typing import Any
+from typing import Any, Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
+from ..api.dependencies import DatabaseSession, get_suggestion_service
+from ..api.error_handlers import handle_route_errors
 from ..database import get_db
+from ..services.suggestion_service import SuggestionService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["suggestions"])
+router = APIRouter(prefix="/api/suggestions", tags=["suggestions"])
+
+
+class GenerateRequest(BaseModel):
+    """Request to generate suggestions."""
+    pattern_ids: list[str] | None = None
+    days: int = 30
+    limit: int = 10
 
 
 @router.post("/generate")
+@handle_route_errors("generate suggestions")
 async def generate_suggestions(
-    # TODO: Add request model
-    db: AsyncSession = Depends(get_db)
+    request: GenerateRequest,
+    db: DatabaseSession,
+    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
 ) -> dict[str, Any]:
     """
     Generate automation suggestions from patterns.
-    
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation from suggestion_router.py
+    suggestions = await service.generate_suggestions(
+        pattern_ids=request.pattern_ids,
+        days=request.days,
+        limit=request.limit
+    )
     return {
-        "message": "Suggestion generation endpoint - implementation in progress",
-        "status": "foundation_ready"
+        "success": True,
+        "suggestions": suggestions,
+        "count": len(suggestions)
     }
 
 
 @router.get("/list")
+@handle_route_errors("list suggestions")
 async def list_suggestions(
-    limit: int = 50,
-    offset: int = 0,
-    status: str | None = None,
-    db: AsyncSession = Depends(get_db)
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    status: str | None = Query(None),
+    db: DatabaseSession = None,
+    service: Annotated[SuggestionService, Depends(get_suggestion_service)] = None
 ) -> dict[str, Any]:
     """
-    List automation suggestions.
-    
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
+    List automation suggestions with filtering and pagination.
     """
-    # TODO: Story 39.10 - Migrate full implementation
-    return {
-        "suggestions": [],
-        "total": 0,
-        "limit": limit,
-        "offset": offset,
-        "message": "List endpoint - implementation in progress"
-    }
+    result = await service.list_suggestions(
+        limit=limit,
+        offset=offset,
+        status=status
+    )
+    return result
 
 
 @router.get("/usage/stats")
+@handle_route_errors("get usage stats")
 async def get_usage_stats(
-    db: AsyncSession = Depends(get_db)
+    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
 ) -> dict[str, Any]:
     """
     Get suggestion usage statistics.
-    
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation
-    return {
-        "stats": {},
-        "message": "Usage stats endpoint - implementation in progress"
-    }
+    stats = await service.get_usage_stats()
+    return stats
 
 
 @router.post("/refresh")
 async def refresh_suggestions(
-    db: AsyncSession = Depends(get_db)
+    db: DatabaseSession
 ) -> dict[str, Any]:
     """
     Manually trigger suggestion refresh.
@@ -86,7 +92,9 @@ async def refresh_suggestions(
     Note: Full implementation will be migrated from ai-automation-service
     in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation
+    # TODO: Epic 39, Story 39.10 - Migrate suggestion refresh functionality from archived service
+    # Current: Placeholder endpoint
+    # Future: Background job processing, status tracking, progress reporting
     return {
         "message": "Refresh endpoint - implementation in progress",
         "status": "queued"
@@ -95,7 +103,7 @@ async def refresh_suggestions(
 
 @router.get("/refresh/status")
 async def get_refresh_status(
-    db: AsyncSession = Depends(get_db)
+    db: DatabaseSession
 ) -> dict[str, Any]:
     """
     Get status of suggestion refresh operation.
@@ -103,7 +111,9 @@ async def get_refresh_status(
     Note: Full implementation will be migrated from ai-automation-service
     in Story 39.10 completion phase.
     """
-    # TODO: Story 39.10 - Migrate full implementation
+    # TODO: Epic 39, Story 39.10 - Migrate refresh status tracking from archived service
+    # Current: Placeholder endpoint
+    # Future: Real-time status updates, job queue management
     return {
         "status": "idle",
         "message": "Refresh status endpoint - implementation in progress"

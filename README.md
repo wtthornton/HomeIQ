@@ -461,7 +461,7 @@ AIRNOW_API_KEY=your-airnow-key  # AirNow API key (optional)
 @simple-mode *build "Create a new microservice for device monitoring"
 @simple-mode *review services/websocket-ingestion/src/main.py
 @simple-mode *fix services/data-api/src/main.py "Fix the database connection error"
-@simple-mode *test services/ai-automation-service/src/main.py
+@simple-mode *test services/ai-automation-service-new/src/main.py
 @simple-mode *full "Build a complete REST API for automation management"
 ```
 
@@ -482,7 +482,7 @@ python -m tapps_agents.cli reviewer report . json markdown html
 **For Test Generation:**
 ```bash
 # Generate comprehensive tests
-python -m tapps_agents.cli tester test services/ai-automation-service/src/main.py
+python -m tapps_agents.cli tester test services/ai-automation-service-new/src/main.py
 
 # Generate integration tests
 python -m tapps_agents.cli tester generate-tests services/data-api/src/main.py --integration

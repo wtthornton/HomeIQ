@@ -1,5 +1,0 @@
----
-category: light
-tests:
-  - sentences:
-      - !include_text DESCRIPTION.md

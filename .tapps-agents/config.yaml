@@ -140,6 +140,22 @@ simple_mode:
   auto_detect: true
   show_advanced: false
   natural_language: true
+auto_enhancement:
+  enabled: true
+  mode: cursor-skills
+  min_prompt_length: 20
+  quality_threshold: 50.0
+  commands:
+    implementer:
+      enabled: true
+      synthesis_mode: full
+    planner:
+      enabled: true
+      synthesis_mode: quick
+    architect:
+      enabled: false
+    designer:
+      enabled: false
 workflow_defaults:
   recommended_track: bmad-method
   recommended_workflow: brownfield-service.yaml
@@ -150,8 +166,13 @@ quality_thresholds:
     min_confidence_threshold: 0.9
   tester:
     coverage_threshold: 90.0
+    contract_test_required: true
+    integration_test_required: true
     backward_compat_test_required: true
   ops:
+    observability_required: true
+    service_mesh_considerations: true
+    distributed_tracing_required: true
     api_stability_check_required: true
     versioning_strategy_required: true
 docs_skeleton:
@@ -163,10 +184,12 @@ docs_skeleton:
   recommended_format: api-docs
 expert_priorities:
   expert-software-architecture: 1.0
+  expert-observability: 0.9
   expert-api-design: 0.9
+  expert-security: 0.8
+  expert-performance: 0.7
   expert-testing: 0.9
   expert-documentation: 0.8
-  expert-performance: 0.7
 testing_strategy:
   focus_areas:
   - api-contracts
