@@ -17,10 +17,20 @@ router = APIRouter()
 
 
 @router.get("/health", status_code=status.HTTP_200_OK)
-async def health_check(db: AsyncSession = Depends(get_db)):
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """
     Health check endpoint.
-    Verifies database connectivity.
+    
+    Verifies database connectivity by executing a simple query.
+    
+    Args:
+        db: Database session dependency
+        
+    Returns:
+        dict: Health status with database connection status
+        
+    Raises:
+        HTTPException: If database connection fails (500 status)
     """
     try:
         # Attempt to execute a simple query to check database connectivity
@@ -36,13 +46,27 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)
-async def readiness_check():
-    """Readiness check endpoint."""
+async def readiness_check() -> dict[str, str]:
+    """
+    Readiness check endpoint.
+    
+    Indicates whether the service is ready to accept traffic.
+    
+    Returns:
+        dict: Readiness status
+    """
     return {"status": "ready"}
 
 
 @router.get("/live", status_code=status.HTTP_200_OK)
-async def liveness_check():
-    """Liveness check endpoint."""
+async def liveness_check() -> dict[str, str]:
+    """
+    Liveness check endpoint.
+    
+    Indicates whether the service is alive and running.
+    
+    Returns:
+        dict: Liveness status
+    """
     return {"status": "live"}
 

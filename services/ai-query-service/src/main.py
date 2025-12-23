@@ -3,6 +3,24 @@ AI Query Service - Main FastAPI Application
 
 Epic 39, Story 39.9: Query Service Foundation
 Extracted from ai-automation-service for independent scaling and low-latency query processing.
+
+This service handles:
+- Natural language query processing
+- Entity extraction and clarification
+- Query suggestions and refinement
+- Low-latency query responses (<500ms P95 target)
+
+Architecture:
+- FastAPI application with async/await support
+- SQLAlchemy async database layer
+- Observability integration (optional)
+- CORS middleware for frontend access
+
+Key Features:
+- Database initialization on startup
+- Graceful error handling
+- Observability support (OpenTelemetry)
+- Health check endpoints
 """
 
 import logging
@@ -48,7 +66,23 @@ from .database import init_db
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize service on startup and cleanup on shutdown"""
+    """
+    Initialize service on startup and cleanup on shutdown.
+    
+    This lifespan context manager handles:
+    - Database initialization
+    - Observability setup (if available)
+    - Graceful shutdown
+    
+    Args:
+        app: FastAPI application instance
+    
+    Yields:
+        None: Control is yielded to the application runtime
+    
+    Raises:
+        Exception: If database initialization fails (prevents service startup)
+    """
     logger.info("=" * 60)
     logger.info("AI Query Service Starting Up")
     logger.info("=" * 60)
@@ -140,8 +174,13 @@ app.include_router(health_router.router, tags=["health"])
 app.include_router(query_router.router, tags=["query"])
 
 @app.get("/")
-async def root():
-    """Root endpoint"""
+async def root() -> dict[str, str]:
+    """
+    Root endpoint.
+    
+    Returns:
+        dict: Service information including name, version, and status.
+    """
     return {
         "service": "ai-query-service",
         "version": "1.0.0",

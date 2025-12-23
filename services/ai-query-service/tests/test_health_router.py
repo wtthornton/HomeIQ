@@ -5,38 +5,40 @@ Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
 import pytest
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 
 class TestHealthRouter:
     """Test suite for health router endpoints."""
     
+    @pytest.mark.asyncio
     @pytest.mark.unit
-    def test_health_endpoint(self, client: TestClient):
+    async def test_health_endpoint(self, client: AsyncClient):
         """Test health endpoint returns 200."""
-        response = client.get("/health/health")
+        response = await client.get("/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] in ["ok", "healthy"]
         assert "service" in data
         assert data["service"] == "ai-query-service"
     
-    @pytest.mark.unit
     @pytest.mark.asyncio
+    @pytest.mark.unit
     @pytest.mark.requires_db
-    def test_readiness_endpoint(self, client: TestClient):
+    async def test_readiness_endpoint(self, client: AsyncClient):
         """Test readiness endpoint returns 200."""
-        response = client.get("/health/ready")
+        response = await client.get("/ready")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] in ["ready", "not_ready"]
         assert "service" in data
         assert "database" in data
     
+    @pytest.mark.asyncio
     @pytest.mark.unit
-    def test_liveness_endpoint(self, client: TestClient):
+    async def test_liveness_endpoint(self, client: AsyncClient):
         """Test liveness endpoint returns 200."""
-        response = client.get("/health/live")
+        response = await client.get("/live")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "live"

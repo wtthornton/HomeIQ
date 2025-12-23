@@ -12,11 +12,13 @@ import { useAppStore } from '../store';
 import { ConversationalSuggestionCard } from '../components/ConversationalSuggestionCard';
 import api, { APIError } from '../services/api';
 import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
+import type { Suggestion } from '../types';
 
 export const ConversationalDashboard: React.FC = () => {
   const { darkMode } = useAppStore();
   
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  // Type safety: Use proper Suggestion type instead of any[]
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; code?: string; retryable?: boolean } | null>(null);
   const [retryCount, setRetryCount] = useState(0);

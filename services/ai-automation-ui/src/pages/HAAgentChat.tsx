@@ -33,6 +33,7 @@ import { SendButton } from '../components/ha-agent/SendButton';
 import { DebugTab } from '../components/ha-agent/DebugTab';
 import { startTracking, endTracking, createReport } from '../utils/performanceTracker';
 import { parseProposal } from '../utils/proposalParser';
+import { sanitizeMessageInput } from '../utils/inputSanitizer';
 
 interface ChatMessage extends Message {
   isLoading?: boolean;
@@ -157,6 +158,13 @@ export const HAAgentChat: React.FC = () => {
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return;
 
+    // SECURITY: Sanitize user input before processing
+    const sanitizedInput = sanitizeMessageInput(inputValue, 10000);
+    if (!sanitizedInput) {
+      toast.error('Invalid input. Please check your message and try again.');
+      return;
+    }
+
     // Start performance tracking
     const operationId = `send_message_${Date.now()}`;
     const uiUpdateId = startTracking('ui_update', { operation: 'add_user_message' });
@@ -168,7 +176,7 @@ export const HAAgentChat: React.FC = () => {
     const userMessage: ChatMessage = {
       message_id: `temp-${Date.now()}`,
       role: 'user',
-      content: inputValue.trim(),
+      content: sanitizedInput,
       created_at: new Date().toISOString(),
     };
 
@@ -761,7 +769,15 @@ export const HAAgentChat: React.FC = () => {
             <textarea
               ref={inputRef}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => {
+                // SECURITY: Basic input validation on change
+                const value = e.target.value;
+                if (value.length <= 10000) {
+                  setInputValue(value);
+                } else {
+                  toast.error('Message is too long. Maximum 10,000 characters.');
+                }
+              }}
               onKeyPress={handleKeyPress}
               placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
               rows={1}

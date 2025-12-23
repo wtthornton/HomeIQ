@@ -17,8 +17,13 @@ router = APIRouter()
 
 
 @router.get("/health", status_code=status.HTTP_200_OK)
-async def health_check():
-    """Basic health check endpoint."""
+async def health_check() -> dict[str, str]:
+    """
+    Basic health check endpoint.
+    
+    Returns:
+        dict: Health status information including service name and database status.
+    """
     return {
         "status": "ok",
         "service": "ai-query-service",
@@ -27,8 +32,16 @@ async def health_check():
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)
-async def readiness_check(db: AsyncSession = Depends(get_db)):
-    """Readiness check with database connectivity verification."""
+async def readiness_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    """
+    Readiness check with database connectivity verification.
+    
+    Args:
+        db: The database session dependency.
+    
+    Returns:
+        dict: Readiness status including database connection status.
+    """
     try:
         # Test database connection
         await db.execute(text("SELECT 1"))
@@ -49,8 +62,13 @@ async def readiness_check(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/live", status_code=status.HTTP_200_OK)
-async def liveness_check():
-    """Liveness check endpoint."""
+async def liveness_check() -> dict[str, str]:
+    """
+    Liveness check endpoint.
+    
+    Returns:
+        dict: Liveness status information.
+    """
     return {
         "status": "live",
         "service": "ai-query-service"

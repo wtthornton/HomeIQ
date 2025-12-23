@@ -3,29 +3,34 @@
  * Without framer-motion dependency
  */
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAppStore } from '../store';
 
-export const Navigation: React.FC = () => {
+// PERFORMANCE: Memoize Navigation component
+export const Navigation: React.FC = memo(() => {
   const { darkMode, toggleDarkMode } = useAppStore();
   const location = useLocation();
 
-  const navItems = [
-    { path: '/', label: '🤖 Suggestions', icon: '🤖' },
-    { path: '/ha-agent', label: '🤖 Agent', icon: '🤖' },  // Epic AI-20, Story AI20.7
-    { path: '/patterns', label: '📊 Patterns', icon: '📊' },
-    { path: '/synergies', label: '🔮 Synergies', icon: '🔮' },  // Epic AI-3, Story AI3.8
-    { path: '/deployed', label: '🚀 Deployed', icon: '🚀' },
-    { path: '/discovery', label: '🔍 Discovery', icon: '🔍' },  // Epic AI-4, Story AI4.3
-    { path: '/name-enhancement', label: '✏️ Names', icon: '✏️' },  // Device Name Enhancement
-    { path: '/settings', label: '⚙️ Settings', icon: '⚙️' },
-    { path: '/admin', label: '🔧 Admin', icon: '🔧' },
-  ];
+  // PERFORMANCE: Memoize nav items to prevent recreation on every render
+  const navItems = useMemo(() => [
+    { path: '/', label: '🤖 Suggestions', icon: '🤖', ariaLabel: 'Navigate to Suggestions' },
+    { path: '/ha-agent', label: '🤖 Agent', icon: '🤖', ariaLabel: 'Navigate to HA Agent' },  // Epic AI-20, Story AI20.7
+    { path: '/patterns', label: '📊 Patterns', icon: '📊', ariaLabel: 'Navigate to Patterns' },
+    { path: '/synergies', label: '🔮 Synergies', icon: '🔮', ariaLabel: 'Navigate to Synergies' },  // Epic AI-3, Story AI3.8
+    { path: '/deployed', label: '🚀 Deployed', icon: '🚀', ariaLabel: 'Navigate to Deployed Automations' },
+    { path: '/discovery', label: '🔍 Discovery', icon: '🔍', ariaLabel: 'Navigate to Discovery' },  // Epic AI-4, Story AI4.3
+    { path: '/name-enhancement', label: '✏️ Names', icon: '✏️', ariaLabel: 'Navigate to Name Enhancement' },  // Device Name Enhancement
+    { path: '/settings', label: '⚙️ Settings', icon: '⚙️', ariaLabel: 'Navigate to Settings' },
+    { path: '/admin', label: '🔧 Admin', icon: '🔧', ariaLabel: 'Navigate to Admin' },
+  ], []);
 
+  // PERFORMANCE: Memoize active path
+  const activePath = useMemo(() => location.pathname, [location.pathname]);
+  
   const isActive = (path: string) => {
-    return location.pathname === path;
+    return activePath === path;
   };
 
   return (
@@ -69,6 +74,8 @@ export const Navigation: React.FC = () => {
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em'
                 }}
+                aria-label={item.ariaLabel}
+                aria-current={isActive(item.path) ? 'page' : undefined}
               >
                 {item.label}
               </Link>
@@ -77,12 +84,14 @@ export const Navigation: React.FC = () => {
             {/* Dark Mode Toggle - 44x44px minimum touch target */}
               <button
               onClick={toggleDarkMode}
-              className="p-1 rounded-xl ml-2 min-w-[28px] min-h-[28px] flex items-center justify-center text-sm transition-all hover:scale-105 active:scale-95"
+              className="p-1 rounded-xl ml-2 min-w-[28px] min-h-[28px] flex items-center justify-center text-sm transition-all hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               style={{
                 background: 'rgba(30, 41, 59, 0.6)',
                 border: '1px solid rgba(51, 65, 85, 0.5)'
               }}
-              aria-label="Toggle dark mode"
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-pressed={darkMode}
+              type="button"
             >
               {darkMode ? '☀️' : '🌙'}
             </button>
@@ -118,8 +127,10 @@ export const Navigation: React.FC = () => {
                   ? 'text-gray-400 hover:bg-gray-700/50'
                   : 'text-gray-600 hover:bg-gray-100/50'
               }`}
+              aria-label={item.ariaLabel}
+              aria-current={isActive(item.path) ? 'page' : undefined}
             >
-              <span className="text-lg">{item.icon}</span>
+              <span className="text-lg" aria-hidden="true">{item.icon}</span>
               <span className="text-[10px] font-medium uppercase" style={{ letterSpacing: '0.05em' }}>
                 {item.label.replace(/[\u{1F916}\u{1F4AC}\u{1F4CA}\u{1F52E}\u{1F680}\u{1F50D}\u{2699}\u{1F527}]/gu, '').trim()}
               </span>
@@ -129,4 +140,6 @@ export const Navigation: React.FC = () => {
       </div>
     </nav>
   );
-};
+});
+
+Navigation.displayName = 'Navigation';

@@ -22,6 +22,9 @@ interface AppState {
   darkMode: boolean;
   toggleDarkMode: () => void;
   
+  // Initialize dark mode from localStorage safely
+  initializeDarkMode: () => void;
+  
   selectedStatus: 'pending' | 'approved' | 'rejected' | 'deployed';
   setSelectedStatus: (status: 'pending' | 'approved' | 'rejected' | 'deployed') => void;
   
@@ -43,11 +46,40 @@ export const useAppStore = create<AppState>((set) => ({
   setAnalysisStatus: (status) => set({ analysisStatus: status }),
   
   // UI State
-  darkMode: localStorage.getItem('darkMode') === 'true',
+  darkMode: (() => {
+    // SECURITY: Safely read from localStorage with error handling
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return localStorage.getItem('darkMode') === 'true';
+      }
+    } catch (error) {
+      console.warn('Failed to read darkMode from localStorage:', error);
+    }
+    return false; // Default to light mode
+  })(),
   toggleDarkMode: () => set((state) => {
     const newDarkMode = !state.darkMode;
-    localStorage.setItem('darkMode', String(newDarkMode));
+    // SECURITY: Safely write to localStorage with error handling
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('darkMode', String(newDarkMode));
+      }
+    } catch (error) {
+      console.warn('Failed to save darkMode to localStorage:', error);
+    }
     return { darkMode: newDarkMode };
+  }),
+  initializeDarkMode: () => set(() => {
+    // SECURITY: Safely initialize dark mode from localStorage
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = localStorage.getItem('darkMode');
+        return { darkMode: stored === 'true' };
+      }
+    } catch (error) {
+      console.warn('Failed to initialize darkMode from localStorage:', error);
+    }
+    return { darkMode: false };
   }),
   
   selectedStatus: 'pending',
