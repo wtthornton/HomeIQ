@@ -10,14 +10,16 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import pandas as pd
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
 from ..clients.mqtt_client import MQTTNotificationClient
 from ..config import settings
 from ..crud import store_patterns, store_synergy_opportunities
-from ..database import get_db
+from ..database import AsyncSessionLocal
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 from ..synergy_detection.synergy_detector import DeviceSynergyDetector
@@ -93,12 +95,14 @@ class PatternAnalysisScheduler:
         """
         try:
             self.scheduler.shutdown(wait=True)
-            self.is_running = False
             logger.info("✅ Pattern analysis scheduler stopped")
         except Exception as e:
             logger.error(f"❌ Failed to stop scheduler: {e}", exc_info=True)
+        finally:
+            # Always mark as stopped, even if shutdown failed
+            self.is_running = False
 
-    async def run_pattern_analysis(self):
+    async def run_pattern_analysis(self) -> None:
         """
         Run pattern detection and synergy detection analysis.
         
@@ -109,11 +113,9 @@ class PatternAnalysisScheduler:
         4. Publish MQTT notifications
         """
         start_time = datetime.now(timezone.utc)
-        logger.info("=" * 80)
-        logger.info("🔍 Starting Pattern Analysis Run")
-        logger.info("=" * 80)
-
-        job_result = {
+        self._log_analysis_start()
+        
+        job_result: dict[str, Any] = {
             "status": "running",
             "start_time": start_time.isoformat(),
             "patterns_detected": 0,
@@ -122,112 +124,241 @@ class PatternAnalysisScheduler:
         }
 
         try:
-            # Phase 1: Fetch Events
-            logger.info("Phase 1: Fetching events from Data API...")
             async with DataAPIClient(base_url=settings.data_api_url) as data_client:
-                # Fetch last 7 days of events for pattern detection
-                end_time = datetime.now(timezone.utc)
-                start_time_events = end_time - timedelta(days=7)
+                events_df = await self._fetch_events(data_client)
                 
-                events_df = await data_client.fetch_events(
-                    start_time=start_time_events,
-                    end_time=end_time,
-                    limit=50000  # Reasonable limit for pattern detection
-                )
-
                 if events_df.empty:
-                    logger.warning("⚠️ No events found for pattern analysis")
-                    job_result["status"] = "completed"
-                    job_result["end_time"] = datetime.now(timezone.utc).isoformat()
-                    await self._publish_notification(job_result)
+                    await self._handle_empty_events(job_result)
                     return
 
-                logger.info(f"✅ Fetched {len(events_df)} events for analysis")
-
-                # Phase 2: Pattern Detection
-                logger.info("Phase 2: Running pattern detection...")
-                all_patterns = []
-
-                # Time-of-day patterns
-                logger.info("  → Running time-of-day detector...")
-                try:
-                    tod_detector = TimeOfDayPatternDetector(
-                        min_occurrences=settings.time_of_day_occurrence_overrides.get('min_occurrences', 3),
-                        min_confidence=settings.time_of_day_confidence_overrides.get('min_confidence', 0.6)
-                    )
-                    tod_patterns = await asyncio.to_thread(tod_detector.detect_patterns, events_df)
-                    all_patterns.extend(tod_patterns)
-                    logger.info(f"    ✅ Found {len(tod_patterns)} time-of-day patterns")
-                except Exception as e:
-                    logger.error(f"    ❌ Time-of-day detection failed: {e}", exc_info=True)
-                    job_result["errors"].append(f"Time-of-day detection: {str(e)}")
-
-                # Co-occurrence patterns
-                logger.info("  → Running co-occurrence detector...")
-                try:
-                    co_detector = CoOccurrencePatternDetector(
-                        min_support=settings.co_occurrence_support_overrides.get('min_support', 0.1),
-                        min_confidence=settings.co_occurrence_confidence_overrides.get('min_confidence', 0.5),
-                        window_minutes=5
-                    )
-                    co_patterns = await asyncio.to_thread(co_detector.detect_patterns, events_df)
-                    all_patterns.extend(co_patterns)
-                    logger.info(f"    ✅ Found {len(co_patterns)} co-occurrence patterns")
-                except Exception as e:
-                    logger.error(f"    ❌ Co-occurrence detection failed: {e}", exc_info=True)
-                    job_result["errors"].append(f"Co-occurrence detection: {str(e)}")
-
-                job_result["patterns_detected"] = len(all_patterns)
-                logger.info(f"✅ Total patterns detected: {len(all_patterns)}")
-
-                # Phase 3: Synergy Detection
-                logger.info("Phase 3: Running synergy detection...")
-                synergies = []
-                try:
-                    # Fetch devices for synergy detection
-                    devices = await data_client.fetch_devices(limit=1000)
-                    entities = await data_client.fetch_entities(limit=1000)
-                    
-                    synergy_detector = DeviceSynergyDetector()
-                    synergies = await synergy_detector.detect_synergies(
-                        events_df=events_df,
-                        devices=devices,
-                        entities=entities
-                    )
-                    job_result["synergies_detected"] = len(synergies)
-                    logger.info(f"✅ Found {len(synergies)} synergy opportunities")
-                except Exception as e:
-                    logger.error(f"❌ Synergy detection failed: {e}", exc_info=True)
-                    job_result["errors"].append(f"Synergy detection: {str(e)}")
-
-                # Phase 4: Store Results
-                logger.info("Phase 4: Storing results in database...")
-                async for db in get_db():
-                    try:
-                        # Store patterns
-                        if all_patterns:
-                            stored_patterns = await store_patterns(db, all_patterns)
-                            logger.info(f"✅ Stored {stored_patterns} patterns in database")
-                        
-                        # Store synergies
-                        if synergies:
-                            stored_synergies = await store_synergy_opportunities(
-                                db,
-                                synergies,
-                                validate_with_patterns=False  # Disabled for Story 39.6
-                            )
-                            logger.info(f"✅ Stored {stored_synergies} synergies in database")
-                    except Exception as e:
-                        logger.error(f"❌ Failed to store results: {e}", exc_info=True)
-                        job_result["errors"].append(f"Storage: {str(e)}")
-                    break  # Exit async generator
+                all_patterns = await self._detect_patterns(events_df, job_result)
+                synergies = await self._detect_synergies(data_client, events_df, job_result)
+                await self._store_results(all_patterns, synergies, job_result)
 
         except Exception as e:
             logger.error(f"❌ Pattern analysis failed: {e}", exc_info=True)
             job_result["status"] = "failed"
             job_result["errors"].append(f"Analysis failed: {str(e)}")
 
-        # Phase 5: Publish Notification
+        await self._finalize_analysis(start_time, job_result)
+
+    def _log_analysis_start(self) -> None:
+        """Log the start of pattern analysis."""
+        logger.info("=" * 80)
+        logger.info("🔍 Starting Pattern Analysis Run")
+        logger.info("=" * 80)
+
+    async def _fetch_events(self, data_client: DataAPIClient) -> pd.DataFrame:
+        """
+        Fetch events from Data API for pattern detection.
+        
+        Args:
+            data_client: Data API client instance
+            
+        Returns:
+            DataFrame containing events from the last 7 days
+        """
+        logger.info("Phase 1: Fetching events from Data API...")
+        end_time = datetime.now(timezone.utc)
+        start_time_events = end_time - timedelta(days=7)
+        
+        events_df = await data_client.fetch_events(
+            start_time=start_time_events,
+            end_time=end_time,
+            limit=50000  # Reasonable limit for pattern detection
+        )
+        
+        if not events_df.empty:
+            logger.info(f"✅ Fetched {len(events_df)} events for analysis")
+        
+        return events_df
+
+    async def _handle_empty_events(self, job_result: dict[str, Any]) -> None:
+        """
+        Handle the case when no events are found.
+        
+        Args:
+            job_result: Job result dictionary to update
+        """
+        logger.warning("⚠️ No events found for pattern analysis")
+        job_result["status"] = "completed"
+        job_result["end_time"] = datetime.now(timezone.utc).isoformat()
+        await self._publish_notification(job_result)
+
+    async def _detect_patterns(
+        self, 
+        events_df: pd.DataFrame, 
+        job_result: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """
+        Detect patterns using time-of-day and co-occurrence detectors.
+        
+        Args:
+            events_df: DataFrame containing events
+            job_result: Job result dictionary to update with errors
+            
+        Returns:
+            List of detected patterns
+        """
+        logger.info("Phase 2: Running pattern detection...")
+        all_patterns: list[dict[str, Any]] = []
+
+        # Time-of-day patterns
+        tod_patterns = await self._detect_time_of_day_patterns(events_df, job_result)
+        all_patterns.extend(tod_patterns)
+
+        # Co-occurrence patterns
+        co_patterns = await self._detect_co_occurrence_patterns(events_df, job_result)
+        all_patterns.extend(co_patterns)
+
+        job_result["patterns_detected"] = len(all_patterns)
+        logger.info(f"✅ Total patterns detected: {len(all_patterns)}")
+        
+        return all_patterns
+
+    async def _detect_time_of_day_patterns(
+        self, 
+        events_df: pd.DataFrame, 
+        job_result: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """
+        Detect time-of-day patterns.
+        
+        Args:
+            events_df: DataFrame containing events
+            job_result: Job result dictionary to update with errors
+            
+        Returns:
+            List of time-of-day patterns
+        """
+        logger.info("  → Running time-of-day detector...")
+        try:
+            tod_detector = TimeOfDayPatternDetector(
+                min_occurrences=settings.time_of_day_occurrence_overrides.get('min_occurrences', 3),
+                min_confidence=settings.time_of_day_confidence_overrides.get('min_confidence', 0.6)
+            )
+            tod_patterns = await asyncio.to_thread(tod_detector.detect_patterns, events_df)
+            logger.info(f"    ✅ Found {len(tod_patterns)} time-of-day patterns")
+            return tod_patterns
+        except Exception as e:
+            logger.error(f"    ❌ Time-of-day detection failed: {e}", exc_info=True)
+            job_result["errors"].append(f"Time-of-day detection: {str(e)}")
+            return []
+
+    async def _detect_co_occurrence_patterns(
+        self, 
+        events_df: pd.DataFrame, 
+        job_result: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """
+        Detect co-occurrence patterns.
+        
+        Args:
+            events_df: DataFrame containing events
+            job_result: Job result dictionary to update with errors
+            
+        Returns:
+            List of co-occurrence patterns
+        """
+        logger.info("  → Running co-occurrence detector...")
+        try:
+            co_detector = CoOccurrencePatternDetector(
+                min_support=settings.co_occurrence_support_overrides.get('min_support', 0.1),
+                min_confidence=settings.co_occurrence_confidence_overrides.get('min_confidence', 0.5),
+                window_minutes=5
+            )
+            co_patterns = await asyncio.to_thread(co_detector.detect_patterns, events_df)
+            logger.info(f"    ✅ Found {len(co_patterns)} co-occurrence patterns")
+            return co_patterns
+        except Exception as e:
+            logger.error(f"    ❌ Co-occurrence detection failed: {e}", exc_info=True)
+            job_result["errors"].append(f"Co-occurrence detection: {str(e)}")
+            return []
+
+    async def _detect_synergies(
+        self,
+        data_client: DataAPIClient,
+        events_df: pd.DataFrame,
+        job_result: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """
+        Detect device synergies.
+        
+        Args:
+            data_client: Data API client instance
+            events_df: DataFrame containing events
+            job_result: Job result dictionary to update with errors
+            
+        Returns:
+            List of detected synergies
+        """
+        logger.info("Phase 3: Running synergy detection...")
+        try:
+            devices = await data_client.fetch_devices(limit=1000)
+            entities = await data_client.fetch_entities(limit=1000)
+            
+            synergy_detector = DeviceSynergyDetector()
+            synergies = await synergy_detector.detect_synergies(
+                events_df=events_df,
+                devices=devices,
+                entities=entities
+            )
+            job_result["synergies_detected"] = len(synergies)
+            logger.info(f"✅ Found {len(synergies)} synergy opportunities")
+            return synergies
+        except Exception as e:
+            logger.error(f"❌ Synergy detection failed: {e}", exc_info=True)
+            job_result["errors"].append(f"Synergy detection: {str(e)}")
+            return []
+
+    async def _store_results(
+        self,
+        all_patterns: list[dict[str, Any]],
+        synergies: list[dict[str, Any]],
+        job_result: dict[str, Any]
+    ) -> None:
+        """
+        Store patterns and synergies in the database.
+        
+        Args:
+            all_patterns: List of detected patterns
+            synergies: List of detected synergies
+            job_result: Job result dictionary to update with errors
+        """
+        logger.info("Phase 4: Storing results in database...")
+        from ..database import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
+            try:
+                if all_patterns:
+                    stored_patterns = await store_patterns(db, all_patterns)
+                    logger.info(f"✅ Stored {stored_patterns} patterns in database")
+                
+                if synergies:
+                    stored_synergies = await store_synergy_opportunities(
+                        db,
+                        synergies,
+                        validate_with_patterns=False  # Disabled for Story 39.6
+                    )
+                    logger.info(f"✅ Stored {stored_synergies} synergies in database")
+            except Exception as e:
+                logger.error(f"❌ Failed to store results: {e}", exc_info=True)
+                job_result["errors"].append(f"Storage: {str(e)}")
+                await db.rollback()
+            else:
+                await db.commit()
+
+    async def _finalize_analysis(
+        self,
+        start_time: datetime,
+        job_result: dict[str, Any]
+    ) -> None:
+        """
+        Finalize analysis and publish notification.
+        
+        Args:
+            start_time: Analysis start time
+            job_result: Job result dictionary to finalize
+        """
         end_time = datetime.now(timezone.utc)
         job_result["status"] = "completed" if job_result["status"] == "running" else job_result["status"]
         job_result["end_time"] = end_time.isoformat()
@@ -242,15 +373,20 @@ class PatternAnalysisScheduler:
             logger.warning(f"   Errors: {len(job_result['errors'])}")
         logger.info("=" * 80)
 
-    async def _publish_notification(self, job_result: dict[str, Any]):
-        """Publish MQTT notification about analysis completion"""
+    async def _publish_notification(self, job_result: dict[str, Any]) -> None:
+        """
+        Publish MQTT notification about analysis completion.
+        
+        Args:
+            job_result: Job result dictionary containing analysis results
+        """
         if not self.mqtt_client:
             logger.debug("MQTT client not configured, skipping notification")
             return
 
         try:
             topic = "homeiq/ai-automation/analysis/pattern/complete"
-            payload = {
+            payload: dict[str, Any] = {
                 "service": "ai-pattern-service",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "status": job_result["status"],

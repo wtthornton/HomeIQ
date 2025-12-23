@@ -5,12 +5,13 @@
  * Displays automation YAML with syntax highlighting and allows creation/editing
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ToolCall } from '../../services/haAiAgentApi';
 import { executeToolCall } from '../../services/haAiAgentApi';
+import { apiV2 } from '../../services/api-v2';
 import toast from 'react-hot-toast';
 
 interface AutomationPreviewProps {
@@ -42,6 +43,16 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [createdAutomationId, setCreatedAutomationId] = useState<string | null>(null);
+  const [validationResult, setValidationResult] = useState<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    score: number;
+    fixed_yaml?: string;
+    fixes_applied?: string[];
+  } | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [showNormalizedYaml, setShowNormalizedYaml] = useState(false);
 
   // Parse automation YAML to extract metadata (using regex since YAML isn't JSON)
   const parsedAutomation = useMemo<ParsedAutomation>(() => {
@@ -86,6 +97,43 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
       .replace(/```\n?/g, '')
       .trim();
   }, [automationYaml]);
+
+  // Validate YAML on mount and when YAML changes (Epic 51, Story 51.9)
+  useEffect(() => {
+    const validateYAML = async () => {
+      if (!cleanYaml) return;
+      
+      setIsValidating(true);
+      try {
+        const result = await apiV2.validateYAML(cleanYaml, {
+          normalize: true,
+          validateEntities: true,
+          validateServices: false,
+        });
+        setValidationResult(result);
+        
+        // If fixes were applied, show normalized YAML by default
+        if (result.fixed_yaml && result.fixes_applied && result.fixes_applied.length > 0) {
+          setShowNormalizedYaml(true);
+        }
+      } catch (error) {
+        console.error('Failed to validate YAML:', error);
+        toast.error('Failed to validate automation YAML');
+      } finally {
+        setIsValidating(false);
+      }
+    };
+
+    validateYAML();
+  }, [cleanYaml]);
+
+  // Use normalized YAML if available and user wants to see it
+  const yamlToDisplay = useMemo(() => {
+    if (showNormalizedYaml && validationResult?.fixed_yaml) {
+      return validationResult.fixed_yaml;
+    }
+    return cleanYaml;
+  }, [cleanYaml, showNormalizedYaml, validationResult]);
 
   const handleCreateAutomation = async () => {
     if (!parsedAutomation.alias) {
@@ -196,6 +244,92 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
             </div>
           )}
 
+          {/* Validation Feedback Panel (Epic 51, Story 51.9) */}
+          {validationResult && (
+            <div className={`px-6 py-3 border-b ${
+              darkMode ? 'border-gray-700' : 'border-gray-200'
+            } ${
+              validationResult.valid
+                ? darkMode ? 'bg-green-900/20' : 'bg-green-50'
+                : darkMode ? 'bg-red-900/20' : 'bg-red-50'
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {isValidating ? (
+                    <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      🔄 Validating...
+                    </span>
+                  ) : validationResult.valid ? (
+                    <span className={`text-sm font-medium ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
+                      ✅ Valid (Score: {validationResult.score.toFixed(1)}/100)
+                    </span>
+                  ) : (
+                    <span className={`text-sm font-medium ${darkMode ? 'text-red-400' : 'text-red-700'}`}>
+                      ❌ Invalid (Score: {validationResult.score.toFixed(1)}/100)
+                    </span>
+                  )}
+                </div>
+                {validationResult.fixed_yaml && validationResult.fixes_applied && validationResult.fixes_applied.length > 0 && (
+                  <button
+                    onClick={() => setShowNormalizedYaml(!showNormalizedYaml)}
+                    className={`text-xs px-2 py-1 rounded ${
+                      darkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {showNormalizedYaml ? 'Show Original' : 'Show Fixed YAML'}
+                  </button>
+                )}
+              </div>
+              
+              {validationResult.errors.length > 0 && (
+                <div className="mb-2">
+                  <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-red-400' : 'text-red-700'}`}>
+                    Errors ({validationResult.errors.length}):
+                  </p>
+                  <ul className={`text-xs list-disc list-inside space-y-1 ${
+                    darkMode ? 'text-red-300' : 'text-red-600'
+                  }`}>
+                    {validationResult.errors.map((error, idx) => (
+                      <li key={idx}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {validationResult.warnings.length > 0 && (
+                <div className="mb-2">
+                  <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                    Warnings ({validationResult.warnings.length}):
+                  </p>
+                  <ul className={`text-xs list-disc list-inside space-y-1 ${
+                    darkMode ? 'text-yellow-300' : 'text-yellow-600'
+                  }`}>
+                    {validationResult.warnings.map((warning, idx) => (
+                      <li key={idx}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {validationResult.fixes_applied && validationResult.fixes_applied.length > 0 && (
+                <div>
+                  <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>
+                    Auto-Fixes Applied ({validationResult.fixes_applied.length}):
+                  </p>
+                  <ul className={`text-xs list-disc list-inside space-y-1 ${
+                    darkMode ? 'text-blue-300' : 'text-blue-600'
+                  }`}>
+                    {validationResult.fixes_applied.map((fix, idx) => (
+                      <li key={idx}>{fix}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* YAML Content */}
           <div className="flex-1 overflow-auto p-6">
             <div className="rounded-lg overflow-hidden border border-gray-300">
@@ -210,7 +344,7 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
                 }}
                 showLineNumbers
               >
-                {cleanYaml}
+                {yamlToDisplay}
               </SyntaxHighlighter>
             </div>
           </div>
@@ -249,16 +383,32 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
               {!createdAutomationId ? (
                 <button
                   onClick={handleCreateAutomation}
-                  disabled={isCreating || !parsedAutomation.alias}
+                  disabled={
+                    isCreating ||
+                    !parsedAutomation.alias ||
+                    (validationResult && !validationResult.valid) ||
+                    isValidating
+                  }
                   className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    isCreating || !parsedAutomation.alias
+                    isCreating || !parsedAutomation.alias || (validationResult && !validationResult.valid) || isValidating
                       ? 'bg-gray-400 cursor-not-allowed'
                       : darkMode
                       ? 'bg-blue-600 text-white hover:bg-blue-700'
                       : 'bg-blue-500 text-white hover:bg-blue-600'
                   }`}
+                  title={
+                    validationResult && !validationResult.valid
+                      ? 'Fix validation errors before creating automation'
+                      : undefined
+                  }
                 >
-                  {isCreating ? 'Creating...' : 'Create Automation'}
+                  {isCreating
+                    ? 'Creating...'
+                    : isValidating
+                    ? 'Validating...'
+                    : validationResult && !validationResult.valid
+                    ? 'Fix Errors First'
+                    : 'Create Automation'}
                 </button>
               ) : (
                 <div className="flex items-center gap-2">

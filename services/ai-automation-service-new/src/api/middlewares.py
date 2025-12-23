@@ -131,7 +131,36 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     Authentication middleware (2025 pattern).
     
     Validates API keys from X-HomeIQ-API-Key header or Authorization Bearer token.
+    Skips authentication for internal service-to-service communication (simplified).
     """
+    
+    # Internal network prefixes (Docker, private networks)
+    INTERNAL_NETWORK_PREFIXES = ['172.', '10.', '192.168.', '127.0.0.1', '::1', 'localhost']
+    
+    def _is_internal_request(self, request: Request) -> bool:
+        """
+        Check if request is from an internal service.
+        
+        Internal requests are:
+        - From internal IP ranges (Docker networks, localhost)
+        - With X-Internal-Service header (for explicit internal service identification)
+        """
+        # Check for explicit internal service header
+        if request.headers.get("X-Internal-Service") == "true":
+            return True
+        
+        # Check client IP address
+        client_ip = request.client.host if request.client else None
+        if client_ip:
+            # Check if IP is in internal network ranges
+            if any(client_ip.startswith(prefix) for prefix in self.INTERNAL_NETWORK_PREFIXES):
+                return True
+            
+            # Check if IP is localhost variations
+            if client_ip in ['localhost', '127.0.0.1', '::1']:
+                return True
+        
+        return False
     
     async def dispatch(self, request: Request, call_next):
         """Process request with authentication."""
@@ -139,7 +168,13 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json", "/"]:
             return await call_next(request)
         
-        # Get API key from header
+        # Skip authentication for internal service-to-service requests
+        if self._is_internal_request(request):
+            request.state.authenticated = True
+            request.state.internal_service = True
+            return await call_next(request)
+        
+        # Get API key from header for external requests
         api_key = request.headers.get("X-HomeIQ-API-Key")
         if not api_key:
             # Try Authorization header
@@ -147,19 +182,20 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             if auth_header.startswith("Bearer "):
                 api_key = auth_header.replace("Bearer ", "")
         
-        # Validate API key (simple check - can be enhanced with database lookup)
+        # Validate API key for external requests
         if not api_key:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={
                     "error": "authentication_required",
-                    "message": "API key required. Provide X-HomeIQ-API-Key header or Authorization Bearer token."
+                    "message": "API key required for external requests. Provide X-HomeIQ-API-Key header or Authorization Bearer token. Internal service requests are automatically allowed."
                 }
             )
         
         # Store API key in request state for use in endpoints
         request.state.api_key = api_key
         request.state.authenticated = True
+        request.state.internal_service = False
         
         # Process request
         return await call_next(request)

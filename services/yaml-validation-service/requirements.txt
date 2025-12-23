@@ -1,0 +1,18 @@
+# YAML Validation Service Requirements
+# Epic 51: YAML Automation Quality Enhancement & Validation Pipeline
+
+# FastAPI and web framework
+fastapi>=0.115.0,<0.116.0
+uvicorn[standard]>=0.32.0,<0.33.0
+pydantic>=2.9.0,<3.0.0
+pydantic-settings>=2.5.0,<3.0.0
+
+# HTTP clients
+httpx>=0.28.1,<0.29.0
+
+# YAML parsing
+pyyaml>=6.0.1,<7.0.0
+
+# Utilities
+python-dotenv>=1.0.0,<2.0.0
+

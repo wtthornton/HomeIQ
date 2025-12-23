@@ -37,17 +37,28 @@ class Suggestion(Base):
 
 
 class AutomationVersion(Base):
-    """Version history for automations - enables rollback"""
+    """
+    Version history for automations - enables rollback
+    
+    Epic 51, Story 51.11: Enhanced with diffs, scores, approval tracking, state restoration
+    """
     __tablename__ = "automation_versions"
     
     id = Column(Integer, primary_key=True, index=True)
     suggestion_id = Column(Integer, ForeignKey("suggestions.id"), nullable=False)
-    automation_id = Column(String, nullable=False)  # HA automation ID
+    automation_id = Column(String, nullable=False)  # HA automation ID (entity_id)
+    config_id = Column(String, nullable=True)  # Home Assistant config_id (Epic 51.11)
+    alias = Column(String, nullable=True)  # Automation alias for mapping (Epic 51.11)
     version_number = Column(Integer, nullable=False)
     automation_yaml = Column(Text, nullable=False)
+    yaml_diff = Column(Text, nullable=True)  # Diff from previous version (Epic 51.11)
+    validation_score = Column(Float, nullable=True)  # Quality score from validation (Epic 51.11)
     safety_score = Column(Float, nullable=True)
+    approval_status = Column(String, nullable=True)  # approved, rejected, pending (Epic 51.11)
+    approved_by = Column(String, nullable=True)  # User/API key who approved (Epic 51.11)
     deployed_at = Column(DateTime(timezone=True), server_default=func.now())
     deployed_by = Column(String, nullable=True)  # User/API key identifier
     is_active = Column(Boolean, default=True)  # Current active version
     rollback_reason = Column(Text, nullable=True)  # If rolled back, reason
+    snapshot_entities = Column(Text, nullable=True)  # JSON array of entity states for restoration (Epic 51.11)
 

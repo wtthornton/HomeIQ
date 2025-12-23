@@ -94,11 +94,19 @@ async def lifespan(_app: FastAPI):
         )
         logger.info(f"✅ AI Automation Service client initialized ({settings.ai_automation_service_url})")
         
+        # Initialize YAML Validation Service client (Epic 51, Story 51.5)
+        from .clients.yaml_validation_client import YAMLValidationClient
+        yaml_validation_client = YAMLValidationClient(
+            base_url=settings.yaml_validation_service_url,
+            api_key=settings.yaml_validation_api_key
+        )
+        logger.info(f"✅ YAML Validation Service client initialized ({settings.yaml_validation_service_url})")
+        
         # Initialize OpenAI client (Epic AI-20) - needed for tool service enhancements
         openai_client = OpenAIClient(settings)
         logger.info("✅ OpenAI client initialized")
         
-        tool_service = ToolService(ha_client, data_api_client, ai_automation_client, openai_client.client if openai_client else None)
+        tool_service = ToolService(ha_client, data_api_client, ai_automation_client, yaml_validation_client, openai_client.client if openai_client else None)
         logger.info("✅ Tool service initialized")
 
         # Initialize conversation service (Epic AI-20)

@@ -60,10 +60,15 @@ async def health_check():
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}", exc_info=True)
-        return {
-            "status": "unhealthy",
-            "service": "ai-automation-service",
-            "error": str(e),
-            "database": "disconnected"
-        }, 503
+        from fastapi import Response
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "service": "ai-automation-service",
+                "error": str(e),
+                "database": "disconnected"
+            }
+        )
 

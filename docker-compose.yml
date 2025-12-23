@@ -1306,6 +1306,52 @@ services:
       retries: 3
       start_period: 10s
 
+  # YAML Validation Service - Epic 51, Story 51.4: Create Unified Validation Service
+  yaml-validation-service:
+    build:
+      context: .
+      dockerfile: services/yaml-validation-service/Dockerfile
+    container_name: yaml-validation-service
+    restart: unless-stopped
+    ports:
+      - "8026:8026"
+    env_file:
+      - .env
+    environment:
+      - DATA_API_URL=http://data-api:8006
+      - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - SERVICE_PORT=8026
+      - VALIDATION_LEVEL=moderate
+      - ENABLE_NORMALIZATION=true
+      - ENABLE_ENTITY_VALIDATION=true
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      data-api:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8026/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=yaml-validation-service,environment=production"
+
   # AI Automation Service (New) - Epic 39, Story 39.10: Automation Service Foundation
   ai-automation-service-new:
     build:
@@ -1321,6 +1367,7 @@ services:
       - DATA_API_URL=http://data-api:8006
       - QUERY_SERVICE_URL=http://ai-query-service:8018
       - PATTERN_SERVICE_URL=http://ai-pattern-service:8020
+      - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8026
       - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -1329,6 +1376,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       data-api:
+        condition: service_healthy
+      yaml-validation-service:
         condition: service_healthy
     volumes:
       - ai_automation_data:/app/data  # Shared database with other AI services

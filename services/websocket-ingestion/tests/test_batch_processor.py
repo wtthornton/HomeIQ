@@ -5,7 +5,8 @@ Unit tests for BatchProcessor - Critical performance component
 import asyncio
 
 import pytest
-from batch_processor import BatchProcessor
+from src.batch_processor import BatchProcessor
+from src.state_machine import ProcessingState
 
 
 class TestBatchProcessorInitialization:
@@ -22,7 +23,7 @@ class TestBatchProcessorInitialization:
         assert processor.total_batches_processed == 0
         assert processor.total_events_processed == 0
         assert processor.total_events_failed == 0
-        assert processor.is_running is False
+        assert processor.state_machine.get_state() == ProcessingState.STOPPED
         assert processor.retry_attempts == 3
         assert processor.retry_delay == 1.0
         assert len(processor.batch_handlers) == 0
@@ -45,7 +46,7 @@ class TestBatchProcessorLifecycle:
 
         await processor.start()
 
-        assert processor.is_running is True
+        assert processor.state_machine.get_state() == ProcessingState.RUNNING
         assert processor.processing_task is not None
 
         await processor.stop()
@@ -58,7 +59,7 @@ class TestBatchProcessorLifecycle:
         await processor.start()
         await processor.start()  # Should log warning but not fail
 
-        assert processor.is_running is True
+        assert processor.state_machine.get_state() == ProcessingState.RUNNING
 
         await processor.stop()
 
@@ -70,7 +71,7 @@ class TestBatchProcessorLifecycle:
         await processor.start()
         await processor.stop()
 
-        assert processor.is_running is False
+        assert processor.state_machine.get_state() == ProcessingState.STOPPED
 
     @pytest.mark.asyncio
     async def test_stop_when_not_running(self):
@@ -79,7 +80,7 @@ class TestBatchProcessorLifecycle:
 
         await processor.stop()  # Should not fail
 
-        assert processor.is_running is False
+        assert processor.state_machine.get_state() == ProcessingState.STOPPED
 
 
 class TestBatchProcessorEventHandling:

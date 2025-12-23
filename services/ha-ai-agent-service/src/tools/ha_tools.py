@@ -15,6 +15,7 @@ import yaml
 from ..clients.ai_automation_client import AIAutomationClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
+from ..clients.yaml_validation_client import YAMLValidationClient
 from ..services.enhancement_service import AutomationEnhancementService
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ class HAToolHandler:
         ha_client: HomeAssistantClient,
         data_api_client: DataAPIClient,
         ai_automation_client: AIAutomationClient | None = None,
+        yaml_validation_client: YAMLValidationClient | None = None,
         openai_client = None
     ):
         """
@@ -42,12 +44,14 @@ class HAToolHandler:
         Args:
             ha_client: Home Assistant API client
             data_api_client: Data API client for entity queries
-            ai_automation_client: AI Automation Service client for YAML validation (optional)
+            ai_automation_client: AI Automation Service client (legacy, optional)
+            yaml_validation_client: YAML Validation Service client for comprehensive validation (Epic 51, optional)
             openai_client: OpenAI client for enhancement generation (optional)
         """
         self.ha_client = ha_client
         self.data_api_client = data_api_client
         self.ai_automation_client = ai_automation_client
+        self.yaml_validation_client = yaml_validation_client
         self.openai_client = openai_client
         self._enhancement_service = None
 
@@ -298,9 +302,10 @@ class HAToolHandler:
 
     async def _validate_yaml(self, automation_yaml: str) -> dict[str, Any]:
         """
-        Validate Home Assistant automation YAML using consolidated validation endpoint.
+        Validate Home Assistant automation YAML using YAML Validation Service (Epic 51).
 
-        Uses AI Automation Service validation endpoint if available, with fallback to basic validation.
+        Uses YAML Validation Service if available, with fallback to AI Automation Service,
+        then to basic validation.
 
         Args:
             automation_yaml: YAML string to validate
@@ -308,10 +313,42 @@ class HAToolHandler:
         Returns:
             Dictionary with validation result
         """
-        # Use consolidated validation endpoint if available
+        # Use YAML Validation Service if available (Epic 51, Story 51.5)
+        if self.yaml_validation_client:
+            try:
+                logger.debug("Using YAML Validation Service for comprehensive validation")
+                result = await self.yaml_validation_client.validate_yaml(
+                    yaml_content=automation_yaml,
+                    normalize=True,
+                    validate_entities=True,
+                    validate_services=False
+                )
+                
+                # Convert validation result to expected format
+                response = {
+                    "valid": result.get("valid", False),
+                    "errors": result.get("errors", []),
+                    "warnings": result.get("warnings", []),
+                    "score": result.get("score", 0)
+                }
+                
+                # Include fixed/normalized YAML if available
+                if result.get("fixed_yaml"):
+                    response["fixed_yaml"] = result["fixed_yaml"]
+                
+                if result.get("fixes_applied"):
+                    response["fixes_applied"] = result["fixes_applied"]
+                
+                return response
+                
+            except Exception as e:
+                logger.warning(f"YAML Validation Service failed, falling back to AI Automation Service: {e}")
+                # Fall through to AI Automation Service
+        
+        # Fallback to AI Automation Service validation endpoint if available
         if self.ai_automation_client:
             try:
-                logger.debug("Using consolidated YAML validation endpoint")
+                logger.debug("Using AI Automation Service validation endpoint")
                 result = await self.ai_automation_client.validate_yaml(
                     automation_yaml,
                     validate_entities=True,
@@ -338,7 +375,7 @@ class HAToolHandler:
                 return response
                 
             except Exception as e:
-                logger.warning(f"Consolidated validation failed, falling back to basic validation: {e}")
+                logger.warning(f"AI Automation Service validation failed, falling back to basic validation: {e}")
                 # Fall through to basic validation
         
         # Fallback to basic validation

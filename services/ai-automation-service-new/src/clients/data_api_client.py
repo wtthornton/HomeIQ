@@ -112,10 +112,11 @@ class DataAPIClient:
         if event_type:
             params["event_type"] = event_type
         
-        # Make request
+        # Make request (internal service, no API key needed)
         url = f"{self.base_url}/api/events"
+        headers = {"X-Internal-Service": "true"}
         try:
-            response = await self.client.get(url, params=params)
+            response = await self.client.get(url, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
             return data.get("events", [])
@@ -140,8 +141,9 @@ class DataAPIClient:
             httpx.HTTPError: If API request fails
         """
         url = f"{self.base_url}/api/devices"
+        headers = {"X-Internal-Service": "true"}
         try:
-            response = await self.client.get(url)
+            response = await self.client.get(url, headers=headers)
             response.raise_for_status()
             data = response.json()
             return data.get("devices", [])
@@ -166,8 +168,9 @@ class DataAPIClient:
             httpx.HTTPError: If API request fails
         """
         url = f"{self.base_url}/api/entities"
+        headers = {"X-Internal-Service": "true"}
         try:
-            response = await self.client.get(url)
+            response = await self.client.get(url, headers=headers)
             response.raise_for_status()
             data = response.json()
             return data.get("entities", [])
@@ -195,8 +198,9 @@ class DataAPIClient:
             httpx.HTTPError: If API request fails
         """
         url = f"{self.base_url}/api/entities/{entity_id}"
+        headers = {"X-Internal-Service": "true"}
         try:
-            response = await self.client.get(url)
+            response = await self.client.get(url, headers=headers)
             if response.status_code == 404:
                 return None
             response.raise_for_status()
@@ -214,7 +218,8 @@ class DataAPIClient:
         """
         try:
             url = f"{self.base_url}/health"
-            response = await self.client.get(url, timeout=5.0)
+            headers = {"X-Internal-Service": "true"}
+            response = await self.client.get(url, headers=headers, timeout=5.0)
             return response.status_code == 200
         except Exception as e:
             logger.warning(f"Data API health check failed: {e}")
