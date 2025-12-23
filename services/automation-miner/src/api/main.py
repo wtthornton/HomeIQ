@@ -1,7 +1,22 @@
 """
 FastAPI Application for Automation Miner
 
-Provides REST API for querying the automation corpus.
+This service provides a REST API for querying the automation corpus.
+It crawls community knowledge sources (GitHub, Discourse) to build a corpus
+of Home Assistant automations for recommendation and discovery.
+
+Architecture:
+- FastAPI application with async/await support
+- SQLAlchemy database layer for corpus storage
+- Weekly refresh scheduler (APScheduler) for corpus updates
+- Background initialization on startup (if corpus is empty or stale)
+
+Key Features:
+- Corpus initialization on startup (if needed)
+- Weekly automated corpus refresh
+- REST API for querying automations
+- Device-based discovery endpoints
+- Admin endpoints for corpus management
 """
 import logging
 from contextlib import asynccontextmanager
@@ -31,9 +46,22 @@ _initialization_complete = False
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Lifespan context manager for startup/shutdown
+    Lifespan context manager for startup/shutdown.
     
-    Creates database tables and starts weekly refresh scheduler.
+    This lifespan context manager handles:
+    - Database initialization and table creation
+    - Corpus initialization on startup (if empty or stale)
+    - Weekly refresh scheduler startup
+    - Graceful shutdown of scheduler and database connections
+    
+    Args:
+        app: FastAPI application instance
+        
+    Yields:
+        None: Control is yielded to the application runtime
+        
+    Raises:
+        Exception: If database initialization fails (prevents service startup)
     """
     logger.info("Starting Automation Miner API...")
 
@@ -218,8 +246,13 @@ async def health_check():
 
 
 @app.get("/")
-async def root():
-    """Root endpoint"""
+async def root() -> dict[str, str]:
+    """
+    Root endpoint providing service information.
+    
+    Returns:
+        dict: Service metadata including message, version, and endpoint links
+    """
     return {
         "message": "Automation Miner API",
         "version": "0.1.0",

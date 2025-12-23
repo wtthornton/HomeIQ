@@ -2,7 +2,26 @@
 AI Pattern Service - Main FastAPI Application
 
 Epic 39, Story 39.5: Pattern Service Foundation
-Extracted from ai-automation-service for independent scaling and maintainability.
+
+This service was extracted from ai-automation-service for independent scaling and maintainability.
+It handles:
+- Pattern detection and analysis
+- Synergy detection between devices
+- Community pattern sharing
+- Scheduled pattern analysis (daily cron jobs)
+
+Architecture:
+- FastAPI application with async/await support
+- SQLAlchemy async database layer
+- MQTT client for notifications (with automatic reconnection)
+- Pattern analysis scheduler (cron-based)
+- Observability integration (optional)
+
+Key Features:
+- Automatic MQTT reconnection with exponential backoff
+- Graceful error handling (service continues even if scheduler fails)
+- CORS support for frontend integration
+- Health check endpoints
 """
 
 import logging
@@ -54,7 +73,25 @@ mqtt_client: MQTTNotificationClient | None = None
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize service on startup and cleanup on shutdown"""
+    """
+    Initialize service on startup and cleanup on shutdown.
+    
+    This lifespan context manager handles:
+    - Database initialization
+    - Observability setup (if available)
+    - MQTT client initialization and connection
+    - Pattern analysis scheduler startup
+    - Graceful shutdown of scheduler and MQTT client
+    
+    Args:
+        app: FastAPI application instance
+        
+    Yields:
+        None: Control is yielded to the application runtime
+        
+    Raises:
+        Exception: If database initialization fails (prevents service startup)
+    """
     global pattern_scheduler, mqtt_client
     
     logger.info("=" * 60)
@@ -176,8 +213,13 @@ if OBSERVABILITY_AVAILABLE:
 app.include_router(health_router.router, tags=["health"])
 
 @app.get("/")
-async def root():
-    """Root endpoint"""
+async def root() -> dict[str, str]:
+    """
+    Root endpoint providing service information.
+    
+    Returns:
+        dict: Service metadata including name, version, and status
+    """
     return {
         "service": "ai-pattern-service",
         "version": "1.0.0",

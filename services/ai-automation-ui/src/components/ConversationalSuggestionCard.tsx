@@ -5,7 +5,7 @@
  * No YAML shown until after approval!
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getButtonStyles } from '../utils/designSystem';
@@ -133,7 +133,8 @@ interface Props {
   confidenceSummary?: string;
 }
 
-export const ConversationalSuggestionCard: React.FC<Props> = ({
+// PERFORMANCE: Memoize component to prevent unnecessary re-renders
+export const ConversationalSuggestionCard: React.FC<Props> = memo(({
   suggestion,
   previousConfidence,
   confidenceDelta,
@@ -157,7 +158,8 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
   const [customMappings, setCustomMappings] = useState<Record<string, string>>({});
   const [editingMapping, setEditingMapping] = useState<{ friendlyName: string; currentEntityId: string; domain?: string } | null>(null);
 
-  const getCategoryColor = () => {
+  // PERFORMANCE: Memoize expensive computations
+  const categoryColor = useMemo(() => {
     const colors = {
       energy: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       comfort: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -165,9 +167,9 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
       convenience: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
     };
     return colors[suggestion.category as keyof typeof colors] || colors.convenience;
-  };
+  }, [suggestion.category]);
 
-  const getCategoryIcon = () => {
+  const categoryIcon = useMemo(() => {
     const icons = {
       energy: '🌱',
       comfort: '💙',
@@ -175,9 +177,9 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
       convenience: '✨',
     };
     return icons[suggestion.category as keyof typeof icons] || '✨';
-  };
+  }, [suggestion.category]);
 
-  const getSourceTypeBadge = () => {
+  const sourceTypeBadge = useMemo(() => {
     const sourceType = suggestion.source_type || 'pattern';
     const badges = {
       pattern: { icon: '🔍', label: 'Pattern', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
@@ -187,9 +189,10 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
       synergy: { icon: '🔗', label: 'Synergy', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' },
     };
     return badges[sourceType] || badges.pattern;
-  };
+  }, [suggestion.source_type]);
 
-  const handleRefine = async () => {
+  // PERFORMANCE: Memoize callbacks to prevent unnecessary re-renders
+  const handleRefine = useCallback(async () => {
     if (!editInput.trim()) {
       toast.error('Please enter your changes');
       return;
@@ -205,9 +208,9 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
     } finally {
       setIsRefining(false);
     }
-  };
+  }, [editInput, onRefine, suggestion.id]);
 
-  const handleTest = async () => {
+  const handleTest = useCallback(async () => {
     if (!onTest) return;
     
     try {
@@ -216,49 +219,63 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
     } catch (error) {
       toast.error('❌ Validation failed');
     }
-  };
+  }, [onTest, suggestion.id]);
 
-  const handleApprove = async () => {
+  const handleApprove = useCallback(async () => {
     try {
       await onApprove(suggestion.id, Object.keys(customMappings).length > 0 ? customMappings : undefined);
       toast.success('✅ Automation created successfully!');
     } catch (error) {
       toast.error('❌ Failed to create automation');
     }
-  };
+  }, [onApprove, suggestion.id, customMappings]);
 
-  const handleMappingSave = (friendlyName: string, newEntityId: string) => {
+  const handleMappingSave = useCallback((friendlyName: string, newEntityId: string) => {
     setCustomMappings(prev => ({
       ...prev,
       [friendlyName]: newEntityId
     }));
     setEditingMapping(null);
     toast.success(`✅ Mapping updated: ${friendlyName} → ${newEntityId}`);
-  };
+  }, []);
 
-  const handleMappingCancel = () => {
+  const handleMappingCancel = useCallback(() => {
     setEditingMapping(null);
-  };
+  }, []);
 
-  const handleEditMapping = (device: DeviceInfo) => {
+  const handleEditMapping = useCallback((device: DeviceInfo) => {
     setEditingMapping({
       friendlyName: device.friendly_name,
       currentEntityId: device.entity_id,
       domain: device.domain
     });
-  };
+  }, []);
 
-  // Get the current entity ID for a device (custom mapping or original)
-  const getEffectiveEntityId = (device: DeviceInfo): string => {
+  // PERFORMANCE: Memoize computed values
+  const getEffectiveEntityId = useCallback((device: DeviceInfo): string => {
     return customMappings[device.friendly_name] || device.entity_id;
-  };
+  }, [customMappings]);
 
-  const isApproved = suggestion.status === 'yaml_generated' || suggestion.status === 'deployed';
+  // PERFORMANCE: Memoize computed values
+  const isApproved = useMemo(() => 
+    suggestion.status === 'yaml_generated' || suggestion.status === 'deployed',
+    [suggestion.status]
+  );
   
-  // Check if automation is deployed
-  const automationId = suggestion.approve_response?.automation_id || suggestion.ha_automation_id;
-  const isDeployed = !!automationId && (suggestion.status === 'deployed' || !!suggestion.approve_response?.automation_id);
-  const deployedAt = suggestion.approve_response?.deployed_at || (isDeployed ? new Date().toISOString() : undefined);
+  const automationId = useMemo(() => 
+    suggestion.approve_response?.automation_id || suggestion.ha_automation_id,
+    [suggestion.approve_response?.automation_id, suggestion.ha_automation_id]
+  );
+  
+  const isDeployed = useMemo(() => 
+    !!automationId && (suggestion.status === 'deployed' || !!suggestion.approve_response?.automation_id),
+    [automationId, suggestion.status, suggestion.approve_response?.automation_id]
+  );
+  
+  const deployedAt = useMemo(() => 
+    suggestion.approve_response?.deployed_at || (isDeployed ? new Date().toISOString() : undefined),
+    [suggestion.approve_response?.deployed_at, isDeployed]
+  );
 
   return (
     <>
@@ -299,18 +316,15 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
             {/* Status Badge */}
             <div className="flex gap-1.5 items-center flex-wrap">
               {/* Source Type Badge (NEW - Phase 1 improvement) */}
-              {suggestion.source_type && (() => {
-                const sourceBadge = getSourceTypeBadge();
-                return (
-                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${sourceBadge.color}`} title={`Suggestion source: ${sourceBadge.label}`}>
-                    {sourceBadge.icon} {sourceBadge.label}
-                  </span>
-                );
-              })()}
+              {suggestion.source_type && (
+                <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${sourceTypeBadge.color}`} title={`Suggestion source: ${sourceTypeBadge.label}`} aria-label={`Source type: ${sourceTypeBadge.label}`}>
+                  {sourceTypeBadge.icon} {sourceTypeBadge.label}
+                </span>
+              )}
               
               {suggestion.category && (
-                <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor()}`}>
-                  {getCategoryIcon()} {suggestion.category}
+                <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${categoryColor}`} aria-label={`Category: ${suggestion.category}`}>
+                  {categoryIcon} {suggestion.category}
                 </span>
               )}
               
@@ -898,9 +912,28 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
                     e.currentTarget.style.borderColor = 'rgba(51, 65, 85, 0.5)';
                     e.currentTarget.style.boxShadow = 'none';
                   }}
+                  onKeyDown={(e) => {
+                    // ACCESSIBILITY: Allow Escape to cancel editing
+                    if (e.key === 'Escape') {
+                      setIsEditing(false);
+                      setEditInput('');
+                    }
+                    // Allow Ctrl/Cmd+Enter to submit
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      if (!isRefining && editInput.trim()) {
+                        handleRefine();
+                      }
+                    }
+                  }}
                   rows={3}
                   autoFocus
+                  aria-label="Edit automation description"
+                  aria-describedby="edit-description-help"
                 />
+                <p id="edit-description-help" className="text-xs text-gray-400 mt-1">
+                  Press Escape to cancel, Ctrl+Enter to submit
+                </p>
                 <div className="flex gap-1.5">
                   <button
                     onClick={handleRefine}
@@ -1165,5 +1198,20 @@ export const ConversationalSuggestionCard: React.FC<Props> = ({
     )}
   </>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Only re-render if these props change
+  return (
+    prevProps.suggestion.id === nextProps.suggestion.id &&
+    prevProps.suggestion.status === nextProps.suggestion.status &&
+    prevProps.suggestion.confidence === nextProps.suggestion.confidence &&
+    prevProps.darkMode === nextProps.darkMode &&
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.tested === nextProps.tested &&
+    prevProps.previousConfidence === nextProps.previousConfidence &&
+    prevProps.confidenceDelta === nextProps.confidenceDelta
+  );
+});
+
+ConversationalSuggestionCard.displayName = 'ConversationalSuggestionCard';
 
