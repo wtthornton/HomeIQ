@@ -210,10 +210,13 @@ if OBSERVABILITY_AVAILABLE:
         logger.warning(f"Failed to instrument FastAPI: {e}")
 
 # Include routers
+from .api import analysis_router
+
 app.include_router(health_router.router, tags=["health"])
 app.include_router(pattern_router.router, tags=["patterns"])
 app.include_router(synergy_router.router, tags=["synergies"])
 app.include_router(community_pattern_router.router, tags=["community-patterns"])
+app.include_router(analysis_router.router, tags=["analysis"])
 
 @app.get("/")
 async def root() -> dict[str, str]:
