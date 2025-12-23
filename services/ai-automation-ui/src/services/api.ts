@@ -486,19 +486,35 @@ export const api = {
   async getDeviceNames(deviceIds: string[]): Promise<Record<string, string>> {
     const nameMap: Record<string, string> = {};
     
-    // Process in batches to avoid overwhelming the API
-    const batchSize = 10;
+    // Process in smaller batches with delays to avoid rate limiting
+    const batchSize = 5; // Reduced from 10 to avoid rate limits
+    const delayBetweenBatches = 200; // 200ms delay between batches
+    
     for (let i = 0; i < deviceIds.length; i += batchSize) {
       const batch = deviceIds.slice(i, i + batchSize);
       const promises = batch.map(async (deviceId) => {
-        const name = await this.getDeviceName(deviceId);
-        return { deviceId, name };
+        try {
+          const name = await this.getDeviceName(deviceId);
+          return { deviceId, name };
+        } catch (error: any) {
+          // If rate limited, return fallback name
+          if (error?.message?.includes('Rate limit') || error?.message?.includes('429')) {
+            console.warn(`Rate limited for ${deviceId}, using fallback name`);
+            return { deviceId, name: deviceId.split('.').pop() || deviceId.substring(0, 20) };
+          }
+          throw error;
+        }
       });
       
       const results = await Promise.all(promises);
       results.forEach(({ deviceId, name }) => {
         nameMap[deviceId] = name;
       });
+      
+      // Add delay between batches (except for the last batch)
+      if (i + batchSize < deviceIds.length) {
+        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+      }
     }
     
     return nameMap;

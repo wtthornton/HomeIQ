@@ -98,7 +98,7 @@ export interface Suggestion {
 
 export interface Pattern {
   id: number;
-  pattern_type: 'time_of_day' | 'co_occurrence' | 'anomaly';
+  pattern_type: 'time_of_day' | 'co_occurrence' | 'multi_factor' | 'sequence' | 'contextual' | 'room_based' | 'session' | 'duration' | 'day_type' | 'seasonal' | 'anomaly';
   device_id: string;
   pattern_metadata: Record<string, any>;
   confidence: number;
