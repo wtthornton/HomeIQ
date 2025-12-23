@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import api from '../services/api';
 import type { Pattern } from '../types';
@@ -21,6 +22,10 @@ export const Patterns: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPatternGuide, setShowPatternGuide] = useState(false);
   const [showStatsAndCharts, setShowStatsAndCharts] = useState(true); // Collapsible stats
+  // Phase 8: Pattern filtering and search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'confidence' | 'occurrences' | 'recent'>('confidence');
 
   const loadPatterns = useCallback(async () => {
     try {
@@ -99,19 +104,59 @@ export const Patterns: React.FC = () => {
     try {
       setAnalysisRunning(true);
       setError(null);
+      
+      // Phase 1: Immediate feedback - show toast notification
+      toast.loading('Starting pattern analysis...', {
+        id: 'analysis-start'
+      });
+      
       await api.triggerManualJob();
+      
+      // Update toast to show analysis is running
+      toast.loading('Analysis in progress. This may take 1-3 minutes...', {
+        id: 'analysis-start',
+        duration: 10000
+      });
+      
+      // Track initial pattern count for success message
+      const initialPatternCount = patterns.length;
       
       // Start polling for completion
       const pollInterval = setInterval(async () => {
         try {
-          await loadPatterns();
-          await loadAnalysisStatus();
+          // Load patterns and get the count from the response
+          const [patternsRes] = await Promise.all([
+            api.getPatterns(undefined, 0.7),
+            loadAnalysisStatus()
+          ]);
+          
+          const newPatterns = patternsRes.data?.patterns || [];
+          const newPatternCount = newPatterns.length;
+          
+          // Update state
+          setPatterns(newPatterns);
           
           // Check if analysis completed (patterns increased or status changed)
           const status = await api.getAnalysisStatus();
           if (status.status === 'ready') {
             clearInterval(pollInterval);
             setAnalysisRunning(false);
+            
+            // Phase 3: Success notification with pattern count
+            const patternDiff = newPatternCount - initialPatternCount;
+            
+            toast.dismiss('analysis-start');
+            if (patternDiff > 0) {
+              toast.success(
+                `Analysis complete! Found ${patternDiff} new pattern${patternDiff !== 1 ? 's' : ''}. Total: ${newPatternCount} patterns.`,
+                { duration: 5000 }
+              );
+            } else {
+              toast.success(
+                `Analysis complete! ${newPatternCount} pattern${newPatternCount !== 1 ? 's' : ''} detected.`,
+                { duration: 5000 }
+              );
+            }
           }
         } catch (err) {
           console.error('Failed to poll analysis status:', err);
@@ -122,11 +167,42 @@ export const Patterns: React.FC = () => {
       setTimeout(() => {
         clearInterval(pollInterval);
         setAnalysisRunning(false);
+        toast.dismiss('analysis-start');
+        toast.error('Analysis timed out after 5 minutes. Please try again.', {
+          duration: 6000
+        });
       }, 300000);
     } catch (err: any) {
       console.error('Failed to trigger analysis:', err);
-      setError(err.message || 'Failed to start analysis');
+      
+      // Phase 5: Better error handling with retry option
+      toast.dismiss('analysis-start');
+      
+      const errorMessage = err.message || 'Failed to start analysis';
+      setError(errorMessage);
       setAnalysisRunning(false);
+      
+      // Show error toast with retry option
+      toast.error(
+        (t) => (
+          <div>
+            <p className="font-semibold mb-2">Analysis failed to start</p>
+            <p className="text-sm mb-3">{errorMessage}</p>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                handleRunAnalysis();
+              }}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        ),
+        {
+          duration: 8000,
+        }
+      );
     }
   };
 
@@ -153,6 +229,7 @@ export const Patterns: React.FC = () => {
     const icons: Record<string, string> = {
       time_of_day: '⏰',
       co_occurrence: '🔗',
+      multi_factor: '🔀',
       sequence: '➡️',
       contextual: '🌍',
       room_based: '🏠',
@@ -163,6 +240,12 @@ export const Patterns: React.FC = () => {
       anomaly: '⚠️',
     };
     return icons[type] || '📊';
+  };
+
+  // Phase 6: Define which pattern types are actively detected vs coming soon
+  const getPatternStatus = (type: string): 'active' | 'coming-soon' => {
+    const activeTypes = ['time_of_day', 'co_occurrence', 'multi_factor'];
+    return activeTypes.includes(type) ? 'active' : 'coming-soon';
   };
 
   const getPatternTypeInfo = (type: string) => {
@@ -178,6 +261,12 @@ export const Patterns: React.FC = () => {
         description: 'Identifies devices that are used together within a short time window (typically 5-30 minutes).',
         importance: 'Shows device relationships and enables coordinated automations. When one device activates, related devices can automatically respond.',
         example: 'Motion sensor triggers → Light turns on (within 30 seconds), or Door opens → Alarm activates (within 2 minutes).'
+      },
+      multi_factor: {
+        name: 'Multi-Factor Patterns',
+        description: 'Detects complex patterns involving multiple factors such as time, location, device state, and external conditions working together.',
+        importance: 'Identifies sophisticated behaviors that depend on multiple conditions. Enables advanced automations that respond to complex scenarios.',
+        example: 'Lights turn on when motion detected AND it\'s after sunset AND temperature is below 68°F, or Thermostat adjusts when door opens AND it\'s a weekday AND time is between 6-8 AM.'
       },
       sequence: {
         name: 'Sequence Patterns',
@@ -252,6 +341,53 @@ export const Patterns: React.FC = () => {
     
     return deviceId.length > 20 ? `${deviceId.substring(0, 20)}...` : deviceId;
   };
+
+  // Phase 8: Filter and search patterns
+  const filteredAndSortedPatterns = React.useMemo(() => {
+    let filtered = [...patterns];
+
+    // Filter by type
+    if (filterType !== 'all') {
+      filtered = filtered.filter(p => p.pattern_type === filterType);
+    }
+
+    // Search by device name or pattern type
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => {
+        const deviceName = (deviceNames[p.device_id] || getFallbackName(p.device_id)).toLowerCase();
+        const patternInfo = getPatternTypeInfo(p.pattern_type);
+        return deviceName.includes(query) || 
+               patternInfo.name.toLowerCase().includes(query) ||
+               patternInfo.description.toLowerCase().includes(query);
+      });
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'confidence':
+          return b.confidence - a.confidence;
+        case 'occurrences':
+          return b.occurrences - a.occurrences;
+        case 'recent':
+          // Assuming patterns have a timestamp - fallback to confidence if not
+          return (b as any).detected_at ? 
+            new Date((b as any).detected_at).getTime() - new Date((a as any).detected_at).getTime() :
+            b.confidence - a.confidence;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [patterns, filterType, searchQuery, sortBy, deviceNames]);
+
+  // Get unique pattern types for filter dropdown
+  const availablePatternTypes = React.useMemo(() => {
+    const types = new Set(patterns.map(p => p.pattern_type));
+    return Array.from(types).sort();
+  }, [patterns]);
 
   return (
     <div className="space-y-6" data-testid="patterns-container">
@@ -333,19 +469,47 @@ export const Patterns: React.FC = () => {
                     Pattern Types Explained
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {['time_of_day', 'co_occurrence', 'sequence', 'contextual', 'room_based', 'session', 'duration', 'day_type', 'seasonal', 'anomaly'].map((type) => {
+                    {['time_of_day', 'co_occurrence', 'multi_factor', 'sequence', 'contextual', 'room_based', 'session', 'duration', 'day_type', 'seasonal', 'anomaly'].map((type) => {
                       const info = getPatternTypeInfo(type);
+                      const status = getPatternStatus(type);
                       return (
                         <div
                           key={type}
-                          className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-800/30 border-gray-700' : 'bg-white border-gray-200'}`}
+                          className={`p-4 rounded-lg border ${
+                            darkMode 
+                              ? status === 'active' 
+                                ? 'bg-gray-800/30 border-green-700/50' 
+                                : 'bg-gray-800/20 border-gray-700/50 opacity-75'
+                              : status === 'active'
+                                ? 'bg-white border-green-200'
+                                : 'bg-gray-50 border-gray-200 opacity-75'
+                          }`}
                         >
                           <div className="flex items-start gap-3 mb-2">
                             <span className="text-2xl">{getPatternIcon(type)}</span>
                             <div className="flex-1">
-                              <h4 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                                {info.name}
-                              </h4>
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                  {info.name}
+                                </h4>
+                                {status === 'active' ? (
+                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                    darkMode 
+                                      ? 'bg-green-900/30 text-green-300 border border-green-700/50' 
+                                      : 'bg-green-100 text-green-800 border border-green-200'
+                                  }`}>
+                                    ✓ Active
+                                  </span>
+                                ) : (
+                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                    darkMode 
+                                      ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700/50' 
+                                      : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                                  }`}>
+                                    🔜 Coming Soon
+                                  </span>
+                                )}
+                              </div>
                               <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                 {info.description}
                               </p>
@@ -710,6 +874,97 @@ export const Patterns: React.FC = () => {
       )}
 
 
+      {/* Phase 8: Pattern Filtering and Search */}
+      {patterns.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`p-4 rounded-xl ${darkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white border border-gray-200'} shadow-lg`}
+        >
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search Input */}
+            <div className="flex-1">
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                🔍 Search Patterns
+              </label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by device name or pattern type..."
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              />
+            </div>
+
+            {/* Filter by Type */}
+            <div className="md:w-48">
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                📊 Filter by Type
+              </label>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              >
+                <option value="all">All Types</option>
+                {availablePatternTypes.map(type => {
+                  const info = getPatternTypeInfo(type);
+                  return (
+                    <option key={type} value={type}>
+                      {info.name}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Sort By */}
+            <div className="md:w-48">
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                🔄 Sort By
+              </label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'confidence' | 'occurrences' | 'recent')}
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              >
+                <option value="confidence">Confidence (High → Low)</option>
+                <option value="occurrences">Occurrences (Most → Least)</option>
+                <option value="recent">Most Recent</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Results Count */}
+          <div className={`mt-3 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Showing {filteredAndSortedPatterns.length} of {patterns.length} pattern{patterns.length !== 1 ? 's' : ''}
+            {(filterType !== 'all' || searchQuery.trim()) && (
+              <button
+                onClick={() => {
+                  setFilterType('all');
+                  setSearchQuery('');
+                }}
+                className={`ml-2 underline hover:no-underline ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </motion.div>
+      )}
+
       {/* Pattern List */}
       <div className="grid gap-4">
         {loading ? (
@@ -811,9 +1066,36 @@ export const Patterns: React.FC = () => {
               </div>
             </div>
           </div>
+        ) : filteredAndSortedPatterns.length === 0 ? (
+          <div className={`text-center py-12 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+            <div className="text-6xl mb-4">🔍</div>
+            <div className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              No patterns match your filters
+            </div>
+            <p className={`mt-2 mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Try adjusting your search query or filter settings
+            </p>
+            <button
+              onClick={() => {
+                setFilterType('all');
+                setSearchQuery('');
+              }}
+              className={`px-6 py-2 rounded-lg font-medium ${
+                darkMode 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              } transition-colors`}
+            >
+              Clear Filters
+            </button>
+          </div>
         ) : (
-          patterns.slice(0, 20).map((pattern, idx) => {
+          filteredAndSortedPatterns.slice(0, 50).map((pattern, idx) => {
             const patternInfo = getPatternTypeInfo(pattern.pattern_type);
+            const status = getPatternStatus(pattern.pattern_type);
+            const deviceName = deviceNames[pattern.device_id] || getFallbackName(pattern.device_id);
+            
+            // Phase 7: Enhanced pattern display with better metadata
             return (
               <motion.div
                 key={pattern.id}
@@ -821,37 +1103,66 @@ export const Patterns: React.FC = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className={`p-5 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow hover:shadow-lg transition-shadow border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
+                className={`p-5 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow hover:shadow-lg transition-all border ${
+                  darkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
+                }`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4 flex-1">
-                    <div className="text-4xl">{getPatternIcon(pattern.pattern_type)}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+                    <div className="text-4xl flex-shrink-0">{getPatternIcon(pattern.pattern_type)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <div className={`font-semibold text-lg ${darkMode ? 'text-white' : 'text-gray-900'}`} data-testid="pattern-devices">
-                          {deviceNames[pattern.device_id] || getFallbackName(pattern.device_id)}
+                          {deviceName}
                         </div>
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
                           darkMode 
                             ? 'bg-blue-900/30 text-blue-300 border border-blue-700/50' 
                             : 'bg-blue-100 text-blue-800 border border-blue-200'
                         }`}>
                           {patternInfo.name}
                         </span>
-                      </div>
-                      <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {patternInfo.description}
-                      </p>
-                      <div className="flex items-center gap-4 text-xs">
-                        <span className={`${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                          📊 {pattern.occurrences} occurrence{pattern.occurrences !== 1 ? 's' : ''}
-                        </span>
-                        {deviceNames[pattern.device_id] && (
-                          <span className={`${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                            🔑 ID: {pattern.device_id.substring(0, 8)}...
+                        {status === 'active' && (
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+                            darkMode 
+                              ? 'bg-green-900/30 text-green-300 border border-green-700/50' 
+                              : 'bg-green-100 text-green-800 border border-green-200'
+                          }`}>
+                            ✓ Active
                           </span>
                         )}
                       </div>
+                      <p className={`text-sm mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {patternInfo.description}
+                      </p>
+                      
+                      {/* Phase 7: Enhanced metadata display */}
+                      <div className="flex items-center gap-4 text-xs mb-3 flex-wrap">
+                        <span className={`flex items-center gap-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <span>📊</span>
+                          <span className="font-medium">{pattern.occurrences}</span>
+                          <span>occurrence{pattern.occurrences !== 1 ? 's' : ''}</span>
+                        </span>
+                        {pattern.pattern_type === 'time_of_day' && pattern.pattern_metadata?.time && (
+                          <span className={`flex items-center gap-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            <span>⏰</span>
+                            <span>{pattern.pattern_metadata.time}</span>
+                          </span>
+                        )}
+                        {pattern.pattern_type === 'co_occurrence' && pattern.device_id.includes('+') && (
+                          <span className={`flex items-center gap-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            <span>🔗</span>
+                            <span>Multi-device pattern</span>
+                          </span>
+                        )}
+                        {deviceNames[pattern.device_id] && (
+                          <span className={`flex items-center gap-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                            <span>🔑</span>
+                            <span className="font-mono text-xs">{pattern.device_id.substring(0, 8)}...</span>
+                          </span>
+                        )}
+                      </div>
+                      
                       <div className={`mt-2 p-2 rounded text-xs ${darkMode ? 'bg-purple-900/20 text-purple-200 border border-purple-700/30' : 'bg-purple-50 text-purple-800 border border-purple-200'}`}>
                         <p className="font-semibold mb-0.5">💡 Why this matters:</p>
                         <p>{patternInfo.importance}</p>
@@ -869,12 +1180,12 @@ export const Patterns: React.FC = () => {
                     }`}>
                       {Math.round(pattern.confidence * 100)}%
                     </div>
-                    <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                    <div className={`text-xs mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       confidence
                     </div>
-                    <div className={`mt-2 w-20 h-2 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                    <div className={`w-24 h-2 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                       <div
-                        className={`h-full ${
+                        className={`h-full transition-all ${
                           pattern.confidence >= 0.8 
                             ? 'bg-green-500'
                             : pattern.confidence >= 0.6
