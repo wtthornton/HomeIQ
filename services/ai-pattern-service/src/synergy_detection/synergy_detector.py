@@ -45,14 +45,15 @@ except ImportError:
     logger.warning("DeviceSequenceTransformer not available")
     TRANSFORMER_AVAILABLE = False
 
+logger = logging.getLogger(__name__)
+
 try:
     from .gnn_synergy_detector import GNNSynergyDetector
     GNN_AVAILABLE = True
-except ImportError:
-    logger.warning("GNNSynergyDetector not available")
+except (ImportError, SyntaxError, IndentationError) as e:
+    logger.warning(f"GNNSynergyDetector not available: {e}")
     GNN_AVAILABLE = False
-
-logger = logging.getLogger(__name__)
+    GNNSynergyDetector = None
 
 
 # Compatible device relationship mappings
