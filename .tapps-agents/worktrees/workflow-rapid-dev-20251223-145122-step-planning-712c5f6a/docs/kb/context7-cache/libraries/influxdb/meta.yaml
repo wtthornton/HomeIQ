@@ -1,0 +1,31 @@
+# InfluxDB Library Cache Entry
+# Generated: 2025-10-07T16:40:00Z
+
+library_info:
+  name: "InfluxDB"
+  context7_id: "/influxdata/docs-v2"
+  trust_score: 9.5
+  snippet_count: 892
+  last_updated: "2025-10-07T16:40:00Z"
+  topics: ["time series data", "queries", "measurements"]
+  
+cache_entry:
+  file_path: "libraries/influxdb/docs.md"
+  size_bytes: 34567
+  hit_count: 0
+  last_accessed: null
+  
+documentation_summary:
+  topics_covered:
+    - "Time series data modeling"
+    - "SQL and InfluxQL queries"
+    - "Data retention policies"
+    - "Performance optimization"
+    - "Monitoring and observability"
+  
+  key_concepts:
+    - "Time series databases"
+    - "Measurement and tags"
+    - "Query optimization"
+    - "Data retention"
+    - "Continuous queries"

@@ -1,0 +1,15 @@
+{
+  "embedding_models_sentence_transformers": [],
+  "embedding_models_general": [],
+  "zero_shot_classification": [],
+  "text_classification": [],
+  "smart_home_datasets": [],
+  "user_routine_datasets": [],
+  "home_assistant_datasets": [],
+  "energy_datasets": [],
+  "appliance_datasets": [],
+  "time_series_forecasting": [],
+  "iot_sensor_datasets": [],
+  "anomaly_detection_models": [],
+  "anomaly_detection_datasets": []
+}

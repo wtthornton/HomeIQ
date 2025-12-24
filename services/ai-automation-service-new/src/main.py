@@ -60,7 +60,7 @@ except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
-from .api import health_router, suggestion_router, deployment_router, pattern_router
+from .api import health_router, suggestion_router, deployment_router, pattern_router, synergy_router
 from .api.middlewares import (
     AuthenticationMiddleware,
     RateLimitMiddleware,
@@ -182,6 +182,7 @@ app.include_router(health_router, tags=["health"])
 app.include_router(suggestion_router, tags=["suggestions"])
 app.include_router(deployment_router, tags=["deployment"])
 app.include_router(pattern_router.router, tags=["patterns"])
+app.include_router(synergy_router.router, tags=["synergies"])
 app.include_router(analysis_router.router, tags=["analysis"])
 
 @app.get("/")

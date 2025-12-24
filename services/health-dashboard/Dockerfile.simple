@@ -1,5 +1,5 @@
 # Ultra-simple combined container - no nginx, no proxy complexity
-FROM node:20.11.0-alpine
+FROM node:20.19.0-alpine
 
 # Install Python for admin API
 RUN apk add --no-cache python3 py3-pip curl

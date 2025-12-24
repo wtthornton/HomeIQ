@@ -1,0 +1,67 @@
+# Express Library Metadata
+# Generated: 2025-10-07T16:40:00Z
+
+library:
+  name: "express"
+  context7_id: "/expressjs/express"
+  version: "4.18.0"
+  trust_score: 9
+  code_snippets: 1200
+  description: "Express is a minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications."
+  
+  topics:
+    routing:
+      file: "routing.md"
+      size: "0KB"
+      last_updated: null
+      cache_hits: 0
+      token_count: 0
+      context7_source: "https://expressjs.com/en/guide/routing.html"
+    
+    middleware:
+      file: "middleware.md"
+      size: "0KB"
+      last_updated: null
+      cache_hits: 0
+      token_count: 0
+      context7_source: "https://expressjs.com/en/guide/using-middleware.html"
+    
+    security:
+      file: "security.md"
+      size: "0KB"
+      last_updated: null
+      cache_hits: 0
+      token_count: 0
+      context7_source: "https://expressjs.com/en/advanced/best-practice-security.html"
+  
+  cross_references:
+    - library: "mongoose"
+      topic: "database"
+      relevance: 0.9
+    - library: "passport"
+      topic: "authentication"
+      relevance: 0.8
+    - library: "helmet"
+      topic: "security"
+      relevance: 0.7
+    - library: "cors"
+      topic: "cors"
+      relevance: 0.8
+  
+  bmad_integration:
+    - agent: "architect"
+      scenarios: ["backend-architecture", "api-design"]
+      usage_frequency: 0
+    - agent: "dev"
+      scenarios: ["express-implementation", "api-development"]
+      usage_frequency: 0
+    - agent: "qa"
+      scenarios: ["api-testing", "security-testing"]
+      usage_frequency: 0
+  
+  performance_metrics:
+    total_requests: 0
+    cache_hits: 0
+    cache_misses: 0
+    avg_response_time: "0.00s"
+    last_accessed: null

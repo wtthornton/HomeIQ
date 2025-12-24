@@ -1,0 +1,31 @@
+# Elasticsearch Library Cache Entry
+# Generated: 2025-10-07T16:40:00Z
+
+library_info:
+  name: "Elasticsearch"
+  context7_id: "/elastic/elasticsearch-py"
+  trust_score: 9.7
+  snippet_count: 2134
+  last_updated: "2025-10-07T16:40:00Z"
+  topics: ["search", "indexing", "aggregations"]
+  
+cache_entry:
+  file_path: "libraries/elasticsearch/docs.md"
+  size_bytes: 41234
+  hit_count: 0
+  last_accessed: null
+  
+documentation_summary:
+  topics_covered:
+    - "Document indexing"
+    - "Search queries"
+    - "Aggregation pipelines"
+    - "Index management"
+    - "Performance optimization"
+  
+  key_concepts:
+    - "Document indexing"
+    - "Query DSL"
+    - "Aggregation framework"
+    - "Index templates"
+    - "Search optimization"

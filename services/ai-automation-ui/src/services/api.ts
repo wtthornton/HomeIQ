@@ -484,29 +484,13 @@ export const api = {
   },
 
   async getDeviceNames(deviceIds: string[]): Promise<Record<string, string>> {
-    const nameMap: Record<string, string> = {};
+    // Import cache utility (dynamic import to avoid circular dependencies)
+    const { deviceNameCache } = await import('../utils/deviceNameCache');
     
-    // Process in smaller batches with delays to avoid rate limiting
-    const batchSize = 5; // Reduced from 10 to avoid rate limits
-    const delayBetweenBatches = 200; // 200ms delay between batches
-    
-    for (let i = 0; i < deviceIds.length; i += batchSize) {
-      const batch = deviceIds.slice(i, i + batchSize);
-      const promises = batch.map(async (deviceId) => {
-        try {
-          const name = await this.getDeviceName(deviceId);
-          return { deviceId, name };
-        } catch (error: any) {
-          // If rate limited, return fallback name
-          if (error?.message?.includes('Rate limit') || error?.message?.includes('429')) {
-            console.warn(`Rate limited for ${deviceId}, using fallback name`);
-            return { deviceId, name: deviceId.split('.').pop() || deviceId.substring(0, 20) };
-          }
-          throw error;
-        }
-      });
-      
-      const results = await Promise.all(promises);
+    // Use cache for batch processing
+    return deviceNameCache.batchGet(deviceIds, async (deviceId) => {
+      return this.getDeviceName(deviceId);
+    });
       results.forEach(({ deviceId, name }) => {
         nameMap[deviceId] = name;
       });

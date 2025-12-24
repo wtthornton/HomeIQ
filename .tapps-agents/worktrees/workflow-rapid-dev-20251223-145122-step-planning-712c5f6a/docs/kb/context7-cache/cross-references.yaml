@@ -1,0 +1,252 @@
+version: 2.0
+last_updated: 2025-10-19T00:00:00Z
+
+# Cross-references between libraries showing integration patterns
+cross_references:
+  
+  # Backend Integration Patterns
+  fastapi-sqlalchemy-alembic:
+    libraries: [fastapi, sqlite, alembic]
+    pattern: "Async FastAPI with SQLite and Alembic migrations"
+    use_case: "Epic 22: Device/Entity metadata storage with schema migrations"
+    docs:
+      - libraries/fastapi/docs.md
+      - libraries/sqlite/fastapi-best-practices.md
+      - libraries/alembic/docs.md
+    code_example: "services/data-api/src/database.py"
+    
+  fastapi-influxdb:
+    libraries: [fastapi, influxdb]
+    pattern: "FastAPI with InfluxDB time-series queries"
+    use_case: "Data API service for event queries and analytics"
+    docs:
+      - libraries/fastapi/docs.md
+      - libraries/influxdb/docs.md
+    code_example: "services/data-api/src/influxdb_client.py"
+    
+  fastapi-aiohttp:
+    libraries: [fastapi, aiohttp]
+    pattern: "FastAPI with aiohttp WebSocket client"
+    use_case: "WebSocket ingestion service for HA real-time events"
+    docs:
+      - libraries/fastapi/docs.md
+      - libraries/aiohttp/docs.md
+    code_example: "services/websocket-ingestion/src/connection_manager.py"
+  
+  # Frontend Integration Patterns
+  react-typescript-vite:
+    libraries: [react, typescript, vite, tailwindcss]
+    pattern: "React + TypeScript + Vite build setup"
+    use_case: "Health Dashboard frontend stack"
+    docs:
+      - libraries/react/docs.md
+      - libraries/typescript/docs.md
+      - libraries/vite/docs.md
+      - libraries/tailwindcss/docs.md
+    code_example: "services/health-dashboard/vite.config.ts"
+    
+  react-influxdb-polling:
+    libraries: [react, influxdb]
+    pattern: "React useEffect polling for InfluxDB real-time data"
+    use_case: "Events tab real-time event streaming"
+    docs:
+      - libraries/react/docs.md
+      - lessons-learned-events-tab-implementation.md
+    code_example: "services/health-dashboard/src/hooks/useRealTimeMetrics.ts"
+    performance: "1,558x improvement with deduplication"
+  
+  # AI/ML Integration Patterns
+  transformers-openvino-optimization:
+    libraries: [huggingface-transformers, sentence-transformers]
+    pattern: "HuggingFace Transformers with OpenVINO INT8 quantization"
+    use_case: "Phase 1 MVP: AI pattern detection with edge deployment"
+    docs:
+      - libraries/huggingface-transformers/docs.md
+      - libraries/sentence-transformers/docs.md
+    models:
+      - "all-MiniLM-L6-v2 (20MB INT8)"
+      - "flan-t5-small (80MB INT8)"
+    stack_size: "380MB total (4.5x smaller than FP32)"
+    stack_speed: "230ms per pattern (2.8x faster)"
+    
+  sentence-transformers-semantic-search:
+    libraries: [sentence-transformers]
+    pattern: "Sentence embeddings for pattern similarity search"
+    use_case: "Pattern detection: Event sequence → similar automation patterns"
+    docs:
+      - libraries/sentence-transformers/docs.md
+    performance:
+      - "50ms for 1000 embeddings"
+      - "85% accuracy for pattern matching"
+  
+  # Testing Integration Patterns
+  vitest-react-testing:
+    libraries: [vitest, react, typescript]
+    pattern: "Vitest for React component unit testing"
+    use_case: "Health Dashboard component testing"
+    docs:
+      - libraries/vitest/docs.md
+      - libraries/react/docs.md
+    code_example: "services/health-dashboard/src/components/__tests__/"
+    
+  playwright-e2e-testing:
+    libraries: [playwright, react]
+    pattern: "Playwright E2E testing for React apps"
+    use_case: "Full application E2E test suite"
+    docs:
+      - libraries/playwright/docs.md
+    code_example: "tests/playwright/"
+    
+  puppeteer-visual-regression:
+    libraries: [puppeteer]
+    pattern: "Puppeteer for visual regression testing"
+    use_case: "Screenshot-based UI validation for all pages"
+    docs:
+      - libraries/puppeteer/docs.md
+    code_example: "tests/visual/test-all-pages.js"
+    coverage: "Light/dark mode, design tokens, touch targets, a11y"
+  
+  # Infrastructure Patterns
+  docker-compose-microservices:
+    libraries: [docker, fastapi, react]
+    pattern: "Docker Compose orchestration for microservices"
+    use_case: "20-service architecture with health checks"
+    docs:
+      - libraries/docker/docs.md
+    code_example: "docker-compose.yml"
+    services: 20
+    
+  homeassistant-api-integration:
+    libraries: [homeassistant, aiohttp, fastapi]
+    pattern: "Home Assistant API + WebSocket integration"
+    use_case: "HA Setup Service with health monitoring"
+    docs:
+      - libraries/homeassistant/docs.md
+      - libraries/aiohttp/docs.md
+    code_example: "services/ha-setup-service/src/main.py"
+    endpoints:
+      - "REST API: http://192.168.1.86:8123"
+      - "WebSocket: ws://192.168.1.86:8123"
+      - "MQTT: 192.168.1.86:1883"
+
+# Technology stack mappings
+tech_stack_layers:
+  backend:
+    api_framework: fastapi
+    websocket_client: aiohttp
+    logging: python-logging
+    
+  database:
+    time_series: influxdb
+    relational: sqlite
+    orm: sqlalchemy (via fastapi patterns)
+    migrations: alembic
+    
+  frontend:
+    framework: react
+    language: typescript
+    build_tool: vite
+    styling: tailwindcss
+    icons: heroicons
+    
+  testing:
+    unit_component: vitest
+    e2e: playwright
+    visual_regression: puppeteer
+    backend: pytest
+    
+  ai_ml:
+    model_framework: huggingface-transformers
+    embeddings: sentence-transformers
+    optimization: openvino (via optimum)
+    
+  infrastructure:
+    containerization: docker
+    integration: homeassistant
+
+# Common patterns index
+common_patterns:
+  async_database_operations:
+    description: "Async SQLAlchemy 2.0 patterns for FastAPI"
+    libraries: [fastapi, sqlite, alembic]
+    docs: "libraries/sqlite/fastapi-best-practices.md"
+    
+  real_time_data_polling:
+    description: "React useEffect polling with race condition handling"
+    libraries: [react]
+    docs: "lessons-learned-events-tab-implementation.md"
+    
+  model_quantization:
+    description: "INT4/INT8 quantization for edge deployment"
+    libraries: [huggingface-transformers, sentence-transformers]
+    docs: "libraries/huggingface-transformers/docs.md"
+    
+  semantic_search:
+    description: "Sentence embeddings for similarity search"
+    libraries: [sentence-transformers]
+    docs: "libraries/sentence-transformers/docs.md"
+    
+  database_migrations:
+    description: "Alembic migrations with autogenerate"
+    libraries: [alembic, sqlite]
+    docs: "libraries/alembic/docs.md"
+    
+  visual_testing:
+    description: "Screenshot-based UI validation"
+    libraries: [puppeteer]
+    docs: "libraries/puppeteer/docs.md"
+
+# Epic-specific documentation mappings
+epic_documentation:
+  epic_22_sqlite_integration:
+    libraries: [alembic, sqlite, fastapi]
+    primary_docs:
+      - "libraries/alembic/docs.md"
+      - "libraries/sqlite/fastapi-best-practices.md"
+    implementation: "EPIC_22_COMPLETE.md"
+    
+  ai_phase1_pattern_detection:
+    libraries: [huggingface-transformers, sentence-transformers]
+    primary_docs:
+      - "libraries/huggingface-transformers/docs.md"
+      - "libraries/sentence-transformers/docs.md"
+    implementation: "AI_PATTERN_DETECTION_IMPLEMENTATION_PLAN.md"
+    models:
+      - "all-MiniLM-L6-v2"
+      - "flan-t5-small"
+      - "bge-reranker-base-int8-ov"
+    
+  epic_27_30_ha_setup_service:
+    libraries: [homeassistant, fastapi, aiohttp]
+    primary_docs:
+      - "libraries/homeassistant/docs.md"
+      - "libraries/fastapi/docs.md"
+    implementation: "EPIC_27_30_COMPLETE.md"
+
+# Performance benchmarks cross-reference
+performance_benchmarks:
+  events_tab_optimization:
+    libraries: [react, influxdb]
+    improvement: "1,558x faster (2.5s → 1.6ms)"
+    technique: "Deduplication + proper Flux queries"
+    docs: "lessons-learned-events-tab-implementation.md"
+    
+  ai_pattern_detection_stack:
+    libraries: [huggingface-transformers, sentence-transformers]
+    stack_size: "380MB (4.5x smaller than full-precision)"
+    inference_speed: "230ms per pattern (2.8x faster)"
+    accuracy: "80-85% (with re-ranker: 85-90%)"
+    docs: "AI_PATTERN_DETECTION_IMPLEMENTATION_PLAN.md"
+    
+  sqlite_query_performance:
+    libraries: [sqlite, alembic]
+    improvement: "5-10x faster (<10ms vs ~50ms)"
+    technique: "Relational schema + WAL mode + proper indexing"
+    docs: "libraries/sqlite/fastapi-best-practices.md"
+
+metadata:
+  total_cross_references: 15
+  total_patterns: 6
+  total_epic_mappings: 3
+  total_performance_benchmarks: 3
+  last_validated: 2025-10-19T00:00:00Z

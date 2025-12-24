@@ -1,0 +1,39 @@
+# Alembic Library Cache Entry
+# Generated: 2025-10-19T00:00:00Z
+
+library_info:
+  name: "Alembic"
+  context7_id: "/sqlalchemy/alembic"
+  trust_score: 9.3
+  snippet_count: 363
+  last_updated: "2025-10-19T00:00:00Z"
+  last_checked: "2025-10-19T00:00:00Z"
+  topics: ["database migrations", "schema changes", "version control", "SQLAlchemy"]
+  
+cache_entry:
+  file_path: "libraries/alembic/docs.md"
+  size_bytes: 6890
+  hit_count: 0
+  last_accessed: "2025-10-19T00:00:00Z"
+  
+refresh_policy:
+  max_age_days: 30
+  auto_refresh: true
+  library_type: "stable"
+  
+documentation_summary:
+  topics_covered:
+    - "Database migration creation and management"
+    - "Autogenerate migrations from models"
+    - "Upgrade and downgrade operations"
+    - "SQL script generation"
+    - "Async SQLAlchemy support"
+    - "Batch migrations for SQLite"
+  
+  key_concepts:
+    - "Revision control for database schemas"
+    - "Migration upgrade() and downgrade() functions"
+    - "Alembic command API"
+    - "Integration with FastAPI and SQLAlchemy"
+    - "Version branching and merging"
+

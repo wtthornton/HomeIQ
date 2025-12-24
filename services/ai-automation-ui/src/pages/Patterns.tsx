@@ -10,6 +10,13 @@ import { useAppStore } from '../store';
 import api from '../services/api';
 import type { Pattern } from '../types';
 import { PatternTypeChart, ConfidenceDistributionChart, TopDevicesChart } from '../components/PatternChart';
+import { SkeletonCardGrid, SkeletonCard } from '../components/SkeletonCard';
+import { SkeletonStats } from '../components/SkeletonStats';
+import { SkeletonFilter } from '../components/SkeletonFilter';
+import { ErrorBanner } from '../components/ErrorBanner';
+import { PatternDetailsModal } from '../components/PatternDetailsModal';
+import { deviceNameCache } from '../utils/deviceNameCache';
+import { exportPatternsToCSV, exportPatternsToJSON } from '../utils/exportUtils';
 
 export const Patterns: React.FC = () => {
   const { darkMode } = useAppStore();
@@ -22,6 +29,8 @@ export const Patterns: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPatternGuide, setShowPatternGuide] = useState(false);
   const [showStatsAndCharts, setShowStatsAndCharts] = useState(true); // Collapsible stats
+  const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
+  const [selectedPatternIds, setSelectedPatternIds] = useState<Set<number>>(new Set());
   // Phase 8: Pattern filtering and search
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -325,7 +334,10 @@ export const Patterns: React.FC = () => {
     };
   };
 
-  const getFallbackName = (deviceId: string) => {
+  // Use device name cache for fallback
+  const getFallbackName = React.useCallback((deviceId: string) => {
+    return deviceNameCache.getFallbackName(deviceId);
+  }, []);
     if (deviceId.includes('+')) {
       const parts = deviceId.split('+');
       if (parts.length === 2) {
@@ -582,17 +594,12 @@ export const Patterns: React.FC = () => {
         </motion.button>
       </motion.div>
 
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`p-4 rounded-lg ${darkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}
-        >
-          <p className={`font-medium ${darkMode ? 'text-red-300' : 'text-red-800'}`}>
-            ⚠️ Error: {error}
-          </p>
-        </motion.div>
-      )}
+      <ErrorBanner 
+        error={error} 
+        onRetry={loadPatterns}
+        onDismiss={() => setError(null)}
+        variant="banner"
+      />
 
       {analysisRunning && (
         <motion.div
@@ -733,6 +740,11 @@ export const Patterns: React.FC = () => {
                       </div>
                     </motion.div>
                   </div>
+
+                  {/* Stats Skeleton */}
+                  {loading && (
+                    <SkeletonStats statCount={4} showCharts={false} className="mt-6" />
+                  )}
 
                   {/* Charts Section */}
                   {!loading && patterns.length > 0 && (
@@ -947,19 +959,113 @@ export const Patterns: React.FC = () => {
             </div>
           </div>
 
-          {/* Results Count */}
-          <div className={`mt-3 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Showing {filteredAndSortedPatterns.length} of {patterns.length} pattern{patterns.length !== 1 ? 's' : ''}
-            {(filterType !== 'all' || searchQuery.trim()) && (
-              <button
-                onClick={() => {
-                  setFilterType('all');
-                  setSearchQuery('');
-                }}
-                className={`ml-2 underline hover:no-underline ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}
-              >
-                Clear filters
-              </button>
+          {/* Bulk Actions Toolbar */}
+          {selectedPatternIds.size > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`mt-3 p-4 rounded-xl ${darkMode ? 'bg-blue-900/20 border border-blue-700/30' : 'bg-blue-50 border border-blue-200'}`}
+            >
+              <div className="flex items-center justify-between">
+                <div className={`text-sm font-medium ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+                  {selectedPatternIds.size} pattern{selectedPatternIds.size !== 1 ? 's' : ''} selected
+                </div>
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      const selected = filteredAndSortedPatterns.filter(p => selectedPatternIds.has(p.id));
+                      exportPatternsToCSV(selected, deviceNames);
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      darkMode
+                        ? 'bg-blue-700 hover:bg-blue-600 text-white'
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    }`}
+                  >
+                    📥 Export Selected
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      if (window.confirm(`Delete ${selectedPatternIds.size} pattern${selectedPatternIds.size !== 1 ? 's' : ''}? This action cannot be undone.`)) {
+                        // TODO: Implement API call to delete patterns
+                        toast.success(`Deleted ${selectedPatternIds.size} pattern${selectedPatternIds.size !== 1 ? 's' : ''}`);
+                        setSelectedPatternIds(new Set());
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      darkMode
+                        ? 'bg-red-700 hover:bg-red-600 text-white'
+                        : 'bg-red-500 hover:bg-red-600 text-white'
+                    }`}
+                  >
+                    🗑️ Delete Selected
+                  </motion.button>
+                  <button
+                    onClick={() => setSelectedPatternIds(new Set())}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      darkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    }`}
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Results Count and Export */}
+          <div className="mt-3 flex items-center justify-between">
+            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Showing {filteredAndSortedPatterns.length} of {patterns.length} pattern{patterns.length !== 1 ? 's' : ''}
+              {(filterType !== 'all' || searchQuery.trim()) && (
+                <button
+                  onClick={() => {
+                    setFilterType('all');
+                    setSearchQuery('');
+                  }}
+                  className={`ml-2 underline hover:no-underline ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+            
+            {/* Export Buttons */}
+            {!loading && filteredAndSortedPatterns.length > 0 && (
+              <div className="flex gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => exportPatternsToCSV(filteredAndSortedPatterns, deviceNames)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    darkMode
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                  title="Export to CSV"
+                >
+                  📥 Export CSV
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => exportPatternsToJSON(filteredAndSortedPatterns, deviceNames)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    darkMode
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                  title="Export to JSON"
+                >
+                  📥 Export JSON
+                </motion.button>
+              </div>
             )}
           </div>
         </motion.div>
@@ -968,9 +1074,7 @@ export const Patterns: React.FC = () => {
       {/* Pattern List */}
       <div className="grid gap-4">
         {loading ? (
-          <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Loading patterns...
-          </div>
+          <SkeletonCardGrid count={6} variant="pattern" />
         ) : patterns.length === 0 ? (
           <div className={`text-center py-12 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
             <div className="text-6xl mb-4">📊</div>
@@ -1104,10 +1208,37 @@ export const Patterns: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
                 className={`p-5 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow hover:shadow-lg transition-all border ${
-                  darkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
-                }`}
+                  selectedPatternIds.has(pattern.id)
+                    ? darkMode ? 'border-blue-500 bg-blue-900/20' : 'border-blue-500 bg-blue-50'
+                    : darkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
+                } ${selectedPatternIds.has(pattern.id) ? '' : 'cursor-pointer'}`}
+                onClick={(e) => {
+                  // Don't open modal if clicking checkbox
+                  if ((e.target as HTMLElement).type !== 'checkbox' && !(e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                    setSelectedPattern(pattern);
+                  }
+                }}
               >
                 <div className="flex items-start justify-between gap-4">
+                  {/* Selection Checkbox */}
+                  <div className="flex-shrink-0 pt-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedPatternIds.has(pattern.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        const newSet = new Set(selectedPatternIds);
+                        if (e.target.checked) {
+                          newSet.add(pattern.id);
+                        } else {
+                          newSet.delete(pattern.id);
+                        }
+                        setSelectedPatternIds(newSet);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-5 h-5 rounded cursor-pointer"
+                    />
+                  </div>
                   <div className="flex items-start gap-4 flex-1">
                     <div className="text-4xl flex-shrink-0">{getPatternIcon(pattern.pattern_type)}</div>
                     <div className="flex-1 min-w-0">
@@ -1202,6 +1333,13 @@ export const Patterns: React.FC = () => {
           })
         )}
       </div>
+
+      {/* Pattern Details Modal */}
+      <PatternDetailsModal
+        pattern={selectedPattern}
+        deviceName={selectedPattern ? (deviceNames[selectedPattern.device_id] || getFallbackName(selectedPattern.device_id)) : ''}
+        onClose={() => setSelectedPattern(null)}
+      />
     </div>
   );
 };
