@@ -1,0 +1,31 @@
+# Redis Library Cache Entry
+# Generated: 2025-10-07T16:40:00Z
+
+library_info:
+  name: "Redis"
+  context7_id: "/redis/redis-py"
+  trust_score: 9.7
+  snippet_count: 1156
+  last_updated: "2025-10-07T16:40:00Z"
+  topics: ["client connection", "caching", "pubsub"]
+  
+cache_entry:
+  file_path: "libraries/redis/docs.md"
+  size_bytes: 32145
+  hit_count: 0
+  last_accessed: null
+  
+documentation_summary:
+  topics_covered:
+    - "Redis client configuration"
+    - "Connection management"
+    - "Pub/Sub messaging"
+    - "Caching strategies"
+    - "Data structures and operations"
+  
+  key_concepts:
+    - "In-memory data store"
+    - "Pub/Sub messaging"
+    - "Connection pooling"
+    - "Caching patterns"
+    - "Data persistence"
