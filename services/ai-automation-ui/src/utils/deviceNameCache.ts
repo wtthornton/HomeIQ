@@ -18,9 +18,14 @@ interface CacheEntry {
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const STORAGE_KEY = 'homeiq_device_names_cache';
 
+interface DeviceNameResult {
+  deviceId: string;
+  name: string;
+}
+
 class DeviceNameCache {
   private memoryCache: Map<string, CacheEntry> = new Map();
-  private pendingRequests: Map<string, Promise<string>> = new Map();
+  private pendingRequests: Map<string, Promise<DeviceNameResult>> = new Map();
 
   constructor() {
     this.loadFromStorage();
@@ -192,7 +197,7 @@ class DeviceNameCache {
               this.pendingRequests.delete(deviceId);
             });
 
-          this.pendingRequests.set(deviceId, promise.then(r => r.name));
+          this.pendingRequests.set(deviceId, promise);
           return promise;
         });
 

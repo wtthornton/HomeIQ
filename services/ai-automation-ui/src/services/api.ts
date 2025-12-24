@@ -491,17 +491,6 @@ export const api = {
     return deviceNameCache.batchGet(deviceIds, async (deviceId) => {
       return this.getDeviceName(deviceId);
     });
-      results.forEach(({ deviceId, name }) => {
-        nameMap[deviceId] = name;
-      });
-      
-      // Add delay between batches (except for the last batch)
-      if (i + batchSize < deviceIds.length) {
-        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
-      }
-    }
-    
-    return nameMap;
   },
 
   // Synergies (Epic AI-3, Story AI3.8)
