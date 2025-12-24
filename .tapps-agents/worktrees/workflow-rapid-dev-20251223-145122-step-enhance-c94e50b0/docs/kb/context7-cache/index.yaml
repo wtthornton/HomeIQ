@@ -1,0 +1,536 @@
+version: 2.0
+last_updated: 2025-12-03 00:00:00+00:00
+total_libraries: 26
+total_topics: 84
+total_cache_hits: 15
+index_rebuilt: true
+libraries:
+  fastapi:
+    topics:
+    - api-endpoints
+    - authentication
+    - middleware
+    - async-programming
+    last_fetched: '2025-11-16T21:02:14.911478Z'
+    cache_hits: 1
+    source: context7_api
+    context7_id: /tiangolo/fastapi
+    trust_score: 10
+    snippet_count: 1847
+    docs_file: libraries/fastapi/docs.md
+    size_kb: 41
+    version: 0.121.2
+    last_version_check: '2025-11-16T21:01:09.645229Z'
+    refresh_requested: '2025-11-16T21:02:14.911495Z'
+  aiohttp:
+    topics:
+    - websocket
+    - async-http
+    - client-server
+    last_fetched: '2025-11-16T21:02:14.911501Z'
+    cache_hits: 1
+    source: context7_api
+    context7_id: /aio-libs/aiohttp
+    trust_score: 9.8
+    snippet_count: 1245
+    docs_file: libraries/aiohttp/docs.md
+    size_kb: 38
+    version: 3.13.2
+    last_version_check: '2025-11-16T21:01:09.645247Z'
+    refresh_requested: '2025-11-16T21:02:14.911506Z'
+  python-logging:
+    topics:
+    - structured-logging
+    - log-formats
+    - handlers
+    last_fetched: 2025-10-07 16:40:00+00:00
+    cache_hits: 1
+    source: context7_api
+    context7_id: /python/logging
+    trust_score: 10
+    snippet_count: 450
+    docs_file: libraries/python-logging/docs.md
+    size_kb: 25
+  sqlite:
+    topics:
+    - fastapi-best-practices
+    - when-to-use
+    - docker-deployment
+    - wal-mode
+    - async-patterns
+    last_fetched: 2025-01-14 00:00:00+00:00
+    cache_hits: 3
+    source: web_research
+    docs_files:
+    - libraries/sqlite/fastapi-best-practices.md
+    - libraries/sqlite/when-to-use.md
+    - libraries/sqlite/docker-deployment.md
+    size_kb: 26
+  influxdb:
+    topics:
+    - flux-queries
+    - pivot
+    - deduplication
+    - filtering
+    - group
+    - time-series
+    last_fetched: '2025-11-16T21:02:14.911510Z'
+    cache_hits: 2
+    source: context7_api
+    context7_id: /influxdata/influxdb
+    trust_score: 9.2
+    snippet_count: 31993
+    docs_file: libraries/influxdb/docs.md
+    size_kb: 52
+    usage: Events API duplicate events fix
+    version: 1.49.0
+    last_version_check: '2025-11-16T21:01:09.645253Z'
+    refresh_requested: '2025-11-16T21:02:14.911513Z'
+  alembic:
+    topics:
+    - database-migrations
+    - schema-changes
+    - autogenerate
+    - upgrade-downgrade
+    - async-sqlalchemy
+    last_fetched: '2025-11-16T21:02:14.911516Z'
+    cache_hits: 0
+    source: context7_api
+    context7_id: /sqlalchemy/alembic
+    trust_score: 9.3
+    snippet_count: 363
+    docs_file: libraries/alembic/docs.md
+    size_kb: 7
+    phase: epic-22
+    usage: SQLite migrations for device/entity tables
+    version: 1.17.2
+    last_version_check: '2025-11-16T21:01:09.645259Z'
+    refresh_requested: '2025-11-16T21:02:14.911519Z'
+  react:
+    topics:
+    - hooks
+    - useEffect
+    - data-fetching
+    - race-conditions
+    - polling
+    - components
+    - state-management
+    last_fetched: '2025-11-16T21:02:14.911522Z'
+    cache_hits: 2
+    source: context7_api
+    context7_id: /reactjs/react.dev
+    trust_score: 10
+    snippet_count: 2378
+    docs_file: libraries/react/docs.md
+    size_kb: 46
+    usage: Health Dashboard, Events tab implementation
+    version: 18.3.5
+    last_version_check: '2025-11-16T21:01:09.645275Z'
+    refresh_requested: '2025-11-16T21:02:14.911525Z'
+  typescript:
+    topics:
+    - type-safety
+    - interfaces
+    - generics
+    - strict-mode
+    last_fetched: '2025-11-16T21:02:14.911528Z'
+    cache_hits: 1
+    source: context7_api
+    context7_id: /microsoft/typescript
+    trust_score: 10
+    snippet_count: 3450
+    docs_file: libraries/typescript/docs.md
+    size_kb: 48
+    version: 5.6.3
+    last_version_check: '2025-11-16T21:01:09.645281Z'
+    refresh_requested: '2025-11-16T21:02:14.911530Z'
+  tailwindcss:
+    topics:
+    - utility-classes
+    - responsive-design
+    - dark-mode
+    - configuration
+    last_fetched: '2025-11-16T21:02:14.911533Z'
+    cache_hits: 1
+    source: context7_api
+    context7_id: /tailwindlabs/tailwindcss
+    trust_score: 10
+    snippet_count: 2100
+    docs_file: libraries/tailwindcss/docs.md
+    size_kb: 42
+    version: 3.4.13
+    last_version_check: '2025-11-16T21:01:09.645278Z'
+    refresh_requested: '2025-11-16T21:02:14.911535Z'
+  heroicons:
+    topics:
+    - svg-icons
+    - react-integration
+    - accessibility
+    last_fetched: 2025-10-07 16:40:00+00:00
+    cache_hits: 1
+    source: context7_api
+    context7_id: /tailwindlabs/heroicons
+    trust_score: 9.8
+    snippet_count: 150
+    docs_file: libraries/heroicons/docs.md
+    size_kb: 18
+  vite:
+    topics:
+    - build-tool
+    - hmr
+    - optimization
+    - plugins
+    last_fetched: '2025-11-16T21:02:14.911538Z'
+    cache_hits: 1
+    source: context7_api
+    context7_id: /vitejs/vite
+    trust_score: 10
+    snippet_count: 1850
+    docs_file: libraries/vite/docs.md
+    size_kb: 44
+    version: 5.4.8
+    last_version_check: '2025-11-16T21:01:09.645283Z'
+    refresh_requested: '2025-11-16T21:02:14.911541Z'
+  vitest:
+    topics:
+    - testing
+    - mocking
+    - coverage
+    - configuration
+    - msw-integration
+    last_fetched: '2025-11-16T21:02:14.911543Z'
+    cache_hits: 1
+    source: context7_api
+    context7_id: /vitest-dev/vitest/v3.2.4
+    trust_score: 8.3
+    snippet_count: 1183
+    docs_file: libraries/vitest/docs.md
+    size_kb: 28
+    version: 3.2.4
+    last_version_check: '2025-11-16T21:01:09.645285Z'
+    refresh_requested: '2025-11-16T21:02:14.911546Z'
+  playwright:
+    topics:
+    - e2e-testing
+    - automation
+    - assertions
+    - configuration
+    - accessibility
+    last_fetched: '2025-11-16T21:02:14.911549Z'
+    cache_hits: 1
+    source: context7_api
+    context7_id: /microsoft/playwright/v1.56.1
+    trust_score: 9.9
+    snippet_count: 2103
+    docs_file: libraries/playwright/docs.md
+    size_kb: 46
+    version: 1.56.1
+    last_version_check: '2025-11-16T21:01:09.645272Z'
+    refresh_requested: '2025-11-16T21:02:14.911551Z'
+  puppeteer:
+    topics:
+    - screenshots
+    - visual-testing
+    - automation
+    - browser-control
+    last_fetched: '2025-11-16T21:02:14.911554Z'
+    cache_hits: 0
+    source: context7_api
+    context7_id: /puppeteer/puppeteer/puppeteer-v24.30.0
+    trust_score: 8.0
+    snippet_count: 2318
+    docs_file: libraries/puppeteer/docs.md
+    size_kb: 38
+    version: 24.30.0
+    usage: Visual regression testing for Health Dashboard
+    last_version_check: '2025-11-16T21:01:09.645269Z'
+    refresh_requested: '2025-11-16T21:02:14.911556Z'
+  pytest:
+    topics:
+    - python-testing
+    - fixtures
+    - parametrization
+    - plugins
+    last_fetched: '2025-11-16T21:02:14.911559Z'
+    cache_hits: 1
+    source: context7_api
+    context7_id: /pytest-dev/pytest
+    trust_score: 10
+    snippet_count: 1560
+    docs_file: libraries/pytest/docs.md
+    size_kb: 35
+    version: 8.3.3
+    last_version_check: '2025-11-16T21:01:09.645250Z'
+    refresh_requested: '2025-11-16T21:02:14.911562Z'
+  huggingface-transformers:
+    topics:
+    - model-loading
+    - inference
+    - quantization
+    - openvino-export
+    - flash-attention
+    - optimization
+    last_fetched: '2025-11-16T21:02:14.911564Z'
+    cache_hits: 0
+    source: context7_api
+    context7_id: /huggingface/transformers
+    trust_score: 9.6
+    snippet_count: 2956
+    docs_file: libraries/huggingface-transformers/docs.md
+    size_kb: 9
+    phase: ai-phase1-mvp
+    usage: flan-t5-small INT8 pattern classification
+    version: 4.46.1
+    last_version_check: '2025-11-16T21:01:09.645264Z'
+    refresh_requested: '2025-11-16T21:02:14.911567Z'
+  sentence-transformers:
+    topics:
+    - embeddings
+    - semantic-search
+    - similarity
+    - optimization
+    last_fetched: '2025-11-16T21:02:14.911570Z'
+    cache_hits: 0
+    source: context7_api
+    context7_id: /ukplab/sentence-transformers
+    trust_score: 7.8
+    snippet_count: 535
+    docs_file: libraries/sentence-transformers/docs.md
+    size_kb: 8
+    phase: ai-phase1-mvp
+    usage: all-MiniLM-L6-v2 INT8 pattern embeddings
+    version: 3.3.1
+    last_version_check: '2025-11-16T21:01:09.645262Z'
+    refresh_requested: '2025-11-16T21:02:14.911572Z'
+  docker:
+    topics:
+    - multi-stage-builds
+    - health-checks
+    - compose
+    - optimization
+    last_fetched: '2025-11-16T21:02:14.911575Z'
+    cache_hits: 1
+    source: context7_api
+    context7_id: /docker/docker
+    trust_score: 9.5
+    snippet_count: 3200
+    docs_file: libraries/docker/docs.md
+    size_kb: 55
+    version: 7.1.0
+    last_version_check: '2025-11-16T21:01:09.645255Z'
+    refresh_requested: '2025-11-16T21:02:14.911577Z'
+  homeassistant:
+    topics:
+    - api-integration
+    - websocket
+    - rest-api
+    - automation
+    last_fetched: 2025-10-12 00:00:00+00:00
+    cache_hits: 1
+    source: context7_api
+    context7_id: /home-assistant/core
+    trust_score: 9.7
+    snippet_count: 4500
+    docs_file: libraries/homeassistant/docs.md
+    size_kb: 68
+    usage: HA Setup Service, device validation
+  elasticsearch:
+    topics:
+    - search
+    - indexing
+    - aggregations
+    last_fetched: 2025-10-07 16:40:00+00:00
+    cache_hits: 0
+    source: context7_api
+    context7_id: /elastic/elasticsearch
+    trust_score: 9.4
+    snippet_count: 5200
+    docs_file: libraries/elasticsearch/docs.md
+    size_kb: 48
+    status: archived
+  redis:
+    topics:
+    - caching
+    - pub-sub
+    - data-structures
+    last_fetched: 2025-10-07 16:40:00+00:00
+    cache_hits: 0
+    source: context7_api
+    context7_id: /redis/redis
+    trust_score: 9.8
+    snippet_count: 2800
+    docs_file: libraries/redis/docs.md
+    size_kb: 42
+    status: archived
+  mongodb:
+    topics:
+    - nosql
+    - aggregations
+    - indexing
+    last_fetched: 2025-10-07 16:40:00+00:00
+    cache_hits: 0
+    source: context7_api
+    context7_id: /mongodb/mongodb
+    trust_score: 9.6
+    snippet_count: 3400
+    docs_file: libraries/mongodb/meta.yaml
+    size_kb: 1
+    status: archived
+  express:
+    topics:
+    - nodejs
+    - routing
+    - middleware
+    last_fetched: 2025-10-07 16:40:00+00:00
+    cache_hits: 0
+    source: context7_api
+    context7_id: /expressjs/express
+    trust_score: 9.7
+    snippet_count: 1200
+    docs_file: libraries/express/meta.yaml
+    size_kb: 1
+    status: archived
+  pydantic:
+    topics:
+    - v2-settings-validation
+    - validation-patterns
+    - configdict
+    - field-validators
+    last_fetched: '2025-12-03T00:00:00.000000Z'
+    cache_hits: 0
+    source: context7_api
+    context7_id: /pydantic/pydantic
+    trust_score: 10
+    snippet_count: 604
+    docs_files:
+    - libraries/pydantic/v2-settings-validation.md
+    size_kb: 12
+    version: 2.12.4
+    last_version_check: '2025-11-16T21:01:09.645243Z'
+    usage: ha-ai-agent-service configuration management
+  sqlalchemy:
+    topics:
+    - async-orm
+    - sqlite-integration
+    - streaming-results
+    - mapping-results
+    last_fetched: '2025-12-03T00:00:00.000000Z'
+    cache_hits: 0
+    source: context7_api
+    context7_id: /websites/sqlalchemy_en_21
+    trust_score: 10
+    snippet_count: 7090
+    docs_files:
+    - libraries/sqlalchemy/async-sqlite-patterns.md
+    size_kb: 8
+    version: 2.0.44
+    last_version_check: '2025-11-16T21:01:09.645257Z'
+    usage: ha-ai-agent-service context caching
+  aiosqlite:
+    topics:
+    - async-patterns
+    - context-managers
+    - sqlite-driver
+    last_fetched: '2025-12-03T00:00:00.000000Z'
+    cache_hits: 0
+    source: context7_api
+    context7_id: /omnilib/aiosqlite
+    trust_score: 10
+    snippet_count: 33
+    docs_files:
+    - libraries/aiosqlite/async-patterns.md
+    size_kb: 3
+    version: 0.21.0
+    usage: ha-ai-agent-service async SQLite operations
+lessons_learned:
+- name: Events Tab Implementation
+  file: lessons-learned-events-tab-implementation.md
+  date: 2025-10-17
+  libraries_used:
+  - react
+  - influxdb
+  topics:
+  - real-time-polling
+  - deduplication
+  - performance-optimization
+  impact: 1,558x performance improvement, 100% test pass rate
+- name: AI Pattern Detection Design
+  file: AI_PATTERN_DETECTION_IMPLEMENTATION_PLAN.md
+  date: 2025-10-19
+  libraries_used:
+  - huggingface-transformers
+  - sentence-transformers
+  topics:
+  - embeddings
+  - quantization
+  - edge-deployment
+  impact: 380MB stack (4.5x smaller), 2.8x faster, 80-85% accuracy
+- name: SQLite Migration Strategy
+  file: EPIC_22_COMPLETE.md
+  date: 2025-01-18
+  libraries_used:
+  - alembic
+  - sqlite
+  topics:
+  - database-migrations
+  - async-orm
+  - schema-management
+  impact: 5-10x faster queries, ACID compliance, proper FK relationships
+statistics:
+  cache_hit_rate: 0.28
+  total_storage_mb: 125
+  avg_response_time_ms: 150
+  context7_fetches: 7
+  time_saved_hours: 8.5
+  libraries_active: 19
+  libraries_archived: 4
+  documentation_coverage: 100%
+coverage_by_phase:
+  core_stack:
+    backend: 100%
+    frontend: 100%
+    database: 100%
+    testing: 100%
+  ai_ml_phase1:
+    embeddings: 100%
+    classification: 100%
+    quantization: 100%
+    optimization: 100%
+  epic_22:
+    migrations: 100%
+    async_orm: 100%
+    sqlite_patterns: 100%
+metadata:
+  cache_location: docs/kb/context7-cache
+  sharding_enabled: true
+  indexing_enabled: true
+  cross_references_enabled: true
+  max_cache_size_mb: 100
+  cleanup_interval_seconds: 86400
+  last_cleanup: 2025-10-19 00:00:00+00:00
+  last_rebuild: 2025-10-19 00:00:00+00:00
+  kb_version: 2.0
+  auto_refresh_enabled: true
+  last_version_update: '2025-11-16T21:01:09.645287Z'
+  total_libraries_with_versions: 17
+refresh_schedule:
+  active_libraries:
+  - vitest
+  - playwright
+  - puppeteer
+  - huggingface-transformers
+  - sentence-transformers
+  stable_libraries:
+  - fastapi
+  - react
+  - alembic
+  - sqlite
+  - influxdb
+  - docker
+  - homeassistant
+health_status:
+  overall: excellent
+  stale_entries: 0
+  missing_metadata: 0
+  broken_references: 0
+  optimization_score: 95

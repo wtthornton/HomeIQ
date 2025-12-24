@@ -8,18 +8,24 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import api from '../services/api';
 import type { SynergyOpportunity } from '../types';
 import { ImpactScoreGauge, ScoreBreakdownChart } from '../components/SynergyChart';
 import { RoomMapView } from '../components/synergies/RoomMapView';
 import { NetworkGraphView } from '../components/synergies/NetworkGraphView';
+import { SkeletonCardGrid, SkeletonCard } from '../components/SkeletonCard';
+import { SkeletonStats } from '../components/SkeletonStats';
+import { SkeletonFilter } from '../components/SkeletonFilter';
+import { ErrorBanner } from '../components/ErrorBanner';
 
 export const Synergies: React.FC = () => {
   const { darkMode } = useAppStore();
   const [synergies, setSynergies] = useState<SynergyOpportunity[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
   const [filterValidated, setFilterValidated] = useState<boolean | null>(null);
   const [minConfidence, setMinConfidence] = useState<number>(0.0); // Changed from 0.7 to 0.0 to show all by default
@@ -67,10 +73,23 @@ export const Synergies: React.FC = () => {
         setStats(statsRes.data || statsRes);
       } catch (err: any) {
         console.error('Failed to load synergies:', err);
-        // Log detailed error information
-        if (err.status) {
-          console.error(`API Error ${err.status}: ${err.message}`);
+        
+        // Provide more specific error messages
+        let errorMessage = 'Failed to load synergies';
+        if (err.status === 404) {
+          errorMessage = 'API endpoint not found. The synergies service may not be available.';
+        } else if (err.status === 502 || err.status === 503) {
+          errorMessage = 'Service unavailable. The synergies service is temporarily down.';
+        } else if (err instanceof TypeError && err.message.includes('fetch')) {
+          errorMessage = 'Network error: Unable to connect to the server. Please check your connection.';
+        } else if (err.message) {
+          errorMessage = err.message;
+        } else if (err.toString && err.toString() !== '[object Object]') {
+          errorMessage = err.toString();
         }
+        
+        setError(errorMessage);
+        
         // Set empty stats on error so UI doesn't show undefined
         setStats({
           total_synergies: 0,
@@ -215,6 +234,93 @@ export const Synergies: React.FC = () => {
       next.delete(synergyId);
       return next;
     });
+  };
+
+  const handleCreateAutomation = async (synergy: SynergyOpportunity) => {
+    try {
+      // Convert synergy to automation suggestion format
+      const automationData = {
+        name: `Synergy: ${getSynergyTypeLabel(synergy.synergy_type)}`,
+        description: synergy.opportunity_metadata?.rationale || (synergy as any).explanation?.summary || 'Automation created from detected synergy',
+        trigger: {
+          entity_id: synergy.opportunity_metadata?.trigger_entity || synergy.device_ids?.split(',')[0],
+          state: synergy.opportunity_metadata?.trigger_state || 'on',
+        },
+        action: {
+          entity_id: synergy.opportunity_metadata?.action_entity || synergy.device_ids?.split(',')[1],
+          service: synergy.opportunity_metadata?.action_service || 'turn_on',
+        },
+        synergy_id: synergy.id,
+        confidence: synergy.confidence,
+        impact_score: synergy.impact_score,
+      };
+
+      // Show confirmation dialog
+      const confirmed = window.confirm(
+        `Create automation from this synergy?\n\n` +
+        `Type: ${getSynergyTypeLabel(synergy.synergy_type)}\n` +
+        `Confidence: ${Math.round(synergy.confidence * 100)}%\n` +
+        `Impact Score: ${Math.round(synergy.impact_score * 100)}%\n\n` +
+        `This will create an automation in Home Assistant.`
+      );
+
+      if (!confirmed) return;
+
+      // TODO: Call API to create automation
+      // For now, show success message
+      toast.success('Automation creation initiated! This feature will be available soon.');
+      console.log('Would create automation:', automationData);
+    } catch (error: any) {
+      toast.error(`Failed to create automation: ${error.message || 'Unknown error'}`);
+      console.error('Error creating automation:', error);
+    }
+  };
+
+  const handleTestAutomation = async (synergy: SynergyOpportunity) => {
+    try {
+      // Show test dialog
+      const confirmed = window.confirm(
+        `Test this automation?\n\n` +
+        `This will simulate the automation without actually creating it.\n` +
+        `You'll see what would happen when the trigger fires.`
+      );
+
+      if (!confirmed) return;
+
+      // TODO: Call API to test automation
+      toast.success('Testing automation... This feature will be available soon.');
+      console.log('Would test automation for synergy:', synergy.id);
+    } catch (error: any) {
+      toast.error(`Failed to test automation: ${error.message || 'Unknown error'}`);
+      console.error('Error testing automation:', error);
+    }
+  };
+
+  const handleScheduleAutomation = async (synergy: SynergyOpportunity) => {
+    try {
+      // Show schedule dialog
+      const scheduleTime = window.prompt(
+        `Schedule this automation?\n\n` +
+        `Enter time (HH:MM format, 24-hour):`,
+        '09:00'
+      );
+
+      if (!scheduleTime) return;
+
+      // Validate time format
+      const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(scheduleTime)) {
+        toast.error('Invalid time format. Please use HH:MM (24-hour format).');
+        return;
+      }
+
+      // TODO: Call API to schedule automation
+      toast.success(`Automation scheduled for ${scheduleTime}! This feature will be available soon.`);
+      console.log('Would schedule automation for synergy:', synergy.id, 'at', scheduleTime);
+    } catch (error: any) {
+      toast.error(`Failed to schedule automation: ${error.message || 'Unknown error'}`);
+      console.error('Error scheduling automation:', error);
+    }
   };
   
   const handleSave = (synergyId: number) => {
@@ -1016,10 +1122,62 @@ export const Synergies: React.FC = () => {
         </div>
       )}
 
-      {/* Loading State */}
+      {/* Error Banner */}
+      <ErrorBanner 
+        error={error} 
+        onRetry={() => {
+          setError(null);
+          // Reload synergies
+          const loadSynergies = async () => {
+            try {
+              setError(null);
+              setLoading(true);
+              const [synergiesRes, statsRes] = await Promise.all([
+                api.getSynergies(filterType, minConfidence, filterValidated),
+                api.getSynergyStats()
+              ]);
+              const allSynergies = (synergiesRes.data.synergies || []).filter(
+                s => !dismissedSynergies.has(s.id)
+              );
+              setSynergies(allSynergies);
+              setStats(statsRes.data || statsRes);
+            } catch (err: any) {
+              let errorMessage = 'Failed to load synergies';
+              if (err.status === 404) {
+                errorMessage = 'API endpoint not found. The synergies service may not be available.';
+              } else if (err.status === 502 || err.status === 503) {
+                errorMessage = 'Service unavailable. The synergies service is temporarily down.';
+              } else if (err instanceof TypeError && err.message.includes('fetch')) {
+                errorMessage = 'Network error: Unable to connect to the server. Please check your connection.';
+              } else if (err.message) {
+                errorMessage = err.message;
+              }
+              setError(errorMessage);
+            } finally {
+              setLoading(false);
+            }
+          };
+          loadSynergies();
+        }}
+        onDismiss={() => setError(null)}
+        variant="banner"
+      />
+
+      {/* Loading State - Skeleton Loaders */}
       {loading && (
-        <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="space-y-6">
+          {/* Stats Skeleton */}
+          {showStatsAndFilters && (
+            <SkeletonStats statCount={4} showCharts={false} />
+          )}
+          
+          {/* Filter Skeleton */}
+          {showStatsAndFilters && (
+            <SkeletonFilter showSearch={false} pillCount={6} />
+          )}
+          
+          {/* Synergy Cards Skeleton */}
+          <SkeletonCardGrid count={6} variant="synergy" />
         </div>
       )}
 
@@ -1414,54 +1572,94 @@ export const Synergies: React.FC = () => {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="mt-4 pt-4 border-t border-gray-700 flex gap-2 flex-wrap">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSave(synergy.id);
-                    }}
-                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                      savedSynergies.has(synergy.id)
-                        ? darkMode
-                          ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                          : 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                        : darkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                    }`}
-                    title={savedSynergies.has(synergy.id) ? 'Remove from saved' : 'Save for later'}
-                  >
-                    {savedSynergies.has(synergy.id) ? '✓ Saved' : '💾 Save'}
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDismiss(synergy.id);
-                    }}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                      darkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                    }`}
-                    title="Dismiss this synergy"
-                  >
-                    ✕ Dismiss
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // TODO: Implement automation creation
-                      alert('Automation creation coming soon!');
-                    }}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                      darkMode
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-blue-500 hover:bg-blue-600 text-white'
-                    }`}
-                    title="Create automation from this synergy"
-                  >
-                    🚀 Create
-                  </button>
+                <div className="mt-4 pt-4 border-t border-gray-700 space-y-2">
+                  {/* Primary Action Buttons */}
+                  <div className="flex gap-2 flex-wrap">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateAutomation(synergy);
+                      }}
+                      className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                        darkMode
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg'
+                          : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-md'
+                      }`}
+                      title="Create automation from this synergy"
+                    >
+                      🚀 Create Automation
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTestAutomation(synergy);
+                      }}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        darkMode
+                          ? 'bg-green-700 hover:bg-green-600 text-white'
+                          : 'bg-green-500 hover:bg-green-600 text-white'
+                      }`}
+                      title="Test this automation before creating"
+                    >
+                      🧪 Test
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleScheduleAutomation(synergy);
+                      }}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        darkMode
+                          ? 'bg-purple-700 hover:bg-purple-600 text-white'
+                          : 'bg-purple-500 hover:bg-purple-600 text-white'
+                      }`}
+                      title="Schedule this automation"
+                    >
+                      📅 Schedule
+                    </motion.button>
+                  </div>
+                  
+                  {/* Secondary Actions */}
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSave(synergy.id);
+                      }}
+                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                        savedSynergies.has(synergy.id)
+                          ? darkMode
+                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                            : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                          : darkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                      }`}
+                      title={savedSynergies.has(synergy.id) ? 'Remove from saved' : 'Save for later'}
+                    >
+                      {savedSynergies.has(synergy.id) ? '✓ Saved' : '💾 Save'}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDismiss(synergy.id);
+                      }}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                        darkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                      }`}
+                      title="Dismiss this synergy"
+                    >
+                      ✕ Dismiss
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Expandable Details Section */}

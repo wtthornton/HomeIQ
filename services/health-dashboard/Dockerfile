@@ -1,5 +1,5 @@
 # Multi-stage build for Simple Health Dashboard
-FROM node:20.11.0-alpine AS deps
+FROM node:20.19.0-alpine AS deps
 WORKDIR /app
 
 # Copy package files
@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --prefer-offline
 
 # Build stage
-FROM node:20.11.0-alpine AS builder
+FROM node:20.19.0-alpine AS builder
 WORKDIR /app
 
 # Accept build arguments for Vite environment variables

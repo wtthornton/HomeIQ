@@ -1,0 +1,273 @@
+schema: 1
+story: "AI1.20"
+story_title: "Audit Trail & Rollback"
+gate: "NOT_STARTED"
+status_reason: "Story ready for development. QA gate defines acceptance criteria and validation requirements for complete audit trail and rollback functionality."
+reviewer: "QA Agent"
+updated: "2025-10-16T00:00:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor:
+      - "Database performance with large audit history"
+      - "Rollback validation preventing unsafe restores"
+      - "Audit log retention and cleanup performance"
+
+quality_score: 0  # Will be updated after implementation
+expires: "2025-12-31T00:00:00Z"
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 0
+  trace:
+    ac_covered: []
+    ac_gaps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # All ACs pending implementation
+
+acceptance_criteria:
+  - id: 1
+    description: "Creates audit record for every automation action (create/modify/delete/rollback)"
+    validation_method: "Integration test with complete workflow"
+    test_cases:
+      - "Test deployment creates audit record"
+      - "Test deletion creates audit record"
+      - "Test rollback creates audit record with reference to target version"
+    
+  - id: 2
+    description: "Stores complete YAML snapshot before every change"
+    validation_method: "Database verification test"
+    test_cases:
+      - "Test YAML snapshot matches deployed version"
+      - "Test YAML stored before modification"
+      - "Test snapshot includes all fields"
+    
+  - id: 3
+    description: "Tracks user/source for each change"
+    validation_method: "Audit record verification"
+    test_cases:
+      - "Test user field populated correctly"
+      - "Test source field distinguishes ai_suggestion vs manual vs rollback"
+      - "Test audit record immutable after creation"
+    
+  - id: 4
+    description: "Provides rollback endpoint to restore previous version"
+    validation_method: "API integration test"
+    test_cases:
+      - "Test rollback endpoint exists and accepts automation_id"
+      - "Test rollback deploys previous version to HA"
+      - "Test rollback creates audit record"
+    
+  - id: 5
+    description: "Displays audit history in chronological order"
+    validation_method: "API test with multiple audit records"
+    test_cases:
+      - "Test /history endpoint returns records newest-first"
+      - "Test pagination works for large histories"
+      - "Test filtering by action type works"
+    
+  - id: 6
+    description: "Supports filtering audit log by automation_id, action, date range"
+    validation_method: "API test with filter parameters"
+    test_cases:
+      - "Test filter by automation_id returns only that automation"
+      - "Test filter by action (created, deleted, etc.)"
+      - "Test date range filtering"
+    
+  - id: 7
+    description: "Rollback validates safety before restoring"
+    validation_method: "Integration test with safety validator"
+    test_cases:
+      - "Test rollback to safe version succeeds"
+      - "Test rollback to version that now fails safety checks is blocked"
+      - "Test safety validation message returned"
+    
+  - id: 8
+    description: "Audit records are immutable (append-only)"
+    validation_method: "Database constraint test"
+    test_cases:
+      - "Test cannot UPDATE existing audit record"
+      - "Test cannot DELETE existing audit record"
+      - "Test only INSERT operations allowed"
+    
+  - id: 9
+    description: "Database queries for audit history <100ms"
+    validation_method: "Performance test"
+    test_cases:
+      - "Test query single automation history <100ms"
+      - "Test query all audits with filters <200ms"
+      - "Test with 1000+ audit records"
+    
+  - id: 10
+    description: "Retains audit history for 90 days minimum"
+    validation_method: "Configuration and cleanup test"
+    test_cases:
+      - "Test retention period configurable"
+      - "Test cleanup task removes records >90 days old"
+      - "Test cleanup doesn't affect recent records"
+
+nfr_validation:
+  security:
+    status: PENDING
+    criteria:
+      - "Audit records are immutable"
+      - "Rollback validates safety before restore"
+      - "User/source tracking for accountability"
+    validation:
+      - "Test database constraints prevent modification"
+      - "Test rollback integrates with safety validator"
+      - "Verify all actions tracked with user attribution"
+  
+  performance:
+    status: PENDING
+    criteria:
+      - "Audit queries complete in <100ms"
+      - "Audit insert doesn't slow deployment"
+      - "Cleanup task efficient with large datasets"
+    validation:
+      - "Benchmark queries with 1000 audit records"
+      - "Measure deployment time impact (<10ms overhead)"
+      - "Test cleanup with 10,000 old records"
+  
+  reliability:
+    status: PENDING
+    criteria:
+      - "Audit recording never fails deployment"
+      - "Rollback handles missing previous version gracefully"
+      - "Database indexes optimize query performance"
+    validation:
+      - "Test deployment succeeds even if audit insert fails"
+      - "Test rollback with no previous version (error message)"
+      - "Verify indexes created on automation_id and timestamp"
+  
+  maintainability:
+    status: PENDING
+    criteria:
+      - "Clear audit record schema"
+      - "Easy to query audit history"
+      - "Cleanup task runs automatically"
+    validation:
+      - "Schema documentation complete"
+      - "Query examples in documentation"
+      - "Cron job or scheduler configured"
+
+integration_verification:
+  - id: IV1
+    description: "Audit trail records all actions"
+    test_procedure:
+      - "Deploy automation (AI1.11)"
+      - "Verify audit record created"
+      - "Delete automation"
+      - "Verify deletion audit record created"
+      - "Rollback automation"
+      - "Verify rollback audit record created"
+    expected_result: "3 audit records: deployed, deleted, rolled_back"
+  
+  - id: IV2
+    description: "Rollback restores previous version"
+    test_procedure:
+      - "Deploy automation version 1 (turn on at 7am)"
+      - "Modify to version 2 (turn on at 8am)"
+      - "Execute rollback"
+      - "Verify HA automation back to version 1 (7am)"
+    expected_result: "Automation restored to 7am trigger"
+  
+  - id: IV3
+    description: "Audit queries performant"
+    test_procedure:
+      - "Insert 1000 audit records"
+      - "Query by automation_id"
+      - "Measure response time"
+    expected_result: "Query completes in <100ms"
+  
+  - id: IV4
+    description: "Immutability enforced"
+    test_procedure:
+      - "Create audit record"
+      - "Attempt to modify via SQL"
+      - "Attempt to delete via SQL"
+    expected_result: "Both attempts fail with constraint error"
+  
+  - id: IV5
+    description: "Rollback validates safety"
+    test_procedure:
+      - "Deploy automation that passes safety"
+      - "Change safety rules to make it fail"
+      - "Attempt rollback"
+    expected_result: "Rollback blocked with safety error message"
+
+recommendations:
+  immediate:
+    - action: "Implement AutomationAudit model with proper indexes"
+      refs: ["services/ai-automation-service/src/database/models.py"]
+    - action: "Create Alembic migration for audit table"
+      refs: ["services/ai-automation-service/alembic/versions/003_add_audit_trail.py"]
+    - action: "Implement AuditService with all CRUD operations"
+      refs: ["services/ai-automation-service/src/audit_service.py"]
+    - action: "Create rollback endpoint with safety validation"
+      refs: ["services/ai-automation-service/src/api/deployment.py"]
+    - action: "Add database constraints for immutability"
+      refs: ["Alembic migration"]
+  
+  future:
+    - action: "Add audit log export (CSV/JSON) for compliance"
+      refs: ["future-enhancements"]
+    - action: "Implement YAML diff viewer between versions"
+      refs: ["health-dashboard enhancement"]
+    - action: "Add batch rollback for multiple automations"
+      refs: ["Phase 2"]
+
+test_plan:
+  unit_tests:
+    - file: "tests/test_audit_service.py"
+      coverage_target: 85
+      test_count_estimate: 15
+      focus_areas:
+        - "Audit record creation"
+        - "History retrieval with filtering"
+        - "Previous version lookup"
+        - "Cleanup functionality"
+  
+  integration_tests:
+    - file: "tests/test_rollback_flow.py"
+      coverage_target: 80
+      test_count_estimate: 8
+      focus_areas:
+        - "Complete rollback workflow"
+        - "Safety validation during rollback"
+        - "Audit record creation at each step"
+  
+  performance_tests:
+    - description: "Audit query performance"
+      test_data: "1000 audit records"
+      success_criteria: "Queries <100ms"
+    
+    - description: "Cleanup performance"
+      test_data: "10,000 old audit records"
+      success_criteria: "Cleanup <5 seconds"
+
+database_tests:
+  - description: "Immutability constraints"
+    test_cases:
+      - "Attempt UPDATE on audit record (should fail)"
+      - "Attempt DELETE on audit record (should fail)"
+      - "Verify only INSERT allowed"
+  
+  - description: "Index performance"
+    test_cases:
+      - "Query by automation_id uses index"
+      - "Query by timestamp uses index"
+      - "Compound index used for automation_id + timestamp"
+
+notes:
+  - "Audit trail is critical for compliance and debugging"
+  - "Immutability ensures audit records cannot be tampered with"
+  - "Rollback + safety validation prevents restoring dangerous automations"
+  - "Performance important - don't slow down main workflows"
+  - "Retention policy balances storage vs audit history needs"
+  - "Consider partitioning audit table if grows very large (>100k records)"
+

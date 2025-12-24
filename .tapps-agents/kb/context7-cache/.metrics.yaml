@@ -1,7 +1,7 @@
-cache_hits: 97
-cache_misses: 688
+cache_hits: 99
+cache_misses: 792
 api_calls: 0
-fuzzy_matches: 82
+fuzzy_matches: 84
 response_times:
 - 49.326
 - 20.969
@@ -100,3 +100,5 @@ response_times:
 - 19.203000000000003
 - 18.878
 - 6.218
+- 9.072000000000001
+- 28.462
