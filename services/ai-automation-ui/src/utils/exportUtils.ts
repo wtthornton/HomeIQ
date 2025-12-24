@@ -22,7 +22,7 @@ export function patternsToCSV(patterns: Pattern[], deviceNames: Record<string, s
 
   const rows = patterns.map(pattern => {
     const deviceName = deviceNames[pattern.device_id] || pattern.device_id;
-    const metadata = pattern.metadata ? JSON.stringify(pattern.metadata) : '';
+    const metadata = pattern.pattern_metadata ? JSON.stringify(pattern.pattern_metadata) : '';
     
     return [
       pattern.pattern_type || '',
@@ -30,8 +30,8 @@ export function patternsToCSV(patterns: Pattern[], deviceNames: Record<string, s
       deviceName,
       (pattern.confidence || 0).toString(),
       (pattern.occurrences || 0).toString(),
-      pattern.first_detected || '',
-      pattern.last_detected || '',
+      pattern.created_at || '',
+      pattern.created_at || '', // Use created_at for both since Pattern type doesn't have last_detected
       metadata
     ];
   });

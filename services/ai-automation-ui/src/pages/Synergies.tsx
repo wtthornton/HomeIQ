@@ -15,7 +15,7 @@ import type { SynergyOpportunity } from '../types';
 import { ImpactScoreGauge, ScoreBreakdownChart } from '../components/SynergyChart';
 import { RoomMapView } from '../components/synergies/RoomMapView';
 import { NetworkGraphView } from '../components/synergies/NetworkGraphView';
-import { SkeletonCardGrid, SkeletonCard } from '../components/SkeletonCard';
+import { SkeletonCardGrid } from '../components/SkeletonCard';
 import { SkeletonStats } from '../components/SkeletonStats';
 import { SkeletonFilter } from '../components/SkeletonFilter';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -244,11 +244,11 @@ export const Synergies: React.FC = () => {
         description: synergy.opportunity_metadata?.rationale || (synergy as any).explanation?.summary || 'Automation created from detected synergy',
         trigger: {
           entity_id: synergy.opportunity_metadata?.trigger_entity || synergy.device_ids?.split(',')[0],
-          state: synergy.opportunity_metadata?.trigger_state || 'on',
+          state: (synergy.opportunity_metadata as any)?.trigger_state || 'on',
         },
         action: {
           entity_id: synergy.opportunity_metadata?.action_entity || synergy.device_ids?.split(',')[1],
-          service: synergy.opportunity_metadata?.action_service || 'turn_on',
+          service: (synergy.opportunity_metadata as any)?.action_service || 'turn_on',
         },
         synergy_id: synergy.id,
         confidence: synergy.confidence,

@@ -10,9 +10,8 @@ import { useAppStore } from '../store';
 import api from '../services/api';
 import type { Pattern } from '../types';
 import { PatternTypeChart, ConfidenceDistributionChart, TopDevicesChart } from '../components/PatternChart';
-import { SkeletonCardGrid, SkeletonCard } from '../components/SkeletonCard';
+import { SkeletonCardGrid } from '../components/SkeletonCard';
 import { SkeletonStats } from '../components/SkeletonStats';
-import { SkeletonFilter } from '../components/SkeletonFilter';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { PatternDetailsModal } from '../components/PatternDetailsModal';
 import { deviceNameCache } from '../utils/deviceNameCache';
@@ -336,8 +335,12 @@ export const Patterns: React.FC = () => {
 
   // Use device name cache for fallback
   const getFallbackName = React.useCallback((deviceId: string) => {
-    return deviceNameCache.getFallbackName(deviceId);
-  }, []);
+    // Try cache first
+    const cachedName = deviceNameCache.getFallbackName(deviceId);
+    if (cachedName !== deviceId) {
+      return cachedName;
+    }
+    
     if (deviceId.includes('+')) {
       const parts = deviceId.split('+');
       if (parts.length === 2) {
@@ -352,7 +355,7 @@ export const Patterns: React.FC = () => {
     }
     
     return deviceId.length > 20 ? `${deviceId.substring(0, 20)}...` : deviceId;
-  };
+  }, []);
 
   // Phase 8: Filter and search patterns
   const filteredAndSortedPatterns = React.useMemo(() => {
@@ -1214,7 +1217,9 @@ export const Patterns: React.FC = () => {
                 } ${selectedPatternIds.has(pattern.id) ? '' : 'cursor-pointer'}`}
                 onClick={(e) => {
                   // Don't open modal if clicking checkbox
-                  if ((e.target as HTMLElement).type !== 'checkbox' && !(e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                  const target = e.target as HTMLElement;
+                  const isInput = target instanceof HTMLInputElement && target.type === 'checkbox';
+                  if (!isInput && !target.closest('input[type="checkbox"]')) {
                     setSelectedPattern(pattern);
                   }
                 }}
