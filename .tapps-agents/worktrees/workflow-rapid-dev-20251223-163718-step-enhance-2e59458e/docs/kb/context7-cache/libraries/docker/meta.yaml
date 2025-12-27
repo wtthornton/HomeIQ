@@ -1,0 +1,31 @@
+# Docker Library Cache Entry
+# Generated: 2025-10-07T16:40:00Z
+
+library_info:
+  name: "Docker"
+  context7_id: "/docker/docker-py"
+  trust_score: 9.6
+  snippet_count: 1876
+  last_updated: "2025-10-07T16:40:00Z"
+  topics: ["container management", "api"]
+  
+cache_entry:
+  file_path: "libraries/docker/docs.md"
+  size_bytes: 34567
+  hit_count: 0
+  last_accessed: null
+  
+documentation_summary:
+  topics_covered:
+    - "Container lifecycle management"
+    - "Image operations"
+    - "Network configuration"
+    - "Volume management"
+    - "Docker API integration"
+  
+  key_concepts:
+    - "Container orchestration"
+    - "Image management"
+    - "Network configuration"
+    - "Volume management"
+    - "API automation"

@@ -1,0 +1,31 @@
+# React Library Cache Entry
+# Generated: 2025-10-07T16:40:00Z
+
+library_info:
+  name: "React"
+  context7_id: "/reactjs/react.dev"
+  trust_score: 10
+  snippet_count: 2378
+  last_updated: "2025-10-07T16:40:00Z"
+  topics: ["hooks", "routing", "components", "state management"]
+  
+cache_entry:
+  file_path: "libraries/react/docs.md"
+  size_bytes: 45678
+  hit_count: 1
+  last_accessed: "2025-10-07T16:42:00Z"
+  
+documentation_summary:
+  topics_covered:
+    - "React hooks (useState, useEffect, useContext)"
+    - "Component lifecycle and state management"
+    - "Routing and navigation patterns"
+    - "Performance optimization techniques"
+    - "Testing React components"
+  
+  key_concepts:
+    - "Functional components with hooks"
+    - "State and props management"
+    - "Event handling and side effects"
+    - "Component composition patterns"
+    - "React testing best practices"

@@ -1,0 +1,31 @@
+# aiohttp Library Cache Entry
+# Generated: 2025-10-07T16:40:00Z
+
+library_info:
+  name: "aiohttp"
+  context7_id: "/aio-libs/aiohttp"
+  trust_score: 9.8
+  snippet_count: 1245
+  last_updated: "2025-10-07T16:40:00Z"
+  topics: ["websocket", "async http", "client server"]
+  
+cache_entry:
+  file_path: "libraries/aiohttp/docs.md"
+  size_bytes: 38912
+  hit_count: 1
+  last_accessed: "2025-10-07T16:42:10Z"
+  
+documentation_summary:
+  topics_covered:
+    - "Asynchronous HTTP client/server"
+    - "WebSocket implementation"
+    - "Connection management"
+    - "Request/response handling"
+    - "Async programming patterns"
+  
+  key_concepts:
+    - "Async HTTP operations"
+    - "WebSocket communication"
+    - "Connection pooling"
+    - "Session management"
+    - "Event-driven programming"

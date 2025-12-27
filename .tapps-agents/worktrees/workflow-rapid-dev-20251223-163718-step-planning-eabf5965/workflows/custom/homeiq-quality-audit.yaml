@@ -1,0 +1,173 @@
+# HomeIQ Quality Audit Workflow
+# Best for: Comprehensive quality audits across multiple HomeIQ services
+#
+# This workflow performs parallel quality reviews across multiple services:
+# - Parallel code reviews (reviewer agent, multiple services)
+# - Test generation for services with low coverage
+# - Aggregate quality report
+# - Identify improvement priorities
+
+workflow:
+  id: homeiq-quality-audit
+  name: "HomeIQ Quality Audit"
+  description: "Multi-service quality audit with parallel execution"
+  version: "1.0.0"
+  
+  type: brownfield
+  auto_detect: true
+  
+  settings:
+    quality_gates: false  # Audit mode - don't block on failures
+    code_scoring: true
+    context_tier_default: 2
+  
+  steps:
+    # Step 1: Identify Services for Audit
+    - id: identify_services
+      agent: analyst
+      action: gather_requirements
+      context_tier: 1
+      instructions: |
+        Identify services to audit:
+        - Review services/ directory
+        - Identify all microservices
+        - Create list of services for parallel review
+        - Consider critical services first (websocket-ingestion, data-api, ai-automation-service)
+      requires: []
+      creates:
+        - services-list.json
+      next: [review_websocket, review_data_api, review_ai_automation, review_other]
+      
+    # Step 2-4: Parallel Quality Reviews
+    # Review websocket-ingestion
+    - id: review_websocket
+      agent: reviewer
+      action: review_code
+      context_tier: 2
+      instructions: |
+        Review websocket-ingestion service quality:
+        - Overall score, security, maintainability, test coverage, performance
+        - Focus on test coverage (currently 0% - critical gap)
+        - Check Epic 31 compliance (direct InfluxDB writes)
+      requires:
+        - services-list.json
+      creates:
+        - reviews/websocket-ingestion-review.json
+      next: aggregate_reviews
+      
+    # Review data-api
+    - id: review_data_api
+      agent: reviewer
+      action: review_code
+      context_tier: 2
+      instructions: |
+        Review data-api service quality:
+        - Overall score, security, maintainability, test coverage, performance
+        - This service has good quality (80.1/100) - use as reference
+      requires:
+        - services-list.json
+      creates:
+        - reviews/data-api-review.json
+      next: aggregate_reviews
+      
+    # Review ai-automation-service
+    - id: review_ai_automation
+      agent: reviewer
+      action: review_code
+      context_tier: 2
+      instructions: |
+        Review ai-automation-service quality:
+        - Overall score, security, maintainability, test coverage, performance
+        - Focus on test coverage (currently 0% - critical gap)
+        - Check complexity and maintainability
+      requires:
+        - services-list.json
+      creates:
+        - reviews/ai-automation-service-review.json
+      next: aggregate_reviews
+      
+    # Review other services (optional, can be expanded)
+    - id: review_other
+      agent: reviewer
+      action: review_code
+      context_tier: 2
+      instructions: |
+        Review other services as needed:
+        - Review additional services based on services-list.json
+        - Focus on services with low quality scores or no tests
+      requires:
+        - services-list.json
+      creates:
+        - reviews/other-services-review.json
+      next: aggregate_reviews
+      
+    # Step 5: Aggregate Reviews
+    - id: aggregate_reviews
+      agent: orchestrator
+      action: finalize
+      context_tier: 1
+      instructions: |
+        Aggregate all review results:
+        - Combine all review JSON files
+        - Calculate aggregate statistics
+        - Identify services below quality thresholds
+        - Prioritize improvements (test coverage, maintainability, etc.)
+      requires:
+        - reviews/websocket-ingestion-review.json
+        - reviews/data-api-review.json
+        - reviews/ai-automation-service-review.json
+        - reviews/other-services-review.json
+      creates:
+        - aggregate-quality-report.md
+      next: generate_tests
+      
+    # Step 6: Generate Tests for Low Coverage Services
+    - id: generate_tests
+      agent: tester
+      action: write_tests
+      context_tier: 2
+      instructions: |
+        Generate tests for services with low coverage:
+        - Focus on services with < 80% test coverage
+        - Prioritize critical services (websocket-ingestion, ai-automation-service)
+        - Generate unit tests and integration tests
+        - Follow existing test patterns (see services/data-api/tests/)
+      requires:
+        - aggregate-quality-report.md
+      creates:
+        - tests/generated-tests/
+      next: final_report
+      
+    # Step 7: Final Report
+    - id: final_report
+      agent: documenter
+      action: generate_docs
+      context_tier: 1
+      instructions: |
+        Generate final quality audit report:
+        - Summary of all service quality scores
+        - Identification of critical gaps (test coverage, maintainability)
+        - Prioritized improvement recommendations
+        - Next steps for quality improvement
+        - Comparison to HomeIQ quality standards (70+ overall, 7.0+ security/maintainability, 80% test coverage)
+      requires:
+        - aggregate-quality-report.md
+        - tests/generated-tests/
+      creates:
+        - quality-audit-report.md
+      next: complete
+      
+    # Step 8: Complete
+    - id: complete
+      agent: orchestrator
+      action: finalize
+      context_tier: 1
+      instructions: |
+        Finalize quality audit:
+        - Verify all reviews completed
+        - Confirm test generation for low-coverage services
+        - Generate summary of findings
+        - Include recommendations for quality improvement
+      requires:
+        - quality-audit-report.md
+
