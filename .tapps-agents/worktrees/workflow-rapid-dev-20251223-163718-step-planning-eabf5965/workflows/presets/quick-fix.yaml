@@ -1,0 +1,69 @@
+# Quick Fix Workflow
+# Best for: Production bugs, hotfixes, urgent patches
+
+workflow:
+  id: quick-fix
+  name: "Quick Fix"
+  description: "Fast bug fix with minimal overhead"
+  version: "1.0.0"
+  
+  type: brownfield
+  auto_detect: true
+  
+  settings:
+    quality_gates: true
+    code_scoring: true
+    context_tier_default: 2
+  
+  steps:
+    - id: debug
+      agent: debugger
+      action: analyze_error
+      context_tier: 2
+      requires: []
+      creates:
+        - debug-report.md
+      next: fix
+      
+    - id: fix
+      agent: implementer
+      action: write_code
+      context_tier: 3
+      requires:
+        - debug-report.md
+      creates:
+        - fixed-code/
+      next: review
+      
+    - id: review
+      agent: reviewer
+      action: review_code
+      context_tier: 2
+      requires:
+        - fixed-code/
+      scoring:
+        enabled: true
+        thresholds:
+          overall_min: 60
+          security_min: 7.0
+      gate:
+        condition: "scoring.passed == true"
+        on_pass: testing
+        on_fail: fix
+      next: testing
+      
+    - id: testing
+      agent: tester
+      action: write_tests
+      context_tier: 2
+      requires:
+        - fixed-code/
+      creates:
+        - tests/
+      next: complete
+      
+    - id: complete
+      agent: orchestrator
+      action: finalize
+      context_tier: 1
+

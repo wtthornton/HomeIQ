@@ -1,0 +1,253 @@
+schema: 1
+story: "AI1.19"
+story_title: "Safety Validation Engine"
+gate: "NOT_STARTED"
+status_reason: "Story ready for development. QA gate defines acceptance criteria and validation requirements for comprehensive safety validation of AI-generated automations."
+reviewer: "QA Agent"
+updated: "2025-10-16T00:00:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor:
+      - "Safety rule false positive rate - target <5%"
+      - "Performance impact on deployment flow - target <500ms"
+      - "OpenAI API response time variability"
+
+quality_score: 0  # Will be updated after implementation
+expires: "2025-12-31T00:00:00Z"
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 0
+  trace:
+    ac_covered: []
+    ac_gaps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # All ACs pending implementation
+
+acceptance_criteria:
+  - id: 1
+    description: "Validates automations against 6 core safety rules"
+    validation_method: "Unit tests for each rule independently"
+    test_cases:
+      - "Test climate extreme detection (>5°F change)"
+      - "Test bulk device shutoff detection"
+      - "Test security automation disable detection"
+      - "Test time constraint requirements"
+      - "Test excessive trigger detection"
+      - "Test destructive action detection"
+    
+  - id: 2
+    description: "Detects conflicting automations with existing HA automations"
+    validation_method: "Integration test with mock HA API"
+    test_cases:
+      - "Test conflict detection with opposite commands (turn_on vs turn_off)"
+      - "Test conflict detection with same trigger, different action"
+      - "Test no false positives on compatible automations"
+    
+  - id: 3
+    description: "Calculates safety score (0-100) for each automation"
+    validation_method: "Unit test with various automation types"
+    test_cases:
+      - "Test clean automation scores 100"
+      - "Test automation with warnings scores 70-90"
+      - "Test automation with critical issues scores <60"
+    
+  - id: 4
+    description: "Blocks deployment of automations scoring <60 (configurable)"
+    validation_method: "Integration test with deployment endpoint"
+    test_cases:
+      - "Test low-scoring automation blocked"
+      - "Test high-scoring automation passes"
+      - "Test configurable threshold works"
+    
+  - id: 5
+    description: "Provides detailed safety report with specific issues"
+    validation_method: "Output validation test"
+    test_cases:
+      - "Test report includes all issues found"
+      - "Test report includes suggested fixes"
+      - "Test report includes severity levels"
+    
+  - id: 6
+    description: "Supports override mechanism for power users"
+    validation_method: "API test with force_deploy flag"
+    test_cases:
+      - "Test override bypasses non-critical checks"
+      - "Test override still blocks security-critical issues"
+      - "Test override requires explicit flag"
+    
+  - id: 7
+    description: "Configurable safety levels (strict/moderate/permissive)"
+    validation_method: "Configuration test"
+    test_cases:
+      - "Test strict level blocks more automations"
+      - "Test permissive level allows more automations"
+      - "Test level changes affect scoring thresholds"
+    
+  - id: 8
+    description: "Processing time <500ms per automation"
+    validation_method: "Performance test"
+    test_cases:
+      - "Test 10 automations validate in <5 seconds"
+      - "Test complex automation with many rules <1 second"
+    
+  - id: 9
+    description: "Unit tests validate all safety rules"
+    validation_method: "Code coverage analysis"
+    test_cases:
+      - "Test coverage >85% for safety_validator.py"
+      - "Test all rules have positive and negative test cases"
+    
+  - id: 10
+    description: "False positive rate <5% (validated on test data)"
+    validation_method: "Manual validation with known-good automations"
+    test_cases:
+      - "Test 20 known-safe automations (from HA examples)"
+      - "Verify <1 false positive (blocking safe automation)"
+
+nfr_validation:
+  security:
+    status: PENDING
+    criteria:
+      - "Safety rules prevent dangerous automations"
+      - "Cannot bypass security-critical checks even with override"
+      - "Validation logic is thoroughly tested"
+    validation:
+      - "Review all 6 safety rules for completeness"
+      - "Test override mechanism doesn't compromise security"
+      - "Penetration test: attempt to deploy dangerous automation"
+  
+  performance:
+    status: PENDING
+    criteria:
+      - "Validation completes in <500ms per automation"
+      - "No memory leaks during repeated validation"
+      - "Efficient conflict detection algorithm"
+    validation:
+      - "Benchmark validation with 100 test automations"
+      - "Profile memory usage during validation"
+      - "Load test: 1000 validations in sequence"
+  
+  reliability:
+    status: PENDING
+    criteria:
+      - "Handles malformed YAML gracefully"
+      - "Provides clear error messages"
+      - "No false negatives (missing dangerous patterns)"
+    validation:
+      - "Test with intentionally broken YAML"
+      - "Test with edge cases (empty actions, missing fields)"
+      - "Red team: create dangerous automations, verify blocked"
+  
+  maintainability:
+    status: PENDING
+    criteria:
+      - "Safety rules are modular and testable"
+      - "Easy to add new safety rules"
+      - "Clear documentation of rule logic"
+    validation:
+      - "Code review for modularity"
+      - "Test adding a new safety rule (should be straightforward)"
+      - "Documentation review"
+
+integration_verification:
+  - id: IV1
+    description: "Safety rules block dangerous automations"
+    test_procedure:
+      - "Create automation that disables security system"
+      - "Attempt deployment via API"
+      - "Verify blocked with clear error message"
+    expected_result: "Deployment blocked, error indicates security disable rule"
+  
+  - id: IV2
+    description: "Conflict detection works"
+    test_procedure:
+      - "Create existing automation in HA (light on at motion)"
+      - "Generate conflicting AI automation (light off at motion)"
+      - "Verify conflict detected and reported"
+    expected_result: "Conflict detected, warning message includes existing automation name"
+  
+  - id: IV3
+    description: "Safety scores accurate"
+    test_procedure:
+      - "Test clean automation (expect 100)"
+      - "Test automation with warnings (expect 70-90)"
+      - "Test automation with critical issues (expect <60)"
+    expected_result: "Scores match expected ranges"
+  
+  - id: IV4
+    description: "Override mechanism works for admins"
+    test_procedure:
+      - "Deploy automation with warnings using force_deploy=true"
+      - "Verify bypasses non-critical checks"
+      - "Attempt to force deploy critical security issue"
+      - "Verify still blocked"
+    expected_result: "Non-critical override works, critical issues still blocked"
+  
+  - id: IV5
+    description: "Performance within limits"
+    test_procedure:
+      - "Validate 10 automations sequentially"
+      - "Measure average time per validation"
+    expected_result: "Average <500ms per automation"
+
+recommendations:
+  immediate:
+    - action: "Implement all 6 safety rules with unit tests"
+      refs: ["services/ai-automation-service/src/safety_validator.py"]
+    - action: "Add comprehensive test suite for each rule"
+      refs: ["tests/test_safety_validator.py"]
+    - action: "Integrate with deployment endpoint (AI1.11)"
+      refs: ["services/ai-automation-service/src/api/deployment.py"]
+    - action: "Document safety rules and their rationale"
+      refs: ["docs/AI_AUTOMATION_SAFETY_RULES.md"]
+  
+  future:
+    - action: "Consider machine learning for conflict detection (Phase 2)"
+      refs: ["AI1.19 notes"]
+    - action: "Add user feedback loop to improve rule accuracy"
+      refs: ["future-enhancements"]
+    - action: "Create safety rule configuration UI"
+      refs: ["health-dashboard"]
+
+test_plan:
+  unit_tests:
+    - file: "tests/test_safety_validator.py"
+      coverage_target: 85
+      test_count_estimate: 20
+      focus_areas:
+        - "Each safety rule independently"
+        - "Safety score calculation"
+        - "Edge cases and boundary conditions"
+  
+  integration_tests:
+    - file: "tests/test_safe_deployment.py"
+      coverage_target: 80
+      test_count_estimate: 10
+      focus_areas:
+        - "Integration with deployment endpoint"
+        - "Override mechanism"
+        - "Conflict detection with HA API"
+  
+  manual_tests:
+    - description: "False positive rate validation"
+      procedure: "Test 20 known-safe HA automations"
+      success_criteria: "<1 false positive"
+    
+    - description: "Red team security testing"
+      procedure: "Create dangerous automations, verify blocked"
+      success_criteria: "All dangerous patterns caught"
+
+notes:
+  - "Safety validation is CRITICAL for production deployment"
+  - "False positive rate must be minimized to avoid user frustration"
+  - "Performance is important - validation should not slow deployment"
+  - "Clear error messages help users understand why automation was blocked"
+  - "Override mechanism requires careful security consideration"
+  - "Consider rate limiting override attempts to prevent abuse"
+

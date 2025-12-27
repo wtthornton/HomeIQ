@@ -1,0 +1,48 @@
+schema: 1
+story: "33.8"
+story_title: "Carbon-Energy Device Correlation"
+gate: PASS
+status_reason: "Excellent correlation implementation with EV charging optimization and HVAC carbon correlation. All tests passing with 99% coverage."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-11-25T12:00:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor: []
+
+quality_score: 98
+expires: "2025-12-09T00:00:00Z"
+
+evidence:
+  tests_reviewed: 38
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "No security concerns"
+  performance:
+    status: PASS
+    notes: "Correlation overhead acceptable, performance target met"
+  reliability:
+    status: PASS
+    notes: "Correlation respects existing events, no data loss"
+  maintainability:
+    status: PASS
+    notes: "Clear correlation logic with realistic low-carbon preferences"
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Consider adding configurable carbon thresholds per device type"
+      refs: ["services/ai-automation-service/src/training/synthetic_carbon_intensity_generator.py:450-650"]
+

@@ -1,0 +1,199 @@
+---
+description: Simple Mode Tool Invocation Helper - Explicit instructions for AI assistants on how to invoke Simple Mode tools
+globs: []
+alwaysApply: true
+---
+
+# Simple Mode Tool Invocation Helper
+
+## ⚠️ CRITICAL: When User Requests Simple Mode
+
+When a user requests `@simple-mode *build`, `@simple-mode *review`, etc., you MUST:
+
+1. **Check Tool Availability First**
+   ```python
+   # Verify TappsCodingAgents is installed
+   # Run: python -m tapps_agents.cli --version
+   # Expected: Version number (e.g., 2.7.0)
+   ```
+
+2. **Invoke Skills Explicitly**
+   - DO NOT implement code directly
+   - DO invoke skills using `@skill-name *command` syntax
+   - DO follow the workflow sequence
+   - DO report progress at each step
+
+3. **Verify Execution**
+   - Check that each skill was invoked
+   - Verify outputs were generated
+   - Report any failures
+
+## Explicit Invocation Pattern
+
+### For `@simple-mode *build "{description}"`
+
+**Step-by-Step Execution:**
+
+```
+1. Report: "✅ Starting Build Workflow..."
+
+2. Invoke: @enhancer *enhance "{description}"
+   - Wait for enhanced prompt
+   - Save output: docs/workflows/simple-mode/step1-enhanced-prompt.md
+
+3. Invoke: @planner *plan "{enhanced_prompt}"
+   - Wait for user stories
+   - Save output: docs/workflows/simple-mode/step2-user-stories.md
+
+4. Invoke: @architect *design "{enhanced_prompt}"
+   - Wait for architecture design
+   - Save output: docs/workflows/simple-mode/step3-architecture.md
+
+5. Invoke: @designer *design-api "{enhanced_prompt}"
+   - Wait for API design
+   - Save output: docs/workflows/simple-mode/step4-design.md
+
+6. Invoke: @implementer *implement "{specification}" {target_file}
+   - Wait for code implementation
+   - Verify file was created/modified
+
+7. Invoke: @reviewer *review {target_file}
+   - Wait for quality scores
+   - Check if score ≥ 70
+   - If < 70, invoke @improver *improve {target_file}
+   - Save output: docs/workflows/simple-mode/step6-review.md
+
+8. Invoke: @tester *test {target_file}
+   - Wait for test generation
+   - Verify test files were created
+   - Save output: docs/workflows/simple-mode/step7-testing.md
+
+9. Report: "✅ Build Complete!"
+   - Summary of files created
+   - Quality scores
+   - Test coverage
+```
+
+### For `@simple-mode *review {file}`
+
+```
+1. Report: "✅ Starting Review Workflow..."
+
+2. Invoke: @reviewer *review {file}
+   - Wait for quality scores
+   - Check scores against thresholds
+
+3. If issues found:
+   Invoke: @improver *improve {file} "{issues}"
+   - Wait for improvements
+   - Apply improvements
+
+4. Report: "✅ Review Complete!"
+   - Quality scores
+   - Issues found
+   - Improvements made
+```
+
+### For `@simple-mode *fix {file} "{description}"`
+
+```
+1. Report: "✅ Starting Fix Workflow..."
+
+2. Invoke: @debugger *debug "{description}" --file {file}
+   - Wait for root cause analysis
+   - Save analysis
+
+3. Invoke: @implementer *refactor {file} "{fix_description}"
+   - Wait for fix implementation
+   - Verify file was updated
+
+4. Invoke: @tester *test {file}
+   - Wait for test verification
+   - Verify tests pass
+
+5. Report: "✅ Fix Complete!"
+   - Root cause identified
+   - Fix applied
+   - Tests passing
+```
+
+## Error Handling
+
+### If Tool Not Available
+
+**When:** `@simple-mode` is requested but tools are not available
+
+**Action:**
+1. Report error clearly:
+   ```
+   ⚠️ Simple Mode Tool Not Available
+   
+   TappsCodingAgents may not be properly installed or configured.
+   
+   Verification Steps:
+   1. Check installation: python -m tapps_agents.cli --version
+   2. Check Simple Mode: python -m tapps_agents.cli simple-mode status
+   3. Verify skill files: .claude/skills/simple-mode/SKILL.md
+   
+   Fallback: Using manual workflow pattern...
+   ```
+
+2. Still follow workflow pattern manually:
+   - Analyze requirements
+   - Create plan
+   - Implement code
+   - Review code
+   - Generate tests
+
+3. Document what was done manually vs. via tools
+
+### If Skill Invocation Fails
+
+**When:** `@skill-name *command` doesn't work
+
+**Action:**
+1. Try CLI alternative:
+   ```bash
+   python -m tapps_agents.cli {agent} {command} {args}
+   ```
+
+2. If CLI works, use CLI output
+3. If CLI fails, report error and use manual approach
+4. Document the failure
+
+## Verification Commands
+
+After Simple Mode execution, run these to verify:
+
+```bash
+# Check if files were created
+ls docs/workflows/simple-mode/
+
+# Check code quality
+python -m tapps_agents.cli reviewer score {target_file}
+
+# Check test coverage
+python -m tapps_agents.cli tester test {target_file} --coverage
+```
+
+## Success Criteria
+
+Simple Mode workflow is successful when:
+- ✅ All workflow steps were executed
+- ✅ Skills were invoked (visible in conversation)
+- ✅ Outputs were generated (files, scores, etc.)
+- ✅ Quality thresholds were met
+- ✅ Tests were generated
+- ✅ Final summary was provided
+
+## Red Flags
+
+Simple Mode workflow is NOT executing if:
+- ❌ No skill invocations visible (`@enhancer`, `@planner`, etc.)
+- ❌ Direct code implementation without skill calls
+- ❌ No intermediate outputs (enhanced prompts, plans)
+- ❌ No quality scores reported
+- ❌ No test files generated
+- ❌ No progress updates
+
+**If you see red flags:** Report them explicitly to the user and use fallback workflow.

@@ -1,0 +1,13 @@
+{
+  "event_type": "step_failed",
+  "workflow_id": "rapid-dev-20251223-145122",
+  "step_id": "planning",
+  "data": {
+    "agent": "planner",
+    "action": "create_stories",
+    "error": "",
+    "attempts": 1
+  },
+  "timestamp": "2025-12-23T16:56:06.314877",
+  "correlation_id": "rapid-dev-20251223-145122:planning"
+}

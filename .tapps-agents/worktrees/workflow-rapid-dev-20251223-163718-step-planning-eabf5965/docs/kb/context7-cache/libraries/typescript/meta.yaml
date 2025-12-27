@@ -1,0 +1,31 @@
+# TypeScript Library Cache Entry
+# Generated: 2025-10-07T16:40:00Z
+
+library_info:
+  name: "TypeScript"
+  context7_id: "/microsoft/typescript"
+  trust_score: 9.9
+  snippet_count: 15930
+  last_updated: "2025-10-07T16:40:00Z"
+  topics: ["types", "interfaces", "generics"]
+  
+cache_entry:
+  file_path: "libraries/typescript/docs.md"
+  size_bytes: 52341
+  hit_count: 0
+  last_accessed: null
+  
+documentation_summary:
+  topics_covered:
+    - "Type system fundamentals"
+    - "Interface and type definitions"
+    - "Generic programming"
+    - "Advanced type features"
+    - "Compilation and configuration"
+  
+  key_concepts:
+    - "Static typing"
+    - "Interface definitions"
+    - "Generic types"
+    - "Type inference"
+    - "Module system"

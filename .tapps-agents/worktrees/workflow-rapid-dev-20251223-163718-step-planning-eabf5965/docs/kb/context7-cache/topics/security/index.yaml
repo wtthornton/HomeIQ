@@ -1,0 +1,65 @@
+# Security Topic Index
+# Generated: 2025-01-27T15:01:00Z
+
+topic:
+  name: "security"
+  description: "Authentication, authorization, and security best practices"
+  category: "security"
+  
+  libraries:
+    - name: "express"
+      file: "../../libraries/express/security.md"
+      relevance: 1.0
+      last_updated: null
+      cache_hits: 0
+    
+    - name: "passport"
+      file: "../../libraries/passport/authentication.md"
+      relevance: 0.9
+      last_updated: null
+      cache_hits: 0
+    
+    - name: "helmet"
+      file: "../../libraries/helmet/security.md"
+      relevance: 0.8
+      last_updated: null
+      cache_hits: 0
+  
+  cross_references:
+    - topic: "authentication"
+      relevance: 0.9
+      description: "Related to user authentication"
+    - topic: "authorization"
+      relevance: 0.9
+      description: "Related to access control"
+    - topic: "jwt"
+      relevance: 0.8
+      description: "Related to JSON Web Tokens"
+    - topic: "oauth"
+      relevance: 0.7
+      description: "Related to OAuth authentication"
+  
+  bmad_usage:
+    - agent: "dev"
+      scenarios: ["security-implementation", "authentication-setup", "authorization-logic"]
+      usage_frequency: 0
+    - agent: "architect"
+      scenarios: ["security-architecture", "authentication-design", "authorization-patterns"]
+      usage_frequency: 0
+    - agent: "qa"
+      scenarios: ["security-testing", "authentication-testing", "authorization-testing"]
+      usage_frequency: 0
+  
+  performance_metrics:
+    total_requests: 0
+    cache_hits: 0
+    cache_misses: 0
+    avg_response_time: "0.00s"
+    last_accessed: null
+  
+  related_topics:
+    - "authentication"
+    - "authorization"
+    - "jwt"
+    - "oauth"
+    - "testing"

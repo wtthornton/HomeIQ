@@ -1,0 +1,65 @@
+# Hooks Topic Index
+# Generated: 2025-01-27T15:01:00Z
+
+topic:
+  name: "hooks"
+  description: "React-style hooks for state and side effects management"
+  category: "state-management"
+  
+  libraries:
+    - name: "react"
+      file: "../../libraries/react/hooks.md"
+      relevance: 1.0
+      last_updated: null
+      cache_hits: 0
+    
+    - name: "vue"
+      file: "../../libraries/vue/composition-api.md"
+      relevance: 0.9
+      last_updated: null
+      cache_hits: 0
+    
+    - name: "angular"
+      file: "../../libraries/angular/signals.md"
+      relevance: 0.7
+      last_updated: null
+      cache_hits: 0
+  
+  cross_references:
+    - topic: "state-management"
+      relevance: 0.9
+      description: "Related to state management patterns"
+    - topic: "lifecycle"
+      relevance: 0.8
+      description: "Related to component lifecycle management"
+    - topic: "effects"
+      relevance: 0.8
+      description: "Related to side effects and data fetching"
+    - topic: "components"
+      relevance: 0.7
+      description: "Related to component architecture"
+  
+  bmad_usage:
+    - agent: "dev"
+      scenarios: ["react-implementation", "vue-implementation", "state-management"]
+      usage_frequency: 0
+    - agent: "architect"
+      scenarios: ["technology-selection", "architecture-decisions", "state-architecture"]
+      usage_frequency: 0
+    - agent: "qa"
+      scenarios: ["hook-testing", "state-testing", "lifecycle-testing"]
+      usage_frequency: 0
+  
+  performance_metrics:
+    total_requests: 0
+    cache_hits: 0
+    cache_misses: 0
+    avg_response_time: "0.00s"
+    last_accessed: null
+  
+  related_topics:
+    - "state-management"
+    - "lifecycle"
+    - "effects"
+    - "components"
+    - "testing"
