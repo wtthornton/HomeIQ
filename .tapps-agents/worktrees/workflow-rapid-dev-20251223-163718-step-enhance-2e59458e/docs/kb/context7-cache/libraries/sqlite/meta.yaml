@@ -1,0 +1,36 @@
+library: sqlite
+description: SQLite database best practices for Python FastAPI applications
+context7_id: N/A
+source: Web Research
+last_updated: 2025-01-14T00:00:00Z
+cache_hits: 0
+topics:
+  fastapi-best-practices:
+    file: fastapi-best-practices.md
+    size: ~12KB
+    last_updated: 2025-01-14T00:00:00Z
+    cache_hits: 0
+    token_count: 1200
+    description: SQLite configuration and patterns for async FastAPI applications
+  when-to-use:
+    file: when-to-use.md
+    size: ~6KB
+    last_updated: 2025-01-14T00:00:00Z
+    cache_hits: 0
+    token_count: 600
+    description: Decision guide for choosing SQLite vs PostgreSQL
+  docker-deployment:
+    file: docker-deployment.md
+    size: ~8KB
+    last_updated: 2025-01-14T00:00:00Z
+    cache_hits: 0
+    token_count: 800
+    description: Docker deployment and volume management for SQLite
+tags:
+  - database
+  - sqlite
+  - fastapi
+  - python
+  - docker
+  - microservices
+

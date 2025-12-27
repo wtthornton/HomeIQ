@@ -1,0 +1,3 @@
+# This file ensures the context7-cache directory is tracked by git
+# The .refresh-queue file and other temporary files are excluded via .gitignore
+

@@ -1,0 +1,31 @@
+# FastAPI Library Cache Entry
+# Generated: 2025-10-07T16:40:00Z
+
+library_info:
+  name: "FastAPI"
+  context7_id: "/tiangolo/fastapi"
+  trust_score: 10
+  snippet_count: 1847
+  last_updated: "2025-10-07T16:40:00Z"
+  topics: ["api endpoints", "authentication", "middleware"]
+  
+cache_entry:
+  file_path: "libraries/fastapi/docs.md"
+  size_bytes: 41256
+  hit_count: 1
+  last_accessed: "2025-10-07T16:42:20Z"
+  
+documentation_summary:
+  topics_covered:
+    - "API endpoint creation"
+    - "Request/response models"
+    - "Authentication and authorization"
+    - "Middleware implementation"
+    - "Async programming patterns"
+  
+  key_concepts:
+    - "REST API development"
+    - "Pydantic models"
+    - "Dependency injection"
+    - "OpenAPI documentation"
+    - "Async/await patterns"

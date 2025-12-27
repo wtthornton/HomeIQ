@@ -1,0 +1,14 @@
+{
+  "command": "@enhancer enhance --prompt  --format ",
+  "correlation": {
+    "workflow_id": "rapid-dev-20251223-163718",
+    "step_id": "enhance",
+    "created_at": "2025-12-23T17:40:26.587479",
+    "expected_artifacts": [
+      "enhanced-requirements.md"
+    ]
+  },
+  "worktree_path": "C:\\cursor\\HomeIQ\\.tapps-agents\\worktrees\\workflow-rapid-dev-20251223-163718-step-enhance-2e59458e",
+  "instructions": "This command can be executed in Cursor by:\n1. Copying the 'command' field below into Cursor chat\n2. Or using a Background Agent configured to read this file\n3. Or manually executing the command in the worktree directory",
+  "note": "Command has been redacted to remove secrets. Original command contains same structure."
+}

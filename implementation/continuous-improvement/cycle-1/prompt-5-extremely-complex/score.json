@@ -1,8 +1,0 @@
-{
-  "automation_score": 0.0,
-  "yaml_score": 0.0,
-  "clarification_rounds": 1,
-  "total_score": 0.0,
-  "success": false,
-  "error": "Approval failed: Automation contains invalid entity IDs (Type: invalid_entities). Details: Invalid entity IDs in YAML: device_tracker.phone"
-}

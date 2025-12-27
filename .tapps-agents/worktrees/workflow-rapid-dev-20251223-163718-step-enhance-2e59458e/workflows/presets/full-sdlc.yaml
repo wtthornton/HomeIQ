@@ -1,0 +1,122 @@
+# Full SDLC Pipeline Workflow
+# Best for: Enterprise projects, new applications, compliance-heavy systems
+
+workflow:
+  id: full-sdlc
+  name: "Full SDLC Pipeline"
+  description: "Complete software development lifecycle with all quality gates"
+  version: "1.0.0"
+  
+  type: greenfield
+  auto_detect: true
+  
+  settings:
+    quality_gates: true
+    code_scoring: true
+    context_tier_default: 2
+  
+  steps:
+    - id: requirements
+      agent: analyst
+      action: gather_requirements
+      context_tier: 1
+      creates:
+        - requirements.md
+      requires: []
+      condition: required
+      next: planning
+      
+    - id: planning
+      agent: planner
+      action: create_stories
+      context_tier: 1
+      requires:
+        - requirements.md
+      creates:
+        - stories/
+      next: design
+      
+    - id: design
+      agent: architect
+      action: design_system
+      context_tier: 2
+      requires:
+        - requirements.md
+        - stories/
+      creates:
+        - architecture.md
+      next: api_design
+      
+    - id: api_design
+      agent: designer
+      action: api_design
+      context_tier: 2
+      requires:
+        - architecture.md
+      creates:
+        - api-specs/
+      next: implementation
+      
+    - id: implementation
+      agent: implementer
+      action: write_code
+      context_tier: 3
+      requires:
+        - architecture.md
+        - api-specs/
+        - stories/
+      creates:
+        - src/
+      next: review
+      
+    - id: review
+      agent: reviewer
+      action: review_code
+      context_tier: 2
+      requires:
+        - src/
+      scoring:
+        enabled: true
+        thresholds:
+          overall_min: 70
+          security_min: 7.0
+          maintainability_min: 7.0
+      gate:
+        condition: "scoring.passed == true"
+        on_pass: testing
+        on_fail: implementation
+      next: testing
+      
+    - id: testing
+      agent: tester
+      action: write_tests
+      context_tier: 2
+      requires:
+        - src/
+      creates:
+        - tests/
+      next: security
+      
+    - id: security
+      agent: ops
+      action: security_scan
+      context_tier: 1
+      requires:
+        - src/
+      next: documentation
+      
+    - id: documentation
+      agent: documenter
+      action: generate_docs
+      context_tier: 1
+      requires:
+        - src/
+      creates:
+        - docs/
+      next: complete
+      
+    - id: complete
+      agent: orchestrator
+      action: finalize
+      context_tier: 1
+

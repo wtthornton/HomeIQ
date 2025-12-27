@@ -19,6 +19,9 @@ agents:
     include_llm_feedback: true
     max_file_size: 1048576
     min_confidence_threshold: 0.8
+    operation_timeout: 300.0
+    tool_timeout: 30.0
+    enable_parallel_tools: true
   planner:
     default_priority: medium
     min_confidence_threshold: 0.6

@@ -1,0 +1,157 @@
+# Code Review: ai-query-service
+# Reviewed: 2025-01-XX
+# Reviewer: Dev Agent (James)
+# Scope: Full service review for CRITICAL issues
+
+review_context:
+  service: "ai-query-service"
+  epic: "39"
+  story: "39.9"
+  scope: "full_service"
+  
+review_criteria:
+  - Security vulnerabilities (SQL injection, XSS, auth bypasses, CORS misconfiguration)
+  - Performance issues (N+1 queries, blocking operations, missing optimizations)
+  - Code quality (error handling, exception chains, standards compliance)
+  - Configuration issues (database settings, health checks)
+
+findings:
+  # CRITICAL SECURITY ISSUES
+  - id: "AI-QUERY-SEC-001"
+    severity: high
+    category: security
+    file: "services/ai-query-service/src/main.py"
+    line: 98
+    finding: "CORS misconfiguration: allow_origins=['*'] with allow_credentials=True is insecure"
+    impact: "Allows any origin to access API with credentials, enabling CSRF attacks"
+    suggested_fix: "Set specific allowed origins or remove allow_credentials if using wildcard"
+    references:
+      - "https://owasp.org/www-community/HttpHeaders"
+      - "docs/architecture/security-best-practices.md"
+  
+  - id: "AI-QUERY-SEC-002"
+    severity: high
+    category: security
+    file: "services/ai-query-service/src/main.py"
+    line: 95
+    finding: "No authentication middleware - all endpoints are publicly accessible"
+    impact: "Unauthorized users can access query endpoints, potentially causing resource exhaustion"
+    suggested_fix: "Add authentication middleware (check ai-automation-service for pattern)"
+    references:
+      - "services/ai-automation-service/src/main.py:339 (AuthenticationMiddleware)"
+  
+  - id: "AI-QUERY-SEC-003"
+    severity: high
+    category: security
+    file: "services/ai-query-service/src/main.py"
+    line: 95
+    finding: "No rate limiting middleware"
+    impact: "Vulnerable to DoS attacks and resource exhaustion"
+    suggested_fix: "Add rate limiting middleware (check ai-automation-service for pattern)"
+    references:
+      - "services/ai-automation-service/src/main.py:342 (RateLimitingMiddleware)"
+  
+  # CRITICAL PERFORMANCE ISSUES
+  - id: "AI-QUERY-PERF-001"
+    severity: high
+    category: performance
+    file: "services/ai-query-service/src/database/__init__.py"
+    line: 19
+    finding: "SQLite missing critical PRAGMA settings (WAL mode, cache size, synchronous)"
+    impact: "Poor database performance, no concurrent reads, slower writes"
+    suggested_fix: "Add PRAGMA settings after connection: journal_mode=WAL, synchronous=NORMAL, cache_size=-64000"
+    references:
+      - "docs/architecture/performance-patterns.md#sqlite-optimization"
+      - "docs/architecture/coding-standards.md#database-patterns"
+  
+  - id: "AI-QUERY-PERF-002"
+    severity: medium
+    category: performance
+    file: "services/ai-query-service/src/database/__init__.py"
+    line: 42
+    finding: "No timeout configured for database operations"
+    impact: "Database operations can hang indefinitely, blocking event loop"
+    suggested_fix: "Add timeout to database connection configuration"
+    references:
+      - "docs/architecture/performance-patterns.md#database-performance"
+  
+  # CRITICAL CONFIGURATION ISSUES
+  - id: "AI-QUERY-CONF-001"
+    severity: high
+    category: configuration
+    file: "services/ai-query-service/Dockerfile"
+    line: 51
+    finding: "Health check endpoint mismatch: Dockerfile checks '/health/health' but router defines '/health'"
+    impact: "Health checks will always fail, causing container restarts"
+    suggested_fix: "Change health check to 'curl -f http://localhost:8018/health'"
+  
+  # CODE QUALITY ISSUES
+  - id: "AI-QUERY-QUAL-001"
+    severity: medium
+    category: code_quality
+    file: "services/ai-query-service/src/api/health_router.py"
+    line: 42
+    finding: "Exception handling doesn't preserve exception chain (missing 'from e')"
+    impact: "Loses original exception context for debugging"
+    suggested_fix: "Use 'raise HTTPException(...) from e' or log with exc_info=True"
+    references:
+      - "docs/architecture/coding-standards.md#error-handling"
+  
+  - id: "AI-QUERY-QUAL-002"
+    severity: low
+    category: code_quality
+    file: "services/ai-query-service/src/main.py"
+    line: 66
+    finding: "Exception handling uses bare 'except Exception' - should be more specific"
+    impact: "Catches too many exceptions, might hide important errors"
+    suggested_fix: "Catch specific exceptions (DatabaseError, ConnectionError, etc.)"
+    references:
+      - "docs/architecture/coding-standards.md#error-handling"
+
+metrics:
+  files_reviewed: 8
+  lines_reviewed: ~500
+  critical_issues: 5
+  high_severity: 5
+  medium_severity: 2
+  low_severity: 1
+
+decision: CONCERNS
+decision_reason: "5 CRITICAL issues identified. 3 FIXED (CORS, SQLite PRAGMA, health check). 2 DEFERRED (authentication, rate limiting) - marked as TODO for Story 39.10. Service is now secure for foundation deployment but requires authentication/rate limiting before production use."
+
+fixes_applied:
+  - id: "AI-QUERY-SEC-001"
+    status: FIXED
+    fix: "Changed CORS allow_origins from wildcard to specific origins matching ai-automation-service pattern"
+    file: "services/ai-query-service/src/main.py:96-109"
+  
+  - id: "AI-QUERY-PERF-001"
+    status: FIXED
+    fix: "Added SQLite PRAGMA settings (WAL mode, cache_size, synchronous, etc.) via event listener"
+    file: "services/ai-query-service/src/database/__init__.py:32-42"
+  
+  - id: "AI-QUERY-PERF-002"
+    status: FIXED
+    fix: "Added timeout=30.0 to SQLite connect_args"
+    file: "services/ai-query-service/src/database/__init__.py:26"
+  
+  - id: "AI-QUERY-CONF-001"
+    status: FIXED
+    fix: "Changed health check endpoint from '/health/health' to '/health'"
+    file: "services/ai-query-service/Dockerfile:51"
+  
+  - id: "AI-QUERY-QUAL-001"
+    status: FIXED
+    fix: "Added exc_info=True to error logging for better debugging"
+    file: "services/ai-query-service/src/api/health_router.py:43, services/ai-query-service/src/database/__init__.py:85"
+  
+  - id: "AI-QUERY-SEC-002"
+    status: DEFERRED
+    reason: "Foundation service - marked as TODO for Story 39.10"
+    note: "Added TODO comment in main.py referencing ai-automation-service pattern"
+  
+  - id: "AI-QUERY-SEC-003"
+    status: DEFERRED
+    reason: "Foundation service - marked as TODO for Story 39.10"
+    note: "Added TODO comment in main.py referencing ai-automation-service pattern"
+

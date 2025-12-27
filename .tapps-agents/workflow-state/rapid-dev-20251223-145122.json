@@ -105,6 +105,26 @@
       "duration_seconds": 0.002581,
       "status": "completed",
       "error": null
+    },
+    {
+      "step_id": "enhance",
+      "agent": "enhancer",
+      "action": "enhance_prompt",
+      "started_at": "2025-12-23T15:55:08.818507",
+      "completed_at": "2025-12-23T16:55:09.637697",
+      "duration_seconds": 3600.81919,
+      "status": "failed",
+      "error": " This error may be recoverable. The operation took too long. Consider increasing timeout settings or optimizing the operation. Reference: workflow_id=rapid-dev-20251223-145122, step_id=enhance"
+    },
+    {
+      "step_id": "planning",
+      "agent": "planner",
+      "action": "create_stories",
+      "started_at": "2025-12-23T15:56:03.636759",
+      "completed_at": "2025-12-23T16:56:04.296558",
+      "duration_seconds": 3600.659799,
+      "status": "failed",
+      "error": " This error may be recoverable. The operation took too long. Consider increasing timeout settings or optimizing the operation. Reference: workflow_id=rapid-dev-20251223-145122, step_id=planning"
     }
   ],
   "error": null

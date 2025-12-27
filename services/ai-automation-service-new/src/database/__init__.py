@@ -96,18 +96,35 @@ async def init_db():
             table_exists = result.scalar() is not None
             
             if table_exists:
-                # Check if description column exists
+                # Check which columns exist and add missing ones
                 result = await conn.execute(text("PRAGMA table_info(suggestions)"))
                 columns = result.fetchall()
                 column_names = [col[1] for col in columns]  # Column name is at index 1
                 
-                if 'description' not in column_names:
-                    logger.info("Adding missing 'description' column to suggestions table")
-                    await conn.execute(text("""
-                        ALTER TABLE suggestions 
-                        ADD COLUMN description TEXT
-                    """))
-                    logger.info("✅ Added 'description' column to suggestions table")
+                # List of required columns from the model
+                # Note: SQLite doesn't have native DATETIME type, uses TEXT for datetime columns
+                required_columns = {
+                    'description': 'TEXT',
+                    'automation_id': 'TEXT',  # VARCHAR in SQLite is same as TEXT
+                    'deployed_at': 'TEXT',  # SQLite stores datetime as TEXT
+                    'confidence_score': 'REAL',
+                    'safety_score': 'REAL',
+                    'user_feedback': 'TEXT',  # VARCHAR in SQLite is same as TEXT
+                    'feedback_at': 'TEXT'  # SQLite stores datetime as TEXT
+                }
+                
+                # Add missing columns
+                for col_name, col_type in required_columns.items():
+                    if col_name not in column_names:
+                        logger.info(f"Adding missing '{col_name}' column to suggestions table")
+                        try:
+                            await conn.execute(text(f"""
+                                ALTER TABLE suggestions 
+                                ADD COLUMN {col_name} {col_type}
+                            """))
+                            logger.info(f"✅ Added '{col_name}' column to suggestions table")
+                        except Exception as e:
+                            logger.warning(f"Failed to add column '{col_name}': {e}")
             
         logger.info("✅ Database connection initialized")
     except Exception as e:

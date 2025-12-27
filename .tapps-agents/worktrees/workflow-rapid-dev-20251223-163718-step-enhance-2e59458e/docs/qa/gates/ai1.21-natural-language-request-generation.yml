@@ -1,0 +1,306 @@
+schema: 1
+story: "AI1.21"
+story_title: "Natural Language Request Generation"
+gate: "NOT_STARTED"
+status_reason: "Story ready for development. QA gate defines acceptance criteria and validation requirements for natural language automation generation."
+reviewer: "QA Agent"
+updated: "2025-10-16T00:00:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor:
+      - "OpenAI API costs and rate limits"
+      - "Generation quality and success rate"
+      - "Processing time for complex requests"
+      - "Device context accuracy (using correct entity_ids)"
+
+quality_score: 0  # Will be updated after implementation
+expires: "2025-12-31T00:00:00Z"
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 0
+  trace:
+    ac_covered: []
+    ac_gaps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # All ACs pending implementation
+
+acceptance_criteria:
+  - id: 1
+    description: "Accepts natural language automation requests (text input)"
+    validation_method: "API integration test"
+    test_cases:
+      - "Test API accepts POST with request_text field"
+      - "Test minimum 10 character validation"
+      - "Test various request formats accepted"
+    
+  - id: 2
+    description: "Generates valid Home Assistant automation YAML from request"
+    validation_method: "YAML validation and HA syntax check"
+    test_cases:
+      - "Test generated YAML is valid syntax"
+      - "Test YAML includes required fields (alias, trigger, action)"
+      - "Test YAML can be parsed by PyYAML"
+    
+  - id: 3
+    description: "Validates generated automation for safety before presenting to user"
+    validation_method: "Integration with safety validator (AI1.19)"
+    test_cases:
+      - "Test safety validation runs on generated automation"
+      - "Test warnings included in response"
+      - "Test dangerous patterns detected"
+    
+  - id: 4
+    description: "Provides device/entity suggestions based on available devices"
+    validation_method: "Context test with mock data-api"
+    test_cases:
+      - "Test fetches devices from data-api"
+      - "Test prompt includes available device list"
+      - "Test generated automation uses actual entity_ids"
+    
+  - id: 5
+    description: "Handles context: 'when window opens' → fetches actual window sensors"
+    validation_method: "End-to-end test with device context"
+    test_cases:
+      - "Request mentions 'window' → uses binary_sensor.window_* entities"
+      - "Request mentions 'kitchen light' → uses light.kitchen entity"
+      - "Test doesn't hallucinate non-existent devices"
+    
+  - id: 6
+    description: "Generates confidence score based on request clarity"
+    validation_method: "Confidence scoring test"
+    test_cases:
+      - "Clear request → confidence >0.8"
+      - "Ambiguous request → confidence 0.5-0.7"
+      - "Very vague request → confidence <0.5"
+    
+  - id: 7
+    description: "Supports follow-up questions to clarify ambiguous requests"
+    validation_method: "Clarification flow test"
+    test_cases:
+      - "Ambiguous request returns clarification_needed field"
+      - "Clarification endpoint accepts follow-up"
+      - "Regenerated automation incorporates clarification"
+    
+  - id: 8
+    description: "Processing time <5 seconds for typical requests"
+    validation_method: "Performance test"
+    test_cases:
+      - "Test simple request <3 seconds"
+      - "Test complex request <5 seconds"
+      - "Test 10 requests average time"
+    
+  - id: 9
+    description: "Success rate >85% (valid, deployable automations)"
+    validation_method: "Batch test with diverse requests"
+    test_cases:
+      - "Test 20 different request types"
+      - "Verify >17 (85%) generate valid YAML"
+      - "Verify >17 pass safety validation"
+    
+  - id: 10
+    description: "Provides explanation of generated automation"
+    validation_method: "Response content test"
+    test_cases:
+      - "Test explanation field populated"
+      - "Test explanation describes trigger and action"
+      - "Test explanation is human-readable"
+
+nfr_validation:
+  security:
+    status: PENDING
+    criteria:
+      - "OpenAI API key stored securely"
+      - "Input sanitization prevents prompt injection"
+      - "Generated YAML validated before storage"
+    validation:
+      - "Test API key from environment variable only"
+      - "Test malicious input doesn't compromise system"
+      - "Test YAML validation catches dangerous patterns"
+  
+  performance:
+    status: PENDING
+    criteria:
+      - "Generation completes in <5 seconds"
+      - "OpenAI API calls use appropriate timeouts"
+      - "Caching considered for common requests"
+    validation:
+      - "Benchmark 20 different requests"
+      - "Test timeout handling (10 second limit)"
+      - "Consider response caching for identical requests"
+  
+  reliability:
+    status: PENDING
+    criteria:
+      - "Handles OpenAI API failures gracefully"
+      - "Retry logic for transient failures"
+      - "Clear error messages for user"
+    validation:
+      - "Test with OpenAI API down (mock failure)"
+      - "Test retry with exponential backoff"
+      - "Test error message clarity"
+  
+  cost_efficiency:
+    status: PENDING
+    criteria:
+      - "Uses cost-effective model (gpt-4o-mini)"
+      - "Token usage monitored and limited"
+      - "Cost tracking implemented"
+    validation:
+      - "Verify gpt-4o-mini used (not gpt-4)"
+      - "Test max_tokens limit enforced (1000)"
+      - "Monitor actual API costs for 100 requests"
+
+integration_verification:
+  - id: IV1
+    description: "Generates valid automation from simple request"
+    test_procedure:
+      - "Submit request: 'Turn on kitchen light at 7 AM'"
+      - "Verify YAML generated"
+      - "Verify includes time trigger (07:00:00)"
+      - "Verify includes light.turn_on action"
+    expected_result: "Valid YAML with correct trigger and action"
+  
+  - id: IV2
+    description: "Uses available devices correctly"
+    test_procedure:
+      - "Mock data-api returns: light.kitchen, light.bedroom"
+      - "Request: 'Turn on kitchen light when dark'"
+      - "Verify uses light.kitchen entity_id"
+      - "Verify doesn't use non-existent entity"
+    expected_result: "Generated YAML uses light.kitchen"
+  
+  - id: IV3
+    description: "Handles ambiguous requests"
+    test_procedure:
+      - "Submit: 'Turn on lights when dark'"
+      - "Verify clarification_needed field populated"
+      - "Verify asks 'which lights?'"
+    expected_result: "Clarification requested"
+  
+  - id: IV4
+    description: "Validates safety"
+    test_procedure:
+      - "Request: 'Turn off all lights and locks at midnight'"
+      - "Verify automation generated"
+      - "Verify safety warnings included"
+    expected_result: "Safety warnings about bulk shutoff and locks"
+  
+  - id: IV5
+    description: "Performance within limits"
+    test_procedure:
+      - "Submit 10 different requests"
+      - "Measure average processing time"
+    expected_result: "Average <5 seconds per request"
+
+recommendations:
+  immediate:
+    - action: "Implement NLAutomationGenerator class"
+      refs: ["services/ai-automation-service/src/nl_automation_generator.py"]
+    - action: "Build context fetching from data-api"
+      refs: ["Fetch devices/entities for prompt context"]
+    - action: "Create prompt template with safety guidelines"
+      refs: ["Prompt engineering for consistent outputs"]
+    - action: "Implement retry logic for OpenAI failures"
+      refs: ["Error handling and resilience"]
+    - action: "Add API cost tracking and monitoring"
+      refs: ["services/ai-automation-service/src/api/nl_generation.py"]
+  
+  future:
+    - action: "Fine-tune model on HA automation examples"
+      refs: ["Phase 2 - improved accuracy"]
+    - action: "Support multi-turn conversation for complex automations"
+      refs: ["Phase 2 - conversational UI"]
+    - action: "Learn from user corrections to improve prompts"
+      refs: ["Phase 2 - feedback loop"]
+    - action: "Consider local LLM option (Ollama) to reduce costs"
+      refs: ["Phase 3 - cost optimization"]
+
+test_plan:
+  unit_tests:
+    - file: "tests/test_nl_generator.py"
+      coverage_target: 80
+      test_count_estimate: 15
+      focus_areas:
+        - "Prompt building with device context"
+        - "OpenAI response parsing"
+        - "Confidence calculation"
+        - "Error handling"
+  
+  integration_tests:
+    - file: "tests/test_nl_api.py"
+      coverage_target: 75
+      test_count_estimate: 10
+      focus_areas:
+        - "Complete generation flow"
+        - "Data-api integration"
+        - "Safety validator integration"
+        - "Clarification workflow"
+  
+  manual_tests:
+    - description: "Success rate validation"
+      procedure: "Test 20 diverse requests"
+      success_criteria: ">85% generate valid, deployable YAML"
+    
+    - description: "Device context accuracy"
+      procedure: "Test requests mentioning specific devices"
+      success_criteria: "Uses correct entity_ids from data-api"
+    
+    - description: "Cost tracking"
+      procedure: "Submit 100 requests, track OpenAI API costs"
+      success_criteria: "Total cost <$2 (target <$0.02/request)"
+
+openai_integration_tests:
+  - description: "API key security"
+    test_cases:
+      - "Test API key loaded from environment only"
+      - "Test API key not exposed in logs or errors"
+  
+  - description: "Model configuration"
+    test_cases:
+      - "Verify using gpt-4o-mini (cost-effective)"
+      - "Verify temperature=0.3 (consistent output)"
+      - "Verify max_tokens=1000 (limit costs)"
+  
+  - description: "Error handling"
+    test_cases:
+      - "Test rate limit error handling"
+      - "Test API timeout handling (30s)"
+      - "Test invalid response handling"
+
+quality_metrics:
+  - metric: "Success Rate"
+    target: ">85%"
+    measurement: "20 test requests → valid YAML count"
+  
+  - metric: "Context Accuracy"
+    target: ">95%"
+    measurement: "Device mentions → correct entity_id usage"
+  
+  - metric: "Processing Time"
+    target: "<5 seconds average"
+    measurement: "10 requests → average response time"
+  
+  - metric: "API Cost"
+    target: "<$0.02 per request"
+    measurement: "100 requests → total OpenAI cost"
+  
+  - metric: "Safety Integration"
+    target: "100%"
+    measurement: "All generated automations run through safety validator"
+
+notes:
+  - "OpenAI API costs must be monitored - set up billing alerts"
+  - "Prompt engineering critical for consistent, valid output"
+  - "Device context essential - prevents hallucinated entity_ids"
+  - "Success rate may improve with prompt refinement over time"
+  - "Consider caching common requests to reduce API costs"
+  - "Retry logic important for reliability (OpenAI can be flaky)"
+  - "Clear error messages help users rephrase failed requests"
+  - "gpt-4o-mini provides good balance of quality and cost"
+

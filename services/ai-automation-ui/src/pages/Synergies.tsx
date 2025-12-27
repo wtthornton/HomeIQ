@@ -19,6 +19,7 @@ import { SkeletonCardGrid } from '../components/SkeletonCard';
 import { SkeletonStats } from '../components/SkeletonStats';
 import { SkeletonFilter } from '../components/SkeletonFilter';
 import { ErrorBanner } from '../components/ErrorBanner';
+import { exportSynergiesToCSV, exportSynergiesToJSON } from '../utils/synergyExportUtils';
 
 export const Synergies: React.FC = () => {
   const { darkMode } = useAppStore();
@@ -38,6 +39,10 @@ export const Synergies: React.FC = () => {
   const [compareMode, setCompareMode] = useState(false);
   const [selectedForCompare, setSelectedForCompare] = useState<Set<number>>(new Set());
   const [viewMode, setViewMode] = useState<'grid' | 'map' | 'graph'>('grid');
+  // Modern enhancements: Search and batch selection
+  const [searchQuery, setSearchQuery] = useState('');
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedSynergyIds, setSelectedSynergyIds] = useState<Set<number>>(new Set());
   
   // Load dismissed/saved synergies from localStorage
   const [dismissedSynergies, setDismissedSynergies] = useState<Set<number>>(() => {
@@ -347,21 +352,119 @@ export const Synergies: React.FC = () => {
       return next;
     });
   };
+
+  // Batch operation handlers
+  const handleBatchToggle = (synergyId: number) => {
+    if (!batchMode) return;
+    setSelectedSynergyIds(prev => {
+      const next = new Set(prev);
+      if (next.has(synergyId)) {
+        next.delete(synergyId);
+      } else {
+        next.add(synergyId);
+      }
+      return next;
+    });
+  };
+
+  const handleBatchDismiss = () => {
+    if (selectedSynergyIds.size === 0) return;
+    if (window.confirm(`Dismiss ${selectedSynergyIds.size} synerg${selectedSynergyIds.size === 1 ? 'y' : 'ies'}?`)) {
+      selectedSynergyIds.forEach(id => handleDismiss(id));
+      setSelectedSynergyIds(new Set());
+      toast.success(`Dismissed ${selectedSynergyIds.size} synerg${selectedSynergyIds.size === 1 ? 'y' : 'ies'}`);
+    }
+  };
+
+  const handleBatchSave = () => {
+    if (selectedSynergyIds.size === 0) return;
+    selectedSynergyIds.forEach(id => {
+      if (!savedSynergies.has(id)) {
+        setSavedSynergies(prev => new Set(prev).add(id));
+      }
+    });
+    toast.success(`Saved ${selectedSynergyIds.size} synerg${selectedSynergyIds.size === 1 ? 'y' : 'ies'}`);
+    setSelectedSynergyIds(new Set());
+  };
+
+  const handleBatchExport = (format: 'csv' | 'json') => {
+    if (selectedSynergyIds.size === 0) return;
+    const selected = filteredAndSortedSynergies.filter(s => selectedSynergyIds.has(s.id));
+    if (format === 'csv') {
+      exportSynergiesToCSV(selected);
+      toast.success(`Exported ${selected.length} synergies to CSV`);
+    } else {
+      exportSynergiesToJSON(selected);
+      toast.success(`Exported ${selected.length} synergies to JSON`);
+    }
+  };
   
-  // Sort synergies based on sortBy
-  const sortedSynergies = useMemo(() => {
-    const sorted = [...synergies];
+  // Parse device IDs helper
+  const parseDeviceIdsForSearch = (deviceIds: string): string[] => {
+    try {
+      if (typeof deviceIds === 'string') {
+        const parsed = JSON.parse(deviceIds);
+        return Array.isArray(parsed) ? parsed : [deviceIds];
+      }
+      return Array.isArray(deviceIds) ? deviceIds : [];
+    } catch {
+      if (typeof deviceIds === 'string' && deviceIds.includes(',')) {
+        return deviceIds.split(',').map(id => id.trim());
+      }
+      return deviceIds ? [deviceIds] : [];
+    }
+  };
+
+  // Filter and sort synergies with search support
+  const filteredAndSortedSynergies = useMemo(() => {
+    let filtered = [...synergies];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(synergy => {
+        // Search by synergy type
+        const typeLabel = getSynergyTypeLabel(synergy.synergy_type).toLowerCase();
+        const typeInfo = getSynergyTypeInfo(synergy.synergy_type);
+        const typeName = typeInfo.name.toLowerCase();
+        const typeDesc = typeInfo.description.toLowerCase();
+        
+        // Search by area
+        const areaMatch = synergy.area?.toLowerCase().includes(query);
+        
+        // Search by device IDs
+        const deviceIds = parseDeviceIdsForSearch(synergy.device_ids);
+        const deviceMatch = deviceIds.some(id => id.toLowerCase().includes(query));
+        
+        // Search by metadata
+        const triggerMatch = synergy.opportunity_metadata?.trigger_name?.toLowerCase().includes(query);
+        const actionMatch = synergy.opportunity_metadata?.action_name?.toLowerCase().includes(query);
+        const rationaleMatch = (synergy.opportunity_metadata?.rationale || synergy.rationale || '')
+          .toLowerCase().includes(query);
+        
+        return typeLabel.includes(query) || 
+               typeName.includes(query) || 
+               typeDesc.includes(query) ||
+               areaMatch ||
+               deviceMatch ||
+               triggerMatch ||
+               actionMatch ||
+               rationaleMatch;
+      });
+    }
+
+    // Sort synergies based on sortBy
     switch (sortBy) {
       case 'recommended':
         // High impact + low complexity
-        return sorted.sort((a, b) => {
+        return filtered.sort((a, b) => {
           const scoreA = a.impact_score * (a.complexity === 'low' ? 1.5 : a.complexity === 'medium' ? 1.2 : 1);
           const scoreB = b.impact_score * (b.complexity === 'low' ? 1.5 : b.complexity === 'medium' ? 1.2 : 1);
           return scoreB - scoreA;
         });
       case 'quick-wins':
         // Low complexity, high impact
-        return sorted.sort((a, b) => {
+        return filtered.sort((a, b) => {
           if (a.complexity !== b.complexity) {
             const complexityOrder = { low: 0, medium: 1, high: 2 };
             return complexityOrder[a.complexity] - complexityOrder[b.complexity];
@@ -369,19 +472,22 @@ export const Synergies: React.FC = () => {
           return b.impact_score - a.impact_score;
         });
       case 'highest-impact':
-        return sorted.sort((a, b) => b.impact_score - a.impact_score);
+        return filtered.sort((a, b) => b.impact_score - a.impact_score);
       case 'most-confident':
-        return sorted.sort((a, b) => b.confidence - a.confidence);
+        return filtered.sort((a, b) => b.confidence - a.confidence);
       case 'by-area':
-        return sorted.sort((a, b) => {
+        return filtered.sort((a, b) => {
           const areaA = a.area || 'zzz';
           const areaB = b.area || 'zzz';
           return areaA.localeCompare(areaB);
         });
       default:
-        return sorted;
+        return filtered;
     }
-  }, [synergies, sortBy]);
+  }, [synergies, sortBy, searchQuery]);
+
+  // Legacy sortedSynergies for backward compatibility
+  const sortedSynergies = filteredAndSortedSynergies;
 
   return (
     <div className="space-y-6" data-testid="synergies-container">
@@ -747,15 +853,15 @@ export const Synergies: React.FC = () => {
                       className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
                     >
                       <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        {(filterType !== null || filterValidated !== null || minConfidence > 0)
-                          ? synergies.length
+                        {(filterType !== null || filterValidated !== null || minConfidence > 0 || searchQuery.trim())
+                          ? filteredAndSortedSynergies.length
                           : (stats?.total_synergies || 0)}
                       </div>
                       <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {(filterType !== null || filterValidated !== null || minConfidence > 0)
+                        {(filterType !== null || filterValidated !== null || minConfidence > 0 || searchQuery.trim())
                           ? 'Filtered Opportunities' 
                           : 'Total Opportunities'}
-                        {(filterType !== null || filterValidated !== null || minConfidence > 0) && (
+                        {(filterType !== null || filterValidated !== null || minConfidence > 0 || searchQuery.trim()) && (
                           <span className="block text-xs mt-1 opacity-75">
                             of {stats?.total_synergies || 0} total
                           </span>
@@ -823,6 +929,163 @@ export const Synergies: React.FC = () => {
                             Avg support: {Math.round((stats.avg_pattern_support_score || 0) * 100)}%
                           </div>
                         )}
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Enhanced Search and Filtering Section */}
+                  <div className="space-y-4 mb-6">
+                    <div className="flex flex-col md:flex-row gap-4">
+                      {/* Search Input */}
+                      <div className="flex-1">
+                        <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          🔍 Search Synergies
+                        </label>
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search by type, area, device, or description..."
+                          className={`w-full px-4 py-2.5 rounded-xl border transition-all ${
+                            darkMode 
+                              ? 'bg-gray-700/60 border-gray-600/50 text-white placeholder-gray-400 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/30' 
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                          } focus:outline-none`}
+                        />
+                      </div>
+
+                      {/* Batch Mode Toggle */}
+                      <div className="md:w-48 flex items-end">
+                        <label className="flex items-center gap-2 cursor-pointer w-full h-full">
+                          <input
+                            type="checkbox"
+                            checked={batchMode}
+                            onChange={(e) => {
+                              setBatchMode(e.target.checked);
+                              if (!e.target.checked) {
+                                setSelectedSynergyIds(new Set());
+                              }
+                            }}
+                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            📦 Batch Mode
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Results Count and Export */}
+                    {filteredAndSortedSynergies.length > 0 && (
+                      <div className="flex items-center justify-between flex-wrap gap-3">
+                        <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Showing {filteredAndSortedSynergies.length} of {synergies.length} synerg{filteredAndSortedSynergies.length !== 1 ? 'ies' : 'y'}
+                          {(filterType !== null || filterValidated !== null || minConfidence > 0 || searchQuery.trim()) && (
+                            <button
+                              onClick={() => {
+                                setFilterType(null);
+                                setFilterValidated(null);
+                                setMinConfidence(0.0);
+                                setSearchQuery('');
+                              }}
+                              className={`ml-2 underline hover:no-underline ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}
+                            >
+                              Clear filters
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => exportSynergiesToCSV(filteredAndSortedSynergies)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                              darkMode
+                                ? 'bg-gray-700/60 hover:bg-gray-600/60 text-white'
+                                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                            }`}
+                            title="Export all filtered synergies to CSV"
+                          >
+                            📥 Export CSV
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => exportSynergiesToJSON(filteredAndSortedSynergies)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                              darkMode
+                                ? 'bg-gray-700/60 hover:bg-gray-600/60 text-white'
+                                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                            }`}
+                            title="Export all filtered synergies to JSON"
+                          >
+                            📥 Export JSON
+                          </motion.button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bulk Actions Toolbar */}
+                    {batchMode && selectedSynergyIds.size > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`p-4 rounded-xl ${darkMode ? 'bg-blue-900/20 border border-blue-700/30' : 'bg-blue-50 border border-blue-200'}`}
+                      >
+                        <div className="flex items-center justify-between flex-wrap gap-3">
+                          <div className={`text-sm font-medium ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+                            {selectedSynergyIds.size} synerg{selectedSynergyIds.size !== 1 ? 'ies' : 'y'} selected
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleBatchExport('csv')}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                darkMode
+                                  ? 'bg-blue-700 hover:bg-blue-600 text-white'
+                                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                              }`}
+                            >
+                              📥 Export Selected
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={handleBatchSave}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                darkMode
+                                  ? 'bg-green-700 hover:bg-green-600 text-white'
+                                  : 'bg-green-500 hover:bg-green-600 text-white'
+                              }`}
+                            >
+                              💾 Save Selected
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={handleBatchDismiss}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                darkMode
+                                  ? 'bg-red-700 hover:bg-red-600 text-white'
+                                  : 'bg-red-500 hover:bg-red-600 text-white'
+                              }`}
+                            >
+                              🗑️ Dismiss Selected
+                            </motion.button>
+                            <button
+                              onClick={() => setSelectedSynergyIds(new Set())}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                darkMode
+                                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                              }`}
+                            >
+                              Clear Selection
+                            </button>
+                          </div>
+                        </div>
                       </motion.div>
                     )}
                   </div>
@@ -992,9 +1255,10 @@ export const Synergies: React.FC = () => {
                           setFilterType(null);
                           setFilterValidated(null);
                           setMinConfidence(0.0);
+                          setSearchQuery('');
                         }}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          filterType === null && filterValidated === null && minConfidence === 0.0
+                          filterType === null && filterValidated === null && minConfidence === 0.0 && !searchQuery.trim()
                             ? 'bg-blue-600 text-white'
                             : darkMode
                             ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
@@ -1093,7 +1357,7 @@ export const Synergies: React.FC = () => {
       )}
       
       {/* Filter Feedback */}
-      {(filterType !== null || filterValidated !== null || minConfidence > 0) && synergies.length === 0 && stats && stats.total_synergies > 0 && (
+      {(filterType !== null || filterValidated !== null || minConfidence > 0 || searchQuery.trim()) && filteredAndSortedSynergies.length === 0 && stats && stats.total_synergies > 0 && (
         <div className={`p-4 rounded-lg ${darkMode ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-yellow-50 border border-yellow-200'}`}>
           <div className="flex items-center justify-between">
             <div>
@@ -1109,6 +1373,7 @@ export const Synergies: React.FC = () => {
                 setFilterType(null);
                 setFilterValidated(null);
                 setMinConfidence(0.0);
+                setSearchQuery('');
               }}
               className={`px-3 py-1 rounded text-xs font-medium transition-all ${
                 darkMode
@@ -1243,10 +1508,18 @@ export const Synergies: React.FC = () => {
                 } shadow-lg hover:shadow-xl transition-shadow ${
                   compareMode && selectedForCompare.has(synergy.id)
                     ? 'ring-2 ring-blue-500'
+                    : batchMode && selectedSynergyIds.has(synergy.id)
+                    ? 'ring-2 ring-purple-500'
                     : ''
                 }`}
-                onClick={() => {
-                  if (compareMode) {
+                onClick={(e) => {
+                  // Don't toggle on checkbox click
+                  if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                    return;
+                  }
+                  if (batchMode) {
+                    handleBatchToggle(synergy.id);
+                  } else if (compareMode) {
                     handleCompareToggle(synergy.id);
                   } else {
                     toggleExpanded(synergy.id);
@@ -1255,7 +1528,22 @@ export const Synergies: React.FC = () => {
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
-                  <div className="text-3xl">{getSynergyIcon(synergy.synergy_type)}</div>
+                  <div className="flex items-start gap-3">
+                    {/* Batch Selection Checkbox */}
+                    {batchMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedSynergyIds.has(synergy.id)}
+                        onChange={() => handleBatchToggle(synergy.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer ${
+                          darkMode ? 'border-gray-600' : ''
+                        }`}
+                        title="Select for batch operations"
+                      />
+                    )}
+                    <div className="text-3xl">{getSynergyIcon(synergy.synergy_type)}</div>
+                  </div>
                   <div className="flex gap-2 flex-wrap">
                     {/* Phase 2: Pattern Validation Badge */}
                     {synergy.validated_by_patterns && (

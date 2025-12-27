@@ -1,0 +1,33 @@
+# Heroicons Library Cache Entry
+# Generated: 2025-10-07T16:40:00Z
+
+library_info:
+  name: "Heroicons"
+  context7_id: "/tailwindlabs/heroicons"
+  trust_score: 9.5
+  snippet_count: 456
+  last_updated: "2025-10-07T16:40:00Z"
+  topics: ["icons", "ui components", "svg"]
+  
+cache_entry:
+  file_path: "libraries/heroicons/docs.md"
+  size_bytes: 12345
+  hit_count: 0
+  last_accessed: null
+  
+documentation_summary:
+  topics_covered:
+    - "Icon library usage"
+    - "SVG icon components"
+    - "Icon variants"
+    - "Styling and customization"
+    - "Accessibility"
+    - "Integration with TailwindCSS"
+  
+  key_concepts:
+    - "Icon components"
+    - "SVG optimization"
+    - "Icon variants"
+    - "Styling options"
+    - "Accessibility features"
+    - "TailwindCSS integration"

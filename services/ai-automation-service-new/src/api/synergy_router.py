@@ -59,6 +59,27 @@ async def _proxy_to_pattern_service(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("")
+@router.get("/")
+async def get_synergies_root(
+    request: Request,
+    synergy_type: str | None = Query(None),
+    min_confidence: float | None = Query(None),
+    validated_by_patterns: bool | None = Query(None),
+    limit: int = Query(100, ge=1, le=1000),
+    order_by_priority: bool = Query(True)
+) -> Response:
+    """
+    Root endpoint for synergies - proxies to list endpoint.
+    
+    This endpoint handles requests to /api/synergies (without /list suffix)
+    to maintain compatibility with frontend API calls.
+    """
+    # Proxy to the list endpoint in pattern service
+    path = "list"
+    return await _proxy_to_pattern_service(request, path, "GET")
+
+
 @router.get("/list")
 async def list_synergies(
     request: Request,
@@ -77,5 +98,15 @@ async def list_synergies(
 async def get_synergy_stats(request: Request) -> Response:
     """Get synergy statistics from pattern service."""
     path = "stats"
+    return await _proxy_to_pattern_service(request, path, "GET")
+
+
+@router.get("/{synergy_id}")
+async def get_synergy(
+    request: Request,
+    synergy_id: str
+) -> Response:
+    """Get a single synergy by ID from pattern service."""
+    path = synergy_id
     return await _proxy_to_pattern_service(request, path, "GET")
 

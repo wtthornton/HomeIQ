@@ -1,0 +1,11 @@
+{
+  "event_type": "step_started",
+  "workflow_id": "rapid-dev-20251223-163718",
+  "step_id": "planning",
+  "data": {
+    "agent": "planner",
+    "action": "create_stories"
+  },
+  "timestamp": "2025-12-23T17:40:58.276395",
+  "correlation_id": null
+}
