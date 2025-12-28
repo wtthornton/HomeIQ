@@ -1,0 +1,173 @@
+name: Deployment Notifications
+
+on:
+  workflow_call:
+    inputs:
+      deployment-id:
+        required: true
+        type: string
+      status:
+        required: true
+        type: string
+      commit:
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      deployment-id:
+        required: true
+        type: string
+      status:
+        required: true
+        type: string
+        default: 'success'
+      commit:
+        required: false
+        type: string
+      branch:
+        required: false
+        type: string
+
+jobs:
+  notify:
+    name: Send Deployment Notifications
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine notification message
+        id: message
+        run: |
+          DEPLOYMENT_ID="${{ inputs.deployment-id }}"
+          STATUS="${{ inputs.status }}"
+          COMMIT="${{ inputs.commit }}"
+          BRANCH="${{ inputs.branch }}"
+          COMMIT_SHORT="${COMMIT:0:7}"
+          
+          if [[ "$STATUS" == "success" ]]; then
+            EMOJI="✅"
+            COLOR="good"
+            TITLE="Deployment Successful"
+            MESSAGE="Deployment \`${DEPLOYMENT_ID}\` completed successfully"
+          elif [[ "$STATUS" == "failure" ]]; then
+            EMOJI="❌"
+            COLOR="danger"
+            TITLE="Deployment Failed"
+            MESSAGE="Deployment \`${DEPLOYMENT_ID}\` failed. Rollback may be required."
+          else
+            EMOJI="🔄"
+            COLOR="warning"
+            TITLE="Deployment In Progress"
+            MESSAGE="Deployment \`${DEPLOYMENT_ID}\` is in progress"
+          fi
+          
+          echo "emoji=${EMOJI}" >> $GITHUB_OUTPUT
+          echo "color=${COLOR}" >> $GITHUB_OUTPUT
+          echo "title=${TITLE}" >> $GITHUB_OUTPUT
+          echo "message=${MESSAGE}" >> $GITHUB_OUTPUT
+          echo "commit_short=${COMMIT_SHORT}" >> $GITHUB_OUTPUT
+
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          PAYLOAD=$(cat <<EOF
+          {
+            "text": "${{ steps.message.outputs.emoji }} ${{ steps.message.outputs.title }}",
+            "attachments": [
+              {
+                "color": "${{ steps.message.outputs.color }}",
+                "fields": [
+                  {
+                    "title": "Deployment ID",
+                    "value": "${{ inputs.deployment-id }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Status",
+                    "value": "${{ inputs.status }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Branch",
+                    "value": "${{ inputs.branch }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Commit",
+                    "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ inputs.commit }}|${{ steps.message.outputs.commit_short }}>",
+                    "short": true
+                  },
+                  {
+                    "title": "Workflow",
+                    "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>",
+                    "short": false
+                  }
+                ],
+                "footer": "HomeIQ Deployment Pipeline",
+                "ts": $(date +%s)
+              }
+            ]
+          }
+          EOF
+          )
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "$PAYLOAD" \
+            "$SLACK_WEBHOOK_URL" || echo "Slack notification failed (non-blocking)"
+
+      - name: Send email notification (if configured)
+        if: env.EMAIL_SMTP_HOST != '' && inputs.status == 'failure'
+        env:
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
+          EMAIL_SMTP_USER: ${{ secrets.EMAIL_SMTP_USER }}
+          EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: |
+          echo "Email notification would be sent here"
+          echo "Deployment ID: ${{ inputs.deployment-id }}"
+          echo "Status: ${{ inputs.status }}"
+          # In production, use a proper email sending tool (sendmail, mailgun, etc.)
+
+      - name: Send webhook notification
+        if: env.DEPLOYMENT_WEBHOOK_URL != ''
+        env:
+          DEPLOYMENT_WEBHOOK_URL: ${{ secrets.DEPLOYMENT_WEBHOOK_URL }}
+        run: |
+          PAYLOAD=$(cat <<EOF
+          {
+            "deployment_id": "${{ inputs.deployment-id }}",
+            "status": "${{ inputs.status }}",
+            "commit": "${{ inputs.commit }}",
+            "branch": "${{ inputs.branch }}",
+            "repository": "${{ github.repository }}",
+            "workflow_run_id": "${{ github.run_id }}",
+            "workflow_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          )
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "$PAYLOAD" \
+            "$DEPLOYMENT_WEBHOOK_URL" || echo "Webhook notification failed (non-blocking)"
+
+      - name: Update deployment status
+        run: |
+          echo "## Deployment Notification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.message.outputs.emoji }} **${{ steps.message.outputs.title }}**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment ID:** \`${{ inputs.deployment-id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ inputs.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ inputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** [${{ steps.message.outputs.commit_short }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ inputs.commit }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+

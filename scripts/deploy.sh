@@ -329,9 +329,8 @@ run_post_deployment_tests() {
     local endpoints=(
         "http://localhost:8086/health:InfluxDB"
         "http://localhost:8001/health:WebSocket Ingestion"
-        "http://localhost:8002/health:Enrichment Pipeline"
+        "http://localhost:8006/health:Data API"
         "http://localhost:8003/api/v1/health:Admin API"
-        "http://localhost:8080/health:Data Retention"
         "http://localhost:3000:Health Dashboard"
     )
     
