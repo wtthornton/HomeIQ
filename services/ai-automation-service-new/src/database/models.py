@@ -5,7 +5,7 @@ Epic 39, Story 39.10: Automation Service Foundation
 Shared models with other services (Suggestion, AutomationVersion, etc.)
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, ForeignKey, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 
@@ -20,7 +20,10 @@ class Suggestion(Base):
     pattern_id = Column(Integer, nullable=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    automation_yaml = Column(Text, nullable=True)
+    automation_json = Column(JSON, nullable=True)  # HomeIQ JSON format
+    automation_yaml = Column(Text, nullable=True)  # Generated from JSON
+    ha_version = Column(String, nullable=True)  # Target Home Assistant version
+    json_schema_version = Column(String, nullable=True)  # HomeIQ JSON schema version
     status = Column(String, default="pending")  # pending, approved, rejected, deployed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -50,7 +53,9 @@ class AutomationVersion(Base):
     config_id = Column(String, nullable=True)  # Home Assistant config_id (Epic 51.11)
     alias = Column(String, nullable=True)  # Automation alias for mapping (Epic 51.11)
     version_number = Column(Integer, nullable=False)
-    automation_yaml = Column(Text, nullable=False)
+    automation_json = Column(JSON, nullable=True)  # HomeIQ JSON format
+    automation_yaml = Column(Text, nullable=False)  # Generated from JSON
+    ha_version = Column(String, nullable=True)  # HA version when deployed
     yaml_diff = Column(Text, nullable=True)  # Diff from previous version (Epic 51.11)
     validation_score = Column(Float, nullable=True)  # Quality score from validation (Epic 51.11)
     safety_score = Column(Float, nullable=True)

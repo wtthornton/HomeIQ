@@ -16,6 +16,9 @@ from ..clients.openai_client import OpenAIClient
 from ..clients.yaml_validation_client import YAMLValidationClient
 from ..database.models import Suggestion
 from ..services.plan_parser import PlanParser
+from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
+from shared.homeiq_automation.schema import HomeIQAutomation
+from shared.homeiq_automation.validator import HomeIQAutomationValidator
 from shared.yaml_validation_service.renderer import AutomationRenderer
 
 logger = logging.getLogger(__name__)
@@ -61,23 +64,107 @@ class YAMLGenerationService:
         self.yaml_validation_client = yaml_validation_client
         self.plan_parser = PlanParser()
         self.renderer = AutomationRenderer()
+        self.json_validator = HomeIQAutomationValidator(data_api_client=data_api_client)
+        self.json_converter = HomeIQToAutomationSpecConverter()
+
+    async def generate_homeiq_json(
+        self,
+        suggestion: dict[str, Any] | Suggestion,
+        homeiq_context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """
+        Generate HomeIQ JSON Automation format from a suggestion.
+        
+        This is the new primary method that generates comprehensive HomeIQ JSON
+        including metadata, device context, patterns, and safety checks.
+        
+        Args:
+            suggestion: Suggestion dictionary or Suggestion model instance
+            homeiq_context: Optional HomeIQ context (patterns, devices, areas)
+        
+        Returns:
+            HomeIQ JSON Automation dictionary
+        
+        Raises:
+            InvalidSuggestionError: If suggestion is invalid
+            YAMLGenerationError: If JSON generation fails
+        """
+        try:
+            # Extract suggestion data
+            if isinstance(suggestion, Suggestion):
+                description = suggestion.description or ""
+                title = suggestion.title or "Automation"
+                pattern_id = suggestion.pattern_id
+            else:
+                description = suggestion.get("description", "")
+                title = suggestion.get("title", "Automation")
+                pattern_id = suggestion.get("pattern_id")
+            
+            if not description:
+                raise InvalidSuggestionError("Suggestion description is required")
+            
+            # Build prompt
+            prompt = f"""Create a HomeIQ automation with the following requirements:
+
+Title: {title}
+Description: {description}
+"""
+            
+            # Generate HomeIQ JSON using OpenAI
+            automation_json = await self.openai_client.generate_homeiq_automation_json(
+                prompt=prompt,
+                homeiq_context=homeiq_context,
+                temperature=0.1,
+                max_tokens=3000
+            )
+            
+            # Validate JSON
+            validation_result = await self.json_validator.validate(
+                automation_json,
+                validate_entities=True,
+                validate_devices=True,
+                validate_safety=True
+            )
+            
+            if not validation_result.valid:
+                errors = "; ".join(validation_result.errors)
+                logger.warning(f"HomeIQ JSON validation found issues: {errors}")
+                # Continue anyway - warnings are logged but don't block generation
+            
+            logger.info(f"Generated HomeIQ JSON automation: {automation_json.get('alias', 'unknown')}")
+            return automation_json
+            
+        except InvalidSuggestionError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to generate HomeIQ JSON: {e}")
+            raise YAMLGenerationError(f"HomeIQ JSON generation failed: {e}")
 
     async def generate_automation_yaml(
         self,
         suggestion: dict[str, Any] | Suggestion,
+        use_homeiq_json: bool = True,
         use_structured_plan: bool = True
     ) -> str:
         """
         Generate Home Assistant automation YAML from a suggestion.
         
-        Epic 51, Story 51.8: Uses structured plan generation by default.
+        New flow (use_homeiq_json=True, default):
+        - LLM generates HomeIQ JSON Automation
+        - JSON is validated
+        - JSON is converted to AutomationSpec
+        - AutomationSpec is rendered to YAML
+        
+        Legacy flow (use_homeiq_json=False):
+        - Epic 51, Story 51.8: Uses structured plan generation
         - LLM generates structured JSON plan
         - Plan is parsed into AutomationSpec
-        - AutomationSpec is rendered to YAML server-side
+        - AutomationSpec is rendered to YAML
         
         Args:
             suggestion: Suggestion dictionary or Suggestion model instance
-            use_structured_plan: Whether to use structured plan generation (default: True)
+            use_homeiq_json: Whether to use HomeIQ JSON format (default: True)
+            use_structured_plan: Whether to use structured plan generation (legacy, default: True)
         
         Returns:
             Generated YAML string
@@ -98,8 +185,11 @@ class YAMLGenerationService:
             if not description:
                 raise InvalidSuggestionError("Suggestion description is required")
             
-            if use_structured_plan:
-                # Epic 51, Story 51.8: Structured Plan Generation
+            if use_homeiq_json:
+                # New flow: HomeIQ JSON → AutomationSpec → YAML
+                return await self._generate_yaml_from_homeiq_json(suggestion)
+            elif use_structured_plan:
+                # Legacy: Epic 51, Story 51.8: Structured Plan Generation
                 return await self._generate_yaml_from_structured_plan(title, description)
             else:
                 # Legacy: Direct YAML generation (backward compatibility)
@@ -112,6 +202,70 @@ class YAMLGenerationService:
         except Exception as e:
             logger.error(f"Failed to generate YAML: {e}")
             raise YAMLGenerationError(f"YAML generation failed: {e}")
+
+    async def _generate_yaml_from_homeiq_json(
+        self,
+        suggestion: dict[str, Any] | Suggestion
+    ) -> str:
+        """
+        Generate YAML from HomeIQ JSON Automation.
+        
+        Flow:
+        1. Generate HomeIQ JSON from suggestion
+        2. Validate JSON
+        3. Convert JSON to AutomationSpec
+        4. Render AutomationSpec to YAML
+        5. Validate and return YAML
+        """
+        try:
+            # Build HomeIQ context if available
+            homeiq_context: dict[str, Any] | None = None
+            if isinstance(suggestion, Suggestion) and suggestion.pattern_id:
+                # Could fetch pattern data here if needed
+                homeiq_context = {}
+            elif isinstance(suggestion, dict):
+                # Extract context from suggestion dict if available
+                homeiq_context = suggestion.get("homeiq_context")
+            
+            # Step 1: Generate HomeIQ JSON
+            automation_json = await self.generate_homeiq_json(
+                suggestion=suggestion,
+                homeiq_context=homeiq_context
+            )
+            
+            # Step 2: Convert JSON to HomeIQAutomation model
+            homeiq_automation = HomeIQAutomation(**automation_json)
+            
+            # Step 3: Convert HomeIQ JSON to AutomationSpec
+            automation_spec = self.json_converter.convert(homeiq_automation)
+            
+            # Step 4: Render AutomationSpec to YAML
+            yaml_content = self.renderer.render(automation_spec)
+            
+            # Step 5: Validate YAML (optional, but recommended)
+            if self.yaml_validation_client:
+                try:
+                    validation_result = await self.yaml_validation_client.validate_yaml(
+                        yaml_content=yaml_content,
+                        normalize=True,
+                        validate_entities=True
+                    )
+                    if not validation_result.get("valid", False):
+                        errors = validation_result.get("errors", [])
+                        logger.warning(f"YAML validation found issues: {errors}")
+                        # Use fixed YAML if available
+                        if validation_result.get("fixed_yaml"):
+                            yaml_content = validation_result["fixed_yaml"]
+                            logger.info("Using normalized YAML from validation service")
+                except Exception as e:
+                    logger.warning(f"YAML validation failed (non-critical): {e}")
+            
+            logger.info(f"Generated YAML from HomeIQ JSON: {homeiq_automation.alias}")
+            return yaml_content
+            
+        except Exception as e:
+            logger.error(f"Failed to generate YAML from HomeIQ JSON: {e}")
+            raise YAMLGenerationError(f"HomeIQ JSON to YAML conversion failed: {e}")
 
     async def _generate_yaml_from_structured_plan(self, title: str, description: str) -> str:
         """

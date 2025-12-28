@@ -64,6 +64,15 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
     await engine.dispose()
 
 
+@pytest.fixture(scope="function")
+async def db_session(test_db: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Alias for test_db fixture for e2e tests.
+    Provides a database session for testing.
+    """
+    yield test_db
+
+
 @pytest.fixture
 def sample_suggestion_data():
     """Sample suggestion data for testing."""

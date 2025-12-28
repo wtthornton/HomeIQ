@@ -84,7 +84,19 @@ class ActionSpec(BaseModel):
     @classmethod
     def validate_action_type(cls, v, info):
         """Ensure at least one action type is specified."""
-        if info.data.get("service") or info.data.get("scene") or info.data.get("delay"):
+        # Check if current field has a value, or if any other action type fields are set
+        # When validating "service", v is the service value; when validating "scene", v is scene value, etc.
+        field_name = info.field_name
+        
+        # Check if current field has a value
+        current_field_has_value = bool(v)
+        
+        # Check if other action type fields are set
+        has_service = info.data.get("service") if field_name != "service" else current_field_has_value
+        has_scene = info.data.get("scene") if field_name != "scene" else current_field_has_value
+        has_delay = info.data.get("delay") if field_name != "delay" else current_field_has_value
+        
+        if has_service or has_scene or has_delay:
             return v
         # Allow advanced actions (choose, repeat, parallel, sequence)
         if info.data.get("choose") or info.data.get("repeat") or info.data.get("parallel") or info.data.get("sequence"):

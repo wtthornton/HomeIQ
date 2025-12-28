@@ -1392,7 +1392,7 @@ services:
           memory: 128M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8025/health', timeout=5.0)"]
+      test: ["CMD", "curl", "-f", "http://localhost:8025/health"]
       interval: 30s
       timeout: 10s
       retries: 3

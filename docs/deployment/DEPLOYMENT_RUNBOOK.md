@@ -1,13 +1,16 @@
 # HomeIQ Deployment Runbook
 
-**Last Updated:** December 3, 2025  
-**Status:** Active
+**Last Updated:** December 27, 2025  
+**Status:** Active  
+**Version:** 2.0
 
 ---
 
 ## Overview
 
 This runbook provides step-by-step instructions for deploying HomeIQ to production, including pre-deployment checks, deployment procedures, and post-deployment verification.
+
+**Note:** This runbook covers both automated (GitHub Actions) and manual deployment procedures. For automated deployments, see [Deployment Pipeline Documentation](./DEPLOYMENT_PIPELINE.md).
 
 ---
 
@@ -44,63 +47,116 @@ This runbook provides step-by-step instructions for deploying HomeIQ to producti
 
 ---
 
-## Deployment Procedure
+## Deployment Methods
 
-### Step 1: Build Docker Images
+### Automated Deployment (Recommended)
+
+**Use GitHub Actions workflow for automated deployments:**
+
+1. **Push to main branch** or **create a tag** (`v*`)
+2. **Quality gates run automatically:**
+   - Tests must pass
+   - Security scans must pass (no CRITICAL/HIGH vulnerabilities)
+   - Code quality scores meet thresholds
+   - Docker Compose config validation
+3. **If gates pass, deployment starts automatically**
+4. **Post-deployment validation runs:**
+   - Health checks for all services
+   - Database connectivity verification
+   - Service dependency checks
+5. **Notifications sent** (Slack, email, webhook)
+
+**Manual Trigger:**
+- Go to GitHub Actions → "Deploy to Production" → "Run workflow"
+
+**See:** [Deployment Pipeline Documentation](./DEPLOYMENT_PIPELINE.md) for complete pipeline details.
+
+### Manual Deployment
+
+**Use this method for local deployments or when automation is unavailable:**
+
+#### Step 1: Pre-Deployment Validation
+
+```bash
+# Run pre-deployment validation
+python scripts/deployment/validate-deployment.py --pre-deployment
+```
+
+**Checks:**
+- Docker Compose configuration
+- Environment variables
+- Service dependencies
+- Resource limits
+
+#### Step 2: Build Docker Images
 
 ```bash
 # Build all services
-docker-compose build
+docker compose build --parallel
 
 # Or build specific service
-docker-compose build <service-name>
+docker compose build <service-name>
 ```
 
 **Expected Time:** 5-15 minutes  
 **Verification:** Check for build errors
 
-### Step 2: Start Services
+#### Step 3: Start Services
 
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Or start specific service
-docker-compose up -d <service-name>
+docker compose up -d <service-name>
 ```
 
 **Expected Time:** <1 minute  
 **Verification:** Check container status
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
-### Step 3: Verify Service Health
+#### Step 4: Post-Deployment Validation
 
 ```bash
-# Run health check script
+# Run post-deployment validation
+python scripts/deployment/validate-deployment.py --post-deployment
+```
+
+**Checks:**
+- Service connectivity
+- Database connectivity
+- Inter-service communication
+
+#### Step 5: Verify Service Health
+
+```bash
+# Comprehensive health check (recommended)
+bash scripts/deployment/health-check.sh
+
+# Or use existing health check script
 ./scripts/check-service-health.sh
 
 # Or check individual services
 curl http://localhost:8001/health  # websocket-ingestion
 curl http://localhost:8006/health  # data-api
-curl http://localhost:8003/api/v1/health  # admin-api
+curl http://localhost:8004/health  # admin-api
 ```
 
 **Expected Result:** All critical services return HTTP 200
 
-### Step 4: Run Smoke Tests
+#### Step 6: Track Deployment
 
 ```bash
-# Run smoke tests
-python tests/smoke_tests.py
-
-# Or with pytest
-pytest tests/test_smoke_critical_paths.py -v
+# Track deployment in database
+python scripts/deployment/track-deployment.py \
+  --deployment-id "deploy-$(date +%Y%m%d-%H%M%S)" \
+  --status success \
+  --commit $(git rev-parse HEAD) \
+  --branch $(git branch --show-current)
 ```
-
-**Expected Result:** All critical path tests pass
 
 ---
 
@@ -109,17 +165,24 @@ pytest tests/test_smoke_critical_paths.py -v
 ### 1. Service Health Check
 
 ```bash
-# Automated health check
-./scripts/check-service-health.sh --json > health-report.json
+# Comprehensive health check (recommended)
+bash scripts/deployment/health-check.sh
+
+# JSON output for automation
+bash scripts/deployment/health-check.sh --json > health-report.json
 
 # Check critical services only
-./scripts/check-service-health.sh --critical-only
+bash scripts/deployment/health-check.sh --critical-only
+
+# Or use existing health check script
+./scripts/check-service-health.sh --json > health-report.json
 ```
 
 **Success Criteria:**
 - All critical services healthy (HTTP 200)
 - Response times < 500ms
 - No connection errors
+- All containers running
 
 ### 2. Functional Verification
 
@@ -170,45 +233,85 @@ docker-compose logs | grep -i error
 
 ## Rollback Procedure
 
-### If Deployment Fails
+### Automatic Rollback
 
-1. **Stop Services:**
-   ```bash
-   docker-compose down
-   ```
+**Triggered automatically when:**
+- Health checks fail after deployment
+- Post-deployment validation fails
 
-2. **Restore Previous Version:**
-   ```bash
-   git checkout <previous-commit>
-   docker-compose build
-   docker-compose up -d
-   ```
+**Process:**
+1. Health check failures detected
+2. Rollback script automatically executes
+3. Previous deployment images restored
+4. Services restarted with previous configuration
+5. Rollback verified
+6. Rollback tracked and team notified
 
-3. **Verify Rollback:**
-   ```bash
-   ./scripts/check-service-health.sh
-   ```
+**No manual intervention required** - rollback happens automatically.
+
+### Manual Rollback
+
+**Use when automatic rollback fails or for manual deployments:**
+
+#### Option 1: Rollback to Previous Deployment
+
+```bash
+# Rollback to previous successful deployment
+bash scripts/deployment/rollback.sh --previous
+```
+
+#### Option 2: Rollback to Specific Deployment ID
+
+```bash
+# Rollback to specific deployment
+bash scripts/deployment/rollback.sh --deployment-id <deployment-id>
+```
+
+#### Option 3: Rollback to Specific Tag
+
+```bash
+# Rollback to specific tag
+bash scripts/deployment/rollback.sh --tag <tag>
+```
+
+#### Option 4: Manual Git Rollback
+
+```bash
+# Stop services
+docker compose down
+
+# Restore previous version
+git checkout <previous-commit>
+
+# Rebuild and restart
+docker compose build
+docker compose up -d
+
+# Verify rollback
+bash scripts/deployment/health-check.sh
+```
 
 ### If Service Degrades
 
 1. **Identify Failing Service:**
    ```bash
-   ./scripts/check-service-health.sh
-   docker-compose ps
+   bash scripts/deployment/health-check.sh
+   docker compose ps
    ```
 
 2. **Check Logs:**
    ```bash
-   docker-compose logs <service-name>
+   docker compose logs <service-name>
    ```
 
 3. **Restart Service:**
    ```bash
-   docker-compose restart <service-name>
+   docker compose restart <service-name>
    ```
 
 4. **If Persistent, Rollback:**
-   - Follow rollback procedure above
+   - Use automated rollback script (recommended)
+   - Or follow manual rollback procedure above
 
 ---
 
@@ -287,15 +390,61 @@ docker-compose logs | grep -i error
 
 ---
 
+## Deployment Tracking
+
+### View Deployment History
+
+```bash
+# List recent deployments
+python scripts/deployment/track-deployment.py --list
+
+# Show deployment metrics
+python scripts/deployment/track-deployment.py --metrics
+```
+
+### Metrics Available
+
+- Total deployments
+- Success/failure rates
+- Average deployment duration
+- Rollback frequency
+- Mean time to recovery (MTTR)
+- Recent deployments (7 days)
+
+## Notifications
+
+### Automated Notifications
+
+Deployments automatically send notifications to:
+- **Slack** (if `SLACK_WEBHOOK_URL` configured)
+- **Email** (if configured, for failures only)
+- **Custom Webhook** (if `DEPLOYMENT_WEBHOOK_URL` configured)
+- **GitHub Actions** (workflow summary)
+
+### Manual Notifications
+
+For manual deployments, notifications can be sent via:
+
+```bash
+# Send notification via workflow
+gh workflow run deployment-notify.yml \
+  -f deployment-id="deploy-$(date +%Y%m%d-%H%M%S)" \
+  -f status="success" \
+  -f commit=$(git rev-parse HEAD) \
+  -f branch=$(git branch --show-current)
+```
+
 ## References
 
+- [Deployment Pipeline Documentation](./DEPLOYMENT_PIPELINE.md) - Complete pipeline architecture
 - [Test Strategy](../testing/TEST_STRATEGY.md)
 - [Security Audit](../security/SECURITY_AUDIT_REPORT.md)
-- [Production Readiness Components](../../docs/architecture/production-readiness-components.md)
-- [Troubleshooting Guide](../troubleshooting/TROUBLESHOOTING_GUIDE.md)
+- [Production Readiness Components](../architecture/production-readiness-components.md)
+- [Troubleshooting Guide](../TROUBLESHOOTING_GUIDE.md)
 
 ---
 
 **Maintainer:** DevOps Team  
-**Review Frequency:** Quarterly
+**Review Frequency:** Quarterly  
+**Last Review:** December 27, 2025
 
