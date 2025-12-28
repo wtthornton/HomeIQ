@@ -306,9 +306,8 @@ function Invoke-PostDeploymentTests {
     $endpoints = @(
         @{Url="http://localhost:8086/health"; Service="InfluxDB"},
         @{Url="http://localhost:8001/health"; Service="WebSocket Ingestion"},
-        @{Url="http://localhost:8002/health"; Service="Enrichment Pipeline"},
+        @{Url="http://localhost:8006/health"; Service="Data API"},
         @{Url="http://localhost:8003/api/v1/health"; Service="Admin API"},
-        @{Url="http://localhost:8080/health"; Service="Data Retention"},
         @{Url="http://localhost:3000"; Service="Health Dashboard"}
     )
     

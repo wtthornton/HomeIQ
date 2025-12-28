@@ -17,7 +17,12 @@ from ..clients.openai_client import OpenAIClient
 from ..clients.yaml_validation_client import YAMLValidationClient
 from ..config import settings
 from ..database import get_db
+from ..services.automation_combiner import AutomationCombiner
 from ..services.deployment_service import DeploymentService
+from ..services.ha_version_service import HAVersionService
+from ..services.json_query_service import JSONQueryService
+from ..services.json_rebuilder import JSONRebuilder
+from ..services.json_verification_service import JSONVerificationService
 from ..services.suggestion_service import SuggestionService
 from ..services.yaml_generation_service import YAMLGenerationService
 
@@ -129,3 +134,33 @@ def get_deployment_service(
         ha_client=ha_client,
         yaml_service=yaml_service
     )
+
+
+# JSON service dependencies (Epic 51: HomeIQ JSON Automation layer)
+def get_json_rebuilder(
+    openai_client: Annotated[OpenAIClient, Depends(get_openai_client)]
+) -> JSONRebuilder:
+    """Get JSON rebuilder service instance."""
+    return JSONRebuilder(openai_client=openai_client)
+
+
+def get_json_verification_service(
+    data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)]
+) -> JSONVerificationService:
+    """Get JSON verification service instance."""
+    return JSONVerificationService(data_api_client=data_api_client)
+
+
+def get_json_query_service() -> JSONQueryService:
+    """Get JSON query service instance."""
+    return JSONQueryService()
+
+
+def get_automation_combiner() -> AutomationCombiner:
+    """Get automation combiner service instance."""
+    return AutomationCombiner()
+
+
+def get_ha_version_service() -> HAVersionService:
+    """Get HA version service instance."""
+    return HAVersionService()

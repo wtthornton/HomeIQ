@@ -265,6 +265,113 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
             logger.error(f"Unexpected error generating structured plan: {e}")
             raise
 
+    async def generate_homeiq_automation_json(
+        self,
+        prompt: str,
+        homeiq_context: dict[str, Any] | None = None,
+        temperature: float = 0.1,
+        max_tokens: int = 3000
+    ) -> dict[str, Any]:
+        """
+        Generate HomeIQ JSON Automation format from prompt.
+        
+        Uses structured output with JSON schema to generate comprehensive
+        HomeIQ automation JSON including metadata, device context, and patterns.
+        
+        Args:
+            prompt: Prompt describing the automation
+            homeiq_context: Optional HomeIQ context (patterns, devices, areas)
+            temperature: Sampling temperature (default: 0.1 for deterministic output)
+            max_tokens: Maximum tokens in response
+        
+        Returns:
+            Dictionary containing HomeIQ JSON Automation
+        
+        Raises:
+            ValueError: If API key not configured or JSON cannot be parsed
+            APIError: If OpenAI API call fails
+        """
+        if not self.client:
+            raise ValueError("OpenAI API key not configured")
+        
+        # Build context section
+        context_section = ""
+        if homeiq_context:
+            if "patterns" in homeiq_context:
+                context_section += f"\n\nPatterns Available:\n{json.dumps(homeiq_context['patterns'], indent=2)}"
+            if "devices" in homeiq_context:
+                context_section += f"\n\nDevices Available:\n{json.dumps(homeiq_context['devices'], indent=2)}"
+            if "areas" in homeiq_context:
+                context_section += f"\n\nAreas Available:\n{json.dumps(homeiq_context['areas'], indent=2)}"
+        
+        # HomeIQ JSON schema (simplified for LLM - full validation happens server-side)
+        system_prompt = f"""You are a Home Assistant automation expert generating HomeIQ JSON Automation format.
+
+Generate a comprehensive JSON automation that includes:
+1. Core automation fields: id (optional), alias (required), description, triggers, conditions, actions, mode, initial_state
+2. HomeIQ metadata: created_by, created_at, pattern_id (if from pattern), suggestion_id, confidence_score, safety_score, use_case, complexity
+3. Device context: device_ids, entity_ids, device_types, area_ids, device_capabilities
+4. Pattern context (if applicable): pattern_type, pattern_id, pattern_metadata, confidence, occurrences
+5. Safety checks: requires_confirmation, critical_devices, time_constraints, safety_warnings
+6. Energy impact: estimated_power_w, estimated_daily_kwh, peak_hours
+7. Dependencies: list of automation IDs this depends on
+8. Tags: list of tags for categorization
+
+Return ONLY valid JSON matching the HomeIQ Automation schema. Include all relevant HomeIQ metadata and context.
+{context_section}
+
+Important:
+- Use exact entity IDs and device IDs from the context provided
+- Set use_case to one of: "energy", "comfort", "security", "convenience"
+- Set complexity to one of: "low", "medium", "high"
+- Include device_capabilities if devices have special features (effects, presets, modes)
+- Set safety_checks.requires_confirmation=true for critical devices (locks, security systems)
+- Calculate energy_impact if automation involves power-consuming devices
+- Include pattern_context if automation is generated from a pattern
+
+Return ONLY the JSON object, no explanations or markdown code blocks."""
+        
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"}  # Force JSON output
+            )
+            
+            # Track usage
+            if response.usage:
+                self.total_tokens_used += response.usage.total_tokens
+            
+            # Extract JSON from response
+            json_content = response.choices[0].message.content or "{}"
+            
+            # Parse JSON
+            automation_json = json.loads(json_content)
+            
+            logger.debug(f"Generated HomeIQ JSON automation: {automation_json.get('alias', 'unknown')}")
+            return automation_json
+        
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse HomeIQ JSON: {e}")
+            raise ValueError(f"Invalid JSON in HomeIQ automation response: {e}")
+        except APIError as e:
+            logger.error(f"OpenAI API error: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error generating HomeIQ JSON: {e}")
+            raise
+
     async def generate_suggestion_description(
         self,
         pattern_data: dict[str, Any],
