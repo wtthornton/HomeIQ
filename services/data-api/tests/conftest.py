@@ -1,12 +1,6 @@
-from tests.path_setup import add_service_src
+from __future__ import annotations
 
-add_service_src(__file__)
-"""
-Shared pytest fixtures for Data API service tests
-
-Following Context7 KB best practices from /pytest-dev/pytest
-"""
-
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -14,11 +8,29 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-if not os.getenv("DATA_API_TESTS"):
-    pytest.skip(
-        "data-api tests require external services; skipping in alpha environment",
-        allow_module_level=True,
-    )
+# Set test database URL BEFORE any imports
+# This ensures the database module uses in-memory database for tests
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+
+# Load path_setup dynamically
+def _load_add_service_src():
+    repo_root = Path(__file__).resolve().parents[3]
+    path_setup = repo_root / "tests" / "path_setup.py"
+    spec = importlib.util.spec_from_file_location("repo_tests.path_setup", path_setup)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Unable to load shared test path utilities")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.add_service_src
+
+add_service_src = _load_add_service_src()
+add_service_src(__file__)
+
+"""
+Shared pytest fixtures for Data API service tests
+
+Following Context7 KB best practices from /pytest-dev/pytest
+"""
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 sys.path.append(str(ROOT_DIR))
@@ -26,6 +38,10 @@ from datetime import datetime
 from unittest.mock import patch
 
 from httpx import ASGITransport, AsyncClient
+
+# Only skip integration tests, not unit tests
+# Unit tests should run without external services
+# Integration tests can check for DATA_API_TESTS env var individually
 
 
 # ✅ Context7 Best Practice: Shared async HTTP client fixture
@@ -64,6 +80,32 @@ def mock_sqlite():
     """Mock SQLite database for testing"""
     with patch('src.database.get_session') as mock:
         yield mock
+
+
+# ✅ Context7 Best Practice: Fresh database for each test
+@pytest_asyncio.fixture(autouse=True)
+async def fresh_db():
+    """
+    Create a fresh in-memory database for each test.
+    Ensures tests don't interfere with each other and use latest schema.
+    """
+    from src.database import Base, async_engine
+    
+    # Drop all tables first, then create fresh schema
+    async with async_engine.begin() as conn:
+        # Drop all tables (if they exist)
+        await conn.run_sync(Base.metadata.drop_all)
+        # Create all tables with latest schema
+        await conn.run_sync(Base.metadata.create_all)
+    
+    yield
+    
+    # Cleanup: Delete all data but keep table structure
+    # This preserves the SQLAlchemy mapping while clearing test data
+    async with async_engine.begin() as conn:
+        # Delete all rows from all tables
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
 
 
 # ✅ Context7 Best Practice: Shared test data fixtures
