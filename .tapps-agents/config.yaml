@@ -117,7 +117,7 @@ context7:
     default_max_age_days: 30
     check_on_access: true
     auto_queue: true
-    auto_process_on_startup: false
+    auto_process_on_startup: true  # Enabled for automatic cache refresh processing
 quality_tools:
   ruff_enabled: true
   mypy_enabled: true

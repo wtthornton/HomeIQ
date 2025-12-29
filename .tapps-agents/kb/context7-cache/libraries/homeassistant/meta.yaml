@@ -1,11 +1,12 @@
 library: homeassistant
 context7_id: /home-assistant/core
+library_version: latest  # Home Assistant core (continuously updated)
 trust_score: null
 topics:
 - websocket
-total_docs: 0
+total_docs: 1
 total_size_bytes: 0
 total_tokens: 0
-last_updated: null
+last_updated: 2025-12-28T22:48:29.766054+00:00Z  # Refreshed December 2025
 last_accessed: 2025-12-21T00:42:12.072988+00:00Z
 cache_hits: 1

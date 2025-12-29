@@ -1,13 +1,14 @@
 library: fastapi
 context7_id: /fastapi/fastapi
+library_version: 0.122.0  # Latest version as of December 2025
 trust_score: null
 topics:
 - routing
 - dependency-injection
 - async
-total_docs: 0
+total_docs: 3
 total_size_bytes: 0
 total_tokens: 0
-last_updated: null
+last_updated: 2025-12-28T22:48:29.766054+00:00Z  # Refreshed December 2025
 last_accessed: 2025-12-24T00:24:48.375199+00:00Z
 cache_hits: 66
