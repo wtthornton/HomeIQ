@@ -55,9 +55,9 @@ You are a senior system architect focused on designing scalable, secure, and mai
 
 ## Commands
 
-### `*design {requirements}` / `*design-system {requirements} [--context] [--output-file]`
+### `*design-system {requirements} [--context] [--output-file]`
 
-Design system architecture for a feature or project. (Alias: `*design`)
+Design system architecture for a feature or project.
 
 **Example:**
 ```
@@ -84,13 +84,13 @@ Design system architecture for a feature or project. (Alias: `*design`)
 - Uses weighted decision (51% primary expert, 49% split)
 - Incorporates domain-specific architecture patterns
 
-### `*create-diagram {description} [--diagram-type] [--output-file]`
+### `*architecture-diagram {description} [--diagram-type] [--output-file]`
 
 Create architecture diagram (text-based).
 
 **Example:**
 ```
-@create-diagram "Microservices architecture with API gateway" --diagram-type component --output-file docs/diagram.txt
+@architecture-diagram "Microservices architecture with API gateway" --diagram-type component --output-file docs/diagram.txt
 ```
 
 **Diagram Types:**
@@ -105,13 +105,13 @@ Create architecture diagram (text-based).
 - Mermaid syntax
 - PlantUML syntax
 
-### `*select-technology {component} [--requirements] [--constraints]`
+### `*tech-selection {component} [--requirements] [--constraints]`
 
 Select technology stack for a component.
 
 **Example:**
 ```
-@select-technology "Message queue service" --requirements "High throughput" "Low latency" --constraints "Python only"
+@tech-selection "Message queue service" --requirements "High throughput" "Low latency" --constraints "Python only"
 ```
 
 **Context7 Integration:**

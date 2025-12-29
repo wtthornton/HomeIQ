@@ -94,22 +94,22 @@ Gather and extract detailed requirements from a description. (Alias: `*analyze`)
 - **File-Based** (default): Command files created in worktrees, manual/UI execution
 - **API-Based** (optional): Programmatic execution via Background Agent API (requires `CURSOR_API_KEY`)
 
-### `*analyze-stakeholders {feature} [--stakeholders]`
+### `*stakeholder-analysis {feature} [--stakeholders]`
 
 Analyze stakeholders and their needs.
 
 **Example:**
 ```
-@analyze-stakeholders "New payment feature" --stakeholders "Product Manager" "Engineering Lead" "Security Team"
+@stakeholder-analysis "New payment feature" --stakeholders "Product Manager" "Engineering Lead" "Security Team"
 ```
 
-### `*research-technology {requirement} [--criteria]`
+### `*tech-research {requirement} [--criteria]`
 
 Research technology options for a requirement.
 
 **Example:**
 ```
-@research-technology "Need real-time messaging" --criteria "performance" "scalability" "cost"
+@tech-research "Need real-time messaging" --criteria "performance" "scalability" "cost"
 ```
 
 **Context7 Integration:**

@@ -1,4 +1,0 @@
-@planner plan --description "
-
-Project Context:
-- Tenancy: multi-tenant (confidence: 0.8)"

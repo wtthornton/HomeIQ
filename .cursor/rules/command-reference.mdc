@@ -128,6 +128,74 @@ tapps-agents score <file> [--format json|text]
 tapps-agents doctor [--format json|text] [--config-path <path>]
 ```
 
+### `cursor` - Cursor AI Integration Verification
+**Purpose:** Verify and manage Cursor AI integration components
+
+**CLI Syntax:**
+```bash
+tapps-agents cursor verify [--format json|text]
+tapps-agents cursor check [--format json|text]  # alias
+```
+
+**When to Use:**
+- **After `init`**: Verify all Cursor integration components were installed correctly
+- **Troubleshooting**: When Cursor Skills or Rules aren't working as expected
+- **CI/CD validation**: Ensure integration is properly configured before deployment
+- **Migration verification**: After moving or copying project files
+- **Pre-commit checks**: Validate setup before committing integration files
+
+**What It Checks:**
+- **Cursor Skills** (`.claude/skills/`) - Validates all 13 agent skills + simple-mode are present
+  - Checks directory structure
+  - Verifies YAML frontmatter in SKILL.md files
+  - Reports missing skills
+- **Cursor Rules** (`.cursor/rules/`) - Validates all 7 rule files are present
+  - Checks for required rule files (workflow-presets, quick-reference, agent-capabilities, etc.)
+  - Verifies file format (.mdc extension)
+- **Background Agents** (`.cursor/background-agents.yaml`) - Validates configuration
+  - Checks YAML syntax validity
+  - Verifies agents are configured
+  - Reports agent count
+- **`.cursorignore`** - Checks for recommended patterns
+  - Validates presence of common ignore patterns (.venv, __pycache__, etc.)
+- **`.cursorrules`** (legacy) - Optional legacy support file
+
+**Parameters:**
+- `--format json|text`: Output format (default: `text`)
+  - **When to use**: 
+    - `text`: Human-readable verification report (default)
+    - `json`: Structured validation data for CI/CD or automation
+
+**Output:**
+- **Status**: `VALID` or `INVALID` overall status
+- **Components**: Per-component validation results
+- **Errors**: Critical issues that prevent Cursor integration from working
+- **Warnings**: Non-critical issues or missing optional components
+
+**Exit Codes:**
+- `0`: All components valid
+- `1`: One or more components invalid (use in CI/CD quality gates)
+
+**Examples:**
+```bash
+# Verify Cursor integration (human-readable)
+tapps-agents cursor verify
+
+# Verify with JSON output (for automation)
+tapps-agents cursor verify --format json
+
+# Use alias
+tapps-agents cursor check
+
+# In CI/CD pipeline (fails if invalid)
+tapps-agents cursor verify --format json || exit 1
+```
+
+**Related:**
+- Run `tapps-agents init` to install/repair missing components
+- See `.cursor/rules/quick-reference.mdc` for quick command reference
+- See `docs/CURSOR_SKILLS_INSTALLATION_GUIDE.md` for detailed setup guide
+
 ### `simple-mode` - Simple Mode Management
 **Purpose:** Manage Simple Mode - simplified natural language interface
 
@@ -246,19 +314,6 @@ tapps-agents reviewer report <target> <formats>... [--output-dir <dir>]
 **CLI Syntax:**
 ```bash
 tapps-agents reviewer duplication <target> [--format json|text]
-```
-
-#### `*security-scan` / `security-scan` (Dual-Mode)
-**Purpose:** Security vulnerability scanning
-
-**CLI Syntax:**
-```bash
-tapps-agents reviewer security-scan [<files>...] [--format json|text]
-```
-
-**Cursor Syntax:**
-```cursor
-@reviewer *security-scan <file>
 ```
 
 #### `*docs` / `docs` (Dual-Mode)

@@ -146,6 +146,12 @@ embedding_test_output.log
 
 # BMAD Agent Customizations (user-specific, update-safe)
 
+# Cursor backup files
+.cursor/background-agents.backup.*.yaml
+
+# TappsAgents workflow state (runtime data)
+.tapps-agents/workflow-state/
+
 # Windows reserved names
 nul
 
