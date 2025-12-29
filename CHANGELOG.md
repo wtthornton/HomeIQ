@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Add OpenTelemetry distributed tracing with Jaeger** (e64c0e3) - wtthornton
+- **Add comprehensive loading indicators and prevent false data display in dashboard** (6b0cbc2) - wtthornton
+- **Add TappsCodingAgents installation documentation and multiple installations warning** (a9a8e75) - wtthornton
+- **Add comprehensive code review for ai-automation-service-new** (bd5232c) - wtthornton
+- **Implement HomeIQ JSON Automation layer with comprehensive E2E tests** (42f5e28) - wtthornton
+- **Patterns & Synergies UI/UX improvements with TappsCodingAgents integration** (bae550a) - wtthornton
+- **feat(ai-pattern-service): Implement 2025 synergy improvements (Epic 39, Story 39.8)** (9665d94) - wtthornton
+- **Add Docker release workflows, update TappsCodingAgents config, and add implementation docs** (8fe848a) - wtthornton
+
+### Changed
+
+- **Update RAG and expert knowledge bases for 2025 accuracy** (4e2934f) - wtthornton
+- **Update documentation structure and knowledge base** (56ecec3) - wtthornton
+
+### Fixed
+
+- **Fix dashboard API authentication, error handling, and manifest.json warning** (68a047b) - wtthornton
+- **Fix deployment issues: nginx proxy config, authentication, and health scoring** (6d8f15f) - wtthornton
+- **Fix unit test framework and test failures** (c9fc8e9) - wtthornton
+- **Fix TypeScript compilation errors and syntax issues** (1bc8863) - wtthornton
+- **Fix Patterns page UX: Add analysis API endpoints and improve user feedback** (32bd834) - wtthornton
+- **Patterns stats API and suggestions database schema** (496a291) - wtthornton
+- **fix(ai-pattern-service): Fix GNN indentation errors and enable GNN integration** (5e79d42) - wtthornton
+- **Fix AI Automation UI: Add pattern router to pattern service and fix JSON parsing** (b67ee69) - wtthornton
+- **Fix AI Automation UI pages: JSON parsing, missing modules, and endpoint issues** (4e48438) - wtthornton
+
+
+### Added
+
 - **Add comprehensive loading indicators and prevent false data display in dashboard** (6b0cbc2) - wtthornton
 - **Add TappsCodingAgents installation documentation and multiple installations warning** (a9a8e75) - wtthornton
 - **Add comprehensive code review for ai-automation-service-new** (bd5232c) - wtthornton
