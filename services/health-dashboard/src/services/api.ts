@@ -135,6 +135,13 @@ class BaseApiClient {
     try {
       const response = await fetch(url, requestOptions);
       if (!response.ok) {
+        // Handle authentication errors specifically
+        if (response.status === 401) {
+          const errorMessage = 'Authentication failed. Please check API key configuration.';
+          console.error(`API Authentication Error for ${url}:`, errorMessage);
+          throw new Error(errorMessage);
+        }
+        
         // Try to extract detailed error message from response body
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         try {
