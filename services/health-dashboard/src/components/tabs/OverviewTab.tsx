@@ -76,16 +76,23 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   // RAG Status modal
   const [showRAGDetails, setShowRAGDetails] = useState(false);
 
+  // Error state for enhanced health
+  const [enhancedHealthError, setEnhancedHealthError] = useState<string | null>(null);
+
   // Fetch enhanced health data
   useEffect(() => {
     const fetchEnhancedHealth = async () => {
       try {
+        setEnhancedHealthError(null);
         const data = await apiService.getEnhancedHealth();
         setEnhancedHealth(data);
         setEnhancedHealthLoading(false);
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch enhanced health';
         console.error('Failed to fetch enhanced health:', error);
+        setEnhancedHealthError(errorMessage);
         setEnhancedHealthLoading(false);
+        // Don't clear existing data on error - show stale data with error indicator
       }
     };
 
@@ -126,14 +133,16 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
 
   // HTTP polling for health and statistics (30s refresh)
   const { health, loading: healthLoading, error: healthError } = useHealth(30000);
-  const { statistics, loading: statsLoading } = useStatistics('1h', 30000);
+  const { statistics, loading: statsLoading, error: statsError } = useStatistics('1h', 30000);
   const { dataSources } = useDataSources(30000);
   
   // RAG Status calculation
   // Only show loading if we're actively loading AND haven't received any data yet
   // Once loading completes (even if data is null), stop showing loading spinner
   // This prevents infinite loading when APIs fail or return null
-  const isActivelyLoading = (enhancedHealthLoading || statsLoading) && !enhancedHealth && !statistics;
+  // Also stop loading if we have an error (don't wait indefinitely)
+  const hasError = enhancedHealthError || statsError;
+  const isActivelyLoading = !hasError && (enhancedHealthLoading || statsLoading) && !enhancedHealth && !statistics;
   const { ragStatus, loading: ragLoading } = useRAGStatus({
     enhancedHealth,
     statistics,
