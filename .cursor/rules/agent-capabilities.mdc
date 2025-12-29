@@ -255,12 +255,24 @@ python -m tapps_agents.cli documenter document-code service.py
 - Test execution
 - Coverage analysis
 - Test strategy
+- **Coverage-driven test generation** (NEW): Generate targeted tests for uncovered code paths
+- **Test fixing** (NEW): Automatically fix common test failures (async/await, mocks, authentication)
+- **Batch test generation** (NEW): Generate tests for multiple files with shared fixtures
+- **Context-aware test generation** (NEW): Learn from existing test patterns in codebase
+- **Service integration testing** (NEW): Generate service-to-service integration tests
 
 **Common Commands**:
 ```bash
 python -m tapps_agents.cli tester test service.py
 python -m tapps_agents.cli tester generate-tests service.py --integration
 python -m tapps_agents.cli tester run-tests
+# Coverage-driven testing (NEW)
+python -m tapps_agents.cli tester analyze-coverage coverage.json --target 80
+python -m tapps_agents.cli tester generate-coverage-tests coverage.json --module src/clients
+# Test fixing (NEW)
+python -m tapps_agents.cli tester fix-failures tests/ --pattern async --auto-fix
+# Batch generation (NEW)
+python -m tapps_agents.cli tester generate-tests-batch src/clients/*.py --output-dir tests/clients
 ```
 
 **Expert Integration**: Consults testing and code quality experts.
@@ -393,11 +405,18 @@ python -m tapps_agents.cli ops plan-deployment "Kubernetes deployment"
 - Task sequencing
 - Agent coordination
 - Workflow state management
+- **Epic orchestration** (NEW): Execute Epic documents with story dependency resolution
+- **Quality gate enforcement** (NEW): Automatic quality checks with loopback on failures
+- **Service integration** (NEW): Automate service-to-service integration (client generation, config updates)
 
 **Common Commands**:
 ```bash
 python -m tapps_agents.cli orchestrator orchestrate workflow.yaml
 python -m tapps_agents.cli orchestrator sequence "plan,design,implement,test"
+# Epic orchestration (NEW)
+@simple-mode *epic docs/prd/epic-51-yaml-automation-quality-enhancement.md
+# Service integration (NEW)
+python -m tapps_agents.cli orchestrator integrate-service "service1" --with "service2"
 ```
 
 **Expert Integration**: Consults AI frameworks expert for orchestration patterns.
@@ -613,7 +632,10 @@ agents:
 
 ## Related Documentation
 
-- [Quick Reference](quick-reference.mdc) - Command reference
+- [Command Reference](command-reference.mdc) - ⭐ **Complete command reference** - All commands and parameters
+- [Simple Mode](simple-mode.mdc) - ⭐ **Recommended orchestration method** - Complete workflow execution
+- [Quick Reference](quick-reference.mdc) - Quick command reference
 - [Workflow Presets](workflow-presets.mdc) - Workflow documentation
+- [Simple Mode User Guide](../docs/SIMPLE_MODE_USER_GUIDE.md) - How to ensure workflow execution
 - [API Documentation](../docs/API.md) - Full API reference
 - [Configuration Guide](../docs/CONFIGURATION.md) - Configuration details

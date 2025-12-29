@@ -5,6 +5,100 @@ alwaysApply: false
 
 # TappsCodingAgents Quick Reference
 
+## Where to Run Commands: Cursor Chat vs Terminal/CI
+
+### Use Cursor Chat (Recommended for Interactive Development)
+
+**Best for:** Interactive development, natural language, learning, iterative work
+
+**Syntax:** `@agent-name *command` or `@simple-mode *command`
+
+**Examples:**
+```cursor
+# Simple Mode (recommended for new users)
+@simple-mode *build "Add user authentication"
+@simple-mode *review src/api.py
+@simple-mode *fix src/buggy.py "Fix the error"
+@simple-mode *test src/service.py
+
+# Individual agents
+@reviewer *score src/main.py
+@reviewer *review src/api.py
+@implementer *implement "Add feature" src/feature.py
+@tester *test src/utils.py
+@debugger *debug "KeyError: 'user_id'" --file src/api.py --line 42
+```
+
+**Advantages:**
+- Natural language interaction
+- Context-aware (file open, selection)
+- Integrated with IDE
+- Background Agent support
+- Skill-based execution
+
+### Use Terminal/CI (Recommended for Automation)
+
+**Best for:** Batch processing, CI/CD pipelines, scripting, headless environments
+
+**Syntax:** `tapps-agents <agent> <command> [--flags]`
+
+**Global options (all commands; flags can appear before OR after the subcommand):**
+
+```bash
+# Progress UI (modern 2025-style: Rich spinner/progress when interactive)
+tapps-agents doctor --progress rich
+tapps-agents reviewer score README.md --no-progress
+
+# Equivalent (flags before subcommand)
+tapps-agents --progress plain doctor
+```
+
+- `--quiet` / `-q`: Quiet mode (errors + final results)
+- `--verbose` / `-v`: Verbose diagnostics
+- `--progress {auto,rich,plain,off}`: Progress UI mode
+- `--no-progress`: Disable progress UI (same as `--progress off`)
+- Env: `TAPPS_PROGRESS=auto|rich|plain|off`, `TAPPS_NO_PROGRESS=1` / `NO_PROGRESS=1`
+
+**Examples:**
+```bash
+# Workflow presets (automated)
+tapps-agents workflow rapid --prompt "Add feature" --auto
+tapps-agents workflow fix --file src/buggy.py --auto
+
+# Batch processing
+tapps-agents reviewer review --pattern "**/*.py" --max-workers 8
+tapps-agents reviewer score src/ --format json > quality-report.json
+
+# CI/CD quality gates
+tapps-agents reviewer score src/ --format json
+tapps-agents reviewer lint src/ --format json
+```
+
+**Advantages:**
+- Scriptable and automatable
+- Structured output formats (JSON)
+- Batch file processing
+- CI/CD integration
+- Workflow state management
+
+### Dual-Mode Commands
+
+These commands work in **both** modes with equivalent results:
+
+| Task | Cursor Syntax | CLI Syntax |
+|------|---------------|------------|
+| Review | `@reviewer *review <file>` | `tapps-agents reviewer review <file>` |
+| Score | `@reviewer *score <file>` | `tapps-agents reviewer score <file>` |
+| Implement | `@implementer *implement "<spec>" <file>` | `tapps-agents implementer implement "<spec>" <file>` |
+| Test | `@tester *test <file>` | `tapps-agents tester test <file>` |
+| Debug | `@debugger *debug "<error>" --file <file>` | `tapps-agents debugger debug "<error>" --file <file>` |
+
+**Choose based on:**
+- **Cursor**: Interactive, context-aware, natural language
+- **CLI**: Batch, automation, structured output, CI/CD
+
+---
+
 ## Most Common Commands
 
 ### Code Review & Quality

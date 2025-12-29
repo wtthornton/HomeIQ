@@ -92,13 +92,13 @@ Design API contracts and endpoints.
 }
 ```
 
-### `*design-data-model {requirements} [--output-file]`
+### `*data-model-design {requirements} [--output-file]`
 
 Design data models and schemas.
 
 **Example:**
 ```
-@design-data-model "E-commerce product catalog" --output-file docs/data-model.json
+@data-model-design "E-commerce product catalog" --output-file docs/data-model.json
 ```
 
 **Context7 Integration:**
@@ -106,13 +106,13 @@ Design data models and schemas.
 - References database design best practices
 - Uses cached docs for ORM patterns (SQLAlchemy, Django, etc.)
 
-### `*design-ui {requirements} [--user-stories] [--output-file]`
+### `*ui-ux-design {requirements} [--user-stories] [--output-file]`
 
 Design UI/UX specifications.
 
 **Example:**
 ```
-@design-ui "Checkout flow" --user-stories "As a user" "I want to pay" --output-file docs/ui-spec.json
+@ui-ux-design "Checkout flow" --user-stories "As a user" "I want to pay" --output-file docs/ui-spec.json
 ```
 
 **Context7 Integration:**
@@ -120,13 +120,13 @@ Design UI/UX specifications.
 - References design system documentation
 - Uses cached docs for component libraries
 
-### `*create-wireframe {description} [--wireframe-type] [--output-file]`
+### `*wireframes {description} [--wireframe-type] [--output-file]`
 
 Create wireframe (text-based).
 
 **Example:**
 ```
-@create-wireframe "User dashboard screen" --wireframe-type page --output-file docs/wireframe.txt
+@wireframes "User dashboard screen" --wireframe-type page --output-file docs/wireframe.txt
 ```
 
 **Wireframe Types:**
@@ -134,13 +134,13 @@ Create wireframe (text-based).
 - `component`: Component wireframe
 - `flow`: User flow wireframe
 
-### `*define-design-system {requirements} [--brand-guidelines] [--output-file]`
+### `*design-system {requirements} [--brand-guidelines] [--output-file]`
 
 Define design system (colors, typography, components).
 
 **Example:**
 ```
-@define-design-system "Modern SaaS application" --brand-guidelines "Blue primary color" --output-file docs/design-system.json
+@design-system "Modern SaaS application" --brand-guidelines "Blue primary color" --output-file docs/design-system.json
 ```
 
 ### `*docs {library}`

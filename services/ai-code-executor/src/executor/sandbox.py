@@ -17,7 +17,7 @@ import traceback
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Callable
 
 import psutil
 from RestrictedPython import compile_restricted
@@ -29,12 +29,12 @@ MAX_CONTEXT_DEPTH = 4
 MAX_CONTEXT_SIZE = 1024 * 1024  # 1MB max context size (JSON serialized)
 
 
-def _safe_import_factory(allowed_modules: set[str]):
+def _safe_import_factory(allowed_modules: set[str]) -> Callable[..., Any]:
     """Build a safe __import__ implementation that enforces module whitelist."""
 
     allowed = set(allowed_modules)
 
-    def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+    def _safe_import(name: str, globals: dict[str, Any] | None = None, locals: dict[str, Any] | None = None, fromlist: tuple[str, ...] = (), level: int = 0) -> Any:
         if level != 0:
             raise ImportError("Relative imports are not permitted inside the sandbox")
 
@@ -102,7 +102,7 @@ def _build_execution_env(context: dict[str, Any], allowed_imports: set[str]) -> 
     return env
 
 
-def _apply_resource_limits(config: dict[str, Any]):
+def _apply_resource_limits(config: dict[str, Any]) -> None:
     """Apply strict Linux resource limits inside sandbox process."""
     # These limits are only enforced on Linux; caller already ensures Linux
     max_memory_bytes = config["max_memory_mb"] * 1024 * 1024
@@ -126,8 +126,8 @@ def _sandbox_process_worker(
     code: str,
     context: dict[str, Any],
     config: dict[str, Any],
-    result_queue: multiprocessing.Queue,
-):
+    result_queue: multiprocessing.Queue[dict[str, Any]],
+) -> None:
     """Worker process that compiles and executes user code."""
     stdout_capture = io.StringIO()
     stderr_capture = io.StringIO()
@@ -274,7 +274,7 @@ class PythonSandbox:
             error=result_payload["error"],
         )
 
-    def _sanitize_context(self, context: dict[str, Any]) -> dict[str, Any]:
+    def _sanitize_context(self, context: dict[str, Any] | None) -> dict[str, Any]:
         """Ensure user-provided context only contains JSON-serializable primitives."""
 
         def _sanitize(value: Any, depth: int = 0, size_tracker: list[int] = None) -> Any:
@@ -320,7 +320,7 @@ class PythonSandbox:
             serialized_size = len(json.dumps(context, default=str))
             if serialized_size > MAX_CONTEXT_SIZE:
                 raise ValueError(f"Context size ({serialized_size} bytes) exceeds limit ({MAX_CONTEXT_SIZE} bytes)")
-        except (TypeError, ValueError) as e:
+        except (TypeError, ValueError):
             # If we can't serialize, sanitization will catch it
             pass
 
