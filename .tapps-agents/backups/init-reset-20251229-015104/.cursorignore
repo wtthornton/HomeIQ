@@ -1,0 +1,68 @@
+# Archive directories - agents should ignore
+docs/archive/**
+implementation/archive/**
+
+# Simulation generated data (large, not needed in context)
+simulation/data/**
+simulation/training_data/**
+simulation/results/**
+simulation/**/*.parquet
+simulation/**/*.pkl
+simulation/**/*.csv
+simulation/**/*.json
+!simulation/**/*config.json
+!simulation/**/package.json
+
+# Large generated files
+*.log
+*.db
+__pycache__/
+node_modules/
+coverage_html/
+
+# Build and cache directories
+build/
+dist/
+.cache/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Playwright MCP screenshots (test artifacts)
+.playwright-mcp/
+
+# Root-level temporary files (test artifacts, snapshots)
+test_results_*.txt
+homeiq-*.txt
+full_logs_*.txt
+logs_*.txt
+deployment_test_results.json
+
+
+# Agent customizations (project-specific, gitignored by default)
+.tapps-agents/customizations/

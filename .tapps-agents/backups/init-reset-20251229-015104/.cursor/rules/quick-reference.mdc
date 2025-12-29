@@ -1,0 +1,394 @@
+---
+description: Quick reference guide for common TappsCodingAgents commands and workflows
+alwaysApply: false
+---
+
+# TappsCodingAgents Quick Reference
+
+## Most Common Commands
+
+### Code Review & Quality
+```bash
+# Quick code scoring (fast, no LLM)
+python -m tapps_agents.cli reviewer score <file>
+
+# Full code review (with LLM feedback)
+python -m tapps_agents.cli reviewer review <file>
+
+# Linting (Ruff)
+python -m tapps_agents.cli reviewer lint <file>
+
+# Type checking (mypy)
+python -m tapps_agents.cli reviewer type-check <file>
+
+# Generate quality reports
+python -m tapps_agents.cli reviewer report <dir> json markdown html
+```
+
+### Workflow Presets
+```bash
+# List all workflows
+python -m tapps_agents.cli workflow list
+
+# Run workflows
+python -m tapps_agents.cli workflow rapid      # Feature development
+python -m tapps_agents.cli workflow full       # Enterprise SDLC
+python -m tapps_agents.cli workflow quality    # Quality improvement
+python -m tapps_agents.cli workflow fix         # Bug fixes & refactoring
+python -m tapps_agents.cli workflow hotfix     # Urgent fixes
+```
+
+### Quick Project Creation (Cursor Native)
+```bash
+# Create a complete project from description (uses full SDLC workflow)
+python -m tapps_agents.cli create "Create a modern web application"
+
+# This is a shortcut for: workflow full --auto --prompt
+# Automatically runs in Cursor-native mode
+# Uses Cursor Skills and Background Agents
+```
+
+### Code Generation
+```bash
+# Generate code from specification
+python -m tapps_agents.cli implementer implement "description" <file.py>
+
+# Refactor existing code
+python -m tapps_agents.cli implementer refactor <file.py> "instruction"
+
+# Generate code without writing to file
+python -m tapps_agents.cli implementer generate-code "description"
+```
+
+### Testing
+```bash
+# Generate and run tests
+python -m tapps_agents.cli tester test <file.py>
+
+# Generate tests only
+python -m tapps_agents.cli tester generate-tests <file.py>
+
+# Run existing tests
+python -m tapps_agents.cli tester run-tests
+```
+
+### Environment & Setup
+```bash
+# Check environment status
+python -m tapps_agents.cli doctor
+
+# Initialize project
+python -m tapps_agents.cli init
+
+# Setup experts
+python -m tapps_agents.cli setup-experts init --yes --non-interactive
+```
+
+## Agent Usage Patterns
+
+### Reviewer Agent
+**Best for:** Code quality analysis, scoring, linting, type checking
+```bash
+# Quick score (fastest)
+python -m tapps_agents.cli reviewer score <file>
+
+# Full review (comprehensive)
+python -m tapps_agents.cli reviewer review <file> --model qwen2.5-coder:7b
+
+# Quality tools
+python -m tapps_agents.cli reviewer lint <file>
+python -m tapps_agents.cli reviewer type-check <file>
+python -m tapps_agents.cli reviewer report <dir> json markdown html
+```
+
+### Implementer Agent
+**Best for:** Code generation, refactoring, implementation
+```bash
+# Generate new code
+python -m tapps_agents.cli implementer implement "Create a function to calculate factorial" factorial.py
+
+# Refactor existing code
+python -m tapps_agents.cli implementer refactor service.py "Add type hints and extract helper functions"
+```
+
+### Planner Agent
+**Best for:** Planning features, creating user stories
+```bash
+# Create a plan
+python -m tapps_agents.cli planner plan "Add user authentication system"
+
+# Create user story
+python -m tapps_agents.cli planner create-story "User can log in" --epic auth --priority high
+
+# List stories
+python -m tapps_agents.cli planner list-stories
+```
+
+### Tester Agent
+**Best for:** Test generation and execution
+```bash
+# Generate and run tests
+python -m tapps_agents.cli tester test service.py
+
+# Generate integration tests
+python -m tapps_agents.cli tester test service.py --integration
+```
+
+### Debugger Agent
+**Best for:** Error analysis and debugging
+```bash
+# Debug an error
+python -m tapps_agents.cli debugger debug "ImportError: No module named 'xyz'" --file app.py --line 10
+
+# Analyze error
+python -m tapps_agents.cli debugger analyze-error "ValueError: invalid literal" --stack-trace "..."
+```
+
+### Enhancer Agent
+**Best for:** Prompt enhancement with expert consultation
+```bash
+# Full enhancement
+python -m tapps_agents.cli enhancer enhance "Add user authentication"
+
+# Quick enhancement
+python -m tapps_agents.cli enhancer enhance-quick "Add user authentication"
+```
+
+## Development Workflows
+
+### Adding a New Feature
+1. **Plan:** `python -m tapps_agents.cli planner plan "Feature description"`
+2. **Enhance prompt:** `python -m tapps_agents.cli enhancer enhance "Feature description"`
+3. **Implement:** `python -m tapps_agents.cli workflow rapid`
+4. **Review:** `python -m tapps_agents.cli reviewer review <new-file>`
+
+### Fixing a Bug
+1. **Debug:** `python -m tapps_agents.cli debugger debug "error message" --file <file>`
+2. **Fix:** `python -m tapps_agents.cli workflow hotfix`
+3. **Test:** `python -m tapps_agents.cli tester test <file>`
+
+### Refactoring Code
+1. **Analyze:** `python -m tapps_agents.cli reviewer score <file>`
+2. **Refactor:** `python -m tapps_agents.cli workflow fix`
+3. **Verify:** `python -m tapps_agents.cli reviewer review <file>`
+
+### Quality Improvement Sprint
+1. **Initial analysis:** `python -m tapps_agents.cli reviewer report . json markdown html`
+2. **Improve:** `python -m tapps_agents.cli workflow quality`
+3. **Validate:** `python -m tapps_agents.cli reviewer report . json markdown html`
+
+## Configuration Quick Fixes
+
+### Model Configuration
+Edit `.tapps-agents/config.yaml`:
+```yaml
+# MAL configuration removed - framework now uses Cursor Skills exclusively
+# All LLM operations are handled by Cursor via Skills
+```
+
+### Quality Thresholds
+```yaml
+agents:
+  reviewer:
+    quality_threshold: 70  # Minimum overall score
+    security_threshold: 7.0
+    maintainability_threshold: 7.0
+```
+
+### Tool Configuration
+```yaml
+external_tools:
+  mode: "soft"  # soft, strict, or disabled
+  ruff_enabled: true
+  mypy_enabled: true
+  pytest_enabled: true
+```
+
+## Troubleshooting
+
+### Tools Not Found on PATH
+**Issue:** Doctor shows tools missing on PATH
+**Solution:** Use Python module syntax:
+- `python -m ruff` instead of `ruff`
+- `python -m mypy` instead of `mypy`
+- `python -m pytest` instead of `pytest`
+
+The framework handles this automatically, but you can also add Scripts directory to PATH.
+
+### Python Version Warning
+**Issue:** Doctor warns about Python version
+**Solution:** If you're on Python 3.13+, you're fine. The warning is informational. The project requires `>=3.13`.
+
+### Playwright Warning
+**Issue:** "Playwright not available" message
+**Solution:** This refers to the **Python Playwright package** not being installed.
+
+- If you're using **Cursor Playwright MCP**, you can ignore it (browser automation is available through Cursor tools).
+- If you need browser automation from the **CLI**, install Playwright:
+
+```bash
+python -m pip install playwright
+python -m playwright install
+```
+
+### Model Not Available
+**Issue:** Agent operations not executing
+**Solution:** 
+- Ensure Cursor Skills are properly installed and configured
+- Verify agents are creating instruction objects correctly
+- Check Cursor integration settings
+
+## Quick Examples
+
+### Example 1: Review a File
+```bash
+python -m tapps_agents.cli reviewer score tapps_agents/cli.py
+```
+
+### Example 2: Generate Code
+```bash
+python -m tapps_agents.cli implementer implement "Create a function to calculate fibonacci numbers" fibonacci.py
+```
+
+### Example 3: Run Quality Workflow
+```bash
+python -m tapps_agents.cli workflow quality
+```
+
+### Example 4: Generate Tests
+```bash
+python -m tapps_agents.cli tester test tapps_agents/core/config.py
+```
+
+### Example 5: Full Project Analysis
+```bash
+python -m tapps_agents.cli reviewer report . json markdown html
+```
+
+## Simple Mode (New Users)
+
+**Simple Mode** provides a simplified, task-first interface that hides complexity while showcasing the power of TappsCodingAgents. Use natural language commands instead of agent-specific syntax.
+
+### Using Simple Mode
+
+Invoke Simple Mode using the `@simple-mode` skill in Cursor chat:
+
+```
+@simple-mode Build a user authentication feature
+@simple-mode Review my authentication code
+@simple-mode Fix the error in auth.py
+@simple-mode Add tests for service.py
+```
+
+### Natural Language Commands
+
+Simple Mode understands natural language intent:
+
+- **Build**: "Build a user authentication feature", "Create a REST API for products"
+- **Review**: "Review my authentication code", "Check the quality of auth.py"
+- **Fix**: "Fix the error in auth.py", "Debug the login issue"
+- **Test**: "Add tests for service.py", "Generate tests for auth.py"
+
+### Full Lifecycle Workflow
+
+Run complete SDLC with automatic quality loopbacks:
+
+```
+@simple-mode full --prompt "Build a REST API for a todo app"
+```
+
+### Configuration
+
+Enable Simple Mode:
+```bash
+tapps-agents simple-mode on
+tapps-agents simple-mode status
+```
+
+See `.cursor/rules/simple-mode.mdc` for complete Simple Mode documentation.
+
+## Natural Language Commands for Cursor
+
+You can use these phrases in Cursor AI conversations:
+
+- "Create a [project description]" → Uses `create` command (full SDLC)
+- "Run rapid development workflow"
+- "Set up experts"
+- "Score this file" (when file is open)
+- "Review the code quality"
+- "Generate tests for this file"
+- "Refactor this code"
+- "Run quality improvement workflow"
+- "Check for linting errors"
+- "Type check this file"
+- "Create a plan for [feature]"
+- "Debug this error"
+
+**Or use Simple Mode** (recommended for new users): `@simple-mode Build a feature`
+
+## File Locations
+
+- **Config:** `.tapps-agents/config.yaml`
+- **Project Profile:** `.tapps-agents/project-profile.yaml` (auto-generated)
+- **Workflow State:** `.tapps-agents/workflow-state/` (runtime state)
+- **Workflows:** `workflows/presets/`
+- **Reports:** `reports/quality/` or `.tapps-agents/reports/`
+- **Sessions:** `.tapps-agents/sessions/` (Enhancer sessions)
+- **Cache:** `.tapps-agents/kb/context7-cache/` (Context7 cache)
+- **Cursor Skills:** `.claude/skills/` (13 agent skills)
+- **Background Agents:** `.cursor/background-agents.yaml`
+
+## Getting Help
+
+```bash
+# General help
+python -m tapps_agents.cli --help
+
+# Agent-specific help
+python -m tapps_agents.cli reviewer help
+python -m tapps_agents.cli implementer help
+python -m tapps_agents.cli planner help
+```
+
+## Expert Setup (Cursor/CI-friendly)
+
+```bash
+python -m tapps_agents.cli setup-experts init --yes --non-interactive
+```
+
+## Version Check
+
+```bash
+python -c "import tapps_agents; print(tapps_agents.__version__)"
+```
+
+## Background Agents
+
+Background Agents are configured in `.cursor/background-agents.yaml`:
+- Quality Analyzer
+- Refactoring Agent
+- Testing Agent
+- Documentation Agent
+- Security Agent
+- Multi-Service Analyzer
+
+Trigger via natural language in Cursor's Background Agents panel.
+
+### Cursor Native Execution Mode
+
+When running in Cursor IDE, workflows automatically use **Cursor Native Execution**:
+- ✅ **No API Key Required** (file-based mode by default)
+- ✅ Uses Cursor Skills (`@agent-name` commands)
+- ✅ Leverages Cursor's configured LLM
+- ✅ Background Agent API support (optional, with API key)
+- ✅ Project profiling automatically included
+- ✅ Worktree isolation per workflow step
+
+**Execution Modes:**
+1. **File-Based** (default): Creates command files, works immediately
+2. **API-Based** (optional): Programmatic execution with `CURSOR_API_KEY` set
+
+**Project Profiling:**
+- Automatically detects project characteristics (deployment type, tenancy, scale, compliance)
+- Profile stored in `.tapps-agents/project-profile.yaml`
+- Automatically included in all agent context

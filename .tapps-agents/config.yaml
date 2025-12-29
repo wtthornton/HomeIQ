@@ -117,7 +117,7 @@ context7:
     default_max_age_days: 30
     check_on_access: true
     auto_queue: true
-    auto_process_on_startup: true  # Enabled for automatic cache refresh processing
+    auto_process_on_startup: true
 quality_tools:
   ruff_enabled: true
   mypy_enabled: true
@@ -166,6 +166,49 @@ auto_enhancement:
       enabled: false
     designer:
       enabled: false
+evaluation:
+  enabled: true
+  include_behavioral_validation: true
+  include_spec_compliance: true
+  include_architectural_checks: true
+  issue_severity_thresholds:
+    critical: 0
+    high: 5
+    medium: 10
+    low: 20
+  enable_remediation_loop: true
+  max_remediation_retries: 3
+prompt_learning:
+  enabled: true
+  feedback_collection_enabled: true
+  ab_testing_enabled: true
+  auto_optimize_enabled: true
+  min_samples_for_optimization: 10
+  optimization_interval_hours: 24
+  prompt_version_retention_days: 90
+  auto_update_skills: false
+  require_approval_for_updates: true
+knowledge_engine:
+  enabled: true
+  auto_detect_domains: true
+  auto_create_experts: true
+  knowledge_ingestion_enabled: true
+  proactive_consultation: true
+  metrics_tracking_enabled: true
+  kb_maintenance_schedule: weekly
+  governance_enabled: true
+  require_approval_for_writes: false
+context_intelligence:
+  enabled: true
+  dynamic_gathering_enabled: true
+  repository_exploration_enabled: true
+  pattern_recognition_enabled: true
+  similarity_detection_enabled: true
+  historical_analysis_enabled: true
+  relevance_ranking_enabled: true
+  token_budget_management_enabled: true
+  default_token_budget: 4000
+  progressive_loading_enabled: true
 workflow_defaults:
   recommended_track: bmad-method
   recommended_workflow: brownfield-service.yaml

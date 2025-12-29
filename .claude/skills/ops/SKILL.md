@@ -150,6 +150,25 @@ Sets up infrastructure as code for containerization and orchestration.
 - Setup status and instructions
 - Context7 references
 
+### `*audit-dependencies`
+
+Audits project dependencies for known security vulnerabilities.
+
+**Example:**
+```
+@audit-dependencies
+```
+
+**Context7 Integration:**
+- Looks up dependency security patterns from KB cache
+- References vulnerability databases and best practices
+- Uses cached docs for accurate dependency analysis
+
+**Output:**
+- Dependency vulnerability report
+- Security issues found with severity levels
+- Remediation recommendations
+
 ### `*docs {library}`
 
 Lookup library documentation from Context7 KB cache.

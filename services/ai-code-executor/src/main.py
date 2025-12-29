@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from .config import settings
 from .executor.mcp_sandbox import MCPSandbox, SandboxConfig
+from .middleware import LoggingMiddleware, get_metrics, record_execution, record_request
 from .security.code_validator import (
     CodeValidationError,
     CodeValidator,
@@ -93,6 +94,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add logging middleware
+app.add_middleware(LoggingMiddleware)
+
 # Add CORS middleware with explicit allow-list
 app.add_middleware(
     CORSMiddleware,
@@ -141,6 +145,7 @@ class ExecuteResponse(BaseModel):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    record_request()
     mcp_initialized = False
     if sandbox is not None:
         # Use public method instead of private attribute
@@ -152,6 +157,13 @@ async def health_check():
         "version": "1.0.0",
         "mcp_initialized": mcp_initialized
     }
+
+
+@app.get("/metrics")
+async def metrics():
+    """Metrics endpoint for monitoring."""
+    record_request()
+    return get_metrics()
 
 
 @app.post(
@@ -179,9 +191,17 @@ async def execute_code(request: ExecuteRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
+        record_request()
         logger.info(f"Executing code ({len(request.code)} chars)")
 
         result = await sandbox.execute_with_mcp(request.code, request.context)
+
+        # Record metrics
+        record_execution(
+            success=result.success,
+            execution_time=result.execution_time,
+            memory_used_mb=result.memory_used_mb,
+        )
 
         logger.info(
             f"Execution complete: success={result.success}, "

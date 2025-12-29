@@ -1,67 +1,37 @@
-# Archive directories - agents should ignore
-docs/archive/**
-implementation/archive/**
+# Cursor indexing ignore list (2025)
+#
+# Goal: keep Cursor fast (especially with agents) by excluding large/generated artifacts
+# that don't improve code understanding.
 
-# Simulation generated data (large, not needed in context)
-simulation/data/**
-simulation/training_data/**
-simulation/results/**
-simulation/**/*.parquet
-simulation/**/*.pkl
-simulation/**/*.csv
-simulation/**/*.json
-!simulation/**/*config.json
-!simulation/**/package.json
-
-# Large generated files
-*.log
-*.db
+# Python caches / environments
+.venv/
+venv/
 __pycache__/
-node_modules/
-coverage_html/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
-# Build and cache directories
+# Build artifacts
 build/
 dist/
-.cache/
-*.pyc
-*.pyo
-*.pyd
-.Python
-
-# Test coverage
-coverage/
-.coverage
 htmlcov/
-.pytest_cache/
+coverage.xml
+.coverage
 
-# IDE and editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Reports & generated outputs
+reports/
+.tapps-agents/kb/
+.tapps-agents/cache/
+.tapps-agents/reports/
+.tapps-agents/worktrees/
+.tapps-agents/workflow-state/
+.tapps-agents/sessions/
+.tapps-agents/progress/
 
-# OS files
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.backup
-
-# Playwright MCP screenshots (test artifacts)
-.playwright-mcp/
-
-# Root-level temporary files (test artifacts, snapshots)
-test_results_*.txt
-homeiq-*.txt
-full_logs_*.txt
-logs_*.txt
-deployment_test_results.json
+# Misc generated/test artifacts in this repo
+MagicMock/
+fixed-code/
+tapps_agents.egg-info/
 
 
 # Agent customizations (project-specific, gitignored by default)
