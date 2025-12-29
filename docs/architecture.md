@@ -294,7 +294,7 @@ graph TB
 | **carbon-intensity-service** | Python/FastAPI | 8010 | Carbon intensity data from National Grid | ✅ Active |
 | **electricity-pricing-service** | Python/FastAPI | 8011 | Real-time electricity pricing (Octopus, etc.) | ✅ Active |
 | **air-quality-service** | Python/FastAPI | 8012 | Air quality index and pollutant levels | ✅ Active |
-| **calendar-service** | Python/aiohttp | 8013 | Home Assistant calendar integration, occupancy prediction | ⏸️ Disabled |
+| **calendar-service** | Python/aiohttp | 8013 | Home Assistant calendar integration, occupancy prediction | ✅ Active (production profile) |
 | **smart-meter-service** | Python/FastAPI | 8014 | Smart meter data (SMETS2, P1, etc.) | ✅ Active |
 | **energy-correlator** | Python/aiohttp | 8017 | Energy consumption correlation analysis | ✅ Active |
 | **log-aggregator** | Python/aiohttp | 8015 | Centralized log collection and analysis | ✅ Active |

@@ -168,38 +168,20 @@ curl http://localhost:8001/health
 
 ---
 
-### Enrichment Pipeline (`enrichment-pipeline`)
+### ⚠️ DEPRECATED: Enrichment Pipeline (`enrichment-pipeline`)
 
-**Purpose:** Processes and enriches Home Assistant events with weather data
+**Status:** ❌ **DEPRECATED** (Epic 31 - October 2025)
 
-**Configuration:**
-```yaml
-enrichment-pipeline:
-  build:
-    context: ./services/enrichment-pipeline
-    dockerfile: Dockerfile
-  container_name: homeiq-enrichment
-  restart: unless-stopped
-  ports:
-    - "8002:8002"
-  environment:
-    - WEATHER_API_KEY=${WEATHER_API_KEY}
-    - INFLUXDB_URL=${INFLUXDB_URL}
-    - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-    - INFLUXDB_ORG=${INFLUXDB_ORG}
-    - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
-```
+**Reason for Deprecation:**
+The enrichment-pipeline service was deprecated in Epic 31 to simplify the architecture. Event normalization now happens inline in the websocket-ingestion service, and external services write directly to InfluxDB.
 
-**Key Features:**
-- Event processing and validation
-- Weather data enrichment
-- InfluxDB integration
-- Error handling and retry logic
+**Migration:**
+- Events flow: `HA → websocket-ingestion → InfluxDB` (direct)
+- External services (weather, carbon, etc.) write directly to InfluxDB
+- No intermediate processing layer needed
 
-**Health Check:**
-```bash
-curl http://localhost:8002/health
-```
+**Historical Reference:**
+This service was previously used for event processing and validation. Its functionality has been integrated into other services for better performance and reliability.
 
 ---
 
@@ -321,9 +303,9 @@ curl http://localhost:8086/health
 ```
 health-dashboard → admin-api → websocket-ingestion
                                 ↓
-                   enrichment-pipeline → influxdb
+                   influxdb (direct writes - Epic 31)
                                 ↓
-                   weather-api (internal)
+                   weather-api (internal, writes directly to InfluxDB)
                                 ↓
                    data-retention → influxdb
 ```
@@ -332,11 +314,12 @@ health-dashboard → admin-api → websocket-ingestion
 
 1. **InfluxDB** - Database service (no dependencies)
 2. **Weather API** - Internal service (no dependencies)
-3. **WebSocket Ingestion** - Depends on Home Assistant connectivity
-4. **Enrichment Pipeline** - Depends on InfluxDB and Weather API
-5. **Data Retention** - Depends on InfluxDB
-6. **Admin API** - Depends on all other services
-7. **Health Dashboard** - Depends on Admin API
+3. **WebSocket Ingestion** - Depends on Home Assistant connectivity, writes directly to InfluxDB (Epic 31)
+4. **Data Retention** - Depends on InfluxDB
+5. **Admin API** - Depends on all other services
+6. **Health Dashboard** - Depends on Admin API
+
+**Note:** Enrichment Pipeline was removed in Epic 31. WebSocket ingestion now writes directly to InfluxDB.
 
 ---
 

@@ -8,7 +8,7 @@
 
 ## System Architecture
 
-HomeIQ is an enterprise-grade intelligence layer for Home Assistant featuring **26 microservices**, hybrid database architecture (5 SQLite + InfluxDB), AI-powered automation with conversational flow, pattern detection, advanced analytics, and distributed AI services with circuit breaker resilience.
+HomeIQ is an enterprise-grade intelligence layer for Home Assistant featuring **30 active microservices** (+ InfluxDB = 31 total containers), hybrid database architecture (5 SQLite + InfluxDB), AI-powered automation with conversational flow, pattern detection, advanced analytics, and distributed AI services with circuit breaker resilience.
 
 ### Core Components
 
@@ -246,7 +246,7 @@ Storage & Notification
 
 ## Deployment Architecture
 
-### Docker Services (26 Microservices)
+### Docker Services (30 Active Microservices + InfluxDB = 31 Total Containers)
 
 **Core Services (5):**
 - `influxdb` - Time-series database (InfluxDB 2.7)
@@ -270,17 +270,21 @@ Storage & Notification
 - `carbon-intensity-service` - WattTime grid carbon
 - `electricity-pricing-service` - Awattar pricing
 - `air-quality-service` - AirNow AQI data
-- `calendar-service` - HA calendar integration
+- `calendar-service` - HA calendar integration (conditionally enabled via production profile)
 - `smart-meter-service` - Power consumption tracking
 
-**Processing & Infrastructure (7):**
+**Processing & Infrastructure (4):**
 - `data-retention` - Data lifecycle management
 - `energy-correlator` - Energy pattern analysis
 - `log-aggregator` - Centralized logging
 - `ha-setup-service` - HA health monitoring
+
+**Development & Infrastructure:**
 - `ha-simulator` - Development mock server
-- `mosquitto` - MQTT broker
-- `enrichment-pipeline` - ❌ DEPRECATED (Epic 31)
+- `mosquitto` - MQTT broker (external)
+
+**Deprecated Services:**
+- ❌ `enrichment-pipeline` - DEPRECATED (Epic 31 - October 2025) - Direct InfluxDB writes now used
 
 ### Resource Requirements
 
