@@ -1,5 +1,5 @@
 version: '1.0'
-last_updated: 2025-12-21T00:41:07.382382+00:00Z
+last_updated: 2025-12-28T22:48:29.766054+00:00Z  # Refreshed December 2025
 total_entries: 11
 libraries:
   fastapi:
