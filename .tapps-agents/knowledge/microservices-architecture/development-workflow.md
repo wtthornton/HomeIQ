@@ -62,19 +62,22 @@ docker-compose -f docker-compose.dev.yml up
 # Start frontend only (with hot reload)
 cd frontend && npm run dev
 
-# Start backend services only
-docker-compose -f docker-compose.dev.yml up websocket-ingestion enrichment-pipeline admin-api influxdb
+# Start backend services only (Epic 31 - no enrichment-pipeline)
+docker-compose -f docker-compose.dev.yml up websocket-ingestion data-api admin-api influxdb
 
 # Run tests
 docker-compose -f docker-compose.dev.yml run --rm websocket-ingestion pytest
-docker-compose -f docker-compose.dev.yml run --rm enrichment-pipeline pytest
+docker-compose -f docker-compose.dev.yml run --rm data-api pytest
 docker-compose -f docker-compose.dev.yml run --rm admin-api pytest
 cd frontend && npm test
 
 # View logs
 docker-compose -f docker-compose.dev.yml logs -f websocket-ingestion
-docker-compose -f docker-compose.dev.yml logs -f enrichment-pipeline
+docker-compose -f docker-compose.dev.yml logs -f data-api
 docker-compose -f docker-compose.dev.yml logs -f admin-api
+
+# Note: enrichment-pipeline was deprecated in Epic 31 (October 2025)
+# All normalization now happens inline in websocket-ingestion
 ```
 
 ### Environment Configuration
