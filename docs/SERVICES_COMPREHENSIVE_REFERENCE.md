@@ -1,7 +1,7 @@
 # HomeIQ Services - Comprehensive Reference
 
-**Last Updated:** November 4, 2025
-**Total Services:** 26 microservices (24 active + 2 infrastructure)
+**Last Updated:** December 27, 2025
+**Total Services:** 30 active microservices (+ InfluxDB = 31 total containers)
 **Review Status:** ✅ Verified against actual implementation
 
 ---

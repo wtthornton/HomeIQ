@@ -117,7 +117,7 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 - 🌬️ **Air Quality**: AirNow API for AQI monitoring and alerts
 - 🏈 **Sports**: ESPN API for NFL/NHL live game tracking
 - 🌍 **Carbon Intensity**: WattTime API for grid carbon footprint awareness
-- 📅 **Calendar**: Home Assistant calendar integration (optional, currently disabled)
+- 📅 **Calendar**: Home Assistant calendar integration (conditionally enabled via production profile)
 - ⚡ **Smart Meter**: SMETS2/P1 protocol support for energy consumption data
 
 ### 🎨 Modern UI/UX
@@ -245,8 +245,8 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        HomeIQ Stack                          │
-│                  31 Active Microservices                     │
-│              (+ InfluxDB = 32 total containers)              │
+│                  30 Active Microservices                     │
+│              (+ InfluxDB = 31 total containers)              │
 ├─────────────────────────────────────────────────────────────┤
 │  Web Layer (2 services)                                      │
 │  ├─ Health Dashboard (React)            :3000 → nginx       │
@@ -266,7 +266,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │  ├─ AI Core Service                     :8018               │
 │  ├─ OpenVINO Service                    :8026→8019          │
 │  ├─ ML Service                          :8025→8020          │
-│  ├─ NER Service                         :8031               │
+│  ├─ NER Service                         :8031 (internal)     │
 │  ├─ OpenAI Service                      :8020               │
 │  ├─ Device Intelligence Service         :8028→8019          │
 │  ├─ Automation Miner                    :8029→8019          │
@@ -284,12 +284,12 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 │      ├─ ha_ai_agent.db (conversations, context cache)       │
 │      └─ webhooks.db                                         │
 ├─────────────────────────────────────────────────────────────┤
-│  Data Enrichment (5 active + 1 disabled - Epic 31 Direct)   │
+│  Data Enrichment (5 active + 1 conditional - Epic 31 Direct) │
 │  ├─ Weather API              :8009 → InfluxDB               │
 │  ├─ Carbon Intensity         :8010 → InfluxDB               │
 │  ├─ Electricity Pricing      :8011 → InfluxDB               │
 │  ├─ Air Quality              :8012 → InfluxDB               │
-│  ├─ Calendar Service ⏸️      :8013 → InfluxDB (disabled)    │
+│  ├─ Calendar Service          :8013 → InfluxDB (production profile) │
 │  └─ Smart Meter              :8014 → InfluxDB               │
 ├─────────────────────────────────────────────────────────────┤
 │  Processing & Infrastructure (4 services)                   │
@@ -346,7 +346,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 |------------|---------|---------------|---------------|--------|--------|
 | **OpenVINO Service** | Embeddings, re-ranking, classification | 8026 | 8019 | all-MiniLM-L6-v2, bge-reranker-base, flan-t5-small | ✅ Active |
 | **ML Service** | K-Means clustering, anomaly detection | 8025 | 8020 | scikit-learn algorithms | ✅ Active |
-| **NER Service** | Named Entity Recognition | 8031 | 8031 | dslim/bert-base-NER | ✅ Active |
+| **NER Service** | Named Entity Recognition | Internal 8031 | Internal only | dslim/bert-base-NER | ✅ Active |
 | **OpenAI Service** | GPT-4o-mini API client | 8020 | 8020 | GPT-4o-mini | ✅ Active |
 | **AI Core Service** | Multi-model orchestration | 8018 | 8018 | Service coordinator | ✅ Active |
 | **AI Automation Service** | Pattern detection & automation | 8024 | 8018 | Orchestrator | ✅ Active |
@@ -372,7 +372,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 | **Carbon Intensity** | Grid carbon footprint | 8010 | 8010 | Python, FastAPI | ✅ Active |
 | **Electricity Pricing** | Real-time pricing | 8011 | 8011 | Python, FastAPI | ✅ Active |
 | **Air Quality** | AQI monitoring | 8012 | 8012 | Python, FastAPI | ✅ Active |
-| **Calendar Service** | Event correlation | 8013 | 8013 | Python, FastAPI | ⏸️ Disabled |
+| **Calendar Service** | Event correlation | 8013 | 8013 | Python, FastAPI | ✅ Active (production profile) |
 | **Smart Meter** | Energy consumption | 8014 | 8014 | Python, FastAPI | ✅ Active |
 | **Energy Correlator** | Energy analysis | 8017 | 8017 | Python, FastAPI | ✅ Active |
 | **Log Aggregator** | Centralized logging | 8015 | 8015 | Python, FastAPI | ✅ Active |
@@ -755,15 +755,20 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 📝 Documentation Updates
 
-**Latest Code Review:** December 28, 2025
+**Latest Documentation Review:** December 28, 2025
 
-See [CODE_REVIEW_COMPREHENSIVE_FINDINGS.md](implementation/analysis/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) for detailed findings including:
-- Complete service inventory (30 active microservices)
-- Database architecture analysis (5 SQLite + InfluxDB)
-- Shared libraries documentation (3,947 lines, 11 modules)
-- Infrastructure and deployment patterns
-- Performance characteristics and optimizations
-- Security measures and best practices
+✅ **Complete Documentation Accuracy Review Completed**
+- All documentation verified against actual codebase
+- Service counts standardized (30 active microservices + InfluxDB = 31 total containers)
+- Architecture patterns verified (Epic 31 direct InfluxDB writes)
+- Port mappings clarified (internal vs external ports)
+- Calendar service status corrected (production profile, not disabled)
+- Enrichment pipeline references updated (deprecated in Epic 31)
+
+See [Documentation Accuracy Review](implementation/analysis/DOCUMENTATION_ACCURACY_REVIEW.md) for complete findings.
+
+**Previous Reviews:**
+- [Code Review Comprehensive Findings](implementation/analysis/CODE_REVIEW_COMPREHENSIVE_FINDINGS.md) - Complete service inventory, database architecture, shared libraries, infrastructure patterns, performance characteristics, and security measures
 
 ---
 
