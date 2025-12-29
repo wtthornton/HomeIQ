@@ -1,11 +1,12 @@
 library: influxdb
 context7_id: /influxdata/influxdb-client-python
+library_version: latest  # InfluxDB 2.x client (InfluxDB 3.0 also available)
 trust_score: null
 topics:
 - write
-total_docs: 0
+total_docs: 1
 total_size_bytes: 0
 total_tokens: 0
-last_updated: null
+last_updated: 2025-12-28T22:48:29.766054+00:00Z  # Refreshed December 2025
 last_accessed: 2025-12-21T00:42:12.093134+00:00Z
 cache_hits: 1
