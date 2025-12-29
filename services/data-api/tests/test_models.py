@@ -6,14 +6,13 @@ Story 22.2
 
 import pytest
 from sqlalchemy import select
-from src.database import AsyncSessionLocal, init_db
+from src.database import AsyncSessionLocal
 from src.models import Device, Entity
 
 
 @pytest.mark.asyncio
-async def test_device_creation():
+async def test_device_creation(fresh_db):
     """Test creating a device"""
-    await init_db()
 
     async with AsyncSessionLocal() as session:
         device = Device(
@@ -38,9 +37,8 @@ async def test_device_creation():
 
 
 @pytest.mark.asyncio
-async def test_entity_with_foreign_key():
+async def test_entity_with_foreign_key(fresh_db):
     """Test entity with foreign key to device"""
-    await init_db()
 
     async with AsyncSessionLocal() as session:
         # Create device first
@@ -76,9 +74,8 @@ async def test_entity_with_foreign_key():
 
 
 @pytest.mark.asyncio
-async def test_device_cascade_delete():
+async def test_device_cascade_delete(fresh_db):
     """Test that deleting device cascades to entities"""
-    await init_db()
 
     async with AsyncSessionLocal() as session:
         # Create device with entity
@@ -100,9 +97,8 @@ async def test_device_cascade_delete():
 
 
 @pytest.mark.asyncio
-async def test_device_query_by_area():
+async def test_device_query_by_area(fresh_db):
     """Test filtering devices by area"""
-    await init_db()
 
     async with AsyncSessionLocal() as session:
         # Create test devices

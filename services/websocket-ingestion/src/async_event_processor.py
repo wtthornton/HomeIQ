@@ -50,6 +50,11 @@ class AsyncEventProcessor:
         self.processing_times: deque = deque(maxlen=1000)  # Keep last 1000 processing times
         self.memory_usage_samples: deque = deque(maxlen=100)  # Keep last 100 memory samples
 
+    @property
+    def is_running(self) -> bool:
+        """Check if the processor is currently running"""
+        return self.state_machine.get_state() == ProcessingState.RUNNING
+
     async def start(self):
         """Start the async event processor"""
         current_state = self.state_machine.get_state()

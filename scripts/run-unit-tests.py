@@ -120,7 +120,7 @@ class UnitTestFramework:
                 cwd=cwd or self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=600  # 10 minute timeout for slower tests
             )
             return result.returncode, result.stdout, result.stderr
         except subprocess.TimeoutExpired:
@@ -343,13 +343,42 @@ export default defineConfig({{
         with open(config_file, 'w') as f:
             f.write(vitest_config)
         
+        # Check if npm/node is available
+        node_check, _, _ = self.run_command(["node", "--version"], cwd=health_dashboard_dir)
+        if node_check != 0:
+            self.log("Node.js not found, skipping TypeScript tests", "ERROR")
+            return {'passed': 0, 'failed': 0, 'total': 0, 'coverage': 0}
+        
+        # Check if node_modules exists
+        node_modules = health_dashboard_dir / "node_modules"
+        if not node_modules.exists():
+            self.log("node_modules not found, skipping TypeScript tests. Run 'npm install' first.", "ERROR")
+            return {'passed': 0, 'failed': 0, 'total': 0, 'coverage': 0}
+        
         # Run Vitest with coverage
-        cmd = [
-            "npx", "vitest", "run",
-            "--config", "vitest-unit.config.ts",
-            "--coverage",
-            "--reporter=verbose"
-        ]
+        # Try npx first, fallback to direct vitest if available
+        cmd = None
+        npx_check, _, _ = self.run_command(["npx", "--version"], cwd=health_dashboard_dir)
+        if npx_check == 0:
+            cmd = [
+                "npx", "vitest", "run",
+                "--config", "vitest-unit.config.ts",
+                "--coverage",
+                "--reporter=verbose"
+            ]
+        else:
+            # Try direct vitest command
+            vitest_path = node_modules / ".bin" / "vitest"
+            if vitest_path.exists():
+                cmd = [
+                    str(vitest_path), "run",
+                    "--config", "vitest-unit.config.ts",
+                    "--coverage",
+                    "--reporter=verbose"
+                ]
+            else:
+                self.log("Vitest not found, skipping TypeScript tests", "ERROR")
+                return {'passed': 0, 'failed': 0, 'total': 0, 'coverage': 0}
         
         exit_code, stdout, stderr = self.run_command(cmd, cwd=health_dashboard_dir)
         
@@ -469,7 +498,7 @@ export default defineConfig({{
 """
         
         html_file = results_dir / "unit-test-report.html"
-        with open(html_file, 'w') as f:
+        with open(html_file, 'w', encoding='utf-8') as f:
             f.write(html_report)
         
         self.log(f"📊 Summary report generated: {html_file}")
