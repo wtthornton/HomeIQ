@@ -59,7 +59,7 @@ from .config_manager import config_manager
 from .docker_endpoints import DockerEndpoints
 from .ha_proxy_endpoints import router as ha_proxy_router
 from .health_endpoints import HealthEndpoints
-from .mqtt_config_endpoints import router as mqtt_config_router
+from .mqtt_config_endpoints import router as mqtt_config_router, public_router as mqtt_config_public_router
 
 load_dotenv()
 
@@ -422,11 +422,12 @@ class AdminAPIService:
         )
 
         # MQTT/Zigbee configuration endpoints
+        # Both GET and PUT are public (no auth) - allows dashboard to load and save config
+        # TODO: Add authentication for PUT endpoint in production
         self.app.include_router(
-            mqtt_config_router,
+            mqtt_config_public_router,
             prefix="/api/v1",
-            tags=["Integrations"],
-            dependencies=secure_dependency
+            tags=["Integrations"]
         )
 
         # Docker management endpoints

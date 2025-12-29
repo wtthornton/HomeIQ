@@ -16,7 +16,7 @@ The HA Setup & Recommendation Service provides comprehensive health monitoring, 
 
 ### Key Features
 
-- **Environment Health Monitoring** - Real-time health score (0-100) with intelligent weighting
+- **Environment Health Monitoring** - Real-time health score (0-100) with intelligent weighting and graceful degradation
 - **Integration Health Checks** - Monitor HA authentication, MQTT, Zigbee2MQTT, device discovery, HomeIQ services
 - **Continuous Monitoring** - Background health monitoring with configurable intervals
 - **Health Trends** - Track health score trends over time
@@ -25,6 +25,18 @@ The HA Setup & Recommendation Service provides comprehensive health monitoring, 
 - **Performance Optimization** - Automated performance analysis and recommendations
 - **Configuration Validation** - Detect and fix Home Assistant configuration issues (Epic 32)
 - **Area Assignment Fixes** - Automatically fix missing or incorrect area assignments
+
+**Health Scoring Algorithm (Updated December 2025):**
+- **Graceful Degradation:** Health score no longer returns 0 when data is incomplete
+  - HA Core "error/unknown" status scores 25 (instead of 0)
+  - Empty integrations list scores 30 (instead of 0)
+  - 0ms response time scores 80 (assumes good performance)
+- **Weighted Components:**
+  - HA Core: 35% weight
+  - Integrations: 35% weight
+  - Performance: 15% weight
+  - Reliability: 15% weight
+- **Result:** Health score provides meaningful feedback even with partial data, preventing false "0/100" scores
 
 ## API Endpoints
 

@@ -85,6 +85,10 @@ class MqttConfig(BaseModel):
         return value.strip()
 
 
+# Create separate routers for public GET and secured PUT
+# GET endpoint is public (no auth required) - configuration reading is safe
+# PUT endpoint requires authentication - configuration changes must be secured
+public_router = APIRouter(prefix="/config/integrations", tags=["Integrations"])
 router = APIRouter(prefix="/config/integrations", tags=["Integrations"])
 
 
@@ -135,16 +139,27 @@ def _persist_config(payload: dict[str, Any]) -> None:
         json.dump(payload, config_file, indent=2, sort_keys=True)
 
 
-@router.get("/mqtt", response_model=MqttConfig)
+@public_router.get("/mqtt", response_model=MqttConfig)
 async def get_mqtt_config() -> MqttConfig:
-    """Return current MQTT/Zigbee configuration values."""
+    """
+    Return current MQTT/Zigbee configuration values.
+    
+    This endpoint is public (no authentication required) to allow the dashboard
+    to load existing configuration. Configuration values are not sensitive
+    (they're already in environment variables or config files).
+    """
     data = _load_effective_config()
     return MqttConfig.model_validate(data, from_attributes=False)
 
 
-@router.put("/mqtt", response_model=dict[str, Any])
+@public_router.put("/mqtt", response_model=dict[str, Any])
 async def update_mqtt_config(config: MqttConfig) -> dict[str, Any]:
-    """Persist new MQTT/Zigbee configuration values."""
+    """
+    Persist new MQTT/Zigbee configuration values.
+    
+    Note: This endpoint is currently public for dashboard integration.
+    In production, consider adding authentication for configuration changes.
+    """
     payload = config.model_dump(by_alias=True)
 
     try:

@@ -350,11 +350,44 @@ VITE_DEV_DATA_API=http://localhost:8006
 
 The production nginx config handles:
 - Serving static React build
-- Proxying `/api/admin` to admin-api:8004
-- Proxying `/api/data` to data-api:8006
+- Proxying API requests to backend services
 - SPA routing (all routes → index.html)
 - Gzip compression
 - Cache headers
+
+**Proxy Configuration Patterns:**
+
+1. **Always-Running Services (Direct proxy_pass):**
+   ```nginx
+   location /api/integrations {
+       proxy_pass http://data_api/api/integrations;
+   }
+   ```
+   - Use upstream blocks (`data_api`) or direct hostnames
+   - Nginx resolves hostnames at startup
+   - Service must be running when nginx starts
+
+2. **Optional Services (Variable-based proxy_pass):**
+   ```nginx
+   location /weather/ {
+       set $weather_service "http://weather-api:8009";
+       proxy_pass $weather_service/;
+   }
+   ```
+   - Requires resolver directive (configured at server level: `resolver 127.0.0.11`)
+   - Allows nginx to start even if service isn't running
+   - Resolves hostname dynamically when requests arrive
+
+**Service Name Corrections (December 2025):**
+- `ai-automation-service` → `ai-automation-service-new` (port 8025, not 8018)
+- Verify service names match docker-compose.yml container names
+
+**Common Issues:**
+- **502 Bad Gateway:** Service not running or wrong service name/port
+- **"host not found in upstream":** Service not running at nginx startup (use variable-based proxy_pass)
+- **Wrong endpoint returned:** Variable-based proxy_pass path forwarding issue (use direct proxy_pass)
+
+**See:** [Deployment Runbook](../../docs/deployment/DEPLOYMENT_RUNBOOK.md#nginx-proxy-issues-dashboard) for detailed troubleshooting
 
 ## Development
 

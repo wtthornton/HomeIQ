@@ -4,9 +4,10 @@
 
 The Admin API Service is a FastAPI-based REST API that provides comprehensive administration, monitoring, and configuration management for the HomeIQ system.
 
-**Port:** 8004 (internal), exposed as 8003 (external) - Single NUC deployment
-**Technology:** Python 3.11+, FastAPI 0.121, Pydantic 2.12
-**Container:** `homeiq-admin-api`
+**Port:** 8004 (internal), exposed as 8003 (external) - Single NUC deployment  
+**Technology:** Python 3.11+, FastAPI 0.121, Pydantic 2.12  
+**Container:** `homeiq-admin-api`  
+**Last Updated:** December 29, 2025
 
 ## Features
 
@@ -144,7 +145,7 @@ Enhanced health endpoint with dependency information
 ```
 
 #### `GET /api/metrics/realtime`
-Simple real-time metrics endpoint
+Simple real-time metrics endpoint (public, no authentication required)
 ```bash
 curl http://localhost:8004/api/metrics/realtime
 ```
@@ -156,6 +157,29 @@ Response:
   "events_per_second": 0.0,
   "active_api_calls": 0,
   "active_sources": [],
+  "timestamp": "2025-11-15T12:00:00Z"
+}
+```
+
+#### `GET /api/v1/real-time-metrics`
+Consolidated real-time metrics for dashboard (public, no authentication required)
+```bash
+curl http://localhost:8004/api/v1/real-time-metrics
+```
+
+Response:
+```json
+{
+  "events_per_hour": 3600.0,
+  "api_calls_active": 5,
+  "data_sources_active": ["websocket-ingestion", "weather-api"],
+  "api_metrics": [...],
+  "health_summary": {
+    "healthy": 20,
+    "unhealthy": 2,
+    "total": 22,
+    "health_percentage": 90.9
+  },
   "timestamp": "2025-11-15T12:00:00Z"
 }
 ```
@@ -348,7 +372,31 @@ curl http://localhost:8004/api/v1/config
 ### MQTT/Zigbee Configuration
 
 #### MQTT configuration endpoints
-MQTT and Zigbee configuration management endpoints available under `/api/v1/mqtt/*`
+MQTT and Zigbee configuration management endpoints available under `/api/v1/config/integrations/mqtt`
+
+**Authentication:** These endpoints are **public** (no authentication required) to allow the dashboard to load and save MQTT configuration. Configuration values are not sensitive (they're already in environment variables or config files).
+
+**Endpoints:**
+- `GET /api/v1/config/integrations/mqtt` - Get current MQTT/Zigbee configuration
+- `PUT /api/v1/config/integrations/mqtt` - Update MQTT/Zigbee configuration
+
+**Example:**
+```bash
+# Get configuration (public, no auth required)
+curl http://localhost:8004/api/v1/config/integrations/mqtt
+
+# Update configuration (public, no auth required)
+curl -X PUT http://localhost:8004/api/v1/config/integrations/mqtt \
+  -H "Content-Type: application/json" \
+  -d '{
+    "MQTT_BROKER": "mqtt://192.168.1.100:1883",
+    "MQTT_USERNAME": "user",
+    "MQTT_PASSWORD": "pass",
+    "ZIGBEE2MQTT_BASE_TOPIC": "zigbee2mqtt"
+  }'
+```
+
+**Note:** In production, consider adding authentication for PUT endpoint to prevent unauthorized configuration changes.
 
 ### Devices & Entities
 

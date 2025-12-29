@@ -2896,6 +2896,2091 @@ agents:
     generated: true
   watch:
   - validation-reports/MASTER-VALIDATION-SUMMARY.md
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - discover_services'
+  type: background
+  description: Execute analyst agent for workflow step discover_services
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@analyst
+    gather_requirements\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-discover_services\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"discover_services\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=discover_services
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-discover_services
+  triggers:
+  - "Discover all active services in the services/ directory:\n- Scan services/ directory\
+    \ structure\n- Identify all microservices (exclude archive/, tests/, .pytest_cache/)\n\
+    - Extract service metadata:\n  * Service name (directory name)\n  * Service path\
+    \ (relative path)\n  * Service type (inference from structure: external-api, query-api,\
+    \ ingestion, ai-service, device-service, etc.)\n  * Port number (if specified\
+    \ in docker-compose.yml or service config)\n- Categorize services:\n  * Critical\
+    \ services: websocket-ingestion, data-api, ai-automation-service-new\n  * External\
+    \ API services: weather-api, sports-api, carbon-intensity-service, air-quality-service,\
+    \ calendar-service\n  * AI services: ai-core-service, ai-query-service, ai-pattern-service,\
+    \ ai-training-service, ai-code-executor\n  * Device services: device-health-monitor,\
+    \ device-recommender, device-context-classifier, etc.\n  * Supporting services:\
+    \ log-aggregator, data-retention, admin-api, etc.\n- Create structured JSON output\
+    \ with service inventory\n"
+  - gather requirements
+  - collect requirements
+  - HomeIQ Service Validation - discover_services
+  - Execute analyst gather_requirements
+  - Run step discover_services
+  - Execute discover_services
+  worktree: workflow-homeiq-service-validation-20251229-085741-discover_services
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-discover_services
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158056'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: discover_services
+    generated: true
+  watch:
+  - services-inventory.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_critical_services_arch'
+  type: background
+  description: Execute architect agent for workflow step validate_critical_services_arch
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@architect
+    design_system\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-validate_critical_services_arch\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"validate_critical_services_arch\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=validate_critical_services_arch
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-validate_critical_services_arch
+  triggers:
+  - "Validate architecture for critical services (websocket-ingestion, data-api, ai-automation-service-new):\n\
+    - Consult Software Architecture expert for microservices patterns\n- Consult API\
+    \ Design expert for REST/gRPC patterns\n- Consult Cloud Infrastructure expert\
+    \ for deployment patterns\n- Consult Database expert for data storage patterns\n\
+    - HomeIQ-Specific Architecture Checks:\n  * Epic 31 compliance: Verify direct\
+    \ InfluxDB writes (NO enrichment-pipeline references)\n  * Service pattern compliance:\n\
+    \    - websocket-ingestion: Event Ingestion pattern (HA WebSocket \u2192 inline\
+    \ normalization \u2192 direct InfluxDB)\n    - data-api: Query API pattern (central\
+    \ query endpoint, InfluxDB for events, SQLite for metadata)\n    - ai-automation-service-new:\
+    \ AI service pattern (standalone, writes to InfluxDB, queries via data-api)\n\
+    \  * Database architecture (Epic 22): Hybrid pattern validation\n    - InfluxDB\
+    \ for time-series data (events, metrics, sports scores)\n    - SQLite for relational\
+    \ metadata (devices, entities, webhooks)\n  * No service-to-service HTTP dependencies\
+    \ (standalone services)\n- For each service, generate architecture validation\
+    \ report with:\n  * Expert feedback from all consulted experts\n  * Compliance\
+    \ status (Epic 31, Epic 22, service patterns)\n  * Architecture recommendations\
+    \ prioritized by expert confidence\n  * Specific issues found (if any)\n"
+  - HomeIQ Service Validation - validate_critical_services_arch
+  - Execute architect design_system
+  - Run step validate_critical_services_arch
+  - Execute validate_critical_services_arch
+  worktree: workflow-homeiq-service-validation-20251229-085741-validate_critical_services_arch
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-validate_critical_services_arch
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158088'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: validate_critical_services_arch
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/architecture-validation.json
+  - validation-results/data-api/architecture-validation.json
+  - validation-results/ai-automation-service-new/architecture-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_critical_services_quality'
+  type: background
+  description: Execute reviewer agent for workflow step validate_critical_services_quality
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@reviewer
+    review_code\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-validate_critical_services_quality\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"validate_critical_services_quality\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=validate_critical_services_quality
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-validate_critical_services_quality
+  triggers:
+  - "Validate code quality and security for critical services (websocket-ingestion,\
+    \ data-api, ai-automation-service-new):\n- Consult Security expert for vulnerabilities\
+    \ and best practices\n- Consult Code Quality expert for maintainability and complexity\
+    \ analysis\n- Consult Performance expert for efficiency and scalability assessment\n\
+    - HomeIQ-Specific Quality Checks:\n  * Quality thresholds: Overall score 70+ required\
+    \ (80+ for critical services)\n  * Security score: 7.0+/10 required\n  * Maintainability\
+    \ score: 7.0+/10 required\n  * Test coverage: 80% target (document current coverage,\
+    \ identify gaps)\n  * Performance: Check for bottlenecks, efficient algorithms\n\
+    - For each service, generate quality validation report with:\n  * Quality scores\
+    \ (overall, security, maintainability, test coverage, performance)\n  * Expert\
+    \ feedback from all consulted experts\n  * Security vulnerabilities identified\
+    \ (if any)\n  * Maintainability issues (complexity, code smells)\n  * Performance\
+    \ concerns (if any)\n  * Test coverage analysis and recommendations\n  * Recommendations\
+    \ prioritized by expert confidence and impact\n"
+  - review code
+  - code review
+  - review
+  - HomeIQ Service Validation - validate_critical_services_quality
+  - Execute reviewer review_code
+  - Run step validate_critical_services_quality
+  - Execute validate_critical_services_quality
+  worktree: workflow-homeiq-service-validation-20251229-085741-validate_critical_services_quality
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-validate_critical_services_quality
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158106'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: validate_critical_services_quality
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/quality-validation.json
+  - validation-results/data-api/quality-validation.json
+  - validation-results/ai-automation-service-new/quality-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_critical_services_business'
+  type: background
+  description: Execute analyst agent for workflow step validate_critical_services_business
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@analyst
+    analyze\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-validate_critical_services_business\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"validate_critical_services_business\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=validate_critical_services_business
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-validate_critical_services_business
+  triggers:
+  - "Validate business patterns for critical services (websocket-ingestion, data-api,\
+    \ ai-automation-service-new):\n- Consult HomeIQ domain experts (IoT, home automation\
+    \ patterns)\n- Validate service communication patterns\n- Assess business requirements\
+    \ alignment\n- HomeIQ-Specific Business Checks:\n  * Service role and purpose\
+    \ clarity: Does the service have a clear, well-defined purpose?\n  * Integration\
+    \ compliance: Does the service integrate correctly with other services per Epic\
+    \ 31 patterns?\n  * Business value alignment: Does the service provide clear business\
+    \ value and meet user needs?\n  * Service pattern adherence:\n    - websocket-ingestion:\
+    \ Event ingestion from Home Assistant, direct InfluxDB writes\n    - data-api:\
+    \ Central query endpoint for all data (InfluxDB + SQLite)\n    - ai-automation-service-new:\
+    \ AI automation logic, writes to InfluxDB\n- For each service, generate business\
+    \ validation report with:\n  * Service purpose and role assessment\n  * Integration\
+    \ pattern compliance\n  * Business value alignment\n  * HomeIQ domain pattern\
+    \ compliance\n  * Recommendations for business logic improvements (if any)\n"
+  - analyze
+  - analysis
+  - HomeIQ Service Validation - validate_critical_services_business
+  - Execute analyst analyze
+  - Run step validate_critical_services_business
+  - Execute validate_critical_services_business
+  worktree: workflow-homeiq-service-validation-20251229-085741-validate_critical_services_business
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-validate_critical_services_business
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158120'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: validate_critical_services_business
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/business-validation.json
+  - validation-results/data-api/business-validation.json
+  - validation-results/ai-automation-service-new/business-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - aggregate_critical_validation'
+  type: background
+  description: Execute orchestrator agent for workflow step aggregate_critical_validation
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@orchestrator
+    finalize\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-aggregate_critical_validation\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"aggregate_critical_validation\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=aggregate_critical_validation
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-aggregate_critical_validation
+  triggers:
+  - 'Aggregate validation results for critical services (all three validation tracks
+    must complete):
+
+    - Combine architecture, quality, and business validation results for each critical
+    service
+
+    - Cross-reference findings across validation tracks
+
+    - Calculate composite validation scores
+
+    - Identify services needing immediate attention (FAIL status)
+
+    - Prioritize recommendations by expert confidence and impact
+
+    - Generate aggregated validation JSON for each critical service
+
+    '
+  - finalize
+  - complete
+  - HomeIQ Service Validation - aggregate_critical_validation
+  - Execute orchestrator finalize
+  - Run step aggregate_critical_validation
+  - Execute aggregate_critical_validation
+  worktree: workflow-homeiq-service-validation-20251229-085741-aggregate_critical_validation
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-aggregate_critical_validation
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158139'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: aggregate_critical_validation
+    generated: true
+  watch:
+  - validation-results/websocket-ingestion/architecture-validation.json
+  - validation-results/websocket-ingestion/quality-validation.json
+  - validation-results/websocket-ingestion/business-validation.json
+  - validation-results/data-api/architecture-validation.json
+  - validation-results/data-api/quality-validation.json
+  - validation-results/data-api/business-validation.json
+  - validation-results/ai-automation-service-new/architecture-validation.json
+  - validation-results/ai-automation-service-new/quality-validation.json
+  - validation-results/ai-automation-service-new/business-validation.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/data-api/aggregated-validation.json
+  - validation-results/ai-automation-service-new/aggregated-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_external_services_arch'
+  type: background
+  description: Execute architect agent for workflow step validate_external_services_arch
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@architect
+    design_system\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-validate_external_services_arch\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"validate_external_services_arch\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=validate_external_services_arch
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-validate_external_services_arch
+  triggers:
+  - "Validate architecture for external API services (weather-api, sports-api, carbon-intensity-service,\
+    \ air-quality-service, calendar-service):\n- Consult Software Architecture expert\
+    \ for microservices patterns\n- Consult API Design expert for REST/gRPC patterns\n\
+    - Consult Cloud Infrastructure expert for deployment patterns\n- Consult Database\
+    \ expert for data storage patterns\n- HomeIQ-Specific Architecture Checks:\n \
+    \ * Epic 31 compliance: Verify direct InfluxDB writes (NO service-to-service HTTP\
+    \ calls)\n  * External API pattern compliance:\n    - Fetch data from external\
+    \ API (ESPN, OpenWeatherMap, etc.)\n    - Write directly to InfluxDB (standalone,\
+    \ no dependencies)\n    - Dashboard queries via data-api (not direct InfluxDB\
+    \ queries)\n  * No enrichment-pipeline references (deprecated in Epic 31)\n  *\
+    \ Standalone service pattern (no HTTP dependencies on other services)\n- For each\
+    \ service, generate architecture validation report\n"
+  - HomeIQ Service Validation - validate_external_services_arch
+  - Execute architect design_system
+  - Run step validate_external_services_arch
+  - Execute validate_external_services_arch
+  worktree: workflow-homeiq-service-validation-20251229-085741-validate_external_services_arch
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-validate_external_services_arch
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158154'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: validate_external_services_arch
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/weather-api/architecture-validation.json
+  - validation-results/sports-api/architecture-validation.json
+  - validation-results/carbon-intensity-service/architecture-validation.json
+  - validation-results/air-quality-service/architecture-validation.json
+  - validation-results/calendar-service/architecture-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_external_services_quality'
+  type: background
+  description: Execute reviewer agent for workflow step validate_external_services_quality
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@reviewer
+    review_code\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-validate_external_services_quality\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"validate_external_services_quality\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=validate_external_services_quality
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-validate_external_services_quality
+  triggers:
+  - 'Validate code quality and security for external API services (weather-api, sports-api,
+    carbon-intensity-service, air-quality-service, calendar-service):
+
+    - Consult Security expert, Code Quality expert, Performance expert
+
+    - HomeIQ Quality Checks: Overall 70+, Security 7.0+, Maintainability 7.0+, Test
+    coverage 80% target
+
+    - For each service, generate quality validation report with scores and expert
+    recommendations
+
+    '
+  - review code
+  - code review
+  - review
+  - HomeIQ Service Validation - validate_external_services_quality
+  - Execute reviewer review_code
+  - Run step validate_external_services_quality
+  - Execute validate_external_services_quality
+  worktree: workflow-homeiq-service-validation-20251229-085741-validate_external_services_quality
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-validate_external_services_quality
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158168'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: validate_external_services_quality
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/weather-api/quality-validation.json
+  - validation-results/sports-api/quality-validation.json
+  - validation-results/carbon-intensity-service/quality-validation.json
+  - validation-results/air-quality-service/quality-validation.json
+  - validation-results/calendar-service/quality-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_external_services_business'
+  type: background
+  description: Execute analyst agent for workflow step validate_external_services_business
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@analyst
+    analyze\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-validate_external_services_business\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"validate_external_services_business\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=validate_external_services_business
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-validate_external_services_business
+  triggers:
+  - 'Validate business patterns for external API services (weather-api, sports-api,
+    carbon-intensity-service, air-quality-service, calendar-service):
+
+    - Consult HomeIQ domain experts
+
+    - Validate external API integration patterns
+
+    - Assess business value and user needs alignment
+
+    - For each service, generate business validation report
+
+    '
+  - analyze
+  - analysis
+  - HomeIQ Service Validation - validate_external_services_business
+  - Execute analyst analyze
+  - Run step validate_external_services_business
+  - Execute validate_external_services_business
+  worktree: workflow-homeiq-service-validation-20251229-085741-validate_external_services_business
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-validate_external_services_business
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158179'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: validate_external_services_business
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/weather-api/business-validation.json
+  - validation-results/sports-api/business-validation.json
+  - validation-results/carbon-intensity-service/business-validation.json
+  - validation-results/air-quality-service/business-validation.json
+  - validation-results/calendar-service/business-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - aggregate_external_validation'
+  type: background
+  description: Execute orchestrator agent for workflow step aggregate_external_validation
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@orchestrator
+    finalize\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-aggregate_external_validation\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"aggregate_external_validation\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=aggregate_external_validation
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-aggregate_external_validation
+  triggers:
+  - 'Aggregate validation results for external API services (all three validation
+    tracks must complete):
+
+    - Combine architecture, quality, and business validation results for each external
+    API service
+
+    - Cross-reference findings across validation tracks
+
+    - Calculate composite validation scores
+
+    - Generate aggregated validation JSON for each external API service
+
+    '
+  - finalize
+  - complete
+  - HomeIQ Service Validation - aggregate_external_validation
+  - Execute orchestrator finalize
+  - Run step aggregate_external_validation
+  - Execute aggregate_external_validation
+  worktree: workflow-homeiq-service-validation-20251229-085741-aggregate_external_validation
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-aggregate_external_validation
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158195'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: aggregate_external_validation
+    generated: true
+  watch:
+  - validation-results/weather-api/architecture-validation.json
+  - validation-results/weather-api/quality-validation.json
+  - validation-results/weather-api/business-validation.json
+  - validation-results/sports-api/architecture-validation.json
+  - validation-results/sports-api/quality-validation.json
+  - validation-results/sports-api/business-validation.json
+  - validation-results/carbon-intensity-service/architecture-validation.json
+  - validation-results/carbon-intensity-service/quality-validation.json
+  - validation-results/carbon-intensity-service/business-validation.json
+  - validation-results/air-quality-service/architecture-validation.json
+  - validation-results/air-quality-service/quality-validation.json
+  - validation-results/air-quality-service/business-validation.json
+  - validation-results/calendar-service/architecture-validation.json
+  - validation-results/calendar-service/quality-validation.json
+  - validation-results/calendar-service/business-validation.json
+  - validation-results/weather-api/aggregated-validation.json
+  - validation-results/sports-api/aggregated-validation.json
+  - validation-results/carbon-intensity-service/aggregated-validation.json
+  - validation-results/air-quality-service/aggregated-validation.json
+  - validation-results/calendar-service/aggregated-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_remaining_services'
+  type: background
+  description: Execute reviewer agent for workflow step validate_remaining_services
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@reviewer
+    review_code\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-validate_remaining_services\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"validate_remaining_services\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=validate_remaining_services
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-validate_remaining_services
+  triggers:
+  - 'Validate remaining services (AI services, device services, supporting services):
+
+    - Process services in batches based on services-inventory.json
+
+    - For each service, perform all three validation tracks (architecture, quality,
+    business)
+
+    - Apply same validation criteria as critical and external services
+
+    - Generate validation results for each service
+
+    - Focus on identifying services that need immediate attention
+
+    '
+  - review code
+  - code review
+  - review
+  - HomeIQ Service Validation - validate_remaining_services
+  - Execute reviewer review_code
+  - Run step validate_remaining_services
+  - Execute validate_remaining_services
+  worktree: workflow-homeiq-service-validation-20251229-085741-validate_remaining_services
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-validate_remaining_services
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158206'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: validate_remaining_services
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/remaining-services-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - generate_service_reports'
+  type: background
+  description: Execute documenter agent for workflow step generate_service_reports
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@documenter
+    generate_docs\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-generate_service_reports\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"generate_service_reports\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=generate_service_reports
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-generate_service_reports
+  triggers:
+  - "Generate comprehensive validation report for each validated service:\n- For critical\
+    \ services: Use aggregated validation JSON\n- For external API services: Combine\
+    \ architecture, quality, business validation JSON\n- For remaining services: Use\
+    \ batch validation results\n- Report format per service:\n  * Executive Summary:\
+    \ Status (PASS/WARNING/FAIL), Overall Score, Critical Issues Count, Recommendations\
+    \ Count\n  * Technical Validation:\n    - Architecture Validation: Expert feedback,\
+    \ Epic 31/Epic 22 compliance, recommendations\n    - Code Quality & Security:\
+    \ Scores (overall, security, maintainability, test coverage, performance), expert\
+    \ feedback, recommendations\n  * Business Validation: Pattern compliance, business\
+    \ alignment, recommendations\n  * Action Items: Prioritized list (High/Medium/Low)\
+    \ with expert attribution, confidence scores, and impact descriptions\n- Generate\
+    \ markdown report for each service: validation-reports/{service-name}-validation-report.md\n"
+  - HomeIQ Service Validation - generate_service_reports
+  - Execute documenter generate_docs
+  - Run step generate_service_reports
+  - Execute generate_service_reports
+  worktree: workflow-homeiq-service-validation-20251229-085741-generate_service_reports
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-generate_service_reports
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158222'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: generate_service_reports
+    generated: true
+  watch:
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/data-api/aggregated-validation.json
+  - validation-results/ai-automation-service-new/aggregated-validation.json
+  - validation-results/weather-api/aggregated-validation.json
+  - validation-results/sports-api/aggregated-validation.json
+  - validation-results/carbon-intensity-service/aggregated-validation.json
+  - validation-results/air-quality-service/aggregated-validation.json
+  - validation-results/calendar-service/aggregated-validation.json
+  - validation-results/remaining-services-validation.json
+  - validation-reports/websocket-ingestion-validation-report.md
+  - validation-reports/data-api-validation-report.md
+  - validation-reports/ai-automation-service-new-validation-report.md
+  - validation-reports/weather-api-validation-report.md
+  - validation-reports/sports-api-validation-report.md
+  - validation-reports/carbon-intensity-service-validation-report.md
+  - validation-reports/air-quality-service-validation-report.md
+  - validation-reports/calendar-service-validation-report.md
+  - validation-reports/remaining-services-validation-report.md
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - generate_master_summary'
+  type: background
+  description: Execute documenter agent for workflow step generate_master_summary
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@documenter
+    generate_docs\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-generate_master_summary\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"generate_master_summary\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=generate_master_summary
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-generate_master_summary
+  triggers:
+  - "Generate master validation summary across all services:\n- Aggregate all service\
+    \ validation reports\n- Create services summary table with:\n  * Service name\n\
+    \  * Status (PASS/WARNING/FAIL)\n  * Overall Score\n  * Architecture Compliance\
+    \ (Epic 31, Epic 22)\n  * Quality Scores (Security, Maintainability, Test Coverage)\n\
+    \  * Critical Issues Count\n  * Key Issues Summary\n- Create priority matrix:\n\
+    \  * High Priority: Services with FAIL status or critical architecture violations\n\
+    \  * Medium Priority: Services with WARNING status or quality gaps\n  * Low Priority:\
+    \ Services with PASS status but improvement opportunities\n- Identify common issues\
+    \ across services:\n  * Architecture pattern violations\n  * Common quality issues\n\
+    \  * Shared security concerns\n  * Test coverage gaps\n- Overall architecture\
+    \ compliance status:\n  * Epic 31 compliance summary (direct InfluxDB writes,\
+    \ no enrichment-pipeline)\n  * Epic 22 compliance summary (hybrid database architecture)\n\
+    \  * Service pattern adherence\n- Next steps and recommendations:\n  * Prioritized\
+    \ action items across all services\n  * Common improvement patterns\n  * Architecture\
+    \ modernization opportunities\n  * Quality improvement initiatives\n- Generate\
+    \ master summary: validation-reports/MASTER-VALIDATION-SUMMARY.md\n"
+  - HomeIQ Service Validation - generate_master_summary
+  - Execute documenter generate_docs
+  - Run step generate_master_summary
+  - Execute generate_master_summary
+  worktree: workflow-homeiq-service-validation-20251229-085741-generate_master_summary
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-generate_master_summary
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158233'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: generate_master_summary
+    generated: true
+  watch:
+  - validation-reports/websocket-ingestion-validation-report.md
+  - validation-reports/data-api-validation-report.md
+  - validation-reports/ai-automation-service-new-validation-report.md
+  - validation-reports/weather-api-validation-report.md
+  - validation-reports/sports-api-validation-report.md
+  - validation-reports/carbon-intensity-service-validation-report.md
+  - validation-reports/air-quality-service-validation-report.md
+  - validation-reports/calendar-service-validation-report.md
+  - validation-reports/remaining-services-validation-report.md
+  - validation-reports/MASTER-VALIDATION-SUMMARY.md
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - complete'
+  type: background
+  description: Execute orchestrator agent for workflow step complete
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@orchestrator
+    finalize\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085741\\step-complete\"),
+    workflow_id=\"homeiq-service-validation-20251229-085741\", step_id=\"complete\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085741
+  - STEP_ID=complete
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085741-complete
+  triggers:
+  - "Finalize service validation:\n- Verify all validation tracks completed\n- Confirm\
+    \ all service reports generated\n- Verify master summary generated\n- Generate\
+    \ final summary of validation execution\n- Include recommendations for next steps:\n\
+    \  * Review master validation summary\n  * Prioritize services needing immediate\
+    \ attention\n  * Create improvement plans per service using TappsCodingAgents\
+    \ workflows\n  * Track validation status over time (run periodically)\n  * Use\
+    \ validation reports for architecture decision documentation\n"
+  - finalize
+  - complete
+  - HomeIQ Service Validation - complete
+  - Execute orchestrator finalize
+  - Run step complete
+  - Execute complete
+  worktree: workflow-homeiq-service-validation-20251229-085741-complete
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085741/step-complete
+  metadata:
+    generated_at: '2025-12-29T08:57:41.158243'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085741
+    step_id: complete
+    generated: true
+  watch:
+  - validation-reports/MASTER-VALIDATION-SUMMARY.md
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - discover_services'
+  type: background
+  description: Execute analyst agent for workflow step discover_services
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@analyst
+    gather_requirements\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-discover_services\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"discover_services\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=discover_services
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-discover_services
+  triggers:
+  - "Discover all active services in the services/ directory:\n- Scan services/ directory\
+    \ structure\n- Identify all microservices (exclude archive/, tests/, .pytest_cache/)\n\
+    - Extract service metadata:\n  * Service name (directory name)\n  * Service path\
+    \ (relative path)\n  * Service type (inference from structure: external-api, query-api,\
+    \ ingestion, ai-service, device-service, etc.)\n  * Port number (if specified\
+    \ in docker-compose.yml or service config)\n- Categorize services:\n  * Critical\
+    \ services: websocket-ingestion, data-api, ai-automation-service-new\n  * External\
+    \ API services: weather-api, sports-api, carbon-intensity-service, air-quality-service,\
+    \ calendar-service\n  * AI services: ai-core-service, ai-query-service, ai-pattern-service,\
+    \ ai-training-service, ai-code-executor\n  * Device services: device-health-monitor,\
+    \ device-recommender, device-context-classifier, etc.\n  * Supporting services:\
+    \ log-aggregator, data-retention, admin-api, etc.\n- Create structured JSON output\
+    \ with service inventory\n"
+  - gather requirements
+  - collect requirements
+  - HomeIQ Service Validation - discover_services
+  - Execute analyst gather_requirements
+  - Run step discover_services
+  - Execute discover_services
+  worktree: workflow-homeiq-service-validation-20251229-085909-discover_services
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-discover_services
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686061'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: discover_services
+    generated: true
+  watch:
+  - services-inventory.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_critical_services_arch'
+  type: background
+  description: Execute architect agent for workflow step validate_critical_services_arch
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@architect
+    design_system\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-validate_critical_services_arch\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"validate_critical_services_arch\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=validate_critical_services_arch
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-validate_critical_services_arch
+  triggers:
+  - "Validate architecture for critical services (websocket-ingestion, data-api, ai-automation-service-new):\n\
+    - Consult Software Architecture expert for microservices patterns\n- Consult API\
+    \ Design expert for REST/gRPC patterns\n- Consult Cloud Infrastructure expert\
+    \ for deployment patterns\n- Consult Database expert for data storage patterns\n\
+    - HomeIQ-Specific Architecture Checks:\n  * Epic 31 compliance: Verify direct\
+    \ InfluxDB writes (NO enrichment-pipeline references)\n  * Service pattern compliance:\n\
+    \    - websocket-ingestion: Event Ingestion pattern (HA WebSocket \u2192 inline\
+    \ normalization \u2192 direct InfluxDB)\n    - data-api: Query API pattern (central\
+    \ query endpoint, InfluxDB for events, SQLite for metadata)\n    - ai-automation-service-new:\
+    \ AI service pattern (standalone, writes to InfluxDB, queries via data-api)\n\
+    \  * Database architecture (Epic 22): Hybrid pattern validation\n    - InfluxDB\
+    \ for time-series data (events, metrics, sports scores)\n    - SQLite for relational\
+    \ metadata (devices, entities, webhooks)\n  * No service-to-service HTTP dependencies\
+    \ (standalone services)\n- For each service, generate architecture validation\
+    \ report with:\n  * Expert feedback from all consulted experts\n  * Compliance\
+    \ status (Epic 31, Epic 22, service patterns)\n  * Architecture recommendations\
+    \ prioritized by expert confidence\n  * Specific issues found (if any)\n"
+  - HomeIQ Service Validation - validate_critical_services_arch
+  - Execute architect design_system
+  - Run step validate_critical_services_arch
+  - Execute validate_critical_services_arch
+  worktree: workflow-homeiq-service-validation-20251229-085909-validate_critical_services_arch
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-validate_critical_services_arch
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686118'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: validate_critical_services_arch
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/architecture-validation.json
+  - validation-results/data-api/architecture-validation.json
+  - validation-results/ai-automation-service-new/architecture-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_critical_services_quality'
+  type: background
+  description: Execute reviewer agent for workflow step validate_critical_services_quality
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@reviewer
+    review_code\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-validate_critical_services_quality\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"validate_critical_services_quality\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=validate_critical_services_quality
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-validate_critical_services_quality
+  triggers:
+  - "Validate code quality and security for critical services (websocket-ingestion,\
+    \ data-api, ai-automation-service-new):\n- Consult Security expert for vulnerabilities\
+    \ and best practices\n- Consult Code Quality expert for maintainability and complexity\
+    \ analysis\n- Consult Performance expert for efficiency and scalability assessment\n\
+    - HomeIQ-Specific Quality Checks:\n  * Quality thresholds: Overall score 70+ required\
+    \ (80+ for critical services)\n  * Security score: 7.0+/10 required\n  * Maintainability\
+    \ score: 7.0+/10 required\n  * Test coverage: 80% target (document current coverage,\
+    \ identify gaps)\n  * Performance: Check for bottlenecks, efficient algorithms\n\
+    - For each service, generate quality validation report with:\n  * Quality scores\
+    \ (overall, security, maintainability, test coverage, performance)\n  * Expert\
+    \ feedback from all consulted experts\n  * Security vulnerabilities identified\
+    \ (if any)\n  * Maintainability issues (complexity, code smells)\n  * Performance\
+    \ concerns (if any)\n  * Test coverage analysis and recommendations\n  * Recommendations\
+    \ prioritized by expert confidence and impact\n"
+  - review code
+  - code review
+  - review
+  - HomeIQ Service Validation - validate_critical_services_quality
+  - Execute reviewer review_code
+  - Run step validate_critical_services_quality
+  - Execute validate_critical_services_quality
+  worktree: workflow-homeiq-service-validation-20251229-085909-validate_critical_services_quality
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-validate_critical_services_quality
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686139'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: validate_critical_services_quality
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/quality-validation.json
+  - validation-results/data-api/quality-validation.json
+  - validation-results/ai-automation-service-new/quality-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_critical_services_business'
+  type: background
+  description: Execute analyst agent for workflow step validate_critical_services_business
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@analyst
+    analyze\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-validate_critical_services_business\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"validate_critical_services_business\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=validate_critical_services_business
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-validate_critical_services_business
+  triggers:
+  - "Validate business patterns for critical services (websocket-ingestion, data-api,\
+    \ ai-automation-service-new):\n- Consult HomeIQ domain experts (IoT, home automation\
+    \ patterns)\n- Validate service communication patterns\n- Assess business requirements\
+    \ alignment\n- HomeIQ-Specific Business Checks:\n  * Service role and purpose\
+    \ clarity: Does the service have a clear, well-defined purpose?\n  * Integration\
+    \ compliance: Does the service integrate correctly with other services per Epic\
+    \ 31 patterns?\n  * Business value alignment: Does the service provide clear business\
+    \ value and meet user needs?\n  * Service pattern adherence:\n    - websocket-ingestion:\
+    \ Event ingestion from Home Assistant, direct InfluxDB writes\n    - data-api:\
+    \ Central query endpoint for all data (InfluxDB + SQLite)\n    - ai-automation-service-new:\
+    \ AI automation logic, writes to InfluxDB\n- For each service, generate business\
+    \ validation report with:\n  * Service purpose and role assessment\n  * Integration\
+    \ pattern compliance\n  * Business value alignment\n  * HomeIQ domain pattern\
+    \ compliance\n  * Recommendations for business logic improvements (if any)\n"
+  - analyze
+  - analysis
+  - HomeIQ Service Validation - validate_critical_services_business
+  - Execute analyst analyze
+  - Run step validate_critical_services_business
+  - Execute validate_critical_services_business
+  worktree: workflow-homeiq-service-validation-20251229-085909-validate_critical_services_business
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-validate_critical_services_business
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686155'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: validate_critical_services_business
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/business-validation.json
+  - validation-results/data-api/business-validation.json
+  - validation-results/ai-automation-service-new/business-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - aggregate_critical_validation'
+  type: background
+  description: Execute orchestrator agent for workflow step aggregate_critical_validation
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@orchestrator
+    finalize\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-aggregate_critical_validation\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"aggregate_critical_validation\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=aggregate_critical_validation
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-aggregate_critical_validation
+  triggers:
+  - 'Aggregate validation results for critical services (all three validation tracks
+    must complete):
+
+    - Combine architecture, quality, and business validation results for each critical
+    service
+
+    - Cross-reference findings across validation tracks
+
+    - Calculate composite validation scores
+
+    - Identify services needing immediate attention (FAIL status)
+
+    - Prioritize recommendations by expert confidence and impact
+
+    - Generate aggregated validation JSON for each critical service
+
+    '
+  - finalize
+  - complete
+  - HomeIQ Service Validation - aggregate_critical_validation
+  - Execute orchestrator finalize
+  - Run step aggregate_critical_validation
+  - Execute aggregate_critical_validation
+  worktree: workflow-homeiq-service-validation-20251229-085909-aggregate_critical_validation
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-aggregate_critical_validation
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686174'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: aggregate_critical_validation
+    generated: true
+  watch:
+  - validation-results/websocket-ingestion/architecture-validation.json
+  - validation-results/websocket-ingestion/quality-validation.json
+  - validation-results/websocket-ingestion/business-validation.json
+  - validation-results/data-api/architecture-validation.json
+  - validation-results/data-api/quality-validation.json
+  - validation-results/data-api/business-validation.json
+  - validation-results/ai-automation-service-new/architecture-validation.json
+  - validation-results/ai-automation-service-new/quality-validation.json
+  - validation-results/ai-automation-service-new/business-validation.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/data-api/aggregated-validation.json
+  - validation-results/ai-automation-service-new/aggregated-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_external_services_arch'
+  type: background
+  description: Execute architect agent for workflow step validate_external_services_arch
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@architect
+    design_system\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-validate_external_services_arch\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"validate_external_services_arch\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=validate_external_services_arch
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-validate_external_services_arch
+  triggers:
+  - "Validate architecture for external API services (weather-api, sports-api, carbon-intensity-service,\
+    \ air-quality-service, calendar-service):\n- Consult Software Architecture expert\
+    \ for microservices patterns\n- Consult API Design expert for REST/gRPC patterns\n\
+    - Consult Cloud Infrastructure expert for deployment patterns\n- Consult Database\
+    \ expert for data storage patterns\n- HomeIQ-Specific Architecture Checks:\n \
+    \ * Epic 31 compliance: Verify direct InfluxDB writes (NO service-to-service HTTP\
+    \ calls)\n  * External API pattern compliance:\n    - Fetch data from external\
+    \ API (ESPN, OpenWeatherMap, etc.)\n    - Write directly to InfluxDB (standalone,\
+    \ no dependencies)\n    - Dashboard queries via data-api (not direct InfluxDB\
+    \ queries)\n  * No enrichment-pipeline references (deprecated in Epic 31)\n  *\
+    \ Standalone service pattern (no HTTP dependencies on other services)\n- For each\
+    \ service, generate architecture validation report\n"
+  - HomeIQ Service Validation - validate_external_services_arch
+  - Execute architect design_system
+  - Run step validate_external_services_arch
+  - Execute validate_external_services_arch
+  worktree: workflow-homeiq-service-validation-20251229-085909-validate_external_services_arch
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-validate_external_services_arch
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686196'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: validate_external_services_arch
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/weather-api/architecture-validation.json
+  - validation-results/sports-api/architecture-validation.json
+  - validation-results/carbon-intensity-service/architecture-validation.json
+  - validation-results/air-quality-service/architecture-validation.json
+  - validation-results/calendar-service/architecture-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_external_services_quality'
+  type: background
+  description: Execute reviewer agent for workflow step validate_external_services_quality
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@reviewer
+    review_code\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-validate_external_services_quality\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"validate_external_services_quality\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=validate_external_services_quality
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-validate_external_services_quality
+  triggers:
+  - 'Validate code quality and security for external API services (weather-api, sports-api,
+    carbon-intensity-service, air-quality-service, calendar-service):
+
+    - Consult Security expert, Code Quality expert, Performance expert
+
+    - HomeIQ Quality Checks: Overall 70+, Security 7.0+, Maintainability 7.0+, Test
+    coverage 80% target
+
+    - For each service, generate quality validation report with scores and expert
+    recommendations
+
+    '
+  - review code
+  - code review
+  - review
+  - HomeIQ Service Validation - validate_external_services_quality
+  - Execute reviewer review_code
+  - Run step validate_external_services_quality
+  - Execute validate_external_services_quality
+  worktree: workflow-homeiq-service-validation-20251229-085909-validate_external_services_quality
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-validate_external_services_quality
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686213'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: validate_external_services_quality
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/weather-api/quality-validation.json
+  - validation-results/sports-api/quality-validation.json
+  - validation-results/carbon-intensity-service/quality-validation.json
+  - validation-results/air-quality-service/quality-validation.json
+  - validation-results/calendar-service/quality-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_external_services_business'
+  type: background
+  description: Execute analyst agent for workflow step validate_external_services_business
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@analyst
+    analyze\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-validate_external_services_business\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"validate_external_services_business\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=validate_external_services_business
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-validate_external_services_business
+  triggers:
+  - 'Validate business patterns for external API services (weather-api, sports-api,
+    carbon-intensity-service, air-quality-service, calendar-service):
+
+    - Consult HomeIQ domain experts
+
+    - Validate external API integration patterns
+
+    - Assess business value and user needs alignment
+
+    - For each service, generate business validation report
+
+    '
+  - analyze
+  - analysis
+  - HomeIQ Service Validation - validate_external_services_business
+  - Execute analyst analyze
+  - Run step validate_external_services_business
+  - Execute validate_external_services_business
+  worktree: workflow-homeiq-service-validation-20251229-085909-validate_external_services_business
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-validate_external_services_business
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686228'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: validate_external_services_business
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/weather-api/business-validation.json
+  - validation-results/sports-api/business-validation.json
+  - validation-results/carbon-intensity-service/business-validation.json
+  - validation-results/air-quality-service/business-validation.json
+  - validation-results/calendar-service/business-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - aggregate_external_validation'
+  type: background
+  description: Execute orchestrator agent for workflow step aggregate_external_validation
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@orchestrator
+    finalize\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-aggregate_external_validation\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"aggregate_external_validation\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=aggregate_external_validation
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-aggregate_external_validation
+  triggers:
+  - 'Aggregate validation results for external API services (all three validation
+    tracks must complete):
+
+    - Combine architecture, quality, and business validation results for each external
+    API service
+
+    - Cross-reference findings across validation tracks
+
+    - Calculate composite validation scores
+
+    - Generate aggregated validation JSON for each external API service
+
+    '
+  - finalize
+  - complete
+  - HomeIQ Service Validation - aggregate_external_validation
+  - Execute orchestrator finalize
+  - Run step aggregate_external_validation
+  - Execute aggregate_external_validation
+  worktree: workflow-homeiq-service-validation-20251229-085909-aggregate_external_validation
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-aggregate_external_validation
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686245'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: aggregate_external_validation
+    generated: true
+  watch:
+  - validation-results/weather-api/architecture-validation.json
+  - validation-results/weather-api/quality-validation.json
+  - validation-results/weather-api/business-validation.json
+  - validation-results/sports-api/architecture-validation.json
+  - validation-results/sports-api/quality-validation.json
+  - validation-results/sports-api/business-validation.json
+  - validation-results/carbon-intensity-service/architecture-validation.json
+  - validation-results/carbon-intensity-service/quality-validation.json
+  - validation-results/carbon-intensity-service/business-validation.json
+  - validation-results/air-quality-service/architecture-validation.json
+  - validation-results/air-quality-service/quality-validation.json
+  - validation-results/air-quality-service/business-validation.json
+  - validation-results/calendar-service/architecture-validation.json
+  - validation-results/calendar-service/quality-validation.json
+  - validation-results/calendar-service/business-validation.json
+  - validation-results/weather-api/aggregated-validation.json
+  - validation-results/sports-api/aggregated-validation.json
+  - validation-results/carbon-intensity-service/aggregated-validation.json
+  - validation-results/air-quality-service/aggregated-validation.json
+  - validation-results/calendar-service/aggregated-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_remaining_services'
+  type: background
+  description: Execute reviewer agent for workflow step validate_remaining_services
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@reviewer
+    review_code\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-validate_remaining_services\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"validate_remaining_services\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=validate_remaining_services
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-validate_remaining_services
+  triggers:
+  - 'Validate remaining services (AI services, device services, supporting services):
+
+    - Process services in batches based on services-inventory.json
+
+    - For each service, perform all three validation tracks (architecture, quality,
+    business)
+
+    - Apply same validation criteria as critical and external services
+
+    - Generate validation results for each service
+
+    - Focus on identifying services that need immediate attention
+
+    '
+  - review code
+  - code review
+  - review
+  - HomeIQ Service Validation - validate_remaining_services
+  - Execute reviewer review_code
+  - Run step validate_remaining_services
+  - Execute validate_remaining_services
+  worktree: workflow-homeiq-service-validation-20251229-085909-validate_remaining_services
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-validate_remaining_services
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686258'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: validate_remaining_services
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/remaining-services-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - generate_service_reports'
+  type: background
+  description: Execute documenter agent for workflow step generate_service_reports
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@documenter
+    generate_docs\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-generate_service_reports\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"generate_service_reports\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=generate_service_reports
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-generate_service_reports
+  triggers:
+  - "Generate comprehensive validation report for each validated service:\n- For critical\
+    \ services: Use aggregated validation JSON\n- For external API services: Combine\
+    \ architecture, quality, business validation JSON\n- For remaining services: Use\
+    \ batch validation results\n- Report format per service:\n  * Executive Summary:\
+    \ Status (PASS/WARNING/FAIL), Overall Score, Critical Issues Count, Recommendations\
+    \ Count\n  * Technical Validation:\n    - Architecture Validation: Expert feedback,\
+    \ Epic 31/Epic 22 compliance, recommendations\n    - Code Quality & Security:\
+    \ Scores (overall, security, maintainability, test coverage, performance), expert\
+    \ feedback, recommendations\n  * Business Validation: Pattern compliance, business\
+    \ alignment, recommendations\n  * Action Items: Prioritized list (High/Medium/Low)\
+    \ with expert attribution, confidence scores, and impact descriptions\n- Generate\
+    \ markdown report for each service: validation-reports/{service-name}-validation-report.md\n"
+  - HomeIQ Service Validation - generate_service_reports
+  - Execute documenter generate_docs
+  - Run step generate_service_reports
+  - Execute generate_service_reports
+  worktree: workflow-homeiq-service-validation-20251229-085909-generate_service_reports
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-generate_service_reports
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686276'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: generate_service_reports
+    generated: true
+  watch:
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/data-api/aggregated-validation.json
+  - validation-results/ai-automation-service-new/aggregated-validation.json
+  - validation-results/weather-api/aggregated-validation.json
+  - validation-results/sports-api/aggregated-validation.json
+  - validation-results/carbon-intensity-service/aggregated-validation.json
+  - validation-results/air-quality-service/aggregated-validation.json
+  - validation-results/calendar-service/aggregated-validation.json
+  - validation-results/remaining-services-validation.json
+  - validation-reports/websocket-ingestion-validation-report.md
+  - validation-reports/data-api-validation-report.md
+  - validation-reports/ai-automation-service-new-validation-report.md
+  - validation-reports/weather-api-validation-report.md
+  - validation-reports/sports-api-validation-report.md
+  - validation-reports/carbon-intensity-service-validation-report.md
+  - validation-reports/air-quality-service-validation-report.md
+  - validation-reports/calendar-service-validation-report.md
+  - validation-reports/remaining-services-validation-report.md
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - generate_master_summary'
+  type: background
+  description: Execute documenter agent for workflow step generate_master_summary
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@documenter
+    generate_docs\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-generate_master_summary\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"generate_master_summary\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=generate_master_summary
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-generate_master_summary
+  triggers:
+  - "Generate master validation summary across all services:\n- Aggregate all service\
+    \ validation reports\n- Create services summary table with:\n  * Service name\n\
+    \  * Status (PASS/WARNING/FAIL)\n  * Overall Score\n  * Architecture Compliance\
+    \ (Epic 31, Epic 22)\n  * Quality Scores (Security, Maintainability, Test Coverage)\n\
+    \  * Critical Issues Count\n  * Key Issues Summary\n- Create priority matrix:\n\
+    \  * High Priority: Services with FAIL status or critical architecture violations\n\
+    \  * Medium Priority: Services with WARNING status or quality gaps\n  * Low Priority:\
+    \ Services with PASS status but improvement opportunities\n- Identify common issues\
+    \ across services:\n  * Architecture pattern violations\n  * Common quality issues\n\
+    \  * Shared security concerns\n  * Test coverage gaps\n- Overall architecture\
+    \ compliance status:\n  * Epic 31 compliance summary (direct InfluxDB writes,\
+    \ no enrichment-pipeline)\n  * Epic 22 compliance summary (hybrid database architecture)\n\
+    \  * Service pattern adherence\n- Next steps and recommendations:\n  * Prioritized\
+    \ action items across all services\n  * Common improvement patterns\n  * Architecture\
+    \ modernization opportunities\n  * Quality improvement initiatives\n- Generate\
+    \ master summary: validation-reports/MASTER-VALIDATION-SUMMARY.md\n"
+  - HomeIQ Service Validation - generate_master_summary
+  - Execute documenter generate_docs
+  - Run step generate_master_summary
+  - Execute generate_master_summary
+  worktree: workflow-homeiq-service-validation-20251229-085909-generate_master_summary
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-generate_master_summary
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686293'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: generate_master_summary
+    generated: true
+  watch:
+  - validation-reports/websocket-ingestion-validation-report.md
+  - validation-reports/data-api-validation-report.md
+  - validation-reports/ai-automation-service-new-validation-report.md
+  - validation-reports/weather-api-validation-report.md
+  - validation-reports/sports-api-validation-report.md
+  - validation-reports/carbon-intensity-service-validation-report.md
+  - validation-reports/air-quality-service-validation-report.md
+  - validation-reports/calendar-service-validation-report.md
+  - validation-reports/remaining-services-validation-report.md
+  - validation-reports/MASTER-VALIDATION-SUMMARY.md
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - complete'
+  type: background
+  description: Execute orchestrator agent for workflow step complete
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@orchestrator
+    finalize\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-085909\\step-complete\"),
+    workflow_id=\"homeiq-service-validation-20251229-085909\", step_id=\"complete\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-085909
+  - STEP_ID=complete
+  - WORKTREE=workflow-homeiq-service-validation-20251229-085909-complete
+  triggers:
+  - "Finalize service validation:\n- Verify all validation tracks completed\n- Confirm\
+    \ all service reports generated\n- Verify master summary generated\n- Generate\
+    \ final summary of validation execution\n- Include recommendations for next steps:\n\
+    \  * Review master validation summary\n  * Prioritize services needing immediate\
+    \ attention\n  * Create improvement plans per service using TappsCodingAgents\
+    \ workflows\n  * Track validation status over time (run periodically)\n  * Use\
+    \ validation reports for architecture decision documentation\n"
+  - finalize
+  - complete
+  - HomeIQ Service Validation - complete
+  - Execute orchestrator finalize
+  - Run step complete
+  - Execute complete
+  worktree: workflow-homeiq-service-validation-20251229-085909-complete
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-085909/step-complete
+  metadata:
+    generated_at: '2025-12-29T08:59:09.686308'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-085909
+    step_id: complete
+    generated: true
+  watch:
+  - validation-reports/MASTER-VALIDATION-SUMMARY.md
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - discover_services'
+  type: background
+  description: Execute analyst agent for workflow step discover_services
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@analyst
+    gather_requirements\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-discover_services\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"discover_services\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=discover_services
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-discover_services
+  triggers:
+  - "Discover all active services in the services/ directory:\n- Scan services/ directory\
+    \ structure\n- Identify all microservices (exclude archive/, tests/, .pytest_cache/)\n\
+    - Extract service metadata:\n  * Service name (directory name)\n  * Service path\
+    \ (relative path)\n  * Service type (inference from structure: external-api, query-api,\
+    \ ingestion, ai-service, device-service, etc.)\n  * Port number (if specified\
+    \ in docker-compose.yml or service config)\n- Categorize services:\n  * Critical\
+    \ services: websocket-ingestion, data-api, ai-automation-service-new\n  * External\
+    \ API services: weather-api, sports-api, carbon-intensity-service, air-quality-service,\
+    \ calendar-service\n  * AI services: ai-core-service, ai-query-service, ai-pattern-service,\
+    \ ai-training-service, ai-code-executor\n  * Device services: device-health-monitor,\
+    \ device-recommender, device-context-classifier, etc.\n  * Supporting services:\
+    \ log-aggregator, data-retention, admin-api, etc.\n- Create structured JSON output\
+    \ with service inventory\n"
+  - gather requirements
+  - collect requirements
+  - HomeIQ Service Validation - discover_services
+  - Execute analyst gather_requirements
+  - Run step discover_services
+  - Execute discover_services
+  worktree: workflow-homeiq-service-validation-20251229-090032-discover_services
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-discover_services
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369409'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: discover_services
+    generated: true
+  watch:
+  - services-inventory.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_critical_services_arch'
+  type: background
+  description: Execute architect agent for workflow step validate_critical_services_arch
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@architect
+    design_system\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-validate_critical_services_arch\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"validate_critical_services_arch\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=validate_critical_services_arch
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-validate_critical_services_arch
+  triggers:
+  - "Validate architecture for critical services (websocket-ingestion, data-api, ai-automation-service-new):\n\
+    - Consult Software Architecture expert for microservices patterns\n- Consult API\
+    \ Design expert for REST/gRPC patterns\n- Consult Cloud Infrastructure expert\
+    \ for deployment patterns\n- Consult Database expert for data storage patterns\n\
+    - HomeIQ-Specific Architecture Checks:\n  * Epic 31 compliance: Verify direct\
+    \ InfluxDB writes (NO enrichment-pipeline references)\n  * Service pattern compliance:\n\
+    \    - websocket-ingestion: Event Ingestion pattern (HA WebSocket \u2192 inline\
+    \ normalization \u2192 direct InfluxDB)\n    - data-api: Query API pattern (central\
+    \ query endpoint, InfluxDB for events, SQLite for metadata)\n    - ai-automation-service-new:\
+    \ AI service pattern (standalone, writes to InfluxDB, queries via data-api)\n\
+    \  * Database architecture (Epic 22): Hybrid pattern validation\n    - InfluxDB\
+    \ for time-series data (events, metrics, sports scores)\n    - SQLite for relational\
+    \ metadata (devices, entities, webhooks)\n  * No service-to-service HTTP dependencies\
+    \ (standalone services)\n- For each service, generate architecture validation\
+    \ report with:\n  * Expert feedback from all consulted experts\n  * Compliance\
+    \ status (Epic 31, Epic 22, service patterns)\n  * Architecture recommendations\
+    \ prioritized by expert confidence\n  * Specific issues found (if any)\n"
+  - HomeIQ Service Validation - validate_critical_services_arch
+  - Execute architect design_system
+  - Run step validate_critical_services_arch
+  - Execute validate_critical_services_arch
+  worktree: workflow-homeiq-service-validation-20251229-090032-validate_critical_services_arch
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-validate_critical_services_arch
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369438'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: validate_critical_services_arch
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/architecture-validation.json
+  - validation-results/data-api/architecture-validation.json
+  - validation-results/ai-automation-service-new/architecture-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_critical_services_quality'
+  type: background
+  description: Execute reviewer agent for workflow step validate_critical_services_quality
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@reviewer
+    review_code\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-validate_critical_services_quality\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"validate_critical_services_quality\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=validate_critical_services_quality
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-validate_critical_services_quality
+  triggers:
+  - "Validate code quality and security for critical services (websocket-ingestion,\
+    \ data-api, ai-automation-service-new):\n- Consult Security expert for vulnerabilities\
+    \ and best practices\n- Consult Code Quality expert for maintainability and complexity\
+    \ analysis\n- Consult Performance expert for efficiency and scalability assessment\n\
+    - HomeIQ-Specific Quality Checks:\n  * Quality thresholds: Overall score 70+ required\
+    \ (80+ for critical services)\n  * Security score: 7.0+/10 required\n  * Maintainability\
+    \ score: 7.0+/10 required\n  * Test coverage: 80% target (document current coverage,\
+    \ identify gaps)\n  * Performance: Check for bottlenecks, efficient algorithms\n\
+    - For each service, generate quality validation report with:\n  * Quality scores\
+    \ (overall, security, maintainability, test coverage, performance)\n  * Expert\
+    \ feedback from all consulted experts\n  * Security vulnerabilities identified\
+    \ (if any)\n  * Maintainability issues (complexity, code smells)\n  * Performance\
+    \ concerns (if any)\n  * Test coverage analysis and recommendations\n  * Recommendations\
+    \ prioritized by expert confidence and impact\n"
+  - review code
+  - code review
+  - review
+  - HomeIQ Service Validation - validate_critical_services_quality
+  - Execute reviewer review_code
+  - Run step validate_critical_services_quality
+  - Execute validate_critical_services_quality
+  worktree: workflow-homeiq-service-validation-20251229-090032-validate_critical_services_quality
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-validate_critical_services_quality
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369454'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: validate_critical_services_quality
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/quality-validation.json
+  - validation-results/data-api/quality-validation.json
+  - validation-results/ai-automation-service-new/quality-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_critical_services_business'
+  type: background
+  description: Execute analyst agent for workflow step validate_critical_services_business
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@analyst
+    analyze\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-validate_critical_services_business\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"validate_critical_services_business\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=validate_critical_services_business
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-validate_critical_services_business
+  triggers:
+  - "Validate business patterns for critical services (websocket-ingestion, data-api,\
+    \ ai-automation-service-new):\n- Consult HomeIQ domain experts (IoT, home automation\
+    \ patterns)\n- Validate service communication patterns\n- Assess business requirements\
+    \ alignment\n- HomeIQ-Specific Business Checks:\n  * Service role and purpose\
+    \ clarity: Does the service have a clear, well-defined purpose?\n  * Integration\
+    \ compliance: Does the service integrate correctly with other services per Epic\
+    \ 31 patterns?\n  * Business value alignment: Does the service provide clear business\
+    \ value and meet user needs?\n  * Service pattern adherence:\n    - websocket-ingestion:\
+    \ Event ingestion from Home Assistant, direct InfluxDB writes\n    - data-api:\
+    \ Central query endpoint for all data (InfluxDB + SQLite)\n    - ai-automation-service-new:\
+    \ AI automation logic, writes to InfluxDB\n- For each service, generate business\
+    \ validation report with:\n  * Service purpose and role assessment\n  * Integration\
+    \ pattern compliance\n  * Business value alignment\n  * HomeIQ domain pattern\
+    \ compliance\n  * Recommendations for business logic improvements (if any)\n"
+  - analyze
+  - analysis
+  - HomeIQ Service Validation - validate_critical_services_business
+  - Execute analyst analyze
+  - Run step validate_critical_services_business
+  - Execute validate_critical_services_business
+  worktree: workflow-homeiq-service-validation-20251229-090032-validate_critical_services_business
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-validate_critical_services_business
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369465'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: validate_critical_services_business
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/business-validation.json
+  - validation-results/data-api/business-validation.json
+  - validation-results/ai-automation-service-new/business-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - aggregate_critical_validation'
+  type: background
+  description: Execute orchestrator agent for workflow step aggregate_critical_validation
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@orchestrator
+    finalize\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-aggregate_critical_validation\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"aggregate_critical_validation\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=aggregate_critical_validation
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-aggregate_critical_validation
+  triggers:
+  - 'Aggregate validation results for critical services (all three validation tracks
+    must complete):
+
+    - Combine architecture, quality, and business validation results for each critical
+    service
+
+    - Cross-reference findings across validation tracks
+
+    - Calculate composite validation scores
+
+    - Identify services needing immediate attention (FAIL status)
+
+    - Prioritize recommendations by expert confidence and impact
+
+    - Generate aggregated validation JSON for each critical service
+
+    '
+  - finalize
+  - complete
+  - HomeIQ Service Validation - aggregate_critical_validation
+  - Execute orchestrator finalize
+  - Run step aggregate_critical_validation
+  - Execute aggregate_critical_validation
+  worktree: workflow-homeiq-service-validation-20251229-090032-aggregate_critical_validation
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-aggregate_critical_validation
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369477'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: aggregate_critical_validation
+    generated: true
+  watch:
+  - validation-results/websocket-ingestion/architecture-validation.json
+  - validation-results/websocket-ingestion/quality-validation.json
+  - validation-results/websocket-ingestion/business-validation.json
+  - validation-results/data-api/architecture-validation.json
+  - validation-results/data-api/quality-validation.json
+  - validation-results/data-api/business-validation.json
+  - validation-results/ai-automation-service-new/architecture-validation.json
+  - validation-results/ai-automation-service-new/quality-validation.json
+  - validation-results/ai-automation-service-new/business-validation.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/data-api/aggregated-validation.json
+  - validation-results/ai-automation-service-new/aggregated-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_external_services_arch'
+  type: background
+  description: Execute architect agent for workflow step validate_external_services_arch
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@architect
+    design_system\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-validate_external_services_arch\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"validate_external_services_arch\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=validate_external_services_arch
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-validate_external_services_arch
+  triggers:
+  - "Validate architecture for external API services (weather-api, sports-api, carbon-intensity-service,\
+    \ air-quality-service, calendar-service):\n- Consult Software Architecture expert\
+    \ for microservices patterns\n- Consult API Design expert for REST/gRPC patterns\n\
+    - Consult Cloud Infrastructure expert for deployment patterns\n- Consult Database\
+    \ expert for data storage patterns\n- HomeIQ-Specific Architecture Checks:\n \
+    \ * Epic 31 compliance: Verify direct InfluxDB writes (NO service-to-service HTTP\
+    \ calls)\n  * External API pattern compliance:\n    - Fetch data from external\
+    \ API (ESPN, OpenWeatherMap, etc.)\n    - Write directly to InfluxDB (standalone,\
+    \ no dependencies)\n    - Dashboard queries via data-api (not direct InfluxDB\
+    \ queries)\n  * No enrichment-pipeline references (deprecated in Epic 31)\n  *\
+    \ Standalone service pattern (no HTTP dependencies on other services)\n- For each\
+    \ service, generate architecture validation report\n"
+  - HomeIQ Service Validation - validate_external_services_arch
+  - Execute architect design_system
+  - Run step validate_external_services_arch
+  - Execute validate_external_services_arch
+  worktree: workflow-homeiq-service-validation-20251229-090032-validate_external_services_arch
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-validate_external_services_arch
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369490'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: validate_external_services_arch
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/weather-api/architecture-validation.json
+  - validation-results/sports-api/architecture-validation.json
+  - validation-results/carbon-intensity-service/architecture-validation.json
+  - validation-results/air-quality-service/architecture-validation.json
+  - validation-results/calendar-service/architecture-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_external_services_quality'
+  type: background
+  description: Execute reviewer agent for workflow step validate_external_services_quality
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@reviewer
+    review_code\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-validate_external_services_quality\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"validate_external_services_quality\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=validate_external_services_quality
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-validate_external_services_quality
+  triggers:
+  - 'Validate code quality and security for external API services (weather-api, sports-api,
+    carbon-intensity-service, air-quality-service, calendar-service):
+
+    - Consult Security expert, Code Quality expert, Performance expert
+
+    - HomeIQ Quality Checks: Overall 70+, Security 7.0+, Maintainability 7.0+, Test
+    coverage 80% target
+
+    - For each service, generate quality validation report with scores and expert
+    recommendations
+
+    '
+  - review code
+  - code review
+  - review
+  - HomeIQ Service Validation - validate_external_services_quality
+  - Execute reviewer review_code
+  - Run step validate_external_services_quality
+  - Execute validate_external_services_quality
+  worktree: workflow-homeiq-service-validation-20251229-090032-validate_external_services_quality
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-validate_external_services_quality
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369502'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: validate_external_services_quality
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/weather-api/quality-validation.json
+  - validation-results/sports-api/quality-validation.json
+  - validation-results/carbon-intensity-service/quality-validation.json
+  - validation-results/air-quality-service/quality-validation.json
+  - validation-results/calendar-service/quality-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_external_services_business'
+  type: background
+  description: Execute analyst agent for workflow step validate_external_services_business
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@analyst
+    analyze\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-validate_external_services_business\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"validate_external_services_business\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=validate_external_services_business
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-validate_external_services_business
+  triggers:
+  - 'Validate business patterns for external API services (weather-api, sports-api,
+    carbon-intensity-service, air-quality-service, calendar-service):
+
+    - Consult HomeIQ domain experts
+
+    - Validate external API integration patterns
+
+    - Assess business value and user needs alignment
+
+    - For each service, generate business validation report
+
+    '
+  - analyze
+  - analysis
+  - HomeIQ Service Validation - validate_external_services_business
+  - Execute analyst analyze
+  - Run step validate_external_services_business
+  - Execute validate_external_services_business
+  worktree: workflow-homeiq-service-validation-20251229-090032-validate_external_services_business
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-validate_external_services_business
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369511'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: validate_external_services_business
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/weather-api/business-validation.json
+  - validation-results/sports-api/business-validation.json
+  - validation-results/carbon-intensity-service/business-validation.json
+  - validation-results/air-quality-service/business-validation.json
+  - validation-results/calendar-service/business-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - aggregate_external_validation'
+  type: background
+  description: Execute orchestrator agent for workflow step aggregate_external_validation
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@orchestrator
+    finalize\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-aggregate_external_validation\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"aggregate_external_validation\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=aggregate_external_validation
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-aggregate_external_validation
+  triggers:
+  - 'Aggregate validation results for external API services (all three validation
+    tracks must complete):
+
+    - Combine architecture, quality, and business validation results for each external
+    API service
+
+    - Cross-reference findings across validation tracks
+
+    - Calculate composite validation scores
+
+    - Generate aggregated validation JSON for each external API service
+
+    '
+  - finalize
+  - complete
+  - HomeIQ Service Validation - aggregate_external_validation
+  - Execute orchestrator finalize
+  - Run step aggregate_external_validation
+  - Execute aggregate_external_validation
+  worktree: workflow-homeiq-service-validation-20251229-090032-aggregate_external_validation
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-aggregate_external_validation
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369523'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: aggregate_external_validation
+    generated: true
+  watch:
+  - validation-results/weather-api/architecture-validation.json
+  - validation-results/weather-api/quality-validation.json
+  - validation-results/weather-api/business-validation.json
+  - validation-results/sports-api/architecture-validation.json
+  - validation-results/sports-api/quality-validation.json
+  - validation-results/sports-api/business-validation.json
+  - validation-results/carbon-intensity-service/architecture-validation.json
+  - validation-results/carbon-intensity-service/quality-validation.json
+  - validation-results/carbon-intensity-service/business-validation.json
+  - validation-results/air-quality-service/architecture-validation.json
+  - validation-results/air-quality-service/quality-validation.json
+  - validation-results/air-quality-service/business-validation.json
+  - validation-results/calendar-service/architecture-validation.json
+  - validation-results/calendar-service/quality-validation.json
+  - validation-results/calendar-service/business-validation.json
+  - validation-results/weather-api/aggregated-validation.json
+  - validation-results/sports-api/aggregated-validation.json
+  - validation-results/carbon-intensity-service/aggregated-validation.json
+  - validation-results/air-quality-service/aggregated-validation.json
+  - validation-results/calendar-service/aggregated-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - validate_remaining_services'
+  type: background
+  description: Execute reviewer agent for workflow step validate_remaining_services
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@reviewer
+    review_code\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-validate_remaining_services\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"validate_remaining_services\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=validate_remaining_services
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-validate_remaining_services
+  triggers:
+  - 'Validate remaining services (AI services, device services, supporting services):
+
+    - Process services in batches based on services-inventory.json
+
+    - For each service, perform all three validation tracks (architecture, quality,
+    business)
+
+    - Apply same validation criteria as critical and external services
+
+    - Generate validation results for each service
+
+    - Focus on identifying services that need immediate attention
+
+    '
+  - review code
+  - code review
+  - review
+  - HomeIQ Service Validation - validate_remaining_services
+  - Execute reviewer review_code
+  - Run step validate_remaining_services
+  - Execute validate_remaining_services
+  worktree: workflow-homeiq-service-validation-20251229-090032-validate_remaining_services
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-validate_remaining_services
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369532'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: validate_remaining_services
+    generated: true
+  watch:
+  - services-inventory.json
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/remaining-services-validation.json
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - generate_service_reports'
+  type: background
+  description: Execute documenter agent for workflow step generate_service_reports
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@documenter
+    generate_docs\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-generate_service_reports\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"generate_service_reports\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=generate_service_reports
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-generate_service_reports
+  triggers:
+  - "Generate comprehensive validation report for each validated service:\n- For critical\
+    \ services: Use aggregated validation JSON\n- For external API services: Combine\
+    \ architecture, quality, business validation JSON\n- For remaining services: Use\
+    \ batch validation results\n- Report format per service:\n  * Executive Summary:\
+    \ Status (PASS/WARNING/FAIL), Overall Score, Critical Issues Count, Recommendations\
+    \ Count\n  * Technical Validation:\n    - Architecture Validation: Expert feedback,\
+    \ Epic 31/Epic 22 compliance, recommendations\n    - Code Quality & Security:\
+    \ Scores (overall, security, maintainability, test coverage, performance), expert\
+    \ feedback, recommendations\n  * Business Validation: Pattern compliance, business\
+    \ alignment, recommendations\n  * Action Items: Prioritized list (High/Medium/Low)\
+    \ with expert attribution, confidence scores, and impact descriptions\n- Generate\
+    \ markdown report for each service: validation-reports/{service-name}-validation-report.md\n"
+  - HomeIQ Service Validation - generate_service_reports
+  - Execute documenter generate_docs
+  - Run step generate_service_reports
+  - Execute generate_service_reports
+  worktree: workflow-homeiq-service-validation-20251229-090032-generate_service_reports
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-generate_service_reports
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369543'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: generate_service_reports
+    generated: true
+  watch:
+  - validation-results/websocket-ingestion/aggregated-validation.json
+  - validation-results/data-api/aggregated-validation.json
+  - validation-results/ai-automation-service-new/aggregated-validation.json
+  - validation-results/weather-api/aggregated-validation.json
+  - validation-results/sports-api/aggregated-validation.json
+  - validation-results/carbon-intensity-service/aggregated-validation.json
+  - validation-results/air-quality-service/aggregated-validation.json
+  - validation-results/calendar-service/aggregated-validation.json
+  - validation-results/remaining-services-validation.json
+  - validation-reports/websocket-ingestion-validation-report.md
+  - validation-reports/data-api-validation-report.md
+  - validation-reports/ai-automation-service-new-validation-report.md
+  - validation-reports/weather-api-validation-report.md
+  - validation-reports/sports-api-validation-report.md
+  - validation-reports/carbon-intensity-service-validation-report.md
+  - validation-reports/air-quality-service-validation-report.md
+  - validation-reports/calendar-service-validation-report.md
+  - validation-reports/remaining-services-validation-report.md
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - generate_master_summary'
+  type: background
+  description: Execute documenter agent for workflow step generate_master_summary
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@documenter
+    generate_docs\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-generate_master_summary\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"generate_master_summary\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=generate_master_summary
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-generate_master_summary
+  triggers:
+  - "Generate master validation summary across all services:\n- Aggregate all service\
+    \ validation reports\n- Create services summary table with:\n  * Service name\n\
+    \  * Status (PASS/WARNING/FAIL)\n  * Overall Score\n  * Architecture Compliance\
+    \ (Epic 31, Epic 22)\n  * Quality Scores (Security, Maintainability, Test Coverage)\n\
+    \  * Critical Issues Count\n  * Key Issues Summary\n- Create priority matrix:\n\
+    \  * High Priority: Services with FAIL status or critical architecture violations\n\
+    \  * Medium Priority: Services with WARNING status or quality gaps\n  * Low Priority:\
+    \ Services with PASS status but improvement opportunities\n- Identify common issues\
+    \ across services:\n  * Architecture pattern violations\n  * Common quality issues\n\
+    \  * Shared security concerns\n  * Test coverage gaps\n- Overall architecture\
+    \ compliance status:\n  * Epic 31 compliance summary (direct InfluxDB writes,\
+    \ no enrichment-pipeline)\n  * Epic 22 compliance summary (hybrid database architecture)\n\
+    \  * Service pattern adherence\n- Next steps and recommendations:\n  * Prioritized\
+    \ action items across all services\n  * Common improvement patterns\n  * Architecture\
+    \ modernization opportunities\n  * Quality improvement initiatives\n- Generate\
+    \ master summary: validation-reports/MASTER-VALIDATION-SUMMARY.md\n"
+  - HomeIQ Service Validation - generate_master_summary
+  - Execute documenter generate_docs
+  - Run step generate_master_summary
+  - Execute generate_master_summary
+  worktree: workflow-homeiq-service-validation-20251229-090032-generate_master_summary
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-generate_master_summary
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369554'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: generate_master_summary
+    generated: true
+  watch:
+  - validation-reports/websocket-ingestion-validation-report.md
+  - validation-reports/data-api-validation-report.md
+  - validation-reports/ai-automation-service-new-validation-report.md
+  - validation-reports/weather-api-validation-report.md
+  - validation-reports/sports-api-validation-report.md
+  - validation-reports/carbon-intensity-service-validation-report.md
+  - validation-reports/air-quality-service-validation-report.md
+  - validation-reports/calendar-service-validation-report.md
+  - validation-reports/remaining-services-validation-report.md
+  - validation-reports/MASTER-VALIDATION-SUMMARY.md
+- name: 'TappsCodingAgents Workflow: HomeIQ Service Validation - complete'
+  type: background
+  description: Execute orchestrator agent for workflow step complete
+  working_directory: C:\cursor\HomeIQ
+  commands:
+  - python -c "from pathlib import Path; from tapps_agents.workflow.cursor_skill_helper
+    import create_skill_command_file; create_skill_command_file(command=\"@orchestrator
+    finalize\", worktree_path=Path(\"C:\\cursor\\HomeIQ\\.tapps-agents\\workflow-state\\homeiq-service-validation-20251229-090032\\step-complete\"),
+    workflow_id=\"homeiq-service-validation-20251229-090032\", step_id=\"complete\")"
+  environment:
+  - TAPPS_AGENTS_MODE=cursor
+  - WORKFLOW_ID=homeiq-service-validation-20251229-090032
+  - STEP_ID=complete
+  - WORKTREE=workflow-homeiq-service-validation-20251229-090032-complete
+  triggers:
+  - "Finalize service validation:\n- Verify all validation tracks completed\n- Confirm\
+    \ all service reports generated\n- Verify master summary generated\n- Generate\
+    \ final summary of validation execution\n- Include recommendations for next steps:\n\
+    \  * Review master validation summary\n  * Prioritize services needing immediate\
+    \ attention\n  * Create improvement plans per service using TappsCodingAgents\
+    \ workflows\n  * Track validation status over time (run periodically)\n  * Use\
+    \ validation reports for architecture decision documentation\n"
+  - finalize
+  - complete
+  - HomeIQ Service Validation - complete
+  - Execute orchestrator finalize
+  - Run step complete
+  - Execute complete
+  worktree: workflow-homeiq-service-validation-20251229-090032-complete
+  output:
+    format: json
+    location: .tapps-agents/workflow-state/homeiq-service-validation-20251229-090032/step-complete
+  metadata:
+    generated_at: '2025-12-29T09:00:32.369563'
+    workflow_name: HomeIQ Service Validation
+    workflow_version: 1.0.0
+    workflow_id: homeiq-service-validation-20251229-090032
+    step_id: complete
+    generated: true
+  watch:
+  - validation-reports/MASTER-VALIDATION-SUMMARY.md
 global:
   context7_cache: .tapps-agents/kb/context7-cache
   output_directory: .tapps-agents/reports
