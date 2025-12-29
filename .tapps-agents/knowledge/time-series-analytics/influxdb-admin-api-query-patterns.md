@@ -207,8 +207,11 @@ async def get_service_metrics(self, service_name: str, period: str = "1h") -> Di
     Get metrics for a specific service from InfluxDB
     
     Args:
-        service_name: Name of the service (websocket-ingestion, enrichment-pipeline, etc.)
+        service_name: Name of the service (websocket-ingestion, data-api, weather-api, etc.)
         period: Time period
+        
+    Note: enrichment-pipeline was deprecated in Epic 31 (October 2025). 
+    Historical metrics may still reference it, but new services write directly to InfluxDB.
     
     Returns:
         Service metrics dictionary
@@ -616,7 +619,8 @@ async def test_get_event_statistics():
 **Related Files:**
 - `services/admin-api/src/stats_endpoints.py` - Statistics endpoints
 - `services/admin-api/src/health_endpoints.py` - Health monitoring
-- `services/enrichment-pipeline/src/influxdb_wrapper.py` - Write patterns
+- `services/websocket-ingestion/src/influxdb_batch_writer.py` - Direct write patterns (Epic 31)
+- Historical: `services/enrichment-pipeline/src/influxdb_wrapper.py` - Deprecated (Epic 31)
 - `services/websocket-ingestion/src/influxdb_wrapper.py` - Write patterns
 
 **Source:** HA Ingestor architectural analysis  

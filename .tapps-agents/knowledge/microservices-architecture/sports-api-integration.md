@@ -1140,8 +1140,13 @@ services:
 
 **Example Use Case**: "Turn on TV when my team's game starts"
 
+**Note**: This example shows the historical pattern. As of Epic 31 (October 2025), 
+sports data is handled by the standalone `sports-data` service (Port 8005) which 
+writes directly to InfluxDB. No enrichment-pipeline is used.
+
 ```python
-# In enrichment-pipeline service
+# Historical pattern (pre-Epic 31) - DEPRECATED
+# Current pattern: sports-data service writes directly to InfluxDB
 class SportsEnricher:
     def __init__(self, sports_api_url: str):
         self.sports_api_url = sports_api_url
