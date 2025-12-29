@@ -1,8 +1,8 @@
 # HomeIQ Deployment Runbook
 
-**Last Updated:** December 27, 2025  
+**Last Updated:** December 29, 2025  
 **Status:** Active  
-**Version:** 2.0
+**Version:** 2.1
 
 ---
 
@@ -333,6 +333,90 @@ bash scripts/deployment/health-check.sh
 - Configuration: Check environment variables
 - Logs: Review service logs for errors
 
+### Nginx Proxy Issues (Dashboard)
+
+**Common Issues:**
+
+1. **502 Bad Gateway or Connection Closed**
+   - **Cause:** Nginx proxy_pass configuration issue or service not running
+   - **Check:** `docker logs homeiq-dashboard | grep -i error`
+   - **Solution:** Verify service names and ports match docker-compose.yml
+
+2. **"host not found in upstream" Error**
+   - **Cause:** Nginx tries to resolve hostname at startup, but service isn't running
+   - **Solution:** Use variable-based proxy_pass with resolver for optional services:
+   ```nginx
+   location /service-name/ {
+       set $service "http://service-name:port";
+       proxy_pass $service/;
+       # Resolver already configured at server level
+   }
+   ```
+
+3. **Proxy Returns Wrong Endpoint (Root Instead of Target)**
+   - **Cause:** Variable-based proxy_pass not forwarding path correctly
+   - **Solution:** Use direct proxy_pass for always-running services, or use upstream blocks:
+   ```nginx
+   # For always-running services
+   location /api/integrations {
+       proxy_pass http://data_api/api/integrations;
+   }
+   
+   # For optional services (with resolver)
+   location /weather/ {
+       set $weather_service "http://weather-api:8009";
+       proxy_pass $weather_service/;
+   }
+   ```
+
+**Nginx Configuration Best Practices:**
+- **Always-running services:** Use direct `proxy_pass` or upstream blocks
+- **Optional services:** Use variable-based `proxy_pass` with resolver (allows nginx to start even if service isn't running)
+- **Service name changes:** Update both docker-compose.yml and nginx.conf (e.g., `ai-automation-service` → `ai-automation-service-new`)
+- **Port changes:** Verify internal ports match (e.g., `ai-automation-service-new` uses port 8025 internally, not 8018)
+
+**Verification:**
+```bash
+# Test proxy endpoints
+curl http://localhost:3000/setup-service/api/health/environment
+curl http://localhost:3000/api/integrations
+curl http://localhost:3000/log-aggregator/health
+curl http://localhost:3000/ai-automation/health
+
+# Check nginx config syntax
+docker exec homeiq-dashboard nginx -t
+
+# View nginx logs
+docker logs homeiq-dashboard --tail 50
+```
+
+### Authentication Issues (401 Unauthorized)
+
+**Dashboard Endpoints Requiring Public Access:**
+- `/api/v1/config/integrations/mqtt` (GET/PUT) - MQTT configuration for dashboard
+- `/api/v1/real-time-metrics` - Real-time metrics for dashboard display
+
+**If Dashboard Shows "Authentication Required":**
+1. Check admin-api service is running: `curl http://localhost:8004/health`
+2. Verify endpoints are registered as public (no `dependencies=secure_dependency`)
+3. Check frontend API calls include proper headers
+4. Review `services/admin-api/src/main.py` router configuration
+
+### Health Score Showing 0/100
+
+**Cause:** Health scoring algorithm returns 0 when data is incomplete
+
+**Fixed (December 2025):**
+- HA Core "error/unknown" now scores 25 instead of 0
+- Empty integrations list scores 30 instead of 0
+- 0ms response time scores 80 instead of causing issues
+
+**Verification:**
+```bash
+curl http://localhost:8027/api/health/environment
+# Should return health_score > 0 even with partial data
+```
+
 ### High Error Rate
 
 **Check:**
@@ -437,6 +521,7 @@ gh workflow run deployment-notify.yml \
 ## References
 
 - [Deployment Pipeline Documentation](./DEPLOYMENT_PIPELINE.md) - Complete pipeline architecture
+- [Nginx Proxy Configuration Guide](./NGINX_PROXY_CONFIGURATION.md) - Detailed nginx proxy patterns and troubleshooting
 - [Test Strategy](../testing/TEST_STRATEGY.md)
 - [Security Audit](../security/SECURITY_AUDIT_REPORT.md)
 - [Production Readiness Components](../architecture/production-readiness-components.md)

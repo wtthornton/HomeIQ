@@ -106,8 +106,8 @@ class HealthScoringAlgorithm:
         
         Scoring:
         - healthy: 100 points
-        - warning: 50 points
-        - critical/error: 0 points
+        - warning: 50 points (HA is running but has issues)
+        - error/unknown: 25 points (HA might be running but can't verify)
         """
         status = ha_status.get("status", "unknown").lower()
 
@@ -116,7 +116,9 @@ class HealthScoringAlgorithm:
         elif status == "warning":
             return 50
         else:
-            return 0
+            # Don't return 0 for error/unknown - give partial credit if HA URL is configured
+            # This prevents health score from being 0 when HA is just unreachable
+            return 25
 
     def _score_integrations(self, integrations: list[dict]) -> int:
         """
@@ -129,7 +131,8 @@ class HealthScoringAlgorithm:
         - Zigbee2MQTT is excluded (it's just MQTT with a different topic)
         """
         if not integrations:
-            return 0
+            # If no integrations checked, give partial credit (system might be in setup)
+            return 30
 
         # Filter out Zigbee2MQTT - it's not a separate integration, just MQTT with different topic
         relevant_integrations = [
@@ -158,6 +161,7 @@ class HealthScoringAlgorithm:
         Score performance metrics
         
         Scoring based on response time:
+        - 0ms (no data/default): 80 points (assume good performance)
         - < 100ms: 100 points
         - < 250ms: 80 points
         - < 500ms: 60 points
@@ -166,7 +170,10 @@ class HealthScoringAlgorithm:
         """
         response_time = performance.get("response_time_ms", 0)
 
-        if response_time < 100:
+        # If response_time is 0, it might mean no data collected yet, give partial credit
+        if response_time == 0:
+            return 80
+        elif response_time < 100:
             return 100
         elif response_time < 250:
             return 80
