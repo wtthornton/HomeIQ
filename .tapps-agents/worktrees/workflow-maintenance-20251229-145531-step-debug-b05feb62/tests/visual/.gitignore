@@ -1,0 +1,9 @@
+# Puppeteer cache
+.cache/
+
+# Screenshot timestamps
+quick-check-*.png
+
+# Node modules (if isolated)
+node_modules/
+

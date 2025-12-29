@@ -196,6 +196,8 @@ deploy_services() {
         "smart-meter-service"
         "energy-correlator"
         "log-aggregator"
+        "ai-pattern-service"
+        "ai-automation-service-new"
         "health-dashboard"
     )
     

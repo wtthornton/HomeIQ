@@ -18,3 +18,11 @@ psutil>=5.9.0,<6.0.0
 requests>=2.32.0,<3.0.0
 httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
 
+# OpenTelemetry Observability
+opentelemetry-api>=1.24.0,<2.0.0
+opentelemetry-sdk>=1.24.0,<2.0.0
+opentelemetry-instrumentation-fastapi>=0.45b0,<1.0.0
+opentelemetry-exporter-otlp-proto-grpc>=1.24.0,<2.0.0
+opentelemetry-instrumentation-requests>=0.45b0,<1.0.0
+opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0
+

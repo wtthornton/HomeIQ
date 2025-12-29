@@ -118,6 +118,21 @@ docker compose up -d <service-name>
 docker compose ps
 ```
 
+**Important for Route Order Fixes:**
+If you've modified FastAPI route definitions (e.g., `synergy_router.py`), use full container restart to ensure route registration order is correct:
+
+```bash
+# Full restart (recommended for route changes)
+docker compose down <service-name>
+docker compose up -d <service-name>
+
+# Or for all services
+docker compose down
+docker compose up -d
+```
+
+**Note:** Using `docker compose restart` may not apply route order changes correctly. Use `down/up` for route modifications.
+
 #### Step 4: Post-Deployment Validation
 
 ```bash
@@ -211,6 +226,26 @@ open http://localhost:3000
 
 # Verify dashboard loads and shows data
 ```
+
+**Test Synergies API:**
+```bash
+# Test direct pattern service endpoint
+curl http://localhost:8034/api/v1/synergies/stats
+
+# Test via automation service proxy
+curl http://localhost:8025/api/synergies/stats
+
+# Test via frontend proxy (through nginx)
+curl http://localhost:3001/api/synergies/stats
+
+# Verify route order (should show /stats before /{synergy_id})
+docker exec ai-pattern-service python3 -c "from src.main import app; from fastapi.routing import APIRoute; routes = [(r.path, r.endpoint.__name__ if hasattr(r, 'endpoint') else 'N/A') for r in app.routes if isinstance(r, APIRoute) and 'synerg' in r.path.lower()]; [print(f'{i+1}. {p:45} {h}') for i, (p, h) in enumerate(routes)]"
+```
+
+**Expected Results:**
+- All endpoints return 200 OK with JSON statistics data
+- Route order shows `/stats` before `/{synergy_id}`
+- Frontend Synergies page loads without errors
 
 ### 3. Monitoring Setup
 
@@ -332,6 +367,28 @@ bash scripts/deployment/health-check.sh
 - Dependencies: Verify required services are running
 - Configuration: Check environment variables
 - Logs: Review service logs for errors
+
+### Synergies API 404 Errors
+
+**Problem:** `/api/synergies/stats` returns 404 Not Found
+
+**Root Cause:** FastAPI route matching order - parameterized route matches before specific route
+
+**Solution:**
+1. Verify route order: `/stats` must be registered before `/{synergy_id}`
+2. Use full container restart: `docker-compose down ai-pattern-service && docker-compose up -d ai-pattern-service`
+3. Check route registration order in container:
+   ```bash
+   docker exec ai-pattern-service python3 -c "from src.main import app; from fastapi.routing import APIRoute; routes = [(r.path, r.endpoint.__name__) for r in app.routes if isinstance(r, APIRoute) and 'synerg' in r.path.lower()]; [print(f'{i+1}. {p}') for i, (p, _) in enumerate(routes)]"
+   ```
+4. Verify `/stats` appears before `/{synergy_id}` in route list
+
+**Prevention:**
+- Always define specific routes before parameterized routes in FastAPI
+- Use full container restart (`down/up`) after route changes, not just `restart`
+- Test route order after deployment
+
+**See:** `implementation/SYNERGIES_API_FIX_COMPLETE.md` for complete fix details
 
 ### Nginx Proxy Issues (Dashboard)
 
@@ -522,6 +579,7 @@ gh workflow run deployment-notify.yml \
 
 - [Deployment Pipeline Documentation](./DEPLOYMENT_PIPELINE.md) - Complete pipeline architecture
 - [Nginx Proxy Configuration Guide](./NGINX_PROXY_CONFIGURATION.md) - Detailed nginx proxy patterns and troubleshooting
+- [Synergies API Deployment Notes](./SYNERGIES_API_DEPLOYMENT_NOTES.md) - Critical deployment notes for synergies API route fixes
 - [Test Strategy](../testing/TEST_STRATEGY.md)
 - [Security Audit](../security/SECURITY_AUDIT_REPORT.md)
 - [Production Readiness Components](../architecture/production-readiness-components.md)

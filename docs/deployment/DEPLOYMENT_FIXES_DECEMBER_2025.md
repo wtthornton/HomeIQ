@@ -146,6 +146,33 @@ curl http://localhost:8004/api/v1/config/integrations/mqtt
 curl http://localhost:8027/api/health/environment
 ```
 
+### 4. Synergies API Route Matching Fix
+
+**Problem:** `/api/synergies/stats` endpoint returning 404 Not Found, causing Synergies page to fail loading statistics.
+
+**Root Cause:** FastAPI route matching order issue - parameterized route `/{synergy_id}` was matching `/stats` before the specific `/stats` route.
+
+**Solution:** 
+1. Moved `/stats` route from `specific_router` to `router`
+2. Ensured route is defined before `/{synergy_id}` route (line 50 vs line 346)
+3. Full container restart (`docker-compose down/up`) required to apply route order
+
+**Files Modified:**
+- `services/ai-pattern-service/src/api/synergy_router.py` - Route moved to `router`, order corrected
+- `services/ai-automation-service-new/src/api/synergy_router.py` - Proxy verified
+- `services/ai-automation-ui/src/services/api.ts` - Comment added
+
+**Verification:**
+- ✅ `/api/v1/synergies/stats` returns 200 OK
+- ✅ `/api/synergies/stats` (via proxy) returns 200 OK
+- ✅ Frontend Synergies page loads successfully
+- ✅ Route order: `/stats` first, then `/{synergy_id}`
+
+**Important:** After deploying changes to `synergy_router.py`, use `docker-compose down/up` (not just `restart`) to ensure route registration order is correct.
+
+**Documentation:**
+- See `implementation/SYNERGIES_API_FIX_COMPLETE.md` for complete details
+
 ## References
 
 - [Nginx Proxy Configuration Guide](./NGINX_PROXY_CONFIGURATION.md)
@@ -153,6 +180,7 @@ curl http://localhost:8027/api/health/environment
 - [Health Dashboard README](../services/health-dashboard/README.md)
 - [Admin API README](../services/admin-api/README.md)
 - [HA Setup Service README](../services/ha-setup-service/README.md)
+- [Synergies API Fix Complete](../implementation/SYNERGIES_API_FIX_COMPLETE.md)
 
 ---
 
