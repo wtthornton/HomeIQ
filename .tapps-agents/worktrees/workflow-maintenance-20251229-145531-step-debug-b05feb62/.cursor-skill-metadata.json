@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "type": "skill_command",
+  "command": "@debugger analyze-error --error_message  --stack_trace ",
+  "correlation": {
+    "workflow_id": "maintenance-20251229-145531",
+    "step_id": "debug",
+    "created_at": "2025-12-29T14:57:27.227582",
+    "expected_artifacts": [
+      "debug-report.md"
+    ]
+  },
+  "workflow_context": {
+    "workflow_id": "maintenance-20251229-145531",
+    "step_id": "debug",
+    "expected_artifacts": [
+      "debug-report.md"
+    ]
+  },
+  "interaction_pattern": {
+    "mode": "async",
+    "completion_detection": "status_file_and_artifacts",
+    "progress_updates": true,
+    "error_handling": "retry_with_backoff"
+  },
+  "metadata": {},
+  "timestamp": "2025-12-29T14:57:27.230194"
+}

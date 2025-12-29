@@ -151,6 +151,29 @@ GET /api/v1/synergies/stats
 ```
 Get synergy statistics (total count, types, depths, average scores).
 
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "total_synergies": 48,
+    "by_type": {
+      "event_context": 48
+    },
+    "by_complexity": {
+      "low": 2,
+      "medium": 46
+    },
+    "avg_impact_score": 0.64,
+    "avg_confidence": 0.60,
+    "unique_areas": 1
+  },
+  "message": "Synergy statistics retrieved successfully"
+}
+```
+
+**Important:** This route is defined on `router` and must be registered before the parameterized `/{synergy_id}` route to ensure FastAPI matches `/stats` correctly.
+
 ```bash
 POST /api/v1/synergies/{synergy_id}/feedback
 ```

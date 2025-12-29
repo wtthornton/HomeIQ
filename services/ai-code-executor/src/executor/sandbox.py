@@ -3,6 +3,8 @@ Secure Python code execution sandbox for MCP code execution pattern.
 NUC-optimized: Minimal resource overhead, single-process isolation.
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import importlib

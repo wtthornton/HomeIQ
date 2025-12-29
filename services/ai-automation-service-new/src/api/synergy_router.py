@@ -28,7 +28,13 @@ async def _proxy_to_pattern_service(
     """Proxy request to pattern service."""
     try:
         pattern_service_url = settings.pattern_service_url.rstrip("/")
-        url = f"{pattern_service_url}/api/v1/synergies/{path}".rstrip("/")
+        # Construct URL properly - avoid double slashes and trailing slashes
+        if path:
+            url = f"{pattern_service_url}/api/v1/synergies/{path}".rstrip("/")
+        else:
+            url = f"{pattern_service_url}/api/v1/synergies"
+        
+        logger.debug(f"Proxying {method} request to: {url}")
         
         # Get auth headers from original request
         headers = {}
@@ -45,18 +51,57 @@ async def _proxy_to_pattern_service(
             else:
                 raise HTTPException(status_code=405, detail=f"Method {method} not supported")
             
+            # Handle non-2xx responses
+            if response.status_code >= 400:
+                error_detail = "Pattern service error"
+                try:
+                    error_body = response.json()
+                    if isinstance(error_body, dict):
+                        error_detail = error_body.get("detail", error_body.get("message", str(error_body)))
+                    else:
+                        error_detail = str(error_body)
+                except Exception:
+                    error_detail = response.text[:200] if response.text else "Unknown error"
+                
+                logger.error(f"Pattern service returned {response.status_code}: {error_detail}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=error_detail
+                )
+            
             return Response(
                 content=response.content,
                 status_code=response.status_code,
-                headers=dict(response.headers),
+                headers={k: v for k, v in response.headers.items() if k.lower() not in ["content-length", "transfer-encoding"]},
                 media_type="application/json"
             )
+    except httpx.ConnectError as e:
+        logger.error(f"Failed to connect to pattern service at {settings.pattern_service_url}: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Pattern service unavailable: Unable to connect to {settings.pattern_service_url}"
+        )
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout connecting to pattern service: {e}")
+        raise HTTPException(
+            status_code=504,
+            detail="Pattern service timeout: Request took too long"
+        )
     except httpx.RequestError as e:
         logger.error(f"Failed to proxy to pattern service: {e}")
-        raise HTTPException(status_code=502, detail="Pattern service unavailable")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Pattern service unavailable: {str(e)}"
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        logger.error(f"Unexpected error proxying to pattern service: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Unexpected error proxying to pattern service: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
 @router.get("")
@@ -97,7 +142,7 @@ async def list_synergies(
 @router.get("/stats")
 async def get_synergy_stats(request: Request) -> Response:
     """Get synergy statistics from pattern service."""
-    path = "stats"
+    path = "statistics"  # Changed from "stats" to "statistics" to avoid route conflict
     return await _proxy_to_pattern_service(request, path, "GET")
 
 

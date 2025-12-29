@@ -28,6 +28,12 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Create a separate router for specific routes that must be matched before parameterized routes
+# This ensures /stats and /list are matched before /{synergy_id}
+# FastAPI matches routes in the order they're registered via include_router
+specific_router = APIRouter(prefix="/api/v1/synergies", tags=["synergies"])
+
+# Main router for parameterized routes (must be registered AFTER specific_router)
 router = APIRouter(prefix="/api/v1/synergies", tags=["synergies"])
 
 
@@ -38,7 +44,94 @@ class SynergyFeedback(BaseModel):
     rating: int | None = None  # 1-5 rating
 
 
-@router.get("/list")
+# CRITICAL: Define /statistics route on router FIRST (before parameterized routes)
+# Using /statistics instead of /stats to avoid conflict with parameterized /{synergy_id} route
+# FastAPI matches routes in the order they're defined within a router
+# This route MUST be defined before /{synergy_id} to ensure correct matching
+@router.get("/statistics")
+async def get_synergy_stats(
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Get synergy statistics.
+    
+    Returns summary statistics about detected synergy opportunities.
+    
+    IMPORTANT: This route must be defined BEFORE the parameterized /{synergy_id} route
+    on the same router to ensure FastAPI matches /stats correctly.
+    
+    Args:
+        db: Database session dependency
+        
+    Returns:
+        dict: Synergy statistics including counts by type, average scores, etc.
+        
+    Raises:
+        HTTPException: If database query fails (500 status)
+    """
+    logger.info("✅ /statistics route handler called")
+    try:
+        # Get all synergies for stats
+        synergies = await get_synergy_opportunities(db, limit=10000)
+        
+        total_synergies = len(synergies)
+        by_type = {}
+        by_complexity = {}
+        total_confidence = 0.0
+        total_impact = 0.0
+        areas = set()
+        
+        for s in synergies:
+            # Handle both dict and SynergyOpportunity object
+            if isinstance(s, dict):
+                synergy_type = s.get("synergy_type", "unknown")
+                complexity = s.get("complexity", "medium")
+                confidence = s.get("confidence", 0.0)
+                impact = s.get("impact_score", 0.0)
+                area = s.get("area")
+            else:
+                synergy_type = s.synergy_type
+                complexity = s.complexity or "medium"
+                confidence = float(s.confidence) if s.confidence is not None else 0.0
+                impact = float(s.impact_score) if s.impact_score is not None else 0.0
+                area = s.area
+            
+            # Count by type
+            by_type[synergy_type] = by_type.get(synergy_type, 0) + 1
+            
+            # Count by complexity (low, medium, high)
+            by_complexity[complexity] = by_complexity.get(complexity, 0) + 1
+            
+            total_confidence += confidence
+            total_impact += impact
+            if area:
+                areas.add(area)
+        
+        avg_confidence = total_confidence / total_synergies if total_synergies > 0 else 0.0
+        avg_impact = total_impact / total_synergies if total_synergies > 0 else 0.0
+        
+        return {
+            "success": True,
+            "data": {
+                "total_synergies": total_synergies,
+                "by_type": by_type,
+                "by_complexity": by_complexity,
+                "avg_impact_score": round(avg_impact, 3),
+                "avg_confidence": round(avg_confidence, 3),
+                "unique_areas": len(areas)
+            },
+            "message": "Synergy statistics retrieved successfully"
+        }
+    
+    except Exception as e:
+        logger.error(f"Failed to get synergy stats: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get synergy stats: {str(e)}"
+        ) from e
+
+
+@specific_router.get("/list")
 async def list_synergies(
     synergy_type: str | None = Query(default=None, description="Filter by synergy type (e.g., 'device_pair', 'device_chain')"),
     min_confidence: float = Query(default=0.5, ge=0.0, le=1.0, description="Minimum confidence threshold"),
@@ -268,6 +361,11 @@ async def get_synergy(
         
     Raises:
         HTTPException: If synergy not found (404) or query fails (500)
+    
+    Note:
+        This route should NOT match 'stats' or 'list' as those are handled by
+        specific routes. FastAPI should match specific routes first, but we
+        add a guard here as a safety measure.
     """
     try:
         # Get all synergies and filter by synergy_id
@@ -480,81 +578,6 @@ async def get_synergy(
         ) from e
 
 
-@router.get("/stats")
-async def get_synergy_stats(
-    db: AsyncSession = Depends(get_db)
-) -> dict[str, Any]:
-    """
-    Get synergy statistics.
-    
-    Returns summary statistics about detected synergy opportunities.
-    
-    Args:
-        db: Database session dependency
-        
-    Returns:
-        dict: Synergy statistics including counts by type, average scores, etc.
-        
-    Raises:
-        HTTPException: If database query fails (500 status)
-    """
-    try:
-        # Get all synergies for stats
-        synergies = await get_synergy_opportunities(db, limit=10000)
-        
-        total_synergies = len(synergies)
-        synergy_types = {}
-        synergy_depths = {}
-        total_confidence = 0.0
-        total_impact = 0.0
-        areas = set()
-        
-        for s in synergies:
-            # Handle both dict and SynergyOpportunity object
-            if isinstance(s, dict):
-                synergy_type = s.get("synergy_type", "unknown")
-                synergy_depth = s.get("synergy_depth", 2)
-                confidence = s.get("confidence", 0.0)
-                impact = s.get("impact_score", 0.0)
-                area = s.get("area")
-            else:
-                synergy_type = s.synergy_type
-                synergy_depth = getattr(s, 'synergy_depth', 2)
-                confidence = float(s.confidence) if s.confidence is not None else 0.0
-                impact = float(s.impact_score) if s.impact_score is not None else 0.0
-                area = s.area
-            
-            synergy_types[synergy_type] = synergy_types.get(synergy_type, 0) + 1
-            synergy_depths[synergy_depth] = synergy_depths.get(synergy_depth, 0) + 1
-            total_confidence += confidence
-            total_impact += impact
-            if area:
-                areas.add(area)
-        
-        avg_confidence = total_confidence / total_synergies if total_synergies > 0 else 0.0
-        avg_impact = total_impact / total_synergies if total_synergies > 0 else 0.0
-        
-        return {
-            "success": True,
-            "data": {
-                "total_synergies": total_synergies,
-                "synergy_types": synergy_types,
-                "synergy_depths": synergy_depths,
-                "average_confidence": round(avg_confidence, 3),
-                "average_impact_score": round(avg_impact, 3),
-                "unique_areas": len(areas)
-            },
-            "message": "Synergy statistics retrieved successfully"
-        }
-    
-    except Exception as e:
-        logger.error(f"Failed to get synergy stats: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get synergy stats: {str(e)}"
-        ) from e
-
-
 @router.post("/{synergy_id}/feedback")
 async def submit_synergy_feedback(
     synergy_id: str,
@@ -678,4 +701,10 @@ async def submit_synergy_feedback(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to submit feedback: {str(e)}"
         ) from e
+
+
+# CRITICAL: Include specific_router FIRST in main.py to ensure /stats and /list are matched before /{synergy_id}
+# FastAPI matches routes in the order they're registered via include_router
+# By including specific_router first, we ensure specific routes are matched before parameterized routes
+# This is the recommended approach per FastAPI documentation for handling route order
 
