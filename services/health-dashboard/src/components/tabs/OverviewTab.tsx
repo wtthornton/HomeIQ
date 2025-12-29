@@ -14,6 +14,7 @@ import { ServiceDetailsModal, ServiceDetail } from '../ServiceDetailsModal';
 import { IntegrationDetailsModal } from '../IntegrationDetailsModal';
 import { RAGStatusCard } from '../RAGStatusCard';
 import { RAGDetailsModal } from '../RAGDetailsModal';
+import { DataFreshnessIndicator } from '../DataFreshnessIndicator';
 import { ServiceHealthResponse } from '../../types/health';
 import { apiService } from '../../services/api';
 import { TabProps } from './types';
@@ -204,9 +205,17 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   };
 
   // Calculate aggregated metrics for Hero section
+  // CRITICAL: Only return real values if data has loaded, otherwise return null to prevent false data display
   const calculateAggregatedMetrics = () => {
+    // Don't show default values until we have real data
+    const hasData = enhancedHealth || statistics;
+    if (!hasData && (enhancedHealthLoading || statsLoading)) {
+      return null; // Still loading - don't show false data
+    }
+
     const uptime = enhancedHealth?.metrics?.uptime_human || 'N/A';
-    const throughput = websocketMetrics?.events_per_minute || 0;
+    const throughput = websocketMetrics?.events_per_minute ?? null; // Use null instead of 0
+    const errorRate = websocketMetrics?.error_rate ?? null; // Use null instead of 0
     
     // Calculate average latency across services
     const latencies = enhancedHealth?.dependencies
@@ -214,15 +223,16 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
       .map(d => d.response_time_ms!) || [];
     const avgLatency = latencies.length > 0 
       ? latencies.reduce((sum, val) => sum + val, 0) / latencies.length 
-      : 0;
-    
-    const errorRate = websocketMetrics?.error_rate || 0;
+      : null; // Use null instead of 0
     
     return { uptime, throughput, latency: avgLatency, errorRate };
   };
 
   const metrics = calculateAggregatedMetrics();
   const overallStatus = calculateOverallStatus();
+  
+  // Determine if we should show loading state (no data yet and still loading)
+  const isInitialLoad = !enhancedHealth && !statistics && (enhancedHealthLoading || statsLoading);
   
   // Phase 2: Track performance history for sparkline
   const { history: throughputHistory, stats: throughputStats } = usePerformanceHistory(
@@ -308,8 +318,53 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   // Only calculate if we're showing the section
   const haIntegration = devices.length > 0 ? calculateHAIntegrationHealth() : null;
 
+  // Calculate data freshness for display
+  const getDataFreshness = () => {
+    const updates: Date[] = [];
+    if (enhancedHealth) updates.push(new Date()); // Approximate - would need timestamp from API
+    if (statistics) updates.push(new Date());
+    if (updates.length === 0) return null;
+    return new Date(Math.max(...updates.map(d => d.getTime())));
+  };
+
+  const lastDataUpdate = getDataFreshness();
+  const isDataStale = lastDataUpdate ? (Date.now() - lastDataUpdate.getTime()) > 60000 : false;
+
   return (
     <>
+      {/* Data Freshness Indicator - Show at top if data is stale, loading, or has errors */}
+      {(isDataStale || isInitialLoad || enhancedHealthError || statsError || healthError) && (
+        <div className={`mb-4 p-3 rounded-lg border ${
+          enhancedHealthError || statsError || healthError
+            ? darkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'
+            : isInitialLoad
+              ? darkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'
+              : darkMode ? 'bg-yellow-900/20 border-yellow-700' : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <DataFreshnessIndicator
+            lastUpdate={lastDataUpdate}
+            isStale={isDataStale}
+            loading={isInitialLoad}
+            error={enhancedHealthError || statsError || healthError || null}
+            darkMode={darkMode}
+          />
+          {/* Additional error details */}
+          {(enhancedHealthError || statsError || healthError) && (
+            <div className={`mt-2 text-sm ${darkMode ? 'text-red-300' : 'text-red-700'}`}>
+              <p className="font-medium">API Connection Issues:</p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                {enhancedHealthError && <li>Enhanced Health: {enhancedHealthError}</li>}
+                {statsError && <li>Statistics: {statsError}</li>}
+                {healthError && <li>Health: {healthError}</li>}
+              </ul>
+              <p className="mt-2 text-xs opacity-75">
+                Showing cached data. Refresh will be attempted automatically.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Critical Alerts Banner (Story 21.6) */}
       {totalCritical > 0 && (
         <div className={`mb-6 rounded-lg shadow-md p-6 border-2 ${
@@ -359,32 +414,46 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
       )}
 
       {/* System Status Hero Section - Phase 2: With Trends */}
-      {!healthLoading && !enhancedHealthLoading ? (
-        <SystemStatusHero
-          overallStatus={overallStatus}
-          uptime={metrics.uptime}
-          throughput={metrics.throughput}
-          latency={metrics.latency}
-          errorRate={metrics.errorRate}
-          lastUpdate={new Date()}
-          darkMode={darkMode}
-          trends={{
-            throughput: throughputStats.previous,
-            latency: metrics.latency, // Could track previous latency similarly
-            errorRate: metrics.errorRate
-          }}
-        />
-      ) : (
+      {isInitialLoad || !metrics ? (
         <div className="mb-8">
           <SkeletonCard variant="metric" />
         </div>
+      ) : (
+        <SystemStatusHero
+          overallStatus={overallStatus}
+          uptime={metrics.uptime}
+          throughput={metrics.throughput ?? 0}
+          latency={metrics.latency ?? 0}
+          errorRate={metrics.errorRate ?? 0}
+          lastUpdate={new Date()}
+          darkMode={darkMode}
+          loading={enhancedHealthLoading || statsLoading}
+          trends={{
+            throughput: throughputStats.previous,
+            latency: metrics.latency ?? 0,
+            errorRate: metrics.errorRate ?? 0
+          }}
+        />
       )}
 
       {/* Core System Components - Phase 3: With animations */}
       <div className="mb-8">
-        <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          📊 Core System Components
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            📊 Core System Components
+          </h2>
+          {/* Component-level freshness indicator */}
+          {enhancedHealth && (
+            <DataFreshnessIndicator
+              lastUpdate={lastDataUpdate}
+              isStale={isDataStale}
+              loading={enhancedHealthLoading || statsLoading}
+              error={enhancedHealthError || statsError}
+              darkMode={darkMode}
+              className="text-xs"
+            />
+          )}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6" role="group" aria-label="Core system components">
           {healthLoading || enhancedHealthLoading ? (
             <>
@@ -401,18 +470,22 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
                 status={
                   enhancedHealth?.dependencies?.find(d => d.name === 'WebSocket Ingestion')?.status === 'healthy'
                     ? 'healthy'
-                    : 'unhealthy'
+                    : enhancedHealth?.dependencies?.find(d => d.name === 'WebSocket Ingestion')?.status === 'degraded'
+                      ? 'degraded'
+                      : 'unhealthy'
                 }
                 metrics={{
                   primary: {
                     label: 'Events per Hour',
-                    value: (websocketMetrics?.events_per_minute || 0) * 60,
-                    unit: 'evt/h'
+                    value: websocketMetrics?.events_per_minute 
+                      ? (websocketMetrics.events_per_minute * 60)
+                      : (shouldShowLoading ? 'Loading...' : 0),
+                    unit: websocketMetrics?.events_per_minute ? 'evt/h' : ''
                   },
                   secondary: {
                     label: 'Total Events',
-                    value: websocketMetrics?.total_events_received || 0,
-                    unit: 'events'
+                    value: websocketMetrics?.total_events_received ?? (shouldShowLoading ? 'Loading...' : 0),
+                    unit: websocketMetrics?.total_events_received !== undefined ? 'events' : ''
                   }
                 }}
                 uptime={enhancedHealth?.metrics?.uptime_human || 'N/A'}
@@ -442,18 +515,24 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
                 status={
                   enhancedHealth?.dependencies?.find(d => d.name === 'InfluxDB')?.status === 'healthy'
                     ? 'healthy'
-                    : 'unhealthy'
+                    : enhancedHealth?.dependencies?.find(d => d.name === 'InfluxDB')?.status === 'degraded'
+                      ? 'degraded'
+                      : 'unhealthy'
                 }
                 metrics={{
                   primary: {
                     label: 'Response Time',
-                    value: (enhancedHealth?.dependencies?.find(d => d.name === 'InfluxDB')?.response_time_ms ?? 0).toFixed(1),
-                    unit: 'ms'
+                    value: enhancedHealth?.dependencies?.find(d => d.name === 'InfluxDB')?.response_time_ms !== undefined
+                      ? enhancedHealth.dependencies.find(d => d.name === 'InfluxDB')!.response_time_ms!.toFixed(1)
+                      : (shouldShowLoading ? 'Loading...' : '0.0'),
+                    unit: enhancedHealth?.dependencies?.find(d => d.name === 'InfluxDB')?.response_time_ms !== undefined ? 'ms' : ''
                   },
                   secondary: {
                     label: 'Availability',
-                    value: enhancedHealth?.metrics?.uptime_percentage?.toFixed(2) ?? '0.0',
-                    unit: '%'
+                    value: enhancedHealth?.metrics?.uptime_percentage !== undefined
+                      ? enhancedHealth.metrics.uptime_percentage.toFixed(2)
+                      : (shouldShowLoading ? 'Loading...' : '0.0'),
+                    unit: enhancedHealth?.metrics?.uptime_percentage !== undefined ? '%' : ''
                   }
                 }}
                 uptime={enhancedHealth?.metrics?.uptime_human || 'N/A'}

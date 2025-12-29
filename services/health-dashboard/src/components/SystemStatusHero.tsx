@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { TrendIndicator } from './TrendIndicator';
+import { LoadingSpinner } from './LoadingSpinner';
 
 export interface SystemStatusHeroProps {
   overallStatus: 'operational' | 'degraded' | 'error';
@@ -17,6 +18,7 @@ export interface SystemStatusHeroProps {
   errorRate: number; // percentage
   lastUpdate: Date;
   darkMode: boolean;
+  loading?: boolean; // Show loading indicators
   trends?: {
     throughput?: number; // previous value for trend calculation
     latency?: number;
@@ -69,6 +71,7 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
   errorRate,
   lastUpdate,
   darkMode,
+  loading = false,
   trends
 }) => {
   const statusConfig = getStatusConfig(overallStatus);
@@ -143,16 +146,25 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
                   Throughput
                 </span>
                 <div className="flex items-center space-x-2">
-                  <span className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {(throughput ?? 0).toLocaleString()} <span className="text-sm font-normal">evt/min</span>
-                  </span>
-                  {trends?.throughput !== undefined && (
-                    <TrendIndicator 
-                      current={throughput} 
-                      previous={trends.throughput} 
-                      darkMode={darkMode}
-                      showPercentage={false}
-                    />
+                  {loading ? (
+                    <>
+                      <LoadingSpinner variant="dots" size="sm" color="default" />
+                      <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {(throughput ?? 0).toLocaleString()} <span className="text-sm font-normal">evt/min</span>
+                      </span>
+                      {trends?.throughput !== undefined && (
+                        <TrendIndicator 
+                          current={throughput} 
+                          previous={trends.throughput} 
+                          darkMode={darkMode}
+                          showPercentage={false}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -163,22 +175,31 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
                   Latency
                 </span>
                 <div className="flex items-center space-x-2">
-                  <span className={`text-lg font-bold ${
-                    (latency ?? 0) < 50 
-                      ? 'text-green-600 dark:text-green-400'
-                      : (latency ?? 0) < 100
-                        ? 'text-yellow-600 dark:text-yellow-400'
-                        : 'text-red-600 dark:text-red-400'
-                  }`}>
-                    {(latency ?? 0).toFixed(1)} <span className="text-sm font-normal">ms avg</span>
-                  </span>
-                  {trends?.latency !== undefined && (
-                    <TrendIndicator 
-                      current={latency} 
-                      previous={trends.latency} 
-                      darkMode={darkMode}
-                      showPercentage={false}
-                    />
+                  {loading ? (
+                    <>
+                      <LoadingSpinner variant="dots" size="sm" color="default" />
+                      <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={`text-lg font-bold ${
+                        (latency ?? 0) < 50 
+                          ? 'text-green-600 dark:text-green-400'
+                          : (latency ?? 0) < 100
+                            ? 'text-yellow-600 dark:text-yellow-400'
+                            : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {(latency ?? 0).toFixed(1)} <span className="text-sm font-normal">ms avg</span>
+                      </span>
+                      {trends?.latency !== undefined && (
+                        <TrendIndicator 
+                          current={latency} 
+                          previous={trends.latency} 
+                          darkMode={darkMode}
+                          showPercentage={false}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -188,15 +209,22 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
                 <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Error Rate
                 </span>
-                <span className={`text-lg font-bold ${
-                  (errorRate ?? 0) < 1
-                    ? 'text-green-600 dark:text-green-400'
-                    : (errorRate ?? 0) < 5
-                      ? 'text-yellow-600 dark:text-yellow-400'
-                      : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {(errorRate ?? 0).toFixed(2)} <span className="text-sm font-normal">%</span>
-                </span>
+                {loading ? (
+                  <div className="flex items-center space-x-2">
+                    <LoadingSpinner variant="dots" size="sm" color="default" />
+                    <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading...</span>
+                  </div>
+                ) : (
+                  <span className={`text-lg font-bold ${
+                    (errorRate ?? 0) < 1
+                      ? 'text-green-600 dark:text-green-400'
+                      : (errorRate ?? 0) < 5
+                        ? 'text-yellow-600 dark:text-yellow-400'
+                        : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {(errorRate ?? 0).toFixed(2)} <span className="text-sm font-normal">%</span>
+                  </span>
+                )}
               </div>
             </div>
           </div>
