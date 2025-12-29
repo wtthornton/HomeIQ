@@ -44,11 +44,13 @@ Validation checkpoints that ensure quality:
 ### Microservices Architecture
 The Home Assistant Ingestor uses a microservices pattern with:
 
-- **websocket-ingestion** - Real-time event capture from Home Assistant
+- **websocket-ingestion** - Real-time event capture from Home Assistant (writes directly to InfluxDB - Epic 31)
 - **admin-api** - REST API for dashboard interactions
 - **health-dashboard** - React-based monitoring interface
-- **enrichment-pipeline** - Data processing and normalization
+- **data-api** - Query API for events and metadata (Epic 13)
 - **data-retention** - Cleanup and backup management
+
+**Note**: enrichment-pipeline service was **deprecated in Epic 31 (October 2025)**. All normalization now happens inline in websocket-ingestion with direct writes to InfluxDB.
 
 ### Data Flow Concepts
 
