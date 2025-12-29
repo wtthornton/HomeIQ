@@ -1,0 +1,13 @@
+{
+  "event_type": "workflow_started",
+  "workflow_id": "maintenance-20251229-145531",
+  "step_id": null,
+  "data": {
+    "workflow_name": "Maintenance & Bug Fixing",
+    "workflow_version": "1.0.0",
+    "step_count": 6,
+    "user_prompt": ""
+  },
+  "timestamp": "2025-12-29T14:55:31.901339",
+  "correlation_id": "maintenance-20251229-145531"
+}

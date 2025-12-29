@@ -502,21 +502,94 @@ export const api = {
       params.append('validated_by_patterns', validatedByPatterns.toString());
     }
     
-    const response = await fetchJSON<{ success: boolean; data: { synergies: SynergyOpportunity[]; count: number } }>(`${API_BASE_URL}/synergies?${params}`);
-    // Unwrap the response to match the expected return type
-    return { data: response.data };
+    try {
+      const response = await fetchJSON<{ success: boolean; data: { synergies: SynergyOpportunity[]; count: number } }>(`${API_BASE_URL}/synergies?${params}`);
+      // Unwrap the response to match the expected return type
+      if (response.success && response.data) {
+        return { data: response.data };
+      }
+      // Handle case where response doesn't have success wrapper
+      if (response.data) {
+        return { data: response.data };
+      }
+      // Fallback: return empty data
+      return { data: { synergies: [], count: 0 } };
+    } catch (error: any) {
+      console.error('Failed to fetch synergies:', error);
+      // Re-throw with more context
+      if (error.status === 404) {
+        throw new APIError(404, 'Synergies API endpoint not found. The synergies service may not be available.', error.response?.data);
+      } else if (error.status === 502 || error.status === 503) {
+        throw new APIError(error.status, 'Synergies service unavailable. The service is temporarily down.', error.response?.data);
+      } else if (error.status === 504) {
+        throw new APIError(504, 'Synergies service timeout. The request took too long.', error.response?.data);
+      }
+      throw error;
+    }
   },
 
   async getSynergyStats(): Promise<{ data: { total_synergies: number; by_type: Record<string, number>; by_complexity: Record<string, number>; avg_impact_score: number } }> {
-    const response = await fetchJSON<{ success: boolean; data: any }>(`${API_BASE_URL}/synergies/stats`);
-    // Unwrap the response to match the expected return type
-    return { data: response.data };
+    try {
+      const response = await fetchJSON<{ success: boolean; data: any }>(`${API_BASE_URL}/synergies/stats`);  // Proxies to /statistics in pattern service
+      // Unwrap the response to match the expected return type
+      if (response.success && response.data) {
+        return { data: response.data };
+      }
+      // Handle case where response doesn't have success wrapper
+      if (response.data) {
+        return { data: response.data };
+      }
+      // Fallback: return empty stats
+      return {
+        data: {
+          total_synergies: 0,
+          by_type: {},
+          by_complexity: {},
+          avg_impact_score: 0
+        }
+      };
+    } catch (error: any) {
+      console.error('Failed to fetch synergy stats:', error);
+      // Return empty stats on error instead of throwing
+      return {
+        data: {
+          total_synergies: 0,
+          by_type: {},
+          by_complexity: {},
+          avg_impact_score: 0
+        }
+      };
+    }
   },
 
   async getSynergy(synergyId: string): Promise<{ data: { synergy: SynergyOpportunity } }> {
-    const response = await fetchJSON<{ success: boolean; data: { synergy: SynergyOpportunity } }>(`${API_BASE_URL}/synergies/${synergyId}`);
-    // Unwrap the response to match the expected return type
-    return { data: response.data };
+    try {
+      const response = await fetchJSON<{ success: boolean; data: { synergy: SynergyOpportunity } | SynergyOpportunity }>(`${API_BASE_URL}/synergies/${synergyId}`);
+      // Handle both response formats: { success: true, data: { synergy: ... } } or { success: true, data: ... }
+      if (response.success && response.data) {
+        if ('synergy' in response.data) {
+          return { data: response.data };
+        } else {
+          // Data is the synergy object directly
+          return { data: { synergy: response.data as SynergyOpportunity } };
+        }
+      }
+      // Handle case where response doesn't have success wrapper
+      if (response.data) {
+        if ('synergy' in response.data) {
+          return { data: response.data };
+        } else {
+          return { data: { synergy: response.data as SynergyOpportunity } };
+        }
+      }
+      throw new APIError(404, `Synergy ${synergyId} not found`);
+    } catch (error: any) {
+      console.error(`Failed to fetch synergy ${synergyId}:`, error);
+      if (error.status === 404) {
+        throw new APIError(404, `Synergy ${synergyId} not found`, error.response?.data);
+      }
+      throw error;
+    }
   },
 
   // Ask AI - Natural Language Query Interface

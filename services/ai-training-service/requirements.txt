@@ -17,6 +17,14 @@ aiohttp>=3.13.2,<4.0.0  # Latest stable (2025 - Epic 41)
 # Logging and observability (shared)
 # Note: These should be in shared/ directory
 
+# OpenTelemetry Observability
+opentelemetry-api>=1.24.0,<2.0.0
+opentelemetry-sdk>=1.24.0,<2.0.0
+opentelemetry-instrumentation-fastapi>=0.45b0,<1.0.0
+opentelemetry-exporter-otlp-proto-grpc>=1.24.0,<2.0.0
+opentelemetry-instrumentation-requests>=0.45b0,<1.0.0
+opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0
+
 # Development
 pytest>=7.4.0
 pytest-asyncio>=0.21.0

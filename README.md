@@ -377,6 +377,7 @@ Automated regression coverage is currently being rebuilt to match the new LangCh
 | **Energy Correlator** | Energy analysis | 8017 | 8017 | Python, FastAPI | ✅ Active |
 | **Log Aggregator** | Centralized logging | 8015 | 8015 | Python, FastAPI | ✅ Active |
 | **Device Health Monitor** | Device health & maintenance | 8019 | 8019 | Python, FastAPI | ✅ Active |
+| **Jaeger** | Distributed tracing & observability | 16686 | 16686 | OpenTelemetry, Jaeger | ✅ Active |
 | **Device Context Classifier** | Device type classification | 8032 | 8020 | Python, FastAPI | ✅ Active |
 | **Device Setup Assistant** | Setup guides & issue detection | 8021 | 8021 | Python, FastAPI | ✅ Active |
 | **Device Database Client** | External Device Database integration | 8022 | 8022 | Python, FastAPI | ✅ Active |
@@ -587,6 +588,26 @@ Natural language automation creation:
 ![Ask AI](docs/images/ask-ai-tab.png)
 
 ### System Health Overview
+### Observability & Distributed Tracing
+
+HomeIQ includes comprehensive observability using OpenTelemetry and Jaeger:
+
+- **Jaeger UI**: http://localhost:16686 - View distributed traces across all services
+- **Distributed Tracing**: Automatic instrumentation of FastAPI endpoints, HTTP requests, and database queries
+- **Trace Context Propagation**: Correlation IDs propagated across service boundaries
+- **Performance Monitoring**: Identify bottlenecks and latency issues across microservices
+- **Service Dependencies**: Visualize request flows through the HomeIQ stack
+
+**How It Works:**
+- Services automatically send traces to Jaeger via OTLP (gRPC on port 4317)
+- Trace context is propagated via HTTP headers (W3C Trace Context)
+- All FastAPI services are instrumented automatically
+- Database queries and HTTP client calls are traced automatically
+
+**Configuration:**
+- Set `OTLP_ENDPOINT=http://jaeger:4317` in service environment variables (already configured in docker-compose.yml)
+- Services gracefully degrade if Jaeger is unavailable (console exporter fallback)
+
 Real-time monitoring of all services:
 
 ![System Health](docs/images/system-health.png)

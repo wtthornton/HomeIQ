@@ -191,6 +191,35 @@ class DeploymentValidator:
             self.warnings.append(f"InfluxDB connectivity check failed: {str(e)}")
             return False
 
+    def verify_synergies_api(self) -> bool:
+        """Verify synergies API endpoints are working correctly."""
+        logger.info("Verifying synergies API endpoints...")
+        try:
+            import urllib.request
+            import json
+            
+            # Test direct pattern service endpoint
+            url = "http://localhost:8034/api/v1/synergies/stats"
+            try:
+                with urllib.request.urlopen(url, timeout=10) as response:
+                    if response.status == 200:
+                        data = json.loads(response.read().decode())
+                        if data.get("success") and "data" in data:
+                            logger.info("[SUCCESS] Synergies stats endpoint working")
+                            return True
+                        else:
+                            self.warnings.append("Synergies stats endpoint returned unexpected format")
+                            return False
+                    else:
+                        self.warnings.append(f"Synergies stats endpoint returned status {response.status}")
+                        return False
+            except urllib.error.URLError as e:
+                self.warnings.append(f"Synergies API connectivity check failed: {str(e)}")
+                return False
+        except Exception as e:
+            self.warnings.append(f"Synergies API verification failed: {str(e)}")
+            return False
+
     def post_deployment_validation(self) -> bool:
         """Run all post-deployment validations."""
         logger.info("[INFO] Starting post-deployment validation...")
@@ -200,6 +229,7 @@ class DeploymentValidator:
         results = [
             self.verify_service_connectivity(),
             self.verify_database_connectivity(),
+            self.verify_synergies_api(),  # Verify synergies API fix
         ]
         return all(results)
 

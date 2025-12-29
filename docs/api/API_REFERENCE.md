@@ -1639,6 +1639,29 @@ List detected device synergies with priority-based ordering.
 #### GET /api/synergies/stats
 Get synergy detection statistics including counts by type, complexity, and validation status.
 
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "total_synergies": 48,
+    "by_type": {
+      "event_context": 48
+    },
+    "by_complexity": {
+      "low": 2,
+      "medium": 46
+    },
+    "avg_impact_score": 0.64,
+    "avg_confidence": 0.60,
+    "unique_areas": 1
+  },
+  "message": "Synergy statistics retrieved successfully"
+}
+```
+
+**Note:** This endpoint must be defined before the parameterized `/{synergy_id}` route to ensure correct FastAPI route matching.
+
 #### GET /api/synergies/{synergy_id}
 Get detailed synergy information including metadata, devices involved, and opportunity details.
 

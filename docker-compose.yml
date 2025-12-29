@@ -40,6 +40,39 @@ services:
         max-file: "3"
         labels: "service=influxdb,environment=production"
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: homeiq-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"  # UI
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:16686/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=jaeger,environment=production"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+
   websocket-ingestion:
     build:
       context: .
@@ -91,6 +124,8 @@ services:
       - WEATHER_RATE_LIMIT_PER_MINUTE=${WEATHER_RATE_LIMIT_PER_MINUTE:-50}
       - WEATHER_RATE_LIMIT_PER_DAY=${WEATHER_RATE_LIMIT_PER_DAY:-900}
       - WEATHER_REQUEST_TIMEOUT=${WEATHER_REQUEST_TIMEOUT:-10}
+      # OpenTelemetry Configuration
+      - OTLP_ENDPOINT=http://jaeger:4317  # OpenTelemetry tracing endpoint
     logging:
       driver: "json-file"
       options:
@@ -157,6 +192,8 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminpass}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
       - AI_AUTOMATION_URL=http://ai-automation-service-new:8025
+      # OpenTelemetry Configuration
+      - OTLP_ENDPOINT=http://jaeger:4317  # OpenTelemetry tracing endpoint
     depends_on:
       influxdb:
         condition: service_healthy
@@ -213,6 +250,8 @@ services:
       - CORS_ORIGINS=http://localhost:3000,http://localhost
       # Deployment Mode Configuration (Epic 40)
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
+      # OpenTelemetry Configuration
+      - OTLP_ENDPOINT=http://jaeger:4317  # OpenTelemetry tracing endpoint
     volumes:
       - sqlite-data:/app/data
     depends_on:
@@ -1149,6 +1188,8 @@ services:
       - MODEL_STORAGE_DIR=/app/models
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # OpenTelemetry Configuration
+      - OTLP_ENDPOINT=http://jaeger:4317  # OpenTelemetry tracing endpoint
     volumes:
       - ai_automation_data:/app/data  # Shared database
       - ai_automation_models:/app/models  # Shared model storage
@@ -1193,6 +1234,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MQTT_BROKER=${MQTT_BROKER:-}
       - MQTT_PORT=${MQTT_PORT:-1883}
+      # OpenTelemetry Configuration
+      - OTLP_ENDPOINT=http://jaeger:4317  # OpenTelemetry tracing endpoint
     volumes:
       - ai_automation_data:/app/data  # Shared database
     networks:
@@ -1235,6 +1278,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - QUERY_TIMEOUT=${QUERY_TIMEOUT:-5.0}
       - ENABLE_CACHING=${ENABLE_CACHING:-True}
+      # OpenTelemetry Configuration
+      - OTLP_ENDPOINT=http://jaeger:4317  # OpenTelemetry tracing endpoint
     volumes:
       - ai_automation_data:/app/data  # Shared database
       - ai_automation_models:/app/models  # Shared model storage
@@ -1374,6 +1419,8 @@ services:
       - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_automation.db
       - SERVICE_PORT=8025
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # OpenTelemetry Configuration
+      - OTLP_ENDPOINT=http://jaeger:4317  # OpenTelemetry tracing endpoint
     depends_on:
       data-api:
         condition: service_healthy

@@ -214,6 +214,16 @@ from .api import analysis_router
 
 app.include_router(health_router.router, tags=["health"])
 app.include_router(pattern_router.router, tags=["patterns"])
+# CRITICAL: Include specific_router FIRST to ensure /stats and /list are matched before /{synergy_id}
+# FastAPI matches routes in the order they're registered, so specific routes must come first
+try:
+    if hasattr(synergy_router, 'specific_router'):
+        app.include_router(synergy_router.specific_router, tags=["synergies"])
+        logger.info("✅ Included specific_router with /stats and /list routes")
+    else:
+        logger.error("❌ specific_router not found in synergy_router module!")
+except Exception as e:
+    logger.error(f"❌ Failed to include specific_router: {e}", exc_info=True)
 app.include_router(synergy_router.router, tags=["synergies"])
 app.include_router(community_pattern_router.router, tags=["community-patterns"])
 app.include_router(analysis_router.router, tags=["analysis"])
