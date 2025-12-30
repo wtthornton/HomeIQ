@@ -22,6 +22,7 @@ interface AutomationPreviewProps {
   onClose: () => void;
   onEdit?: (yaml: string) => void;
   conversationId: string;
+  originalPrompt?: string; // Optional: original user prompt for fallback
 }
 
 interface ParsedAutomation {
@@ -35,11 +36,12 @@ interface ParsedAutomation {
 export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
   automationYaml,
   alias: providedAlias,
-  toolCall: _toolCall,
+  toolCall,
   darkMode,
   onClose,
   onEdit,
   conversationId: _conversationId,
+  originalPrompt,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [createdAutomationId, setCreatedAutomationId] = useState<string | null>(null);
@@ -143,11 +145,19 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
 
     setIsCreating(true);
     try {
+      // Determine user_prompt: Use the actual prompt from toolCall.arguments (which is what the AI agent used, 
+      // whether original or enhanced), then fall back to originalPrompt prop, then description/alias
+      const userPrompt = toolCall?.arguments?.user_prompt?.trim() 
+        || originalPrompt?.trim() 
+        || parsedAutomation.description?.trim() 
+        || parsedAutomation.alias?.trim() 
+        || 'Automation creation request';
+
       // Execute create_automation_from_prompt tool call
       const result = await executeToolCall({
         tool_name: 'create_automation_from_prompt',
         arguments: {
-          user_prompt: parsedAutomation.description || parsedAutomation.alias,
+          user_prompt: userPrompt,
           automation_yaml: cleanYaml,
           alias: parsedAutomation.alias,
         },

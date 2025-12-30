@@ -896,6 +896,7 @@ export const HAAgentChat: React.FC = () => {
           onClose={() => setAutomationPreviewOpen(false)}
           onEdit={handleEditAutomation}
           conversationId={currentConversationId}
+          originalPrompt={originalPrompt}
         />
       )}
     </div>
