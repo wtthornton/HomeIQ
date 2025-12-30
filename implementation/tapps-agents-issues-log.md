@@ -84,3 +84,61 @@
 - Enhanced code organization and maintainability
 **Results**: Overall score improved from 67.4/100 to 76.0/100 (above 70 threshold ✅)
 
+## Issue 9: Git Cleanup Process - Manual PowerShell Scripts Inefficient
+**Date**: 2025-12-29
+**Problem**: 
+- Separate PowerShell scripts for branches and worktrees (`cleanup-branches.ps1`, `cleanup-worktrees.ps1`)
+- Manual, interactive process requiring user input
+- No integration with TappsCodingAgents infrastructure
+- Difficult to automate in CI/CD pipelines
+- Inconsistent error handling
+
+**Solution**: Created unified Python-based cleanup tool
+**Status**: ✅ IMPLEMENTED - New unified cleanup process available
+
+**New Approach**:
+1. **Unified Python Script** (`scripts/cleanup-git-unified.py`):
+   - Integrates with TappsCodingAgents `WorktreeManager` for proper worktree handling
+   - Handles both branches and worktrees in one tool
+   - Better error handling and logging
+   - Can be run programmatically or interactively
+   - Supports dry-run mode for safe preview
+   - JSON output for automation
+
+2. **PowerShell Wrapper** (`scripts/cleanup-git-unified.ps1`):
+   - Convenient wrapper for PowerShell users
+   - Maintains familiar PowerShell interface
+   - Passes through to Python script
+
+**Usage Examples**:
+```bash
+# Preview what would be cleaned (dry run)
+python scripts/cleanup-git-unified.py --dry-run --all
+
+# Clean up merged remote branches
+python scripts/cleanup-git-unified.py --merged-remote
+
+# Clean up everything
+python scripts/cleanup-git-unified.py --all
+
+# Show summary only
+python scripts/cleanup-git-unified.py --summary
+
+# PowerShell wrapper
+.\scripts\cleanup-git-unified.ps1 -All -DryRun
+```
+
+**Benefits**:
+- ✅ Uses TappsCodingAgents infrastructure (WorktreeManager)
+- ✅ Better error handling and logging
+- ✅ Can be integrated into CI/CD pipelines
+- ✅ More reliable git command execution
+- ✅ Unified approach for branches and worktrees
+- ✅ JSON output for automation
+- ✅ Dry-run mode for safety
+
+**Migration Path**:
+- Old scripts (`cleanup-branches.ps1`, `cleanup-worktrees.ps1`) remain available
+- New unified script recommended for all cleanup operations
+- Can be used side-by-side during transition
+

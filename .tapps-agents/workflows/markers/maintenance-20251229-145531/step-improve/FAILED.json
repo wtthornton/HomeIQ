@@ -4,15 +4,15 @@
   "agent": "improver",
   "action": "refactor",
   "status": "failed",
-  "timestamp": "2025-12-29T14:58:48.472012",
+  "timestamp": "2025-12-29T15:56:53.641833",
   "error": "Unknown command for auto-execution: improver/refactor. Available: [('analyst', 'gather-requirements'), ('analyst', 'gather_requirements'), ('planner', 'plan'), ('planner', 'create-stories'), ('planner', 'create_stories'), ('architect', 'design-system'), ('architect', 'design_system'), ('designer', 'design-api'), ('designer', 'api_design'), ('designer', 'api-design'), ('implementer', 'implement'), ('implementer', 'write-code'), ('implementer', 'write_code'), ('implementer', 'refactor'), ('reviewer', 'review'), ('reviewer', 'review-code'), ('reviewer', 'review_code'), ('tester', 'test'), ('tester', 'write-tests'), ('tester', 'write_tests'), ('debugger', 'analyze-error'), ('debugger', 'analyze_error'), ('documenter', 'document'), ('documenter', 'generate-docs'), ('documenter', 'generate_docs'), ('ops', 'security-scan'), ('ops', 'security_scan'), ('improver', 'improve'), ('enhancer', 'enhance'), ('enhancer', 'enhance_prompt'), ('enhancer', 'enhance-prompt'), ('quality', 'analyze'), ('quality', 'quality-check'), ('quality', 'quality_check'), ('testing', 'run-tests'), ('testing', 'run_tests'), ('testing', 'test')]",
   "worktree_name": "workflow-maintenance-20251229-145531-step-improve-5f43a3b1",
   "worktree_path": "C:\\cursor\\HomeIQ\\.tapps-agents\\worktrees\\workflow-maintenance-20251229-145531-step-improve-5f43a3b1",
   "expected_artifacts": [
     "refactored-code/"
   ],
-  "duration_seconds": 81.171634,
-  "started_at": "2025-12-29T14:57:27.300378",
+  "duration_seconds": 41.004596,
+  "started_at": "2025-12-29T15:56:12.637237",
   "error_type": "ValueError",
   "metadata": {
     "marker_location": ".tapps-agents/workflows/markers/maintenance-20251229-145531/step-improve/FAILED.json"
