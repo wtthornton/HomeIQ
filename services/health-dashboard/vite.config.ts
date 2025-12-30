@@ -9,9 +9,10 @@ export default defineConfig(({ command, mode }) => {
   
   const isProduction = mode === 'production';
   const isDevelopment = mode === 'development';
-  // In docker-compose.dev.yml admin-api maps 8003:8004, so localhost uses 8003
-  const devAdminApiTarget = env.VITE_DEV_ADMIN_API || 'http://localhost:8003';
-  const devAdminWsTarget = env.VITE_DEV_ADMIN_WS || 'ws://localhost:8003';
+  // admin-api runs on port 8004 in production docker-compose.yml
+  // For development, use 8004 unless VITE_DEV_ADMIN_API is explicitly set
+  const devAdminApiTarget = env.VITE_DEV_ADMIN_API || 'http://localhost:8004';
+  const devAdminWsTarget = env.VITE_DEV_ADMIN_WS || 'ws://localhost:8004';
   const devDataApiTarget = env.VITE_DEV_DATA_API || 'http://localhost:8006';
 
   return {

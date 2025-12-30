@@ -54,16 +54,35 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
       ]);
 
       // Map admin-api services health response to ServiceStatus[] expected by UI
+      // Prioritize container status over health API status when available
       const mappedServices: ServiceStatus[] = Object.entries(servicesHealth as ServicesHealthResponse).map(
         ([serviceName, health]) => {
-          const normalized =
-            health.status === 'healthy' || health.status === 'pass'
+          // Check if container exists and get its status
+          const container = containersData.find(c => c.service_name === serviceName);
+          const containerStatus = container?.status?.toLowerCase();
+          
+          // If container exists, use its status (more accurate)
+          // Otherwise, use health API status
+          let normalized: string;
+          if (container && containerStatus) {
+            // Container status takes precedence
+            normalized = containerStatus === 'running' 
               ? 'running'
-              : health.status === 'degraded'
-                ? 'degraded'
-                : health.status === 'unhealthy' || health.status === 'error'
-                  ? 'error'
-                  : 'stopped';
+              : containerStatus === 'stopped' || containerStatus === 'exited'
+                ? 'stopped'
+                : 'error';
+          } else {
+            // Fall back to health API status
+            normalized =
+              health.status === 'healthy' || health.status === 'pass'
+                ? 'running'
+                : health.status === 'degraded'
+                  ? 'degraded'
+                  : health.status === 'unhealthy' || health.status === 'error'
+                    ? 'error'
+                    : 'stopped';
+          }
+          
           return {
             service: serviceName,
             running: normalized === 'running' || normalized === 'degraded',

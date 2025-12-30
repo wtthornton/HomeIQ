@@ -1,0 +1,13 @@
+{
+  "event_type": "step_failed",
+  "workflow_id": "maintenance-20251229-145531",
+  "step_id": "debug",
+  "data": {
+    "agent": "debugger",
+    "action": "analyze_error",
+    "error": "",
+    "attempts": 1
+  },
+  "timestamp": "2025-12-29T16:55:34.137849",
+  "correlation_id": "maintenance-20251229-145531:debug"
+}

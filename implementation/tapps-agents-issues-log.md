@@ -142,3 +142,78 @@ python scripts/cleanup-git-unified.py --summary
 - New unified script recommended for all cleanup operations
 - Can be used side-by-side during transition
 
+## Issue 10: Simple Mode Full Workflow - Infinite Loop/Hang
+**Date**: 2025-12-29
+**Command**: `python -m tapps_agents.cli simple-mode full --prompt "http://localhost:3001/synergies page: Network Graph button does not display anything. Research, analyze, get better prompts and follow the TappsCodingAgents SDLC workflow to solve the issues"`
+**Error**: Workflow stuck in infinite loop, continuously printing "Starting Simple Full Lifecycle Workflow..." spinner for 1+ hour without progressing through any workflow steps
+**Observed Behavior**:
+- Command starts successfully
+- Shows spinner animation: `\ Starting Simple Full Lifecycle Workflow... (45m 0s)`
+- Spinner continues indefinitely (observed for 1h 16m before cancellation)
+- No actual workflow steps execute (no requirements gathering, no planning, no implementation)
+- No error messages or exceptions thrown
+- Process must be manually cancelled (Ctrl+C)
+
+**Root Cause**: Unknown - appears to be a bug in Simple Mode workflow execution logic causing:
+- Infinite retry/restart loop
+- Workflow initialization never completes
+- No progression to actual SDLC steps
+- Possible deadlock or blocking operation in workflow orchestration
+
+**TappsCodingAgents Version**: 3.2.2
+
+**Status**: ⚠️ BLOCKED - Workflow cannot complete, must be cancelled manually
+
+**Workaround**: Investigate issues directly instead of using Simple Mode full workflow:
+1. **Browser Console Check**: Open DevTools (F12) → Console tab → Click Network Graph button → Check for JavaScript errors
+2. **Package Verification**: 
+   ```bash
+   cd services/ai-automation-ui
+   npm list react-force-graph three
+   ```
+3. **Component Analysis**: Review `NetworkGraphView.tsx` for:
+   - Dynamic import of `react-force-graph` (lines 111-118)
+   - THREE.js loading logic (lines 68-108)
+   - Error handling in `useEffect` (lines 230-242)
+   - Graph rendering conditions (lines 531-591)
+4. **Data Flow Check**: Verify synergies data is being passed correctly:
+   - Check `Synergies.tsx` line 1490-1493 (NetworkGraphView props)
+   - Verify `sortedSynergies` contains data
+   - Check for empty array or null data issues
+5. **CSS Visibility**: Check if component renders but is hidden:
+   - Inspect DOM when Network Graph button is clicked
+   - Check for `display: none` or `visibility: hidden` styles
+   - Verify container dimensions (height: 600px expected)
+
+**Alternative Approaches**:
+- Use individual agent commands instead of Simple Mode full workflow:
+  ```bash
+  # Step 1: Analyze the issue
+  python -m tapps_agents.cli debugger debug "Network Graph button does not display anything" --file services/ai-automation-ui/src/components/synergies/NetworkGraphView.tsx
+  
+  # Step 2: Review the code
+  python -m tapps_agents.cli reviewer review services/ai-automation-ui/src/components/synergies/NetworkGraphView.tsx
+  
+  # Step 3: Fix the issue manually based on findings
+  ```
+- Use Simple Mode individual workflows instead:
+  ```bash
+  @simple-mode *review services/ai-automation-ui/src/components/synergies/NetworkGraphView.tsx
+  @simple-mode *fix services/ai-automation-ui/src/components/synergies/NetworkGraphView.tsx "Fix Network Graph display issue"
+  ```
+
+**Related Issues**: 
+- Issue 3: Planner Agent returns instruction object instead of executing
+- Issue 4: Tester Agent returns instruction object instead of creating test file
+- Issue 8: Improver Agent returns instruction object instead of improving code
+- **Pattern**: Multiple agents/workflows have execution problems, returning instruction objects or hanging instead of performing actual work
+
+**Recommendation**: 
+1. **Immediate**: Use direct investigation approach instead of Simple Mode full workflow until this is fixed
+2. **Short-term**: Report this bug to TappsCodingAgents maintainers with:
+   - Version: 3.2.2
+   - Command used
+   - Observed behavior (infinite spinner)
+   - Duration before cancellation
+3. **Long-term**: Consider adding timeout mechanisms to Simple Mode workflows to prevent infinite hangs
+

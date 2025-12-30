@@ -225,17 +225,37 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
   const [graphLoaded, setGraphLoaded] = useState(false);
   const [ForceGraph2D, setForceGraph2D] = useState<any>(null);
   const graphRef = useRef<any>();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [graphWidth, setGraphWidth] = useState(800);
+
+  // Update graph width based on container
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        const width = containerRef.current.offsetWidth || 800;
+        setGraphWidth(Math.max(width - 20, 800)); // Subtract padding
+        console.log('[NetworkGraphView] Container width updated:', width);
+      }
+    };
+    
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   // Load the graph component on mount
   useEffect(() => {
+    console.log('[NetworkGraphView] Starting graph library load...');
+    console.log('[NetworkGraphView] Synergies received:', synergies.length);
     loadForceGraph()
       .then((GraphComponent: any) => {
+        console.log('[NetworkGraphView] Graph library loaded successfully:', GraphComponent);
         setForceGraph2D(() => GraphComponent);
         setGraphLoaded(true);
         setLoadError(null);
       })
       .catch((err: any) => {
-        console.error('Error loading ForceGraph2D:', err);
+        console.error('[NetworkGraphView] Error loading ForceGraph2D:', err);
         setLoadError(err?.message || 'Failed to load network graph library');
         setGraphLoaded(false);
       });
@@ -243,6 +263,7 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
   
   // Transform synergies into graph format
   const { nodes, links } = useMemo(() => {
+    console.log('[NetworkGraphView] Transforming synergies to graph format. Synergies count:', synergies.length);
     const nodeMap = new Map<string, GraphNode>();
     const linkList: GraphLink[] = [];
     
@@ -297,10 +318,12 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
       });
     });
     
-    return {
+    const result = {
       nodes: Array.from(nodeMap.values()),
       links: linkList
     };
+    console.log('[NetworkGraphView] Graph transformation complete. Nodes:', result.nodes.length, 'Links:', result.links.length);
+    return result;
   }, [synergies, filterArea, filterType]);
   
   // Filter nodes/links by search query
@@ -498,7 +521,10 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
       </div>
       
       {/* Graph Container */}
-      <div className={`relative rounded-xl overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-gray-100'} shadow-lg`}>
+      <div 
+        ref={containerRef}
+        className={`relative rounded-xl overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-gray-100'} shadow-lg`}
+      >
         {loadError ? (
           <div className="flex items-center justify-center h-[600px]">
             <div className={`text-center p-6 rounded-xl ${darkMode ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-700'}`}>
@@ -557,6 +583,14 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
               </div>
             }
           >
+            {console.log('[NetworkGraphView] Rendering graph. State:', {
+              loadError,
+              filteredNodes: filteredData.nodes.length,
+              filteredLinks: filteredData.links.length,
+              graphLoaded,
+              hasForceGraph2D: !!ForceGraph2D,
+              graphWidth
+            }) || null}
             <ForceGraph2D
               ref={graphRef}
               graphData={filteredData}
@@ -585,7 +619,7 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
               onBackgroundClick={handleBackgroundClick}
               cooldownTicks={100}
               onEngineStop={() => graphRef.current?.zoomToFit(400)}
-              width={typeof window !== 'undefined' ? Math.max(window.innerWidth - 100, 800) : 800}
+              width={graphWidth}
               height={600}
             />
           </GraphErrorBoundary>

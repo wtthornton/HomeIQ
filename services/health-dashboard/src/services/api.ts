@@ -172,23 +172,39 @@ class BaseApiClient {
  */
 class AdminApiClient extends BaseApiClient {
   constructor() {
-    super(ADMIN_API_BASE_URL);
+    // In production (nginx), use empty string for relative paths
+    // In development (Vite dev server), use configured base URL or empty for proxy
+    super(ADMIN_API_BASE_URL || '');
+  }
+
+  /**
+   * Helper method to construct API URLs correctly
+   * Handles empty baseUrl for relative paths (production/nginx)
+   */
+  private buildUrl(path: string): string {
+    if (this.baseUrl) {
+      // Remove leading slash from path if baseUrl already ends with slash
+      const cleanPath = path.startsWith('/') ? path : `/${path}`;
+      return `${this.baseUrl}${cleanPath}`;
+    }
+    // Empty baseUrl - use relative path
+    return path.startsWith('/') ? path : `/${path}`;
   }
 
   async getHealth(): Promise<HealthStatus> {
-    return this.fetchWithErrorHandling<HealthStatus>(`${this.baseUrl}/api/health`);
+    return this.fetchWithErrorHandling<HealthStatus>(this.buildUrl('/api/health'));
   }
 
   async getEnhancedHealth(): Promise<ServiceHealthResponse> {
-    return this.fetchWithErrorHandling<ServiceHealthResponse>(`${this.baseUrl}/api/v1/health`);
+    return this.fetchWithErrorHandling<ServiceHealthResponse>(this.buildUrl('/api/v1/health'));
   }
 
   async getStatistics(period: string = '1h'): Promise<Statistics> {
-    return this.fetchWithErrorHandling<Statistics>(`${this.baseUrl}/api/v1/stats?period=${period}`);
+    return this.fetchWithErrorHandling<Statistics>(this.buildUrl(`/api/v1/stats?period=${period}`));
   }
 
   async getServicesHealth(): Promise<ServicesHealthResponse> {
-    return this.fetchWithErrorHandling<ServicesHealthResponse>(`${this.baseUrl}/api/v1/health/services`);
+    return this.fetchWithErrorHandling<ServicesHealthResponse>(this.buildUrl('/api/v1/health/services'));
   }
 
   async getAllDataSources(): Promise<DataSourcesHealthMap> {
@@ -242,43 +258,43 @@ class AdminApiClient extends BaseApiClient {
   }
 
   async getActiveAlerts(): Promise<Alert[]> {
-    return this.fetchWithErrorHandling<Alert[]>(`${this.baseUrl}/api/v1/alerts/active`);
+    return this.fetchWithErrorHandling<Alert[]>(this.buildUrl('/api/v1/alerts/active'));
   }
 
   async acknowledgeAlert(alertId: string): Promise<void> {
-    await this.fetchWithErrorHandling(`${this.baseUrl}/api/v1/alerts/${alertId}/acknowledge`, {
+    await this.fetchWithErrorHandling(this.buildUrl(`/api/v1/alerts/${alertId}/acknowledge`), {
       method: 'POST',
     });
   }
 
   async resolveAlert(alertId: string): Promise<void> {
-    await this.fetchWithErrorHandling(`${this.baseUrl}/api/v1/alerts/${alertId}/resolve`, {
+    await this.fetchWithErrorHandling(this.buildUrl(`/api/v1/alerts/${alertId}/resolve`), {
       method: 'POST',
     });
   }
 
   // Docker Management API methods (System Admin)
   async getContainers(): Promise<ContainerInfo[]> {
-    return this.fetchWithErrorHandling<ContainerInfo[]>(`${this.baseUrl}/api/v1/docker/containers`);
+    return this.fetchWithErrorHandling<ContainerInfo[]>(this.buildUrl('/api/v1/docker/containers'));
   }
 
   async startContainer(serviceName: string): Promise<ContainerOperationResponse> {
     return this.fetchWithErrorHandling<ContainerOperationResponse>(
-      `${this.baseUrl}/api/v1/docker/containers/${serviceName}/start`,
+      this.buildUrl(`/api/v1/docker/containers/${serviceName}/start`),
       { method: 'POST' }
     );
   }
 
   async stopContainer(serviceName: string): Promise<ContainerOperationResponse> {
     return this.fetchWithErrorHandling<ContainerOperationResponse>(
-      `${this.baseUrl}/api/v1/docker/containers/${serviceName}/stop`,
+      this.buildUrl(`/api/v1/docker/containers/${serviceName}/stop`),
       { method: 'POST' }
     );
   }
 
   async restartContainer(serviceName: string): Promise<ContainerOperationResponse> {
     return this.fetchWithErrorHandling<ContainerOperationResponse>(
-      `${this.baseUrl}/api/v1/docker/containers/${serviceName}/restart`,
+      this.buildUrl(`/api/v1/docker/containers/${serviceName}/restart`),
       { method: 'POST' }
     );
   }
@@ -356,24 +372,24 @@ class AdminApiClient extends BaseApiClient {
 
   async getContainerLogs(serviceName: string, tail: number = 100): Promise<{ logs: string }> {
     return this.fetchWithErrorHandling<{ logs: string }>(
-      `${this.baseUrl}/api/v1/docker/containers/${serviceName}/logs?tail=${tail}`
+      this.buildUrl(`/api/v1/docker/containers/${serviceName}/logs?tail=${tail}`)
     );
   }
 
   async getContainerStats(serviceName: string): Promise<ContainerStats> {
     return this.fetchWithErrorHandling<ContainerStats>(
-      `${this.baseUrl}/api/v1/docker/containers/${serviceName}/stats`
+      this.buildUrl(`/api/v1/docker/containers/${serviceName}/stats`)
     );
   }
 
   // API Key Management methods (System Admin)
   async getAPIKeys(): Promise<APIKeyInfo[]> {
-    return this.fetchWithErrorHandling<APIKeyInfo[]>(`${this.baseUrl}/api/v1/docker/api-keys`);
+    return this.fetchWithErrorHandling<APIKeyInfo[]>(this.buildUrl('/api/v1/docker/api-keys'));
   }
 
   async updateAPIKey(service: string, apiKey: string): Promise<ContainerOperationResponse> {
     return this.fetchWithErrorHandling<ContainerOperationResponse>(
-      `${this.baseUrl}/api/v1/docker/api-keys/${service}`,
+      this.buildUrl(`/api/v1/docker/api-keys/${service}`),
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -384,7 +400,7 @@ class AdminApiClient extends BaseApiClient {
 
   async testAPIKey(service: string, apiKey: string): Promise<APIKeyTestResponse> {
     return this.fetchWithErrorHandling<APIKeyTestResponse>(
-      `${this.baseUrl}/api/v1/docker/api-keys/${service}/test`,
+      this.buildUrl(`/api/v1/docker/api-keys/${service}/test`),
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -395,7 +411,7 @@ class AdminApiClient extends BaseApiClient {
 
   // Real-time metrics endpoint (Story 23.2 + Epic 34.1)
   async getRealTimeMetrics(): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${this.baseUrl}/api/v1/real-time-metrics`);
+    return this.fetchWithErrorHandling<any>(this.buildUrl('/api/v1/real-time-metrics'));
   }
 }
 
