@@ -191,3 +191,6 @@ services/*/data/**/adapter_config.json
 !services/*/data/**/README.md
 !services/*/data/**/training_run.json
 
+# TappsCodingAgents (local development tool, not part of repo)
+TappsCodingAgents/
+
