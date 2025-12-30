@@ -461,7 +461,7 @@ export const apiV2 = {
     fixes_applied?: string[];
   }> {
     // Call yaml-validation-service directly (port 8037)
-    const validationUrl = import.meta.env.VITE_VALIDATION_SERVICE_URL || 'http://localhost:8026';
+    const validationUrl = import.meta.env.VITE_VALIDATION_SERVICE_URL || 'http://localhost:8037';
     return fetchJSON<{
       valid: boolean;
       errors: string[];
@@ -469,7 +469,7 @@ export const apiV2 = {
       score: number;
       fixed_yaml?: string;
       fixes_applied?: string[];
-    }>(`${validationUrl}/api/v1/validation`, {
+    }>(`${validationUrl}/api/v1/validation/validate`, {
       method: 'POST',
       body: JSON.stringify({
         yaml_content: yamlContent,

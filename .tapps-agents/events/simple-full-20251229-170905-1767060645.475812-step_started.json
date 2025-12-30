@@ -1,0 +1,11 @@
+{
+  "event_type": "step_started",
+  "workflow_id": "simple-full-20251229-170905",
+  "step_id": "requirements",
+  "data": {
+    "agent": "analyst",
+    "action": "gather_requirements"
+  },
+  "timestamp": "2025-12-29T18:10:45.475812",
+  "correlation_id": null
+}

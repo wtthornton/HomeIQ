@@ -132,8 +132,8 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
         </div>
       )}
 
-      {/* Container Status */}
-      {containerStatus && (
+      {/* Container Status - Only show if different from service status or if service status is unknown */}
+      {containerStatus && containerStatus !== 'unknown' && containerStatus !== service.status && (
         <div className="mb-3">
           <div className="flex justify-between items-center">
             <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -142,12 +142,12 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
             <span className={`text-xs font-medium ${
               containerStatus === 'running' 
                 ? 'text-green-600 dark:text-green-400' 
-                : containerStatus === 'stopped'
+                : containerStatus === 'stopped' || containerStatus === 'exited'
                   ? 'text-red-600 dark:text-red-400'
                   : 'text-gray-600 dark:text-gray-400'
             }`}>
               {containerStatus === 'running' ? '🟢 Running' : 
-                containerStatus === 'stopped' ? '🔴 Stopped' : 
+                containerStatus === 'stopped' || containerStatus === 'exited' ? '🔴 Stopped' : 
                   '⚪ Unknown'}
             </span>
           </div>
