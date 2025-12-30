@@ -1,0 +1,11 @@
+{
+  "event_type": "step_started",
+  "workflow_id": "maintenance-20251229-145531",
+  "step_id": "improve",
+  "data": {
+    "agent": "improver",
+    "action": "refactor"
+  },
+  "timestamp": "2025-12-29T15:56:53.742360",
+  "correlation_id": null
+}
