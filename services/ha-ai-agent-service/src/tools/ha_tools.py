@@ -372,6 +372,13 @@ class HAToolHandler:
             initial_state=automation_dict.get("initial_state", None),
         )
 
+        # Use normalized YAML if available (recommendation #10 from HA_AGENT_API_FLOW_ANALYSIS.md)
+        # Prefer fixed_yaml (normalized) over original YAML for consistent formatting
+        yaml_to_use = request.automation_yaml
+        if validation_result and hasattr(validation_result, 'fixed_yaml') and validation_result.fixed_yaml:
+            yaml_to_use = validation_result.fixed_yaml
+            logger.debug(f"Using normalized YAML from validation result for preview")
+
         # Build response with safety score (recommendation #4)
         response = AutomationPreviewResponse(
             success=True,
@@ -382,7 +389,7 @@ class HAToolHandler:
             services_used=extraction_result["services"],
             safety_warnings=safety_warnings,
             user_prompt=request.user_prompt,
-            automation_yaml=request.automation_yaml,
+            automation_yaml=yaml_to_use,  # Use normalized YAML if available
             alias=request.alias,
             message="Preview generated successfully. Review the details above and approve to create the automation.",
         )
