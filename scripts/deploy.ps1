@@ -11,8 +11,8 @@ param(
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
 $Environment = if ($env:ENVIRONMENT) { $env:ENVIRONMENT } else { "production" }
-$ComposeFile = "docker-compose.prod.yml"
-$EnvFile = "infrastructure/env.production"
+$ComposeFile = "docker-compose.yml"
+$EnvFile = ".env"
 
 # Colors for output
 function Write-Info {
@@ -150,9 +150,9 @@ function Invoke-PullImages {
     
     try {
         if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-            & docker-compose -f $ComposeFile --env-file $EnvFile pull
+            & docker-compose --profile production pull
         } else {
-            & docker compose -f $ComposeFile --env-file $EnvFile pull
+            & docker compose --profile production pull
         }
         Write-Success "Images pulled successfully"
     }
@@ -176,9 +176,9 @@ function Invoke-BuildImages {
         
         # Remove --no-cache to enable BuildKit cache mounts
         if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-            & docker-compose -f $ComposeFile --env-file $EnvFile build --parallel
+            & docker-compose --profile production build --parallel
         } else {
-            & docker compose -f $ComposeFile --env-file $EnvFile build --parallel
+            & docker compose --profile production build --parallel
         }
         
         $buildEnd = Get-Date
@@ -255,11 +255,11 @@ function Invoke-DeployServices {
         Stop-AllContainers
         
         # Start services (with production profile to include all services)
-        Write-Info "Starting services..."
+        Write-Info "Starting all services with production profile..."
         if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-            & docker-compose -f $ComposeFile --env-file $EnvFile --profile production up -d
+            & docker-compose --profile production up -d
         } else {
-            & docker compose -f $ComposeFile --env-file $EnvFile --profile production up -d
+            & docker compose --profile production up -d
         }
         
         Write-Success "Services deployed successfully"
@@ -273,12 +273,20 @@ function Invoke-DeployServices {
 function Wait-ForHealth {
     Write-Info "Waiting for services to be healthy..."
     
+    # Check health of all critical services
     $services = @(
         "influxdb",
-        "websocket-ingestion", 
+        "jaeger",
+        "data-api",
         "admin-api",
+        "websocket-ingestion",
         "data-retention",
-        "health-dashboard"
+        "weather-api",
+        "carbon-intensity",
+        "electricity-pricing",
+        "air-quality",
+        "health-dashboard",
+        "ai-automation-service-new"
     )
     
     $maxAttempts = 30
@@ -293,12 +301,12 @@ function Wait-ForHealth {
             try {
                 $healthStatus = "unknown"
                 if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-                    $containerId = & docker-compose -f $ComposeFile --env-file $EnvFile ps -q $service
+                    $containerId = & docker-compose ps -q $service
                     if ($containerId) {
                         $healthStatus = docker inspect --format='{{.State.Health.Status}}' $containerId 2>$null
                     }
                 } else {
-                    $containerId = & docker compose -f $ComposeFile --env-file $EnvFile ps -q $service
+                    $containerId = & docker compose ps -q $service
                     if ($containerId) {
                         $healthStatus = docker inspect --format='{{.State.Health.Status}}' $containerId 2>$null
                     }
@@ -380,9 +388,9 @@ function Show-Status {
     
     try {
         if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-            & docker-compose -f $ComposeFile --env-file $EnvFile ps
+            & docker-compose --profile production ps
         } else {
-            & docker compose -f $ComposeFile --env-file $EnvFile ps
+            & docker compose --profile production ps
         }
     }
     finally {
@@ -447,9 +455,9 @@ switch ($Command) {
         Push-Location $ProjectRoot
         try {
             if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-                & docker-compose -f $ComposeFile --env-file $EnvFile logs -f
+                & docker-compose --profile production logs -f
             } else {
-                & docker compose -f $ComposeFile --env-file $EnvFile logs -f
+                & docker compose --profile production logs -f
             }
         }
         finally {
@@ -463,12 +471,13 @@ switch ($Command) {
     "restart" {
         Push-Location $ProjectRoot
         try {
+            Write-Info "Restarting all services..."
             if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-                & docker-compose -f $ComposeFile --env-file $EnvFile restart
+                & docker-compose --profile production restart
             } else {
-                & docker compose -f $ComposeFile --env-file $EnvFile restart
+                & docker compose --profile production restart
             }
-            Write-Success "Services restarted"
+            Write-Success "All services restarted"
         }
         finally {
             Pop-Location
