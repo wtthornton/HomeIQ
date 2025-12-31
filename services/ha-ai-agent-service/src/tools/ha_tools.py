@@ -396,12 +396,16 @@ class HAToolHandler:
 
             # Check required fields
             if "trigger" not in automation_dict:
-                errors.append("Missing required field: 'trigger'")
+                errors.append(
+                    "Missing required field: 'trigger' (2025.10+ format uses singular 'trigger:', not 'triggers:')"
+                )
             elif not automation_dict["trigger"]:
                 errors.append("Field 'trigger' cannot be empty")
 
             if "action" not in automation_dict:
-                errors.append("Missing required field: 'action'")
+                errors.append(
+                    "Missing required field: 'action' (2025.10+ format uses singular 'action:', not 'actions:')"
+                )
             elif not automation_dict["action"]:
                 errors.append("Field 'action' cannot be empty")
 
@@ -413,7 +417,20 @@ class HAToolHandler:
                 warnings.append("Missing recommended field: 'description' (helps with automation management)")
 
             if "initial_state" not in automation_dict:
-                warnings.append("Missing recommended field: 'initial_state' (should be 'true' for 2025.10+ compliance)")
+                warnings.append(
+                    "Missing recommended field: 'initial_state' (should be 'true' for 2025.10+ compliance). "
+                    "2025.10+ format requires explicit initial_state: true"
+                )
+            
+            # Check for group entities and provide warnings
+            entities = self._extract_entities_from_yaml(automation_dict)
+            group_entities = [eid for eid in entities if self._is_group_entity(eid)]
+            if group_entities:
+                warnings.append(
+                    f"Group entities detected: {', '.join(group_entities)}. "
+                    "Groups don't have 'last_changed' attribute - templates accessing group.last_changed will fail. "
+                    "Use individual entities with condition: state and for: option instead for continuous occupancy detection."
+                )
 
             # Validate trigger structure
             if "trigger" in automation_dict:
@@ -455,6 +472,10 @@ class HAToolHandler:
                 "warnings": warnings
             }
 
+    def _is_group_entity(self, entity_id: str) -> bool:
+        """Check if entity ID is a group entity."""
+        return isinstance(entity_id, str) and entity_id.startswith("group.")
+    
     def _extract_entities_from_yaml(self, automation_dict: dict) -> list[str]:
         """Extract entity IDs from automation YAML"""
         entities = []

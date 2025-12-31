@@ -6,6 +6,12 @@ Database connection pooling for shared SQLite database.
 """
 
 import logging
+import os
+import sys
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -79,16 +85,56 @@ async def get_db() -> AsyncSession:
             await session.close()
 
 
-async def init_db():
-    """Initialize database connection and verify connectivity."""
+async def run_migrations():
+    """
+    Run Alembic migrations to ensure database schema is up to date.
+    
+    This should be called on service startup to ensure all migrations are applied.
+    """
     try:
+        # Get the service directory (parent of src/)
+        service_dir = Path(__file__).parent.parent.parent
+        alembic_ini_path = service_dir / "alembic.ini"
+        
+        if not alembic_ini_path.exists():
+            logger.warning(f"Alembic config not found at {alembic_ini_path}, skipping migrations")
+            return
+        
+        # Configure Alembic
+        alembic_cfg = Config(str(alembic_ini_path))
+        
+        # Run migrations
+        logger.info("Running Alembic migrations...")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("✅ Alembic migrations completed")
+    except Exception as e:
+        logger.error(f"Failed to run Alembic migrations: {e}", exc_info=True)
+        # Don't raise - fallback to manual schema sync
+        logger.warning("Will attempt manual schema sync as fallback")
+
+
+async def init_db():
+    """
+    Initialize database connection and verify connectivity.
+    
+    This function:
+    1. Runs Alembic migrations to ensure schema is up to date
+    2. Tests database connectivity
+    3. Performs manual schema sync as fallback (adds missing columns)
+    """
+    try:
+        # Step 1: Run Alembic migrations first
+        await run_migrations()
+        
+        # Step 2: Test connection and perform manual schema sync (fallback)
         from sqlalchemy import text
         async with engine.begin() as conn:
             # Test connection
             await conn.execute(text("SELECT 1"))
             
-            # Check if suggestions table exists and add missing description column if needed
+            # Check if suggestions table exists and add missing columns if needed
             # This handles schema mismatch between model and existing database
+            # (fallback in case migrations didn't run or missed something)
             result = await conn.execute(text("""
                 SELECT name FROM sqlite_master 
                 WHERE type='table' AND name='suggestions'
@@ -105,6 +151,10 @@ async def init_db():
                 # Note: SQLite doesn't have native DATETIME type, uses TEXT for datetime columns
                 required_columns = {
                     'description': 'TEXT',
+                    'automation_json': 'TEXT',  # JSON stored as TEXT in SQLite
+                    'automation_yaml': 'TEXT',
+                    'ha_version': 'TEXT',
+                    'json_schema_version': 'TEXT',
                     'automation_id': 'TEXT',  # VARCHAR in SQLite is same as TEXT
                     'deployed_at': 'TEXT',  # SQLite stores datetime as TEXT
                     'confidence_score': 'REAL',

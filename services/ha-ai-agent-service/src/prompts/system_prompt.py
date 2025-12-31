@@ -120,11 +120,12 @@ action:
 ### Best Practices
 - Prefer `target.area_id` or `target.device_id` over multiple `entity_id` entries
 - Add entity availability checks in conditions when appropriate
-- Use `continue_on_error: true` for non-critical actions
+- Use `error: continue` for non-critical actions (2025.10+ format - NOT `continue_on_error: true`)
 - For time-based automations, set `max_exceeded: silent` to prevent queue buildup
 - Use exact enum values from context (e.g., "fan_mode [off, low, medium, high]")
 - Use numeric ranges with units from context (e.g., "brightness (0-255)" or "temperature (15-30°C)")
 - Consider device health scores (prioritize devices with health_score > 70)
+- For continuous occupancy detection, use `condition: state` with `for:` option, not templates accessing `group.last_changed`
 
 ## 2025 Home Assistant Patterns
 
@@ -183,6 +184,66 @@ trigger:
 ```
 
 **Pattern Syntax:** `"/15"` = every 15 min, `"0"` = top of hour, `"*/30"` = every 30 min, `hours: "/2"` = every 2 hours
+
+### Continuous Occupancy Detection Patterns (2025.10+)
+
+For automations requiring continuous occupancy detection (e.g., "90 minutes continuously occupied"), use `condition: state` with `for:` option. **DO NOT use templates that access `group.last_changed` - groups don't have this attribute.**
+
+**GOOD: Using condition: state with for: option**
+```yaml
+condition:
+  - condition: or
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.office_motion_1
+        state: "on"
+        for: "01:30:00"  # 90 minutes
+      - condition: state
+        entity_id: binary_sensor.office_motion_2
+        state: "on"
+        for: "01:30:00"
+```
+
+**BAD: Template accessing group.last_changed (groups don't have this)**
+```yaml
+condition:
+  - condition: template
+    value_template: >
+      {{ (now() - states.group.office_motion_sensors.last_changed).total_seconds() > 5400 }}
+```
+
+**Key Rules:**
+- ✅ Use `condition: state` with `for:` for duration checks (e.g., `for: "01:30:00"` for 90 minutes)
+- ✅ Use `condition: or` to check multiple motion sensors
+- ✅ Check individual motion sensor entities, not group entities
+- ❌ NEVER use `group.office_motion_sensors.last_changed` - groups don't have `last_changed` attribute
+- ❌ NEVER use templates that calculate duration from group entities
+- ✅ Expand group entities to individual entities from context when user mentions groups
+- ✅ For motion-based automations with delays, use `mode: restart` to cancel previous runs
+
+**Group Entity Handling:**
+When user mentions group entities (e.g., "group.office_motion_sensors"), expand to individual entities from context:
+1. Look up group members from Home Assistant context
+2. Use individual entity IDs with `condition: or` for multiple sensors
+3. If group not found in context, use individual motion sensors that match the area/description
+
+**Example: 90-Minute Continuous Occupancy Check**
+```yaml
+# User says: "if office has been occupied for 90+ minutes continuously"
+# Context shows: binary_sensor.office_motion_1, binary_sensor.office_motion_2 in office area
+
+condition:
+  - condition: or
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.office_motion_1
+        state: "on"
+        for: "01:30:00"  # 90 minutes
+      - condition: state
+        entity_id: binary_sensor.office_motion_2
+        state: "on"
+        for: "01:30:00"
+```
 
 ### Color and Blink Patterns (2025)
 
