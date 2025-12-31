@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Add loading indicators to Automation Suggestions page** (c258b30) - wtthornton
+- **Add OpenTelemetry distributed tracing with Jaeger** (e64c0e3) - wtthornton
+- **Add comprehensive loading indicators and prevent false data display in dashboard** (6b0cbc2) - wtthornton
+- **Add TappsCodingAgents installation documentation and multiple installations warning** (a9a8e75) - wtthornton
+- **Add comprehensive code review for ai-automation-service-new** (bd5232c) - wtthornton
+- **Implement HomeIQ JSON Automation layer with comprehensive E2E tests** (42f5e28) - wtthornton
+- **Patterns & Synergies UI/UX improvements with TappsCodingAgents integration** (bae550a) - wtthornton
+
+### Changed
+
+- **Update tests, UI components, and add implementation plan** (e7adf9b) - wtthornton
+- **Refactor preview automation feature: improve maintainability and architecture** (beee5e1) - wtthornton
+- **Update services, TappsCodingAgents, and implementation documentation** (b9211f5) - wtthornton
+- **Update RAG and expert knowledge bases for 2025 accuracy** (4e2934f) - wtthornton
+- **Update documentation structure and knowledge base** (56ecec3) - wtthornton
+
+### Removed
+
+- **Remove TappsCodingAgents from repository and add to .gitignore** (959fd1a) - wtthornton
+
+### Fixed
+
+- **Fix database schema issue: Add table creation logic to init_db()** (3622349) - wtthornton
+- **Use enhanced prompt from toolCall arguments instead of original user prompt** (8645b64) - wtthornton
+- **Fix dashboard API authentication, error handling, and manifest.json warning** (68a047b) - wtthornton
+- **Fix deployment issues: nginx proxy config, authentication, and health scoring** (6d8f15f) - wtthornton
+- **Fix unit test framework and test failures** (c9fc8e9) - wtthornton
+- **Fix TypeScript compilation errors and syntax issues** (1bc8863) - wtthornton
+
+
+### Added
+
 - **Add OpenTelemetry distributed tracing with Jaeger** (e64c0e3) - wtthornton
 - **Add comprehensive loading indicators and prevent false data display in dashboard** (6b0cbc2) - wtthornton
 - **Add TappsCodingAgents installation documentation and multiple installations warning** (a9a8e75) - wtthornton
