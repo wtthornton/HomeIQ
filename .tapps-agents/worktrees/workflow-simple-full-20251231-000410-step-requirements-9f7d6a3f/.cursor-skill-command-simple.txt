@@ -1,0 +1,4 @@
+@analyst gather-requirements --description "
+
+Project Context:
+- Tenancy: multi-tenant (confidence: 0.8)" --output_file 

@@ -1,174 +1,116 @@
-# Step 7: Testing Plan and Validation
+# Step 7: Testing Plan - Pattern & Synergy Quality Evaluation Tool
 
 ## Testing Strategy
 
-### Component Testing
-- **LoadingSpinner Component**: Unit tests for all variants, sizes, and accessibility features
-- **ConversationalDashboard Integration**: Verify loading indicators appear during API calls
+Comprehensive testing plan for the quality evaluation tool covering unit tests, integration tests, and validation tests.
 
-### Test Coverage Goals
-- **Target Coverage**: 80%+
-- **Critical Paths**: All loading states must be tested
-- **Accessibility**: ARIA labels and screen reader support verified
+## Test Coverage Goals
 
-## Test Plan
+- **Unit Tests:** ≥ 80% coverage
+- **Integration Tests:** All major workflows
+- **Edge Cases:** Error handling, empty data, missing dependencies
 
-### 1. LoadingSpinner Component Tests
+## Test Structure
 
-#### Unit Tests
-- ✅ Renders spinner variant by default
-- ✅ Renders with custom label
-- ✅ Renders all size variants (sm, md, lg)
-- ✅ Renders all animation variants (spinner, dots, pulse)
-- ✅ Applies custom className
-- ✅ Has accessible aria-label
-- ✅ Has screen reader only text
+### 1. Unit Tests
 
-#### Test File
-- Location: `services/ai-automation-ui/src/components/__tests__/LoadingSpinner.test.tsx`
-- Framework: Vitest + React Testing Library
-- Status: ✅ Created
+#### `tests/scripts/test_database_accessor.py`
+- Test database connection
+- Test pattern retrieval with filters
+- Test synergy retrieval with filters
+- Test JSON field parsing
+- Test error handling (missing database, invalid queries)
 
-### 2. ConversationalDashboard Integration Tests
+#### `tests/scripts/test_event_fetcher.py`
+- Test Data API client initialization
+- Test event fetching with time windows
+- Test error handling (API failures, timeouts)
+- Test DataFrame conversion
 
-#### Manual Testing Checklist
-- [ ] Initial page load shows skeleton loader with spinner
-- [ ] Refresh button shows spinner when `refreshLoading` is true
-- [ ] Generate Sample button shows spinner when `loading` is true
-- [ ] Status loading shows spinner when `statusLoading` is true
-- [ ] All buttons are disabled during loading operations
-- [ ] Loading indicators are visible in both light and dark modes
+#### `tests/scripts/test_pattern_validator.py`
+- Test pattern re-detection
+- Test pattern comparison logic
+- Test precision/recall/F1 calculation
+- Test false positive identification
+- Test confidence accuracy validation
 
-#### Browser Testing
-- [ ] Test in Chrome/Edge
-- [ ] Test in Firefox
-- [ ] Test in Safari (if available)
-- [ ] Test with screen reader (accessibility)
+#### `tests/scripts/test_synergy_validator.py`
+- Test synergy validation logic
+- Test device existence validation
+- Test pattern support score validation
+- Test false positive identification
 
-### 3. API Call Loading States
+#### `tests/scripts/test_data_quality_analyzer.py`
+- Test completeness analysis
+- Test confidence distribution calculation
+- Test occurrence validation
+- Test metadata quality assessment
+- Test quality score calculation
 
-#### Test Scenarios
-1. **Initial Load**
-   - Page shows loading spinner
-   - Skeleton loaders visible
-   - "Loading suggestions..." message displayed
+#### `tests/scripts/test_report_generator.py`
+- Test JSON report generation
+- Test Markdown report generation
+- Test HTML report generation
+- Test error handling (file write failures)
 
-2. **Refresh Suggestions**
-   - Button shows spinner
-   - Button text changes to "Refreshing…"
-   - Button is disabled during operation
+### 2. Integration Tests
 
-3. **Generate Sample**
-   - Button shows spinner
-   - Button text changes to "Generating..."
-   - Button is disabled during operation
+#### `tests/scripts/test_evaluate_patterns_quality.py`
+- Test full evaluation workflow
+- Test CLI argument parsing
+- Test end-to-end execution
+- Test report generation in all formats
 
-4. **Background Status Calls**
-   - Status area shows "Loading status..." with spinner
-   - Status information hidden during load
+### 3. Test Data
 
-### 4. Accessibility Testing
-
-#### ARIA Compliance
-- ✅ All loading indicators have `role="status"`
-- ✅ All loading indicators have `aria-label` attributes
-- ✅ Screen reader text provided via `.sr-only` class
-
-#### Keyboard Navigation
-- ✅ Buttons remain keyboard accessible when disabled
-- ✅ Focus management during loading states
+Create test fixtures:
+- Sample patterns database
+- Sample synergies database
+- Sample events DataFrame
+- Mock Data API responses
 
 ## Test Execution
 
-### Run Tests
 ```bash
-cd services/ai-automation-ui
-npm test
+# Run all tests
+pytest tests/scripts/ -v
+
+# Run with coverage
+pytest tests/scripts/ --cov=scripts/quality_evaluation --cov-report=html
+
+# Run specific test file
+pytest tests/scripts/test_database_accessor.py -v
 ```
 
-### Run Specific Test
-```bash
-npm test LoadingSpinner
-```
+## Test Implementation Notes
 
-### Coverage Report
-```bash
-npm test -- --coverage
-```
+1. **Mock External Dependencies:**
+   - Mock Data API client
+   - Mock database connections
+   - Mock pattern/synergy detectors
 
-## Validation Criteria
+2. **Use Fixtures:**
+   - Database fixtures with test data
+   - Event DataFrame fixtures
+   - Pattern/synergy fixtures
 
-### ✅ Pass Criteria
-1. All unit tests pass
-2. Loading indicators visible for all API calls
-3. No console errors during loading states
-4. Accessibility requirements met
-5. Code quality score ≥ 70
+3. **Test Edge Cases:**
+   - Empty databases
+   - No events available
+   - Missing dependencies
+   - Invalid data formats
 
-### Quality Metrics
-- **LoadingSpinner**: 79.1/100 ✅
-- **ConversationalDashboard**: 57.0/100 (complexity high due to large component)
-- **Overall**: Meets minimum threshold
+## Expected Test Results
 
-## Manual Verification Steps
-
-1. **Start the development server**
-   ```bash
-   cd services/ai-automation-ui
-   npm run dev
-   ```
-
-2. **Navigate to http://localhost:3001/**
-
-3. **Verify Initial Load**
-   - Page should show skeleton loaders with spinner
-   - "Loading suggestions..." message visible
-
-4. **Test Refresh Button**
-   - Click "Refresh Suggestions"
-   - Verify spinner appears
-   - Verify button text changes to "Refreshing…"
-   - Verify button is disabled
-
-5. **Test Generate Sample**
-   - Click "Generate Sample Suggestion"
-   - Verify spinner appears
-   - Verify button text changes to "Generating..."
-   - Verify button is disabled
-
-6. **Test Status Loading**
-   - Wait for background status calls
-   - Verify "Loading status..." appears with spinner
-
-## Test Results Summary
-
-### Unit Tests
-- ✅ LoadingSpinner component: 10 test cases
-- ✅ All variants tested
-- ✅ All sizes tested
-- ✅ Accessibility verified
-
-### Integration Tests
-- ✅ Loading states integrated into ConversationalDashboard
-- ✅ All API calls have loading indicators
-- ✅ Button states properly managed
-
-### Browser Testing
-- ✅ Visual verification completed
-- ✅ Loading indicators visible and functional
-- ✅ No console errors
+- **Unit Tests:** All passing
+- **Integration Tests:** All passing
+- **Coverage:** ≥ 80%
+- **Performance:** Tests complete in < 30 seconds
 
 ## Next Steps
 
-1. ✅ Component tests created
-2. ✅ Integration verified
-3. ⏳ E2E tests (optional, for future enhancement)
-4. ⏳ Performance testing (optional, for future enhancement)
-
-## Conclusion
-
-All loading indicators have been successfully implemented and tested. The page now follows 2025 best practices for loading states with:
-- ✅ Visible loading indicators for all API calls
-- ✅ Accessible components with ARIA support
-- ✅ Modern loading patterns (skeleton loaders, spinners)
-- ✅ Comprehensive test coverage
+1. Implement unit tests for each module
+2. Implement integration tests
+3. Run coverage analysis
+4. Fix any failing tests
+5. Document test results
