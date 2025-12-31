@@ -1,153 +1,76 @@
-# Step 3: Architecture Design - Recommendations Document Structure
+# Step 3: Architecture Design
 
-**Date:** 2025-12-31  
-**Workflow:** Simple Mode *build
+**Date:** December 31, 2025  
+**Workflow:** Entity Validation Fix for ai-automation-service-new  
+**Step:** 3 of 7
 
-## Document Architecture
+## Architecture Overview
 
-### High-Level Structure
+### Component Changes
 
-```
-FINAL_RECOMMENDATIONS_PATTERN_SYNERGY_VALIDATION.md
-├── Header (Metadata, Status, Last Updated)
-├── Executive Summary
-│   ├── Quick Status Summary Table
-│   └── Key Findings List
-├── Critical Issues Identified
-│   ├── Issue 1: Synergy Type Detection Failure
-│   ├── Issue 2: Pattern Quality Issues
-│   ├── Issue 3: External Data Contamination
-│   ├── Issue 4: Pattern-Synergy Misalignment
-│   └── Issue 5: Missing Pattern Support Scores
-├── Recommendations by Priority
-│   ├── 🔴 CRITICAL (Immediate Action Required)
-│   ├── 🟡 HIGH PRIORITY (Short-Term)
-│   ├── 🟢 MEDIUM PRIORITY (Medium-Term)
-│   └── 🔵 LOW PRIORITY (Long-Term)
-├── Code Quality Recommendations
-├── Architecture Recommendations
-├── Monitoring and Alerting Recommendations
-├── Testing Recommendations
-├── Documentation Recommendations
-├── Implementation Priority Matrix
-├── Success Criteria
-├── Risk Assessment
-├── Conclusion
-├── Files Created/Modified
-├── Known Issues
-├── Validation Summary (Latest Run)
-└── Related Recommendations Documents
-```
+#### 1. YAMLGenerationService
+**Changes:**
+- Add `_fetch_entity_context()` method (R1)
+- Add `_format_entity_context_for_prompt()` method (R6)
+- Update `generate_homeiq_json()` to fetch and pass entity context (R1, R2)
+- Update `_generate_yaml_from_homeiq_json()` to validate entities (R3)
+- Update `_generate_yaml_from_structured_plan()` to fetch context and validate (R1, R2, R3)
+- Update `_generate_yaml_direct()` to fetch context and validate (R1, R2, R3)
+- Enhance `_extract_entity_ids()` to handle templates and areas (R5)
 
-## Component Design
+#### 2. OpenAIClient
+**Changes:**
+- Add `entity_context` parameter to `generate_homeiq_automation_json()` (R2)
+- Add `entity_context` parameter to `generate_structured_plan()` (R2)
+- Add `entity_context` parameter to `generate_yaml()` (R2)
+- Update system prompts to include entity context instructions (R2)
 
-### 1. Executive Summary Component
-**Purpose:** Quick reference for stakeholders
-
-**Structure:**
-- Quick Status Summary Table (Issue | Status | Action Required)
-- Key Findings List (numbered, with status indicators)
-
-**Design Principles:**
-- Scannable format
-- Status indicators (✅, ⚠️, ❌)
-- Action required clearly marked
-
-### 2. Critical Issues Component
-**Purpose:** Detailed analysis of each critical issue
-
-**Structure (per issue):**
-- Problem description
-- Root cause analysis
-- Fix applied (if any)
-- Current status
-- Next steps
-
-**Design Principles:**
-- Clear problem statement
-- Root cause clearly identified
-- Fix status visible
-- Action items explicit
-
-### 3. Recommendations Component
-**Purpose:** Actionable recommendations with priorities
-
-**Structure (per recommendation):**
-- Action description
-- Why it's needed
-- Expected results
-- Verification commands
-- Current validation results
-
-**Design Principles:**
-- Priority-based organization
-- Actionable language
-- Verification steps included
-- Expected outcomes stated
-
-### 4. Validation Summary Component
-**Purpose:** Latest validation results in one place
-
-**Structure:**
-- Pattern Validation Results
-- Synergy Validation Results
-- Device Activity Results
-- External Data Automation Validation
-
-**Design Principles:**
-- Latest results prominently displayed
-- Metrics clearly presented
-- Status indicators for each metric
-- Date of validation run
-
-## Data Flow
+### Data Flow
 
 ```
-Current Document
+User Request
     ↓
-[Evaluation Phase]
-    ├── Structure Analysis
-    ├── Content Completeness Check
-    ├── Validation Results Integration
-    └── Best Practices Review
+YAMLGenerationService.generate_automation_yaml()
     ↓
-[Enhancement Phase]
-    ├── Add Missing Sections
-    ├── Update Status Indicators
-    ├── Add Verification Commands
-    └── Improve Formatting
+[R1] Fetch entities from Data API
     ↓
-Updated Document
+[R6] Format entity context
     ↓
-[Review Phase]
-    ├── Quality Check
-    ├── Completeness Verification
-    └── Formatting Validation
+[R2] Pass entity context to OpenAI client
+    ↓
+OpenAI generates YAML/JSON
+    ↓
+Render to YAML (if needed)
+    ↓
+[R3] Validate entities (MANDATORY)
+    ↓
+[R5] Extract entities from all patterns
+    ↓
+If invalid entities → FAIL with error
+    ↓
+Return YAML
 ```
 
-## Integration Points
+### Entity Context Structure
 
-### TappsCodingAgents Integration
-- Reference Simple Mode workflows in recommendations
-- Include tapps-agents command examples
-- Align quality thresholds with tapps-agents standards
-- Reference workflow selection guide
+```python
+entity_context = {
+    "entities": {
+        "light": [
+            {"entity_id": "light.office", "friendly_name": "Office", "area_id": "office"},
+            ...
+        ],
+        "binary_sensor": [...],
+        ...
+    },
+    "total_count": 1234
+}
+```
 
-### Related Documents
-- Link to `DEVICE_ACTIVITY_FILTERING_RECOMMENDATIONS.md`
-- Link to `EXTERNAL_DATA_AUTOMATION_VALIDATION_RECOMMENDATIONS.md`
-- Link to `EXECUTIVE_SUMMARY_VALIDATION.md`
-- Reference cursor rules for tapps-agents
+### Validation Flow
 
-## Performance Considerations
-
-- Document should load quickly (markdown is lightweight)
-- Large sections should be collapsible or well-organized
-- Tables should be scannable
-- Cross-references should be valid
-
-## Security Considerations
-
-- No sensitive data in recommendations
-- Validation results are safe to share
-- No API keys or tokens referenced
+1. **Pre-Generation**: Fetch entity context (R1)
+2. **Generation**: Pass context to LLM (R2)
+3. **Post-Generation**: Extract all entities (R5)
+4. **Validation**: Check against valid entities (R3)
+5. **Failure**: Raise YAMLGenerationError if invalid (R3)

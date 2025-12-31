@@ -1,0 +1,149 @@
+# Corrected Office Automation YAML
+# Uses ONLY real entities from the deployed Home Assistant system
+
+id: office_themed_interactive_motion_lighting
+alias: Office Themed Interactive Motion Lighting
+description: >-
+  Uses office motion sensors to drive Focus Mode, Relaxed Office, break
+  reminders, dimming, and a subtle celebration easter egg based on time of day
+  and motion patterns.
+triggers:
+  - id: motion_detected
+    platform: state
+    entity_id:
+      - binary_sensor.office_motion_area  # ✅ REAL ENTITY (was: office_motion_1, office_motion_2, office_motion_3)
+    from: 'off'
+    to: 'on'
+  - id: motion_cleared
+    platform: state
+    entity_id:
+      - binary_sensor.office_motion_area  # ✅ REAL ENTITY
+    to: 'off'
+    for: '00:01:00'
+conditions: []
+actions:
+  - variables:
+      now_hour: '{{ now().hour }}'
+      any_motion_on: |-
+        {{ is_state('binary_sensor.office_motion_area','on') }}  # ✅ REAL ENTITY
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: motion_detected
+        sequence:
+          # Note: Counter removed - would need to be created in configuration.yaml
+          # counter.office_motion_burst doesn't exist
+          # Alternative: Use input_number helper or remove celebration feature
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ (now() - states.binary_sensor.office_motion_area.last_changed).total_seconds() < 10
+                         and states.binary_sensor.office_motion_area.last_changed != states.binary_sensor.office_motion_area.last_updated }}
+                sequence:
+                  - data:
+                      scene_id: office_themed_interactive_motion_lighting_restore
+                      snapshot_entities:
+                        - light.office  # ✅ REAL ENTITY (was: light.office_main)
+                        - light.hue_office_back_left  # ✅ REAL ENTITY (was: light.office_desk_lamp, light.office_accent_strip)
+                    action: scene.create
+                  - target:
+                      area_id: office  # ✅ REAL AREA
+                    data:
+                      effect: Colorloop
+                      brightness: 180
+                    action: light.turn_on
+                  - delay: '00:00:10'
+                  - target:
+                      entity_id: scene.office_themed_interactive_motion_lighting_restore
+                    action: scene.turn_on
+                  - stop: Celebration easter egg handled
+          - choose:
+              - conditions:
+                  - condition: time
+                    after: '09:00:00'
+                    before: '17:00:00'
+                sequence:
+                  - target:
+                      entity_id: light.office  # ✅ REAL ENTITY (was: light.office_main)
+                    data:
+                      brightness_pct: 85
+                      color_temp: 400
+                    action: light.turn_on
+                  - target:
+                      entity_id: light.hue_office_back_left  # ✅ REAL ENTITY (was: light.office_desk_lamp)
+                    data:
+                      brightness_pct: 70
+                      color_temp: 400
+                    action: light.turn_on
+                  - condition: state
+                    entity_id: binary_sensor.ps_fp2_office  # ✅ REAL ENTITY (was: binary_sensor.office_occupied_90min)
+                    state: 'on'
+                  - data:
+                      scene_id: office_focus_mode_restore
+                      snapshot_entities:
+                        - light.office  # ✅ REAL ENTITY
+                        - light.hue_office_back_left  # ✅ REAL ENTITY
+                    action: scene.create
+                  - target:
+                      entity_id: light.hue_office_back_left  # ✅ REAL ENTITY
+                    data:
+                      brightness_pct: 40
+                      color_temp: 450
+                    action: light.turn_on
+                  - delay: '00:00:30'
+                  - target:
+                      entity_id: scene.office_focus_mode_restore
+                    action: scene.turn_on
+              - conditions:
+                  - condition: time
+                    after: '17:00:00'
+                    before: '22:00:00'
+                sequence:
+                  - target:
+                      entity_id: light.office  # ✅ REAL ENTITY
+                    data:
+                      brightness_pct: 50
+                      color_temp: 370
+                    action: light.turn_on
+                  - target:
+                      entity_id: light.hue_office_back_left  # ✅ REAL ENTITY
+                    data:
+                      brightness_pct: 40
+                      color_temp: 370
+                    action: light.turn_on
+                  # Note: Removed light.office_accent_strip (doesn't exist)
+                  # Could use light.office or light.hue_office_back_left with effect if needed
+      - conditions:
+          - condition: trigger
+            id: motion_cleared
+        sequence:
+          - data:
+              scene_id: office_themed_interactive_motion_lighting_dimming_restore
+              snapshot_entities:
+                - light.office  # ✅ REAL ENTITY
+                - light.hue_office_back_left  # ✅ REAL ENTITY
+            action: scene.create
+          - repeat:
+              sequence:
+                - target:
+                    area_id: office  # ✅ REAL AREA
+                  data:
+                    brightness_step_pct: -10
+                    transition: 4
+                  action: light.turn_on
+                - delay: '00:00:05'
+                - if:
+                    - condition: template
+                      value_template: '{{ any_motion_on }}'
+                  then:
+                    - target:
+                        entity_id: scene.office_themed_interactive_motion_lighting_dimming_restore
+                      action: scene.turn_on
+                    - stop: Motion returned during dimming; restored scene
+              until:
+                - condition: template
+                  value_template: >-
+                    {{ states('light.office') in ['unavailable', 'unknown', 'off'] }}  # ✅ REAL ENTITY
+initial_state: true
+mode: restart
