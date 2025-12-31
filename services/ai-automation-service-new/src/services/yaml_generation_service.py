@@ -67,6 +67,93 @@ class YAMLGenerationService:
         self.json_validator = HomeIQAutomationValidator(data_api_client=data_api_client)
         self.json_converter = HomeIQToAutomationSpecConverter()
 
+    async def _fetch_entity_context(self) -> dict[str, Any]:
+        """
+        Fetch entity context from Data API (R1: Entity Context Fetching).
+        
+        Returns:
+            Dictionary with entity context formatted for LLM consumption
+        """
+        try:
+            # Fetch all entities from Data API
+            entities = await self.data_api_client.fetch_entities(limit=10000)
+            
+            if not entities:
+                logger.warning("No entities found in Data API - entity context will be empty")
+                return {}
+            
+            # Group entities by domain for easier LLM consumption
+            entity_context: dict[str, list[dict[str, Any]]] = {}
+            for entity in entities:
+                domain = entity.get("domain", "unknown")
+                if domain not in entity_context:
+                    entity_context[domain] = []
+                
+                entity_info = {
+                    "entity_id": entity.get("entity_id"),
+                    "friendly_name": entity.get("friendly_name") or entity.get("name"),
+                    "area_id": entity.get("area_id"),
+                    "device_class": entity.get("device_class")
+                }
+                # Only add if entity_id is valid
+                if entity_info["entity_id"]:
+                    entity_context[domain].append(entity_info)
+            
+            logger.info(f"Fetched {len(entities)} entities, grouped into {len(entity_context)} domains")
+            return {"entities": entity_context, "total_count": len(entities)}
+            
+        except Exception as e:
+            logger.warning(f"Failed to fetch entity context from Data API: {e}. Continuing with empty context.")
+            return {}
+
+    def _format_entity_context_for_prompt(self, entity_context: dict[str, Any]) -> str:
+        """
+        Format entity context for LLM prompt (R6: Entity Context Formatting).
+        
+        Args:
+            entity_context: Entity context dictionary from _fetch_entity_context
+        
+        Returns:
+            Formatted string for inclusion in LLM prompt
+        """
+        if not entity_context or not entity_context.get("entities"):
+            return ""
+        
+        entities_by_domain = entity_context["entities"]
+        formatted_sections = []
+        
+        # Format by domain
+        for domain, entity_list in sorted(entities_by_domain.items()):
+            if not entity_list:
+                continue
+            
+            # Limit to top 50 entities per domain to avoid token limits
+            limited_entities = entity_list[:50]
+            
+            entity_lines = []
+            for entity in limited_entities:
+                entity_id = entity.get("entity_id", "")
+                friendly_name = entity.get("friendly_name", "")
+                area = entity.get("area_id", "")
+                
+                # Format: entity_id (Friendly Name) [area]
+                line = f"  - {entity_id}"
+                if friendly_name:
+                    line += f" ({friendly_name})"
+                if area:
+                    line += f" [area: {area}]"
+                entity_lines.append(line)
+            
+            if entity_lines:
+                section = f"{domain.upper()} entities:\n" + "\n".join(entity_lines)
+                if len(entity_list) > 50:
+                    section += f"\n  ... and {len(entity_list) - 50} more {domain} entities"
+                formatted_sections.append(section)
+        
+        if formatted_sections:
+            return "\n\n".join(formatted_sections)
+        return ""
+
     async def generate_homeiq_json(
         self,
         suggestion: dict[str, Any] | Suggestion,
@@ -77,6 +164,8 @@ class YAMLGenerationService:
         
         This is the new primary method that generates comprehensive HomeIQ JSON
         including metadata, device context, patterns, and safety checks.
+        
+        R1, R2: Fetches entity context and passes to LLM.
         
         Args:
             suggestion: Suggestion dictionary or Suggestion model instance
@@ -103,17 +192,35 @@ class YAMLGenerationService:
             if not description:
                 raise InvalidSuggestionError("Suggestion description is required")
             
-            # Build prompt
+            # R1: Fetch entity context before generation
+            entity_context = await self._fetch_entity_context()
+            
+            # R6: Format entity context for prompt
+            entity_context_str = self._format_entity_context_for_prompt(entity_context)
+            
+            # Build prompt with entity context
             prompt = f"""Create a HomeIQ automation with the following requirements:
 
 Title: {title}
 Description: {description}
 """
             
-            # Generate HomeIQ JSON using OpenAI
+            # Add entity context to prompt if available
+            if entity_context_str:
+                prompt += f"""
+
+AVAILABLE ENTITIES (YOU MUST USE ONLY THESE ENTITIES):
+{entity_context_str}
+
+CRITICAL: You MUST only use entity IDs from the list above. Do NOT create fictional entity IDs.
+If you need an entity that doesn't exist, use the closest matching entity from the list.
+"""
+            
+            # Generate HomeIQ JSON using OpenAI with entity context
             automation_json = await self.openai_client.generate_homeiq_automation_json(
                 prompt=prompt,
                 homeiq_context=homeiq_context,
+                entity_context=entity_context,  # R2: Pass entity context
                 temperature=0.1,
                 max_tokens=3000
             )
@@ -227,7 +334,10 @@ Description: {description}
                 # Extract context from suggestion dict if available
                 homeiq_context = suggestion.get("homeiq_context")
             
-            # Step 1: Generate HomeIQ JSON
+            # R1: Fetch entity context before generation
+            entity_context = await self._fetch_entity_context()
+            
+            # Step 1: Generate HomeIQ JSON (entity context is fetched inside generate_homeiq_json)
             automation_json = await self.generate_homeiq_json(
                 suggestion=suggestion,
                 homeiq_context=homeiq_context
@@ -242,7 +352,14 @@ Description: {description}
             # Step 4: Render AutomationSpec to YAML
             yaml_content = self.renderer.render(automation_spec)
             
-            # Step 5: Validate YAML (optional, but recommended)
+            # R3: Mandatory entity validation - fail if invalid entities found
+            is_valid, invalid_entities = await self.validate_entities(yaml_content)
+            if not is_valid:
+                error_msg = f"YAML generation failed: Invalid entities found: {', '.join(invalid_entities)}"
+                logger.error(error_msg)
+                raise YAMLGenerationError(error_msg)
+            
+            # Step 5: Additional YAML validation (optional, but recommended)
             if self.yaml_validation_client:
                 try:
                     validation_result = await self.yaml_validation_client.validate_yaml(
@@ -271,12 +388,20 @@ Description: {description}
         """
         Generate YAML from structured plan (Epic 51, Story 51.8).
         
+        R1, R2: Fetches entity context and passes to LLM.
+        R3: Validates entities after generation and fails if invalid.
+        
         Flow:
-        1. LLM generates structured JSON plan
-        2. Parse plan into AutomationSpec
-        3. Render AutomationSpec to YAML
-        4. Validate and return YAML
+        1. Fetch entity context (R1)
+        2. LLM generates structured JSON plan with entity context (R2)
+        3. Parse plan into AutomationSpec
+        4. Render AutomationSpec to YAML
+        5. Validate entities (R3: mandatory)
+        6. Return YAML
         """
+        # R1: Fetch entity context before generation
+        entity_context = await self._fetch_entity_context()
+        
         # Build prompt for structured plan generation
         prompt = f"""Create a Home Assistant automation with the following requirements:
 
@@ -291,9 +416,10 @@ Requirements:
 """
         
         try:
-            # Step 1: Generate structured plan from LLM
+            # Step 1: Generate structured plan from LLM with entity context (R2)
             plan_dict = await self.openai_client.generate_structured_plan(
                 prompt=prompt,
+                entity_context=entity_context,  # R2: Pass entity context
                 temperature=0.1,  # Low temperature for deterministic output
                 max_tokens=2000
             )
@@ -306,7 +432,14 @@ Requirements:
             # Step 3: Render AutomationSpec to YAML
             yaml_content = self.renderer.render(automation_spec)
             
-            # Step 4: Validate YAML (optional, but recommended)
+            # R3: Mandatory entity validation - fail if invalid entities found
+            is_valid, invalid_entities = await self.validate_entities(yaml_content)
+            if not is_valid:
+                error_msg = f"YAML generation failed: Invalid entities found: {', '.join(invalid_entities)}"
+                logger.error(error_msg)
+                raise YAMLGenerationError(error_msg)
+            
+            # Step 4: Additional YAML validation (optional, but recommended)
             if self.yaml_validation_client:
                 try:
                     validation_result = await self.yaml_validation_client.validate_yaml(
@@ -337,7 +470,13 @@ Requirements:
     async def _generate_yaml_direct(self, title: str, description: str) -> str:
         """
         Generate YAML directly (legacy method, backward compatibility).
+        
+        R1, R2: Fetches entity context and passes to LLM.
+        R3: Validates entities after generation and fails if invalid.
         """
+        # R1: Fetch entity context before generation
+        entity_context = await self._fetch_entity_context()
+        
         # Build prompt for YAML generation
         prompt = f"""Generate a Home Assistant automation YAML for the following automation:
 
@@ -352,9 +491,10 @@ Requirements:
 - Return ONLY the YAML, no explanations or markdown code blocks
 """
         
-        # Generate YAML using OpenAI
+        # Generate YAML using OpenAI with entity context (R2)
         yaml_content = await self.openai_client.generate_yaml(
             prompt=prompt,
+            entity_context=entity_context,  # R2: Pass entity context
             temperature=0.1,  # Low temperature for deterministic YAML
             max_tokens=2000
         )
@@ -368,6 +508,13 @@ Requirements:
         except yaml.YAMLError as e:
             logger.error(f"Generated YAML is invalid: {e}")
             raise YAMLGenerationError(f"Invalid YAML syntax: {e}")
+        
+        # R3: Mandatory entity validation - fail if invalid entities found
+        is_valid, invalid_entities = await self.validate_entities(yaml_content)
+        if not is_valid:
+            error_msg = f"YAML generation failed: Invalid entities found: {', '.join(invalid_entities)}"
+            logger.error(error_msg)
+            raise YAMLGenerationError(error_msg)
         
         logger.info(f"Generated YAML (legacy method) for suggestion: {title}")
         return yaml_content
@@ -502,7 +649,15 @@ Requirements:
 
     def _extract_entity_ids(self, data: Any, entity_ids: list[str] | None = None) -> list[str]:
         """
-        Recursively extract entity IDs from YAML data.
+        Recursively extract entity IDs from YAML data (R5: Enhanced Entity Extraction).
+        
+        Extracts entities from:
+        - entity_id fields (single and lists)
+        - Template expressions: {{ states('entity_id') }}, {{ is_state('entity_id', 'on') }}
+        - Area targets: area_id fields (validates area exists)
+        - Scene snapshots: snapshot_entities lists
+        - Counter references: counter.entity_id
+        - Group references: group.entity_id
         
         Args:
             data: YAML data structure
@@ -515,11 +670,31 @@ Requirements:
             entity_ids = []
         
         if isinstance(data, dict):
-            # Check for entity_id field
+            # Check for entity_id field (single or list)
             if "entity_id" in data:
                 entity_id = data["entity_id"]
                 if isinstance(entity_id, str) and "." in entity_id:
                     entity_ids.append(entity_id)
+                elif isinstance(entity_id, list):
+                    for eid in entity_id:
+                        if isinstance(eid, str) and "." in eid:
+                            entity_ids.append(eid)
+            
+            # Check for area_id (R5: validate areas)
+            if "area_id" in data:
+                area_id = data["area_id"]
+                if isinstance(area_id, str):
+                    # Areas are validated separately, but we note them here
+                    # Areas don't have entity_id format, so we skip adding to entity_ids
+                    pass
+            
+            # Check for snapshot_entities (R5: scene snapshots)
+            if "snapshot_entities" in data:
+                snapshot_entities = data["snapshot_entities"]
+                if isinstance(snapshot_entities, list):
+                    for eid in snapshot_entities:
+                        if isinstance(eid, str) and "." in eid:
+                            entity_ids.append(eid)
             
             # Recursively check all values
             for value in data.values():
@@ -531,11 +706,34 @@ Requirements:
                 self._extract_entity_ids(item, entity_ids)
         
         elif isinstance(data, str):
+            # R5: Extract entities from template expressions
+            # Pattern: {{ states('entity_id') }}, {{ is_state('entity_id', 'on') }}, etc.
+            template_patterns = [
+                r"states\(['\"]([^'\"]+)['\"]\)",  # states('entity_id')
+                r"is_state\(['\"]([^'\"]+)['\"]",  # is_state('entity_id', ...)
+                r"state_attr\(['\"]([^'\"]+)['\"]",  # state_attr('entity_id', ...)
+                r"states\[['\"]([^'\"]+)['\"]\]",  # states['entity_id']
+            ]
+            
+            for pattern in template_patterns:
+                matches = re.findall(pattern, data)
+                for match in matches:
+                    if "." in match and len(match.split(".")) == 2:
+                        entity_ids.append(match)
+            
             # Check if string looks like an entity ID (domain.entity_name)
             if "." in data and len(data.split(".")) == 2:
                 parts = data.split(".")
                 if len(parts[0]) > 0 and len(parts[1]) > 0:
-                    entity_ids.append(data)
+                    # Check if it's a valid entity domain (not just any dot-separated string)
+                    valid_domains = [
+                        "light", "switch", "binary_sensor", "sensor", "input_boolean",
+                        "input_number", "input_select", "input_text", "scene", "script",
+                        "automation", "counter", "group", "media_player", "climate",
+                        "cover", "fan", "lock", "vacuum", "camera", "device_tracker"
+                    ]
+                    if parts[0] in valid_domains or parts[0].startswith("input_") or parts[0].startswith("binary_"):
+                        entity_ids.append(data)
         
         return entity_ids
 

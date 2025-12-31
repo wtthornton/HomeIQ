@@ -1,94 +1,60 @@
-# Step 2: User Stories - Recommendations Document Update
+# Step 2: User Stories
 
-**Date:** 2025-12-31  
-**Workflow:** Simple Mode *build
+**Date:** December 31, 2025  
+**Workflow:** Entity Validation Fix for ai-automation-service-new  
+**Step:** 2 of 7
 
 ## User Stories
 
-### Story 1: Document Structure Improvement
-**As a** developer/stakeholder  
-**I want** the recommendations document to have a clear, scannable structure  
-**So that** I can quickly understand the current status and next steps
+### Story 1: Entity Context Fetching (R1)
+**As a** developer using ai-automation-service-new  
+**I want** the service to fetch real entities from Data API before generating YAML  
+**So that** the LLM has access to actual entity IDs
 
 **Acceptance Criteria:**
-- Executive summary with quick status table exists
-- Critical issues are clearly identified with status
-- Recommendations are prioritized (Critical, High, Medium, Low)
-- Validation summary section includes latest results
-- Related documents section links to all relevant docs
+- Service fetches entities before YAML generation
+- Entities are cached for request duration
+- Fetch failures are handled gracefully
 
 **Story Points:** 3  
-**Priority:** High
+**Priority:** P0
 
----
-
-### Story 2: Validation Results Integration
-**As a** developer  
-**I want** all validation results from latest runs included in the document  
-**So that** I have complete visibility into the current state
+### Story 2: Entity Context in LLM Prompts (R2)
+**As a** developer using ai-automation-service-new  
+**I want** entity context included in LLM prompts  
+**So that** the LLM generates YAML with real entity IDs only
 
 **Acceptance Criteria:**
-- Pattern validation results (919 patterns, 0 external, 0 invalid)
-- Synergy validation results (48 synergies, only event_context type)
-- Device activity results (0 active devices found - API parsing issue)
-- External data automation validation status
-- All results dated (2025-12-31)
+- All OpenAI client methods receive entity context
+- System prompts instruct LLM to use only provided entities
+- Entity context is formatted optimally
 
 **Story Points:** 5  
-**Priority:** Critical
+**Priority:** P0
 
----
-
-### Story 3: Actionable Recommendations
-**As a** developer  
-**I want** clear, actionable recommendations with verification steps  
-**So that** I know exactly what to do next
+### Story 3: Mandatory Entity Validation (R3)
+**As a** developer using ai-automation-service-new  
+**I want** entity validation to be mandatory and fail on invalid entities  
+**So that** no YAML with fictional entities is generated
 
 **Acceptance Criteria:**
-- Each recommendation includes specific action
-- Verification commands provided
-- Expected outcomes clearly stated
-- Priority levels assigned (Critical, High, Medium, Low)
-- Success criteria defined
-
-**Story Points:** 5  
-**Priority:** Critical
-
----
-
-### Story 4: TappsCodingAgents Alignment
-**As a** developer using tapps-agents  
-**I want** the document to reference Simple Mode workflows and commands  
-**So that** I can use the recommended tools effectively
-
-**Acceptance Criteria:**
-- References to Simple Mode workflows where applicable
-- Command examples use tapps-agents syntax
-- Quality thresholds match tapps-agents standards (≥70 overall)
-- Workflow execution patterns documented
+- Validation runs after YAML generation
+- Generation fails if invalid entities found
+- Error messages include invalid entity list
 
 **Story Points:** 3  
-**Priority:** Medium
+**Priority:** P0
 
----
-
-### Story 5: Documentation Best Practices
-**As a** stakeholder  
-**I want** the document to follow documentation best practices  
-**So that** it's professional, maintainable, and easy to understand
+### Story 4: Enhanced Entity Extraction (R5)
+**As a** developer using ai-automation-service-new  
+**I want** entity extraction to handle all YAML patterns  
+**So that** all entities are validated regardless of where they appear
 
 **Acceptance Criteria:**
-- Proper markdown formatting
-- Clear headings and sections
-- Consistent style throughout
-- Cross-references work correctly
-- Table of contents or navigation aids
+- Extracts from template expressions
+- Extracts from area targets
+- Extracts from scene snapshots
+- Extracts from all nested structures
 
-**Story Points:** 2  
-**Priority:** Medium
-
----
-
-## Total Story Points: 18
-## Estimated Effort: 2-3 hours
-## Priority: Critical (Stories 2, 3), High (Story 1), Medium (Stories 4, 5)
+**Story Points:** 5  
+**Priority:** P1
