@@ -12,6 +12,7 @@ import { useAppStore } from '../store';
 import { ConversationalSuggestionCard } from '../components/ConversationalSuggestionCard';
 import api, { APIError } from '../services/api';
 import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { Suggestion } from '../types';
 
 export const ConversationalDashboard: React.FC = () => {
@@ -27,6 +28,7 @@ export const ConversationalDashboard: React.FC = () => {
   const [refreshAllowed, setRefreshAllowed] = useState(true);
   const [nextRefreshAt, setNextRefreshAt] = useState<string | null>(null);
   const [refreshLoading, setRefreshLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false); // Loading state for refresh/analysis status
   const [analysisRun, setAnalysisRun] = useState<{
     status: string;
     started_at: string;
@@ -153,6 +155,7 @@ export const ConversationalDashboard: React.FC = () => {
 
   const loadRefreshStatus = async () => {
     try {
+      setStatusLoading(true);
       const status = await api.getRefreshStatus();
       setRefreshAllowed(status.allowed);
       setNextRefreshAt(status.next_allowed_at);
@@ -163,11 +166,14 @@ export const ConversationalDashboard: React.FC = () => {
       if (typeof errorDetail === 'object' && errorDetail?.error_code === 'REFRESH_STATUS_ERROR') {
         console.warn('Refresh status unavailable, continuing without cooldown info');
       }
+    } finally {
+      setStatusLoading(false);
     }
   };
 
   const loadAnalysisStatus = async () => {
     try {
+      setStatusLoading(true);
       const status = await api.getAnalysisStatus();
       setAnalysisRun(status.analysis_run ?? null);
     } catch (error: any) {
@@ -177,6 +183,8 @@ export const ConversationalDashboard: React.FC = () => {
       if (typeof errorDetail === 'object' && errorDetail?.error_code === 'ANALYSIS_STATUS_ERROR') {
         console.warn('Analysis status unavailable, continuing without run info');
       }
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -435,7 +443,7 @@ export const ConversationalDashboard: React.FC = () => {
                 whileTap={refreshLoading || !refreshAllowed ? {} : { scale: 0.95 }}
                 onClick={handleRefreshClick}
                 disabled={refreshLoading || !refreshAllowed}
-                className={`px-3 py-1.5 text-xs font-medium rounded-xl transition-all flex items-center gap-1 ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-xl transition-all flex items-center gap-2 ${
                   refreshLoading || !refreshAllowed
                     ? darkMode
                       ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
@@ -445,15 +453,33 @@ export const ConversationalDashboard: React.FC = () => {
                     : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
                 }`}
               >
-                {refreshLoading ? 'Refreshing…' : '🔄 Refresh Suggestions'}
+                {refreshLoading ? (
+                  <>
+                    <LoadingSpinner size="sm" variant="spinner" />
+                    <span>Refreshing…</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔄</span>
+                    <span>Refresh Suggestions</span>
+                  </>
+                )}
               </motion.button>
             </div>
-            {!refreshAllowed && nextRefreshAt && (
+            {statusLoading && (
+              <div className="flex items-center gap-2">
+                <LoadingSpinner size="sm" variant="spinner" />
+                <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Loading status...
+                </span>
+              </div>
+            )}
+            {!statusLoading && !refreshAllowed && nextRefreshAt && (
               <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                 Available after {new Date(nextRefreshAt).toLocaleString()}
               </span>
             )}
-            {analysisRun && (
+            {!statusLoading && analysisRun && (
               <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                 Last run {new Date(analysisRun.finished_at ?? analysisRun.started_at).toLocaleString()} ({analysisRun.status})
               </span>
@@ -549,14 +575,23 @@ export const ConversationalDashboard: React.FC = () => {
       {/* Suggestions List */}
       <AnimatePresence mode="wait">
         {loading ? (
-          <div className="grid gap-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="grid gap-6"
+          >
+            <div className={`text-center py-8 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <LoadingSpinner size="lg" variant="spinner" className="mb-4" />
+              <p className="text-sm font-medium">Loading suggestions...</p>
+            </div>
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className={`h-80 rounded-lg animate-pulse ${darkMode ? 'bg-gray-800' : 'bg-gray-200'}`}
+                className={`h-80 rounded-lg animate-pulse ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-200 border border-gray-300'}`}
               />
             ))}
-          </div>
+          </motion.div>
         ) : error ? (
           // Show empty state when there's an error and no suggestions
           suggestions.length === 0 ? (
@@ -641,13 +676,23 @@ export const ConversationalDashboard: React.FC = () => {
                       whileTap={loading ? {} : { scale: 0.95 }}
                       onClick={generateSampleSuggestion}
                       disabled={loading}
-                      className={`px-4 py-2 text-sm rounded-xl font-medium transition-all ${
+                      className={`px-4 py-2 text-sm rounded-xl font-medium transition-all flex items-center gap-2 ${
                         darkMode
                           ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none'
                           : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30 disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none'
                       }`}
                     >
-                      {loading ? '⏳ Generating...' : '🎯 Generate Sample Suggestion'}
+                      {loading ? (
+                        <>
+                          <LoadingSpinner size="sm" variant="spinner" />
+                          <span>Generating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>🎯</span>
+                          <span>Generate Sample Suggestion</span>
+                        </>
+                      )}
                     </motion.button>
                   )}
                   {hasOtherStatuses && (
@@ -675,7 +720,7 @@ export const ConversationalDashboard: React.FC = () => {
                     <button
                       onClick={handleRefreshClick}
                       disabled={refreshLoading || !refreshAllowed}
-                      className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                      className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors flex items-center gap-2 ${
                         refreshLoading || !refreshAllowed
                           ? darkMode
                             ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
@@ -685,7 +730,17 @@ export const ConversationalDashboard: React.FC = () => {
                           : 'bg-blue-500 hover:bg-blue-600 text-white'
                       }`}
                     >
-                      {refreshLoading ? '⏳ Refreshing...' : '🔄 Refresh Suggestions'}
+                      {refreshLoading ? (
+                        <>
+                          <LoadingSpinner size="sm" variant="spinner" />
+                          <span>Refreshing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>🔄</span>
+                          <span>Refresh Suggestions</span>
+                        </>
+                      )}
                     </button>
                   )}
                 </div>

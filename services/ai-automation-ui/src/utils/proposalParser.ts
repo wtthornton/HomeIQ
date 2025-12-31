@@ -52,7 +52,7 @@ export function parseProposal(content: string): ParsedProposal {
   // Format: **✨ What it does:** [content]
   // Use a pattern that matches any emoji followed by text
   // The emoji characters need to be in a character class or matched individually
-  const sectionHeaderPattern = /\*\*([^\*]+?):\*\*/g;
+  const sectionHeaderPattern = /\*\*([^*]+?):\*\*/g;
   
   // Find all potential section headers
   const allMatches: Array<{ fullMatch: string; icon: string; title: string; index: number }> = [];
@@ -139,7 +139,7 @@ export function parseProposal(content: string): ParsedProposal {
   // Fallback: Try alternative patterns if no sections found
   if (sections.length === 0) {
     // Try simpler pattern without emoji requirement
-    const altPattern = /\*\*([^\*]+?):\*\*\s*([\s\S]*?)(?=\*\*[^\*]+?:\*\*|ready to create|$)/gi;
+    const altPattern = /\*\*([^*]+?):\*\*\s*([\s\S]*?)(?=\*\*[^*]+?:\*\*|ready to create|$)/gi;
     let altMatch;
     const altMatches: Array<{ title: string; content: string; index: number }> = [];
     
@@ -171,7 +171,7 @@ export function parseProposal(content: string): ParsedProposal {
       }
 
       if (type) {
-        let sectionContent = altMatch.content.replace(/\n{3,}/g, '\n\n').trim();
+        const sectionContent = altMatch.content.replace(/\n{3,}/g, '\n\n').trim();
         sections.push({
           type,
           icon,
@@ -203,6 +203,6 @@ export function extractCTAPrompt(content: string): string | null {
  */
 export function cleanMarkdown(content: string): string {
   // Remove bold markers but keep content
-  return content.replace(/\*\*([^\*]+?)\*\*/g, '$1');
+  return content.replace(/\*\*([^*]+?)\*\*/g, '$1');
 }
 
