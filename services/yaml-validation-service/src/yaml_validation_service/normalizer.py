@@ -7,6 +7,7 @@ Normalizes YAML to canonical format:
 - Plural keys → singular (triggers → trigger, actions → action)
 - Field name corrections (action: → service:, trigger: → platform:)
 - Error handling format (continue_on_error → error)
+- Choose action normalization (then → sequence)
 - Target structure optimization
 """
 
@@ -28,6 +29,7 @@ class YAMLNormalizer:
     - action: field in action steps → service:
     - trigger: field in trigger items → platform:
     - continue_on_error: true → error: continue
+    - choose action 'then:' → 'sequence:' (Home Assistant 2025.10+ API requirement)
     """
 
     def __init__(self):
@@ -169,6 +171,30 @@ class YAMLNormalizer:
                 elif value is False:
                     result["error"] = "stop"
                     fixes_applied.append("Fixed: action 'continue_on_error: false' → 'error: stop'")
+            # Fix choose action: then → sequence
+            elif key == "choose":
+                if isinstance(value, list):
+                    normalized_choices = []
+                    for choice in value:
+                        if isinstance(choice, dict):
+                            normalized_choice = {}
+                            for choice_key, choice_value in choice.items():
+                                # Convert 'then' → 'sequence' in choose choices
+                                if choice_key == "then":
+                                    normalized_choice["sequence"] = self._normalize_value(
+                                        choice_value, fixes_applied, "choose.then → sequence"
+                                    )
+                                    fixes_applied.append("Fixed: choose action 'then:' → 'sequence:'")
+                                else:
+                                    normalized_choice[choice_key] = self._normalize_value(
+                                        choice_value, fixes_applied, f"choose.{choice_key}"
+                                    )
+                            normalized_choices.append(normalized_choice)
+                        else:
+                            normalized_choices.append(choice)
+                    result["choose"] = normalized_choices
+                else:
+                    result[key] = self._normalize_value(value, fixes_applied, f"action.{key}")
             else:
                 result[key] = self._normalize_value(value, fixes_applied, f"action.{key}")
         
