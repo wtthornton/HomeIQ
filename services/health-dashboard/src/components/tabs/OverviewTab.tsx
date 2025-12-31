@@ -228,15 +228,17 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
     return { uptime, throughput, latency: avgLatency, errorRate };
   };
 
-  const metrics = calculateAggregatedMetrics();
+  const metrics = calculateAggregatedMetrics() || { uptime: 'N/A', throughput: null, latency: null, errorRate: null };
   const overallStatus = calculateOverallStatus();
   
   // Determine if we should show loading state (no data yet and still loading)
   const isInitialLoad = !enhancedHealth && !statistics && (enhancedHealthLoading || statsLoading);
   
   // Phase 2: Track performance history for sparkline
+  // Ensure metrics exists and has throughput property before using it
+  const safeThroughput = metrics?.throughput ?? 0;
   const { history: throughputHistory, stats: throughputStats } = usePerformanceHistory(
-    metrics.throughput,
+    safeThroughput,
     { maxDataPoints: 60, sampleInterval: 60000 }
   );
 
@@ -422,17 +424,17 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
         <SystemStatusHero
           overallStatus={overallStatus}
           uptime={metrics.uptime}
-          throughput={metrics.throughput ?? 0}
+          throughput={metrics?.throughput ?? 0}
           latency={metrics.latency ?? 0}
           errorRate={metrics.errorRate ?? 0}
           lastUpdate={new Date()}
           darkMode={darkMode}
           loading={enhancedHealthLoading || statsLoading}
-          trends={{
+          trends={throughputStats ? {
             throughput: throughputStats.previous,
             latency: metrics.latency ?? 0,
             errorRate: metrics.errorRate ?? 0
-          }}
+          } : undefined}
         />
       )}
 
