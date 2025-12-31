@@ -1,13 +1,143 @@
-# TappsCodingAgents Background Agents - DELETED
-# All background agents have been removed
-# This file is kept for reference but contains no active agents
+# TappsCodingAgents Background Agents Configuration
+# 
+# This file configures Background Agents for Cursor AI.
+# Background Agents run continuously and handle heavy tasks autonomously.
+#
+# Usage:
+#   1. Cursor AI automatically detects this file
+#   2. Agents are available in Cursor's Background Agents panel
+#   3. Trigger agents via natural language prompts
+#
+# Context7 Cache:
+#   - Shared between Sidebar Skills and Background Agents
+#   - Location: .tapps-agents/kb/context7-cache
+#   - Auto-synced on agent startup
 
-agents: []
+agents:
+  # Option A policy: Background Agents run deterministic tooling via the framework.
+  # LLM-driven work should be performed by Cursor itself (using the user's configured model).
+  # We enforce this by setting TAPPS_AGENTS_MODE=cursor.
+
+  - name: "TappsCodingAgents Quality Analyzer"
+    type: "background"
+    description: "Run deterministic quality analysis (scores, lint, type-check, reports). No PRs by default."
+    repository: "${GITHUB_REPO}"
+    working_directory: "${PROJECT_ROOT}"
+    commands:
+      - "python -m tapps_agents.cli reviewer analyze-project --format json"
+      - "python -m tapps_agents.cli reviewer report . json markdown html --output-dir .tapps-agents/reports"
+      - "python -m tapps_agents.cli reviewer lint . --format json"
+      - "python -m tapps_agents.cli reviewer type-check . --format json"
+      - "python -m tapps_agents.cli reviewer duplication . --format json"
+    context7_cache: ".tapps-agents/kb/context7-cache"
+    environment:
+      - "CONTEXT7_KB_CACHE=.tapps-agents/kb/context7-cache"
+      - "TAPPS_AGENTS_MODE=cursor"
+    triggers:
+      - "Analyze project quality"
+      - "Generate quality report"
+      - "Run lint and type check"
+      - "Check code quality"
+    output:
+      format: "json"
+      location: ".tapps-agents/reports"
+      delivery: ["file"]
+    worktree: "quality-analysis"
+
+  - name: "TappsCodingAgents Test Runner"
+    type: "background"
+    description: "Run existing tests and produce coverage artifacts. No test generation."
+    repository: "${GITHUB_REPO}"
+    working_directory: "${PROJECT_ROOT}"
+    commands:
+      - "python -m tapps_agents.cli tester run-tests"
+    environment:
+      - "TAPPS_AGENTS_MODE=cursor"
+    triggers:
+      - "Run tests"
+      - "Run the test suite"
+      - "Check tests"
+    output:
+      format: "json"
+      location: ".tapps-agents/reports"
+      delivery: ["file"]
+    worktree: "tests"
+
+  - name: "TappsCodingAgents Security Auditor"
+    type: "background"
+    description: "Run deterministic security scans (bandit-style + dependency audit). No PRs by default."
+    repository: "${GITHUB_REPO}"
+    working_directory: "${PROJECT_ROOT}"
+    commands:
+      - "python -m tapps_agents.cli ops security-scan --target . --type all"
+      - "python -m tapps_agents.cli ops audit-dependencies --severity-threshold high --format json"
+    environment:
+      - "TAPPS_AGENTS_MODE=cursor"
+    triggers:
+      - "Run security scan"
+      - "Audit dependencies"
+      - "Security analysis"
+    output:
+      format: "json"
+      location: ".tapps-agents/reports"
+      delivery: ["file"]
+    worktree: "security"
+
+  - name: "TappsCodingAgents Cursor Integration Verifier"
+    type: "background"
+    description: "Verify Cursor AI integration components (Skills, Rules, Background Agents, config). Validates setup after init or when troubleshooting."
+    repository: "${GITHUB_REPO}"
+    working_directory: "${PROJECT_ROOT}"
+    commands:
+      - "python -m tapps_agents.cli cursor verify --format json"
+    environment:
+      - "TAPPS_AGENTS_MODE=cursor"
+    triggers:
+      - "Verify Cursor setup"
+      - "Check Cursor integration"
+      - "Validate Cursor configuration"
+      - "Verify Cursor Skills and Rules"
+      - "Check if Cursor integration is working"
+    output:
+      format: "json"
+      location: ".tapps-agents/reports"
+      delivery: ["file"]
+    worktree: "cursor-verification"
+
+  # PR Mode (opt-in): uses Cursor as the LLM runtime to make changes, then runs deterministic verification.
+  # This agent enables PR delivery explicitly. Use when you want an isolated worktree + PR for the result.
+  - name: "TappsCodingAgents PR Mode (Verify + PR)"
+    type: "background"
+    description: "Opt-in PR mode: Cursor applies changes in an isolated worktree; framework runs deterministic verification and outputs artifacts. PR delivery enabled."
+    repository: "${GITHUB_REPO}"
+    working_directory: "${PROJECT_ROOT}"
+    commands:
+      - "python -m tapps_agents.cli doctor --format json"
+      - "python -m tapps_agents.cli reviewer lint . --format json"
+      - "python -m tapps_agents.cli reviewer type-check . --format json"
+      - "python -m tapps_agents.cli tester run-tests"
+      - "python -m tapps_agents.cli reviewer report . json markdown html --output-dir .tapps-agents/reports"
+    environment:
+      - "TAPPS_AGENTS_MODE=cursor"
+      - "CONTEXT7_KB_CACHE=.tapps-agents/kb/context7-cache"
+    triggers:
+      - "Open a PR with these changes"
+      - "Create a PR for this refactor"
+      - "Prepare a PR and run checks"
+      - "Make changes and open a PR"
+    output:
+      format: "json"
+      location: ".tapps-agents/reports"
+      delivery: ["file", "pr"]
+    worktree: "pr-mode"
+
+# Global Configuration
 global:
-  context7_cache: .tapps-agents/kb/context7-cache
-  output_directory: .tapps-agents/reports
-  worktree_base: .tapps-agents/worktrees
-  progress_reporting: false
-  result_delivery: []
-  max_parallel_agents: 0
-  timeout_seconds: 0
+  context7_cache: ".tapps-agents/kb/context7-cache"
+  output_directory: ".tapps-agents/reports"
+  worktree_base: ".tapps-agents/worktrees"
+  progress_reporting: true
+  result_delivery: ["file"]
+  max_parallel_agents: 4
+  timeout_seconds: 3600  # 1 hour
+

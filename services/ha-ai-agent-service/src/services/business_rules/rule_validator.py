@@ -210,20 +210,89 @@ class BusinessRuleValidator:
                 "Verify automation logic carefully."
             )
 
-        # Check for time-based triggers with security entities without conditions
+        # Enhanced safety validation (recommendation #4 from HA_AGENT_API_FLOW_ANALYSIS.md)
+        # Check for time-based triggers with security entities
+        trigger = automation_dict.get("trigger", [])
+        has_time_trigger = False
+        trigger_platforms = []
+        if isinstance(trigger, list):
+            has_time_trigger = any(
+                t.get("platform") in ["time", "time_pattern", "sun", "calendar"]
+                for t in trigger
+            )
+            trigger_platforms = [t.get("platform") for t in trigger]
+        elif isinstance(trigger, dict):
+            platform = trigger.get("platform")
+            has_time_trigger = platform in ["time", "time_pattern", "sun", "calendar"]
+            trigger_platforms = [platform] if platform else []
+
+        # Enhanced time constraint validation for security automations
+        if security_entities:
+            if not has_time_trigger:
+                warnings.append(
+                    "Security automation without time constraints detected. "
+                    "Consider adding time-based triggers (time, time_pattern, sun, calendar) for safety."
+                )
+            elif not automation_dict.get("condition"):
+                warnings.append(
+                    "Time-based trigger with security entities detected. "
+                    "Consider adding conditions for additional safety."
+                )
+
+        return len(warnings) == 0, warnings
+
+    def calculate_safety_score(
+        self,
+        entities: list[str],
+        services: list[str],
+        automation_dict: dict[str, Any],
+    ) -> float:
+        """
+        Calculate safety score for automation (recommendation #4 from HA_AGENT_API_FLOW_ANALYSIS.md).
+
+        Args:
+            entities: List of entity IDs in automation
+            services: List of service names in automation
+            automation_dict: Automation YAML as dictionary
+
+        Returns:
+            Safety score from 0.0 (unsafe) to 10.0 (safe)
+        """
+        score = 10.0  # Start with perfect score
+
+        # Check for security entities (deduct points)
+        security_entities = [
+            e
+            for e in entities
+            if any(e.startswith(f"{domain}.") for domain in self.SECURITY_DOMAINS)
+        ]
+        if security_entities:
+            score -= 2.0  # Security entities reduce safety score
+
+        # Check for critical services (deduct points)
+        critical_services_used = [
+            s for s in services if any(s.startswith(cs) for cs in self.CRITICAL_SERVICES)
+        ]
+        if critical_services_used:
+            score -= 2.0  # Critical services reduce safety score
+
+        # Check for time constraints (add points if present)
         trigger = automation_dict.get("trigger", [])
         has_time_trigger = False
         if isinstance(trigger, list):
             has_time_trigger = any(
-                t.get("platform") in ["time", "time_pattern"] for t in trigger
+                t.get("platform") in ["time", "time_pattern", "sun", "calendar"]
+                for t in trigger
             )
         elif isinstance(trigger, dict):
-            has_time_trigger = trigger.get("platform") in ["time", "time_pattern"]
+            has_time_trigger = trigger.get("platform") in ["time", "time_pattern", "sun", "calendar"]
 
-        if has_time_trigger and security_entities and not automation_dict.get("condition"):
-            warnings.append(
-                "Time-based trigger with security entities detected. "
-                "Consider adding conditions for safety."
-            )
+        if security_entities and has_time_trigger:
+            score += 1.0  # Time constraints improve safety score
 
-        return len(warnings) == 0, warnings
+        # Check for conditions (add points if present)
+        if automation_dict.get("condition"):
+            score += 1.0  # Conditions improve safety score
+
+        # Ensure score is in valid range
+        return max(0.0, min(10.0, score))

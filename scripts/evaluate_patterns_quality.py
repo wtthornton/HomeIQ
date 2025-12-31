@@ -13,7 +13,10 @@ import argparse
 import asyncio
 import json
 import logging
+import shutil
+import subprocess
 import sys
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -93,6 +96,17 @@ async def main() -> None:
         help='Database path (default: data/ai_automation.db)'
     )
     parser.add_argument(
+        '--docker-container',
+        type=str,
+        default='ai-pattern-service',
+        help='Docker container name to copy database from (default: ai-pattern-service). If specified, database will be copied from container to temp location.'
+    )
+    parser.add_argument(
+        '--use-docker-db',
+        action='store_true',
+        help='Copy database from Docker container instead of using local path'
+    )
+    parser.add_argument(
         '--verbose',
         action='store_true',
         help='Enable verbose logging'
@@ -122,11 +136,37 @@ async def main() -> None:
     # Initialize components
     db_accessor = None
     event_fetcher = None
+    temp_db_path = None
     
     try:
+        # Handle Docker database access
+        db_path = args.db_path
+        if args.use_docker_db:
+            logger.info(f"Copying database from Docker container: {args.docker_container}")
+            try:
+                # Create temp file for database copy
+                temp_dir = tempfile.mkdtemp(prefix='quality_eval_')
+                temp_db_path = Path(temp_dir) / 'ai_automation.db'
+                
+                # Copy database from Docker container
+                copy_cmd = [
+                    'docker', 'cp',
+                    f'{args.docker_container}:/app/data/ai_automation.db',
+                    str(temp_db_path)
+                ]
+                result = subprocess.run(copy_cmd, capture_output=True, text=True, check=True)
+                db_path = str(temp_db_path)
+                logger.info(f"Database copied from Docker to: {db_path}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to copy database from Docker: {e.stderr}")
+                raise
+            except FileNotFoundError:
+                logger.error("Docker command not found. Please install Docker or use --db-path with local database.")
+                raise
+        
         # Initialize database accessor
         logger.info("Initializing database accessor...")
-        db_accessor = DatabaseAccessor(args.db_path)
+        db_accessor = DatabaseAccessor(db_path)
         
         # Initialize event fetcher
         logger.info("Initializing event fetcher...")
@@ -259,6 +299,14 @@ async def main() -> None:
             await db_accessor.close()
         if event_fetcher:
             await event_fetcher.close()
+        if temp_db_path and temp_db_path.exists():
+            # Clean up temp database copy
+            try:
+                temp_db_path.unlink()
+                temp_db_path.parent.rmdir()
+                logger.debug(f"Cleaned up temp database: {temp_db_path}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up temp database: {e}")
 
 
 def _calculate_overall_quality_score(results: Dict[str, Any]) -> float:

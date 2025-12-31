@@ -21,6 +21,7 @@ from ..config import settings
 from ..crud import store_patterns, store_synergy_opportunities
 from ..database import AsyncSessionLocal
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+from ..pattern_analyzer.filters import EventFilter
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 from ..synergy_detection.synergy_detector import DeviceSynergyDetector
 
@@ -120,7 +121,8 @@ class PatternAnalysisScheduler:
             "start_time": start_time.isoformat(),
             "patterns_detected": 0,
             "synergies_detected": 0,
-            "errors": []
+            "errors": [],
+            "warnings": []
         }
 
         try:
@@ -131,8 +133,31 @@ class PatternAnalysisScheduler:
                     await self._handle_empty_events(job_result)
                     return
 
+                # Pre-filter events to exclude external data sources and system noise
+                # Recommendation: Add pre-filtering in pattern analysis scheduler
+                logger.info("Phase 1.5: Pre-filtering events (external data/system noise)...")
+                original_event_count = len(events_df)
+                events_df = EventFilter.filter_events(events_df, entity_column='entity_id')
+                filtered_event_count = len(events_df)
+                if original_event_count != filtered_event_count:
+                    logger.info(
+                        f"✅ Pre-filtered events: {original_event_count} → {filtered_event_count} "
+                        f"({original_event_count - filtered_event_count} excluded)"
+                    )
+                
+                if events_df.empty:
+                    logger.warning("⚠️ No actionable events after filtering")
+                    await self._handle_empty_events(job_result)
+                    return
+
                 all_patterns = await self._detect_patterns(events_df, job_result)
                 synergies = await self._detect_synergies(data_client, events_df, job_result)
+                
+                # Validate pattern-synergy alignment
+                alignment_results = await self._validate_pattern_synergy_alignment(
+                    all_patterns, synergies, job_result
+                )
+                
                 await self._store_results(all_patterns, synergies, job_result)
 
         except Exception as e:
@@ -194,25 +219,30 @@ class PatternAnalysisScheduler:
         Detect patterns using time-of-day and co-occurrence detectors.
         
         Args:
-            events_df: DataFrame containing events
+            events_df: DataFrame containing events (already pre-filtered)
             job_result: Job result dictionary to update with errors
             
         Returns:
             List of detected patterns
         """
         logger.info("Phase 2: Running pattern detection...")
+        logger.info(f"  → Input events: {len(events_df)} (pre-filtered)")
         all_patterns: list[dict[str, Any]] = []
 
         # Time-of-day patterns
+        logger.info("  → Starting time-of-day pattern detection...")
         tod_patterns = await self._detect_time_of_day_patterns(events_df, job_result)
+        logger.info(f"    ✅ Time-of-day patterns: {len(tod_patterns)}")
         all_patterns.extend(tod_patterns)
 
         # Co-occurrence patterns
+        logger.info("  → Starting co-occurrence pattern detection...")
         co_patterns = await self._detect_co_occurrence_patterns(events_df, job_result)
+        logger.info(f"    ✅ Co-occurrence patterns: {len(co_patterns)}")
         all_patterns.extend(co_patterns)
 
         job_result["patterns_detected"] = len(all_patterns)
-        logger.info(f"✅ Total patterns detected: {len(all_patterns)}")
+        logger.info(f"✅ Total patterns detected: {len(all_patterns)} (TOD: {len(tod_patterns)}, CO: {len(co_patterns)})")
         
         return all_patterns
 
@@ -294,15 +324,13 @@ class PatternAnalysisScheduler:
         """
         logger.info("Phase 3: Running synergy detection...")
         try:
-            devices = await data_client.fetch_devices(limit=1000)
-            entities = await data_client.fetch_entities(limit=1000)
+            # Initialize detector with data_api_client (REQUIRED parameter)
+            # The detector will fetch devices/entities internally via data_api_client
+            synergy_detector = DeviceSynergyDetector(data_api_client=data_client)
             
-            synergy_detector = DeviceSynergyDetector()
-            synergies = await synergy_detector.detect_synergies(
-                events_df=events_df,
-                devices=devices,
-                entities=entities
-            )
+            # detect_synergies() doesn't accept parameters - it uses internal _fetch_device_data()
+            # which calls self.data_api.fetch_devices() and self.data_api.fetch_entities()
+            synergies = await synergy_detector.detect_synergies()
             job_result["synergies_detected"] = len(synergies)
             logger.info(f"✅ Found {len(synergies)} synergy opportunities")
             return synergies
@@ -310,6 +338,114 @@ class PatternAnalysisScheduler:
             logger.error(f"❌ Synergy detection failed: {e}", exc_info=True)
             job_result["errors"].append(f"Synergy detection: {str(e)}")
             return []
+
+    async def _validate_pattern_synergy_alignment(
+        self,
+        all_patterns: list[dict[str, Any]],
+        synergies: list[dict[str, Any]],
+        job_result: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Validate pattern-synergy alignment.
+        
+        Checks if detected patterns have matching synergies and flags misalignments.
+        Recommendation: Add pattern-synergy alignment validation with automatic flagging
+        
+        Args:
+            all_patterns: List of detected patterns
+            synergies: List of detected synergies
+            job_result: Job result dictionary to update with alignment metrics
+            
+        Returns:
+            Dictionary with alignment metrics
+        """
+        logger.info("Phase 3.5: Validating pattern-synergy alignment...")
+        
+        if not all_patterns:
+            logger.info("  → No patterns to validate")
+            return {
+                'total_patterns': 0,
+                'total_synergies': len(synergies),
+                'aligned_patterns': 0,
+                'misaligned_patterns': 0,
+                'mismatch_rate': 0.0
+            }
+        
+        # Extract entity IDs from patterns
+        pattern_entities: set[str] = set()
+        for pattern in all_patterns:
+            # Handle different pattern formats
+            if 'entities' in pattern:
+                pattern_entities.update(pattern['entities'])
+            elif 'device_id' in pattern:
+                pattern_entities.add(pattern['device_id'])
+            elif 'device1' in pattern and 'device2' in pattern:
+                pattern_entities.add(pattern['device1'])
+                pattern_entities.add(pattern['device2'])
+        
+        # Extract entity IDs from synergies
+        synergy_entities: set[str] = set()
+        for synergy in synergies:
+            if 'entities' in synergy:
+                synergy_entities.update(synergy['entities'])
+            elif 'trigger' in synergy and 'action' in synergy:
+                synergy_entities.add(synergy['trigger'])
+                synergy_entities.add(synergy['action'])
+        
+        # Calculate alignment
+        aligned_patterns = 0
+        misaligned_patterns = 0
+        
+        for pattern in all_patterns:
+            pattern_entity_set = set()
+            if 'entities' in pattern:
+                pattern_entity_set.update(pattern['entities'])
+            elif 'device_id' in pattern:
+                pattern_entity_set.add(pattern['device_id'])
+            elif 'device1' in pattern and 'device2' in pattern:
+                pattern_entity_set.add(pattern['device1'])
+                pattern_entity_set.add(pattern['device2'])
+            
+            # Check if any pattern entity appears in synergies
+            if pattern_entity_set.intersection(synergy_entities):
+                aligned_patterns += 1
+            else:
+                misaligned_patterns += 1
+        
+        total_patterns = len(all_patterns)
+        mismatch_rate = misaligned_patterns / total_patterns if total_patterns > 0 else 0.0
+        
+        alignment_results = {
+            'total_patterns': total_patterns,
+            'total_synergies': len(synergies),
+            'aligned_patterns': aligned_patterns,
+            'misaligned_patterns': misaligned_patterns,
+            'mismatch_rate': mismatch_rate
+        }
+        
+        # Log alignment results
+        logger.info(
+            f"  ✅ Alignment validation: {aligned_patterns}/{total_patterns} patterns aligned "
+            f"({(1 - mismatch_rate) * 100:.1f}%), {misaligned_patterns} misaligned "
+            f"({mismatch_rate * 100:.1f}%)"
+        )
+        
+        # Flag high mismatch rate
+        if mismatch_rate > 0.5:
+            logger.warning(
+                f"⚠️ High pattern-synergy mismatch rate: {mismatch_rate:.0%} "
+                f"({misaligned_patterns}/{total_patterns} patterns without matching synergies)"
+            )
+            job_result["warnings"] = job_result.get("warnings", [])
+            job_result["warnings"].append(
+                f"High pattern-synergy mismatch: {mismatch_rate:.0%} "
+                f"({misaligned_patterns} patterns without synergies)"
+            )
+        
+        # Store alignment metrics in job result
+        job_result["alignment_metrics"] = alignment_results
+        
+        return alignment_results
 
     async def _store_results(
         self,
@@ -327,10 +463,22 @@ class PatternAnalysisScheduler:
         """
         logger.info("Phase 4: Storing results in database...")
         from ..database import AsyncSessionLocal
+        from ..services.automation_validator import AutomationValidator
+        
+        # Initialize automation validator if HA client available
+        automation_validator = None
+        # Note: HA client not currently available in pattern service
+        # This is a placeholder for future integration
+        # For now, external data filtering in EventFilter handles most cases
+        
         async with AsyncSessionLocal() as db:
             try:
                 if all_patterns:
-                    stored_patterns = await store_patterns(db, all_patterns)
+                    stored_patterns = await store_patterns(
+                        db, 
+                        all_patterns,
+                        automation_validator=automation_validator
+                    )
                     logger.info(f"✅ Stored {stored_patterns} patterns in database")
                 
                 if synergies:
@@ -369,8 +517,24 @@ class PatternAnalysisScheduler:
         logger.info("=" * 80)
         logger.info(f"✅ Pattern Analysis Complete ({job_result['duration_seconds']:.1f}s)")
         logger.info(f"   Patterns: {job_result['patterns_detected']}, Synergies: {job_result['synergies_detected']}")
+        
+        # Log alignment metrics if available
+        if 'alignment_metrics' in job_result:
+            alignment = job_result['alignment_metrics']
+            logger.info(
+                f"   Alignment: {alignment['aligned_patterns']}/{alignment['total_patterns']} patterns "
+                f"({(1 - alignment['mismatch_rate']) * 100:.1f}% aligned)"
+            )
+        
+        if job_result.get("warnings"):
+            logger.warning(f"   Warnings: {len(job_result['warnings'])}")
+            for warning in job_result['warnings']:
+                logger.warning(f"     - {warning}")
+        
         if job_result["errors"]:
-            logger.warning(f"   Errors: {len(job_result['errors'])}")
+            logger.error(f"   Errors: {len(job_result['errors'])}")
+            for error in job_result['errors']:
+                logger.error(f"     - {error}")
         logger.info("=" * 80)
 
     async def _publish_notification(self, job_result: dict[str, Any]) -> None:

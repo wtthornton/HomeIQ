@@ -40,6 +40,14 @@ EXCLUDED_ENTITY_PREFIXES = [
 # Patterns to match (using contains check)
 EXCLUDED_PATTERNS = [
     '_tracker',                # External API trackers (sports, etc.)
+    'team_tracker',            # Sports team tracker entities
+    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',  # Sports league entities
+    'weather_',                # Weather API entities
+    'openweathermap_',         # OpenWeatherMap integration
+    'carbon_intensity_',       # Carbon intensity API
+    'electricity_pricing_',    # Electricity pricing API
+    'national_grid_',          # National Grid API
+    'calendar_',               # Calendar entities (external events)
     '_cpu_',                   # CPU/monitoring sensors
     '_temp',                   # Temperature sensors (system)
     '_chip_',                  # Chip temperature sensors
@@ -65,7 +73,7 @@ TRIGGER_DOMAINS = {
 }
 
 PASSIVE_DOMAINS = {
-    'image', 'camera', 'weather', 'sun', 'event', 'update'
+    'image', 'camera', 'weather', 'sun', 'event', 'update', 'calendar'
 }
 
 
