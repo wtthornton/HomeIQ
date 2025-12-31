@@ -583,14 +583,6 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
               </div>
             }
           >
-            {console.log('[NetworkGraphView] Rendering graph. State:', {
-              loadError,
-              filteredNodes: filteredData.nodes.length,
-              filteredLinks: filteredData.links.length,
-              graphLoaded,
-              hasForceGraph2D: !!ForceGraph2D,
-              graphWidth
-            }) || null}
             <ForceGraph2D
               ref={graphRef}
               graphData={filteredData}
