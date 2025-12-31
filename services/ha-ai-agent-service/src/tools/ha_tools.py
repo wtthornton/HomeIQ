@@ -8,7 +8,7 @@ Home Assistant Tool Implementations
 
 import logging
 import re
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -16,7 +16,26 @@ from ..clients.ai_automation_client import AIAutomationClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
 from ..clients.yaml_validation_client import YAMLValidationClient
+from ..models.automation_models import (
+    AutomationPreview,
+    AutomationPreviewRequest,
+    AutomationPreviewResponse,
+)
+from ..services.business_rules.rule_validator import BusinessRuleValidator
+from ..services.entity_resolution.entity_resolution_service import EntityResolutionService
 from ..services.enhancement_service import AutomationEnhancementService
+from ..services.validation.ai_automation_validation_strategy import (
+    AIAutomationValidationStrategy,
+)
+from ..services.validation.basic_validation_strategy import BasicValidationStrategy
+from ..services.validation.validation_chain import ValidationChain
+from ..services.validation.yaml_validation_strategy import YAMLValidationStrategy
+
+# Type hint for OpenAI client (optional import)
+try:
+    from openai import AsyncOpenAI
+except ImportError:
+    AsyncOpenAI = Any  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +55,10 @@ class HAToolHandler:
         data_api_client: DataAPIClient,
         ai_automation_client: AIAutomationClient | None = None,
         yaml_validation_client: YAMLValidationClient | None = None,
-        openai_client = None
+        openai_client: Optional[AsyncOpenAI] = None,
+        entity_resolution_service: Optional[EntityResolutionService] = None,
+        business_rule_validator: Optional[BusinessRuleValidator] = None,
+        validation_chain: Optional[ValidationChain] = None,
     ):
         """
         Initialize tool handler.
@@ -47,6 +69,9 @@ class HAToolHandler:
             ai_automation_client: AI Automation Service client (legacy, optional)
             yaml_validation_client: YAML Validation Service client for comprehensive validation (Epic 51, optional)
             openai_client: OpenAI client for enhancement generation (optional)
+            entity_resolution_service: Entity resolution service (optional, auto-created if None)
+            business_rule_validator: Business rule validator (optional, auto-created if None)
+            validation_chain: Validation chain (optional, auto-created if None)
         """
         self.ha_client = ha_client
         self.data_api_client = data_api_client
@@ -54,6 +79,31 @@ class HAToolHandler:
         self.yaml_validation_client = yaml_validation_client
         self.openai_client = openai_client
         self._enhancement_service = None
+
+        # Initialize services (create if not provided)
+        if entity_resolution_service is None:
+            entity_resolution_service = EntityResolutionService(
+                data_api_client=data_api_client
+            )
+        self.entity_resolution_service = entity_resolution_service
+
+        if business_rule_validator is None:
+            business_rule_validator = BusinessRuleValidator(
+                entity_resolution_service=entity_resolution_service
+            )
+        self.business_rule_validator = business_rule_validator
+
+        if validation_chain is None:
+            # Create validation chain with strategies
+            strategies = []
+            if yaml_validation_client:
+                strategies.append(YAMLValidationStrategy(yaml_validation_client))
+            if ai_automation_client:
+                strategies.append(AIAutomationValidationStrategy(ai_automation_client))
+            # Always add basic validation as fallback
+            strategies.append(BasicValidationStrategy(self))
+            validation_chain = ValidationChain(strategies)
+        self.validation_chain = validation_chain
 
     async def preview_automation_from_prompt(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """
@@ -72,94 +122,43 @@ class HAToolHandler:
         Returns:
             Dictionary with preview details (no automation created)
         """
-        user_prompt = arguments.get("user_prompt")
-        automation_yaml = arguments.get("automation_yaml")
-        alias = arguments.get("alias")
-
-        if not user_prompt or not automation_yaml or not alias:
-            return {
-                "success": False,
-                "error": "user_prompt, automation_yaml, and alias are all required",
-                "user_prompt": user_prompt,
-                "alias": alias
-            }
+        # Create and validate request
+        request = AutomationPreviewRequest.from_dict(arguments)
+        validation_error = self._validate_preview_request(request)
+        if validation_error:
+            return validation_error
 
         logger.info(
-            f"Generating preview for automation: '{user_prompt[:100]}...' "
-            f"with alias: '{alias}'"
+            f"Generating preview for automation: '{request.user_prompt[:100]}...' "
+            f"with alias: '{request.alias}'"
         )
 
-        # Step 1: Validate YAML syntax
-        validation_result = await self._validate_yaml(automation_yaml)
-        
-        # Step 2: Extract automation details for preview
+        # Validate YAML and process automation
         try:
-            automation_dict = yaml.safe_load(automation_yaml)
-            if not isinstance(automation_dict, dict):
-                return {
-                    "success": False,
-                    "error": "Automation YAML must be a dictionary",
-                    "user_prompt": user_prompt,
-                    "alias": alias
-                }
+            validation_result = await self.validation_chain.validate(request.automation_yaml)
+            automation_dict = self._parse_automation_yaml(request.automation_yaml, request)
 
-            # Extract entities, areas, and services from YAML for preview
-            entities_affected = self._extract_entities_from_yaml(automation_dict)
-            areas_affected = self._extract_areas_from_yaml(automation_dict)
-            services_used = self._extract_services_from_yaml(automation_dict)
-            
-            # Determine safety considerations
-            safety_warnings = self._analyze_safety(automation_dict, entities_affected)
-            
-            # Build detailed preview
-            preview = {
-                "success": True,
-                "preview": True,  # Flag indicating this is a preview
-                "alias": alias,
-                "user_prompt": user_prompt,
-                "automation_yaml": automation_yaml,
-                "validation": {
-                    "valid": validation_result["valid"],
-                    "errors": validation_result.get("errors", []),
-                    "warnings": validation_result.get("warnings", [])
-                },
-                "details": {
-                    "trigger_description": self._describe_trigger(automation_dict.get("trigger")),
-                    "action_description": self._describe_action(automation_dict.get("action")),
-                    "mode": automation_dict.get("mode", "single"),
-                    "initial_state": automation_dict.get("initial_state", None)
-                },
-                "entities_affected": entities_affected,
-                "areas_affected": areas_affected,
-                "services_used": services_used,
-                "safety_warnings": safety_warnings,
-                "message": "Preview generated successfully. Review the details above and approve to create the automation."
-            }
-            
-            logger.info(
-                f"✅ Preview generated for automation '{alias}'. "
-                f"Entities: {len(entities_affected)}, Areas: {len(areas_affected)}, "
-                f"Safety warnings: {len(safety_warnings)}"
+            # Extract automation details
+            extraction_result = self._extract_automation_details(automation_dict)
+            safety_warnings = self._check_safety_requirements(
+                extraction_result["entities"],
+                extraction_result["services"],
+                automation_dict,
+            )
+
+            # Build and return preview response
+            return self._build_preview_response(
+                request=request,
+                automation_dict=automation_dict,
+                validation_result=validation_result,
+                extraction_result=extraction_result,
+                safety_warnings=safety_warnings,
             )
             
-            return preview
-            
-        except yaml.YAMLError as e:
-            logger.error(f"YAML parsing error in preview: {e}")
-            return {
-                "success": False,
-                "error": f"YAML parsing error: {str(e)}",
-                "user_prompt": user_prompt,
-                "alias": alias
-            }
+        except (yaml.YAMLError, ValueError) as e:
+            return self._handle_yaml_error(e, request)
         except Exception as e:
-            logger.error(f"Error generating preview: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": f"Unexpected error: {str(e)}",
-                "user_prompt": user_prompt,
-                "alias": alias
-            }
+            return self._handle_unexpected_error(e, request, "preview")
 
     async def create_automation_from_prompt(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """
@@ -179,6 +178,249 @@ class HAToolHandler:
         Returns:
             Dictionary with automation creation result
         """
+        # Validate required arguments
+        validation_error = self._validate_create_arguments(arguments)
+        if validation_error:
+            return validation_error
+
+        user_prompt = arguments["user_prompt"]
+        automation_yaml = arguments["automation_yaml"]
+        alias = arguments["alias"]
+
+        logger.info(
+            f"Creating automation from prompt: '{user_prompt[:100]}...' "
+            f"with alias: '{alias}'"
+        )
+
+        # Validate YAML
+        validation_result = await self.validation_chain.validate(automation_yaml)
+        if not validation_result.valid:
+            return self._build_validation_error_response(
+                validation_result, user_prompt, alias
+            )
+
+        # Create automation in Home Assistant
+        try:
+            automation_dict = yaml.safe_load(automation_yaml)
+            if not isinstance(automation_dict, dict):
+                return self._build_error_response(
+                    "Automation YAML must be a dictionary", user_prompt, alias
+                )
+
+            # Validate required fields
+            field_error = self._validate_required_fields(automation_dict, user_prompt, alias)
+            if field_error:
+                return field_error
+
+            # Prepare and create automation
+            automation_dict = self._prepare_automation_dict(automation_dict, alias)
+            return await self._create_automation_in_ha(
+                automation_dict, alias, user_prompt, validation_result
+            )
+
+        except yaml.YAMLError as e:
+            logger.error(f"YAML parsing error: {e}")
+            return self._build_error_response(
+                f"YAML parsing error: {str(e)}", user_prompt, alias
+            )
+        except Exception as e:
+            logger.error(f"Error creating automation: {e}", exc_info=True)
+            return self._build_error_response(
+                f"Unexpected error: {str(e)}", user_prompt, alias
+            )
+
+
+    def _is_group_entity(self, entity_id: str) -> bool:
+        """Check if entity ID is a group entity."""
+        return isinstance(entity_id, str) and entity_id.startswith("group.")
+
+    def _validate_preview_request(
+        self, request: AutomationPreviewRequest
+    ) -> dict[str, Any] | None:
+        """
+        Validate preview request parameters.
+
+        Args:
+            request: Automation preview request to validate
+
+        Returns:
+            Error response dictionary if validation fails, None if valid
+        """
+        is_valid, error_message = request.validate()
+        if not is_valid:
+            return AutomationPreviewResponse.error_response(
+                error=error_message or "Invalid request parameters",
+                user_prompt=request.user_prompt,
+                alias=request.alias,
+            ).to_dict()
+        return None
+
+    def _parse_automation_yaml(
+        self, automation_yaml: str, request: AutomationPreviewRequest
+    ) -> dict[str, Any]:
+        """
+        Parse automation YAML and validate structure.
+
+        Args:
+            automation_yaml: YAML string to parse
+            request: Request object for error responses
+
+        Returns:
+            Parsed automation dictionary
+
+        Raises:
+            ValueError: If YAML is not a valid dictionary
+        """
+        automation_dict = yaml.safe_load(automation_yaml)
+        if not isinstance(automation_dict, dict):
+            raise ValueError("Automation YAML must be a dictionary")
+        return automation_dict
+
+    def _extract_automation_details(
+        self, automation_dict: dict[str, Any]
+    ) -> dict[str, list[str]]:
+        """
+        Extract entities, areas, and services from automation YAML.
+
+        Args:
+            automation_dict: Parsed automation dictionary
+
+        Returns:
+            Dictionary with 'entities', 'areas', and 'services' lists
+        """
+        return {
+            "entities": self._extract_entities_from_yaml(automation_dict),
+            "areas": self._extract_areas_from_yaml(automation_dict),
+            "services": self._extract_services_from_yaml(automation_dict),
+        }
+
+    def _check_safety_requirements(
+        self,
+        entities: list[str],
+        services: list[str],
+        automation_dict: dict[str, Any],
+    ) -> list[str]:
+        """
+        Check safety requirements for automation.
+
+        Args:
+            entities: List of entity IDs
+            services: List of service names
+            automation_dict: Parsed automation dictionary
+
+        Returns:
+            List of safety warnings
+        """
+        _, safety_warnings = self.business_rule_validator.check_safety_requirements(
+            entities=entities,
+            services=services,
+            automation_dict=automation_dict,
+        )
+        return safety_warnings
+
+    def _build_preview_response(
+        self,
+        request: AutomationPreviewRequest,
+        automation_dict: dict[str, Any],
+        validation_result: Any,
+        extraction_result: dict[str, list[str]],
+        safety_warnings: list[str],
+    ) -> dict[str, Any]:
+        """
+        Build preview response DTO.
+
+        Args:
+            request: Original preview request
+            automation_dict: Parsed automation dictionary
+            validation_result: YAML validation result
+            extraction_result: Extracted entities, areas, and services
+            safety_warnings: List of safety warnings
+
+        Returns:
+            Preview response dictionary
+        """
+        preview = AutomationPreview(
+            alias=request.alias,
+            trigger_description=self._describe_trigger(automation_dict.get("trigger")),
+            action_description=self._describe_action(automation_dict.get("action")),
+            mode=automation_dict.get("mode", "single"),
+            initial_state=automation_dict.get("initial_state", None),
+        )
+
+        response = AutomationPreviewResponse(
+            success=True,
+            preview=preview,
+            validation=validation_result,
+            entities_affected=extraction_result["entities"],
+            areas_affected=extraction_result["areas"],
+            services_used=extraction_result["services"],
+            safety_warnings=safety_warnings,
+            user_prompt=request.user_prompt,
+            automation_yaml=request.automation_yaml,
+            alias=request.alias,
+            message="Preview generated successfully. Review the details above and approve to create the automation.",
+        )
+
+        logger.info(
+            f"✅ Preview generated for automation '{request.alias}'. "
+            f"Entities: {len(extraction_result['entities'])}, "
+            f"Areas: {len(extraction_result['areas'])}, "
+            f"Safety warnings: {len(safety_warnings)}"
+        )
+
+        return response.to_dict()
+
+    def _handle_yaml_error(
+        self, error: Exception, request: AutomationPreviewRequest
+    ) -> dict[str, Any]:
+        """
+        Handle YAML parsing errors.
+
+        Args:
+            error: YAML parsing exception
+            request: Original preview request
+
+        Returns:
+            Error response dictionary
+        """
+        logger.error(f"YAML parsing error in preview: {error}")
+        return AutomationPreviewResponse.error_response(
+            error=f"YAML parsing error: {str(error)}",
+            user_prompt=request.user_prompt,
+            alias=request.alias,
+        ).to_dict()
+
+    def _handle_unexpected_error(
+        self, error: Exception, request: AutomationPreviewRequest, operation: str
+    ) -> dict[str, Any]:
+        """
+        Handle unexpected errors during automation operations.
+
+        Args:
+            error: Unexpected exception
+            request: Original request (preview or create)
+            operation: Operation name ('preview' or 'create')
+
+        Returns:
+            Error response dictionary
+        """
+        logger.error(f"Error during {operation}: {error}", exc_info=True)
+        return AutomationPreviewResponse.error_response(
+            error=f"Unexpected error: {str(error)}",
+            user_prompt=request.user_prompt,
+            alias=request.alias,
+        ).to_dict()
+
+    def _validate_create_arguments(self, arguments: dict[str, Any]) -> dict[str, Any] | None:
+        """
+        Validate required arguments for create_automation_from_prompt.
+
+        Args:
+            arguments: Tool arguments dictionary
+
+        Returns:
+            Error response dictionary if validation fails, None if valid
+        """
         user_prompt = arguments.get("user_prompt")
         automation_yaml = arguments.get("automation_yaml")
         alias = arguments.get("alias")
@@ -188,406 +430,240 @@ class HAToolHandler:
                 "success": False,
                 "error": "user_prompt, automation_yaml, and alias are all required",
                 "user_prompt": user_prompt,
-                "alias": alias
-            }
-
-        logger.info(
-            f"Creating automation from prompt: '{user_prompt[:100]}...' "
-            f"with alias: '{alias}'"
-        )
-
-        # Step 1: Validate YAML syntax
-        validation_result = await self._validate_yaml(automation_yaml)
-        if not validation_result["valid"]:
-            return {
-                "success": False,
-                "error": "YAML validation failed",
-                "validation_errors": validation_result.get("errors", []),
-                "validation_warnings": validation_result.get("warnings", []),
-                "user_prompt": user_prompt,
-                "alias": alias
-            }
-
-        # Step 2: Create automation in Home Assistant
-        try:
-            automation_dict = yaml.safe_load(automation_yaml)
-            if not isinstance(automation_dict, dict):
-                return {
-                    "success": False,
-                    "error": "Automation YAML must be a dictionary",
-                    "user_prompt": user_prompt,
-                    "alias": alias
-                }
-
-            # Ensure required fields
-            if "trigger" not in automation_dict:
-                return {
-                    "success": False,
-                    "error": "Automation must have a 'trigger' field",
-                    "user_prompt": user_prompt,
-                    "alias": alias
-                }
-            if "action" not in automation_dict:
-                return {
-                    "success": False,
-                    "error": "Automation must have an 'action' field",
-                    "user_prompt": user_prompt,
-                    "alias": alias
-                }
-
-            # Set alias if not provided in YAML
-            if "alias" not in automation_dict:
-                automation_dict["alias"] = alias
-
-            # Create automation via HA API
-            session = await self.ha_client._get_session()
-            
-            # Generate a safe config ID from alias
-            config_id = re.sub(r'[^a-z0-9_]', '_', alias.lower().replace(' ', '_'))
-            url = f"{self.ha_client.ha_url}/api/config/automation/config/{config_id}"
-
-            # Home Assistant expects automation config in specific format
-            automation_config = {
                 "alias": alias,
-                **automation_dict
             }
+        return None
 
-            async with session.post(url, json=automation_config) as response:
-                if response.status in (200, 201):
-                    result = await response.json()
-                    automation_id = result.get("id", f"automation.{config_id}")
-                    
-                    logger.info(
-                        f"✅ Automation created successfully: {automation_id} "
-                        f"for prompt: '{user_prompt[:100]}...'"
-                    )
-                    
-                    return {
-                        "success": True,
-                        "automation_id": automation_id,
-                        "alias": alias,
-                        "user_prompt": user_prompt,
-                        "message": "Automation created successfully",
-                        "validation_warnings": validation_result.get("warnings", [])
-                    }
-                else:
-                    error_text = await response.text()
-                    logger.error(
-                        f"❌ Failed to create automation: {response.status} - {error_text} "
-                        f"for prompt: '{user_prompt[:100]}...'"
-                    )
-                    return {
-                        "success": False,
-                        "error": f"Failed to create automation: {response.status} - {error_text}",
-                        "user_prompt": user_prompt,
-                        "alias": alias,
-                        "http_status": response.status
-                    }
-        except yaml.YAMLError as e:
-            logger.error(f"YAML parsing error: {e}")
-            return {
-                "success": False,
-                "error": f"YAML parsing error: {str(e)}",
-                "user_prompt": user_prompt,
-                "alias": alias
-            }
-        except Exception as e:
-            logger.error(f"Error creating automation: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": f"Unexpected error: {str(e)}",
-                "user_prompt": user_prompt,
-                "alias": alias
-            }
-
-    async def _validate_yaml(self, automation_yaml: str) -> dict[str, Any]:
+    def _build_validation_error_response(
+        self,
+        validation_result: Any,
+        user_prompt: str,
+        alias: str,
+    ) -> dict[str, Any]:
         """
-        Validate Home Assistant automation YAML using YAML Validation Service (Epic 51).
-
-        Uses YAML Validation Service if available, with fallback to AI Automation Service,
-        then to basic validation.
+        Build error response for YAML validation failures.
 
         Args:
-            automation_yaml: YAML string to validate
+            validation_result: Validation result with errors
+            user_prompt: Original user prompt
+            alias: Automation alias
 
         Returns:
-            Dictionary with validation result
+            Error response dictionary
         """
-        # Use YAML Validation Service if available (Epic 51, Story 51.5)
-        if self.yaml_validation_client:
-            try:
-                logger.debug("Using YAML Validation Service for comprehensive validation")
-                result = await self.yaml_validation_client.validate_yaml(
-                    yaml_content=automation_yaml,
-                    normalize=True,
-                    validate_entities=True,
-                    validate_services=False
-                )
-                
-                # Convert validation result to expected format
-                response = {
-                    "valid": result.get("valid", False),
-                    "errors": result.get("errors", []),
-                    "warnings": result.get("warnings", []),
-                    "score": result.get("score", 0)
-                }
-                
-                # Include fixed/normalized YAML if available
-                if result.get("fixed_yaml"):
-                    response["fixed_yaml"] = result["fixed_yaml"]
-                
-                if result.get("fixes_applied"):
-                    response["fixes_applied"] = result["fixes_applied"]
-                
-                return response
-                
-            except Exception as e:
-                logger.warning(f"YAML Validation Service failed, falling back to AI Automation Service: {e}")
-                # Fall through to AI Automation Service
-        
-        # Fallback to AI Automation Service validation endpoint if available
-        if self.ai_automation_client:
-            try:
-                logger.debug("Using AI Automation Service validation endpoint")
-                result = await self.ai_automation_client.validate_yaml(
-                    automation_yaml,
-                    validate_entities=True,
-                    validate_safety=True
-                )
-                
-                # Convert consolidated validation result to expected format
-                errors = [err.get("message", "") for err in result.get("errors", [])]
-                warnings = [warn.get("message", "") for warn in result.get("warnings", [])]
-                
-                # Include fixed YAML if available
-                response = {
-                    "valid": result.get("valid", False),
-                    "errors": errors,
-                    "warnings": warnings
-                }
-                
-                if result.get("fixed_yaml"):
-                    response["fixed_yaml"] = result["fixed_yaml"]
-                
-                if result.get("summary"):
-                    response["summary"] = result["summary"]
-                
-                return response
-                
-            except Exception as e:
-                logger.warning(f"AI Automation Service validation failed, falling back to basic validation: {e}")
-                # Fall through to basic validation
-        
-        # Fallback to basic validation
-        errors = []
-        warnings = []
+        return {
+            "success": False,
+            "error": "YAML validation failed",
+            "validation_errors": validation_result.errors,
+            "validation_warnings": validation_result.warnings,
+            "user_prompt": user_prompt,
+            "alias": alias,
+        }
 
-        try:
-            # Parse YAML
-            automation_dict = yaml.safe_load(automation_yaml)
+    def _build_error_response(
+        self, error_message: str, user_prompt: str, alias: str
+    ) -> dict[str, Any]:
+        """
+        Build generic error response.
 
-            if not isinstance(automation_dict, dict):
-                errors.append("Automation YAML must be a dictionary")
+        Args:
+            error_message: Error message
+            user_prompt: Original user prompt
+            alias: Automation alias
+
+        Returns:
+            Error response dictionary
+        """
+        return {
+            "success": False,
+            "error": error_message,
+            "user_prompt": user_prompt,
+            "alias": alias,
+        }
+
+    def _validate_required_fields(
+        self, automation_dict: dict[str, Any], user_prompt: str, alias: str
+    ) -> dict[str, Any] | None:
+        """
+        Validate that automation has required fields.
+
+        Args:
+            automation_dict: Parsed automation dictionary
+            user_prompt: Original user prompt
+            alias: Automation alias
+
+        Returns:
+            Error response dictionary if validation fails, None if valid
+        """
+        if "trigger" not in automation_dict:
+            return self._build_error_response(
+                "Automation must have a 'trigger' field", user_prompt, alias
+            )
+        if "action" not in automation_dict:
+            return self._build_error_response(
+                "Automation must have an 'action' field", user_prompt, alias
+            )
+        return None
+
+    def _prepare_automation_dict(
+        self, automation_dict: dict[str, Any], alias: str
+    ) -> dict[str, Any]:
+        """
+        Prepare automation dictionary for Home Assistant API.
+
+        Args:
+            automation_dict: Parsed automation dictionary
+            alias: Automation alias
+
+        Returns:
+            Prepared automation dictionary with alias set
+        """
+        if "alias" not in automation_dict:
+            automation_dict["alias"] = alias
+        return automation_dict
+
+    async def _create_automation_in_ha(
+        self,
+        automation_dict: dict[str, Any],
+        alias: str,
+        user_prompt: str,
+        validation_result: Any,
+    ) -> dict[str, Any]:
+        """
+        Create automation in Home Assistant via API.
+
+        Args:
+            automation_dict: Prepared automation dictionary
+            alias: Automation alias
+            user_prompt: Original user prompt
+            validation_result: YAML validation result
+
+        Returns:
+            Success or error response dictionary
+        """
+        session = await self.ha_client._get_session()
+
+        # Generate a safe config ID from alias
+        config_id = re.sub(r"[^a-z0-9_]", "_", alias.lower().replace(" ", "_"))
+        url = f"{self.ha_client.ha_url}/api/config/automation/config/{config_id}"
+
+        # Home Assistant expects automation config in specific format
+        automation_config = {"alias": alias, **automation_dict}
+
+        async with session.post(url, json=automation_config) as response:
+            if response.status in (200, 201):
+                result = await response.json()
+                automation_id = result.get("id", f"automation.{config_id}")
+
+                logger.info(
+                    f"✅ Automation created successfully: {automation_id} "
+                    f"for prompt: '{user_prompt[:100]}...'"
+                )
+
                 return {
-                    "valid": False,
-                    "errors": errors,
-                    "warnings": warnings
+                    "success": True,
+                    "automation_id": automation_id,
+                    "alias": alias,
+                    "user_prompt": user_prompt,
+                    "message": "Automation created successfully",
+                    "validation_warnings": validation_result.warnings,
                 }
-
-            # Check required fields
-            if "trigger" not in automation_dict:
-                errors.append(
-                    "Missing required field: 'trigger' (2025.10+ format uses singular 'trigger:', not 'triggers:')"
+            else:
+                error_text = await response.text()
+                logger.error(
+                    f"❌ Failed to create automation: {response.status} - {error_text} "
+                    f"for prompt: '{user_prompt[:100]}...'"
                 )
-            elif not automation_dict["trigger"]:
-                errors.append("Field 'trigger' cannot be empty")
-
-            if "action" not in automation_dict:
-                errors.append(
-                    "Missing required field: 'action' (2025.10+ format uses singular 'action:', not 'actions:')"
-                )
-            elif not automation_dict["action"]:
-                errors.append("Field 'action' cannot be empty")
-
-            # Check optional but recommended fields
-            if "alias" not in automation_dict:
-                warnings.append("Missing recommended field: 'alias' (used for identification)")
-
-            if "description" not in automation_dict:
-                warnings.append("Missing recommended field: 'description' (helps with automation management)")
-
-            if "initial_state" not in automation_dict:
-                warnings.append(
-                    "Missing recommended field: 'initial_state' (should be 'true' for 2025.10+ compliance). "
-                    "2025.10+ format requires explicit initial_state: true"
-                )
-            
-            # Check for group entities and provide warnings
-            entities = self._extract_entities_from_yaml(automation_dict)
-            group_entities = [eid for eid in entities if self._is_group_entity(eid)]
-            if group_entities:
-                warnings.append(
-                    f"Group entities detected: {', '.join(group_entities)}. "
-                    "Groups don't have 'last_changed' attribute - templates accessing group.last_changed will fail. "
-                    "Use individual entities with condition: state and for: option instead for continuous occupancy detection."
-                )
-
-            # Validate trigger structure
-            if "trigger" in automation_dict:
-                trigger = automation_dict["trigger"]
-                if isinstance(trigger, list):
-                    if len(trigger) == 0:
-                        errors.append("Trigger list cannot be empty")
-                elif isinstance(trigger, dict) and "platform" not in trigger:
-                    errors.append("Trigger must have a 'platform' field")
-
-            # Validate action structure
-            if "action" in automation_dict:
-                action = automation_dict["action"]
-                if isinstance(action, list) and len(action) == 0:
-                    errors.append("Action list cannot be empty")
-                elif isinstance(action, dict):
-                    if "service" not in action and "scene" not in action:
-                        errors.append("Action must have either 'service' or 'scene' field")
-
-            valid = len(errors) == 0
-
-            return {
-                "valid": valid,
-                "errors": errors,
-                "warnings": warnings
-            }
-
-        except yaml.YAMLError as e:
-            return {
-                "valid": False,
-                "errors": [f"YAML syntax error: {str(e)}"],
-                "warnings": warnings
-            }
-        except Exception as e:
-            logger.error(f"Error validating automation YAML: {e}", exc_info=True)
-            return {
-                "valid": False,
-                "errors": [str(e)],
-                "warnings": warnings
-            }
-
-    def _is_group_entity(self, entity_id: str) -> bool:
-        """Check if entity ID is a group entity."""
-        return isinstance(entity_id, str) and entity_id.startswith("group.")
+                return {
+                    "success": False,
+                    "error": f"Failed to create automation: {response.status} - {error_text}",
+                    "user_prompt": user_prompt,
+                    "alias": alias,
+                    "http_status": response.status,
+                }
     
-    def _extract_entities_from_yaml(self, automation_dict: dict) -> list[str]:
+    def _extract_from_yaml(
+        self,
+        automation_dict: dict[str, Any],
+        field_path: list[str],
+        sections: list[str] = None,
+    ) -> list[str]:
+        """
+        Generic helper to extract values from automation YAML by field path.
+
+        Args:
+            automation_dict: Automation YAML as dictionary
+            field_path: List of field names to navigate (e.g., ["target", "area_id"] or ["entity_id"])
+            sections: List of sections to search (default: ["trigger", "condition", "action"])
+
+        Returns:
+            List of extracted string values (deduplicated)
+        """
+        if sections is None:
+            sections = ["trigger", "condition", "action"]
+
+        results = []
+
+        def extract_from_section(section: Any, path_index: int) -> None:
+            """Recursively extract values from section."""
+            if path_index >= len(field_path):
+                return
+
+            field_name = field_path[path_index]
+            is_last_field = path_index == len(field_path) - 1
+
+            if isinstance(section, list):
+                for item in section:
+                    extract_from_section(item, path_index)
+            elif isinstance(section, dict):
+                if field_name in section:
+                    value = section[field_name]
+                    if is_last_field:
+                        # Extract value
+                        if isinstance(value, list):
+                            for v in value:
+                                if isinstance(v, str):
+                                    results.append(v)
+                        elif isinstance(value, str):
+                            results.append(value)
+                    else:
+                        # Continue navigation
+                        extract_from_section(value, path_index + 1)
+
+        # Extract from specified sections
+        for section_name in sections:
+            if section_name in automation_dict:
+                extract_from_section(automation_dict[section_name], 0)
+
+        return list(set(results))  # Remove duplicates
+
+    def _extract_entities_from_yaml(self, automation_dict: dict[str, Any]) -> list[str]:
         """Extract entity IDs from automation YAML"""
         entities = []
         
-        # Extract from triggers
-        trigger = automation_dict.get("trigger", [])
-        if isinstance(trigger, list):
-            for t in trigger:
-                if "entity_id" in t:
-                    entity_id = t["entity_id"]
-                    if isinstance(entity_id, list):
-                        entities.extend(entity_id)
-                    elif isinstance(entity_id, str):
-                        entities.append(entity_id)
-        elif isinstance(trigger, dict):
-            if "entity_id" in trigger:
-                entity_id = trigger["entity_id"]
-                if isinstance(entity_id, list):
-                    entities.extend(entity_id)
-                elif isinstance(entity_id, str):
-                    entities.append(entity_id)
-        
-        # Extract from conditions
-        condition = automation_dict.get("condition", [])
-        if isinstance(condition, list):
-            for c in condition:
-                if "entity_id" in c:
-                    entity_id = c["entity_id"]
-                    if isinstance(entity_id, list):
-                        entities.extend(entity_id)
-                    elif isinstance(entity_id, str):
-                        entities.append(entity_id)
-        elif isinstance(condition, dict):
-            if "entity_id" in condition:
-                entity_id = condition["entity_id"]
-                if isinstance(entity_id, list):
-                    entities.extend(entity_id)
-                elif isinstance(entity_id, str):
-                    entities.append(entity_id)
-        
-        # Extract from actions
-        action = automation_dict.get("action", [])
-        if isinstance(action, list):
-            for a in action:
-                if "entity_id" in a:
-                    entity_id = a["entity_id"]
-                    if isinstance(entity_id, list):
-                        entities.extend(entity_id)
-                    elif isinstance(entity_id, str):
-                        entities.append(entity_id)
-                # Check target.entity_id
-                if "target" in a and isinstance(a["target"], dict):
-                    if "entity_id" in a["target"]:
-                        entity_id = a["target"]["entity_id"]
-                        if isinstance(entity_id, list):
-                            entities.extend(entity_id)
-                        elif isinstance(entity_id, str):
-                            entities.append(entity_id)
-        elif isinstance(action, dict):
-            if "entity_id" in action:
-                entity_id = action["entity_id"]
-                if isinstance(entity_id, list):
-                    entities.extend(entity_id)
-                elif isinstance(entity_id, str):
-                    entities.append(entity_id)
+        # Extract from entity_id fields (triggers, conditions, actions)
+        entities.extend(self._extract_from_yaml(automation_dict, ["entity_id"]))
+
+        # Extract from target.entity_id in actions
+        entities.extend(
+            self._extract_from_yaml(
+                automation_dict, ["target", "entity_id"], sections=["action"]
+            )
+        )
         
         return list(set(entities))  # Remove duplicates
 
-    def _extract_areas_from_yaml(self, automation_dict: dict) -> list[str]:
+    def _extract_areas_from_yaml(self, automation_dict: dict[str, Any]) -> list[str]:
         """Extract area IDs from automation YAML"""
-        areas = []
-        
-        # Extract from actions (target.area_id)
-        action = automation_dict.get("action", [])
-        if isinstance(action, list):
-            for a in action:
-                if "target" in a and isinstance(a["target"], dict):
-                    if "area_id" in a["target"]:
-                        area_id = a["target"]["area_id"]
-                        if isinstance(area_id, list):
-                            areas.extend(area_id)
-                        elif isinstance(area_id, str):
-                            areas.append(area_id)
-        elif isinstance(action, dict):
-            if "target" in action and isinstance(action["target"], dict):
-                if "area_id" in action["target"]:
-                    area_id = action["target"]["area_id"]
-                    if isinstance(area_id, list):
-                        areas.extend(area_id)
-                    elif isinstance(area_id, str):
-                        areas.append(area_id)
-        
-        return list(set(areas))  # Remove duplicates
+        # Extract from target.area_id in actions
+        return self._extract_from_yaml(
+            automation_dict, ["target", "area_id"], sections=["action"]
+        )
 
-    def _extract_services_from_yaml(self, automation_dict: dict) -> list[str]:
+    def _extract_services_from_yaml(self, automation_dict: dict[str, Any]) -> list[str]:
         """Extract service names from automation YAML"""
-        services = []
-        
-        action = automation_dict.get("action", [])
-        if isinstance(action, list):
-            for a in action:
-                if "service" in a:
-                    service = a["service"]
-                    if isinstance(service, str):
-                        services.append(service)
-        elif isinstance(action, dict):
-            if "service" in action:
-                service = action["service"]
-                if isinstance(service, str):
-                    services.append(service)
-        
-        return list(set(services))  # Remove duplicates
+        # Extract from service field in actions
+        return self._extract_from_yaml(automation_dict, ["service"], sections=["action"])
 
     def _describe_trigger(self, trigger: Any) -> str:
         """Generate human-readable description of trigger"""
@@ -666,41 +742,6 @@ class HAToolHandler:
         
         return "Unknown action type"
 
-    def _analyze_safety(self, automation_dict: dict, entities: list[str]) -> list[str]:
-        """Analyze automation for safety considerations"""
-        warnings = []
-        
-        # Check for security-related entities
-        security_domains = ["lock", "alarm", "camera", "person", "device_tracker"]
-        security_entities = [e for e in entities if any(e.startswith(f"{domain}.") for domain in security_domains)]
-        if security_entities:
-            warnings.append(f"Security-sensitive entities detected: {', '.join(security_entities)}. Ensure time-based constraints are appropriate.")
-        
-        # Check for critical services
-        action = automation_dict.get("action", [])
-        critical_services = ["lock.lock", "lock.unlock", "alarm_control_panel.alarm_arm"]
-        if isinstance(action, list):
-            for a in action:
-                service = a.get("service", "")
-                if any(service.startswith(cs) for cs in critical_services):
-                    warnings.append(f"Critical service used: {service}. Verify automation logic carefully.")
-        elif isinstance(action, dict):
-            service = action.get("service", "")
-            if any(service.startswith(cs) for cs in critical_services):
-                warnings.append(f"Critical service used: {service}. Verify automation logic carefully.")
-        
-        # Check for time-based triggers without conditions
-        trigger = automation_dict.get("trigger", [])
-        has_time_trigger = False
-        if isinstance(trigger, list):
-            has_time_trigger = any(t.get("platform") in ["time", "time_pattern"] for t in trigger)
-        elif isinstance(trigger, dict):
-            has_time_trigger = trigger.get("platform") in ["time", "time_pattern"]
-        
-        if has_time_trigger and security_entities and not automation_dict.get("condition"):
-            warnings.append("Time-based trigger with security entities detected. Consider adding conditions for safety.")
-        
-        return warnings
     
     @property
     def enhancement_service(self) -> AutomationEnhancementService | None:
