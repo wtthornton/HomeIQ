@@ -22,27 +22,30 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({
   className = '',
   variant = 'banner',
 }) => {
-  if (!error) return null;
-
-  // Determine error type
-  const isNetworkError = error.toLowerCase().includes('network') || 
+  // Determine error type (before early returns to avoid hook issues)
+  const isNetworkError = error ? (error.toLowerCase().includes('network') || 
                          error.toLowerCase().includes('fetch') ||
-                         error.toLowerCase().includes('connection');
-  const isApiError = error.toLowerCase().includes('api') ||
+                         error.toLowerCase().includes('connection')) : false;
+  const isApiError = error ? (error.toLowerCase().includes('api') ||
                      error.toLowerCase().includes('404') ||
-                     error.toLowerCase().includes('500');
-  const isTimeoutError = error.toLowerCase().includes('timeout');
+                     error.toLowerCase().includes('500')) : false;
+  const isTimeoutError = error ? error.toLowerCase().includes('timeout') : false;
 
   const errorIcon = isNetworkError ? '🌐' : isApiError ? '⚠️' : isTimeoutError ? '⏱️' : '❌';
 
-  if (variant === 'toast') {
-    // Show as toast notification
-    React.useEffect(() => {
+  // Handle toast variant with useEffect (must be called unconditionally)
+  React.useEffect(() => {
+    if (variant === 'toast' && error) {
       toast.error(error, {
         duration: 5000,
         icon: errorIcon,
       });
-    }, [error, errorIcon]);
+    }
+  }, [error, errorIcon, variant]);
+
+  if (!error) return null;
+
+  if (variant === 'toast') {
     return null;
   }
 
