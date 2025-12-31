@@ -1,5 +1,5 @@
-# TappsCodingAgents Background Agents - DISABLED
-# All background agents have been removed/disabled
+# TappsCodingAgents Background Agents - DELETED
+# All background agents have been removed
 # This file is kept for reference but contains no active agents
 
 agents: []
@@ -8,7 +8,6 @@ global:
   output_directory: .tapps-agents/reports
   worktree_base: .tapps-agents/worktrees
   progress_reporting: false
-  result_delivery:
-  - file
+  result_delivery: []
   max_parallel_agents: 0
   timeout_seconds: 0

@@ -120,7 +120,21 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
         }
       } catch (error) {
         console.error('Failed to validate YAML:', error);
-        toast.error('Failed to validate automation YAML');
+        // Extract error message for better user feedback
+        let errorMessage = 'Failed to validate automation YAML';
+        if (error instanceof Error) {
+          errorMessage = error.message || errorMessage;
+        } else if (typeof error === 'object' && error !== null && 'message' in error) {
+          errorMessage = String(error.message);
+        }
+        toast.error(errorMessage);
+        // Set validation result to show error state even on exception
+        setValidationResult({
+          valid: false,
+          errors: [errorMessage],
+          warnings: [],
+          score: 0,
+        });
       } finally {
         setIsValidating(false);
       }

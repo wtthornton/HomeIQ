@@ -87,6 +87,7 @@ class ValidationPipeline:
             result.valid = False
             result.errors.extend(syntax_result["errors"])
             result.score = 0.0
+            result.summary = self._generate_summary(result)
             return result
         
         # Normalize if requested
@@ -107,6 +108,7 @@ class ValidationPipeline:
             result.valid = False
             result.errors.append(f"Failed to parse normalized YAML: {e}")
             result.score = 0.0
+            result.summary = self._generate_summary(result)
             return result
         
         # Stage 2: Schema Validation
@@ -116,6 +118,7 @@ class ValidationPipeline:
             result.errors.extend(schema_result["errors"])
             result.score = max(0.0, result.score - 30.0)
             if self.validation_level == "strict":
+                result.summary = self._generate_summary(result)
                 return result
         
         result.warnings.extend(schema_result.get("warnings", []))
@@ -124,10 +127,16 @@ class ValidationPipeline:
         if self.data_api_client:
             ref_result = await self._validate_referential_integrity(data)
             if not ref_result["valid"]:
-                result.errors.extend(ref_result["errors"])
-                result.score = max(0.0, result.score - 20.0)
+                # In moderate/permissive mode, entity validation errors are warnings
+                # Only treat as errors in strict mode
                 if self.validation_level == "strict":
+                    result.errors.extend(ref_result["errors"])
                     result.valid = False
+                    result.score = max(0.0, result.score - 20.0)
+                else:
+                    # Convert entity errors to warnings in moderate/permissive mode
+                    result.warnings.extend(ref_result["errors"])
+                    result.score = max(0.0, result.score - 10.0)  # Less penalty for warnings
             
             result.warnings.extend(ref_result.get("warnings", []))
         
