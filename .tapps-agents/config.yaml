@@ -147,6 +147,7 @@ workflow:
   auto_execution_enabled: true
   polling_interval: 5.0
   timeout_seconds: 3600.0
+  duration_threshold_seconds: 30.0
   state_persistence:
     enabled: true
     storage_location: .tapps-agents/workflow-state

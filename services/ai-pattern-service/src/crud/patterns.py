@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 async def store_patterns(
     db: AsyncSession,
     patterns: list[dict],
-    time_window_days: int = 30
+    time_window_days: int = 30,
+    automation_validator: Any | None = None
 ) -> int:
     """
     Store detected patterns in database.
@@ -51,6 +52,15 @@ async def store_patterns(
         
         stored_count = 0
         now = datetime.now(timezone.utc)
+        
+        # Validate external data patterns against automations if validator provided
+        if automation_validator:
+            try:
+                await automation_validator.load_automation_entities()
+                for pattern_data in patterns:
+                    pattern_data = automation_validator.validate_pattern(pattern_data)
+            except Exception as e:
+                logger.warning(f"Failed to validate patterns against automations: {e}")
 
         for pattern_data in patterns:
             # Check if pattern already exists (same type and device)

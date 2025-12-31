@@ -96,6 +96,48 @@ class BasicValidationStrategy(ValidationStrategy):
                     "Use individual entities with condition: state and for: option instead for continuous occupancy detection."
                 )
 
+            # CRITICAL: Mandatory entity validation (recommendation #2 from HA_AGENT_API_FLOW_ANALYSIS.md)
+            # Validate that all entities exist in Home Assistant
+            if entities and self.tool_handler.data_api_client:
+                try:
+                    all_entities = await self.tool_handler.data_api_client.fetch_entities()
+                    valid_entity_ids = {e.get("entity_id") for e in all_entities if e.get("entity_id")}
+                    invalid_entities = [
+                        eid for eid in entities 
+                        if eid not in valid_entity_ids and not self.tool_handler._is_group_entity(eid)
+                    ]
+                    
+                    if invalid_entities:
+                        # Provide helpful error messages with suggestions (recommendation #8)
+                        error_messages = []
+                        for invalid_entity in invalid_entities:
+                            # Try to find similar entity names (fuzzy matching for suggestions)
+                            entity_domain = invalid_entity.split(".")[0] if "." in invalid_entity else None
+                            similar_entities = []
+                            if entity_domain:
+                                similar_entities = [
+                                    eid for eid in valid_entity_ids 
+                                    if eid.startswith(f"{entity_domain}.") and 
+                                    abs(len(eid) - len(invalid_entity)) <= 3
+                                ][:3]  # Limit to 3 suggestions
+                            
+                            if similar_entities:
+                                suggestions = ", ".join(similar_entities)
+                                error_messages.append(
+                                    f"Invalid entity ID: '{invalid_entity}'. "
+                                    f"Did you mean: {suggestions}?"
+                                )
+                            else:
+                                error_messages.append(f"Invalid entity ID: '{invalid_entity}' (entity does not exist)")
+                        
+                        errors.extend(error_messages)
+                except Exception as e:
+                    logger.warning(f"Failed to validate entities via Data API: {e}")
+                    warnings.append(
+                        "Could not validate entity existence (Data API unavailable). "
+                        "Entity validation skipped."
+                    )
+
             # Validate trigger structure
             if "trigger" in automation_dict:
                 trigger = automation_dict["trigger"]

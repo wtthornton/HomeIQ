@@ -16,8 +16,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..clients.data_api_client import DataAPIClient
 from ..crud.synergies import get_synergy_opportunities
 from ..database import get_db
+from ..services.device_activity import DeviceActivityService
+from ..config import settings
 
 # 2025 Enhancement: XAI for explanations
 try:
@@ -138,12 +141,15 @@ async def list_synergies(
     synergy_depth: int | None = Query(default=None, ge=2, le=4, description="Filter by synergy depth (2=pair, 3=chain, 4=4-chain)"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum synergies to return"),
     order_by_priority: bool = Query(default=True, description="Order by priority score (impact + confidence)"),
+    include_inactive: bool = Query(default=False, description="Include synergies for inactive devices"),
+    activity_window_days: int = Query(default=30, ge=1, le=365, description="Activity window in days"),
     db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     List synergy opportunities with optional filters.
     
     Returns synergies with safely parsed metadata and opportunity details.
+    Optionally filters by device activity (default: only active devices).
     
     Args:
         synergy_type: Optional filter by synergy type
@@ -151,6 +157,8 @@ async def list_synergies(
         synergy_depth: Optional filter by synergy depth (2, 3, or 4)
         limit: Maximum number of synergies to return
         order_by_priority: If True, order by priority score (impact + confidence)
+        include_inactive: If True, include synergies for inactive devices
+        activity_window_days: Activity window in days (default: 30)
         db: Database session dependency
         
     Returns:
@@ -168,6 +176,51 @@ async def list_synergies(
             limit=limit,
             order_by_priority=order_by_priority
         )
+        
+        # Filter by device activity if requested
+        if not include_inactive:
+            try:
+                async with DataAPIClient(base_url=settings.data_api_url) as data_client:
+                    activity_service = DeviceActivityService(data_api_client=data_client)
+                    active_devices = await activity_service.get_active_devices(
+                        window_days=activity_window_days,
+                        data_api_client=data_client
+                    )
+                    
+                    if active_devices:
+                        # Convert synergies to dict format for filtering (before JSON parsing)
+                        synergies_dict = []
+                        for s in synergies:
+                            if isinstance(s, dict):
+                                synergies_dict.append(s)
+                            else:
+                                synergies_dict.append({
+                                    "id": s.id,
+                                    "synergy_id": s.synergy_id,
+                                    "synergy_type": s.synergy_type,
+                                    "device_ids": s.device_ids if hasattr(s, 'device_ids') else None,
+                                    "entities": getattr(s, 'entities', None),
+                                })
+                        
+                        # Filter synergies by activity
+                        filtered_synergies = activity_service.filter_synergies_by_activity(
+                            synergies_dict,
+                            active_devices
+                        )
+                        
+                        # Convert back to original format (keep original objects if possible)
+                        active_synergy_ids = {s.get("id") if isinstance(s, dict) else s.id for s in filtered_synergies}
+                        synergies = [s for s in synergies if (s.id if hasattr(s, 'id') else s.get("id")) in active_synergy_ids]
+                        
+                        logger.info(
+                            f"Filtered synergies by activity: {len(synergies_dict)} → {len(filtered_synergies)} "
+                            f"(window: {activity_window_days} days)"
+                        )
+                    else:
+                        logger.warning("No active devices found, returning all synergies")
+            except Exception as e:
+                logger.warning(f"Failed to filter synergies by activity: {e}, returning all synergies")
+                # Continue with all synergies if filtering fails
 
         # Convert to dictionaries with safe JSON parsing
         synergies_list = []
