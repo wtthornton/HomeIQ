@@ -156,9 +156,9 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
                       <span className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                         {(throughput ?? 0).toLocaleString()} <span className="text-sm font-normal">evt/min</span>
                       </span>
-                      {trends?.throughput !== undefined && (
+                      {trends && trends.throughput !== undefined && (
                         <TrendIndicator 
-                          current={throughput} 
+                          current={throughput ?? 0} 
                           previous={trends.throughput} 
                           darkMode={darkMode}
                           showPercentage={false}
