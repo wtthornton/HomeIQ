@@ -72,13 +72,25 @@ class CarbonIntensityService:
         self.credentials_configured = False
 
         # Validate configuration
-        if not self.username or not self.password:
+        # Check if credentials are placeholder values
+        is_placeholder_username = self.username and self.username.lower() in ['your_watttime_username', 'your-username', '']
+        is_placeholder_password = self.password and self.password.lower() in ['your_watttime_password', 'your-password', '']
+        
+        if not self.username or not self.password or is_placeholder_username or is_placeholder_password:
             if not self.api_token:
-                logger.warning(
-                    "⚠️  No WattTime credentials configured! "
-                    "Service will run in standby mode. "
-                    "Add WATTTIME_USERNAME/PASSWORD to environment to enable data fetching."
-                )
+                if is_placeholder_username or is_placeholder_password:
+                    logger.error(
+                        "❌ WattTime credentials are placeholder values! "
+                        "Please update WATTTIME_USERNAME and WATTTIME_PASSWORD in .env file with your actual credentials. "
+                        "Register at https://watttime.org if you don't have an account. "
+                        "Service will run in standby mode until credentials are configured."
+                    )
+                else:
+                    logger.warning(
+                        "⚠️  No WattTime credentials configured! "
+                        "Service will run in standby mode. "
+                        "Add WATTTIME_USERNAME/PASSWORD to environment to enable data fetching."
+                    )
                 self.credentials_configured = False
                 self.health_handler.credentials_missing = True
             else:
@@ -159,8 +171,22 @@ class CarbonIntensityService:
                 service="carbon-intensity-service"
             )
 
-            async with self.session.post(url, auth=auth) as response:
+            # Disable redirects to prevent following redirects to docs page on auth failure
+            async with self.session.post(url, auth=auth, allow_redirects=False) as response:
                 if response.status == 200:
+                    # Check content type before parsing JSON
+                    content_type = response.headers.get('Content-Type', '')
+                    if 'application/json' not in content_type:
+                        error = ValueError(f"Unexpected content type: {content_type}")
+                        log_error_with_context(
+                            logger,
+                            f"Unexpected content type: {content_type}",
+                            error,
+                            service="carbon-intensity-service",
+                            status_code=response.status
+                        )
+                        return False
+                    
                     data = await response.json()
                     self.api_token = data.get('token')
 
@@ -173,21 +199,65 @@ class CarbonIntensityService:
 
                     logger.info(f"Token refreshed successfully, expires at {self.token_expires_at.isoformat()}")
                     return True
-                else:
+                elif response.status == 401:
+                    error_msg = "Authentication failed (401) - invalid credentials. Please check WATTTIME_USERNAME and WATTTIME_PASSWORD in .env file"
+                    logger.error(
+                        error_msg,
+                        extra={
+                            "context": {
+                                "service": "carbon-intensity-service",
+                                "status_code": response.status
+                            }
+                        }
+                    )
+                    # Mark credentials as invalid
+                    self.credentials_configured = False
+                    self.health_handler.credentials_missing = True
+                    return False
+                elif response.status in (301, 302, 303, 307, 308):
+                    # Handle redirects (shouldn't happen with allow_redirects=False, but just in case)
+                    location = response.headers.get('Location', 'unknown')
+                    error = ValueError(f"Unexpected redirect to {location}")
                     log_error_with_context(
                         logger,
-                        f"Token refresh failed with status {response.status}",
+                        f"Unexpected redirect to {location} - likely invalid API endpoint or credentials",
+                        error,
                         service="carbon-intensity-service",
                         status_code=response.status
                     )
+                    self.credentials_configured = False
+                    self.health_handler.credentials_missing = True
+                    return False
+                else:
+                    error_msg = f"Token refresh failed with status {response.status}"
+                    logger.error(
+                        error_msg,
+                        extra={
+                            "context": {
+                                "service": "carbon-intensity-service",
+                                "status_code": response.status
+                            }
+                        }
+                    )
                     return False
 
+        except aiohttp.client_exceptions.ContentTypeError as e:
+            # Handle case where API returns HTML instead of JSON (e.g., redirect to docs page)
+            log_error_with_context(
+                logger,
+                "API returned non-JSON response (likely HTML redirect). Check credentials.",
+                e,
+                service="carbon-intensity-service"
+            )
+            self.credentials_configured = False
+            self.health_handler.credentials_missing = True
+            return False
         except Exception as e:
             log_error_with_context(
                 logger,
-                f"Error refreshing token: {e}",
-                service="carbon-intensity-service",
-                error=str(e)
+                "Error refreshing token",
+                e,
+                service="carbon-intensity-service"
             )
             return False
 
@@ -278,9 +348,15 @@ class CarbonIntensityService:
 
                 elif response.status == 401:
                     # Token expired mid-request, try refresh and retry once
+                    error = aiohttp.ClientResponseError(
+                        request_info=response.request_info,
+                        history=response.history,
+                        status=401
+                    )
                     log_error_with_context(
                         logger,
                         "Authentication failed (401), attempting token refresh",
+                        error,
                         service="carbon-intensity-service"
                     )
 
@@ -323,11 +399,16 @@ class CarbonIntensityService:
                     return self.cached_data
 
                 else:
+                    error = aiohttp.ClientResponseError(
+                        request_info=response.request_info,
+                        history=response.history,
+                        status=response.status
+                    )
                     log_error_with_context(
                         logger,
                         f"WattTime API returned status {response.status}",
-                        service="carbon-intensity-service",
-                        status_code=response.status
+                        error,
+                        service="carbon-intensity-service"
                     )
                     self.health_handler.failed_fetches += 1
                     return self.cached_data
@@ -336,8 +417,8 @@ class CarbonIntensityService:
             log_error_with_context(
                 logger,
                 f"Error fetching carbon intensity: {e}",
-                service="carbon-intensity-service",
-                error=str(e)
+                e,
+                service="carbon-intensity-service"
             )
             self.health_handler.failed_fetches += 1
 
@@ -352,8 +433,8 @@ class CarbonIntensityService:
             log_error_with_context(
                 logger,
                 f"Unexpected error: {e}",
-                service="carbon-intensity-service",
-                error=str(e)
+                e,
+                service="carbon-intensity-service"
             )
             self.health_handler.failed_fetches += 1
             return self.cached_data
@@ -390,8 +471,8 @@ class CarbonIntensityService:
             log_error_with_context(
                 logger,
                 f"Error writing to InfluxDB: {e}",
-                service="carbon-intensity-service",
-                error=str(e)
+                e,
+                service="carbon-intensity-service"
             )
             # Don't re-raise - allow loop to continue with next fetch interval
             # InfluxDB write failures shouldn't stop data collection
@@ -417,8 +498,8 @@ class CarbonIntensityService:
                 log_error_with_context(
                     logger,
                     f"Error in continuous loop: {e}",
-                    service="carbon-intensity-service",
-                    error=str(e)
+                    e,
+                    service="carbon-intensity-service"
                 )
                 # Wait before retrying
                 await asyncio.sleep(60)

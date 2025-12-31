@@ -8,8 +8,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 ENVIRONMENT="${ENVIRONMENT:-production}"
-COMPOSE_FILE="docker-compose.prod.yml"
-ENV_FILE="infrastructure/env.production"
+COMPOSE_FILE="docker-compose.yml"
+ENV_FILE=".env"
 
 # Colors for output
 RED='\033[0;31m'
@@ -139,9 +139,9 @@ pull_images() {
     
     # Use docker-compose or docker compose based on availability
     if command -v docker-compose &> /dev/null; then
-        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
+        docker-compose --profile production pull
     else
-        docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
+        docker compose --profile production pull
     fi
     
     log_success "Images pulled successfully"
@@ -162,9 +162,9 @@ build_images() {
     # Use docker-compose or docker compose based on availability
     # Remove --no-cache to enable BuildKit cache mounts
     if command -v docker-compose &> /dev/null; then
-        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --parallel
+        docker-compose --profile production build --parallel
     else
-        docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --parallel
+        docker compose --profile production build --parallel
     fi
     
     local build_end=$(date +%s)
@@ -177,55 +177,39 @@ build_images() {
 
 # Deploy services with zero-downtime
 deploy_services() {
-    log_info "Deploying services with zero-downtime strategy..."
+    log_info "Deploying ALL services with zero-downtime strategy..."
     
     cd "$PROJECT_ROOT"
     
-    # Define deployment order (dependencies first)
-    local deploy_order=(
+    # Use docker-compose to start ALL services with production profile
+    # This ensures all services defined in docker-compose.yml are included
+    log_info "Starting all services with production profile..."
+    if command -v docker-compose &> /dev/null; then
+        docker-compose --profile production up -d --build
+    else
+        docker compose --profile production up -d --build
+    fi
+    
+    log_success "All services deployment initiated"
+    
+    # Wait for critical services to be healthy
+    log_info "Waiting for critical services to be healthy..."
+    local critical_services=(
         "influxdb"
-        "sqlite-data"
         "data-api"
         "admin-api"
         "websocket-ingestion"
-        "weather-api"
-        "carbon-intensity-service"
-        "electricity-pricing-service"
-        "air-quality-service"
-        "calendar-service"
-        "smart-meter-service"
-        "energy-correlator"
-        "log-aggregator"
-        "ai-pattern-service"
-        "ai-automation-service-new"
-        "health-dashboard"
     )
     
-    # Zero-downtime deployment: update services one at a time
-    for service in "${deploy_order[@]}"; do
-        log_info "Deploying $service..."
-        
-        # Update service without stopping dependencies
-        if command -v docker-compose &> /dev/null; then
-            docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps "$service" 2>/dev/null || \
-            docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d "$service"
+    for service in "${critical_services[@]}"; do
+        if wait_for_service_health "$service" 60; then
+            log_success "$service is healthy"
         else
-            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps "$service" 2>/dev/null || \
-            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d "$service"
+            log_warning "$service health check failed - continuing..."
         fi
-        
-        # Wait for service to be healthy before proceeding
-        if wait_for_service_health "$service" 30; then
-            log_success "$service deployed and healthy"
-        else
-            log_warning "$service deployed but health check failed - continuing..."
-        fi
-        
-        # Small delay between services
-        sleep 2
     done
     
-    log_success "Zero-downtime deployment completed"
+    log_success "Deployment completed"
 }
 
 # Wait for a specific service to be healthy
@@ -239,9 +223,9 @@ wait_for_service_health() {
         
         local health_status
         if command -v docker-compose &> /dev/null; then
-            health_status=$(docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q "$service" 2>/dev/null | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
+            health_status=$(docker-compose ps -q "$service" 2>/dev/null | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
         else
-            health_status=$(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q "$service" 2>/dev/null | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
+            health_status=$(docker compose ps -q "$service" 2>/dev/null | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
         fi
         
         if [[ "$health_status" == "healthy" ]]; then
@@ -286,9 +270,9 @@ wait_for_health() {
             
             local health_status
             if command -v docker-compose &> /dev/null; then
-                health_status=$(docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q "$service" | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
+                health_status=$(docker-compose ps -q "$service" | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
             else
-                health_status=$(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps -q "$service" | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
+                health_status=$(docker compose ps -q "$service" | xargs docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
             fi
             
             if [[ "$health_status" == "healthy" ]]; then
@@ -357,9 +341,9 @@ show_status() {
     cd "$PROJECT_ROOT"
     
     if command -v docker-compose &> /dev/null; then
-        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps
+        docker-compose --profile production ps
     else
-        docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps
+        docker compose --profile production ps
     fi
     
     echo ""
@@ -419,28 +403,39 @@ case "${1:-deploy}" in
     "logs")
         cd "$PROJECT_ROOT"
         if command -v docker-compose &> /dev/null; then
-            docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs -f
+            docker-compose --profile production logs -f
         else
-            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs -f
+            docker compose --profile production logs -f
         fi
         ;;
     "stop")
         cd "$PROJECT_ROOT"
+        log_info "Stopping all services..."
+        # Stop all services including those with profiles
         if command -v docker-compose &> /dev/null; then
-            docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down
+            docker-compose --profile production --profile test down --remove-orphans --timeout 30 2>/dev/null || true
+            docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans --timeout 30 2>/dev/null || true
         else
-            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down
+            docker compose --profile production --profile test down --remove-orphans --timeout 30 2>/dev/null || true
+            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans --timeout 30 2>/dev/null || true
         fi
-        log_success "Services stopped"
+        # Stop any remaining containers
+        running_containers=$(docker ps -q)
+        if [[ -n "$running_containers" ]]; then
+            log_info "Stopping remaining containers..."
+            docker stop $running_containers --time 0 2>/dev/null || true
+        fi
+        log_success "All services stopped"
         ;;
     "restart")
         cd "$PROJECT_ROOT"
+        log_info "Restarting all services..."
         if command -v docker-compose &> /dev/null; then
-            docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" restart
+            docker-compose --profile production restart
         else
-            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" restart
+            docker compose --profile production restart
         fi
-        log_success "Services restarted"
+        log_success "All services restarted"
         ;;
     "help"|"-h"|"--help")
         echo "HA Ingestor Production Deployment Script"
