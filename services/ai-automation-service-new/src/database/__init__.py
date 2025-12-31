@@ -132,7 +132,7 @@ async def init_db():
             # Test connection
             await conn.execute(text("SELECT 1"))
             
-            # Check if suggestions table exists and add missing columns if needed
+            # Check if suggestions table exists and create/add columns if needed
             # This handles schema mismatch between model and existing database
             # (fallback in case migrations didn't run or missed something)
             result = await conn.execute(text("""
@@ -141,8 +141,15 @@ async def init_db():
             """))
             table_exists = result.scalar() is not None
             
-            if table_exists:
-                # Check which columns exist and add missing ones
+            if not table_exists:
+                # Create table if it doesn't exist (using Base.metadata)
+                logger.info("Creating suggestions table (table doesn't exist)")
+                from .models import Base
+                # Create all tables defined in Base.metadata
+                await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn))
+                logger.info("✅ Created suggestions table")
+            else:
+                # Table exists - check which columns exist and add missing ones
                 result = await conn.execute(text("PRAGMA table_info(suggestions)"))
                 columns = result.fetchall()
                 column_names = [col[1] for col in columns]  # Column name is at index 1
