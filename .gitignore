@@ -149,8 +149,10 @@ embedding_test_output.log
 # Cursor backup files
 .cursor/background-agents.backup.*.yaml
 
-# TappsAgents workflow state (runtime data)
-.tapps-agents/workflow-state/
+# TappsCodingAgents (local development tool, user-specific data)
+# Exclude all .tapps-agents directories (root and service-level)
+.tapps-agents/
+**/.tapps-agents/
 
 # Windows reserved names
 nul

@@ -65,6 +65,7 @@ class OpenAIClient:
     async def generate_yaml(
         self,
         prompt: str,
+        entity_context: dict[str, Any] | None = None,
         temperature: float = 0.1,
         max_tokens: int = 2000
     ) -> str:
@@ -73,9 +74,11 @@ class OpenAIClient:
         
         DEPRECATED: Use generate_structured_plan() instead (Epic 51, Story 51.8).
         This method is kept for backward compatibility.
+        R2: Entity context is included to ensure LLM uses only real entities.
         
         Args:
             prompt: Prompt describing the automation
+            entity_context: Optional entity context (R2: entities grouped by domain)
             temperature: Sampling temperature (default: 0.1 for deterministic YAML)
             max_tokens: Maximum tokens in response
         
@@ -89,13 +92,29 @@ class OpenAIClient:
         if not self.client:
             raise ValueError("OpenAI API key not configured")
         
+        # R2: Build entity context section for system prompt
+        entity_context_section = ""
+        if entity_context and entity_context.get("entities"):
+            entity_context_section = "\n\nCRITICAL: You MUST use ONLY the entity IDs listed below. Do NOT create fictional entity IDs.\n"
+            entities_by_domain = entity_context["entities"]
+            for domain, entity_list in sorted(entities_by_domain.items()):
+                if not entity_list:
+                    continue
+                limited = entity_list[:30]
+                entity_ids = [e.get("entity_id", "") for e in limited if e.get("entity_id")]
+                if entity_ids:
+                    entity_context_section += f"{domain.upper()}: {', '.join(entity_ids)}\n"
+        
+        system_prompt = f"""You are a Home Assistant automation expert. Generate valid Home Assistant automation YAML only, no explanations.
+{entity_context_section}"""
+        
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a Home Assistant automation expert. Generate valid Home Assistant automation YAML only, no explanations."
+                        "content": system_prompt
                     },
                     {
                         "role": "user",
@@ -132,6 +151,7 @@ class OpenAIClient:
     async def generate_structured_plan(
         self,
         prompt: str,
+        entity_context: dict[str, Any] | None = None,
         temperature: float = 0.1,
         max_tokens: int = 2000
     ) -> dict[str, Any]:
@@ -139,12 +159,14 @@ class OpenAIClient:
         Generate structured automation plan (JSON) from prompt.
         
         Epic 51, Story 51.8: Structured Plan Generation
+        R2: Entity context is included to ensure LLM uses only real entities.
         
         LLM generates structured JSON/object instead of YAML directly.
         This plan is then parsed into AutomationSpec and rendered to YAML server-side.
         
         Args:
             prompt: Prompt describing the automation
+            entity_context: Optional entity context (R2: entities grouped by domain)
             temperature: Sampling temperature (default: 0.1 for deterministic output)
             max_tokens: Maximum tokens in response
         
@@ -209,7 +231,20 @@ class OpenAIClient:
             "required": ["alias", "trigger", "action"]
         }
         
-        system_prompt = """You are a Home Assistant automation expert. Generate a structured JSON plan for the automation described by the user.
+        # R2: Add entity context to system prompt
+        entity_context_section = ""
+        if entity_context and entity_context.get("entities"):
+            entity_context_section = "\n\nCRITICAL: You MUST use ONLY the entity IDs listed below. Do NOT create fictional entity IDs.\n"
+            entities_by_domain = entity_context["entities"]
+            for domain, entity_list in sorted(entities_by_domain.items()):
+                if not entity_list:
+                    continue
+                limited = entity_list[:30]
+                entity_ids = [e.get("entity_id", "") for e in limited if e.get("entity_id")]
+                if entity_ids:
+                    entity_context_section += f"{domain.upper()}: {', '.join(entity_ids)}\n"
+        
+        system_prompt = f"""You are a Home Assistant automation expert. Generate a structured JSON plan for the automation described by the user.
 
 Return ONLY valid JSON matching this schema:
 - alias: string (required) - Automation name
@@ -221,6 +256,7 @@ Return ONLY valid JSON matching this schema:
 - initial_state: boolean (optional) - Whether automation starts enabled (default: true)
 - max_exceeded: string (optional) - "silent", "warning", or "error" (default: "silent")
 - tags: array (optional) - List of tags
+{entity_context_section}
 
 Return ONLY the JSON object, no explanations or markdown code blocks."""
         
@@ -269,6 +305,7 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
         self,
         prompt: str,
         homeiq_context: dict[str, Any] | None = None,
+        entity_context: dict[str, Any] | None = None,
         temperature: float = 0.1,
         max_tokens: int = 3000
     ) -> dict[str, Any]:
@@ -278,9 +315,12 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
         Uses structured output with JSON schema to generate comprehensive
         HomeIQ automation JSON including metadata, device context, and patterns.
         
+        R2: Entity context is included in system prompt to ensure LLM uses only real entities.
+        
         Args:
             prompt: Prompt describing the automation
             homeiq_context: Optional HomeIQ context (patterns, devices, areas)
+            entity_context: Optional entity context (R2: entities grouped by domain)
             temperature: Sampling temperature (default: 0.1 for deterministic output)
             max_tokens: Maximum tokens in response
         
@@ -304,6 +344,26 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
             if "areas" in homeiq_context:
                 context_section += f"\n\nAreas Available:\n{json.dumps(homeiq_context['areas'], indent=2)}"
         
+        # R2: Add entity context to system prompt
+        entity_context_section = ""
+        if entity_context and entity_context.get("entities"):
+            entity_context_section = "\n\nCRITICAL ENTITY REQUIREMENTS:\n"
+            entity_context_section += "You MUST use ONLY the entity IDs listed below. Do NOT create fictional entity IDs.\n"
+            entity_context_section += "If you need an entity that doesn't exist in the list, use the closest matching entity.\n"
+            entity_context_section += "Entity IDs are in format: domain.entity_name (e.g., light.office, binary_sensor.motion)\n\n"
+            
+            entities_by_domain = entity_context["entities"]
+            for domain, entity_list in sorted(entities_by_domain.items()):
+                if not entity_list:
+                    continue
+                # Limit to top 30 per domain to avoid token limits
+                limited = entity_list[:30]
+                entity_ids = [e.get("entity_id", "") for e in limited if e.get("entity_id")]
+                if entity_ids:
+                    entity_context_section += f"{domain.upper()}: {', '.join(entity_ids)}\n"
+                    if len(entity_list) > 30:
+                        entity_context_section += f"  ... and {len(entity_list) - 30} more {domain} entities\n"
+        
         # HomeIQ JSON schema (simplified for LLM - full validation happens server-side)
         system_prompt = f"""You are a Home Assistant automation expert generating HomeIQ JSON Automation format.
 
@@ -319,6 +379,7 @@ Generate a comprehensive JSON automation that includes:
 
 Return ONLY valid JSON matching the HomeIQ Automation schema. Include all relevant HomeIQ metadata and context.
 {context_section}
+{entity_context_section}
 
 Important:
 - Use exact entity IDs and device IDs from the context provided

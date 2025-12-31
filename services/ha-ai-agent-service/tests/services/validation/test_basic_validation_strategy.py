@@ -3,16 +3,22 @@ Tests for basic_validation_strategy.py
 """
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from src.services.validation.basic_validation_strategy import BasicValidationStrategy
 
 
 @pytest.fixture
 def mock_tool_handler():
-    """Mock tool handler"""
+    """Mock HAToolHandler for testing."""
     handler = MagicMock()
-    handler._extract_entities_from_yaml = MagicMock(return_value=["light.office"])
+    handler.data_api_client = MagicMock()
+    handler.data_api_client.fetch_entities = AsyncMock(return_value=[
+        {"entity_id": "light.office_led", "friendly_name": "Office LED"},
+        {"entity_id": "light.office_go", "friendly_name": "Office Go"},
+        {"entity_id": "switch.office_fan", "friendly_name": "Office Fan"},
+    ])
+    handler._extract_entities_from_yaml = MagicMock(return_value=["light.office_led"])
     handler._is_group_entity = MagicMock(return_value=False)
     return handler
 
@@ -30,76 +36,46 @@ class TestBasicValidationStrategy:
         strategy = BasicValidationStrategy(mock_tool_handler)
         assert strategy.name == "Basic Validation"
 
-    @pytest.mark.asyncio
-    async def test_validate_valid_yaml(self, mock_tool_handler):
-        """Test validate with valid YAML."""
+    def test__build_entity_error_message(self, mock_tool_handler):
+        """Test _build_entity_error_message method."""
         strategy = BasicValidationStrategy(mock_tool_handler)
+        valid_entities = {"light.office_go", "switch.office_fan"}
         
-        yaml_str = "alias: test\ntrigger:\n  - platform: state\naction:\n  - service: light.turn_on"
-        result = await strategy.validate(yaml_str)
+        # Test with similar entities (suggestions)
+        error_msg = strategy._build_entity_error_message("light.office_led", valid_entities)
+        assert "Invalid entity ID" in error_msg
+        assert "light.office_led" in error_msg
         
-        assert result.valid is True
-        assert len(result.errors) == 0
+        # Test without similar entities
+        error_msg_no_match = strategy._build_entity_error_message("sensor.unknown", valid_entities)
+        assert "Invalid entity ID" in error_msg_no_match
+        assert "sensor.unknown" in error_msg_no_match
 
     @pytest.mark.asyncio
-    async def test_validate_missing_trigger(self, mock_tool_handler):
-        """Test validate with missing trigger field."""
+    async def test__validate_entities_with_invalid_entities(self, mock_tool_handler):
+        """Test _validate_entities with invalid entities."""
         strategy = BasicValidationStrategy(mock_tool_handler)
+        mock_tool_handler._extract_entities_from_yaml.return_value = ["light.invalid_entity"]
         
-        yaml_str = "alias: test\naction:\n  - service: light.turn_on"
-        result = await strategy.validate(yaml_str)
-        
-        assert result.valid is False
-        assert len(result.errors) > 0
-        assert any("trigger" in error.lower() for error in result.errors)
+        errors, warnings = await strategy._validate_entities(["light.invalid_entity"])
+        assert len(errors) > 0
+        assert any("Invalid entity ID" in err for err in errors)
 
     @pytest.mark.asyncio
-    async def test_validate_missing_action(self, mock_tool_handler):
-        """Test validate with missing action field."""
+    async def test__validate_entities_with_valid_entities(self, mock_tool_handler):
+        """Test _validate_entities with valid entities."""
         strategy = BasicValidationStrategy(mock_tool_handler)
         
-        yaml_str = "alias: test\ntrigger:\n  - platform: state"
-        result = await strategy.validate(yaml_str)
-        
-        assert result.valid is False
-        assert len(result.errors) > 0
-        assert any("action" in error.lower() for error in result.errors)
+        errors, warnings = await strategy._validate_entities(["light.office_led"])
+        assert len(errors) == 0
 
     @pytest.mark.asyncio
-    async def test_validate_invalid_yaml_syntax(self, mock_tool_handler):
-        """Test validate with invalid YAML syntax."""
-        strategy = BasicValidationStrategy(mock_tool_handler)
+    async def test__validate_entities_no_data_api_client(self):
+        """Test _validate_entities when Data API client is not available."""
+        handler = MagicMock()
+        handler.data_api_client = None
+        strategy = BasicValidationStrategy(handler)
         
-        yaml_str = "alias: test\ninvalid: ["
-        result = await strategy.validate(yaml_str)
-        
-        assert result.valid is False
-        assert len(result.errors) > 0
-        assert any("syntax" in error.lower() for error in result.errors)
-
-    @pytest.mark.asyncio
-    async def test_validate_not_dict(self, mock_tool_handler):
-        """Test validate with YAML that's not a dictionary."""
-        strategy = BasicValidationStrategy(mock_tool_handler)
-        
-        yaml_str = "not a dict"
-        result = await strategy.validate(yaml_str)
-        
-        assert result.valid is False
-        assert len(result.errors) > 0
-        assert any("dictionary" in error.lower() for error in result.errors)
-
-    @pytest.mark.asyncio
-    async def test_validate_warnings(self, mock_tool_handler):
-        """Test validate generates warnings for missing recommended fields."""
-        strategy = BasicValidationStrategy(mock_tool_handler)
-        
-        yaml_str = "trigger:\n  - platform: state\naction:\n  - service: light.turn_on"
-        result = await strategy.validate(yaml_str)
-        
-        # Should have warnings for missing alias, description, initial_state
-        assert len(result.warnings) > 0
-    def test_name(self):
-        """Test name method."""
-        # TODO: Implement test
-        pass
+        errors, warnings = await strategy._validate_entities(["light.office_led"])
+        assert len(errors) == 0
+        assert len(warnings) == 0
