@@ -119,6 +119,10 @@ class HomeIQAutomationValidator:
             warnings=warnings if warnings else None
         )
     
+    def _is_group_entity(self, entity_id: str) -> bool:
+        """Check if entity ID is a group entity."""
+        return isinstance(entity_id, str) and entity_id.startswith("group.")
+    
     async def _validate_entities(self, automation: HomeIQAutomation) -> list[str]:
         """Validate that all entity IDs exist."""
         errors: list[str] = []
@@ -129,14 +133,18 @@ class HomeIQAutomationValidator:
         try:
             # Collect all entity IDs from triggers, conditions, and actions
             entity_ids: set[str] = set()
+            group_entities: list[str] = []
             
             # From triggers
             for trigger in automation.triggers:
                 if trigger.entity_id:
                     if isinstance(trigger.entity_id, list):
                         entity_ids.update(trigger.entity_id)
+                        group_entities.extend([eid for eid in trigger.entity_id if self._is_group_entity(eid)])
                     else:
                         entity_ids.add(trigger.entity_id)
+                        if self._is_group_entity(trigger.entity_id):
+                            group_entities.append(trigger.entity_id)
             
             # From conditions
             if automation.conditions:
@@ -144,8 +152,11 @@ class HomeIQAutomationValidator:
                     if condition.entity_id:
                         if isinstance(condition.entity_id, list):
                             entity_ids.update(condition.entity_id)
+                            group_entities.extend([eid for eid in condition.entity_id if self._is_group_entity(eid)])
                         else:
                             entity_ids.add(condition.entity_id)
+                            if self._is_group_entity(condition.entity_id):
+                                group_entities.append(condition.entity_id)
             
             # From actions (target.entity_id)
             for action in automation.actions:
@@ -153,8 +164,11 @@ class HomeIQAutomationValidator:
                     target_entity_id = action.target["entity_id"]
                     if isinstance(target_entity_id, list):
                         entity_ids.update(target_entity_id)
+                        group_entities.extend([eid for eid in target_entity_id if self._is_group_entity(eid)])
                     elif isinstance(target_entity_id, str):
                         entity_ids.add(target_entity_id)
+                        if self._is_group_entity(target_entity_id):
+                            group_entities.append(target_entity_id)
             
             # Also check device_context entity_ids
             entity_ids.update(automation.device_context.entity_ids)
@@ -162,13 +176,24 @@ class HomeIQAutomationValidator:
             if not entity_ids:
                 return errors
             
+            # Check for group entities and provide specific error messages
+            if group_entities:
+                errors.append(
+                    f"Group entities detected: {', '.join(group_entities)}. "
+                    "Groups don't have 'last_changed' attribute - templates accessing group.last_changed will fail. "
+                    "Use individual entities with condition: state and for: option instead for continuous occupancy detection."
+                )
+            
             # Fetch all entities from Data API
             try:
                 entities = await self.data_api_client.fetch_entities()
                 valid_entity_ids = {e.get("entity_id") for e in entities if e.get("entity_id")}
                 
-                # Check which entities are invalid
-                invalid_entities = [eid for eid in entity_ids if eid not in valid_entity_ids]
+                # Check which entities are invalid (excluding group entities as they're already flagged)
+                invalid_entities = [
+                    eid for eid in entity_ids 
+                    if eid not in valid_entity_ids and not self._is_group_entity(eid)
+                ]
                 if invalid_entities:
                     errors.append(f"Invalid entity IDs: {', '.join(invalid_entities)}")
             except Exception as e:

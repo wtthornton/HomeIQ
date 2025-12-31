@@ -110,6 +110,11 @@ class YAMLNormalizer:
         if "action" in result and isinstance(result["action"], list):
             result["action"] = [self._normalize_action_item(item, fixes_applied) for item in result["action"]]
         
+        # Ensure initial_state: true for 2025.10+ compliance
+        if "initial_state" not in result:
+            result["initial_state"] = True
+            fixes_applied.append("Added: 'initial_state: true' (required for 2025.10+ compliance)")
+        
         return result
 
     def _normalize_value(self, value: Any, fixes_applied: list[str], context: str) -> Any:

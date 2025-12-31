@@ -193,6 +193,57 @@ function Invoke-BuildImages {
     }
 }
 
+# Stop all containers comprehensively
+function Stop-AllContainers {
+    Write-Info "Stopping all Docker containers..."
+    
+    Push-Location $ProjectRoot
+    
+    try {
+        # Step 1: Stop all containers managed by docker-compose.yml (including production profile)
+        Write-Info "Stopping containers from docker-compose.yml..."
+        if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+            & docker-compose --profile production down --remove-orphans --timeout 30 2>&1 | Out-Null
+        } else {
+            & docker compose --profile production down --remove-orphans --timeout 30 2>&1 | Out-Null
+        }
+        
+        # Step 2: Stop any remaining running containers (including those not in compose file)
+        Write-Info "Checking for remaining running containers..."
+        $runningContainers = docker ps -q
+        
+        if ($runningContainers) {
+            Write-Info "Found $($runningContainers.Count) running container(s), stopping them..."
+            docker stop $runningContainers 2>&1 | Out-Null
+            Start-Sleep -Seconds 2
+        } else {
+            Write-Info "No remaining running containers found"
+        }
+        
+        # Step 3: Verify all containers are stopped
+        $stillRunning = docker ps -q
+        if ($stillRunning) {
+            Write-Warning "Some containers are still running, forcing stop..."
+            docker stop $stillRunning --time 0 2>&1 | Out-Null
+            Start-Sleep -Seconds 1
+        }
+        
+        # Final verification
+        $finalCheck = docker ps -q
+        if ($finalCheck) {
+            Write-Warning "Some containers may still be running: $finalCheck"
+        } else {
+            Write-Success "All containers stopped successfully"
+        }
+    }
+    catch {
+        Write-Warning "Error during container stop process: $_"
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 # Deploy services
 function Invoke-DeployServices {
     Write-Info "Deploying services..."
@@ -200,20 +251,15 @@ function Invoke-DeployServices {
     Push-Location $ProjectRoot
     
     try {
-        # Stop existing services gracefully
-        Write-Info "Stopping existing services..."
-        if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-            & docker-compose -f $ComposeFile --env-file $EnvFile down --timeout 30
-        } else {
-            & docker compose -f $ComposeFile --env-file $EnvFile down --timeout 30
-        }
+        # Stop existing services comprehensively
+        Stop-AllContainers
         
-        # Start services
+        # Start services (with production profile to include all services)
         Write-Info "Starting services..."
         if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-            & docker-compose -f $ComposeFile --env-file $EnvFile up -d
+            & docker-compose -f $ComposeFile --env-file $EnvFile --profile production up -d
         } else {
-            & docker compose -f $ComposeFile --env-file $EnvFile up -d
+            & docker compose -f $ComposeFile --env-file $EnvFile --profile production up -d
         }
         
         Write-Success "Services deployed successfully"
@@ -411,18 +457,8 @@ switch ($Command) {
         }
     }
     "stop" {
-        Push-Location $ProjectRoot
-        try {
-            if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-                & docker-compose -f $ComposeFile --env-file $EnvFile down
-            } else {
-                & docker compose -f $ComposeFile --env-file $EnvFile down
-            }
-            Write-Success "Services stopped"
-        }
-        finally {
-            Pop-Location
-        }
+        Stop-AllContainers
+        Write-Success "All services stopped"
     }
     "restart" {
         Push-Location $ProjectRoot

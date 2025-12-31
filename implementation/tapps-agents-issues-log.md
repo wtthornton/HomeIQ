@@ -160,9 +160,9 @@ python scripts/cleanup-git-unified.py --summary
 - No progression to actual SDLC steps
 - Possible deadlock or blocking operation in workflow orchestration
 
-**TappsCodingAgents Version**: 3.2.2
+**TappsCodingAgents Version**: 3.2.2 → **3.2.3** (Upgraded 2025-01-23)
 
-**Status**: ⚠️ BLOCKED - Workflow cannot complete, must be cancelled manually
+**Status**: ✅ FIXED in v3.2.3 - Upgrade completed, Issue 10 fix included
 
 **Workaround**: Investigate issues directly instead of using Simple Mode full workflow:
 1. **Browser Console Check**: Open DevTools (F12) → Console tab → Click Network Graph button → Check for JavaScript errors

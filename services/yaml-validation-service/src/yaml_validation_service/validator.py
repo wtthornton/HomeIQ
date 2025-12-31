@@ -151,8 +151,14 @@ class ValidationPipeline:
         # Stage 6: Style/Maintainability
         style_result = self._validate_style(data)
         if not style_result["valid"]:
-            result.warnings.extend(style_result["warnings"])
-            result.score = max(0.0, result.score - 5.0)
+            # Template syntax errors are critical - add to errors, not warnings
+            if style_result.get("errors"):
+                result.errors.extend(style_result["errors"])
+                result.score = max(0.0, result.score - 15.0)
+            result.warnings.extend(style_result.get("warnings", []))
+            if not style_result.get("errors"):
+                # Only reduce score for warnings if no errors
+                result.score = max(0.0, result.score - 5.0)
         
         # Calculate final score
         if result.errors:
@@ -214,7 +220,7 @@ class ValidationPipeline:
         if "description" not in data:
             warnings.append("Missing recommended field: 'description'")
         if "initial_state" not in data:
-            warnings.append("Missing recommended field: 'initial_state' (should be 'true' for 2025.10+ compliance)")
+            errors.append("Missing required field: 'initial_state' (must be 'true' for 2025.10+ compliance)")
         
         # Validate trigger structure
         if "trigger" in data and isinstance(data["trigger"], list):
@@ -222,7 +228,10 @@ class ValidationPipeline:
                 if not isinstance(trigger, dict):
                     errors.append(f"Trigger {i} must be a dictionary")
                 elif "platform" not in trigger:
-                    errors.append(f"Trigger {i} must have 'platform' field")
+                    errors.append(
+                        f"Trigger {i} must have 'platform' field (2025.10+ format requires 'platform:' field in triggers, "
+                        "e.g., platform: state, platform: time, platform: time_pattern)"
+                    )
         
         # Validate action structure
         if "action" in data and isinstance(data["action"], list):
@@ -232,7 +241,21 @@ class ValidationPipeline:
                 elif "service" not in action and "scene" not in action and "delay" not in action:
                     # Check for advanced actions
                     if "choose" not in action and "repeat" not in action and "parallel" not in action and "sequence" not in action:
-                        errors.append(f"Action {i} must have 'service', 'scene', 'delay', or advanced action type")
+                        errors.append(
+                            f"Action {i} must have 'service', 'scene', 'delay', or advanced action type "
+                            "(2025.10+ format requires 'service:' field in actions, e.g., service: light.turn_on)"
+                        )
+                # Validate target structure for service actions
+                if "service" in action and "target" in action:
+                    if not isinstance(action["target"], dict):
+                        errors.append(
+                            f"Action {i}: 'target' must be a dictionary (2025.10+ format uses target: {{entity_id: ...}} or target: {{area_id: ...}})"
+                        )
+                elif "service" in action and "entity_id" in action and "target" not in action:
+                    warnings.append(
+                        f"Action {i}: entity_id should be inside 'target:' structure for 2025.10+ compliance. "
+                        "Use target: {entity_id: ...} instead of entity_id: ... directly in action."
+                    )
         
         return {
             "valid": len(errors) == 0,
@@ -644,9 +667,73 @@ class ValidationPipeline:
         
         return False
 
+    def _validate_template_syntax(self, template_string: str) -> list[str]:
+        """
+        Validate Jinja2 template syntax.
+        
+        Args:
+            template_string: Template string to validate
+            
+        Returns:
+            List of error messages (empty if valid)
+        """
+        errors = []
+        try:
+            from jinja2 import Environment, TemplateSyntaxError
+            env = Environment()
+            env.parse(template_string)
+        except ImportError:
+            # Jinja2 not available - skip validation but log warning
+            logger.warning("Jinja2 not available - skipping template syntax validation")
+            return []
+        except TemplateSyntaxError as e:
+            errors.append(f"Template syntax error: {e.message} at line {e.lineno}")
+        except Exception as e:
+            errors.append(f"Template validation error: {str(e)}")
+        return errors
+    
+    def _extract_templates_from_data(self, data: Any, templates: list[tuple[str, str]] | None = None, path: str = "root") -> list[tuple[str, str]]:
+        """
+        Extract template strings from automation data.
+        
+        Args:
+            data: Automation data structure
+            templates: Accumulated (path, template_string) tuples
+            path: Current path in data structure
+            
+        Returns:
+            List of (path, template_string) tuples
+        """
+        if templates is None:
+            templates = []
+        
+        if isinstance(data, dict):
+            # Check for value_template in conditions (handled separately to avoid duplicates)
+            if "value_template" in data:
+                template_str = data["value_template"]
+                if isinstance(template_str, str):
+                    templates.append((f"{path}.value_template", template_str))
+            
+            # Check for templates in other fields that might contain templates
+            for key, value in data.items():
+                # Skip value_template since we handle it above
+                if key == "value_template":
+                    continue
+                if isinstance(value, str) and ("{{" in value or "{%" in value):
+                    # Potential template string
+                    templates.append((f"{path}.{key}", value))
+                elif isinstance(value, (dict, list)):
+                    self._extract_templates_from_data(value, templates, f"{path}.{key}")
+        elif isinstance(data, list):
+            for i, item in enumerate(data):
+                self._extract_templates_from_data(item, templates, f"{path}[{i}]")
+        
+        return templates
+
     def _validate_style(self, data: dict[str, Any]) -> dict[str, Any]:
         """Stage 6: Style/maintainability checks."""
         warnings = []
+        errors = []
         
         # Check for deprecated error handling
         if "continue_on_error" in data:
@@ -658,8 +745,24 @@ class ValidationPipeline:
                 if isinstance(action, dict) and "continue_on_error" in action:
                     warnings.append(f"Action {i}: Use 'error' field instead of deprecated 'continue_on_error'")
         
+        # Validate Jinja2 template syntax
+        templates = self._extract_templates_from_data(data)
+        for path, template_str in templates:
+            template_errors = self._validate_template_syntax(template_str)
+            for error in template_errors:
+                errors.append(f"Template at {path}: {error}")
+        
+        # Check for templates accessing group.last_changed (common issue)
+        for path, template_str in templates:
+            if "group." in template_str and ".last_changed" in template_str:
+                warnings.append(
+                    f"Template at {path} accesses group.last_changed - groups don't have this attribute. "
+                    "Use condition: state with for: option instead for continuous occupancy detection."
+                )
+        
         return {
-            "valid": True,
+            "valid": len(errors) == 0,
+            "errors": errors,
             "warnings": warnings
         }
 
