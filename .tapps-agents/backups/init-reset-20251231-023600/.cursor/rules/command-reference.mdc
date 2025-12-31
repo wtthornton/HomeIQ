@@ -1,0 +1,1797 @@
+---
+description: Complete command reference for all TappsCodingAgents commands, parameters, and workflows. Use this as the authoritative source for available commands in Cursor IDE.
+globs: []
+alwaysApply: true
+---
+
+# TappsCodingAgents Complete Command Reference
+
+This document provides the complete reference for all tapps-agent commands, parameter combinations, and Simple Mode workflows available in Cursor IDE.
+
+## Command Syntax
+
+### Cursor Skills (Recommended in Cursor IDE)
+```
+@agent-name *command [parameters]
+```
+
+### CLI Commands (Terminal/CI)
+```bash
+tapps-agents <agent> <command> [--flags]
+python -m tapps_agents.cli <agent> <command> [--flags]
+```
+
+### Global CLI Options (All Commands)
+
+These flags work for **any** CLI command, and can be placed **before or after** the subcommand (modern CLI behavior):
+
+```bash
+# Examples (flags can appear anywhere)
+tapps-agents doctor --progress rich
+tapps-agents --progress plain doctor
+tapps-agents reviewer score README.md --no-progress
+```
+
+- `--quiet` / `-q`: Quiet mode (errors + final results)
+- `--verbose` / `-v`: Verbose diagnostics
+- `--progress {auto,rich,plain,off}`: Progress UI mode
+- `--no-progress`: Disable progress UI (same as `--progress off`)
+
+**Environment variables:**
+- `TAPPS_PROGRESS=auto|rich|plain|off`
+- `TAPPS_NO_PROGRESS=1` (or `NO_PROGRESS=1`)
+
+## Top-Level Commands
+
+### `init` - Initialize Project
+**Purpose:** Set up TappsCodingAgents in your project (Cursor Rules, Skills, Background Agents, config). **This is the first command you should run on any project** to enable all tapps-agents capabilities in Cursor IDE.
+
+**CLI Syntax:**
+```bash
+tapps-agents init [--no-rules] [--no-presets] [--no-config] [--no-skills] [--no-background-agents] [--no-cache] [--no-cursorignore] [--reset] [--upgrade] [--no-backup] [--reset-mcp] [--preserve-custom] [--rollback <path>] [--yes] [--dry-run]
+```
+
+**When to Use:**
+- **First-time setup**: Run `tapps-agents init` when adding TappsCodingAgents to a new or existing project
+- **Upgrading framework**: Use `tapps-agents init --reset` to upgrade framework files to latest version
+- **Selective setup**: Use `--no-<component>` flags to skip specific components you don't need
+- **CI/CD automation**: Use `--yes` flag to skip confirmation prompts
+
+**What Happens When Executed on Other Projects:**
+
+When you run `tapps-agents init` on any project (new or existing), it:
+
+1. **Detects existing installation**: Checks for existing tapps-agents files and warns if found (unless using `--reset`)
+2. **Creates directory structure**: Sets up all required directories if they don't exist
+3. **Copies framework files**: Installs framework-provided files (Skills, Rules, Presets) from the installed package
+4. **Preserves user files**: Never overwrites existing user files unless using `--reset` mode
+5. **Detects tech stack**: Automatically detects project dependencies (Python packages, frameworks) and configures experts
+6. **Pre-populates cache**: Optionally pre-populates Context7 cache with project dependencies (unless `--no-cache`)
+7. **Validates setup**: Runs environment diagnostics to verify everything is configured correctly
+
+**What it installs:**
+
+1. **Cursor Rules** (`.cursor/rules/`) - 7 rule files:
+   - `workflow-presets.mdc` - Workflow preset documentation (auto-generated from YAML)
+   - `quick-reference.mdc` - Quick command reference
+   - `agent-capabilities.mdc` - Agent capability descriptions
+   - `project-context.mdc` - Project context template
+   - `project-profiling.mdc` - Project profiling guide
+   - `simple-mode.mdc` - Simple Mode guide (natural language orchestration)
+   - `command-reference.mdc` - This file (complete command reference)
+
+2. **Cursor Skills** (`.claude/skills/`) - 13 agent skills + simple-mode skill:
+   - Enables `@agent-name *command` syntax in Cursor chat
+   - Each skill defines agent capabilities, tools, and instructions
+   - Skills are model-agnostic (use Cursor's configured LLM)
+   - **Simple Mode skill** (`.claude/skills/simple-mode/`) - **INSTALLED BY DEFAULT**:
+     - **Primary interface** for TappsCodingAgents in Cursor
+     - Natural language orchestration of multiple skills
+     - **Available immediately after `init`** (no additional setup needed)
+     - Commands:
+       - `@simple-mode *build` - Complete 7-step feature development workflow
+       - `@simple-mode *review` - Code quality review workflow
+       - `@simple-mode *fix` - Bug fixing workflow with debugging
+       - `@simple-mode *test` - Test generation workflow
+       - `@simple-mode *epic` - Epic execution workflow (all stories in dependency order)
+       - `@simple-mode *test-coverage` - Coverage-driven test generation
+       - `@simple-mode *fix-tests` - Auto-fix test failures
+       - `@simple-mode *microservice` - Generate complete microservice structure
+       - `@simple-mode *docker-fix` - Debug container errors
+       - `@simple-mode *integrate-service` - Service-to-service integration
+       - `@simple-mode *full` - Full SDLC workflow (9 steps)
+       - Natural language commands (e.g., `@simple-mode Build a feature`)
+     - **Simple Mode is enabled by default** in config after `init`
+
+3. **Background Agents** (`.cursor/background-agents.yaml`):
+   - Defines automatic workflow execution triggers
+   - Enables auto-execution of quality checks, testing, security scans
+   - Configurable triggers (file changes, git commits, etc.)
+
+4. **Configuration** (`.tapps-agents/config.yaml`):
+   - Framework settings and agent configurations
+   - Tech stack detection results
+   - Quality thresholds and automation settings
+
+5. **Workflow Presets** (`workflows/presets/`):
+   - 5 predefined workflow YAML files (full, rapid, fix, quality, hotfix)
+   - Can be customized per project
+
+6. **MCP Config** (`.cursor/mcp.json`):
+   - Context7 MCP server configuration for library documentation lookup
+   - Enables `@reviewer *docs <library>` commands
+
+7. **Context7 Cache**:
+   - Pre-populated with project dependencies + built-in expert libraries
+   - Speeds up library documentation lookups
+   - Can be skipped with `--no-cache` if Context7 not configured
+
+8. **`.cursorignore`**:
+   - Performance optimization patterns
+   - Excludes large/generated files from Cursor indexing
+
+**Parameters:**
+
+- `--no-rules`: Skip creating `.cursor/rules/` directory
+  - **When to use**: If you want to manage rules manually or use custom rules only
+  - **Why**: Reduces setup time if you don't need framework-provided rules
+
+- `--no-presets`: Skip creating workflow presets directory
+  - **When to use**: If you only use custom workflows or CLI commands
+  - **Why**: Reduces setup time if you don't need preset workflows
+
+- `--no-config`: Skip creating `.tapps-agents/config.yaml`
+  - **When to use**: If you have existing config or want to configure manually
+  - **Why**: Allows manual configuration without framework defaults
+
+- `--no-skills`: Skip installing Cursor Skills
+  - **When to use**: If you only use CLI commands, not Cursor chat
+  - **Why**: Reduces setup time, but disables `@agent-name` commands in Cursor
+
+- `--no-background-agents`: Skip creating Background Agents config
+  - **When to use**: If you don't want automatic workflow execution
+  - **Why**: Manual control over when workflows run
+
+- `--no-cache`: Skip pre-populating Context7 cache
+  - **When to use**: If Context7 is not configured or you want to populate manually
+  - **Why**: Faster init if Context7 API key not available
+
+- `--no-cursorignore`: Skip creating `.cursorignore` file
+  - **When to use**: If you have custom indexing preferences
+  - **Why**: Manual control over Cursor indexing patterns
+
+- `--reset` / `--upgrade`: Reset framework-managed files to latest version
+  - **When to use**: After upgrading tapps-agents package, to get latest framework files
+  - **Why**: Updates Skills, Rules, Presets to match installed package version
+  - **Note**: Preserves user data (config, experts, knowledge base, custom files)
+
+- `--no-backup`: Skip backup before reset (not recommended)
+  - **When to use**: Only if you're certain you don't need rollback capability
+  - **Why**: Faster reset, but no way to undo changes
+
+- `--reset-mcp`: Also reset `.cursor/mcp.json` to framework version
+  - **When to use**: If MCP config is corrupted or you want framework defaults
+  - **Why**: Restores MCP configuration to framework-provided version
+
+- `--preserve-custom`: Preserve custom Skills, Rules, and presets (default: True)
+  - **When to use**: Default behavior - custom files are always preserved
+  - **Why**: Protects user customizations during reset
+
+- `--rollback <path>`: Rollback an init reset from a backup
+  - **When to use**: If reset caused issues and you need to restore previous state
+  - **Why**: Restores files from backup created during reset
+
+- `--yes` / `-y`: Automatically answer 'yes' to all confirmation prompts
+  - **When to use**: CI/CD pipelines, automation scripts, non-interactive environments
+  - **Why**: Enables fully automated init without user interaction
+
+- `--dry-run`: Preview what would be reset without making changes
+  - **When to use**: Before running `--reset` to see what will change
+  - **Why**: Safe way to preview reset impact without modifying files
+
+**Examples:**
+
+```bash
+# Initial setup (recommended for all projects)
+tapps-agents init
+
+# Initial setup without Context7 cache (if API key not configured)
+tapps-agents init --no-cache
+
+# Upgrade framework files after package update
+tapps-agents init --reset
+
+# Preview what would be reset (safe to run)
+tapps-agents init --reset --dry-run
+
+# Automated setup for CI/CD
+tapps-agents init --yes
+
+# Minimal setup (only Skills and Rules, no presets or cache)
+tapps-agents init --no-presets --no-cache
+
+# Rollback from backup
+tapps-agents init --rollback .tapps-agents/backups/init-reset-20250116-143022
+```
+
+**After Init - What You Can Do:**
+
+**Simple Mode is Ready to Use:**
+After `tapps-agents init`, Simple Mode is automatically set up and ready:
+- ✅ Simple Mode skill installed (`.claude/skills/simple-mode/`)
+- ✅ Simple Mode rule installed (`.cursor/rules/simple-mode.mdc`)
+- ✅ Simple Mode enabled by default in config
+- ✅ Ready to use immediately in Cursor chat
+
+**Verify Simple Mode Setup:**
+```bash
+tapps-agents simple-mode status
+```
+
+**In Cursor Chat (Recommended - Use Simple Mode):**
+```cursor
+# Natural language commands (Simple Mode auto-detects intent)
+@simple-mode Build a user authentication feature
+@simple-mode Review my authentication code
+@simple-mode Fix the error in auth.py
+@simple-mode Add tests for service.py
+
+# Explicit commands (more reliable for complex workflows)
+@simple-mode *build "Add user authentication"
+@simple-mode *review src/api/auth.py
+@simple-mode *fix src/buggy.py "Fix the error"
+@simple-mode *epic docs/prd/epic-51.md
+
+# Individual agent commands (when you need specific agents)
+@reviewer *score src/main.py
+@implementer *implement "Add feature" src/feature.py
+@reviewer *docs fastapi routing
+```
+
+**In Terminal/CI:**
+```bash
+# Workflow presets
+tapps-agents workflow rapid --prompt "Add feature" --auto
+tapps-agents workflow full --prompt "Build API" --auto
+
+# Individual agent commands
+tapps-agents reviewer review src/
+tapps-agents score src/main.py
+
+# Simple Mode management
+tapps-agents simple-mode on
+tapps-agents simple-mode status
+tapps-agents simple-mode full --prompt "Build feature" --auto
+```
+
+### `create` - Create New Project
+**Purpose:** Create a complete application from natural language description
+
+**CLI Syntax:**
+```bash
+tapps-agents create "<description>" [--workflow <preset>] [--cursor-mode]
+```
+
+**Parameters:**
+- `description` (required): Natural language description
+- `--workflow`: `full` (default), `rapid`, `enterprise`, `feature`
+- `--cursor-mode`: Use Cursor Background Agents
+
+### `workflow` - Run Preset Workflows
+**Purpose:** Execute predefined workflow presets
+
+**CLI Syntax:**
+```bash
+tapps-agents workflow <preset> [--prompt "<description>"] [--file <path>] [--auto] [--cursor-mode]
+```
+
+**Available Presets:**
+- `full` / `enterprise` - Complete SDLC pipeline
+- `rapid` / `feature` - Fast feature development
+- `fix` / `refactor` / `maintenance` - Bug fixes and refactoring
+- `quality` / `improve` - Code quality improvement
+- `hotfix` / `urgent` / `quick-fix` - Quick production fixes
+- `new-feature` / `simple-new-feature` - Simple new feature workflow
+- `list` - List all available presets
+- `recommend` - Get AI-powered workflow recommendation
+- `state` - Workflow state management (list, show, cleanup, resume)
+- `resume` - Resume interrupted workflow
+
+**Common Parameters:**
+- `--prompt` / `-p`: Natural language description
+- `--file`: Target file/directory
+- `--auto`: Fully automated execution
+- `--cursor-mode`: Use Cursor Background Agents
+
+**Workflow State Management:**
+```bash
+tapps-agents workflow state list [--workflow-id <id>] [--format json|text]
+tapps-agents workflow state show <workflow_id> [--format json|text]
+tapps-agents workflow state cleanup [--retention-days 30] [--max-states-per-workflow 10] [--remove-completed] [--dry-run]
+tapps-agents workflow resume [--workflow-id <id>] [--validate]
+```
+
+### `score` - Quick Code Scoring
+**Purpose:** Fast code quality scoring (shortcut for `reviewer score`)
+
+**CLI Syntax:**
+```bash
+tapps-agents score <file> [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@reviewer *score <file>
+```
+
+### `doctor` - Environment Diagnostics
+**Purpose:** Validate local development environment
+
+**CLI Syntax:**
+```bash
+tapps-agents doctor [--format json|text] [--config-path <path>]
+```
+
+### `cursor` - Cursor AI Integration Verification
+**Purpose:** Verify and manage Cursor AI integration components
+
+**CLI Syntax:**
+```bash
+tapps-agents cursor verify [--format json|text]
+tapps-agents cursor check [--format json|text]  # alias
+```
+
+**When to Use:**
+- **After `init`**: Verify all Cursor integration components were installed correctly
+- **Troubleshooting**: When Cursor Skills or Rules aren't working as expected
+- **CI/CD validation**: Ensure integration is properly configured before deployment
+- **Migration verification**: After moving or copying project files
+- **Pre-commit checks**: Validate setup before committing integration files
+
+**What It Checks:**
+- **Cursor Skills** (`.claude/skills/`) - Validates all 13 agent skills + simple-mode are present
+  - Checks directory structure
+  - Verifies YAML frontmatter in SKILL.md files
+  - Reports missing skills
+- **Cursor Rules** (`.cursor/rules/`) - Validates all 7 rule files are present
+  - Checks for required rule files (workflow-presets, quick-reference, agent-capabilities, etc.)
+  - Verifies file format (.mdc extension)
+- **Background Agents** (`.cursor/background-agents.yaml`) - Validates configuration
+  - Checks YAML syntax validity
+  - Verifies agents are configured
+  - Reports agent count
+- **`.cursorignore`** - Checks for recommended patterns
+  - Validates presence of common ignore patterns (.venv, __pycache__, etc.)
+- **`.cursorrules`** (legacy) - Optional legacy support file
+
+**Parameters:**
+- `--format json|text`: Output format (default: `text`)
+  - **When to use**: 
+    - `text`: Human-readable verification report (default)
+    - `json`: Structured validation data for CI/CD or automation
+
+**Output:**
+- **Status**: `VALID` or `INVALID` overall status
+- **Components**: Per-component validation results
+- **Errors**: Critical issues that prevent Cursor integration from working
+- **Warnings**: Non-critical issues or missing optional components
+
+**Exit Codes:**
+- `0`: All components valid
+- `1`: One or more components invalid (use in CI/CD quality gates)
+
+**Examples:**
+```bash
+# Verify Cursor integration (human-readable)
+tapps-agents cursor verify
+
+# Verify with JSON output (for automation)
+tapps-agents cursor verify --format json
+
+# Use alias
+tapps-agents cursor check
+
+# In CI/CD pipeline (fails if invalid)
+tapps-agents cursor verify --format json || exit 1
+```
+
+**Related:**
+- Run `tapps-agents init` to install/repair missing components
+- See `.cursor/rules/quick-reference.mdc` for quick command reference
+- See `docs/CURSOR_SKILLS_INSTALLATION_GUIDE.md` for detailed setup guide
+
+### `simple-mode` - Simple Mode Management
+**Purpose:** Manage Simple Mode - simplified natural language interface. Simple Mode is the **primary user interface** for TappsCodingAgents in Cursor, providing natural language commands that automatically orchestrate multiple specialized skills.
+
+**CLI Syntax:**
+```bash
+tapps-agents simple-mode <command> [options]
+```
+
+**Subcommands:**
+- `on` - Enable Simple Mode
+  - **When to use**: After running `tapps-agents init`, to enable Simple Mode
+  - **Why**: Activates Simple Mode configuration in `.tapps-agents/config.yaml`
+  - **Note**: Simple Mode skill is installed by `init`, but must be enabled via this command
+
+- `off` - Disable Simple Mode
+  - **When to use**: If you want to use individual agent commands only
+  - **Why**: Disables Simple Mode but keeps skill installed
+
+- `status [--format json|text]` - Check Simple Mode status
+  - **When to use**: Verify Simple Mode is enabled and configured
+  - **Why**: Shows current configuration and enabled state
+
+- `init` - Run onboarding wizard
+  - **When to use**: First time using Simple Mode, or to reconfigure
+  - **Why**: Interactive setup with guided configuration
+  - **What it does**: Detects project type, configures settings, suggests first command
+
+- `configure` / `config` - Configure settings interactively
+  - **When to use**: To change Simple Mode settings after initial setup
+  - **Why**: Update configuration without running full onboarding
+
+- `progress` - Show learning progression
+  - **When to use**: Track your Simple Mode usage and unlocked features
+  - **Why**: Shows learning level, commands used, features unlocked
+
+- `full [--prompt "<desc>"] [--file <path>] [--auto]` - Run full lifecycle workflow
+  - **When to use**: Complete SDLC workflow with all quality gates
+  - **Why**: Comprehensive workflow with requirements, design, implementation, testing, security, documentation
+  - **Parameters**:
+    - `--prompt`: Natural language description (required for greenfield)
+    - `--file`: Target file/directory (for brownfield/refactoring)
+    - `--auto`: Fully automated execution
+
+**Simple Mode is Installed by `init`:**
+- Simple Mode skill (`.claude/skills/simple-mode/`) is automatically installed by `tapps-agents init`
+- Simple Mode rule (`.cursor/rules/simple-mode.mdc`) is automatically installed
+- Simple Mode is enabled by default in config, but you can run `tapps-agents simple-mode on` to ensure it's active
+
+**Cursor Usage (Natural Language - Recommended):**
+```cursor
+@simple-mode Build a user authentication feature
+@simple-mode Review my authentication code
+@simple-mode Fix the error in auth.py
+@simple-mode Add tests for service.py
+@simple-mode Execute epic docs/prd/epic-51.md
+```
+
+**Cursor Usage (Explicit Commands - More Reliable):**
+```cursor
+@simple-mode *build "Create a user authentication feature"
+@simple-mode *review src/api/auth.py
+@simple-mode *fix src/buggy.py "Fix the error"
+@simple-mode *test src/api/auth.py
+@simple-mode *epic docs/prd/epic-51-yaml-automation-quality-enhancement.md
+@simple-mode *full "Build a complete REST API"
+```
+
+**When to Use Simple Mode:**
+- **New users**: Start with Simple Mode for natural language commands
+- **Feature development**: Use `*build` for complete feature workflows
+- **Code review**: Use `*review` for quality analysis
+- **Bug fixing**: Use `*fix` for systematic debugging
+- **Testing**: Use `*test` for test generation
+- **Epic execution**: Use `*epic` for implementing entire Epic documents
+- **Full lifecycle**: Use `*full` for complete SDLC workflows
+
+**Why Use Simple Mode:**
+- **Natural language**: Use plain English instead of learning multiple agent commands
+- **Automatic orchestration**: Skills are coordinated automatically in the right sequence
+- **Quality gates**: Automatic quality checks with loopback on failures
+- **Better outcomes**: Produces higher quality code with comprehensive documentation
+- **Workflow enforcement**: Ensures all steps are executed (enhance → plan → design → implement → review → test)
+
+## Agent Commands
+
+### Reviewer Agent (`@reviewer`)
+
+**Available Commands:**
+
+#### `*review` / `review` (Dual-Mode)
+**Purpose:** Comprehensive code review with AI analysis. Provides detailed feedback on code quality, security, maintainability, and best practices.
+
+**CLI Syntax:**
+```bash
+tapps-agents reviewer review [<files>...] [--pattern <glob>] [--max-workers <n>] [--format json|text|markdown|html] [--output <file>] [--fail-under <score>]
+```
+
+**Cursor Syntax:**
+```cursor
+@reviewer *review <file>
+```
+
+**When to Use:**
+- **Pre-commit reviews**: Review code before committing changes
+- **Code quality audits**: Comprehensive analysis of codebase quality
+- **Learning best practices**: Get detailed feedback on code improvements
+- **Batch processing**: Review multiple files or entire directories
+- **CI/CD integration**: Use `--fail-under` to enforce quality gates
+
+**Parameters:**
+- `files` (optional): One or more file paths. Supports multiple files, directories (auto-discovers code files), or glob patterns
+  - **When to use**: Review specific files or directories
+  - **Why**: Targeted review of changed or problematic code
+
+- `--pattern <glob>`: Glob pattern to match files (e.g., `**/*.py`, `src/**/*.ts`)
+  - **When to use**: Review all files matching a pattern across the project
+  - **Why**: Efficient batch review without listing individual files
+
+- `--max-workers <n>`: Concurrent file operations (default: 4)
+  - **When to use**: Adjust based on system resources and file count
+  - **Why**: Balance speed vs. resource usage (higher = faster but more CPU/memory)
+
+- `--format <format>`: Output format - `json` (default), `text`, `markdown`, `html`
+  - **When to use**: 
+    - `json`: CI/CD, automation, programmatic processing
+    - `text`: Terminal output, quick reviews
+    - `markdown`: Documentation, reports, PR comments
+    - `html`: Web-based reports, sharing with team
+  - **Why**: Different formats suit different use cases
+
+- `--output <file>`: Output file path
+  - **When to use**: Save review results to file for later analysis
+  - **Why**: Persist review results, share with team, track over time
+
+- `--fail-under <score>`: Exit with code 1 if overall score is below threshold (0-100)
+  - **When to use**: CI/CD quality gates, enforcing minimum quality standards
+  - **Why**: Automatically fail builds if code quality is too low
+
+**Examples:**
+```bash
+# Review single file
+tapps-agents reviewer review src/app.py
+
+# Review multiple files
+tapps-agents reviewer review src/app.py src/utils.py src/models.py
+
+# Review all Python files in project
+tapps-agents reviewer review --pattern "**/*.py" --max-workers 8
+
+# Generate HTML report
+tapps-agents reviewer review src/ --format html --output review-report.html
+
+# CI/CD quality gate (fail if score < 70)
+tapps-agents reviewer review src/ --fail-under 70 --format json
+```
+
+#### `*score` / `score` (Dual-Mode)
+**Purpose:** Fast objective quality metrics (no LLM feedback)
+
+**CLI Syntax:**
+```bash
+tapps-agents reviewer score [<files>...] [--pattern <glob>] [--max-workers <n>] [--format json|text|markdown|html] [--output <file>]
+```
+
+**Cursor Syntax:**
+```cursor
+@reviewer *score <file>
+```
+
+#### `*lint` / `lint` (Dual-Mode)
+**Purpose:** Code style checking (Ruff)
+
+**CLI Syntax:**
+```bash
+tapps-agents reviewer lint [<files>...] [--pattern <glob>] [--max-workers <n>] [--format json|text] [--output <file>]
+```
+
+**Cursor Syntax:**
+```cursor
+@reviewer *lint <file>
+```
+
+#### `*type-check` / `type-check` (Dual-Mode)
+**Purpose:** Type annotation validation (mypy)
+
+**CLI Syntax:**
+```bash
+tapps-agents reviewer type-check [<files>...] [--pattern <glob>] [--max-workers <n>] [--format json|text] [--output <file>]
+```
+
+**Cursor Syntax:**
+```cursor
+@reviewer *type-check <file>
+```
+
+#### `*report` / `report` (CLI-First)
+**Purpose:** Comprehensive project-wide quality reports
+
+**CLI Syntax:**
+```bash
+tapps-agents reviewer report <target> <formats>... [--output-dir <dir>]
+```
+
+**Parameters:**
+- `target` (required): File or directory path
+- `formats` (required): One or more of `json`, `markdown`, `html`, `all`
+- `--output-dir`: Directory for reports (default: `reports/quality/`)
+
+#### `*duplication` / `duplication` (CLI-First)
+**Purpose:** Code duplication detection
+
+**CLI Syntax:**
+```bash
+tapps-agents reviewer duplication <target> [--format json|text]
+```
+
+#### `*security-scan` / `security-scan` (Dual-Mode)
+**Purpose:** Security vulnerability scanning
+
+**CLI Syntax:**
+```bash
+tapps-agents reviewer security-scan [<files>...] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@reviewer *security-scan <file>
+```
+
+#### `*docs` / `docs` (Dual-Mode)
+**Purpose:** Get library documentation from Context7
+
+**CLI Syntax:**
+```bash
+tapps-agents reviewer docs <library> [<topic>]
+```
+
+**Cursor Syntax:**
+```cursor
+@reviewer *docs <library> [<topic>]
+```
+
+### Implementer Agent (`@implementer`)
+
+**Available Commands:**
+
+#### `*implement` / `implement` (Dual-Mode)
+**Purpose:** Generate code from specification
+
+**CLI Syntax:**
+```bash
+tapps-agents implementer implement "<description>" <file> [--model <model>] [--no-review] [--backup]
+```
+
+**Cursor Syntax:**
+```cursor
+@implementer *implement "<description>" <file>
+```
+
+**Parameters:**
+- `description` (required): Natural language description
+- `file` (required): Target file path
+- `--model`: LLM model to use
+- `--no-review`: Skip automatic code review
+- `--backup`: Create backup before writing
+
+#### `*refactor` / `refactor` (Dual-Mode)
+**Purpose:** Refactor existing code
+
+**CLI Syntax:**
+```bash
+tapps-agents implementer refactor <file> "<instructions>" [--model <model>] [--no-review] [--backup]
+```
+
+**Cursor Syntax:**
+```cursor
+@implementer *refactor <file> "<instructions>"
+```
+
+#### `*generate-code` / `generate-code` (CLI-First)
+**Purpose:** Generate code without writing to file
+
+**CLI Syntax:**
+```bash
+tapps-agents implementer generate-code "<description>" [--format json|text]
+```
+
+#### `*docs` / `docs` (Dual-Mode)
+**Purpose:** Get library documentation from Context7
+
+**CLI Syntax:**
+```bash
+tapps-agents implementer docs <library> [<topic>]
+```
+
+**Cursor Syntax:**
+```cursor
+@implementer *docs <library> [<topic>]
+```
+
+### Tester Agent (`@tester`)
+
+**Available Commands:**
+
+#### `*test` / `test` (Dual-Mode)
+**Purpose:** Generate and run tests
+
+**CLI Syntax:**
+```bash
+tapps-agents tester test <file> [--integration] [--coverage] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@tester *test <file>
+```
+
+**Parameters:**
+- `--integration`: Generate integration tests
+- `--coverage`: Run with coverage analysis
+- `--format`: Output format
+
+#### `*generate-tests` / `generate-tests` (Dual-Mode)
+**Purpose:** Generate tests without running
+
+**CLI Syntax:**
+```bash
+tapps-agents tester generate-tests <file> [--integration] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@tester *generate-tests <file>
+```
+
+#### `*run-tests` / `run-tests` (CLI-First)
+**Purpose:** Run existing test suite
+
+**CLI Syntax:**
+```bash
+tapps-agents tester run-tests [--coverage] [--format json|text]
+```
+
+### Planner Agent (`@planner`)
+
+**Available Commands:**
+
+#### `*plan` / `plan` (Dual-Mode)
+**Purpose:** Create development plan
+
+**CLI Syntax:**
+```bash
+tapps-agents planner plan "<description>" [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@planner *plan "<description>"
+```
+
+#### `*create-story` / `create-story` (CLI-First)
+**Purpose:** Create user story
+
+**CLI Syntax:**
+```bash
+tapps-agents planner create-story "<title>" [--epic <epic>] [--priority <priority>] [--format json|text]
+```
+
+**Parameters:**
+- `--epic`: Epic name
+- `--priority`: `high`, `medium`, `low`
+
+#### `*list-stories` / `list-stories` (CLI-First)
+**Purpose:** List user stories
+
+**CLI Syntax:**
+```bash
+tapps-agents planner list-stories [--epic <epic>] [--format json|text]
+```
+
+### Architect Agent (`@architect`)
+
+**Available Commands:**
+
+#### `*design` / `design` (Dual-Mode)
+**Purpose:** System architecture design
+
+**CLI Syntax:**
+```bash
+tapps-agents architect design "<description>" [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@architect *design "<description>"
+```
+
+#### `*patterns` / `patterns` (CLI-First)
+**Purpose:** Design pattern recommendations
+
+**CLI Syntax:**
+```bash
+tapps-agents architect patterns "<description>" [--format json|text]
+```
+
+### Designer Agent (`@designer`)
+
+**Available Commands:**
+
+#### `*design-api` / `design-api` (Dual-Mode)
+**Purpose:** API design and specification
+
+**CLI Syntax:**
+```bash
+tapps-agents designer design-api "<description>" [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@designer *design-api "<description>"
+```
+
+#### `*design-model` / `design-model` (Dual-Mode)
+**Purpose:** Data model design
+
+**CLI Syntax:**
+```bash
+tapps-agents designer design-model "<description>" [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@designer *design-model "<description>"
+```
+
+### Enhancer Agent (`@enhancer`)
+
+**Available Commands:**
+
+#### `*enhance` / `enhance` (Dual-Mode)
+**Purpose:** Full prompt enhancement (7-stage pipeline)
+
+**CLI Syntax:**
+```bash
+tapps-agents enhancer enhance "<prompt>" [--format json|markdown|yaml]
+```
+
+**Cursor Syntax:**
+```cursor
+@enhancer *enhance "<prompt>"
+```
+
+**Parameters:**
+- `--format`: Output format (default: `markdown`)
+
+#### `*enhance-quick` / `enhance-quick` (Dual-Mode)
+**Purpose:** Quick prompt enhancement (stages 1-3)
+
+**CLI Syntax:**
+```bash
+tapps-agents enhancer enhance-quick "<prompt>" [--format json|markdown|yaml]
+```
+
+**Cursor Syntax:**
+```cursor
+@enhancer *enhance-quick "<prompt>"
+```
+
+#### `*enhance-stage` / `enhance-stage` (CLI-First)
+**Purpose:** Run specific enhancement stage
+
+**CLI Syntax:**
+```bash
+tapps-agents enhancer enhance-stage <stage> "<prompt>" [--format json|markdown|yaml]
+```
+
+**Stages:** `analysis`, `requirements`, `architecture`, `codebase`, `quality`, `strategy`, `synthesis`
+
+#### `*enhance-resume` / `enhance-resume` (CLI-First)
+**Purpose:** Resume interrupted enhancement session
+
+**CLI Syntax:**
+```bash
+tapps-agents enhancer enhance-resume <session-id> [--format json|markdown|yaml]
+```
+
+### Debugger Agent (`@debugger`)
+
+**Available Commands:**
+
+#### `*debug` / `debug` (Dual-Mode)
+**Purpose:** Debug error and find root cause
+
+**CLI Syntax:**
+```bash
+tapps-agents debugger debug "<error>" [--file <file>] [--line <line>] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@debugger *debug "<error>" --file <file> [--line <line>]
+```
+
+#### `*analyze-error` / `analyze-error` (CLI-First)
+**Purpose:** Analyze error with stack trace
+
+**CLI Syntax:**
+```bash
+tapps-agents debugger analyze-error "<error>" [--stack-trace "<trace>"] [--format json|text]
+```
+
+#### `*trace` / `trace` (CLI-First)
+**Purpose:** Code execution tracing
+
+**CLI Syntax:**
+```bash
+tapps-agents debugger trace "<description>" [--file <file>] [--format json|text]
+```
+
+### Documenter Agent (`@documenter`)
+
+**Available Commands:**
+
+#### `*document` / `document` (Dual-Mode)
+**Purpose:** Generate documentation for a file
+
+**CLI Syntax:**
+```bash
+tapps-agents documenter document <file> [--output-format <format>] [--output-file <file>]
+```
+
+**Cursor Syntax:**
+```cursor
+@documenter *document <file>
+```
+
+#### `*generate-docs` / `generate-docs` (CLI-First)
+**Purpose:** Generate API documentation
+
+**CLI Syntax:**
+```bash
+tapps-agents documenter generate-docs [--format json|text]
+```
+
+#### `*update-readme` / `update-readme` (CLI-First)
+**Purpose:** Generate or update README.md
+
+**CLI Syntax:**
+```bash
+tapps-agents documenter update-readme [--format json|text]
+```
+
+#### `*document-api` / `document-api` (Dual-Mode)
+**Purpose:** Document API endpoints
+
+**CLI Syntax:**
+```bash
+tapps-agents documenter document-api <file> [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@documenter *document-api <file>
+```
+
+### Improver Agent (`@improver`)
+
+**Available Commands:**
+
+#### `*improve` / `improve` (Dual-Mode)
+**Purpose:** Code improvement suggestions
+
+**CLI Syntax:**
+```bash
+tapps-agents improver improve <file> "<instructions>" [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@improver *improve <file> "<instructions>"
+```
+
+#### `*optimize` / `optimize` (CLI-First)
+**Purpose:** Performance optimization
+
+**CLI Syntax:**
+```bash
+tapps-agents improver optimize <file> "<instructions>" [--format json|text]
+```
+
+#### `*refactor` / `refactor` (CLI-First)
+**Purpose:** Code refactoring
+
+**CLI Syntax:**
+```bash
+tapps-agents improver refactor <file> "<instructions>" [--format json|text]
+```
+
+### Ops Agent (`@ops`)
+
+**Available Commands:**
+
+#### `*audit-security` / `audit-security` (CLI-First)
+**Purpose:** Security audit
+
+**CLI Syntax:**
+```bash
+tapps-agents ops audit-security <target> [--format json|text]
+```
+
+#### `*check-compliance` / `check-compliance` (CLI-First)
+**Purpose:** Compliance checking
+
+**CLI Syntax:**
+```bash
+tapps-agents ops check-compliance [--standard <standard>] [--format json|text]
+```
+
+**Standards:** `GDPR`, `HIPAA`, `PCI-DSS`
+
+#### `*audit-dependencies` / `audit-dependencies` (CLI-First)
+**Purpose:** Dependency vulnerability scanning
+
+**CLI Syntax:**
+```bash
+tapps-agents ops audit-dependencies [--format json|text]
+```
+
+#### `*plan-deployment` / `plan-deployment` (CLI-First)
+**Purpose:** Deployment planning
+
+**CLI Syntax:**
+```bash
+tapps-agents ops plan-deployment "<description>" [--format json|text]
+```
+
+### Analyst Agent (`@analyst`)
+
+**Available Commands:**
+
+#### `*gather-requirements` / `gather-requirements` (Dual-Mode)
+**Purpose:** Gather and document requirements from description or stakeholder input
+
+**CLI Syntax:**
+```bash
+tapps-agents analyst gather-requirements "<description>" [--context "<context>"] [--output <file>] [--format json|text|markdown]
+```
+
+**Cursor Syntax:**
+```cursor
+@analyst *gather-requirements "<description>"
+```
+
+#### `*analyze-stakeholders` / `stakeholder-analysis` (Dual-Mode)
+**Purpose:** Analyze stakeholders and their needs
+
+**CLI Syntax:**
+```bash
+tapps-agents analyst stakeholder-analysis "<description>" [--stakeholders <stakeholder>...] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@analyst *analyze-stakeholders "<description>"
+```
+
+#### `*research-technology` / `tech-research` (Dual-Mode)
+**Purpose:** Research technology options for a requirement
+
+**CLI Syntax:**
+```bash
+tapps-agents analyst tech-research "<requirement>" [--context "<context>"] [--criteria <criteria>...] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@analyst *research-technology "<requirement>"
+```
+
+#### `*estimate-effort` / `estimate-effort` (Dual-Mode)
+**Purpose:** Estimate effort and complexity for a feature
+
+**CLI Syntax:**
+```bash
+tapps-agents analyst estimate-effort "<feature_description>" [--context "<context>"] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@analyst *estimate-effort "<feature_description>"
+```
+
+#### `*assess-risk` / `assess-risk` (Dual-Mode)
+**Purpose:** Assess risks for a feature or project
+
+**CLI Syntax:**
+```bash
+tapps-agents analyst assess-risk "<feature_description>" [--context "<context>"] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@analyst *assess-risk "<feature_description>"
+```
+
+#### `*competitive-analysis` / `competitive-analysis` (Dual-Mode)
+**Purpose:** Perform competitive analysis
+
+**CLI Syntax:**
+```bash
+tapps-agents analyst competitive-analysis "<product_description>" [--competitors <competitor>...] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@analyst *competitive-analysis "<product_description>"
+```
+
+### Orchestrator Agent (`@orchestrator`)
+
+**Available Commands:**
+
+#### `*orchestrate` / `orchestrate` (CLI-First)
+**Purpose:** Execute YAML workflow
+
+**CLI Syntax:**
+```bash
+tapps-agents orchestrator orchestrate <workflow.yaml> [--format json|text]
+```
+
+#### `*sequence` / `sequence` (CLI-First)
+**Purpose:** Sequence multiple agents
+
+**CLI Syntax:**
+```bash
+tapps-agents orchestrator sequence "<agent-list>" [--format json|text]
+```
+
+**Example:** `"plan,design,implement,test"`
+
+## Simple Mode Workflows
+
+Simple Mode provides natural language orchestration with structured workflows. Use `@simple-mode` in Cursor chat. **Simple Mode is installed by `tapps-agents init`** - the skill and rule files are automatically set up.
+
+### Build Workflow (`*build`)
+
+**Purpose:** Build new features with complete 7-step workflow. **This is the most commonly used Simple Mode command.**
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *build "Create a user authentication feature"
+```
+
+**When to Use:**
+- Creating new features from scratch
+- Implementing user stories
+- Adding new functionality to existing projects
+- Greenfield development
+
+**Workflow Steps (MUST FOLLOW ALL STEPS):**
+1. **@enhancer *enhance** - Enhanced prompt with requirements analysis (7-stage pipeline)
+   - Creates: `docs/workflows/simple-mode/step1-enhanced-prompt.md`
+   - Output: Comprehensive specification with requirements, architecture guidance, quality standards
+2. **@planner *plan** - User stories with acceptance criteria
+   - Creates: `docs/workflows/simple-mode/step2-user-stories.md`
+   - Output: User stories, story points, estimates
+3. **@architect *design** - System architecture design
+   - Creates: `docs/workflows/simple-mode/step3-architecture.md`
+   - Output: Architecture, component design, data flow, performance considerations
+4. **@designer *design-api** - Component design specifications
+   - Creates: `docs/workflows/simple-mode/step4-design.md`
+   - Output: API specifications, data models, component designs
+5. **@implementer *implement** - Code implementation
+   - Uses: All specifications from previous steps
+   - Output: Implemented code following design system and architecture
+6. **@reviewer *review** - Code quality review (with scores)
+   - Creates: `docs/workflows/simple-mode/step6-review.md`
+   - Output: Quality scores (5 metrics), issues found, recommendations
+7. **@tester *test** - Testing plan and validation
+   - Creates: `docs/workflows/simple-mode/step7-testing.md`
+   - Output: Test plan, test cases, validation criteria
+
+**Documentation Created:**
+- `docs/workflows/simple-mode/step1-enhanced-prompt.md`
+- `docs/workflows/simple-mode/step2-user-stories.md`
+- `docs/workflows/simple-mode/step3-architecture.md`
+- `docs/workflows/simple-mode/step4-design.md`
+- `docs/workflows/simple-mode/step6-review.md`
+- `docs/workflows/simple-mode/step7-testing.md`
+
+**Quality Gates:**
+- Overall score must be ≥ 70 (configurable)
+- Security score must be ≥ 6.5
+- If thresholds not met, workflow loops back to improve code
+
+### Review Workflow (`*review`)
+
+**Purpose:** Code quality review with improvement suggestions
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *review <file>
+```
+
+**When to Use:**
+- Before committing code
+- Code quality audits
+- Pre-PR reviews
+- Learning best practices
+
+**Workflow Steps:**
+1. **@reviewer *review** - Quality scores (5 metrics: complexity, security, maintainability, test coverage, performance)
+2. **@improver *improve** - Improvement suggestions (if issues found or score < threshold)
+
+**Output:**
+- Quality scores for all 5 metrics
+- Detailed feedback on issues
+- Improvement suggestions (if needed)
+
+### Fix Workflow (`*fix`)
+
+**Purpose:** Fix bugs and errors with systematic debugging
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *fix <file> "<description>"
+```
+
+**When to Use:**
+- Debugging runtime errors
+- Fixing bugs reported by users
+- Resolving test failures
+- Correcting logic errors
+
+**Workflow Steps:**
+1. **@debugger *debug** - Root cause analysis
+   - Analyzes error message, stack trace, code context
+   - Identifies root cause and suggests fix
+2. **@implementer *refactor** - Fix applied
+   - Implements the fix based on debugger analysis
+3. **@tester *test** - Verification
+   - Generates/updates tests to verify fix
+   - Ensures fix doesn't break existing functionality
+
+### Test Workflow (`*test`)
+
+**Purpose:** Generate comprehensive tests for code
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *test <file>
+```
+
+**When to Use:**
+- After implementing features
+- To improve test coverage
+- When user asks for tests
+- Test-driven development
+
+**Workflow Steps:**
+1. **@tester *test** - Tests generated and executed
+   - Analyzes code structure
+   - Generates unit tests
+   - Optionally generates integration tests
+   - Runs tests and reports coverage
+
+### Epic Workflow (`*epic`)
+
+**Purpose:** Execute all stories in an Epic document in dependency order
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *epic <epic-doc.md> [--quality-threshold 70] [--auto-mode]
+```
+
+**When to Use:**
+- Implementing entire Epic documents
+- Executing multiple related stories
+- Large feature development
+- Project milestones
+
+**Workflow Steps:**
+1. Parse Epic document (extract stories, dependencies, acceptance criteria)
+2. Resolve story dependencies (topological sort)
+3. Execute each story in order:
+   - Create workflow for story
+   - Execute with quality gates
+   - Loopback if quality < threshold (max 3 iterations)
+4. Track progress across all stories
+5. Generate Epic completion report
+
+**Parameters:**
+- `epic-doc.md` (required): Path to Epic markdown document
+- `--quality-threshold`: Minimum quality score (default: 70)
+- `--critical-service-threshold`: Minimum for critical services (default: 80)
+- `--auto-mode`: Fully automated execution
+
+**Example:**
+```cursor
+@simple-mode *epic docs/prd/epic-51-yaml-automation-quality-enhancement.md
+```
+
+**Output:**
+- Execution report with completion percentage
+- Story-by-story results
+- Quality gate status
+- Report saved to `docs/prd/epic-{number}-report.json`
+
+### Test Coverage Workflow (`*test-coverage`)
+
+**Purpose:** Generate tests targeting specific uncovered code paths
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *test-coverage <file> --target 80
+```
+
+**When to Use:**
+- Improving test coverage
+- Targeting uncovered code paths
+- Coverage-driven test development
+
+**Workflow Steps:**
+1. Analyze coverage data (from `coverage.json`)
+2. Identify uncovered code paths
+3. Prioritize gaps (critical paths, error handling, public APIs)
+4. Generate targeted tests for uncovered code
+5. Verify coverage improvement
+
+### Fix Tests Workflow (`*fix-tests`)
+
+**Purpose:** Analyze test failures and automatically fix common patterns
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *fix-tests <test-file>
+```
+
+**When to Use:**
+- Test failures after code changes
+- Async/await migration issues
+- Mock configuration errors
+- Import path issues
+
+**Supported Patterns:**
+- `async`: TestClient → AsyncClient migration, missing await
+- `auth`: Authentication header issues
+- `mock`: Mock configuration errors
+- `import`: Import path issues
+
+### Microservice Workflow (`*microservice`)
+
+**Purpose:** Generate complete microservice structure with Docker, tests, and health checks
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *microservice <name> --port <port> --type <fastapi|flask|homeiq>
+```
+
+**When to Use:**
+- Creating new microservices
+- Service scaffolding
+- Docker-based services
+
+**What It Generates:**
+- Service structure (`src/`, `tests/`, `Dockerfile`, `requirements.txt`)
+- Docker Compose integration
+- Health check endpoints
+- Logging configuration
+- API router structure
+- Test scaffolding
+- README with service docs
+
+### Docker Fix Workflow (`*docker-fix`)
+
+**Purpose:** Debug container errors with automatic fix suggestions
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *docker-fix <service> "<error>"
+```
+
+**When to Use:**
+- Container startup failures
+- Docker build errors
+- Runtime container issues
+
+**Features:**
+- Analyzes container logs
+- Matches errors to known patterns
+- Checks Dockerfile for issues
+- Suggests fixes with confidence scores
+- Auto-applies high-confidence fixes (>95%)
+
+### Service Integration Workflow (`*integrate-service`)
+
+**Purpose:** Automate service-to-service integration (client classes, config, DI)
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *integrate-service <service1> --with <service2>
+```
+
+**When to Use:**
+- Integrating microservices
+- Service-to-service communication setup
+- Client class generation
+
+**What It Does:**
+- Generates HTTP client classes for target service
+- Updates config files with service URLs
+- Adds dependency injection setup
+- Updates docker-compose.yml with service dependencies
+- Generates integration tests
+- Updates API documentation
+
+### Full SDLC Workflow (`*full`)
+
+**Purpose:** Complete software development lifecycle with all quality gates
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *full "<description>"
+```
+
+**When to Use:**
+- Enterprise projects
+- Mission-critical features
+- Complete application development
+- Full lifecycle management
+
+**Workflow Steps:**
+1. **@analyst *gather-requirements** - Requirements gathering
+2. **@planner *plan** - User stories
+3. **@architect *design** - Architecture design
+4. **@designer *design-api** - API design
+5. **@implementer *implement** - Code implementation
+6. **@reviewer *review** - Quality review (loop if < 70)
+7. **@tester *test** - Test generation
+8. **@ops *security-scan** - Security scanning
+9. **@documenter *document-api** - Documentation
+
+**Features:**
+- Automatic loopbacks if code quality scores aren't good enough
+- Test execution with retry logic
+- Security validation with remediation
+- Final quality review before completion
+
+**⚠️ CRITICAL: Framework Development MUST Use Full SDLC**
+
+When modifying the **TappsCodingAgents framework itself** (`tapps_agents/` package), you **MUST** use this workflow:
+
+```bash
+# CLI
+tapps-agents simple-mode full --prompt "Implement [enhancement description]" --auto
+
+# Or in Cursor chat
+@simple-mode *full "Implement [enhancement description]"
+```
+
+**Why?** Framework changes require:
+- ✅ Requirements analysis before implementation
+- ✅ Architecture design for integration patterns
+- ✅ Quality gates (≥75 score) with automatic loopbacks
+- ✅ Test generation and execution
+- ✅ Security validation
+- ✅ Complete documentation
+- ✅ Full traceability
+
+**DO NOT skip the workflow for framework changes!** See `.cursor/rules/project-context.mdc` for details.
+
+### Natural Language Intent Detection
+
+Simple Mode automatically detects intent from keywords:
+
+- **Build**: build, create, make, generate, add, implement, develop, write, new, feature
+- **Review**: review, check, analyze, inspect, examine, score, quality, audit, assess, evaluate
+- **Fix**: fix, repair, resolve, debug, error, bug, issue, problem, broken, correct
+- **Test**: test, verify, validate, coverage, testing, tests
+- **Epic**: epic, implement epic, execute epic, run epic, story, stories
+- **Full**: full, complete, sdlc, lifecycle, everything
+
+**Examples:**
+```cursor
+@simple-mode Build a user authentication feature
+@simple-mode Review my authentication code
+@simple-mode Fix the error in auth.py
+@simple-mode Add tests for service.py
+@simple-mode Execute epic docs/prd/epic-51.md
+```
+
+### Simple Mode Configuration
+
+Simple Mode is configured in `.tapps-agents/config.yaml` (created by `init`):
+
+```yaml
+simple_mode:
+  enabled: true                       # Enable Simple Mode (default: true after init)
+  auto_detect: true                   # Auto-detect intent from natural language
+  show_advanced: false                # Hide advanced features initially
+  natural_language: true             # Enable natural language commands
+  default_orchestrator: "build"      # Default when intent is ambiguous
+  onboarding_enabled: true           # Enable onboarding wizard
+  progressive_disclosure_enabled: true # Gradually reveal advanced features
+```
+
+**After `init`, Simple Mode is:**
+- ✅ Skill installed (`.claude/skills/simple-mode/`)
+- ✅ Rule installed (`.cursor/rules/simple-mode.mdc`)
+- ✅ Enabled by default in config
+- ✅ Ready to use in Cursor chat
+
+**To verify Simple Mode is ready:**
+```bash
+tapps-agents simple-mode status
+```
+
+**To enable/configure:**
+```bash
+tapps-agents simple-mode on          # Enable (usually already enabled after init)
+tapps-agents simple-mode init        # Run onboarding wizard
+tapps-agents simple-mode configure   # Configure settings
+```
+
+## Command Help
+
+### Get Agent Help
+
+**CLI:**
+```bash
+tapps-agents <agent> help
+tapps-agents <agent> *help
+```
+
+**Cursor:**
+```cursor
+@reviewer *help
+@simple-mode *help
+```
+
+### General Help
+
+**CLI:**
+```bash
+tapps-agents --help
+tapps-agents <command> --help
+```
+
+## Configuration
+
+Commands are configured in `.tapps-agents/config.yaml`:
+
+```yaml
+agents:
+  reviewer:
+    quality_threshold: 70
+    security_threshold: 7.0
+    maintainability_threshold: 7.0
+  
+  implementer:
+    require_review: true
+    auto_approve_threshold: 80.0
+    backup_files: true
+  
+  tester:
+    coverage_threshold: 80.0
+    generate_integration_tests: true
+
+simple_mode:
+  enabled: true
+  auto_detect: true
+  show_advanced: false
+  natural_language: true
+```
+
+## Guide for Cursor: When and Why to Use tapps-agents
+
+This section helps Cursor AI understand when to suggest or use tapps-agents commands during development.
+
+### Always Use tapps-agents For:
+
+1. **Code Quality Checks**
+   - **When**: Before committing code, reviewing PRs, or when user asks about code quality
+   - **Why**: Provides objective metrics and AI-powered feedback
+   - **Commands**: `@reviewer *review`, `@reviewer *score`, `@reviewer *lint`, `@reviewer *type-check`
+   - **Example**: User says "Is this code good?" → Use `@reviewer *review <file>`
+
+2. **Code Generation**
+   - **When**: User asks to implement features, create new files, or generate code
+   - **Why**: Follows project patterns, includes tests, meets quality standards
+   - **Commands**: `@implementer *implement`, `@simple-mode *build`
+   - **Example**: User says "Add user authentication" → Use `@simple-mode *build "Add user authentication"`
+
+3. **Bug Fixing**
+   - **When**: User reports errors, exceptions, or bugs
+   - **Why**: Systematic debugging with root cause analysis
+   - **Commands**: `@debugger *debug`, `@simple-mode *fix`
+   - **Example**: User says "Fix the error in auth.py" → Use `@simple-mode *fix src/auth.py "Fix the error"`
+
+4. **Testing**
+   - **When**: After implementing features, when user asks for tests, or to improve coverage
+   - **Why**: Generates comprehensive tests following project patterns
+   - **Commands**: `@tester *test`, `@tester *generate-tests`
+   - **Example**: User says "Add tests for this" → Use `@tester *test <file>`
+
+5. **Documentation**
+   - **When**: User asks for documentation, or after implementing features
+   - **Why**: Maintains consistent documentation standards
+   - **Commands**: `@documenter *document`, `@documenter *document-api`
+   - **Example**: User says "Document this API" → Use `@documenter *document-api <file>`
+
+6. **Library Documentation Lookup**
+   - **When**: User asks "How do I use X library?" or needs API reference
+   - **Why**: Provides up-to-date library documentation from Context7
+   - **Commands**: `@reviewer *docs <library> [topic]`
+   - **Example**: User says "How do I use FastAPI routing?" → Use `@reviewer *docs fastapi routing`
+
+7. **Project Setup**
+   - **When**: User is setting up a new project or adding tapps-agents to existing project
+   - **Why**: Enables all tapps-agents capabilities in Cursor
+   - **Commands**: `tapps-agents init`
+   - **Example**: User says "Set up tapps-agents" → Suggest `tapps-agents init`
+
+### Command Selection Guide
+
+**For Interactive Development (Cursor Chat):**
+- Prefer Cursor Skills syntax: `@agent-name *command`
+- Use Simple Mode for complex workflows: `@simple-mode *build`
+- Natural language works: `@simple-mode Build a user authentication feature`
+
+**For Batch/Automation (Terminal/CI):**
+- Use CLI commands: `tapps-agents <agent> <command>`
+- Use `--auto` flag for non-interactive execution
+- Use `--format json` for programmatic processing
+
+**For Quality Gates:**
+- Use `@reviewer *score` for quick checks
+- Use `@reviewer *review` for comprehensive analysis
+- Use `--fail-under` in CI/CD to enforce thresholds
+
+**For Feature Development:**
+- Use `@simple-mode *build` for complete feature workflow
+- Use `@planner *plan` for planning phase
+- Use `@architect *design` for architecture decisions
+
+**For Bug Fixes:**
+- Use `@simple-mode *fix` for complete fix workflow
+- Use `@debugger *debug` for error analysis
+- Use `@tester *test` for verification
+
+### Parameter Selection Guide
+
+**Output Formats:**
+- `json`: CI/CD, automation, programmatic processing
+- `text`: Human-readable terminal output
+- `markdown`: Documentation, reports, PR comments
+- `html`: Web-based reports, sharing with team
+
+**Batch Processing:**
+- Use `--pattern` for glob patterns across project
+- Use `--max-workers` to balance speed vs. resources
+- Use multiple files for targeted batch operations
+
+**Automation:**
+- Use `--auto` for fully automated workflows
+- Use `--yes` for non-interactive commands
+- Use `--format json` for structured output
+
+**Quality Gates:**
+- Use `--fail-under` to enforce minimum scores
+- Use `--fail-on-issues` to fail on lint errors
+- Use `--coverage` to require test coverage
+
+### Common Workflows
+
+**New Feature Development:**
+1. `@simple-mode *build "<description>"` - Complete workflow
+2. Or step-by-step: `@planner *plan` → `@architect *design` → `@implementer *implement` → `@reviewer *review` → `@tester *test`
+
+**Code Review:**
+1. `@reviewer *score <file>` - Quick quality check
+2. `@reviewer *review <file>` - Comprehensive analysis
+3. `@improver *improve <file> "<issues>"` - Apply improvements
+
+**Bug Fixing:**
+1. `@simple-mode *fix <file> "<description>"` - Complete workflow
+2. Or step-by-step: `@debugger *debug` → `@implementer *refactor` → `@tester *test`
+
+**Testing:**
+1. `@tester *test <file>` - Generate and run tests
+2. `@tester *generate-tests <file>` - Generate without running
+3. `@tester *run-tests` - Run existing test suite
+
+## Windows Compatibility & Encoding Requirements
+
+**⚠️ CRITICAL: All scripts and code must work correctly on Windows**
+
+This project is developed and tested on **Windows** (in addition to Linux/macOS). When creating or modifying Python scripts, you MUST handle Windows-specific encoding issues correctly.
+
+### Windows Encoding Requirements
+
+**All Python scripts MUST:**
+
+1. **Set UTF-8 encoding for console output** (Windows uses CP1252 by default):
+   ```python
+   import sys
+   import os
+   
+   # Set UTF-8 encoding for Windows console
+   if sys.platform == "win32":
+       os.environ["PYTHONIOENCODING"] = "utf-8"
+       try:
+           sys.stdout.reconfigure(encoding="utf-8")
+           sys.stderr.reconfigure(encoding="utf-8")
+       except AttributeError:
+           # Python < 3.7 - use environment variable only
+           pass
+   ```
+
+2. **Use ASCII-safe fallbacks for Unicode characters**:
+   ```python
+   # Use ASCII-safe symbols instead of Unicode emojis
+   SUCCESS_SYMBOL = "[OK]"
+   ERROR_SYMBOL = "[FAIL]"
+   WARNING_SYMBOL = "[WARN]"
+   
+   # Or handle UnicodeEncodeError gracefully
+   try:
+       print(f"{GREEN}✅ {text}{RESET}")
+   except UnicodeEncodeError:
+       print(f"[OK] {text}")
+   ```
+
+3. **Always specify encoding when opening files**:
+   ```python
+   # ✅ CORRECT - Always specify encoding
+   with open("file.txt", "r", encoding="utf-8") as f:
+       content = f.read()
+   
+   # Using pathlib (also specify encoding)
+   content = Path("file.txt").read_text(encoding="utf-8")
+   
+   # ❌ WRONG - Relies on system default (CP1252 on Windows)
+   with open("file.txt", "r") as f:
+       content = f.read()
+   ```
+
+4. **Specify encoding for subprocess output**:
+   ```python
+   # ✅ CORRECT - Specify encoding and error handling
+   result = subprocess.run(
+       cmd,
+       capture_output=True,
+       text=True,
+       encoding="utf-8",
+       errors="replace",  # Replace invalid characters instead of failing
+   )
+   
+   # ❌ WRONG - May fail on Windows with non-ASCII output
+   result = subprocess.run(cmd, capture_output=True, text=True)
+   ```
+
+### Why This Matters
+
+- **Windows default encoding is CP1252**, not UTF-8
+- **Unicode emojis (✅, ❌, ⚠️) fail on Windows** without proper encoding setup
+- **File I/O without explicit encoding** can cause `UnicodeDecodeError` on Windows
+- **GitHub Actions runs on Linux**, but developers use Windows - both must work
+
+### Testing on Windows
+
+Before committing code that prints to console or reads files:
+
+```bash
+# Test script on Windows PowerShell
+python scripts/your_script.py
+
+# Verify no encoding errors
+# Check that Unicode characters display correctly
+# Or use ASCII-safe alternatives
+```
+
+### Reference
+
+- [Python 3.10 Documentation - Windows Encoding](https://docs.python.org/3.10/library/sys.html)
+- [Python 3.10 Documentation - File Encoding](https://docs.python.org/3.10/library/io.html)
+- See `README.md` for complete Windows compatibility guidelines
+
+## Related Documentation
+
+- **Quick Reference**: `.cursor/rules/quick-reference.mdc`
+- **Agent Capabilities**: `.cursor/rules/agent-capabilities.mdc`
+- **Simple Mode Guide**: `.cursor/rules/simple-mode.mdc`
+- **Workflow Presets**: `.cursor/rules/workflow-presets.mdc`
+- **Command Reference**: `docs/TAPPS_AGENTS_COMMAND_REFERENCE.md`

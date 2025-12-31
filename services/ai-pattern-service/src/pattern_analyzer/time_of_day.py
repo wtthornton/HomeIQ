@@ -104,6 +104,11 @@ class TimeOfDayPatternDetector:
         logger.info(f"Analyzing {len(unique_devices)} unique devices")
 
         for device_id in unique_devices:
+            # Filter out external data sources
+            if self._is_external_data_source(device_id):
+                logger.debug(f"Skipping external data source: {device_id}")
+                continue
+            
             device_events = events[events['device_id'] == device_id]
             domain = self._get_domain(device_id)
             required_occurrences = self.domain_occurrence_overrides.get(domain, self.min_occurrences)
@@ -202,6 +207,38 @@ class TimeOfDayPatternDetector:
 
         return patterns
 
+    @staticmethod
+    def _is_external_data_source(device_id: str) -> bool:
+        """
+        Check if device_id represents an external data source (sports, weather, etc.).
+        
+        Args:
+            device_id: Entity ID to check
+            
+        Returns:
+            True if external data source, False otherwise
+        """
+        device_id_lower = device_id.lower()
+        
+        # External data patterns
+        external_patterns = [
+            'team_tracker', 'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',
+            '_tracker', 'weather_', 'openweathermap_',
+            'carbon_intensity_', 'electricity_pricing_', 'national_grid_',
+            'calendar_'
+        ]
+        
+        for pattern in external_patterns:
+            if pattern in device_id_lower:
+                return True
+        
+        # Check domain
+        domain = TimeOfDayPatternDetector._get_domain(device_id)
+        if domain in ['weather', 'calendar']:
+            return True
+        
+        return False
+    
     @staticmethod
     def _get_domain(device_id: str) -> str:
         """Extract entity domain (prefix before dot) from device ID."""

@@ -1,0 +1,38 @@
+# Cursor indexing ignore list (2025)
+#
+# Goal: keep Cursor fast (especially with agents) by excluding large/generated artifacts
+# that don't improve code understanding.
+
+# Python caches / environments
+.venv/
+venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Build artifacts
+build/
+dist/
+htmlcov/
+coverage.xml
+.coverage
+
+# Reports & generated outputs
+reports/
+.tapps-agents/kb/
+.tapps-agents/cache/
+.tapps-agents/reports/
+.tapps-agents/worktrees/
+.tapps-agents/workflow-state/
+.tapps-agents/sessions/
+.tapps-agents/progress/
+
+# Misc generated/test artifacts in this repo
+MagicMock/
+fixed-code/
+tapps_agents.egg-info/
+
+
+# Agent customizations (project-specific, gitignored by default)
+.tapps-agents/customizations/

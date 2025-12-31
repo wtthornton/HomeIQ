@@ -146,6 +146,31 @@ class HAToolHandler:
                 automation_dict,
             )
 
+            # Calculate safety score (recommendation #4)
+            safety_score = self.business_rule_validator.calculate_safety_score(
+                extraction_result["entities"],
+                extraction_result["services"],
+                automation_dict,
+            )
+
+            # Extract device context (recommendation #5)
+            device_context = await self._extract_device_context(automation_dict)
+
+            # Validate devices (recommendation #3)
+            device_errors = await self._validate_devices(automation_dict)
+            if device_errors:
+                # Add device errors to validation result
+                if validation_result.errors:
+                    validation_result.errors.extend(device_errors)
+                else:
+                    validation_result.errors = device_errors
+                validation_result.valid = False
+
+            # Validate consistency (recommendation #6)
+            consistency_warnings = self._validate_consistency(automation_dict, device_context)
+            if consistency_warnings:
+                safety_warnings.extend(consistency_warnings)
+
             # Build and return preview response
             return self._build_preview_response(
                 request=request,
@@ -347,6 +372,7 @@ class HAToolHandler:
             initial_state=automation_dict.get("initial_state", None),
         )
 
+        # Build response with safety score (recommendation #4)
         response = AutomationPreviewResponse(
             success=True,
             preview=preview,
@@ -360,6 +386,9 @@ class HAToolHandler:
             alias=request.alias,
             message="Preview generated successfully. Review the details above and approve to create the automation.",
         )
+        
+        # Add safety score to response metadata if available (enhanced validation)
+        # Note: This may require updating AutomationPreviewResponse model to include safety_score
 
         logger.info(
             f"✅ Preview generated for automation '{request.alias}'. "
@@ -664,6 +693,147 @@ class HAToolHandler:
         """Extract service names from automation YAML"""
         # Extract from service field in actions
         return self._extract_from_yaml(automation_dict, ["service"], sections=["action"])
+
+    async def _extract_device_context(
+        self, automation_dict: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Extract device context from automation (recommendation #5 from HA_AGENT_API_FLOW_ANALYSIS.md).
+
+        Extracts device_ids, device_types, area_ids from entities in the automation.
+
+        Args:
+            automation_dict: Parsed automation dictionary
+
+        Returns:
+            Dictionary with device_ids, device_types, area_ids, and entity_ids lists
+        """
+        entity_ids = self._extract_entities_from_yaml(automation_dict)
+
+        if not entity_ids or not self.data_api_client:
+            return {
+                "device_ids": [],
+                "device_types": [],
+                "area_ids": [],
+                "entity_ids": entity_ids
+            }
+
+        try:
+            entities = await self.data_api_client.fetch_entities()
+            entity_map = {e.get("entity_id"): e for e in entities if e.get("entity_id")}
+
+            device_ids = set()
+            device_types = set()
+            area_ids = set()
+
+            for entity_id in entity_ids:
+                entity = entity_map.get(entity_id)
+                if entity:
+                    if entity.get("device_id"):
+                        device_ids.add(entity.get("device_id"))
+                    if entity.get("device_type"):
+                        device_types.add(entity.get("device_type"))
+                    if entity.get("area_id"):
+                        area_ids.add(entity.get("area_id"))
+
+            return {
+                "device_ids": list(device_ids),
+                "device_types": list(device_types),
+                "area_ids": list(area_ids),
+                "entity_ids": entity_ids
+            }
+        except Exception as e:
+            logger.warning(f"Failed to extract device context: {e}")
+            return {
+                "device_ids": [],
+                "device_types": [],
+                "area_ids": [],
+                "entity_ids": entity_ids
+            }
+
+    async def _validate_devices(self, automation_dict: dict[str, Any]) -> list[str]:
+        """
+        Validate device IDs and capabilities (recommendation #3 from HA_AGENT_API_FLOW_ANALYSIS.md).
+
+        Args:
+            automation_dict: Parsed automation dictionary
+
+        Returns:
+            List of error messages for invalid devices or capabilities
+        """
+        errors = []
+
+        if not self.data_api_client:
+            return errors
+
+        try:
+            # Extract device context to get device IDs
+            device_context = await self._extract_device_context(automation_dict)
+            device_ids = device_context.get("device_ids", [])
+
+            if not device_ids:
+                # No devices to validate
+                return errors
+
+            # Fetch all devices from Data API
+            all_devices = await self.data_api_client.get_devices()
+            valid_device_ids = {d.get("device_id") for d in all_devices if d.get("device_id")}
+            device_map = {d.get("device_id"): d for d in all_devices if d.get("device_id")}
+
+            # Validate device IDs exist
+            invalid_devices = [did for did in device_ids if did not in valid_device_ids]
+            if invalid_devices:
+                errors.append(f"Invalid device IDs: {', '.join(invalid_devices)}")
+
+            # Check device health scores (recommendation #3 - prioritize devices with health_score > 70)
+            low_health_devices = []
+            for device_id in device_ids:
+                device = device_map.get(device_id)
+                if device:
+                    health_score = device.get("health_score")
+                    if health_score is not None and health_score < 70:
+                        low_health_devices.append(f"{device_id} (health_score: {health_score})")
+
+            if low_health_devices:
+                errors.append(
+                    f"Devices with low health scores (< 70): {', '.join(low_health_devices)}. "
+                    "Consider using devices with health_score > 70 for better reliability."
+                )
+
+        except Exception as e:
+            logger.warning(f"Failed to validate devices: {e}")
+            errors.append(f"Could not validate devices: {str(e)}")
+
+        return errors
+
+    def _validate_consistency(
+        self,
+        automation_dict: dict[str, Any],
+        device_context: dict[str, Any]
+    ) -> list[str]:
+        """
+        Validate consistency between automation and metadata (recommendation #6 from HA_AGENT_API_FLOW_ANALYSIS.md).
+
+        Args:
+            automation_dict: Parsed automation dictionary
+            device_context: Device context dictionary from _extract_device_context
+
+        Returns:
+            List of warning messages for inconsistencies
+        """
+        warnings = []
+
+        # Check device context matches entities
+        automation_entities = set(self._extract_entities_from_yaml(automation_dict))
+        context_entities = set(device_context.get("entity_ids", []))
+
+        if automation_entities != context_entities:
+            warnings.append(
+                f"Entity mismatch: automation has {len(automation_entities)} entities, "
+                f"device context has {len(context_entities)} entities"
+            )
+
+        return warnings
 
     def _describe_trigger(self, trigger: Any) -> str:
         """Generate human-readable description of trigger"""

@@ -30,6 +30,21 @@ class DatabaseAccessor:
         self.conn: Optional[sqlite3.Connection] = None
         logger.info(f"Initialized database accessor for {db_path}")
     
+    def _table_exists(self, table_name: str) -> bool:
+        """Check if a table exists in the database."""
+        if self.conn is None:
+            self.conn = sqlite3.connect(str(self.db_path))
+            self.conn.row_factory = sqlite3.Row
+        
+        try:
+            cursor = self.conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                (table_name,)
+            )
+            return cursor.fetchone() is not None
+        except sqlite3.Error:
+            return False
+    
     async def get_all_patterns(
         self,
         pattern_type: Optional[str] = None,
@@ -50,6 +65,11 @@ class DatabaseAccessor:
         if self.conn is None:
             self.conn = sqlite3.connect(str(self.db_path))
             self.conn.row_factory = sqlite3.Row
+        
+        # Check if table exists
+        if not self._table_exists('patterns'):
+            logger.warning("Table 'patterns' does not exist in database")
+            return []
         
         query = "SELECT * FROM patterns WHERE 1=1"
         params = []
@@ -111,6 +131,11 @@ class DatabaseAccessor:
         if self.conn is None:
             self.conn = sqlite3.connect(str(self.db_path))
             self.conn.row_factory = sqlite3.Row
+        
+        # Check if table exists
+        if not self._table_exists('synergy_opportunities'):
+            logger.warning("Table 'synergy_opportunities' does not exist in database")
+            return []
         
         query = "SELECT * FROM synergy_opportunities WHERE 1=1"
         params = []

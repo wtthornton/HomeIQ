@@ -12,8 +12,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..clients.data_api_client import DataAPIClient
 from ..crud.patterns import get_patterns
 from ..database import get_db
+from ..services.device_activity import DeviceActivityService
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +29,15 @@ async def list_patterns(
     device_id: str | None = Query(default=None, description="Filter by device ID"),
     min_confidence: float | None = Query(default=None, ge=0.0, le=1.0, description="Minimum confidence"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum patterns to return"),
+    include_inactive: bool = Query(default=False, description="Include patterns for inactive devices"),
+    activity_window_days: int = Query(default=30, ge=1, le=365, description="Activity window in days"),
     db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     List detected patterns with optional filters.
     
     Returns patterns with safely parsed metadata.
+    Optionally filters by device activity (default: only active devices).
     """
     try:
         patterns = await get_patterns(
@@ -41,6 +47,52 @@ async def list_patterns(
             min_confidence=min_confidence,
             limit=limit
         )
+        
+        # Filter by device activity if requested
+        if not include_inactive:
+            try:
+                async with DataAPIClient(base_url=settings.data_api_url) as data_client:
+                    activity_service = DeviceActivityService(data_api_client=data_client)
+                    active_devices = await activity_service.get_active_devices(
+                        window_days=activity_window_days,
+                        data_api_client=data_client
+                    )
+                    
+                    if active_devices:
+                        # Convert patterns to dict format for filtering
+                        patterns_dict = []
+                        for p in patterns:
+                            if isinstance(p, dict):
+                                patterns_dict.append(p)
+                            else:
+                                patterns_dict.append({
+                                    "id": p.id,
+                                    "pattern_type": p.pattern_type,
+                                    "device_id": p.device_id,
+                                    "metadata": p.pattern_metadata,
+                                    "confidence": p.confidence,
+                                    "occurrences": p.occurrences,
+                                })
+                        
+                        # Filter patterns by activity
+                        filtered_patterns = activity_service.filter_patterns_by_activity(
+                            patterns_dict,
+                            active_devices
+                        )
+                        
+                        # Convert back to original format (keep original objects if possible)
+                        active_pattern_ids = {p.get("id") if isinstance(p, dict) else p.id for p in filtered_patterns}
+                        patterns = [p for p in patterns if (p.id if hasattr(p, 'id') else p.get("id")) in active_pattern_ids]
+                        
+                        logger.info(
+                            f"Filtered patterns by activity: {len(patterns_dict)} → {len(filtered_patterns)} "
+                            f"(window: {activity_window_days} days)"
+                        )
+                    else:
+                        logger.warning("No active devices found, returning all patterns")
+            except Exception as e:
+                logger.warning(f"Failed to filter patterns by activity: {e}, returning all patterns")
+                # Continue with all patterns if filtering fails
 
         # Convert to dictionaries with safe JSON parsing
         # Handle both Pattern objects and dicts (from raw SQL queries)
