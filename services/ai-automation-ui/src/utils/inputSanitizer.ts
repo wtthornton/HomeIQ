@@ -15,6 +15,7 @@ export function sanitizeText(input: string): string {
   }
   
   // Remove null bytes and control characters (except newlines, tabs, carriage returns)
+  // eslint-disable-next-line no-control-regex
   return input
     .replace(/\0/g, '')
     .replace(/[\x01-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '')

@@ -12,7 +12,9 @@ import { useAppStore } from '../store';
 import { DeviceExplorer } from '../components/discovery/DeviceExplorer';
 import { SmartShopping } from '../components/discovery/SmartShopping';
 
-interface DiscoveryPageProps {}
+interface DiscoveryPageProps {
+  // Discovery page component props (currently none)
+}
 
 export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
   const { darkMode } = useAppStore();
