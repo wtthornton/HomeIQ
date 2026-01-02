@@ -122,6 +122,10 @@ class BasicValidationStrategy(ValidationStrategy):
                     if "service" not in action and "scene" not in action:
                         errors.append("Action must have either 'service' or 'scene' field")
 
+            # Pattern detection for motion-based dimming automations
+            dimming_warnings = self._detect_dimming_pattern_issues(automation_dict)
+            warnings.extend(dimming_warnings)
+
             valid = len(errors) == 0
 
             return ValidationResult(
@@ -217,3 +221,141 @@ class BasicValidationStrategy(ValidationStrategy):
                 )
         
         return f"Invalid entity ID: '{invalid_entity}' (entity does not exist)"
+
+    def _detect_dimming_pattern_issues(
+        self, automation_dict: dict[str, Any]
+    ) -> list[str]:
+        """
+        Detect common issues in motion-based dimming automations.
+
+        Args:
+            automation_dict: Parsed automation dictionary
+
+        Returns:
+            List of warning messages for detected issues
+        """
+        warnings: list[str] = []
+
+        # Check if this looks like a dimming automation
+        description = automation_dict.get("description", "").lower()
+        alias = automation_dict.get("alias", "").lower()
+        is_dimming = (
+            "dim" in description or "dim" in alias or
+            "dimming" in description or "dimming" in alias
+        )
+
+        if not is_dimming:
+            return warnings
+
+        # Check for common issues
+        action = automation_dict.get("action", [])
+        if not isinstance(action, list) or len(action) == 0:
+            return warnings
+
+        # Check trigger structure for dimming automations (check this first, even without choose action)
+        trigger = automation_dict.get("trigger", [])
+        if isinstance(trigger, list):
+            # Check if single trigger has both "on" and "off" states
+            for trig in trigger:
+                if isinstance(trig, dict):
+                    to_states = trig.get("to", [])
+                    # Handle both list and string cases
+                    if isinstance(to_states, list) and "on" in to_states and "off" in to_states:
+                        warnings.append(
+                            "Motion-based dimming: Consider using separate triggers for motion detection "
+                            "(to: 'on') and no-motion timeout (to: 'off' with for: option) instead of "
+                            "a single trigger with both states."
+                        )
+
+        # Check for choose action with dimming pattern
+        choose_action = None
+        for act in action:
+            if isinstance(act, dict) and "choose" in act:
+                choose_action = act["choose"]
+                break
+
+        if not choose_action or not isinstance(choose_action, list):
+            return warnings
+
+        # Check for issues in each branch
+        for branch in choose_action:
+            if not isinstance(branch, dict) or "sequence" not in branch:
+                continue
+
+            sequence = branch.get("sequence", [])
+            if not isinstance(sequence, list):
+                continue
+
+            # Check for repeat blocks with brightness_step
+            for seq_item in sequence:
+                if not isinstance(seq_item, dict):
+                    continue
+
+                # Check for repeat block
+                if "repeat" in seq_item:
+                    repeat_block = seq_item["repeat"]
+                    if isinstance(repeat_block, dict):
+                        repeat_seq = repeat_block.get("sequence", [])
+                        
+                        # Check if using brightness_step
+                        has_brightness_step = False
+                        for repeat_item in repeat_seq:
+                            if isinstance(repeat_item, dict):
+                                service = repeat_item.get("service", "")
+                                data = repeat_item.get("data", {})
+                                if service == "light.turn_on" and "brightness_step" in data:
+                                    has_brightness_step = True
+                                    break
+
+                        if has_brightness_step:
+                            # Check for count vs until
+                            if "count" not in repeat_block and "until" in repeat_block:
+                                warnings.append(
+                                    "Motion-based dimming: Consider using 'count' instead of 'until' condition "
+                                    "for brightness_step dimming. 'until' conditions checking 'light.{area}' "
+                                    "entities may fail (these entities don't exist). Use 'count: ceil(max_brightness / step_size)' "
+                                    "and add explicit 'light.turn_off' after the repeat block."
+                                )
+
+                            # Check if explicit turn_off exists after repeat
+                            repeat_index = sequence.index(seq_item)
+                            has_turn_off_after = False
+                            if repeat_index + 1 < len(sequence):
+                                next_item = sequence[repeat_index + 1]
+                                if isinstance(next_item, dict):
+                                    service = next_item.get("service", "")
+                                    target = next_item.get("target", {})
+                                    if service == "light.turn_off":
+                                        has_turn_off_after = True
+
+                            if not has_turn_off_after:
+                                warnings.append(
+                                    "Motion-based dimming: Add explicit 'light.turn_off' action after the "
+                                    "dimming repeat block to ensure lights are completely off."
+                                )
+
+        # Check for conditions with individual 'for:' options
+        for branch in choose_action:
+            if not isinstance(branch, dict) or "conditions" not in branch:
+                continue
+
+            conditions = branch.get("conditions", [])
+            if not isinstance(conditions, list):
+                continue
+
+            for cond in conditions:
+                if isinstance(cond, dict) and cond.get("condition") == "and":
+                    and_conditions = cond.get("conditions", [])
+                    if isinstance(and_conditions, list):
+                        for_and_conditions = [
+                            c for c in and_conditions
+                            if isinstance(c, dict) and "for" in c
+                        ]
+                        if len(for_and_conditions) > 1:
+                            warnings.append(
+                                "Motion-based dimming: Individual 'for:' options in 'and' conditions check "
+                                "independently, not together. Use trigger 'for:' option instead, then check "
+                                "current state in conditions."
+                            )
+
+        return warnings

@@ -24,6 +24,7 @@ def mock_ha_client():
         }
     ])
     client._get_session = AsyncMock()
+    client.ha_url = "http://localhost:8123"
     return client
 
 
@@ -39,6 +40,7 @@ def mock_data_api_client():
             "area_id": "kitchen"
         }
     ])
+    client.get_devices = AsyncMock(return_value=[])
     return client
 
 
@@ -49,16 +51,30 @@ def tool_service(mock_ha_client, mock_data_api_client):
 
 
 @pytest.mark.asyncio
-async def test_execute_tool_get_entity_state(tool_service, mock_ha_client):
-    """Test get_entity_state tool execution"""
+async def test_execute_tool_preview_automation(tool_service):
+    """Test preview_automation_from_prompt tool execution"""
+    valid_yaml = """
+alias: Test Automation
+trigger:
+  - platform: state
+    entity_id: light.kitchen
+    to: "on"
+action:
+  - service: light.turn_off
+    target:
+      entity_id: light.kitchen
+"""
     result = await tool_service.execute_tool(
-        "get_entity_state",
-        {"entity_id": "light.kitchen"}
+        "preview_automation_from_prompt",
+        {
+            "user_prompt": "Turn off kitchen light when it turns on",
+            "automation_yaml": valid_yaml,
+            "alias": "Test Automation"
+        }
     )
     
     assert result["success"] is True
-    assert result["entity_id"] == "light.kitchen"
-    assert result["state"] == "on"
+    assert result["preview"] is True
 
 
 @pytest.mark.asyncio
@@ -68,14 +84,19 @@ async def test_execute_tool_unknown_tool(tool_service):
     
     assert "error" in result
     assert "available_tools" in result
+    assert "unknown_tool" in result["error"]
 
 
 @pytest.mark.asyncio
 async def test_execute_tool_validation_error(tool_service):
-    """Test tool execution with validation error"""
+    """Test tool execution with validation error (missing required fields)"""
     result = await tool_service.execute_tool(
-        "get_entity_state",
-        {}  # Missing entity_id
+        "preview_automation_from_prompt",
+        {
+            "user_prompt": "",  # Empty prompt should fail validation
+            "automation_yaml": "alias: test",
+            "alias": "test"
+        }
     )
     
     assert result["success"] is False
@@ -83,14 +104,31 @@ async def test_execute_tool_validation_error(tool_service):
 
 
 @pytest.mark.asyncio
-async def test_execute_tool_call_openai_format(tool_service, mock_ha_client):
+async def test_execute_tool_call_openai_format(tool_service):
     """Test tool call execution in OpenAI format"""
+    import json
+    
+    valid_yaml = """alias: Test Automation
+trigger:
+  - platform: state
+    entity_id: light.kitchen
+action:
+  - service: light.turn_off
+    target:
+      entity_id: light.kitchen
+"""
+    arguments = {
+        "user_prompt": "Turn off kitchen light",
+        "automation_yaml": valid_yaml,
+        "alias": "Test Automation"
+    }
+    
     tool_call = {
         "id": "call_123",
         "type": "function",
         "function": {
-            "name": "get_entity_state",
-            "arguments": '{"entity_id": "light.kitchen"}'
+            "name": "preview_automation_from_prompt",
+            "arguments": json.dumps(arguments)
         }
     }
     
@@ -98,7 +136,7 @@ async def test_execute_tool_call_openai_format(tool_service, mock_ha_client):
     
     assert result["success"] is True
     assert result["tool_call_id"] == "call_123"
-    assert result["entity_id"] == "light.kitchen"
+    assert "preview" in result
 
 
 @pytest.mark.asyncio
@@ -108,6 +146,6 @@ async def test_get_available_tools(tool_service):
     
     assert isinstance(tools, list)
     assert len(tools) > 0
-    assert "get_entity_state" in tools
-    assert "create_automation" in tools
-
+    assert "preview_automation_from_prompt" in tools
+    assert "create_automation_from_prompt" in tools
+    assert "suggest_automation_enhancements" in tools

@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from .api.chat_endpoints import router as chat_router
 from .api.conversation_endpoints import router as conversation_router
@@ -317,6 +318,59 @@ async def get_complete_prompt():
     except Exception as e:
         logger.exception("Error building complete prompt")
         raise HTTPException(status_code=500, detail=f"Failed to build complete prompt: {str(e)}") from e
+
+
+class ValidationRequest(BaseModel):
+    """Request model for YAML validation."""
+    yaml_content: str
+    normalize: bool = True
+    validate_entities: bool = True
+    validate_services: bool = False
+
+
+@app.post("/api/v1/validation/validate")
+async def validate_yaml(request: ValidationRequest):
+    """
+    Validate automation YAML using validation chain.
+    
+    This endpoint uses the validation chain which tries multiple validation strategies
+    in order (YAML Validation Service, AI Automation Service, Basic Validation) until
+    one succeeds or all fail. This provides graceful fallback when validation services
+    are unavailable.
+    
+    Args:
+        request: Request body containing:
+            - yaml_content: YAML string to validate
+            - normalize: Optional, whether to normalize YAML (default: True)
+            - validate_entities: Optional, whether to validate entities (default: True)
+            - validate_services: Optional, whether to validate services (default: False)
+    
+    Returns:
+        Validation result with:
+            - valid: Whether validation passed
+            - errors: List of error messages
+            - warnings: List of warning messages
+            - score: Validation score (0-100)
+            - fixed_yaml: Normalized YAML if available
+            - fixes_applied: List of fixes applied
+            - strategy_used: Name of validation strategy that succeeded
+            - services_unavailable: List of services that were unavailable
+    """
+    if not tool_service:
+        raise HTTPException(status_code=503, detail="Service not ready")
+    
+    try:
+        # Use validation chain (handles fallback automatically)
+        validation_result = await tool_service.tool_handler.validation_chain.validate(request.yaml_content)
+        
+        # Convert to dict (includes strategy_name and services_unavailable if available)
+        return validation_result.to_dict()
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error validating YAML")
+        raise HTTPException(status_code=500, detail=f"Failed to validate YAML: {str(e)}") from e
 
 
 @app.get("/api/v1/tools")

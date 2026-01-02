@@ -1,0 +1,72 @@
+alias: "Office motion-based dimming lights"
+description: "Use all office motion sensors to turn office lights on with motion and gradually dim them to off after 1 minute of no motion."
+initial_state: true
+mode: restart
+trigger:
+  - platform: state
+    entity_id:
+      - binary_sensor.office_motion_1
+      - binary_sensor.office_motion_2
+      - binary_sensor.office_motion_3
+    to:
+      - "on"
+      - "off"
+
+condition: []
+
+action:
+  - choose:
+      # Branch 1: Any motion sensor turns lights fully on
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: binary_sensor.office_motion_1
+                state: "on"
+              - condition: state
+                entity_id: binary_sensor.office_motion_2
+                state: "on"
+              - condition: state
+                entity_id: binary_sensor.office_motion_3
+                state: "on"
+        sequence:
+          - service: light.turn_on
+            target:
+              area_id: office
+            data:
+              brightness: 255
+
+      # Branch 2: All sensors off for 1 minute -> start dimming to off
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: state
+                entity_id: binary_sensor.office_motion_1
+                state: "off"
+                for: "00:01:00"
+              - condition: state
+                entity_id: binary_sensor.office_motion_2
+                state: "off"
+                for: "00:01:00"
+              - condition: state
+                entity_id: binary_sensor.office_motion_3
+                state: "off"
+                for: "00:01:00"
+        sequence:
+          # Step lights down in several stages; restart mode cancels this if motion returns
+          - repeat:
+              sequence:
+                - service: light.turn_on
+                  target:
+                    area_id: office
+                  data:
+                    brightness_step: -40
+                    transition: 2
+                - delay: "00:00:03"
+              until:
+                - condition: or
+                  conditions:
+                    # Stop when lights are already off
+                    - condition: state
+                      entity_id: light.office
+                      state: "off"

@@ -1,0 +1,75 @@
+alias: "Office motion-based dimming lights"
+description: "Use all office motion sensors to turn office lights on with motion and gradually dim them to off after 1 minute of no motion."
+initial_state: true
+mode: restart
+trigger:
+  # Trigger when any motion sensor detects motion
+  - platform: state
+    entity_id:
+      - binary_sensor.office_motion_1
+      - binary_sensor.office_motion_2
+      - binary_sensor.office_motion_3
+    to: "on"
+  # Trigger when all sensors have been off for 1 minute
+  - platform: state
+    entity_id:
+      - binary_sensor.office_motion_1
+      - binary_sensor.office_motion_2
+      - binary_sensor.office_motion_3
+    to: "off"
+    for: "00:01:00"
+
+condition: []
+
+action:
+  - choose:
+      # Branch 1: Any motion sensor turns lights fully on
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: binary_sensor.office_motion_1
+                state: "on"
+              - condition: state
+                entity_id: binary_sensor.office_motion_2
+                state: "on"
+              - condition: state
+                entity_id: binary_sensor.office_motion_3
+                state: "on"
+        sequence:
+          - service: light.turn_on
+            target:
+              area_id: office
+            data:
+              brightness: 255
+
+      # Branch 2: All sensors off for 1 minute -> start dimming to off
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: state
+                entity_id: binary_sensor.office_motion_1
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.office_motion_2
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.office_motion_3
+                state: "off"
+        sequence:
+          # Dim lights down in 7 steps (255 / 40 ≈ 6.4, round up)
+          # Restart mode cancels this if motion returns
+          - repeat:
+              count: 7
+              sequence:
+                - service: light.turn_on
+                  target:
+                    area_id: office
+                  data:
+                    brightness_step: -40
+                    transition: 2
+                - delay: "00:00:03"
+          # Ensure lights are completely off after dimming
+          - service: light.turn_off
+            target:
+              area_id: office

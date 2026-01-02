@@ -19,6 +19,8 @@ class ValidationResult:
     score: float = 0.0
     fixed_yaml: Optional[str] = None
     fixes_applied: Optional[list[str]] = None
+    strategy_name: Optional[str] = None  # Name of validation strategy that succeeded
+    services_unavailable: Optional[list[str]] = None  # List of services that were unavailable
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
@@ -32,6 +34,10 @@ class ValidationResult:
             result["fixed_yaml"] = self.fixed_yaml
         if self.fixes_applied is not None:
             result["fixes_applied"] = self.fixes_applied
+        if self.strategy_name is not None:
+            result["strategy_used"] = self.strategy_name
+        if self.services_unavailable is not None:
+            result["services_unavailable"] = self.services_unavailable
         return result
 
 
