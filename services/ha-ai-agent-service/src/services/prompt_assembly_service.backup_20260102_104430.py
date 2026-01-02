@@ -6,14 +6,11 @@ Assembles prompts with context injection, token counting, and budget enforcement
 """
 
 import logging
-from typing import Any
 
-from ..clients.data_api_client import DataAPIClient
 from ..config import Settings
 from ..utils.token_counter import count_message_tokens, count_tokens
 from .context_builder import ContextBuilder
 from .conversation_service import Conversation, ConversationService, is_generic_welcome_message
-from .entity_resolution.entity_resolution_service import EntityResolutionService
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +45,6 @@ class PromptAssemblyService:
         self.conversation_service = conversation_service
         self.model = settings.openai_model
         self.max_input_tokens = MAX_INPUT_TOKENS
-        # Initialize EntityResolutionService and DataAPIClient for entity extraction
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
-        self.entity_resolution_service = EntityResolutionService(
-            data_api_client=self.data_api_client
-        )
         logger.info("✅ Prompt assembly service initialized")
 
     async def assemble_messages(
@@ -151,54 +143,6 @@ class PromptAssemblyService:
                 )
                 system_prompt = await self.context_builder.build_complete_system_prompt()
                 conversation.set_context_cache(system_prompt)
-
-        # Inject device state context if entities mentioned in user message (Epic AI-20: Context Enhancement)
-        try:
-            # Extract entities from user message
-            context_entities: list[dict[str, Any]] | None = None
-            try:
-                # Try to get entities from entity inventory service (if available)
-                if hasattr(self.context_builder, '_entity_inventory_service') and \
-                   self.context_builder._entity_inventory_service:
-                    # Fetch entities via data_api_client (used by entity_inventory_service)
-                    context_entities = await self.data_api_client.fetch_entities(limit=1000)
-            except Exception as e:
-                logger.debug(f"Could not fetch context entities: {e}")
-                context_entities = None
-
-            # Resolve entities from user message
-            entity_result = await self.entity_resolution_service.resolve_entities(
-                user_prompt=user_message,
-                context_entities=context_entities,
-            )
-
-            # If entities found, fetch state context
-            if entity_result.success and entity_result.matched_entities:
-                entity_ids = entity_result.matched_entities
-                logger.debug(
-                    f"[Device State Context] Conversation {conversation_id}: "
-                    f"Extracted {len(entity_ids)} entities from user message: {entity_ids[:5]}..."
-                )
-
-                # Get device state context
-                state_context = await self.context_builder.get_device_state_context(
-                    entity_ids=entity_ids,
-                    skip_truncation=False,
-                )
-
-                # Inject state context into system prompt if available
-                if state_context and state_context.strip():
-                    system_prompt = f"{system_prompt}\n\n---\n\n{state_context}\n\n---\n"
-                    logger.info(
-                        f"[Device State Context] Conversation {conversation_id}: "
-                        f"Injected device state context for {len(entity_ids)} entities"
-                    )
-        except Exception as e:
-            # Graceful degradation: log error but don't fail
-            logger.warning(
-                f"[Device State Context] Conversation {conversation_id}: "
-                f"Failed to inject device state context: {e}"
-            )
 
         # Inject pending preview context if available (2025 Preview-and-Approval Workflow)
         pending_preview = conversation.get_pending_preview()
