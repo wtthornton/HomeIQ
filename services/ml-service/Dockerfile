@@ -1,34 +1,55 @@
-# ML Service - Classical Machine Learning
+# Multi-stage build for ML Service
 # Phase 1: Containerized AI Models
 # Libraries: scikit-learn, pandas, numpy
+# Optimized: Multi-stage build with non-root user (slim base for ML libraries)
 
-FROM python:3.12-slim
+FROM python:3.12-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Upgrade pip to latest version
 RUN pip install --upgrade pip==25.2
 
-# Install system dependencies
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-
-# Install Python dependencies with cache mount
+# Copy requirements and install Python dependencies
+COPY services/ml-service/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements.txt
 
+# Production stage
+FROM python:3.12-slim AS production
+
+WORKDIR /app
+
+# Install runtime dependencies and create non-root user
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 1001 appgroup && \
+    useradd -r -u 1001 -g appgroup appuser
+
+# Copy Python dependencies from builder stage to user directory
+COPY --from=builder /root/.local /home/appuser/.local
+
 # Copy application code
-COPY src/ ./src/
+COPY services/ml-service/src/ ./src/
+COPY shared/ ./shared/
+
+# Set ownership
+RUN chown -R appuser:appgroup /app /home/appuser/.local
 
 # Set environment variables
-ENV PATH=/root/.local/bin:$PATH
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app:/app/src
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8020

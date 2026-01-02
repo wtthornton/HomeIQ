@@ -31,7 +31,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.database import get_db_session
 from ..models.database import Device, DeviceHealthMetric
 from ..config import Settings
-from .tabpfn_predictor import TabPFNFailurePredictor
+
+# Optional import - only needed if ML_FAILURE_MODEL=tabpfn
+try:
+    from .tabpfn_predictor import TabPFNFailurePredictor
+    TABPFN_AVAILABLE = True
+except ImportError:
+    TABPFN_AVAILABLE = False
+    TabPFNFailurePredictor = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -206,12 +213,19 @@ class PredictiveAnalyticsEngine:
             
             if model_type == "tabpfn":
                 # TabPFN v2.5 - instant training, high accuracy
-                self.models["failure_prediction"] = TabPFNFailurePredictor()
-                # TabPFN works better without scaling, use original features
-                self.models["failure_prediction"].fit(X_train, y_failure_train, feature_names=self.feature_columns)
-                # Update scaler to identity for TabPFN (no scaling needed)
-                from sklearn.preprocessing import FunctionTransformer
-                self.scalers["failure_prediction"] = FunctionTransformer()
+                if not TABPFN_AVAILABLE or TabPFNFailurePredictor is None:
+                    logger.warning(
+                        "TabPFN requested but not available. Falling back to RandomForest. "
+                        "Install TabPFN with: pip install tabpfn>=2.2.0,<7.0.0"
+                    )
+                    model_type = "randomforest"  # Fallback - will be handled below
+                else:
+                    self.models["failure_prediction"] = TabPFNFailurePredictor()
+                    # TabPFN works better without scaling, use original features
+                    self.models["failure_prediction"].fit(X_train, y_failure_train, feature_names=self.feature_columns)
+                    # Update scaler to identity for TabPFN (no scaling needed)
+                    from sklearn.preprocessing import FunctionTransformer
+                    self.scalers["failure_prediction"] = FunctionTransformer()
             elif model_type == "lightgbm":
                 # LightGBM - 2-5x faster than RandomForest
                 try:
@@ -776,7 +790,7 @@ class PredictiveAnalyticsEngine:
             accuracy = self.model_performance.get("accuracy", 0)
             precision = self.model_performance.get("precision", 0)
             recall = self.model_performance.get("recall", 0)
-            f1 = self.model_performance.get("f1_score", 0)
+            # f1_score is available but not used in checks (only accuracy, precision, recall are checked)
 
             # Check accuracy
             checks["accuracy"] = {

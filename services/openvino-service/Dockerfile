@@ -1,6 +1,7 @@
-# OpenVINO Service - Optimized Model Inference
+# Multi-stage build for OpenVINO Service
 # Phase 1: Containerized AI Models
 # Models: BAAI/bge-large-en-v1.5 (1024-dim), bge-reranker-base, flan-t5-small [Epic 47]
+# Optimized: Multi-stage build with non-root user (slim base required for OpenVINO)
 
 FROM python:3.12-slim AS builder
 
@@ -10,38 +11,46 @@ WORKDIR /app
 RUN pip install --upgrade pip==25.2
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY services/openvino-service/requirements.txt .
 
 # Install Python dependencies with CPU-only torch wheels and cache mount
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements.txt
 
-FROM python:3.12-slim
+# Production stage
+FROM python:3.12-slim AS production
 
 WORKDIR /app
 
-# Install runtime dependencies for OpenVINO
+# Install runtime dependencies for OpenVINO and create non-root user
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
+    ca-certificates \
     libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 1001 appgroup && \
+    useradd -r -u 1001 -g appgroup appuser
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Copy Python dependencies from builder to user directory
+COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code
-COPY src/ ./src/
+COPY services/openvino-service/src/ ./src/
+COPY shared/ ./shared/
+
+# Create models directory and set ownership
+RUN mkdir -p /app/models && \
+    chown -R appuser:appgroup /app /home/appuser/.local
 
 # Set environment variables
-ENV PATH=/root/.local/bin:$PATH \
-    PYTHONPATH=/app/src \
-    MODELS_DIR=/app/models \
-    HF_HOME=/app/models
+ENV PATH=/home/appuser/.local/bin:$PATH
+ENV PYTHONPATH=/app:/app/src
+ENV MODELS_DIR=/app/models
+ENV HF_HOME=/app/models
 
-# Create models directory and prune pip caches
-RUN mkdir -p /app/models \
- && rm -rf /root/.cache/pip
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8019

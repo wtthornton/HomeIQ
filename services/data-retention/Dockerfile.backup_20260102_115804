@@ -1,13 +1,14 @@
 # Multi-stage build for Data Retention Service
-# Optimized: Combined RUN commands, optimized layer ordering, reduced image size
-
 FROM python:3.12-slim AS builder
 
+# Set working directory
 WORKDIR /app
 
-# Upgrade pip and install build dependencies in single layer
-RUN pip install --upgrade pip==25.2 && \
-    apt-get update && apt-get install -y --no-install-recommends \
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     libopenblas-dev \
@@ -15,7 +16,7 @@ RUN pip install --upgrade pip==25.2 && \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies (optimized layer ordering)
+# Copy requirements and install Python dependencies with pre-compiled wheels
 COPY services/data-retention/requirements-prod.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements-prod.txt
@@ -23,16 +24,18 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Production stage
 FROM python:3.12-slim AS production
 
+# Set working directory
 WORKDIR /app
 
-# Install runtime dependencies and create user in single layer
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
     curl \
-    ca-certificates \
     libopenblas0 \
     liblapack3 \
-    && rm -rf /var/lib/apt/lists/* && \
-    groupadd -g 1001 appgroup && \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user first
+RUN groupadd -g 1001 appgroup && \
     useradd -r -u 1001 -g appgroup appuser
 
 # Copy Python dependencies from builder stage to user directory
@@ -42,15 +45,21 @@ COPY --from=builder /root/.local /home/appuser/.local
 COPY services/data-retention/src/ ./src/
 COPY shared/ ./shared/
 
-# Set ownership and create directories in single layer
-RUN chown -R appuser:appgroup /app /home/appuser/.local && \
-    mkdir -p /app/logs /backups && \
-    chown -R appuser:appgroup /app/logs /backups && \
+# Set ownership of all files to appuser
+RUN chown -R appuser:appgroup /app /home/appuser/.local
+
+# Create log directory with proper permissions
+RUN mkdir -p /app/logs && \
+    chown -R appuser:appgroup /app/logs && \
     chmod -R 755 /app/logs
 
 # Set environment variables
 ENV PYTHONPATH=/app:/app/src
 ENV PATH=/home/appuser/.local/bin:$PATH
+
+# Create backups directory with proper permissions
+RUN mkdir -p /backups && \
+    chown -R appuser:appgroup /backups
 
 # Switch to non-root user
 USER appuser

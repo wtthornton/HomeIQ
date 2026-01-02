@@ -1,0 +1,64 @@
+# Multi-stage build for minimal image size
+FROM python:3.12-slim AS builder
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install dependencies with cache mount
+COPY services/device-intelligence-service/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --user --no-cache-dir -r requirements.txt
+
+# Production stage
+FROM python:3.12-slim
+
+# Install runtime dependencies and create non-root user
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 1001 appgroup && \
+    useradd -r -u 1001 -g appgroup appuser
+
+# Copy installed packages from builder stage to user directory
+COPY --from=builder /root/.local /home/appuser/.local
+
+# Set working directory first
+WORKDIR /app
+
+# Copy shared utilities
+COPY shared/ ./shared/
+
+# Copy application source
+COPY services/device-intelligence-service/src/ ./src/
+
+# Copy models directory (ML models for predictive analytics)
+# Exclude backup files via .dockerignore
+COPY services/device-intelligence-service/models/ ./models/
+
+# Set ownership and environment variables
+RUN chown -R appuser:appgroup /app /home/appuser/.local
+
+ENV PYTHONPATH=/app:/app/src
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8019
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8019/health/ || exit 1
+
+# Run the application (using python -m for proper module resolution)
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8019"]

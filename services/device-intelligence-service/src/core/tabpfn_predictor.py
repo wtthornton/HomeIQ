@@ -9,9 +9,16 @@ import logging
 from typing import Any
 
 import numpy as np
-from tabpfn import TabPFNClassifier
 
 logger = logging.getLogger(__name__)
+
+# Optional import - only needed if ML_FAILURE_MODEL=tabpfn
+try:
+    from tabpfn import TabPFNClassifier
+    TABPFN_AVAILABLE = True
+except ImportError:
+    TABPFN_AVAILABLE = False
+    TabPFNClassifier = None  # type: ignore
 
 
 class TabPFNFailurePredictor:
@@ -27,6 +34,11 @@ class TabPFNFailurePredictor:
     
     def __init__(self):
         """Initialize TabPFN predictor."""
+        if not TABPFN_AVAILABLE:
+            raise ImportError(
+                "TabPFN is not installed. Install with: pip install tabpfn>=2.2.0,<7.0.0\n"
+                "Note: TabPFN requires PyTorch and adds ~3GB to the image size."
+            )
         self.model: TabPFNClassifier | None = None
         self.is_trained = False
         self.feature_names: list[str] = []

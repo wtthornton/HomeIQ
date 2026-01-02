@@ -1,33 +1,51 @@
-# AI Core Service - Orchestrator
+# Multi-stage build for AI Core Service
 # Phase 1: Containerized AI Models
 # Responsibilities: Service orchestration, request routing, business logic
+# Optimized: Multi-stage build with Alpine base, non-root user
 
-FROM python:3.12-slim
+FROM python:3.12-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Upgrade pip to latest version
 RUN pip install --upgrade pip==25.2
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN apk add --no-cache gcc musl-dev linux-headers
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-
-# Install Python dependencies with cache mount
+# Copy requirements and install Python dependencies
+COPY services/ai-core-service/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements.txt
 
+# Production stage
+FROM python:3.12-alpine AS production
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache curl ca-certificates
+
+# Create non-root user
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup
+
+# Copy Python dependencies from builder stage to user directory
+COPY --from=builder /root/.local /home/appuser/.local
+
 # Copy application code
-COPY src/ ./src/
+COPY services/ai-core-service/src/ ./src/
+COPY shared/ ./shared/
+
+# Set ownership
+RUN chown -R appuser:appgroup /app /home/appuser/.local
 
 # Set environment variables
-ENV PATH=/root/.local/bin:$PATH
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app:/app/src
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8018
