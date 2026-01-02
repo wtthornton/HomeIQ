@@ -1,0 +1,45 @@
+# Device Intelligence Service - Production Dependencies Only
+# Split from requirements.txt to speed up builds and reduce image size
+
+# FastAPI and ASGI server
+fastapi>=0.123.0,<0.124.0
+uvicorn[standard]>=0.32.0,<0.33.0
+
+# Pydantic for settings and data validation
+pydantic>=2.12.4,<3.0.0
+pydantic-settings>=2.12.0,<3.0.0
+
+# Database and ORM
+sqlalchemy>=2.0.44,<3.0.0
+aiosqlite>=0.21.0,<0.22.0
+alembic>=1.17.2,<2.0.0
+
+# HTTP client for external APIs
+httpx>=0.28.1,<0.29.0
+aiohttp>=3.13.2,<4.0.0
+tenacity>=8.0.0,<9.0.0
+
+# YAML configuration support
+PyYAML>=6.0.1,<7.0.0
+
+# WebSocket client
+websockets>=12.0,<13.0.0
+
+# MQTT client
+paho-mqtt>=1.6.1,<2.0.0
+
+# System monitoring
+psutil>=7.1.3,<8.0.0
+
+# Machine Learning and Analytics (CPU-only, lighter versions)
+scikit-learn>=1.5.0,<2.0.0
+pandas>=2.2.0,<3.0.0
+numpy>=1.26.0,<1.27.0
+joblib==1.4.2
+lightgbm>=4.0.0,<5.0.0
+# tabpfn removed - use CPU-only alternative or install only if ML_FAILURE_MODEL=tabpfn
+# If tabpfn is needed, use: tabpfn>=2.2.0,<7.0.0 --no-deps and install torch separately
+river>=0.21.0,<1.0.0
+
+# Scheduling
+apscheduler>=3.10.0,<4.0.0

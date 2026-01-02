@@ -62,8 +62,9 @@ foreach ($file in $dockerComposeFiles) {
             $aiServiceRunning = $true
             Write-Host "   Found AI automation service in $file" -ForegroundColor Yellow
             
-            Write-Host "   Rebuilding and restarting AI automation service..." -ForegroundColor Yellow
-            docker-compose -f $file build --no-cache ai-automation-service 2>&1 | Out-Null
+            Write-Host "   Rebuilding and restarting AI automation service (with BuildKit cache)..." -ForegroundColor Yellow
+            # BuildKit cache enabled for faster rebuilds
+            docker-compose -f $file build ai-automation-service 2>&1 | Out-Null
             docker-compose -f $file up -d --force-recreate ai-automation-service 2>&1 | Out-Null
             Write-Host "   ✅ AI automation service rebuilt and restarted" -ForegroundColor Green
             break

@@ -19,10 +19,21 @@ if (-not (Test-Path ".env")) {
 
 # Step 1: Build (if needed)
 if (-not $SkipBuild) {
-    Write-Host "[BUILD] Building Docker images..." -ForegroundColor Blue
-    docker compose build --no-cache 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[WARN] Build had warnings but continuing..." -ForegroundColor Yellow
+    Write-Host "[BUILD] Building Docker images (with BuildKit cache)..." -ForegroundColor Blue
+    # BuildKit cache enabled for faster rebuilds (60-80% faster when dependencies unchanged)
+    $buildOutput = docker compose build 2>&1
+    $buildExitCode = $LASTEXITCODE
+    if ($buildExitCode -ne 0) {
+        Write-Host "[ERROR] Build failed with exit code $buildExitCode" -ForegroundColor Red
+        Write-Host $buildOutput -ForegroundColor Red
+        Write-Host "[ERROR] Deployment aborted due to build failure" -ForegroundColor Red
+        exit 1
+    }
+    # Show any warnings but don't fail
+    $warnings = $buildOutput | Select-String -Pattern "WARNING|warning" -CaseSensitive:$false
+    if ($warnings) {
+        Write-Host "[WARN] Build completed with warnings:" -ForegroundColor Yellow
+        $warnings | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
     }
     Write-Host "[OK] Build complete" -ForegroundColor Green
 } else {
@@ -31,11 +42,19 @@ if (-not $SkipBuild) {
 
 # Step 2: Deploy
 Write-Host ""
-Write-Host "[DEPLOY] Deploying services..." -ForegroundColor Blue
-docker compose down --timeout 30 2>&1 | Out-Null
-docker compose up -d
+Write-Host "[DEPLOY] Stopping existing services..." -ForegroundColor Blue
+$downOutput = docker compose down --timeout 30 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Deployment failed" -ForegroundColor Red
+    Write-Host "[WARN] Error stopping services (may not exist):" -ForegroundColor Yellow
+    Write-Host $downOutput -ForegroundColor Yellow
+}
+
+Write-Host "[DEPLOY] Starting services..." -ForegroundColor Blue
+$upOutput = docker compose up -d 2>&1
+$upExitCode = $LASTEXITCODE
+if ($upExitCode -ne 0) {
+    Write-Host "[ERROR] Deployment failed with exit code $upExitCode" -ForegroundColor Red
+    Write-Host $upOutput -ForegroundColor Red
     exit 1
 }
 Write-Host "[OK] Services deployed" -ForegroundColor Green
@@ -48,17 +67,34 @@ Start-Sleep -Seconds 30
 # Step 4: Quick health check
 Write-Host ""
 Write-Host "[HEALTH] Checking service health..." -ForegroundColor Blue
-$services = docker compose ps --format json | ConvertFrom-Json
-$healthy = 0
-$total = 0
+$psOutput = docker compose ps --format json 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[WARN] Could not get service status: $psOutput" -ForegroundColor Yellow
+    $healthy = 0
+    $total = 0
+} else {
+    try {
+        $services = $psOutput | ConvertFrom-Json
+        # Handle single service (not array) or array
+        if ($services -isnot [array]) {
+            $services = @($services)
+        }
+        $healthy = 0
+        $total = 0
 
-foreach ($service in $services) {
-    $total++
-    if ($service.State -eq "running" -or $service.Health -eq "healthy") {
-        $healthy++
-        Write-Host "  [OK] $($service.Service) - $($service.State)" -ForegroundColor Green
-    } else {
-        Write-Host "  [WARN] $($service.Service) - $($service.State)" -ForegroundColor Yellow
+        foreach ($service in $services) {
+            $total++
+            if ($service.State -eq "running" -or $service.Health -eq "healthy") {
+                $healthy++
+                Write-Host "  [OK] $($service.Service) - $($service.State)" -ForegroundColor Green
+            } else {
+                Write-Host "  [WARN] $($service.Service) - $($service.State)" -ForegroundColor Yellow
+            }
+        }
+    } catch {
+        Write-Host "[WARN] Could not parse service status: $_" -ForegroundColor Yellow
+        $healthy = 0
+        $total = 0
     }
 }
 
