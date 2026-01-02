@@ -240,6 +240,201 @@ condition:
         for: "01:30:00"
 ```
 
+### Motion-Based Dimming Patterns (2025.10+)
+
+For automations that turn lights on with motion and dim them off after a period of no motion, follow these CRITICAL patterns:
+
+**CRITICAL RULES:**
+1. ✅ **Separate triggers** - Use separate triggers for motion detection vs. no-motion timeout
+2. ✅ **Proper condition timing** - Use trigger `for:` option + conditions check current state (NOT individual `for:` in conditions)
+3. ✅ **Entity resolution** - NEVER check `light.{area}` entity (doesn't exist). Use template conditions or area-based checks
+4. ✅ **Brightness bounds** - Use `repeat` with `count:` or check brightness in `until` condition. Always add explicit `light.turn_off` after dimming
+5. ✅ **Complete YAML structure** - Ensure all `choose`, `repeat`, and nested blocks are properly closed
+6. ✅ **Restart mode** - Understand that `mode: restart` cancels dimming sequences if motion detected
+
+**GOOD: Proper Motion-Based Dimming Pattern**
+```yaml
+alias: "Office motion-based dimming lights"
+description: "Use all office motion sensors to turn office lights on with motion and gradually dim them to off after 1 minute of no motion."
+initial_state: true
+mode: restart
+trigger:
+  # Trigger when any motion sensor detects motion
+  - platform: state
+    entity_id:
+      - binary_sensor.office_motion_1
+      - binary_sensor.office_motion_2
+      - binary_sensor.office_motion_3
+    to: "on"
+  # Trigger when all sensors have been off for 1 minute
+  - platform: state
+    entity_id:
+      - binary_sensor.office_motion_1
+      - binary_sensor.office_motion_2
+      - binary_sensor.office_motion_3
+    to: "off"
+    for: "00:01:00"
+
+condition: []
+
+action:
+  - choose:
+      # Branch 1: Any motion sensor turns lights fully on
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: binary_sensor.office_motion_1
+                state: "on"
+              - condition: state
+                entity_id: binary_sensor.office_motion_2
+                state: "on"
+              - condition: state
+                entity_id: binary_sensor.office_motion_3
+                state: "on"
+        sequence:
+          - service: light.turn_on
+            target:
+              area_id: office
+            data:
+              brightness: 255
+
+      # Branch 2: All sensors off for 1 minute -> start dimming to off
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: state
+                entity_id: binary_sensor.office_motion_1
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.office_motion_2
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.office_motion_3
+                state: "off"
+        sequence:
+          # Dim lights down in calculated steps
+          # Use count: N where N = ceil(max_brightness / step_size)
+          # Example: 255 / 40 = 6.4, round up to 7 steps
+          - repeat:
+              count: 7
+              sequence:
+                - service: light.turn_on
+                  target:
+                    area_id: office
+                  data:
+                    brightness_step: -40
+                    transition: 2
+                - delay: "00:00:03"
+          # Always explicitly turn off lights after dimming
+          - service: light.turn_off
+            target:
+              area_id: office
+```
+
+**BAD: Common Mistakes to Avoid**
+
+❌ **Mistake 1: Single trigger for both states**
+```yaml
+trigger:
+  - platform: state
+    entity_id: [...]
+    to: ["on", "off"]  # ❌ WRONG - Use separate triggers
+```
+
+❌ **Mistake 2: Individual `for:` in conditions (doesn't work together)**
+```yaml
+- conditions:
+    - condition: and
+      conditions:
+        - condition: state
+          entity_id: binary_sensor.office_motion_1
+          state: "off"
+          for: "00:01:00"  # ❌ WRONG - Checks independently, not together
+        - condition: state
+          entity_id: binary_sensor.office_motion_2
+          state: "off"
+          for: "00:01:00"  # ❌ WRONG
+```
+
+✅ **CORRECT: Use trigger `for:` option + conditions check current state**
+```yaml
+trigger:
+  - platform: state
+    entity_id: [...]
+    to: "off"
+    for: "00:01:00"  # ✅ CORRECT - Checks all together
+condition:
+  - condition: and
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.office_motion_1
+        state: "off"  # ✅ CORRECT - Just check current state
+```
+
+❌ **Mistake 3: Checking non-existent `light.{area}` entity**
+```yaml
+until:
+  - condition: state
+    entity_id: light.office  # ❌ WRONG - This entity doesn't exist
+    state: "off"
+```
+
+✅ **CORRECT: Use `repeat` with `count:` or template condition**
+```yaml
+- repeat:
+    count: 7  # ✅ CORRECT - Calculated steps
+    sequence: [...]
+- service: light.turn_off  # ✅ CORRECT - Explicit turn off
+  target:
+    area_id: office
+```
+
+❌ **Mistake 4: Incomplete YAML structure**
+```yaml
+action:
+  - choose:
+      - conditions: [...]
+        sequence: [...]
+      - conditions: [...]
+        sequence:
+          - repeat:
+              sequence: [...]
+              until: [...]  # ❌ WRONG - Missing closing brackets
+```
+
+✅ **CORRECT: Properly close all blocks**
+```yaml
+action:
+  - choose:
+      - conditions: [...]
+        sequence: [...]
+      - conditions: [...]
+        sequence:
+          - repeat:
+              count: 7
+              sequence: [...]
+          - service: light.turn_off  # ✅ CORRECT - Complete structure
+            target:
+              area_id: office
+```
+
+**Key Patterns:**
+- ✅ **Separate triggers**: One for motion (`to: "on"`), one for no-motion (`to: "off"` with `for:`)
+- ✅ **Trigger `for:` option**: Use `for:` in trigger, NOT in individual conditions
+- ✅ **Conditions check current state**: After trigger fires, conditions just verify all sensors are off
+- ✅ **Brightness calculation**: `count = ceil(max_brightness / step_size)`. Example: `ceil(255 / 40) = 7`
+- ✅ **Explicit turn off**: Always add `light.turn_off` after dimming sequence
+- ✅ **Area-based targets**: Use `target.area_id` for actions, never check `light.{area}` entity
+- ✅ **Restart mode**: Understand that `mode: restart` cancels dimming if motion detected (this is desired behavior)
+
+**Alternative: Two Separate Automations**
+For better reliability, consider splitting into two automations:
+1. **Turn On Automation**: `mode: restart`, triggers on motion, turns lights on
+2. **Dim Off Automation**: `mode: single`, triggers on no-motion timeout, dims lights off
+
+This prevents dimming from being interrupted and is easier to debug.
+
 ### Color and Blink Patterns (2025)
 
 **Setting Colors:**

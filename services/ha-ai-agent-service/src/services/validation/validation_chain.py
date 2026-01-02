@@ -47,6 +47,8 @@ class ValidationChain:
         all_warnings: list[str] = []
         last_result: Optional[ValidationResult] = None
 
+        services_unavailable = []
+        
         for strategy in self.strategies:
             try:
                 logger.debug(f"Trying validation strategy: {strategy.name}")
@@ -55,6 +57,8 @@ class ValidationChain:
                 # If validation passed, return immediately
                 if result.valid:
                     logger.info(f"✅ Validation succeeded using {strategy.name}")
+                    # Add strategy name to result for tracking
+                    result.strategy_name = strategy.name
                     return result
 
                 # Collect errors and warnings for fallback
@@ -72,25 +76,40 @@ class ValidationChain:
                     f"Validation strategy {strategy.name} failed with exception: {e}. "
                     "Trying next strategy..."
                 )
+                # Track unavailable services
+                services_unavailable.append(strategy.name)
                 # Continue to next strategy
                 continue
 
         # All strategies failed - return combined result
         if last_result:
             # Use the last result but combine all errors/warnings
-            return ValidationResult(
+            warnings = list(set(all_warnings))  # Remove duplicates
+            if services_unavailable:
+                warnings.append(
+                    f"Validation services unavailable: {', '.join(services_unavailable)}. "
+                    "Using basic validation as fallback."
+                )
+            
+            result = ValidationResult(
                 valid=False,
                 errors=list(set(all_errors)),  # Remove duplicates
-                warnings=list(set(all_warnings)),  # Remove duplicates
+                warnings=warnings,
                 score=last_result.score,
                 fixed_yaml=last_result.fixed_yaml,
                 fixes_applied=last_result.fixes_applied,
+                strategy_name=last_result.strategy_name if last_result.strategy_name else "Basic Validation",
+                services_unavailable=services_unavailable if services_unavailable else None,
             )
+            return result
 
         # No strategies available
         logger.error("All validation strategies failed or unavailable")
-        return ValidationResult(
+        result = ValidationResult(
             valid=False,
             errors=["All validation strategies failed or unavailable"],
             warnings=[],
+            strategy_name="None",
+            services_unavailable=services_unavailable if services_unavailable else None,
         )
+        return result

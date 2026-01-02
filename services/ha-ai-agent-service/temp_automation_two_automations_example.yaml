@@ -1,0 +1,66 @@
+# Alternative Approach: Two Separate Automations
+# This approach splits the motion-based dimming into two automations for better reliability
+# Benefits: Simpler logic per automation, dimming won't be interrupted, easier to debug
+
+---
+# Automation 1: Turn On Lights When Motion Detected
+alias: "Office motion - turn on lights"
+description: "Turn office lights on when motion detected"
+initial_state: true
+mode: restart  # Restart if motion detected again while already on
+trigger:
+  - platform: state
+    entity_id:
+      - binary_sensor.office_motion_1
+      - binary_sensor.office_motion_2
+      - binary_sensor.office_motion_3
+    to: "on"
+action:
+  - service: light.turn_on
+    target:
+      area_id: office
+    data:
+      brightness: 255
+
+---
+# Automation 2: Dim Lights After No Motion
+alias: "Office motion - dim lights after no motion"
+description: "Dim office lights to off after 1 minute of no motion"
+initial_state: true
+mode: single  # Don't restart - let dimming complete even if motion detected
+trigger:
+  - platform: state
+    entity_id:
+      - binary_sensor.office_motion_1
+      - binary_sensor.office_motion_2
+      - binary_sensor.office_motion_3
+    to: "off"
+    for: "00:01:00"
+condition:
+  - condition: and
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.office_motion_1
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.office_motion_2
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.office_motion_3
+        state: "off"
+action:
+  # Dim lights down in 7 steps (255 / 40 ≈ 6.4, round up)
+  - repeat:
+      count: 7
+      sequence:
+        - service: light.turn_on
+          target:
+            area_id: office
+          data:
+            brightness_step: -40
+            transition: 2
+        - delay: "00:00:03"
+  # Ensure lights are completely off after dimming
+  - service: light.turn_off
+    target:
+      area_id: office
