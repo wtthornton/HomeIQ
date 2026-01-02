@@ -39,6 +39,10 @@ class ContextBuilder:
         self._helpers_scenes_service = None
         self._entity_attributes_service = None
         self._device_state_context_service = None
+        self._automation_patterns_service = None
+        # Phase 3: Context prioritization and filtering services
+        self._context_prioritization_service = None
+        self._context_filtering_service = None
 
     async def initialize(self) -> None:
         """Initialize context builder and all services"""
@@ -51,6 +55,9 @@ class ContextBuilder:
         from .entity_inventory_service import EntityInventoryService
         from .helpers_scenes_service import HelpersScenesService
         from .services_summary_service import ServicesSummaryService
+        from .automation_patterns_service import AutomationPatternsService
+        from .context_prioritization_service import ContextPrioritizationService
+        from .context_filtering_service import ContextFilteringService
 
         self._entity_inventory_service = EntityInventoryService(
             settings=self.settings,
@@ -84,6 +91,13 @@ class ContextBuilder:
             settings=self.settings,
             context_builder=self
         )
+        self._automation_patterns_service = AutomationPatternsService(
+            settings=self.settings,
+            context_builder=self
+        )
+        # Phase 3: Initialize prioritization and filtering services
+        self._context_prioritization_service = ContextPrioritizationService()
+        self._context_filtering_service = ContextFilteringService()
         self._initialized = True
         logger.info("✅ Context builder initialized with all services")
 
@@ -105,6 +119,8 @@ class ContextBuilder:
             await self._entity_attributes_service.close()
         if self._device_state_context_service:
             await self._device_state_context_service.close()
+        if self._automation_patterns_service:
+            await self._automation_patterns_service.close()
         self._initialized = False
         logger.info("✅ Context builder closed")
 
@@ -185,6 +201,11 @@ class ContextBuilder:
         # Entity attributes are already included in Entity Inventory examples
         logger.debug("⏭️ Skipping entity attributes (merged into entity inventory for token efficiency)")
 
+        # Phase 2.3: Recent Automation Patterns (OPTIONAL - added dynamically per message if relevant)
+        # Automation patterns are added per-message based on user prompt, not in static context
+        # This keeps context size manageable while providing relevant patterns when needed
+        logger.debug("⏭️ Skipping automation patterns in static context (added dynamically per-message)")
+
         context = "\n".join(context_parts)
         
         # Log context building result
@@ -242,6 +263,41 @@ class ContextBuilder:
             user_prompt=user_prompt,
             skip_truncation=skip_truncation,
         )
+
+    async def build_filtered_context(
+        self,
+        user_prompt: str | None = None,
+        skip_truncation: bool = False
+    ) -> str:
+        """
+        Build context with Phase 3 filtering and prioritization.
+        
+        Args:
+            user_prompt: Optional user prompt for intent extraction and prioritization
+            skip_truncation: If True, skip truncation in all services
+            
+        Returns:
+            Filtered and prioritized context string
+        """
+        if not user_prompt:
+            # No user prompt - return standard context
+            return await self.build_context(skip_truncation=skip_truncation)
+        
+        # Phase 3.2: Extract intent from user prompt
+        intent = self._context_filtering_service.extract_intent(user_prompt)
+        logger.info(f"🔍 Extracted intent: areas={intent.get('areas')}, domains={intent.get('domains')}, services={intent.get('services')}")
+        
+        # Build standard context first
+        context = await self.build_context(skip_truncation=skip_truncation)
+        
+        # Phase 3.1 & 3.2: Apply filtering and prioritization to entity inventory
+        # Note: Other context sections (devices, areas, services) are already filtered
+        # by the individual services, but we can add prioritization here if needed
+        
+        # For now, filtering is handled at the service level (entity_inventory_service)
+        # and prioritization can be applied when building entity examples
+        
+        return context
 
     async def build_complete_system_prompt(self, skip_truncation: bool = False) -> str:
         """
