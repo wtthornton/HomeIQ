@@ -319,7 +319,7 @@ class ValidationPipeline:
                 
                 invalid_areas = [aid for aid in area_ids if aid not in valid_area_ids]
                 if invalid_areas:
-                    warnings.append(f"Unknown area IDs: {', '.join(invalid_areas)}")
+                    errors.append(f"Unknown area IDs: {', '.join(invalid_areas)}")
         
         except Exception as e:
             logger.error(f"Referential integrity validation failed: {e}")

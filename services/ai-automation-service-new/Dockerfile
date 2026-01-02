@@ -22,23 +22,31 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime dependencies and create non-root user
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 1001 appgroup && \
+    useradd -r -u 1001 -g appgroup appuser
 
-# Copy Python packages from builder
-COPY --from=builder /root/.local /root/.local
+# Copy Python packages from builder to user directory
+COPY --from=builder /root/.local /home/appuser/.local
 
 # Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
+ENV PATH=/home/appuser/.local/bin:$PATH
+ENV PYTHONPATH=/app:/app/src
 
 # Copy service code
 COPY services/ai-automation-service-new/src ./src
 COPY shared ./shared
 
-# Create data directory for database
-RUN mkdir -p /app/data /app/models
+# Create data directory for database and set ownership
+RUN mkdir -p /app/data /app/models && \
+    chown -R appuser:appgroup /app /home/appuser/.local
+
+# Switch to non-root user
+USER appuser
 
 # Set working directory
 WORKDIR /app

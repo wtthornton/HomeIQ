@@ -26,9 +26,7 @@ def build_system() -> bool:
         return False
     
     compose_cmd = get_docker_compose_cmd()
-    # Build with BuildKit cache enabled (cache mounts configured in Dockerfiles)
-    # Removing --no-cache flag enables 60-80% faster rebuilds when dependencies haven't changed
-    cmd = compose_cmd.split() + ["build"]
+    cmd = compose_cmd.split() + ["build", "--no-cache"]
     exit_code, stdout, stderr = run_command(cmd, check=False)
     
     if exit_code != 0:

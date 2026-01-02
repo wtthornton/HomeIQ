@@ -1,0 +1,22 @@
+# Device Intelligence Service - Development Dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# Include production dependencies
+-r requirements-prod.txt
+
+# Development and testing
+pytest>=8.3.3,<9.0.0
+pytest-asyncio>=0.23.0,<1.0.0
+pytest-cov>=5.0.0,<6.0.0
+
+# Code quality
+black>=23.11.0,<24.0.0
+isort>=5.12.0,<6.0.0
+flake8>=6.1.0,<7.0.0
+
+# Type checking
+mypy>=1.7.1,<2.0.0
+types-psutil>=6.1.0.20241022
+
+# Optional: TabPFN for ML (only if needed - adds 3GB+ to image)
+# tabpfn>=2.2.0,<7.0.0

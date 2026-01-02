@@ -23,14 +23,17 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Install runtime dependencies only
-RUN apk add --no-cache libffi openssl
+# Install runtime dependencies and create non-root user
+RUN apk add --no-cache libffi openssl curl ca-certificates && \
+    addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup
 
-# Copy Python packages from builder
-COPY --from=builder /root/.local /root/.local
+# Copy Python packages from builder to user directory
+COPY --from=builder /root/.local /home/appuser/.local
 
 # Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
+ENV PATH=/home/appuser/.local/bin:$PATH
+ENV PYTHONPATH=/app:/app/src
 
 # Copy shared utilities (from root shared directory)
 # Note: Build context must be root directory for this to work
@@ -42,6 +45,12 @@ COPY services/data-api/src/ ./src/
 # Copy Alembic migrations
 COPY services/data-api/alembic/ ./alembic/
 COPY services/data-api/alembic.ini ./
+
+# Set ownership
+RUN chown -R appuser:appgroup /app /home/appuser/.local
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8006
