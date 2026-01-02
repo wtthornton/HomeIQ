@@ -22,8 +22,8 @@ FROM python:3.12-alpine AS production
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache curl ca-certificates
+# Install runtime dependencies (including su-exec for user switching)
+RUN apk add --no-cache curl ca-certificates su-exec
 
 # Create non-root user
 RUN addgroup -g 1001 -S appgroup && \
@@ -39,6 +39,11 @@ COPY shared/ ./shared/
 # Create data directory for SQLite database and set ownership
 RUN mkdir -p /app/data && \
     chown -R appuser:appgroup /app /home/appuser/.local
+
+# Copy entrypoint script, convert to Unix line endings, and make it executable
+COPY services/ha-ai-agent-service/docker-entrypoint.sh /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && \
+    chmod +x /docker-entrypoint.sh
 
 # Set environment variables
 ENV PYTHONPATH=/app:/app/src

@@ -1,6 +1,8 @@
 """Database initialization and models for context cache"""
 
 import logging
+import os
+import stat
 from datetime import datetime
 from pathlib import Path
 
@@ -133,6 +135,55 @@ async def init_database(database_url: str) -> None:
             path_str = database_url.split("///")[-1]
             db_path = Path(path_str)
             db_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Fix directory permissions if needed (Docker/non-root user)
+            # This is critical for Docker volumes which are created as root-owned
+            if db_path.parent.exists():
+                try:
+                    # Get current user ID
+                    current_uid = os.getuid() if hasattr(os, 'getuid') else None
+                    current_gid = os.getgid() if hasattr(os, 'getgid') else None
+                    
+                    # Make directory writable for owner and group
+                    os.chmod(db_path.parent, stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
+                    
+                    # Try to change ownership if we're not root (in Docker, we're appuser)
+                    # Note: This will fail if we don't have permission, but that's OK - chmod should be enough
+                    if current_uid is not None and current_uid != 0:
+                        try:
+                            os.chown(db_path.parent, current_uid, current_gid)
+                        except (PermissionError, OSError):
+                            # Can't change ownership, but chmod should still work
+                            pass
+                    
+                    logger.info(f"✅ Set directory permissions for {db_path.parent} (UID: {current_uid}, GID: {current_gid})")
+                except Exception as perm_error:
+                    logger.error(f"❌ Could not set directory permissions: {perm_error}", exc_info=True)
+                    # Don't fail initialization - try to continue
+            
+            # Check database file permissions if it exists
+            if db_path.exists():
+                # Fix database file permissions if read-only
+                try:
+                    current_uid = os.getuid() if hasattr(os, 'getuid') else None
+                    current_gid = os.getgid() if hasattr(os, 'getgid') else None
+                    
+                    # Make file readable and writable for owner and group
+                    os.chmod(db_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
+                    
+                    # Try to change ownership if we're not root
+                    if current_uid is not None and current_uid != 0:
+                        try:
+                            os.chown(db_path, current_uid, current_gid)
+                        except (PermissionError, OSError):
+                            # Can't change ownership, but chmod should still work
+                            pass
+                    
+                    logger.info(f"✅ Set database file permissions for {db_path} (UID: {current_uid}, GID: {current_gid})")
+                except Exception as perm_error:
+                    logger.error(f"❌ Could not set database file permissions: {perm_error}", exc_info=True)
+                    # Don't fail initialization - try to continue
+            
             logger.info(f"✅ Database directory created: {db_path.parent}")
 
         # Create async engine
