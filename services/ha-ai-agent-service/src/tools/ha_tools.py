@@ -118,10 +118,14 @@ class HAToolHandler:
                 - user_prompt: The user's natural language request
                 - automation_yaml: The complete automation YAML
                 - alias: Automation alias/name
+                - conversation_id: Optional conversation ID for traceability
 
         Returns:
             Dictionary with preview details (no automation created)
         """
+        # Extract conversation_id for traceability
+        conversation_id = arguments.get("conversation_id")
+        
         # Create and validate request
         request = AutomationPreviewRequest.from_dict(arguments)
         validation_error = self._validate_preview_request(request)
@@ -129,17 +133,32 @@ class HAToolHandler:
             return validation_error
 
         logger.info(
-            f"Generating preview for automation: '{request.user_prompt[:100]}...' "
-            f"with alias: '{request.alias}'"
+            f"[Preview] Generating preview for automation: '{request.user_prompt[:100]}...' "
+            f"with alias: '{request.alias}' "
+            f"(conversation_id={conversation_id or 'N/A'})"
         )
 
         # Validate YAML and process automation
         try:
             validation_result = await self.validation_chain.validate(request.automation_yaml)
+            logger.debug(
+                f"[Preview] 🔍 Validation chain result: valid={validation_result.valid}, "
+                f"errors={len(validation_result.errors or [])}, "
+                f"warnings={len(validation_result.warnings or [])}, "
+                f"strategy={validation_result.strategy_name if hasattr(validation_result, 'strategy_name') else 'unknown'} "
+                f"(conversation_id={conversation_id or 'N/A'})"
+            )
+            
             automation_dict = self._parse_automation_yaml(request.automation_yaml, request)
 
             # Extract automation details
             extraction_result = self._extract_automation_details(automation_dict)
+            logger.debug(
+                f"[Preview] 🔍 Extracted {len(extraction_result['entities'])} entities, "
+                f"{len(extraction_result['areas'])} areas, "
+                f"{len(extraction_result['services'])} services "
+                f"(conversation_id={conversation_id or 'N/A'})"
+            )
             safety_warnings = self._check_safety_requirements(
                 extraction_result["entities"],
                 extraction_result["services"],
@@ -152,9 +171,19 @@ class HAToolHandler:
                 extraction_result["services"],
                 automation_dict,
             )
+            logger.debug(
+                f"[Preview] 🔍 Safety score calculated: {safety_score:.2f} "
+                f"(conversation_id={conversation_id or 'N/A'})"
+            )
 
             # Extract device context (recommendation #5)
             device_context = await self._extract_device_context(automation_dict)
+            logger.debug(
+                f"[Preview] 🔍 Device context: {len(device_context.get('device_ids', []))} devices, "
+                f"{len(device_context.get('device_types', []))} types, "
+                f"{len(device_context.get('area_ids', []))} areas "
+                f"(conversation_id={conversation_id or 'N/A'})"
+            )
 
             # Validate devices (recommendation #3)
             device_errors = await self._validate_devices(automation_dict)
@@ -178,12 +207,13 @@ class HAToolHandler:
                 validation_result=validation_result,
                 extraction_result=extraction_result,
                 safety_warnings=safety_warnings,
+                conversation_id=conversation_id,
             )
             
         except (yaml.YAMLError, ValueError) as e:
-            return self._handle_yaml_error(e, request)
+            return self._handle_yaml_error(e, request, conversation_id)
         except Exception as e:
-            return self._handle_unexpected_error(e, request, "preview")
+            return self._handle_unexpected_error(e, request, "preview", conversation_id)
 
     async def create_automation_from_prompt(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """
@@ -199,10 +229,14 @@ class HAToolHandler:
                 - user_prompt: The user's natural language request
                 - automation_yaml: The complete automation YAML
                 - alias: Automation alias/name
+                - conversation_id: Optional conversation ID for traceability
 
         Returns:
             Dictionary with automation creation result
         """
+        # Extract conversation_id for traceability
+        conversation_id = arguments.get("conversation_id")
+        
         # Validate required arguments
         validation_error = self._validate_create_arguments(arguments)
         if validation_error:
@@ -213,8 +247,9 @@ class HAToolHandler:
         alias = arguments["alias"]
 
         logger.info(
-            f"Creating automation from prompt: '{user_prompt[:100]}...' "
-            f"with alias: '{alias}'"
+            f"[Create] Creating automation from prompt: '{user_prompt[:100]}...' "
+            f"with alias: '{alias}' "
+            f"(conversation_id={conversation_id or 'N/A'})"
         )
 
         # Validate YAML
@@ -240,16 +275,26 @@ class HAToolHandler:
             # Prepare and create automation
             automation_dict = self._prepare_automation_dict(automation_dict, alias)
             return await self._create_automation_in_ha(
-                automation_dict, alias, user_prompt, validation_result
+                automation_dict, alias, user_prompt, validation_result, conversation_id
             )
 
         except yaml.YAMLError as e:
-            logger.error(f"YAML parsing error: {e}")
+            logger.error(
+                f"[Create] ❌ YAML parsing error for automation '{alias}' "
+                f"(conversation_id={conversation_id or 'N/A'}): {e}. "
+                f"Prompt: '{user_prompt[:100]}...'",
+                exc_info=True
+            )
             return self._build_error_response(
                 f"YAML parsing error: {str(e)}", user_prompt, alias
             )
         except Exception as e:
-            logger.error(f"Error creating automation: {e}", exc_info=True)
+            logger.error(
+                f"[Create] ❌ Error creating automation '{alias}' "
+                f"(conversation_id={conversation_id or 'N/A'}): {e}. "
+                f"Prompt: '{user_prompt[:100]}...'",
+                exc_info=True
+            )
             return self._build_error_response(
                 f"Unexpected error: {str(e)}", user_prompt, alias
             )
@@ -350,6 +395,7 @@ class HAToolHandler:
         validation_result: Any,
         extraction_result: dict[str, list[str]],
         safety_warnings: list[str],
+        conversation_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Build preview response DTO.
@@ -377,7 +423,10 @@ class HAToolHandler:
         yaml_to_use = request.automation_yaml
         if validation_result and hasattr(validation_result, 'fixed_yaml') and validation_result.fixed_yaml:
             yaml_to_use = validation_result.fixed_yaml
-            logger.debug(f"Using normalized YAML from validation result for preview")
+            logger.debug(
+                f"[Preview] 🔍 Using normalized YAML from validation result "
+                f"(conversation_id={conversation_id or 'N/A'})"
+            )
 
         # Build response with safety score (recommendation #4)
         response = AutomationPreviewResponse(
@@ -398,7 +447,8 @@ class HAToolHandler:
         # Note: This may require updating AutomationPreviewResponse model to include safety_score
 
         logger.info(
-            f"✅ Preview generated for automation '{request.alias}'. "
+            f"[Preview] ✅ Preview generated for automation '{request.alias}' "
+            f"(conversation_id={conversation_id or 'N/A'}). "
             f"Entities: {len(extraction_result['entities'])}, "
             f"Areas: {len(extraction_result['areas'])}, "
             f"Safety warnings: {len(safety_warnings)}"
@@ -407,7 +457,7 @@ class HAToolHandler:
         return response.to_dict()
 
     def _handle_yaml_error(
-        self, error: Exception, request: AutomationPreviewRequest
+        self, error: Exception, request: AutomationPreviewRequest, conversation_id: str | None = None
     ) -> dict[str, Any]:
         """
         Handle YAML parsing errors.
@@ -415,11 +465,17 @@ class HAToolHandler:
         Args:
             error: YAML parsing exception
             request: Original preview request
+            conversation_id: Optional conversation ID for traceability
 
         Returns:
             Error response dictionary
         """
-        logger.error(f"YAML parsing error in preview: {error}")
+        logger.error(
+            f"[Preview] ❌ YAML parsing error for automation '{request.alias}' "
+            f"(conversation_id={conversation_id or 'N/A'}): {error}. "
+            f"Prompt: '{request.user_prompt[:100]}...'",
+            exc_info=True
+        )
         return AutomationPreviewResponse.error_response(
             error=f"YAML parsing error: {str(error)}",
             user_prompt=request.user_prompt,
@@ -427,7 +483,7 @@ class HAToolHandler:
         ).to_dict()
 
     def _handle_unexpected_error(
-        self, error: Exception, request: AutomationPreviewRequest, operation: str
+        self, error: Exception, request: AutomationPreviewRequest, operation: str, conversation_id: str | None = None
     ) -> dict[str, Any]:
         """
         Handle unexpected errors during automation operations.
@@ -436,11 +492,17 @@ class HAToolHandler:
             error: Unexpected exception
             request: Original request (preview or create)
             operation: Operation name ('preview' or 'create')
+            conversation_id: Optional conversation ID for traceability
 
         Returns:
             Error response dictionary
         """
-        logger.error(f"Error during {operation}: {error}", exc_info=True)
+        logger.error(
+            f"[{operation.capitalize()}] ❌ Unexpected error for automation '{request.alias}' "
+            f"(conversation_id={conversation_id or 'N/A'}): {error}. "
+            f"Prompt: '{request.user_prompt[:100]}...'",
+            exc_info=True
+        )
         return AutomationPreviewResponse.error_response(
             error=f"Unexpected error: {str(error)}",
             user_prompt=request.user_prompt,
@@ -564,6 +626,7 @@ class HAToolHandler:
         alias: str,
         user_prompt: str,
         validation_result: Any,
+        conversation_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Create automation in Home Assistant via API.
@@ -592,8 +655,10 @@ class HAToolHandler:
                 automation_id = result.get("id", f"automation.{config_id}")
 
                 logger.info(
-                    f"✅ Automation created successfully: {automation_id} "
-                    f"for prompt: '{user_prompt[:100]}...'"
+                    f"[Create] ✅ Automation created successfully: {automation_id} "
+                    f"for prompt: '{user_prompt[:100]}...' "
+                    f"(conversation_id={conversation_id or 'N/A'}, "
+                    f"validation_warnings: {len(validation_result.warnings or [])})"
                 )
 
                 return {
@@ -607,8 +672,10 @@ class HAToolHandler:
             else:
                 error_text = await response.text()
                 logger.error(
-                    f"❌ Failed to create automation: {response.status} - {error_text} "
-                    f"for prompt: '{user_prompt[:100]}...'"
+                    f"[Create] ❌ Failed to create automation '{alias}': {response.status} - {error_text} "
+                    f"(conversation_id={conversation_id or 'N/A'}). "
+                    f"Prompt: '{user_prompt[:100]}...'",
+                    exc_info=False
                 )
                 return {
                     "success": False,
@@ -750,7 +817,11 @@ class HAToolHandler:
                 "entity_ids": entity_ids
             }
         except Exception as e:
-            logger.warning(f"Failed to extract device context: {e}")
+            logger.warning(
+                f"[Preview] ⚠️ Failed to extract device context: {e}. "
+                f"Impact: Device validation will be skipped. Automation may proceed with limited validation. "
+                f"Consider: Manual device verification before deployment."
+            )
             return {
                 "device_ids": [],
                 "device_types": [],
@@ -808,7 +879,11 @@ class HAToolHandler:
                 )
 
         except Exception as e:
-            logger.warning(f"Failed to validate devices: {e}")
+            logger.warning(
+                f"[Preview] ⚠️ Failed to validate devices: {e}. "
+                f"Impact: Device health scores and capability checks will be skipped. "
+                f"Consider: Manual verification before deployment."
+            )
             errors.append(f"Could not validate devices: {str(e)}")
 
         return errors
@@ -975,7 +1050,10 @@ class HAToolHandler:
             }
         
         try:
-            logger.info(f"Generating enhancements (mode: {'yaml' if automation_yaml else 'prompt'}) for conversation {conversation_id}")
+            logger.info(
+                f"[Enhancement] Generating enhancements (mode: {'yaml' if automation_yaml else 'prompt'}) "
+                f"for conversation {conversation_id or 'N/A'}"
+            )
             
             if automation_yaml:
                 # YAML Enhancement Mode (existing behavior)
@@ -1012,7 +1090,11 @@ class HAToolHandler:
             }
             
         except Exception as e:
-            logger.error(f"Error generating enhancements: {e}", exc_info=True)
+            logger.error(
+                f"[Enhancement] ❌ Error generating enhancements "
+                f"(conversation_id={conversation_id or 'N/A'}): {e}",
+                exc_info=True
+            )
             return {
                 "success": False,
                 "error": f"Failed to generate enhancements: {str(e)}",

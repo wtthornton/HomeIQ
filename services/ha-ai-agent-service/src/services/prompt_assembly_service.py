@@ -193,6 +193,42 @@ class PromptAssemblyService:
                         f"[Device State Context] Conversation {conversation_id}: "
                         f"Injected device state context for {len(entity_ids)} entities"
                     )
+                
+                # Phase 2.3: Inject recent automation patterns if entities found
+                if entity_result.success and entity_result.matched_entities:
+                    try:
+                        # Extract area_id from matched entities if available
+                        area_id = None
+                        if context_entities:
+                            # Find area_id from first matched entity
+                            for entity in context_entities:
+                                if entity.get("entity_id") in entity_result.matched_entities:
+                                    area_id = entity.get("area_id")
+                                    break
+                        
+                        # Get recent automation patterns
+                        if hasattr(self.context_builder, '_automation_patterns_service') and \
+                           self.context_builder._automation_patterns_service:
+                            patterns_context = await self.context_builder._automation_patterns_service.get_recent_patterns(
+                                user_prompt=user_message,
+                                area_id=area_id,
+                                limit=3,
+                                skip_truncation=False
+                            )
+                            
+                            # Inject patterns context if available
+                            if patterns_context and patterns_context.strip():
+                                system_prompt = f"{system_prompt}\n\n---\n\n{patterns_context}\n\n---\n"
+                                logger.info(
+                                    f"[Automation Patterns] Conversation {conversation_id}: "
+                                    f"Injected {len(patterns_context.split('\\n')) - 1} automation patterns"
+                                )
+                    except Exception as e:
+                        # Graceful degradation: log error but don't fail
+                        logger.debug(
+                            f"[Automation Patterns] Conversation {conversation_id}: "
+                            f"Failed to inject automation patterns: {e}"
+                        )
         except Exception as e:
             # Graceful degradation: log error but don't fail
             logger.warning(

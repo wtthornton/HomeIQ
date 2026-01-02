@@ -44,11 +44,11 @@ tapps-agents reviewer score README.md --no-progress
 ## Top-Level Commands
 
 ### `init` - Initialize Project
-**Purpose:** Set up TappsCodingAgents in your project (Cursor Rules, Skills, Background Agents, config). **This is the first command you should run on any project** to enable all tapps-agents capabilities in Cursor IDE.
+**Purpose:** Set up TappsCodingAgents in your project (Cursor Rules, Skills, config). **This is the first command you should run on any project** to enable all tapps-agents capabilities in Cursor IDE. Background Agents are opt-in (use `--background-agents` flag).
 
 **CLI Syntax:**
 ```bash
-tapps-agents init [--no-rules] [--no-presets] [--no-config] [--no-skills] [--no-background-agents] [--no-cache] [--no-cursorignore] [--reset] [--upgrade] [--no-backup] [--reset-mcp] [--preserve-custom] [--rollback <path>] [--yes] [--dry-run]
+tapps-agents init [--no-rules] [--no-presets] [--no-config] [--no-skills] [--background-agents] [--no-background-agents] [--no-cache] [--no-cursorignore] [--reset] [--upgrade] [--no-backup] [--reset-mcp] [--preserve-custom] [--rollback <path>] [--yes] [--dry-run]
 ```
 
 **When to Use:**
@@ -104,6 +104,7 @@ When you run `tapps-agents init` on any project (new or existing), it:
      - **Simple Mode is enabled by default** in config after `init`
 
 3. **Background Agents** (`.cursor/background-agents.yaml`):
+   - **NOT installed by default** - Use `--background-agents` flag to enable
    - Defines automatic workflow execution triggers
    - Enables auto-execution of quality checks, testing, security scans
    - Configurable triggers (file changes, git commits, etc.)
@@ -148,9 +149,13 @@ When you run `tapps-agents init` on any project (new or existing), it:
   - **When to use**: If you only use CLI commands, not Cursor chat
   - **Why**: Reduces setup time, but disables `@agent-name` commands in Cursor
 
-- `--no-background-agents`: Skip creating Background Agents config
-  - **When to use**: If you don't want automatic workflow execution
-  - **Why**: Manual control over when workflows run
+- `--background-agents`: Install Background Agents config (opt-in, not installed by default)
+  - **When to use**: If you want automatic workflow execution in Cursor IDE
+  - **Why**: Enables automatic quality checks, testing, and security scans via Background Agents
+
+- `--no-background-agents`: (Deprecated) Explicitly skip Background Agents config
+  - **When to use**: No longer needed - Background Agents are not installed by default
+  - **Why**: Kept for backward compatibility only
 
 - `--no-cache`: Skip pre-populating Context7 cache
   - **When to use**: If Context7 is not configured or you want to populate manually

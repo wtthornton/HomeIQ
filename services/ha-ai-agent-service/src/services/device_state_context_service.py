@@ -123,13 +123,18 @@ class DeviceStateContextService:
             if "unit_of_measurement" in attributes:
                 attr_parts.append(f"unit: {attributes['unit_of_measurement']}")
 
+        # Phase 1.3: Highlight unavailable/unknown entities
+        availability_warning = ""
+        if state_value in ("unavailable", "unknown"):
+            availability_warning = f" [⚠️ {state_value}]"
+        
         # Build formatted string
         if attr_parts:
             attr_str = " (" + ", ".join(attr_parts) + ")"
         else:
             attr_str = ""
 
-        return f"- {entity_id}: {state_value}{attr_str}"
+        return f"- {entity_id}: {state_value}{attr_str}{availability_warning}"
 
     async def get_state_context(
         self,
@@ -175,13 +180,25 @@ class DeviceStateContextService:
             # Create map for fast lookup
             state_map = {state.get("entity_id"): state for state in all_states if state.get("entity_id")}
 
-            # Filter to requested entities
+            # Phase 1.3: Filter to requested entities and track unavailable ones
             relevant_states = []
+            unavailable_entities = []
             for entity_id in entity_ids:
                 if entity_id in state_map:
-                    relevant_states.append(state_map[entity_id])
+                    state = state_map[entity_id]
+                    state_value = state.get("state", "")
+                    # Phase 1.3: Track unavailable/unknown entities separately
+                    if state_value in ("unavailable", "unknown"):
+                        unavailable_entities.append(entity_id)
+                    relevant_states.append(state)
                 else:
+                    # Entity not found in states - treat as unavailable
+                    unavailable_entities.append(entity_id)
                     logger.debug(f"⚠️ Entity {entity_id} not found in states (may be unavailable)")
+            
+            # Phase 1.3: Log unavailable entities count
+            if unavailable_entities:
+                logger.warning(f"⚠️ Found {len(unavailable_entities)} unavailable/unknown entities: {unavailable_entities[:5]}...")
 
             if not relevant_states:
                 logger.warning(f"⚠️ No states found for {len(entity_ids)} requested entities")

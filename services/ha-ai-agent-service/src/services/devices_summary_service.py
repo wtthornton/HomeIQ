@@ -12,6 +12,7 @@ from typing import Any
 import httpx
 
 from ..clients.data_api_client import DataAPIClient
+from ..clients.device_intelligence_client import DeviceIntelligenceClient
 from ..clients.ha_client import HomeAssistantClient
 from ..config import Settings
 from ..services.context_builder import ContextBuilder
@@ -45,6 +46,8 @@ class DevicesSummaryService:
             access_token=settings.ha_token
         )
         self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        # Phase 1.2: Device Intelligence Client for device relationships/context
+        self.device_intelligence_client = DeviceIntelligenceClient(settings)
         # Device Intelligence Service URL (optional - for Zigbee2MQTT data)
         self.device_intelligence_url = settings.device_intelligence_url
         self._cache_key = "devices_summary"
@@ -101,21 +104,59 @@ class DevicesSummaryService:
                     if device.get("area_id")
                 }
 
-            # Fetch entities to count entities per device
+            # Initialize device capabilities dict (Phase 2.1)
+            device_capabilities: dict[str, dict[str, Any]] = {}
+            
+            # Fetch entities to count entities per device and aggregate capabilities
             try:
                 entities = await self.data_api_client.fetch_entities(limit=10000)
                 
                 # Count entities per device
                 device_entity_count: dict[str, int] = defaultdict(int)
+                # Phase 2.1: Aggregate device capabilities from entities
+                device_capabilities = defaultdict(lambda: {
+                    "effects": set(),
+                    "color_modes": set(),
+                    "presets": set()
+                })
+                
                 for entity in entities:
                     device_id = entity.get("device_id")
                     if device_id:
                         device_entity_count[device_id] += 1
+                        
+                        # Phase 2.1: Aggregate capabilities from entity attributes
+                        attributes = entity.get("attributes", {})
+                        if "effect_list" in attributes:
+                            effect_list = attributes["effect_list"]
+                            if isinstance(effect_list, list):
+                                device_capabilities[device_id]["effects"].update(effect_list)
+                        if "color_mode" in attributes:
+                            color_mode = attributes["color_mode"]
+                            if isinstance(color_mode, str):
+                                device_capabilities[device_id]["color_modes"].add(color_mode)
+                        elif "supported_color_modes" in attributes:
+                            color_modes = attributes["supported_color_modes"]
+                            if isinstance(color_modes, list):
+                                device_capabilities[device_id]["color_modes"].update(color_modes)
+                        if "preset_modes" in attributes:
+                            preset_modes = attributes["preset_modes"]
+                            if isinstance(preset_modes, list):
+                                device_capabilities[device_id]["presets"].update(preset_modes)
+                        # Phase 2.2: Track device constraints
+                        if "max_brightness" in attributes:
+                            device_capabilities[device_id]["max_brightness"] = attributes["max_brightness"]
+                        if "min_color_temp" in attributes and "max_color_temp" in attributes:
+                            device_capabilities[device_id]["color_temp_range"] = (
+                                attributes["min_color_temp"], attributes["max_color_temp"]
+                            )
                 
                 logger.debug(f"✅ Counted entities for {len(device_entity_count)} devices")
+                logger.debug(f"✅ Aggregated capabilities for {len(device_capabilities)} devices")
             except Exception as e:
                 logger.warning(f"⚠️ Could not fetch entity counts: {e}")
                 device_entity_count = {}
+                device_capabilities = {}
 
             # Fetch Zigbee2MQTT metadata from device-intelligence-service (if available)
             zigbee_metadata_map: dict[str, dict[str, Any]] = {}
@@ -171,6 +212,47 @@ class DevicesSummaryService:
                 area_id = device.get("area_id")
                 # Prefer entity_count from device response, fallback to manual count
                 entity_count = device.get("entity_count") or device_entity_count.get(device_id, 0)
+                
+                # Phase 1.1: Get device health score (if available)
+                health_score = device.get("health_score")
+                
+                # Phase 1.2: Get device description/relationships (if available)
+                device_description = device.get("device_description")
+                device_type = device.get("device_type")
+                
+                # Phase 1.2: Fetch device context from Device Intelligence Service if description missing
+                if not device_description and self.device_intelligence_client.enabled:
+                    try:
+                        device_payload = {
+                            "device_id": device_id,
+                            "manufacturer": manufacturer,
+                            "model": model,
+                            "name": device_name,
+                            "area_id": area_id
+                        }
+                        # Get device entities for context
+                        device_entities = [e for e in entities if e.get("device_id") == device_id]
+                        context_result = await self.device_intelligence_client.get_device_context(
+                            device_id, device_payload, device_entities[:10]  # Limit to 10 entities
+                        )
+                        if context_result and context_result.get("context"):
+                            context = context_result["context"]
+                            # Extract device_description from context if available
+                            if isinstance(context, dict):
+                                device_description = context.get("device_description") or context.get("description")
+                            elif isinstance(context, str):
+                                # If context is a string, use it as description
+                                device_description = context
+                    except Exception as e:
+                        logger.debug(f"⚠️ Could not fetch device context for {device_id}: {e}")
+                        # Continue without device description - not critical
+                
+                # Phase 2.4: Get energy consumption data from device (if available)
+                power_w = device.get("power_consumption_active_w")
+                daily_kwh = None
+                if power_w:
+                    # Estimate daily kWh (power_w * 24h / 1000)
+                    daily_kwh = round((power_w * 24) / 1000, 2)
 
                 device_info = {
                     "device_id": device_id,
@@ -182,6 +264,11 @@ class DevicesSummaryService:
                     "disabled_by": device.get("disabled_by"),
                     "sw_version": device.get("sw_version"),
                     "hw_version": device.get("hw_version"),
+                    # Phase 1.1: Health score
+                    "health_score": health_score,
+                    # Phase 1.2: Device relationships
+                    "device_description": device_description,
+                    "device_type": device_type,
                     # Zigbee2MQTT fields (will be populated if available)
                     "zigbee_ieee": None,
                     "lqi": None,
@@ -253,6 +340,56 @@ class DevicesSummaryService:
                         if device["entity_count"] > 0:
                             device_line_parts.append(f"[{device['entity_count']} entities]")
                         
+                        # Phase 1.1: Add health score if available
+                        if device.get("health_score") is not None:
+                            health_score = device["health_score"]
+                            # Highlight low health scores (< 70) as recommended in system prompt
+                            if health_score < 70:
+                                device_line_parts.append(f"[⚠️ health_score: {health_score}]")
+                            else:
+                                device_line_parts.append(f"[health_score: {health_score}]")
+                        
+                        # Phase 1.2: Add device description/relationships if available
+                        if device.get("device_description"):
+                            device_line_parts.append(f"[{device['device_description']}]")
+                        
+                        # Phase 2.1: Add device capabilities summary if available
+                        device_id_for_caps = device["device_id"]
+                        if device_id_for_caps in device_capabilities:
+                            caps = device_capabilities[device_id_for_caps]
+                            caps_parts = []
+                            if caps.get("effects"):
+                                effects_list = list(caps["effects"])[:3]  # Show top 3 effects
+                                caps_parts.append(f"effects: {', '.join(effects_list)}")
+                            if caps.get("color_modes"):
+                                color_modes_list = list(caps["color_modes"])[:2]  # Show top 2 color modes
+                                caps_parts.append(f"colors: {', '.join(color_modes_list)}")
+                            if caps.get("presets"):
+                                presets_list = list(caps["presets"])[:3]  # Show top 3 presets
+                                caps_parts.append(f"presets: {', '.join(presets_list)}")
+                            # Phase 2.2: Add device constraints
+                            if "max_brightness" in caps:
+                                caps_parts.append(f"max_brightness: {caps['max_brightness']}")
+                            if "color_temp_range" in caps:
+                                min_temp, max_temp = caps["color_temp_range"]
+                                caps_parts.append(f"color_temp: {min_temp}-{max_temp}")
+                            
+                            if caps_parts:
+                                device_line_parts.append(f"[{', '.join(caps_parts)}]")
+                        
+                        # Phase 2.4: Add energy consumption data if available
+                        power_w = device.get("power_consumption_active_w")
+                        daily_kwh = device.get("daily_kwh")
+                        if power_w:
+                            energy_parts = [f"power: {power_w}W"]
+                            if daily_kwh:
+                                energy_parts.append(f"daily: {daily_kwh}kWh")
+                            else:
+                                # Estimate daily kWh
+                                estimated_daily = round((power_w * 24) / 1000, 2)
+                                energy_parts.append(f"daily: ~{estimated_daily}kWh")
+                            device_line_parts.append(f"[{', '.join(energy_parts)}]")
+                        
                         # Add Zigbee2MQTT information if available
                         zigbee_info_parts = []
                         if device.get("lqi") is not None:
@@ -298,6 +435,56 @@ class DevicesSummaryService:
                     
                     if device["entity_count"] > 0:
                         device_line_parts.append(f"[{device['entity_count']} entities]")
+                    
+                    # Phase 1.1: Add health score if available
+                    if device.get("health_score") is not None:
+                        health_score = device["health_score"]
+                        # Highlight low health scores (< 70) as recommended in system prompt
+                        if health_score < 70:
+                            device_line_parts.append(f"[⚠️ health_score: {health_score}]")
+                        else:
+                            device_line_parts.append(f"[health_score: {health_score}]")
+                    
+                    # Phase 1.2: Add device description/relationships if available
+                    if device.get("device_description"):
+                        device_line_parts.append(f"[{device['device_description']}]")
+                    
+                    # Phase 2.1: Add device capabilities summary if available
+                    device_id_for_caps = device["device_id"]
+                    if device_id_for_caps in device_capabilities:
+                        caps = device_capabilities[device_id_for_caps]
+                        caps_parts = []
+                        if caps.get("effects"):
+                            effects_list = list(caps["effects"])[:3]  # Show top 3 effects
+                            caps_parts.append(f"effects: {', '.join(effects_list)}")
+                        if caps.get("color_modes"):
+                            color_modes_list = list(caps["color_modes"])[:2]  # Show top 2 color modes
+                            caps_parts.append(f"colors: {', '.join(color_modes_list)}")
+                        if caps.get("presets"):
+                            presets_list = list(caps["presets"])[:3]  # Show top 3 presets
+                            caps_parts.append(f"presets: {', '.join(presets_list)}")
+                        # Phase 2.2: Add device constraints
+                        if "max_brightness" in caps:
+                            caps_parts.append(f"max_brightness: {caps['max_brightness']}")
+                        if "color_temp_range" in caps:
+                            min_temp, max_temp = caps["color_temp_range"]
+                            caps_parts.append(f"color_temp: {min_temp}-{max_temp}")
+                        
+                        if caps_parts:
+                            device_line_parts.append(f"[{', '.join(caps_parts)}]")
+                    
+                    # Phase 2.4: Add energy consumption data if available
+                    power_w = device.get("power_consumption_active_w")
+                    daily_kwh = device.get("daily_kwh")
+                    if power_w:
+                        energy_parts = [f"power: {power_w}W"]
+                        if daily_kwh:
+                            energy_parts.append(f"daily: {daily_kwh}kWh")
+                        else:
+                            # Estimate daily kWh
+                            estimated_daily = round((power_w * 24) / 1000, 2)
+                            energy_parts.append(f"daily: ~{estimated_daily}kWh")
+                        device_line_parts.append(f"[{', '.join(energy_parts)}]")
                     
                     # Add Zigbee2MQTT information if available
                     zigbee_info_parts = []
