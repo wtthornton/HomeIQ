@@ -62,28 +62,16 @@ function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
 }
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-v2.ts:64',message:'fetchJSON called',data:{url,method:options?.method||'GET'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   try {
     const headers = withAuthHeaders({
       'Content-Type': 'application/json',
       ...options?.headers,
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-v2.ts:71',message:'About to fetch',data:{url,headers:Object.keys(headers)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C'})}).catch(()=>{});
-    // #endregion
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-v2.ts:77',message:'About to execute fetch',data:{url,method:options?.method,hasBody:!!options?.body,bodyLength:options?.body ? (typeof options.body === 'string' ? options.body.length : JSON.stringify(options.body).length) : 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C'})}).catch(()=>{});
-    // #endregion
     const response = await fetch(url, {
       ...options,
       headers,
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-v2.ts:82',message:'Fetch response received',data:{url,status:response.status,statusText:response.statusText,ok:response.ok,headers:Object.fromEntries(response.headers.entries())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C'})}).catch(()=>{});
-    // #endregion
 
     if (!response.ok) {
       let errorMessage = response.statusText;
@@ -102,14 +90,8 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
       throw new APIError(response.status, errorMessage);
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-v2.ts:93',message:'Fetch successful',data:{url,status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C'})}).catch(()=>{});
-    // #endregion
     return await response.json();
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-v2.ts:96',message:'Fetch error caught',data:{url,errorType:error?.constructor?.name,errorMessage:error instanceof Error ? error.message : String(error),isTypeError:error instanceof TypeError,isFailedToFetch:error instanceof TypeError && error.message === 'Failed to fetch'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,D'})}).catch(()=>{});
-    // #endregion
     // Enhanced error logging with more context
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       console.error(`API request failed (network error): ${url}`, {
@@ -121,9 +103,6 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
       // Wrap in a more descriptive error
       const networkError = new Error(`Network error: Unable to connect to ${url}. Please check your connection and ensure the server is running. If accessing from browser, this may be a CORS issue - check browser console for CORS errors.`);
       (networkError as any).originalError = error;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-v2.ts:104',message:'Network error wrapped',data:{url,originalMessage:error.message,newMessage:networkError.message,errorStack:error.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C'})}).catch(()=>{});
-      // #endregion
       throw networkError;
     }
     console.error(`API request failed: ${url}`, error);
@@ -496,19 +475,6 @@ export const apiV2 = {
   }> {
     // Call yaml-validation-service directly (port 8037)
     const validationUrl = import.meta.env.VITE_VALIDATION_SERVICE_URL || 'http://localhost:8037';
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-v2.ts:491',message:'validateYAML called',data:{validationUrl,hasEnvVar:!!import.meta.env.VITE_VALIDATION_SERVICE_URL,envValue:import.meta.env.VITE_VALIDATION_SERVICE_URL,yamlLength:yamlContent.length,options},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
-    // #endregion
-    const fullUrl = `${validationUrl}/api/v1/validation/validate`;
-    const requestBody = {
-      yaml_content: yamlContent,
-      normalize: options?.normalize ?? true,
-      validate_entities: options?.validateEntities ?? true,
-      validate_services: options?.validateServices ?? false,
-    };
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-v2.ts:497',message:'About to call fetchJSON',data:{fullUrl,validationUrl,requestBodyKeys:Object.keys(requestBody),yamlContentLength:requestBody.yaml_content.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,D'})}).catch(()=>{});
-    // #endregion
     return fetchJSON<{
       valid: boolean;
       errors: string[];
@@ -516,9 +482,14 @@ export const apiV2 = {
       score: number;
       fixed_yaml?: string;
       fixes_applied?: string[];
-    }>(fullUrl, {
+    }>(`${validationUrl}/api/v1/validation/validate`, {
       method: 'POST',
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        yaml_content: yamlContent,
+        normalize: options?.normalize ?? true,
+        validate_entities: options?.validateEntities ?? true,
+        validate_services: options?.validateServices ?? false,
+      }),
     });
   },
 };

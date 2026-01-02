@@ -50,9 +50,11 @@ vi.mock('../../services/haAiAgentApi', () => ({
   executeToolCall: vi.fn(),
 }));
 
+// Mock api-v2 service
+const mockValidateYAML = vi.fn();
 vi.mock('../../services/api-v2', () => ({
   apiV2: {
-    validateYAML: vi.fn(),
+    validateYAML: mockValidateYAML,
   },
 }));
 
@@ -213,8 +215,7 @@ describe('AutomationPreview', () => {
 
   describe('Existing Functionality Preservation', () => {
     it('displays validation feedback when validation result exists', async () => {
-      const { apiV2 } = await import('../../services/api-v2');
-      vi.mocked(apiV2.validateYAML).mockResolvedValue({
+      vi.mocked(mockValidateYAML).mockResolvedValue({
         valid: true,
         errors: [],
         warnings: [],
@@ -229,8 +230,7 @@ describe('AutomationPreview', () => {
     });
 
     it('displays validation errors when validation fails', async () => {
-      const { apiV2 } = await import('../../services/api-v2');
-      vi.mocked(apiV2.validateYAML).mockResolvedValue({
+      vi.mocked(mockValidateYAML).mockResolvedValue({
         valid: false,
         errors: ['Entity not found: sensor.test'],
         warnings: [],
@@ -328,8 +328,7 @@ describe('AutomationPreview', () => {
     });
 
     it('maintains tab state during validation', async () => {
-      const { apiV2 } = await import('../../services/api-v2');
-      vi.mocked(apiV2.validateYAML).mockImplementation(
+      vi.mocked(mockValidateYAML).mockImplementation(
         () => new Promise(resolve => setTimeout(() => resolve({
           valid: true,
           errors: [],
