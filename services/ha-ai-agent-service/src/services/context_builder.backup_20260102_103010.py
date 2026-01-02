@@ -38,7 +38,6 @@ class ContextBuilder:
         self._capability_patterns_service = None
         self._helpers_scenes_service = None
         self._entity_attributes_service = None
-        self._device_state_context_service = None
 
     async def initialize(self) -> None:
         """Initialize context builder and all services"""
@@ -47,7 +46,6 @@ class ContextBuilder:
         from .capability_patterns_service import CapabilityPatternsService
         from .devices_summary_service import DevicesSummaryService
         from .entity_attributes_service import EntityAttributesService
-        from .device_state_context_service import DeviceStateContextService
         from .entity_inventory_service import EntityInventoryService
         from .helpers_scenes_service import HelpersScenesService
         from .services_summary_service import ServicesSummaryService
@@ -80,10 +78,6 @@ class ContextBuilder:
             settings=self.settings,
             context_builder=self
         )
-        self._device_state_context_service = DeviceStateContextService(
-            settings=self.settings,
-            context_builder=self
-        )
         self._initialized = True
         logger.info("✅ Context builder initialized with all services")
 
@@ -103,8 +97,6 @@ class ContextBuilder:
             await self._helpers_scenes_service.close()
         if self._entity_attributes_service:
             await self._entity_attributes_service.close()
-        if self._device_state_context_service:
-            await self._device_state_context_service.close()
         self._initialized = False
         logger.info("✅ Context builder closed")
 
@@ -211,37 +203,6 @@ class ContextBuilder:
             System prompt string defining agent role and behavior
         """
         return SYSTEM_PROMPT
-
-    async def get_device_state_context(
-        self,
-        entity_ids: list[str] | None = None,
-        user_prompt: str | None = None,
-        skip_truncation: bool = False,
-    ) -> str:
-        """
-        Get device state context for specified entities.
-
-        This is a helper method to access the DeviceStateContextService.
-        Device state context is dynamic and should be included per-message,
-        not cached with the general context.
-
-        Args:
-            entity_ids: Optional list of entity IDs to fetch states for
-            user_prompt: Optional user prompt (not used, entity extraction should happen in caller)
-            skip_truncation: If True, skip truncation (for debug display)
-
-        Returns:
-            Formatted state context string, or empty string if no entities or unavailable
-        """
-        if not self._device_state_context_service:
-            logger.warning("DeviceStateContextService not initialized")
-            return ""
-        
-        return await self._device_state_context_service.get_state_context(
-            entity_ids=entity_ids,
-            user_prompt=user_prompt,
-            skip_truncation=skip_truncation,
-        )
 
     async def build_complete_system_prompt(self, skip_truncation: bool = False) -> str:
         """

@@ -482,8 +482,8 @@ services:
 
   weather-api:
     build:
-      context: ./services/weather-api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/weather-api/Dockerfile
     container_name: homeiq-weather-api
     restart: unless-stopped
     ports:
