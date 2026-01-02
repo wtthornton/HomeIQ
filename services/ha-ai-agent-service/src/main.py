@@ -69,6 +69,42 @@ async def lifespan(_app: FastAPI):
         settings = Settings()
         logger.info(f"✅ Settings loaded (HA URL: {settings.ha_url})")
 
+        # Fix database directory permissions before initialization (Docker volume fix)
+        if settings.database_url.startswith("sqlite"):
+            from pathlib import Path
+            import os
+            import stat
+            path_str = settings.database_url.split("///")[-1]
+            db_path = Path(path_str)
+            data_dir = db_path.parent
+            
+            # Fix permissions if directory exists (Docker volume might be root-owned)
+            if data_dir.exists():
+                try:
+                    current_uid = os.getuid() if hasattr(os, 'getuid') else None
+                    current_gid = os.getgid() if hasattr(os, 'getgid') else None
+                    
+                    # Try to fix directory permissions
+                    os.chmod(data_dir, stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
+                    if current_uid is not None and current_uid != 0:
+                        try:
+                            os.chown(data_dir, current_uid, current_gid)
+                        except (PermissionError, OSError):
+                            pass  # Can't change ownership, but chmod should help
+                    
+                    # Fix database file if it exists
+                    if db_path.exists():
+                        os.chmod(db_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
+                        if current_uid is not None and current_uid != 0:
+                            try:
+                                os.chown(db_path, current_uid, current_gid)
+                            except (PermissionError, OSError):
+                                pass
+                    
+                    logger.info(f"✅ Fixed permissions for {data_dir}")
+                except Exception as e:
+                    logger.warning(f"⚠️  Could not fix permissions (non-fatal): {e}")
+        
         # Initialize database
         await init_database(settings.database_url)
         logger.info("✅ Database initialized")
