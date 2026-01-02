@@ -36,3 +36,17 @@ tapps_agents.egg-info/
 
 # Agent customizations (project-specific, gitignored by default)
 .tapps-agents/customizations/
+
+# TappsCodingAgents backups (old framework versions - exclude from indexing)
+.tapps-agents/backups/
+
+# Simple Mode workflow artifacts (temporary outputs - exclude from autocomplete)
+docs/workflows/simple-mode/step*.md
+docs/workflows/simple-mode/*-step*.md
+docs/workflows/simple-mode/*-summary.md
+docs/workflows/simple-mode/*-complete.md
+docs/workflows/simple-mode/*-COMPLETE.md
+docs/workflows/simple-mode/*-SUMMARY.md
+docs/workflows/simple-mode/*-NEXT_STEPS*.md
+docs/workflows/simple-mode/*-IMPLEMENTATION*.md
+docs/workflows/simple-mode/LOGGING_*.md
