@@ -147,7 +147,9 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
         }
         
         if (isNetworkError) {
-          toast.error('Validation service unavailable. You can still create the automation, but it won\'t be validated.', {
+          // Network error means HA AI Agent Service is unavailable
+          // This is more critical than validation service being unavailable
+          toast.error('HA AI Agent Service unavailable. Automation creation may not work properly.', {
             icon: '⚠️',
             duration: 5000,
           });
@@ -156,12 +158,12 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
         }
         
         // Set validation result to show error state even on exception
-        // For network errors, we allow creation (valid: true but with warnings)
+        // For network errors, we block creation (service unavailable)
         // For validation errors, we block creation (valid: false)
         const errorResult = {
-          valid: isNetworkError, // Allow creation on network errors
-          errors: isNetworkError ? [] : [errorMessage],
-          warnings: isNetworkError ? ['Validation service unavailable - automation not validated'] : [],
+          valid: false, // Block creation on any error
+          errors: [errorMessage],
+          warnings: isNetworkError ? ['HA AI Agent Service unavailable - cannot validate automation'] : [],
           score: 0,
           isNetworkError,
         };

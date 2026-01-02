@@ -121,7 +121,6 @@ action: []
     assert result["preview"] is True
     assert "validation" in result
     # Basic validation may still pass syntax check but fail structure check
-    assert "validation" in result
 
 
 @pytest.mark.asyncio

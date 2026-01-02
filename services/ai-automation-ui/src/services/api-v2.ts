@@ -460,6 +460,9 @@ export const apiV2 = {
 
   /**
    * Validate automation YAML (Epic 51, Story 51.9)
+   * 
+   * Uses HA AI Agent Service validation endpoint which provides graceful fallback
+   * when validation services are unavailable (validation chain pattern).
    */
   async validateYAML(yamlContent: string, options?: {
     normalize?: boolean;
@@ -472,9 +475,11 @@ export const apiV2 = {
     score: number;
     fixed_yaml?: string;
     fixes_applied?: string[];
+    strategy_used?: string;
+    services_unavailable?: string[];
   }> {
-    // Call yaml-validation-service directly (port 8037)
-    const validationUrl = import.meta.env.VITE_VALIDATION_SERVICE_URL || 'http://localhost:8037';
+    // Call HA AI Agent Service validation endpoint (uses validation chain with fallback)
+    const haAgentUrl = import.meta.env.VITE_HA_AGENT_SERVICE_URL || 'http://localhost:7242';
     return fetchJSON<{
       valid: boolean;
       errors: string[];
@@ -482,7 +487,9 @@ export const apiV2 = {
       score: number;
       fixed_yaml?: string;
       fixes_applied?: string[];
-    }>(`${validationUrl}/api/v1/validation/validate`, {
+      strategy_used?: string;
+      services_unavailable?: string[];
+    }>(`${haAgentUrl}/api/v1/validation/validate`, {
       method: 'POST',
       body: JSON.stringify({
         yaml_content: yamlContent,
