@@ -1,180 +1,162 @@
-# API Key Validation Tests
+# E2E Test Suite
 
-This directory contains comprehensive tests for validating API keys and tokens used by the HA Ingestor system.
+Comprehensive Playwright test suite for HomeIQ UI services.
 
-## Test Script: `test_api_keys.py`
+## Overview
 
-A comprehensive local testing script that validates:
-- Home Assistant API tokens
-- Weather API keys (OpenWeatherMap)
-- Environment variable configuration
-- Actual API connectivity
+This test suite provides comprehensive end-to-end testing for both UI services:
 
-### Usage
+- **Health Dashboard** (Port 3000) - 15 tabs, 40+ components
+- **AI Automation UI** (Port 3001) - 9 routes/pages, 50+ components
 
-#### Basic Usage
-```bash
-# Run tests with environment variables from .env file
-python tests/test_api_keys.py
+## Test Structure
 
-# Run with verbose output
-python tests/test_api_keys.py --verbose
-
-# Run with specific environment file
-python tests/test_api_keys.py --env-file .env.production
+```
+tests/
+├── e2e/
+│   ├── health-dashboard/          # Health Dashboard tests
+│   │   ├── fixtures/              # Test data and API mocks
+│   │   ├── pages/                 # Page-level tests
+│   │   ├── components/            # Component tests
+│   │   ├── interactions/          # Interaction tests
+│   │   └── accessibility/         # A11y tests
+│   └── ai-automation-ui/          # AI Automation UI tests
+│       ├── fixtures/              # Test data and API mocks
+│       ├── pages/                 # Page-level tests
+│       ├── components/            # Component tests
+│       └── workflows/             # End-to-end workflows
+├── shared/
+│   ├── helpers/                   # Shared utilities
+│   └── fixtures/                  # Shared fixtures
+└── playwright.config.ts           # Root configuration
 ```
 
-#### Override Specific Values
-```bash
-# Test with specific Home Assistant configuration
-python tests/test_api_keys.py --ha-url http://homeassistant.local:8123 --ha-token your_token_here
+## Running Tests
 
-# Test with specific Weather API key
-python tests/test_api_keys.py --weather-key your_openweathermap_key
-
-# Test with all overrides
-python tests/test_api_keys.py \
-  --ha-url http://homeassistant.local:8123 \
-  --ha-token your_ha_token \
-  --weather-key your_weather_key
-```
-
-#### Output Formats
-```bash
-# Console output (default)
-python tests/test_api_keys.py
-
-# JSON output for scripting
-python tests/test_api_keys.py --output json > test_results.json
-```
-
-### Environment Variables Required
-
-The test script expects these environment variables:
+### Health Dashboard
 
 ```bash
-# Home Assistant Configuration
-HOME_ASSISTANT_URL=http://homeassistant.local:8123
-HOME_ASSISTANT_TOKEN=your_long_lived_access_token_here
-
-# Weather API Configuration  
-WEATHER_API_KEY=your_openweathermap_api_key_here
-
-# InfluxDB Configuration (optional for basic API tests)
-INFLUXDB_URL=http://localhost:8086
-INFLUXDB_TOKEN=your_influxdb_token
+cd services/health-dashboard
+npm run test:e2e                 # Run all tests
+npm run test:e2e:ui              # Run with UI mode
+npm run test:e2e:headed          # Run in headed mode
+npm run test:e2e:debug           # Run in debug mode
+npm run test:e2e:smoke           # Run smoke tests only
+npm run test:e2e:chromium       # Run in Chromium only
+npm run test:e2e:report         # Show test report
 ```
 
-### Test Categories
-
-#### 1. Environment Variables Test
-- Validates all required environment variables are present
-- Checks for proper configuration
-- Masks sensitive values in output
-
-#### 2. Home Assistant API Tests
-- **Connection Test**: Basic connectivity to HA instance
-- **WebSocket Test**: WebSocket endpoint availability  
-- **Permissions Test**: Token permission validation across endpoints
-
-#### 3. Weather API Tests
-- **Key Validation**: Tests if API key is valid and active
-- **Quota Test**: Checks API quota and rate limiting
-
-### Example Output
-
-```
-================================================================================
-API KEY VALIDATION TEST RESULTS
-================================================================================
-
-SUMMARY:
-  Total Tests: 5
-  Successful:  4 ✓
-  Failed:      1 ✗
-  Success Rate: 80.0%
-
-DETAILED RESULTS:
---------------------------------------------------------------------------------
-
-✓ PASS Environment Variables
-  all_required_vars_present: True
-  total_vars_checked: 5
-
-✓ PASS Home Assistant Connection
-  status_code: 200
-  message: API running.
-  version: 2024.1.0
-
-✓ PASS Home Assistant WebSocket Connection
-  websocket_endpoint: ws://homeassistant.local:8123/api/websocket
-  status_code: 200
-  note: WebSocket endpoint available (full connection test requires WebSocket client)
-
-✓ PASS Home Assistant Token Permissions
-  successful_endpoints: ['/api/', '/api/states', '/api/events', '/api/config']
-  failed_endpoints: []
-  permission_level: Read access confirmed
-
-✗ FAIL Weather API Key Validation
-  Error: Invalid API key - authentication failed
-
-================================================================================
-```
-
-### Exit Codes
-
-- `0`: All tests passed
-- `1`: One or more tests failed
-
-### Integration with CI/CD
-
-The script can be integrated into CI/CD pipelines:
+### AI Automation UI
 
 ```bash
-# In your CI pipeline
-python tests/test_api_keys.py --output json > api_test_results.json
-
-# Check exit code
-if [ $? -eq 0 ]; then
-    echo "All API tests passed"
-else
-    echo "API tests failed - check results"
-    exit 1
-fi
+cd services/ai-automation-ui
+npm run test:e2e                 # Run all tests
+npm run test:e2e:ui              # Run with UI mode
+npm run test:e2e:headed          # Run in headed mode
+npm run test:e2e:debug           # Run in debug mode
+npm run test:e2e:smoke           # Run smoke tests only
+npm run test:e2e:chromium       # Run in Chromium only
+npm run test:e2e:report         # Show test report
 ```
 
-### Troubleshooting
+### All Tests (Root)
 
-#### Common Issues
-
-1. **"Missing required environment variables"**
-   - Ensure `.env` file exists with all required variables
-   - Use `--env-file` to specify custom env file location
-
-2. **"Connection timeout"**
-   - Check if Home Assistant is running and accessible
-   - Verify `HOME_ASSISTANT_URL` is correct
-   - Ensure network connectivity
-
-3. **"Invalid API key"**
-   - Verify API keys are correct and active
-   - Check if API keys have expired
-   - Ensure proper permissions for API keys
-
-4. **"Rate limit exceeded"**
-   - Weather API has usage limits
-   - Wait before retrying tests
-   - Check OpenWeatherMap account quota
-
-### Dependencies
-
-Required Python packages:
 ```bash
-pip install aiohttp requests python-dotenv
+# From project root
+npx playwright test              # Run all tests
+npx playwright test --ui         # Run with UI mode
+npx playwright test --grep @smoke # Run smoke tests
 ```
 
-Or install from project requirements:
-```bash
-pip install -r services/admin-api/requirements.txt
+## Test Tags
+
+- `@smoke` - Critical path tests (run on every commit)
+- `@regression` - Full feature tests (run on PR)
+- `@component` - Component-level tests
+- `@integration` - Workflow tests
+- `@a11y` - Accessibility tests
+- `@slow` - Long-running tests
+
+## Test Coverage
+
+### Health Dashboard
+
+- ✅ All 15 tabs tested
+- ✅ Navigation and layout
+- ✅ Component interactions
+- ✅ Forms and modals
+- ✅ Charts and visualizations
+- ✅ Accessibility compliance
+
+### AI Automation UI
+
+- ✅ All 9 pages/routes tested
+- ✅ Conversational dashboard
+- ✅ Chat interface
+- ✅ Automation workflows
+- ✅ Component interactions
+- ✅ End-to-end user flows
+
+## Writing Tests
+
+### Basic Test Structure
+
+```typescript
+import { test, expect } from '@playwright/test';
+import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+
+test.describe('Feature Name', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuthenticatedSession(page);
+    await page.goto('/');
+  });
+
+  test('@smoke Feature works', async ({ page }) => {
+    // Test implementation
+    await expect(page.locator('selector')).toBeVisible();
+  });
+});
 ```
+
+### Using API Mocks
+
+```typescript
+import { mockApiEndpoints } from '../../../shared/helpers/api-helpers';
+import { automationMocks } from '../../fixtures/api-mocks';
+
+test.beforeEach(async ({ page }) => {
+  await mockApiEndpoints(page, [
+    { pattern: /\/api\/suggestions/, response: automationMocks['/api/suggestions'] },
+  ]);
+});
+```
+
+### Using Wait Helpers
+
+```typescript
+import { waitForLoadingComplete, waitForModalOpen } from '../../../shared/helpers/wait-helpers';
+
+await waitForLoadingComplete(page);
+await waitForModalOpen(page);
+```
+
+## CI/CD Integration
+
+Tests are configured to run in CI/CD pipelines:
+
+- **Smoke tests** run on every commit
+- **Full suite** runs on pull requests
+- **Accessibility tests** run nightly
+- **Reports** are generated and uploaded
+
+## Debugging
+
+1. Run tests in debug mode: `npm run test:e2e:debug`
+2. Use Playwright Inspector to step through tests
+3. Check screenshots and videos in `test-results/`
+4. View trace files in Playwright Trace Viewer
+
+## Documentation
+
+- [E2E Testing Guide](E2E_TESTING_GUIDE.md) - Detailed testing guide
+- [Test Coverage](TEST_COVERAGE.md) - Coverage documentation
