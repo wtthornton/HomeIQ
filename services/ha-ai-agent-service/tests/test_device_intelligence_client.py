@@ -1,7 +1,7 @@
 """Tests for Device Intelligence Client"""
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 import httpx
 
 from src.clients.device_intelligence_client import DeviceIntelligenceClient
@@ -10,7 +10,7 @@ from src.clients.device_intelligence_client import DeviceIntelligenceClient
 @pytest.fixture
 def device_intelligence_client():
     """Create DeviceIntelligenceClient instance"""
-    return DeviceIntelligenceClient(base_url="http://test-device-intel:8028")
+    return DeviceIntelligenceClient(base_url="http://test-device-intel:8028", enabled=True)
 
 
 @pytest.mark.asyncio
@@ -25,9 +25,10 @@ async def test_get_device_capabilities_success(device_intelligence_client):
     ]
 
     with patch.object(device_intelligence_client.client, "get") as mock_get:
-        mock_response = AsyncMock()
+        mock_response = Mock()
         mock_response.json.return_value = mock_capabilities
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status = Mock()
+        mock_response.status_code = 200
         mock_get.return_value = mock_response
 
         capabilities = await device_intelligence_client.get_device_capabilities("device1")
@@ -43,9 +44,9 @@ async def test_get_device_capabilities_success(device_intelligence_client):
 async def test_get_device_capabilities_404(device_intelligence_client):
     """Test handling 404 for device not found"""
     with patch.object(device_intelligence_client.client, "get") as mock_get:
-        mock_response = AsyncMock()
+        mock_response = Mock()
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Not Found", request=AsyncMock(), response=AsyncMock()
+            "Not Found", request=Mock(), response=Mock()
         )
         mock_response.status_code = 404
         mock_get.return_value = mock_response
@@ -80,9 +81,10 @@ async def test_get_devices_success(device_intelligence_client):
     ]
 
     with patch.object(device_intelligence_client.client, "get") as mock_get:
-        mock_response = AsyncMock()
+        mock_response = Mock()
         mock_response.json.return_value = mock_devices
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status = Mock()
+        mock_response.status_code = 200
         mock_get.return_value = mock_response
 
         devices = await device_intelligence_client.get_devices(limit=100)
@@ -105,9 +107,10 @@ async def test_get_devices_dict_response(device_intelligence_client):
     }
 
     with patch.object(device_intelligence_client.client, "get") as mock_get:
-        mock_response = AsyncMock()
+        mock_response = Mock()
         mock_response.json.return_value = mock_response_data
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status = Mock()
+        mock_response.status_code = 200
         mock_get.return_value = mock_response
 
         devices = await device_intelligence_client.get_devices()
@@ -120,11 +123,15 @@ async def test_get_devices_dict_response(device_intelligence_client):
 async def test_get_devices_http_error(device_intelligence_client):
     """Test handling HTTP errors"""
     with patch.object(device_intelligence_client.client, "get") as mock_get:
-        mock_response = AsyncMock()
+        mock_response = Mock()
+        mock_error_response = Mock()
+        mock_error_response.status_code = 500
+        mock_error_response.text = "Internal Server Error"
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Error", request=AsyncMock(), response=AsyncMock()
+            "Error", request=Mock(), response=mock_error_response
         )
         mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
         mock_get.return_value = mock_response
 
         with pytest.raises(Exception, match="Device Intelligence API returned"):
