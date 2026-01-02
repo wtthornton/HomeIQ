@@ -13,6 +13,7 @@ import { ToolCall } from '../../services/haAiAgentApi';
 import { executeToolCall } from '../../services/haAiAgentApi';
 import { apiV2 } from '../../services/api-v2';
 import toast from 'react-hot-toast';
+import { DebugTab } from './DebugTab';
 
 interface AutomationPreviewProps {
   automationYaml: string;
@@ -40,7 +41,7 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
   darkMode,
   onClose,
   onEdit,
-  conversationId: _conversationId,
+  conversationId,
   originalPrompt,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
@@ -52,9 +53,11 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
     score: number;
     fixed_yaml?: string;
     fixes_applied?: string[];
+    isNetworkError?: boolean;
   } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [showNormalizedYaml, setShowNormalizedYaml] = useState(false);
+  const [activeTab, setActiveTab] = useState<'preview' | 'debug'>('preview');
 
   // Parse automation YAML to extract metadata (using regex since YAML isn't JSON)
   const parsedAutomation = useMemo<ParsedAutomation>(() => {
@@ -106,12 +109,18 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
       if (!cleanYaml) return;
       
       setIsValidating(true);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:110',message:'validateYAML started',data:{cleanYamlLength:cleanYaml.length,cleanYamlPreview:cleanYaml.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
+      // #endregion
       try {
         const result = await apiV2.validateYAML(cleanYaml, {
           normalize: true,
           validateEntities: true,
           validateServices: false,
         });
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:118',message:'Validation succeeded',data:{valid:result.valid,score:result.score,errorsCount:result.errors.length,warningsCount:result.warnings.length,hasFixedYaml:!!result.fixed_yaml},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         setValidationResult(result);
         
         // If fixes were applied, show normalized YAML by default
@@ -120,21 +129,46 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
         }
       } catch (error) {
         console.error('Failed to validate YAML:', error);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:129',message:'Validation error caught',data:{errorType:error?.constructor?.name,errorMessage:error instanceof Error ? error.message : String(error),errorName:error instanceof Error ? error.name : 'unknown',hasStack:error instanceof Error ? !!error.stack : false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,D'})}).catch(()=>{});
+        // #endregion
         // Extract error message for better user feedback
         let errorMessage = 'Failed to validate automation YAML';
+        let isNetworkError = false;
         if (error instanceof Error) {
           errorMessage = error.message || errorMessage;
+          // Detect network errors (CORS, connection refused, etc.)
+          isNetworkError = errorMessage.includes('Failed to fetch') || 
+                          errorMessage.includes('Network error') ||
+                          errorMessage.includes('fetch') ||
+                          error.name === 'TypeError';
         } else if (typeof error === 'object' && error !== null && 'message' in error) {
           errorMessage = String(error.message);
         }
-        toast.error(errorMessage);
+        
+        if (isNetworkError) {
+          toast.error('Validation service unavailable. You can still create the automation, but it won\'t be validated.', {
+            icon: '⚠️',
+            duration: 5000,
+          });
+        } else {
+          toast.error(errorMessage);
+        }
+        
         // Set validation result to show error state even on exception
-        setValidationResult({
-          valid: false,
-          errors: [errorMessage],
-          warnings: [],
+        // For network errors, we allow creation (valid: true but with warnings)
+        // For validation errors, we block creation (valid: false)
+        const errorResult = {
+          valid: isNetworkError, // Allow creation on network errors
+          errors: isNetworkError ? [] : [errorMessage],
+          warnings: isNetworkError ? ['Validation service unavailable - automation not validated'] : [],
           score: 0,
-        });
+          isNetworkError,
+        };
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:152',message:'Setting error validation result',data:{valid:errorResult.valid,isNetworkError:errorResult.isNetworkError,errorsCount:errorResult.errors.length,warningsCount:errorResult.warnings.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
+        setValidationResult(errorResult);
       } finally {
         setIsValidating(false);
       }
@@ -283,6 +317,10 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
                     <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       🔄 Validating...
                     </span>
+                  ) : validationResult.isNetworkError ? (
+                    <span className={`text-sm font-medium ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                      ⚠️ Validation Unavailable (Network Error)
+                    </span>
                   ) : validationResult.valid ? (
                     <span className={`text-sm font-medium ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
                       ✅ Valid (Score: {validationResult.score.toFixed(1)}/100)
@@ -354,23 +392,88 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
             </div>
           )}
 
-          {/* YAML Content */}
-          <div className="flex-1 overflow-auto p-6">
-            <div className="rounded-lg overflow-hidden border border-gray-300">
-              <SyntaxHighlighter
-                language="yaml"
-                style={darkMode ? vscDarkPlus : vs}
-                customStyle={{
-                  margin: 0,
-                  padding: '1rem',
-                  fontSize: '0.875rem',
-                  lineHeight: '1.5',
-                }}
-                showLineNumbers
+          {/* Tab Navigation */}
+          <div 
+            className={`border-b flex gap-1 px-6 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
+            role="tablist"
+            aria-label="Automation preview tabs"
+          >
+            <button
+              onClick={() => setActiveTab('preview')}
+              role="tab"
+              aria-selected={activeTab === 'preview'}
+              aria-controls="preview-tabpanel"
+              id="preview-tab"
+              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'preview'
+                  ? darkMode
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-blue-600 text-blue-600'
+                  : darkMode
+                  ? 'border-transparent text-gray-400 hover:text-gray-300'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Preview
+            </button>
+            <button
+              onClick={() => setActiveTab('debug')}
+              role="tab"
+              aria-selected={activeTab === 'debug'}
+              aria-controls="debug-tabpanel"
+              id="debug-tab"
+              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'debug'
+                  ? darkMode
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-blue-600 text-blue-600'
+                  : darkMode
+                  ? 'border-transparent text-gray-400 hover:text-gray-300'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              🐛 Debug
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            {activeTab === 'preview' ? (
+              <div 
+                className="flex-1 overflow-auto p-6"
+                role="tabpanel"
+                id="preview-tabpanel"
+                aria-labelledby="preview-tab"
               >
-                {yamlToDisplay}
-              </SyntaxHighlighter>
-            </div>
+                <div className="rounded-lg overflow-hidden border border-gray-300">
+                  <SyntaxHighlighter
+                    language="yaml"
+                    style={darkMode ? vscDarkPlus : vs}
+                    customStyle={{
+                      margin: 0,
+                      padding: '1rem',
+                      fontSize: '0.875rem',
+                      lineHeight: '1.5',
+                    }}
+                    showLineNumbers
+                  >
+                    {yamlToDisplay}
+                  </SyntaxHighlighter>
+                </div>
+              </div>
+            ) : (
+              <div 
+                className="flex-1 overflow-hidden min-h-0"
+                role="tabpanel"
+                id="debug-tabpanel"
+                aria-labelledby="debug-tab"
+              >
+                <DebugTab
+                  conversationId={conversationId || null}
+                  darkMode={darkMode}
+                />
+              </div>
+            )}
           </div>
 
           {/* Footer Actions */}
@@ -406,23 +509,30 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
               </button>
               {!createdAutomationId ? (
                 <button
-                  onClick={handleCreateAutomation}
+                  onClick={() => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:476',message:'Create button clicked',data:{isCreating,hasAlias:!!parsedAutomation.alias,validationValid:validationResult?.valid,isNetworkError:validationResult?.isNetworkError,isValidating},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                    // #endregion
+                    handleCreateAutomation();
+                  }}
                   disabled={
                     isCreating ||
                     !parsedAutomation.alias ||
-                    (validationResult && !validationResult.valid) ||
+                    (validationResult && !validationResult.valid && !validationResult.isNetworkError) ||
                     isValidating
                   }
                   className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    isCreating || !parsedAutomation.alias || (validationResult && !validationResult.valid) || isValidating
+                    isCreating || !parsedAutomation.alias || (validationResult && !validationResult.valid && !validationResult.isNetworkError) || isValidating
                       ? 'bg-gray-400 cursor-not-allowed'
                       : darkMode
                       ? 'bg-blue-600 text-white hover:bg-blue-700'
                       : 'bg-blue-500 text-white hover:bg-blue-600'
                   }`}
                   title={
-                    validationResult && !validationResult.valid
+                    validationResult && !validationResult.valid && !validationResult.isNetworkError
                       ? 'Fix validation errors before creating automation'
+                      : validationResult?.isNetworkError
+                      ? 'Validation service unavailable - automation will be created without validation'
                       : undefined
                   }
                 >
@@ -430,7 +540,7 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
                     ? 'Creating...'
                     : isValidating
                     ? 'Validating...'
-                    : validationResult && !validationResult.valid
+                    : validationResult && !validationResult.valid && !validationResult.isNetworkError
                     ? 'Fix Errors First'
                     : 'Create Automation'}
                 </button>
