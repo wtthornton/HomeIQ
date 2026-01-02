@@ -106,13 +106,18 @@ async def test_get_patterns_cached(capability_patterns_service, mock_context_bui
     """Test getting patterns from cache"""
     cached_patterns = "Cached patterns: Philips Hue: brightness (0-255), color_mode (3 options)"
     mock_context_builder._get_cached_value = AsyncMock(return_value=cached_patterns)
+    
+    # Mock get_devices to verify it's not called when cached
+    with patch.object(
+        capability_patterns_service.device_intelligence_client,
+        "get_devices",
+        new_callable=AsyncMock
+    ) as mock_get_devices:
+        patterns = await capability_patterns_service.get_patterns()
 
-    patterns = await capability_patterns_service.get_patterns()
-
-    assert patterns == cached_patterns
-    # Should not call get_devices when cached
-    assert not hasattr(capability_patterns_service.device_intelligence_client, "get_devices") or \
-           not capability_patterns_service.device_intelligence_client.get_devices.called
+        assert patterns == cached_patterns
+        # Should not call get_devices when cached
+        mock_get_devices.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -173,7 +178,8 @@ async def test_format_capability_enum(capability_patterns_service):
         "color_mode", "enum", {"values": ["rgb", "hs"]}
     )
     assert "color_mode" in formatted
-    assert "2" in formatted or "options" in formatted
+    # Format is "color_mode [rgb, hs]" - check for the values
+    assert "rgb" in formatted and "hs" in formatted
 
 
 @pytest.mark.asyncio

@@ -203,26 +203,40 @@ async def test_chat_endpoint_logic_new_conversation(
     # Simulate chat endpoint logic
     request = ChatRequest(message="Turn on the kitchen lights", refresh_context=False)
 
-    # Create conversation
-    conversation = await conversation_service.create_conversation()
-    conversation_id = conversation.conversation_id
+    # Mock database session and conversation operations
+    mock_conversation = Conversation(conversation_id="test-conv-123")
+    mock_session = AsyncMock()
+    
+    async def session_generator():
+        yield mock_session
+    
+    with patch('src.database.get_session', return_value=session_generator()), \
+         patch('src.services.conversation_service.get_session', return_value=session_generator()), \
+         patch('src.services.conversation_service.db_create_conversation', new_callable=AsyncMock, return_value=mock_conversation), \
+         patch('src.services.conversation_service.db_get_conversation', new_callable=AsyncMock, return_value=mock_conversation), \
+         patch.object(conversation_service, 'add_message', new_callable=AsyncMock) as mock_add_message, \
+         patch.object(services["conversation_service"], 'get_conversation', new_callable=AsyncMock, return_value=mock_conversation):
+        
+        # Create conversation
+        conversation = await conversation_service.create_conversation()
+        conversation_id = conversation.conversation_id
 
-    # Assemble messages
-    messages = await services["prompt_assembly_service"].assemble_messages(
-        conversation_id, request.message, refresh_context=request.refresh_context
-    )
+        # Assemble messages
+        messages = await services["prompt_assembly_service"].assemble_messages(
+            conversation_id, request.message, refresh_context=request.refresh_context
+        )
 
-    # Call OpenAI
-    completion = await mock_openai_client.chat_completion(messages=messages, tools=[])
+        # Call OpenAI
+        completion = await mock_openai_client.chat_completion(messages=messages, tools=[])
 
-    # Add assistant message
-    assistant_content = completion.choices[0].message.content or ""
-    await conversation_service.add_message(conversation_id, "assistant", assistant_content)
+        # Add assistant message
+        assistant_content = completion.choices[0].message.content or ""
+        await conversation_service.add_message(conversation_id, "assistant", assistant_content)
 
-    # Verify
-    assert assistant_content == "I've turned on the kitchen lights."
-    assert conversation_id is not None
-    mock_openai_client.chat_completion.assert_called_once()
+        # Verify
+        assert assistant_content == "I've turned on the kitchen lights."
+        assert conversation_id is not None
+        mock_openai_client.chat_completion.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -232,9 +246,18 @@ async def test_chat_endpoint_logic_invalid_conversation(
     """Test chat endpoint logic with invalid conversation ID"""
     services = setup_services
 
-    # Try to get non-existent conversation
-    conversation = await conversation_service.get_conversation("invalid-id")
-    assert conversation is None
+    # Mock database session and db_get_conversation to return None (conversation not found)
+    mock_session = AsyncMock()
+    
+    async def session_generator():
+        yield mock_session
+    
+    with patch('src.database.get_session', return_value=session_generator()), \
+         patch('src.services.conversation_service.get_session', return_value=session_generator()), \
+         patch('src.services.conversation_service.db_get_conversation', new_callable=AsyncMock, return_value=None):
+        # Try to get non-existent conversation
+        conversation = await conversation_service.get_conversation("invalid-id")
+        assert conversation is None
 
 
 @pytest.mark.asyncio
