@@ -5,10 +5,30 @@ Tests the HTTP client for calling the consolidated YAML validation endpoint.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 import httpx
 
 from src.clients.ai_automation_client import AIAutomationClient
+
+
+class MockResponse:
+    """Mock httpx.Response-like object."""
+    def __init__(self, status_code, json_data):
+        self.status_code = status_code
+        self._json_data = json_data
+        # Ensure json is a bound method, not a property
+        self.json = lambda: json_data
+    
+    def raise_for_status(self):
+        """Synchronous raise_for_status method."""
+        if self.status_code >= 400:
+            raise httpx.HTTPStatusError("Error", request=MagicMock(), response=self)
+    
+    def __getattr__(self, name):
+        """Prevent MagicMock from interfering."""
+        if name == 'json':
+            return lambda: self._json_data
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
 
 @pytest.fixture
@@ -59,11 +79,9 @@ class TestAIAutomationClient:
     async def test_validate_yaml_success(self, client, valid_yaml, validation_response):
         """Test successful YAML validation."""
         with patch.object(client.client, 'post') as mock_post:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = validation_response
-            mock_response.raise_for_status = MagicMock()
-            mock_post.return_value.__aenter__.return_value = mock_response
+            mock_response = MockResponse(200, validation_response)
+            # httpx.AsyncClient.post() returns Response directly when awaited
+            mock_post.return_value = mock_response
             
             result = await client.validate_yaml(valid_yaml)
             
@@ -78,9 +96,10 @@ class TestAIAutomationClient:
         with patch.object(client.client, 'post') as mock_post:
             mock_response = MagicMock()
             mock_response.status_code = 200
-            mock_response.json.return_value = validation_response
+            mock_response = MockResponse(200, validation_response)
             mock_response.raise_for_status = MagicMock()
-            mock_post.return_value.__aenter__.return_value = mock_response
+            # httpx.AsyncClient.post() returns Response directly when awaited
+            mock_post.return_value = mock_response
             
             result = await client.validate_yaml(
                 valid_yaml,
@@ -100,11 +119,9 @@ class TestAIAutomationClient:
     async def test_validate_yaml_with_context(self, client, valid_yaml, validation_response):
         """Test YAML validation with context."""
         with patch.object(client.client, 'post') as mock_post:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = validation_response
-            mock_response.raise_for_status = MagicMock()
-            mock_post.return_value.__aenter__.return_value = mock_response
+            mock_response = MockResponse(200, validation_response)
+            # httpx.AsyncClient.post() returns Response directly when awaited
+            mock_post.return_value = mock_response
             
             context = {
                 "entities": ["light.kitchen"],
@@ -122,17 +139,15 @@ class TestAIAutomationClient:
     async def test_validate_yaml_invalid_response(self, client, valid_yaml):
         """Test YAML validation with invalid response."""
         with patch.object(client.client, 'post') as mock_post:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
+            mock_response = MockResponse(200, {
                 "valid": False,
                 "errors": [{"stage": "syntax", "severity": "error", "message": "Invalid YAML"}],
                 "warnings": [],
                 "stages": {"syntax": False},
                 "summary": "Validation failed"
-            }
-            mock_response.raise_for_status = MagicMock()
-            mock_post.return_value.__aenter__.return_value = mock_response
+            })
+            # httpx.AsyncClient.post() returns Response directly when awaited
+            mock_post.return_value = mock_response
             
             result = await client.validate_yaml(valid_yaml)
             
@@ -189,11 +204,9 @@ class TestAIAutomationClient:
         }
         
         with patch.object(client.client, 'post') as mock_post:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = validation_response_with_fix
-            mock_response.raise_for_status = MagicMock()
-            mock_post.return_value.__aenter__.return_value = mock_response
+            mock_response = MockResponse(200, validation_response_with_fix)
+            # httpx.AsyncClient.post() returns Response directly when awaited
+            mock_post.return_value = mock_response
             
             result = await client.validate_yaml(valid_yaml)
             

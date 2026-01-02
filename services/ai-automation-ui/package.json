@@ -10,7 +10,14 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:e2e": "playwright test --config ../../tests/e2e/ai-automation-ui/playwright.config.ts",
+    "test:e2e:ui": "playwright test --ui --config ../../tests/e2e/ai-automation-ui/playwright.config.ts",
+    "test:e2e:headed": "playwright test --headed --config ../../tests/e2e/ai-automation-ui/playwright.config.ts",
+    "test:e2e:debug": "playwright test --debug --config ../../tests/e2e/ai-automation-ui/playwright.config.ts",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:chromium": "playwright test --project=chromium --config ../../tests/e2e/ai-automation-ui/playwright.config.ts",
+    "test:e2e:smoke": "playwright test --grep @smoke --config ../../tests/e2e/ai-automation-ui/playwright.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.11",
@@ -35,6 +42,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@playwright/test": "^1.56.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
