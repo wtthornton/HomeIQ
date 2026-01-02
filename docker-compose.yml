@@ -955,8 +955,8 @@ services:
 
   ha-ai-agent-service:
     build:
-      context: ./services/ha-ai-agent-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ha-ai-agent-service/Dockerfile
     container_name: homeiq-ha-ai-agent-service
     restart: unless-stopped
     ports:
