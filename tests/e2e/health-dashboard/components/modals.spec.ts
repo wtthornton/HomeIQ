@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { setupAuthenticatedSession } from '../../../../shared/helpers/auth-helpers';
-import { waitForModalOpen } from '../../../../shared/helpers/wait-helpers';
+import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { waitForModalOpen } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Health Dashboard - Modal Components', () => {
   test.beforeEach(async ({ page }) => {
