@@ -181,10 +181,56 @@ async def get_pattern_stats(
     Get pattern statistics.
     
     Returns summary statistics about detected patterns.
+    Handles database corruption gracefully with recovery attempts.
     """
+    from ..database.integrity import (
+        DatabaseIntegrityError,
+        is_database_corruption_error,
+        safe_database_query,
+        check_database_integrity
+    )
+    
+    async def _fetch_patterns_for_stats():
+        """Inner function to fetch patterns for stats calculation"""
+        return await get_patterns(db, limit=10000)
+    
     try:
-        # Get all patterns for stats
-        patterns = await get_patterns(db, limit=10000)
+        # Check database integrity first
+        is_healthy, error_msg = await check_database_integrity(db)
+        if not is_healthy:
+            logger.warning(f"Database integrity check failed before stats query: {error_msg}")
+            # Return safe fallback response
+            return {
+                "success": False,
+                "data": {
+                    "total_patterns": 0,
+                    "by_type": {},
+                    "avg_confidence": 0.0,
+                    "unique_devices": 0,
+                    "total_occurrences": 0
+                },
+                "message": "Database integrity check failed. Please run database repair.",
+                "error": "Database corruption detected. Statistics unavailable."
+            }
+        
+        # Get all patterns for stats with corruption handling
+        try:
+            patterns = await safe_database_query(db, _fetch_patterns_for_stats)
+        except DatabaseIntegrityError as integrity_error:
+            logger.error(f"Database corruption detected during stats query: {integrity_error}")
+            # Return safe fallback response
+            return {
+                "success": False,
+                "data": {
+                    "total_patterns": 0,
+                    "by_type": {},
+                    "avg_confidence": 0.0,
+                    "unique_devices": 0,
+                    "total_occurrences": 0
+                },
+                "message": "Database corruption detected. Please run database repair.",
+                "error": str(integrity_error)
+            }
         
         total_patterns = len(patterns)
         by_type = {}
@@ -231,10 +277,24 @@ async def get_pattern_stats(
             "message": "Pattern statistics retrieved successfully"
         }
     
-    except Exception as e:
-        logger.error(f"Failed to get pattern stats: {e}", exc_info=True)
+    except DatabaseIntegrityError as integrity_error:
+        logger.error(f"Database integrity error in get_pattern_stats: {integrity_error}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get pattern stats: {str(e)}"
-        ) from e
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database corruption detected. Please contact support or run database repair. Error: {str(integrity_error)}"
+        ) from integrity_error
+    except Exception as e:
+        # Check if it's a corruption error we didn't catch
+        if is_database_corruption_error(e):
+            logger.error(f"Database corruption detected (unhandled): {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Database corruption detected. Please contact support or run database repair. Error: {str(e)}"
+            ) from e
+        else:
+            logger.error(f"Failed to get pattern stats: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to get pattern stats: {str(e)}"
+            ) from e
 
