@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuthenticatedSession } from '../../../../shared/helpers/auth-helpers';
+import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
 
 test.describe('Health Dashboard - Accessibility', () => {
   test.beforeEach(async ({ page }) => {

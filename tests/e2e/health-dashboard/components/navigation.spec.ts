@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { setupAuthenticatedSession } from '../../../../shared/helpers/auth-helpers';
-import { waitForLoadingComplete } from '../../../../shared/helpers/wait-helpers';
+import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Health Dashboard - Navigation Component', () => {
   test.beforeEach(async ({ page }) => {

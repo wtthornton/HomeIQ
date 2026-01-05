@@ -112,8 +112,8 @@ export default defineConfig({
   ],
   
   /* Global setup and teardown */
-  // globalSetup: './global-setup.ts',
-  // globalTeardown: './global-teardown.ts',
+  globalSetup: './global-setup.ts',
+  globalTeardown: './global-teardown.ts',
   
   /* Test timeout */
   timeout: 30 * 1000,
