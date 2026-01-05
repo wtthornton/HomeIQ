@@ -233,8 +233,15 @@ async def get_patterns(
         return list(patterns)
 
     except Exception as e:
-        logger.error(f"Failed to retrieve patterns: {e}", exc_info=True)
-        raise
+        # Check if this is a database corruption error
+        from ...database.integrity import is_database_corruption_error, DatabaseIntegrityError
+        
+        if is_database_corruption_error(e):
+            logger.error(f"Database corruption detected while retrieving patterns: {e}", exc_info=True)
+            raise DatabaseIntegrityError(f"Database corruption detected: {e}") from e
+        else:
+            logger.error(f"Failed to retrieve patterns: {e}", exc_info=True)
+            raise
 
 
 async def _get_patterns_raw_sql(

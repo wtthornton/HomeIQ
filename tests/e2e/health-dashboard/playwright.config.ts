@@ -59,7 +59,8 @@ export default defineConfig({
   
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'cd ../../../services/health-dashboard && npm run dev',
+    command: 'npm run dev',
+    cwd: '../../../services/health-dashboard',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
