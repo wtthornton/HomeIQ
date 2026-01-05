@@ -59,7 +59,8 @@ export default defineConfig({
   
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'cd ../../../services/ai-automation-ui && npm run dev',
+    command: 'npm run dev',
+    cwd: '../../../services/ai-automation-ui',
     url: 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
