@@ -517,8 +517,8 @@ class DiscoveryService:
         # Use HTTP API for devices and entities (avoids WebSocket concurrency issues)
         devices_data = await self.discover_devices(websocket)
         entities_data = await self.discover_entities(websocket)
-        # TEMPORARY: Skip config entries - command not supported in this HA version
-        config_entries_data = []  # await self.discover_config_entries(websocket)
+        # Discover config entries to resolve integration names from config_entry_ids
+        config_entries_data = await self.discover_config_entries(websocket) if websocket else []
 
         # Discover services from HA Services API (Epic 2025) - already uses HTTP API
         services_data = await self.discover_services(websocket)
@@ -634,6 +634,31 @@ class DiscoveryService:
                 timeout=timeout,
                 connector_owner=True
             ) as session:
+                # Build config_entry_id -> integration domain mapping
+                config_entry_map: dict[str, str] = {}
+                if config_entries_data:
+                    for entry in config_entries_data:
+                        entry_id = entry.get("entry_id")
+                        domain = entry.get("domain")
+                        if entry_id and domain:
+                            config_entry_map[entry_id] = domain
+                    logger.info(f"🔧 Built config entry mapping: {len(config_entry_map)} entries")
+                
+                # Resolve integration field for devices from config_entries
+                if devices_data and config_entry_map:
+                    for device in devices_data:
+                        # Home Assistant device registry provides config_entries (array of IDs)
+                        # but not integration field directly - we need to resolve it
+                        if "integration" not in device or not device.get("integration"):
+                            config_entries = device.get("config_entries", [])
+                            if config_entries:
+                                # Use first config entry to resolve integration
+                                first_entry_id = config_entries[0] if isinstance(config_entries, list) else config_entries
+                                integration = config_entry_map.get(first_entry_id)
+                                if integration:
+                                    device["integration"] = integration
+                                    logger.debug(f"Resolved integration '{integration}' for device {device.get('name', 'unknown')} from config_entry {first_entry_id}")
+                
                 # Store devices to SQLite
                 if devices_data:
                     try:

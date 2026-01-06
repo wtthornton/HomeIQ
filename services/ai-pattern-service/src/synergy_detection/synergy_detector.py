@@ -8,11 +8,14 @@ Story AI3.1: Device Synergy Detector Foundation
 Epic 39, Story 39.5: Extracted to ai-pattern-service.
 """
 
+import json
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 
@@ -335,7 +338,8 @@ class DeviceSynergyDetector:
     async def _rank_and_filter_synergies(
         self,
         synergies: list[dict[str, Any]],
-        entities: list[dict[str, Any]]
+        entities: list[dict[str, Any]],
+        db: Optional[AsyncSession] = None
     ) -> list[dict[str, Any]]:
         """
         Rank synergies and filter by confidence threshold.
@@ -343,6 +347,7 @@ class DeviceSynergyDetector:
         Args:
             synergies: List of synergy opportunities
             entities: List of entities for context
+            db: Optional database session for pattern validation
             
         Returns:
             Filtered and ranked synergies above confidence threshold
@@ -354,6 +359,7 @@ class DeviceSynergyDetector:
         enrichment_fetcher = getattr(self, 'enrichment_fetcher', None)
         
         # Rank opportunities (with advanced scoring if available)
+        # Note: Context enhancement is already done in _rank_opportunities_advanced()
         if self.pair_analyzer:
             ranked_synergies = await self._rank_opportunities_advanced(
                 synergies, entities, enrichment_fetcher=enrichment_fetcher
@@ -361,27 +367,43 @@ class DeviceSynergyDetector:
         else:
             ranked_synergies = self._rank_opportunities(synergies)
         
-        # Enhance with multi-modal context (2025 Enhancement)
-        if self.context_enhancer:
+        # Validate against patterns if database session available
+        if db:
             try:
-                # Fetch context once for all synergies (cached)
-                context = await self.context_enhancer._fetch_context()
+                from ..crud.patterns import get_patterns
+                patterns = await get_patterns(db, limit=1000)
                 
-                # Enhance each synergy with context
-                for synergy in ranked_synergies:
-                    try:
-                        enhanced = await self.context_enhancer.enhance_synergy_score(synergy, context)
-                        # Update impact score with enhanced score
-                        synergy['impact_score'] = enhanced['enhanced_score']
-                        # Store context breakdown for XAI
-                        synergy['context_breakdown'] = enhanced['context_breakdown']
-                        synergy['context_metadata'] = enhanced['context_metadata']
-                    except Exception as e:
-                        logger.warning(f"Failed to enhance synergy {synergy.get('synergy_id', 'unknown')} with context: {e}")
-                        # Continue without enhancement rather than failing
+                if patterns:
+                    logger.info(f"   → Validating {len(ranked_synergies)} synergies against {len(patterns)} patterns")
+                    validated_count = 0
+                    for synergy in ranked_synergies:
+                        support_score, supporting_pattern_ids = self._calculate_pattern_support(synergy, patterns)
+                        synergy['pattern_support_score'] = support_score
+                        synergy['validated_by_patterns'] = support_score >= 0.7
+                        synergy['supporting_pattern_ids'] = supporting_pattern_ids
+                        
+                        # Enhance confidence/impact with pattern support (Recommendation 3.2: Stronger influence)
+                        if support_score > 0.7:
+                            # Strong pattern support → significant boost
+                            synergy['confidence'] = min(1.0, synergy.get('confidence', 0.7) + 0.2)
+                            synergy['impact_score'] = min(1.0, synergy.get('impact_score', 0.5) + 0.15)
+                        elif support_score > 0.5:
+                            # Moderate pattern support → moderate boost
+                            synergy['confidence'] = min(1.0, synergy.get('confidence', 0.7) + 0.1)
+                            synergy['impact_score'] = min(1.0, synergy.get('impact_score', 0.5) + 0.05)
+                        else:
+                            # Weak pattern support → slight penalty
+                            synergy['confidence'] = max(0.0, synergy.get('confidence', 0.7) - 0.05)
+                        
+                        if synergy['validated_by_patterns']:
+                            validated_count += 1
+                    
+                    logger.info(f"   → Pattern validation complete: {validated_count}/{len(ranked_synergies)} synergies validated by patterns")
+                else:
+                    logger.debug("   → No patterns found for validation")
             except Exception as e:
-                logger.warning(f"Failed to fetch context for multi-modal enhancement: {e}")
-                # Continue without context enhancement
+                logger.warning(f"Failed to validate synergies against patterns: {e}")
+                # Continue without pattern validation rather than failing
 
         # Filter by confidence threshold
         filtered_synergies = [
@@ -390,6 +412,138 @@ class DeviceSynergyDetector:
         ]
         
         return filtered_synergies
+
+    def _calculate_pattern_support(
+        self,
+        synergy: dict[str, Any],
+        patterns: list[Any]
+    ) -> tuple[float, list[int]]:
+        """
+        Calculate pattern support score for a synergy.
+        
+        Reuses logic from scripts/validate_synergy_patterns.py
+        
+        Args:
+            synergy: Synergy dictionary with devices field
+            patterns: List of pattern objects or dictionaries
+            
+        Returns:
+            Tuple of (support_score, supporting_pattern_ids)
+        """
+        # Extract device IDs from synergy
+        device_ids = synergy.get('devices', [])
+        if not device_ids or not isinstance(device_ids, list):
+            return 0.0, []
+        
+        support_score = 0.0
+        supporting_pattern_ids = []
+        
+        # Extract devices - handle both 2-device and n-level synergies
+        trigger_device = device_ids[0] if len(device_ids) > 0 else None
+        action_device = device_ids[1] if len(device_ids) > 1 else None
+        all_synergy_devices = set(device_ids)  # All devices in synergy for matching
+        
+        # Convert patterns to dicts if needed
+        pattern_dicts = []
+        for pattern in patterns:
+            if isinstance(pattern, dict):
+                pattern_dicts.append(pattern)
+            else:
+                # Convert object to dict
+                pattern_dict = {
+                    'id': getattr(pattern, 'id', None),
+                    'pattern_type': getattr(pattern, 'pattern_type', None),
+                    'device_id': getattr(pattern, 'device_id', None),
+                    'pattern_metadata': getattr(pattern, 'pattern_metadata', {}),
+                    'confidence': getattr(pattern, 'confidence', 0.0)
+                }
+                pattern_dicts.append(pattern_dict)
+        
+        # Criterion 1: Co-occurrence patterns (0.5 weight)
+        for pattern in pattern_dicts:
+            if pattern.get('pattern_type') == 'co_occurrence':
+                pattern_device_id = pattern.get('device_id', '')
+                pattern_metadata = pattern.get('pattern_metadata', {})
+                
+                # Co-occurrence patterns store device_id as "device1+device2"
+                # Or check metadata for device1 and device2
+                pattern_devices = []
+                
+                # Try to extract from device_id (format: "device1+device2")
+                if '+' in pattern_device_id:
+                    pattern_devices = pattern_device_id.split('+')
+                # Or check metadata
+                elif isinstance(pattern_metadata, dict):
+                    if 'device1' in pattern_metadata and 'device2' in pattern_metadata:
+                        pattern_devices = [pattern_metadata['device1'], pattern_metadata['device2']]
+                    elif 'devices' in pattern_metadata:
+                        co_devices = pattern_metadata['devices']
+                        if isinstance(co_devices, str):
+                            try:
+                                pattern_devices = json.loads(co_devices)
+                            except (json.JSONDecodeError, TypeError):
+                                pattern_devices = []
+                        elif isinstance(co_devices, list):
+                            pattern_devices = co_devices
+                
+                # Check if pattern involves devices from synergy
+                if len(pattern_devices) >= 2:
+                    pattern_devices_set = set(pattern_devices)
+                    # Check if at least 2 devices from synergy match the pattern
+                    matching_devices = all_synergy_devices.intersection(pattern_devices_set)
+                    if len(matching_devices) >= 2:
+                        # Strong match - both devices in pattern
+                        contribution = pattern.get('confidence', 0.0) * 0.5
+                        support_score += contribution
+                        pattern_id = pattern.get('id')
+                        if pattern_id and pattern_id not in supporting_pattern_ids:
+                            supporting_pattern_ids.append(pattern_id)
+                    elif len(matching_devices) == 1 and trigger_device and action_device:
+                        # Partial match - one device matches
+                        contribution = pattern.get('confidence', 0.0) * 0.25
+                        support_score += contribution
+        
+        # Criterion 2: Time-of-day patterns for devices (0.3 weight)
+        # Find time patterns for all devices in synergy
+        device_time_patterns = {}
+        for device_id in device_ids:
+            time_patterns = [
+                p for p in pattern_dicts
+                if p.get('pattern_type') == 'time_of_day' and p.get('device_id') == device_id
+            ]
+            if time_patterns:
+                device_time_patterns[device_id] = time_patterns
+        
+        # If multiple devices have time patterns, that's a strong signal
+        if len(device_time_patterns) >= 2:
+            # Multiple devices have time patterns - temporal alignment
+            avg_confidence = sum(
+                sum(p.get('confidence', 0.0) for p in patterns) / len(patterns)
+                for patterns in device_time_patterns.values()
+            ) / len(device_time_patterns)
+            contribution = avg_confidence * 0.3
+            support_score += contribution
+        elif len(device_time_patterns) == 1:
+            # Single device has time pattern - weaker signal
+            patterns_list = list(device_time_patterns.values())[0]
+            avg_confidence = sum(p.get('confidence', 0.0) for p in patterns_list) / len(patterns_list)
+            contribution = avg_confidence * 0.15
+            support_score += contribution
+        
+        # Criterion 3: Individual device patterns (0.2 weight)
+        device_patterns = [
+            p for p in pattern_dicts
+            if p.get('device_id') in device_ids
+        ]
+        if device_patterns:
+            avg_confidence = sum(p.get('confidence', 0.0) for p in device_patterns) / len(device_patterns)
+            contribution = avg_confidence * 0.2
+            support_score += contribution
+        
+        # Normalize to [0, 1]
+        support_score = min(1.0, support_score)
+        
+        return support_score, supporting_pattern_ids
 
     def _log_synergy_results(
         self,
@@ -436,9 +590,151 @@ class DeviceSynergyDetector:
                         f"(impact: {synergy['impact_score']:.2f}, confidence: {synergy['confidence']:.2f})"
                     )
 
-    async def detect_synergies(self) -> list[dict[str, Any]]:
+    async def detect_synergies_from_patterns(
+        self,
+        patterns: list[dict[str, Any]],
+        db: Optional[AsyncSession] = None
+    ) -> list[dict[str, Any]]:
+        """
+        Generate synergies directly from patterns.
+        
+        Recommendation 3.1: Use Patterns to Generate Synergies
+        - Co-occurrence patterns → device pair synergies
+        - Time-of-day patterns → schedule-based synergies
+        - Pattern confidence → synergy confidence
+        
+        Args:
+            patterns: List of pattern dictionaries
+            db: Optional database session for additional lookups
+        
+        Returns:
+            List of synergy opportunity dictionaries generated from patterns
+        """
+        logger.info(f"🔗 Generating synergies from {len(patterns)} patterns...")
+        synergies = []
+        
+        # Co-occurrence patterns → device pair synergies
+        co_occurrence_patterns = [p for p in patterns if p.get('pattern_type') == 'co_occurrence']
+        logger.info(f"   → Found {len(co_occurrence_patterns)} co-occurrence patterns")
+        
+        for pattern in co_occurrence_patterns:
+            try:
+                synergy = self._pattern_to_synergy(pattern)
+                if synergy:
+                    synergies.append(synergy)
+            except Exception as e:
+                logger.warning(f"Failed to convert pattern {pattern.get('id')} to synergy: {e}")
+                continue
+        
+        # Time-of-day patterns → schedule-based synergies (if multiple devices)
+        time_patterns = [p for p in patterns if p.get('pattern_type') == 'time_of_day']
+        logger.info(f"   → Found {len(time_patterns)} time-of-day patterns")
+        
+        # Group time patterns by time window to find schedule-based synergies
+        time_groups = {}
+        for pattern in time_patterns:
+            metadata = pattern.get('pattern_metadata', {})
+            hour = metadata.get('hour') if isinstance(metadata, dict) else None
+            minute = metadata.get('minute') if isinstance(metadata, dict) else None
+            
+            if hour is not None and minute is not None:
+                time_key = f"{hour:02d}:{minute:02d}"
+                if time_key not in time_groups:
+                    time_groups[time_key] = []
+                time_groups[time_key].append(pattern)
+        
+        # Create schedule-based synergies for devices that activate at the same time
+        for time_key, patterns_at_time in time_groups.items():
+            if len(patterns_at_time) >= 2:
+                # Multiple devices activate at same time → schedule synergy
+                devices = [p.get('device_id') for p in patterns_at_time if p.get('device_id')]
+                if len(devices) >= 2:
+                    synergy = {
+                        'synergy_id': str(uuid.uuid4()),
+                        'synergy_type': 'schedule_based',
+                        'devices': devices[:2],  # Use first 2 devices
+                        'trigger_entity': devices[0],
+                        'action_entity': devices[1],
+                        'area': 'unknown',  # Could be enhanced with device lookup
+                        'impact_score': sum(p.get('confidence', 0.7) for p in patterns_at_time) / len(patterns_at_time),
+                        'confidence': min(1.0, sum(p.get('confidence', 0.7) for p in patterns_at_time) / len(patterns_at_time)),
+                        'complexity': 'low',
+                        'rationale': f"Schedule-based: {len(devices)} devices activate at {time_key}",
+                        'pattern_support_score': 1.0,  # Strong pattern support
+                        'validated_by_patterns': True,
+                        'supporting_pattern_ids': [p.get('id') for p in patterns_at_time if p.get('id')],
+                        'synergy_depth': 2,
+                        'chain_devices': devices[:2]
+                    }
+                    synergies.append(synergy)
+        
+        logger.info(f"✅ Generated {len(synergies)} synergies from patterns")
+        return synergies
+    
+    def _pattern_to_synergy(
+        self,
+        pattern: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """
+        Convert a co-occurrence pattern to a synergy.
+        
+        Args:
+            pattern: Pattern dictionary with pattern_type='co_occurrence'
+        
+        Returns:
+            Synergy dictionary or None if conversion fails
+        """
+        if pattern.get('pattern_type') != 'co_occurrence':
+            return None
+        
+        device_id = pattern.get('device_id', '')
+        metadata = pattern.get('pattern_metadata', {})
+        
+        # Extract devices from pattern
+        devices = []
+        if '+' in device_id:
+            devices = device_id.split('+')
+        elif isinstance(metadata, dict):
+            if 'device1' in metadata and 'device2' in metadata:
+                devices = [metadata['device1'], metadata['device2']]
+            elif 'devices' in metadata:
+                dev_list = metadata['devices']
+                if isinstance(dev_list, str):
+                    try:
+                        devices = json.loads(dev_list)
+                    except (json.JSONDecodeError, TypeError):
+                        devices = []
+                elif isinstance(dev_list, list):
+                    devices = dev_list
+        
+        if len(devices) < 2:
+            return None
+        
+        # Create synergy from pattern
+        return {
+            'synergy_id': str(uuid.uuid4()),
+            'synergy_type': 'device_pair',
+            'devices': devices[:2],
+            'trigger_entity': devices[0],
+            'action_entity': devices[1],
+            'area': 'unknown',  # Could be enhanced with device lookup
+            'impact_score': pattern.get('confidence', 0.7),
+            'confidence': pattern.get('confidence', 0.7),
+            'complexity': 'low',
+            'rationale': f"Pattern-based: {pattern.get('pattern_type', 'co_occurrence')} pattern with confidence {pattern.get('confidence', 0.7):.2f}",
+            'pattern_support_score': 1.0,  # Strong pattern support (generated from pattern)
+            'validated_by_patterns': True,
+            'supporting_pattern_ids': [pattern.get('id')] if pattern.get('id') else [],
+            'synergy_depth': 2,
+            'chain_devices': devices[:2]
+        }
+    
+    async def detect_synergies(self, db: Optional[AsyncSession] = None) -> list[dict[str, Any]]:
         """
         Detect all synergy opportunities.
+        
+        Args:
+            db: Optional database session for pattern validation
         
         Returns:
             List of synergy opportunity dictionaries
@@ -464,8 +760,8 @@ class DeviceSynergyDetector:
                 logger.info("🆕 No new synergy opportunities found")
                 return []
 
-            # Step 5-6: Rank and filter by confidence
-            pairwise_synergies = await self._rank_and_filter_synergies(synergies, entities)
+            # Step 5-6: Rank and filter by confidence (with pattern validation if db available)
+            pairwise_synergies = await self._rank_and_filter_synergies(synergies, entities, db=db)
 
             # Step 7-8: Detect chains
             chains_3 = await self._detect_3_device_chains(pairwise_synergies, devices, entities)

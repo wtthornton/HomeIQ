@@ -348,3 +348,93 @@ class TimeOfDayPatternDetector:
             }
         }
 
+    def suggest_automation(self, pattern: dict) -> dict[str, any]:
+        """
+        Suggest automation from time-of-day pattern.
+        
+        Implements Recommendation 1.2: Pattern-Based Automation Suggestions.
+        Converts time-of-day patterns to schedule-based automation suggestions.
+        
+        Example:
+            - Pattern: "light.bedroom turns on at 7:00 AM daily"
+            - Suggestion: "Schedule: Turn on bedroom light at 7:00 AM"
+        
+        Args:
+            pattern: Pattern dictionary with keys:
+                - device_id: Device identifier (e.g., "light.bedroom")
+                - hour: Hour of day (0-23)
+                - minute: Minute (0-59)
+                - confidence: Confidence score (0.0-1.0)
+                - occurrences: Number of occurrences
+                - metadata: Additional metadata (optional)
+        
+        Returns:
+            Automation suggestion dictionary with keys:
+                - automation_type: "schedule"
+                - trigger: Trigger configuration (time-based)
+                - action: Action configuration (service call)
+                - confidence: Confidence score from pattern
+                - description: Human-readable description
+                - device_id: Device identifier
+        """
+        if pattern.get('pattern_type') != 'time_of_day':
+            logger.warning(f"Pattern type {pattern.get('pattern_type')} is not time_of_day, cannot suggest automation")
+            return {}
+        
+        device_id = pattern.get('device_id', '')
+        hour = pattern.get('hour', 0)
+        minute = pattern.get('minute', 0)
+        confidence = pattern.get('confidence', 0.0)
+        
+        # Extract domain from device_id (e.g., "light" from "light.bedroom")
+        domain = self._get_domain(device_id)
+        
+        # Determine service based on domain
+        # Default to turn_on for most domains, but can be customized
+        service_name = 'turn_on'
+        if domain in ['climate', 'thermostat']:
+            service_name = 'set_temperature'  # Would need additional params
+        elif domain in ['cover', 'garage']:
+            service_name = 'open_cover'
+        elif domain in ['lock']:
+            service_name = 'unlock'  # Security consideration - might need confirmation
+        
+        # Format time string (HH:MM:SS)
+        time_str = f"{hour:02d}:{minute:02d}:00"
+        
+        # Create human-readable description
+        device_name = device_id.split('.')[-1].replace('_', ' ').title() if '.' in device_id else device_id
+        description = f"Schedule: {service_name.replace('_', ' ').title()} {device_name} at {hour:02d}:{minute:02d}"
+        
+        # Build automation suggestion
+        suggestion = {
+            'automation_type': 'schedule',
+            'trigger': {
+                'platform': 'time',
+                'at': time_str
+            },
+            'action': {
+                'service': f"{domain}.{service_name}",
+                'entity_id': device_id,
+                'target': {
+                    'entity_id': device_id
+                }
+            },
+            'confidence': float(confidence),
+            'description': description,
+            'device_id': device_id,
+            'pattern_id': pattern.get('pattern_id'),  # Link back to pattern if available
+            'metadata': {
+                'source': 'time_of_day_pattern',
+                'occurrences': pattern.get('occurrences', 0),
+                'time_range': pattern.get('metadata', {}).get('time_range', f"{hour:02d}:{minute:02d}"),
+                'std_minutes': pattern.get('metadata', {}).get('std_minutes', 0.0)
+            }
+        }
+        
+        logger.info(
+            f"✅ Suggested automation: {description} "
+            f"(confidence={confidence:.0%}, device={device_id})"
+        )
+        
+        return suggestion

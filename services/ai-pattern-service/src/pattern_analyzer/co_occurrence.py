@@ -97,7 +97,8 @@ class CoOccurrencePatternDetector:
         filter_system_noise: bool = True,
         max_variance_minutes: float = 30.0,
         domain_support_overrides: dict[str, int] | None = None,
-        domain_confidence_overrides: dict[str, float] | None = None
+        domain_confidence_overrides: dict[str, float] | None = None,
+        feedback_client=None
     ):
         """
         Initialize co-occurrence detector.
@@ -109,6 +110,7 @@ class CoOccurrencePatternDetector:
             aggregate_client: PatternAggregateClient for storing daily aggregates (Story AI5.3)
             filter_system_noise: Filter out system sensors/trackers/images (default: True) - Task 2
             max_variance_minutes: Maximum time variance in minutes for patterns (default: 30) - Task 3
+            feedback_client: Optional FeedbackClient for integrating user feedback (Recommendation 2.1)
         """
         self.window_minutes = window_minutes
         self.min_support = min_support
@@ -118,15 +120,17 @@ class CoOccurrencePatternDetector:
         self.max_variance_minutes = max_variance_minutes
         self.domain_support_overrides = domain_support_overrides or {}
         self.domain_confidence_overrides = domain_confidence_overrides or {}
+        self.feedback_client = feedback_client
         logger.info(
             f"CoOccurrencePatternDetector initialized: "
             f"window={window_minutes}min, min_support={min_support}, min_confidence={min_confidence}, "
             f"filter_system_noise={filter_system_noise}, max_variance={max_variance_minutes}min, "
             f"support_overrides={list((domain_support_overrides or {}).keys())}, "
-            f"confidence_overrides={list((domain_confidence_overrides or {}).keys())}"
+            f"confidence_overrides={list((domain_confidence_overrides or {}).keys())}, "
+            f"feedback_client={'enabled' if feedback_client else 'disabled'}"
         )
 
-    def detect_patterns(self, events: pd.DataFrame) -> list[dict]:
+    async def detect_patterns(self, events: pd.DataFrame) -> list[dict]:
         """
         Find devices used together within time window.
         Simple approach: sliding window + counting.
@@ -329,6 +333,10 @@ class CoOccurrencePatternDetector:
 
         logger.info(f"✅ Detected {len(patterns)} co-occurrence patterns")
 
+        # Recommendation 2.1: Integrate feedback into pattern detection
+        if self.feedback_client and patterns:
+            patterns = await self._apply_feedback_adjustments(patterns)
+
         # Story AI5.3: Store daily aggregates to InfluxDB
         if self.aggregate_client and patterns:
             self._store_daily_aggregates(patterns, events)
@@ -399,7 +407,7 @@ class CoOccurrencePatternDetector:
         except Exception as e:
             logger.error(f"Error storing daily aggregates: {e}", exc_info=True)
 
-    def detect_patterns_optimized(self, events: pd.DataFrame) -> list[dict]:
+    async def detect_patterns_optimized(self, events: pd.DataFrame) -> list[dict]:
         """
         Optimized version for large event counts using intelligent sampling.
         
@@ -443,7 +451,7 @@ class CoOccurrencePatternDetector:
 
             logger.info(f"✅ Sampled dataset: {len(events)} events (recent: {len(recent)}, sampled older: {len(older_sampled)})")
 
-        return self.detect_patterns(events)
+        return await self.detect_patterns(events)
 
     @staticmethod
     def _get_domain(device_id: str) -> str:

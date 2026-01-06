@@ -20,6 +20,8 @@ from ..clients.data_api_client import DataAPIClient
 from ..crud.synergies import get_synergy_opportunities
 from ..database import get_db
 from ..services.device_activity import DeviceActivityService
+from ..services.automation_generator import AutomationGenerator
+from ..services.automation_tracker import AutomationTracker
 from ..config import settings
 
 # 2025 Enhancement: XAI for explanations
@@ -45,6 +47,14 @@ class SynergyFeedback(BaseModel):
     accepted: bool
     feedback_text: str | None = None
     rating: int | None = None  # 1-5 rating
+
+
+class AutomationExecutionResult(BaseModel):
+    """Execution result model for automation tracking."""
+    success: bool
+    error: str | None = None
+    execution_time_ms: int = 0
+    triggered_count: int = 0
 
 
 # CRITICAL: Define /statistics route on router FIRST (before parameterized routes)
@@ -753,6 +763,291 @@ async def submit_synergy_feedback(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to submit feedback: {str(e)}"
+        ) from e
+
+
+@router.post("/{synergy_id}/generate-automation")
+async def generate_automation_from_synergy(
+    synergy_id: str,
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Generate and deploy Home Assistant automation from synergy.
+    
+    This endpoint implements Recommendation 1.1: Complete Automation Generation Pipeline.
+    Converts synergy to Home Assistant automation using 2025 best practices.
+    
+    Args:
+        synergy_id: Unique synergy identifier
+        db: Database session dependency
+        
+    Returns:
+        {
+            'automation_id': str,
+            'automation_yaml': str,
+            'blueprint_id': str | None,
+            'deployment_status': str,
+            'estimated_impact': float
+        }
+        
+    Raises:
+        HTTPException: If synergy not found (404), HA config missing (400), or deployment fails (500)
+    """
+    try:
+        # Verify synergy exists
+        synergies = await get_synergy_opportunities(db, limit=10000)
+        synergy_data = None
+        for s in synergies:
+            if isinstance(s, dict):
+                if s.get("synergy_id") == synergy_id:
+                    # Extract devices and trigger/action from opportunity_metadata if not at top level
+                    synergy_data = s.copy()
+                    
+                    # Parse opportunity_metadata if it's a string
+                    opp_meta = synergy_data.get("opportunity_metadata")
+                    if isinstance(opp_meta, str):
+                        try:
+                            opp_meta = json.loads(opp_meta)
+                        except (json.JSONDecodeError, TypeError):
+                            opp_meta = {}
+                    elif opp_meta is None:
+                        opp_meta = {}
+                    
+                    # Extract devices from device_ids string or opportunity_metadata
+                    if "devices" not in synergy_data or not synergy_data["devices"]:
+                        device_ids = synergy_data.get("device_ids", "")
+                        if isinstance(device_ids, str) and device_ids:
+                            synergy_data["devices"] = device_ids.split(",")
+                        elif "devices" in opp_meta:
+                            synergy_data["devices"] = opp_meta["devices"]
+                        else:
+                            synergy_data["devices"] = []
+                    
+                    # Extract trigger_entity and action_entity from opportunity_metadata
+                    if "trigger_entity" not in synergy_data or not synergy_data.get("trigger_entity"):
+                        synergy_data["trigger_entity"] = opp_meta.get("trigger_entity")
+                    if "action_entity" not in synergy_data or not synergy_data.get("action_entity"):
+                        synergy_data["action_entity"] = opp_meta.get("action_entity")
+                    
+                    # Parse context_breakdown if it's a string
+                    ctx = synergy_data.get("context_breakdown")
+                    if isinstance(ctx, str):
+                        try:
+                            synergy_data["context_breakdown"] = json.loads(ctx)
+                        except (json.JSONDecodeError, TypeError):
+                            synergy_data["context_breakdown"] = None
+                    
+                    break
+            else:
+                if s.synergy_id == synergy_id:
+                    # Convert to dict if needed
+                    synergy_data = {
+                        "synergy_id": s.synergy_id,
+                        "synergy_type": s.synergy_type,
+                        "devices": s.device_ids.split(",") if hasattr(s, 'device_ids') else [],
+                        "trigger_entity": getattr(s, 'trigger_entity', None),
+                        "action_entity": getattr(s, 'action_entity', None),
+                        "area": s.area,
+                        "impact_score": s.impact_score,
+                        "confidence": s.confidence,
+                        "rationale": getattr(s, 'rationale', ''),
+                        "context_breakdown": json.loads(s.context_breakdown) if hasattr(s, 'context_breakdown') and s.context_breakdown else None
+                    }
+                    break
+        
+        if not synergy_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Synergy opportunity not found: {synergy_id}"
+            )
+        
+        # Check Home Assistant configuration
+        if not settings.ha_url or not settings.ha_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Home Assistant configuration missing. Set HA_URL and HA_TOKEN environment variables."
+            )
+        
+        # Initialize automation generator
+        generator = AutomationGenerator(
+            ha_url=settings.ha_url,
+            ha_token=settings.ha_token,
+            ha_version=settings.ha_version
+        )
+        
+        # Create HTTP client for Home Assistant API
+        import httpx
+        async with httpx.AsyncClient(timeout=30.0) as ha_client:
+            # Generate and deploy automation
+            result = await generator.generate_automation_from_synergy(
+                synergy=synergy_data,
+                ha_client=ha_client,
+                db=db
+            )
+        
+        logger.info(
+            f"✅ Automation generated from synergy {synergy_id}: "
+            f"automation_id={result['automation_id']}"
+        )
+        
+        return {
+            "success": True,
+            "data": result,
+            "message": f"Automation {result['automation_id']} created successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to generate automation from synergy {synergy_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate automation: {str(e)}"
+        ) from e
+
+
+@router.post("/{synergy_id}/track-execution")
+async def track_automation_execution(
+    synergy_id: str,
+    automation_id: str,
+    execution_result: AutomationExecutionResult,
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Track automation execution and update synergy confidence.
+    
+    This endpoint implements Recommendation 2.2: Automation Execution Tracking.
+    Tracks automation success/failure and updates synergy confidence based on outcomes.
+    
+    Args:
+        synergy_id: Synergy ID that generated this automation
+        automation_id: Home Assistant automation entity ID
+        execution_result: Execution result with success, error, execution_time_ms, triggered_count
+        db: Database session dependency
+    
+    Returns:
+        {
+            'success': bool,
+            'message': str,
+            'confidence_updated': bool,
+            'new_confidence': float | None
+        }
+    
+    Raises:
+        HTTPException: If synergy not found (404) or tracking fails (500)
+    """
+    try:
+        # Verify synergy exists
+        synergies = await get_synergy_opportunities(db, limit=10000)
+        synergy_found = False
+        for s in synergies:
+            if isinstance(s, dict):
+                if s.get("synergy_id") == synergy_id:
+                    synergy_found = True
+                    break
+            else:
+                if s.synergy_id == synergy_id:
+                    synergy_found = True
+                    break
+        
+        if not synergy_found:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Synergy opportunity not found: {synergy_id}"
+            )
+        
+        # Initialize automation tracker
+        tracker = AutomationTracker(db=db)
+        
+        # Track execution
+        await tracker.track_automation_execution(
+            automation_id=automation_id,
+            synergy_id=synergy_id,
+            execution_result={
+                'success': execution_result.success,
+                'error': execution_result.error,
+                'execution_time_ms': execution_result.execution_time_ms,
+                'triggered_count': execution_result.triggered_count
+            },
+            db=db
+        )
+        
+        # Get updated confidence
+        from sqlalchemy import text
+        result = await db.execute(
+            text("""
+                SELECT confidence FROM synergy_opportunities
+                WHERE synergy_id = :synergy_id
+            """),
+            {"synergy_id": synergy_id}
+        )
+        row = result.fetchone()
+        new_confidence = float(row[0]) if row and row[0] is not None else None
+        
+        logger.info(
+            f"✅ Tracked automation execution: synergy_id={synergy_id}, "
+            f"automation_id={automation_id}, success={execution_result.success}"
+        )
+        
+        return {
+            "success": True,
+            "message": f"Automation execution tracked for synergy {synergy_id}",
+            "confidence_updated": True,
+            "new_confidence": new_confidence
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to track automation execution: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to track automation execution: {str(e)}"
+        ) from e
+
+
+@router.get("/{synergy_id}/execution-stats")
+async def get_automation_execution_stats(
+    synergy_id: str,
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Get automation execution statistics for a synergy.
+    
+    This endpoint provides execution statistics for automations generated from a synergy.
+    Implements Recommendation 2.2: Automation Execution Tracking.
+    
+    Args:
+        synergy_id: Synergy ID to get stats for
+        db: Database session dependency
+    
+    Returns:
+        {
+            'total_executions': int,
+            'successful_executions': int,
+            'failed_executions': int,
+            'total_triggered': int,
+            'avg_execution_time_ms': float,
+            'success_rate': float
+        }
+    """
+    try:
+        # Initialize automation tracker
+        tracker = AutomationTracker(db=db)
+        
+        # Get execution stats
+        stats = await tracker.get_execution_stats(synergy_id, db=db)
+        
+        return {
+            "success": True,
+            "data": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get execution stats: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get execution stats: {str(e)}"
         ) from e
 
 

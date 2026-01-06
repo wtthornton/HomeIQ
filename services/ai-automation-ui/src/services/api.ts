@@ -608,6 +608,47 @@ export const api = {
     }
   },
 
+  /**
+   * Generate and deploy Home Assistant automation from synergy.
+   * Implements Recommendation 1.1: Complete Automation Generation Pipeline
+   * 
+   * @param synergyId - Unique synergy identifier
+   * @returns Automation generation result with automation_id, yaml, and deployment status
+   */
+  async generateAutomationFromSynergy(synergyId: string): Promise<{
+    success: boolean;
+    data: {
+      automation_id: string;
+      automation_yaml: string;
+      blueprint_id: string | null;
+      deployment_status: string;
+      estimated_impact: number;
+    };
+    message: string;
+  }> {
+    try {
+      // Call the generate-automation endpoint
+      // Note: The endpoint expects synergy_id as path parameter, not in body
+      const response = await fetchJSON<{
+        success: boolean;
+        data: {
+          automation_id: string;
+          automation_yaml: string;
+          blueprint_id: string | null;
+          deployment_status: string;
+          estimated_impact: number;
+        };
+        message: string;
+      }>(`${API_BASE_URL}/synergies/${synergyId}/generate-automation`, {
+        method: 'POST',
+      });
+      return response;
+    } catch (error: any) {
+      console.error(`Failed to generate automation from synergy ${synergyId}:`, error);
+      throw error;
+    }
+  },
+
   // Ask AI - Natural Language Query Interface
   async clarifyAnswers(sessionId: string, answers: ClarificationAnswer[]): Promise<ClarificationResponse> {
     // Create abort controller for timeout
