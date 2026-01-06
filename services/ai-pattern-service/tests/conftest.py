@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
+from sqlalchemy import text
 from fastapi.testclient import TestClient
 
 # Note: Pattern and SynergyOpportunity models are in shared database
@@ -52,7 +53,7 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
     async with engine.begin() as conn:
         # Create patterns table if needed
         await conn.execute(
-            """
+            text("""
             CREATE TABLE IF NOT EXISTS patterns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pattern_type TEXT NOT NULL,
@@ -63,11 +64,11 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-            """
+            """)
         )
         # Create synergy_opportunities table if needed
         await conn.execute(
-            """
+            text("""
             CREATE TABLE IF NOT EXISTS synergy_opportunities (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 synergy_id TEXT UNIQUE NOT NULL,
@@ -82,11 +83,11 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
                 context_breakdown JSON,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-            """
+            """)
         )
         # Create synergy_feedback table for RL feedback loop
         await conn.execute(
-            """
+            text("""
             CREATE TABLE IF NOT EXISTS synergy_feedback (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 synergy_id TEXT NOT NULL,
@@ -96,7 +97,7 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (synergy_id) REFERENCES synergy_opportunities(synergy_id)
             )
-            """
+            """)
         )
     
     # Create session factory

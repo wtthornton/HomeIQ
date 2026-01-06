@@ -89,7 +89,11 @@ class TestPatternCRUD:
         # Get only time_of_day patterns
         tod_patterns = await get_patterns(test_db, pattern_type="time_of_day")
         assert len(tod_patterns) >= 1
-        assert all(p.pattern_type == "time_of_day" for p in tod_patterns)
+        # Handle both dict and object access (raw SQL returns dicts)
+        assert all(
+            (p.pattern_type if hasattr(p, 'pattern_type') else p['pattern_type']) == "time_of_day"
+            for p in tod_patterns
+        )
     
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -104,7 +108,11 @@ class TestPatternCRUD:
         # Get patterns for specific device
         patterns = await get_patterns(test_db, device_id="light.office_lamp")
         assert len(patterns) >= 1
-        assert all(p.device_id == "light.office_lamp" for p in patterns)
+        # Handle both dict and object access (raw SQL returns dicts)
+        assert all(
+            (p.device_id if hasattr(p, 'device_id') else p['device_id']) == "light.office_lamp"
+            for p in patterns
+        )
     
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -118,5 +126,9 @@ class TestPatternCRUD:
         
         # Get patterns with min confidence
         patterns = await get_patterns(test_db, min_confidence=0.8)
-        assert all(p.confidence >= 0.8 for p in patterns)
+        # Handle both dict and object access (raw SQL returns dicts)
+        assert all(
+            (p.confidence if hasattr(p, 'confidence') else p['confidence']) >= 0.8
+            for p in patterns
+        )
 
