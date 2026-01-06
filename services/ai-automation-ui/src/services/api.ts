@@ -356,11 +356,27 @@ export const api = {
     const response = await fetchJSON<any>(`${API_BASE_URL}/patterns/stats`);
     
     // Handle API response structure: { success: true, data: {...}, message: "..." }
-    if (response.success !== undefined && response.data) {
-      return response.data;
+    // Also handle corruption errors: { success: false, data: {...}, error: "...", repair_available: true }
+    if (response.success !== undefined) {
+      // If corruption detected, throw error with repair flag
+      if (!response.success && response.error) {
+        const error = new Error(response.error || response.message || 'Database error');
+        (error as any).repair_available = response.repair_available || false;
+        (error as any).isCorruption = response.error.toLowerCase().includes('corrupt') || 
+                                      response.error.toLowerCase().includes('malformed');
+        throw error;
+      }
+      return response.data || {};
     }
     // Fallback for direct data structure
     return response.data || response;
+  },
+
+  async repairDatabase(): Promise<any> {
+    const response = await fetchJSON<any>(`${API_BASE_URL}/patterns/repair`, {
+      method: 'POST',
+    });
+    return response;
   },
 
   // Usage & Cost

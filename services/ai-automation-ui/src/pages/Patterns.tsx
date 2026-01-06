@@ -26,6 +26,8 @@ export const Patterns: React.FC = () => {
   const [analysisRunning, setAnalysisRunning] = useState(false);
   const [scheduleInfo, setScheduleInfo] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDatabaseCorrupted, setIsDatabaseCorrupted] = useState(false);
+  const [repairing, setRepairing] = useState(false);
   const [showPatternGuide, setShowPatternGuide] = useState(false);
   const [showStatsAndCharts, setShowStatsAndCharts] = useState(true); // Collapsible stats
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
@@ -41,7 +43,14 @@ export const Patterns: React.FC = () => {
       setLoading(true);
       const [patternsRes, statsRes] = await Promise.all([
         api.getPatterns(undefined, 0.7),
-        api.getPatternStats()
+        api.getPatternStats().catch((err: any) => {
+          // Check if this is a corruption error
+          if (err.isCorruption || err.repair_available) {
+            setIsDatabaseCorrupted(true);
+            throw err;
+          }
+          throw err;
+        })
       ]);
       
       const patternsData = patternsRes.data?.patterns || [];
@@ -62,6 +71,15 @@ export const Patterns: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to load patterns:', err);
       
+      // Check for database corruption errors
+      const errorStr = err.message || err.toString() || '';
+      const isCorruption = errorStr.toLowerCase().includes('database') && 
+                          (errorStr.toLowerCase().includes('corrupt') || 
+                           errorStr.toLowerCase().includes('malformed') ||
+                           errorStr.toLowerCase().includes('repair'));
+      
+      setIsDatabaseCorrupted(isCorruption);
+      
       // Provide more specific error messages
       let errorMessage = 'Failed to load patterns';
       if (err instanceof TypeError && err.message.includes('fetch')) {
@@ -77,6 +95,32 @@ export const Patterns: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
+  const handleRepairDatabase = useCallback(async () => {
+    try {
+      setRepairing(true);
+      setError(null);
+      
+      const result = await api.repairDatabase();
+      
+      if (result.success) {
+        toast.success(result.message || 'Database repair completed successfully!');
+        setIsDatabaseCorrupted(false);
+        // Reload patterns after successful repair
+        await loadPatterns();
+      } else {
+        toast.error(result.message || 'Database repair failed. Please try again or contact support.');
+        setError(result.error || 'Repair failed');
+      }
+    } catch (err: any) {
+      console.error('Failed to repair database:', err);
+      const errorMessage = err.message || 'Failed to repair database. Please try again.';
+      toast.error(errorMessage);
+      setError(errorMessage);
+    } finally {
+      setRepairing(false);
+    }
+  }, [loadPatterns]);
 
   const loadAnalysisStatus = useCallback(async () => {
     try {
@@ -597,12 +641,45 @@ export const Patterns: React.FC = () => {
         </motion.button>
       </motion.div>
 
-      <ErrorBanner 
-        error={error} 
-        onRetry={loadPatterns}
-        onDismiss={() => setError(null)}
-        variant="banner"
-      />
+      {error && (
+        <div className="mb-6">
+          <ErrorBanner 
+            error={error} 
+            onRetry={loadPatterns}
+            onDismiss={() => {
+              setError(null);
+              setIsDatabaseCorrupted(false);
+            }}
+            variant="banner"
+          />
+          {isDatabaseCorrupted && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-4 rounded-xl border-l-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 border-purple-500 shadow-lg"
+            >
+              <div className="flex items-start gap-4">
+                <div className="text-2xl flex-shrink-0">🔧</div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold mb-1 text-purple-900 dark:text-purple-200">
+                    Database Corruption Detected
+                  </h3>
+                  <p className="text-sm text-purple-800 dark:text-purple-300 mb-3">
+                    The database appears to be corrupted. You can attempt to repair it automatically.
+                  </p>
+                  <button
+                    onClick={handleRepairDatabase}
+                    disabled={repairing}
+                    className="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {repairing ? '🔄 Repairing...' : '🔧 Repair Database'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      )}
 
       {analysisRunning && (
         <motion.div
