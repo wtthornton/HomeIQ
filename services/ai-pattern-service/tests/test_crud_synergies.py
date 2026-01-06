@@ -84,7 +84,11 @@ class TestSynergyCRUD:
             synergy_type="device_pair"
         )
         assert len(synergies) >= 1
-        assert all(s.synergy_type == "device_pair" for s in synergies)
+        # Handle both dict and object access (raw SQL returns dicts)
+        assert all(
+            (s.synergy_type if hasattr(s, 'synergy_type') else s['synergy_type']) == "device_pair"
+            for s in synergies
+        )
     
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -98,5 +102,9 @@ class TestSynergyCRUD:
         
         # Get synergies with min confidence
         synergies = await get_synergy_opportunities(test_db, min_confidence=0.75)
-        assert all(s.confidence >= 0.75 for s in synergies)
+        # Handle both dict and object access (raw SQL returns dicts)
+        assert all(
+            (s.confidence if hasattr(s, 'confidence') else s['confidence']) >= 0.75
+            for s in synergies
+        )
 
