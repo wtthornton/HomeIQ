@@ -196,3 +196,5 @@ services/*/data/**/adapter_config.json
 # TappsCodingAgents (local development tool, not part of repo)
 TappsCodingAgents/
 
+
+tests/playwright-report/
