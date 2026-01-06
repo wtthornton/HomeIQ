@@ -234,7 +234,7 @@ async def get_patterns(
 
     except Exception as e:
         # Check if this is a database corruption error
-        from ...database.integrity import is_database_corruption_error, DatabaseIntegrityError
+        from ..database.integrity import is_database_corruption_error, DatabaseIntegrityError
         
         if is_database_corruption_error(e):
             logger.error(f"Database corruption detected while retrieving patterns: {e}", exc_info=True)

@@ -41,12 +41,27 @@ async def check_database_integrity(db: AsyncSession) -> Tuple[bool, Optional[str
         result = await db.execute(text("PRAGMA quick_check"))
         integrity_result = result.scalar()
         
+        # SQLite returns "ok" for healthy database, or error message string for corruption
         if integrity_result == "ok":
             logger.debug("Database integrity check passed")
             return True, None
         else:
-            logger.error(f"Database integrity check failed: {integrity_result}")
-            return False, integrity_result
+            # Check if result indicates corruption (contains "***" or specific error patterns)
+            error_msg = str(integrity_result)
+            is_corrupted = (
+                "***" in error_msg or
+                "rowid out of order" in error_msg.lower() or
+                "page never used" in error_msg.lower() or
+                "tree" in error_msg.lower()
+            )
+            
+            if is_corrupted:
+                logger.error(f"Database corruption detected: {error_msg[:500]}")  # Truncate long messages
+                return False, error_msg
+            else:
+                # Unexpected result but not clearly corruption
+                logger.warning(f"Database integrity check returned unexpected result: {error_msg[:200]}")
+                return False, error_msg
             
     except Exception as e:
         logger.error(f"Failed to check database integrity: {e}", exc_info=True)
@@ -83,53 +98,136 @@ async def attempt_database_repair(db_path: Optional[Path] = None) -> bool:
         try:
             import tempfile
             import shutil
+            import subprocess
             
             # Create backup before attempting repair
             backup_path = db_path.with_suffix(f".backup.{int(time.time())}")
             logger.info(f"Creating backup before repair: {backup_path}")
             shutil.copy2(db_path, backup_path)
             
-            # Attempt to dump the database
-            dump_path = db_path.with_suffix(".dump")
-            logger.info(f"Attempting to dump database to {dump_path}")
+            # Method 1: Try SQLite's .recover command (SQLite 3.29+)
+            # This is more robust for severe corruption
+            try:
+                logger.info("Attempting repair using SQLite .recover command")
+                recovered_path = db_path.with_suffix(".recovered")
+                
+                # Use sqlite3 command-line tool to recover
+                # .recover reads all data from corrupted database
+                recover_cmd = f'sqlite3 "{db_path}" ".recover" | sqlite3 "{recovered_path}"'
+                result = subprocess.run(
+                    recover_cmd,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=300  # 5 minute timeout
+                )
+                
+                if result.returncode == 0 and recovered_path.exists():
+                    # Verify recovered database
+                    verify_conn = sqlite3.connect(str(recovered_path))
+                    verify_result = verify_conn.execute("PRAGMA integrity_check").fetchone()[0]
+                    verify_conn.close()
+                    
+                    if verify_result == "ok":
+                        logger.info("Recovery successful using .recover command")
+                        # Replace old database
+                        old_db_path = db_path.with_suffix(".old")
+                        if old_db_path.exists():
+                            old_db_path.unlink()
+                        db_path.rename(old_db_path)
+                        recovered_path.rename(db_path)
+                        logger.info("Database repair completed successfully using .recover")
+                        return True
+                    else:
+                        logger.warning(f"Recovered database still has issues: {verify_result[:200]}")
+                        recovered_path.unlink()
+                else:
+                    logger.warning(f".recover command failed: {result.stderr}")
+            except Exception as recover_error:
+                logger.warning(f"SQLite .recover method failed: {recover_error}, trying dump method")
             
-            # Connect and dump
+            # Method 2: Fallback to dump method (for older SQLite or if .recover fails)
+            logger.info("Attempting repair using dump method")
+            dump_path = db_path.with_suffix(".dump")
+            
+            # Try to dump with error handling
             source_conn = sqlite3.connect(str(db_path))
-            with open(dump_path, 'w', encoding='utf-8') as f:
-                for line in source_conn.iterdump():
-                    f.write(f"{line}\n")
+            source_conn.execute("PRAGMA integrity_check")  # This will fail if too corrupted
+            
+            try:
+                with open(dump_path, 'w', encoding='utf-8') as f:
+                    for line in source_conn.iterdump():
+                        f.write(f"{line}\n")
+            except sqlite3.DatabaseError as dump_error:
+                logger.warning(f"Could not dump database: {dump_error}")
+                source_conn.close()
+                # If dump fails, try VACUUM INTO (SQLite 3.27+)
+                try:
+                    logger.info("Attempting repair using VACUUM INTO")
+                    vacuum_path = db_path.with_suffix(".vacuum")
+                    source_conn = sqlite3.connect(str(db_path))
+                    source_conn.execute(f"VACUUM INTO '{vacuum_path}'")
+                    source_conn.close()
+                    
+                    # Verify vacuumed database
+                    verify_conn = sqlite3.connect(str(vacuum_path))
+                    verify_result = verify_conn.execute("PRAGMA integrity_check").fetchone()[0]
+                    verify_conn.close()
+                    
+                    if verify_result == "ok":
+                        logger.info("VACUUM INTO repair successful")
+                        old_db_path = db_path.with_suffix(".old")
+                        if old_db_path.exists():
+                            old_db_path.unlink()
+                        db_path.rename(old_db_path)
+                        vacuum_path.rename(db_path)
+                        logger.info("Database repair completed successfully using VACUUM INTO")
+                        return True
+                    else:
+                        logger.error(f"VACUUM INTO database still has issues: {verify_result[:200]}")
+                        vacuum_path.unlink()
+                        return False
+                except Exception as vacuum_error:
+                    logger.error(f"VACUUM INTO failed: {vacuum_error}")
+                    return False
+            
             source_conn.close()
             
             # Create new database from dump
-            logger.info("Recreating database from dump")
-            new_db_path = db_path.with_suffix(".new")
-            new_conn = sqlite3.connect(str(new_db_path))
-            
-            with open(dump_path, 'r', encoding='utf-8') as f:
-                new_conn.executescript(f.read())
-            new_conn.close()
-            
-            # Verify new database
-            verify_conn = sqlite3.connect(str(new_db_path))
-            verify_conn.execute("PRAGMA integrity_check")
-            verify_result = verify_conn.execute("PRAGMA integrity_check").fetchone()[0]
-            verify_conn.close()
-            
-            if verify_result == "ok":
-                # Replace old database with new one
-                logger.info("Repair successful, replacing database")
-                old_db_path = db_path.with_suffix(".old")
-                if old_db_path.exists():
-                    old_db_path.unlink()
-                db_path.rename(old_db_path)
-                new_db_path.rename(db_path)
-                dump_path.unlink()  # Clean up dump file
-                logger.info("Database repair completed successfully")
-                return True
+            if dump_path.exists() and dump_path.stat().st_size > 0:
+                logger.info("Recreating database from dump")
+                new_db_path = db_path.with_suffix(".new")
+                new_conn = sqlite3.connect(str(new_db_path))
+                
+                with open(dump_path, 'r', encoding='utf-8') as f:
+                    new_conn.executescript(f.read())
+                new_conn.close()
+                
+                # Verify new database
+                verify_conn = sqlite3.connect(str(new_db_path))
+                verify_result = verify_conn.execute("PRAGMA integrity_check").fetchone()[0]
+                verify_conn.close()
+                
+                if verify_result == "ok":
+                    # Replace old database with new one
+                    logger.info("Repair successful, replacing database")
+                    old_db_path = db_path.with_suffix(".old")
+                    if old_db_path.exists():
+                        old_db_path.unlink()
+                    db_path.rename(old_db_path)
+                    new_db_path.rename(db_path)
+                    dump_path.unlink()  # Clean up dump file
+                    logger.info("Database repair completed successfully")
+                    return True
+                else:
+                    logger.error(f"Repaired database still has integrity issues: {verify_result[:200]}")
+                    new_db_path.unlink()  # Clean up failed repair
+                    dump_path.unlink()
+                    return False
             else:
-                logger.error(f"Repaired database still has integrity issues: {verify_result}")
-                new_db_path.unlink()  # Clean up failed repair
-                dump_path.unlink()
+                logger.error("Dump file is empty or missing, repair failed")
+                if dump_path.exists():
+                    dump_path.unlink()
                 return False
                 
         except Exception as e:
@@ -158,7 +256,12 @@ def is_database_corruption_error(error: Exception) -> bool:
         "file is encrypted or is not a database",
         "database schema is corrupted",
         "malformed",
-        "corrupted"
+        "corrupted",
+        "rowid out of order",  # SQLite integrity_check error
+        "page never used",  # SQLite integrity_check error
+        "*** in database",  # SQLite integrity_check error prefix
+        "tree",  # SQLite B-tree corruption
+        "cell",  # SQLite cell corruption
     ]
     
     return any(indicator in error_str for indicator in corruption_indicators)
