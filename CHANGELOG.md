@@ -5,7 +5,38 @@ All notable changes to the HA-Ingestor project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-01-05
+## [Unreleased] - 2026-01-06
+
+### Added
+
+- **Implement logging improvements for HA AI Agent Service** (999c840) - wtthornton
+- **Implement Phase 1 Device State Context for HA AI Agent (Epic AI-20)** (1815c16) - wtthornton
+- **Implement comprehensive validation improvements for ha-agent API flow** (ffc7078) - wtthornton
+- **Pattern and synergy validation improvements - Add comprehensive pattern validation scripts - Add external data automation validation - Add device activity filtering - Add shared filtering module - Update pattern analysis scheduler with pre-filtering - Add automation validator service - Add device activity service - Update pattern and synergy routers - Add test coverage for filters** (e84b3d9) - wtthornton
+- **Add loading indicators to Automation Suggestions page** (c258b30) - wtthornton
+
+### Changed
+
+- **Update AI pattern service and test configurations** (3fdffeb) - wtthornton
+- **Update tests, UI components, and add implementation plan** (e7adf9b) - wtthornton
+- **Refactor preview automation feature: improve maintainability and architecture** (beee5e1) - wtthornton
+- **Update services, TappsCodingAgents, and implementation documentation** (b9211f5) - wtthornton
+
+### Removed
+
+- **Remove TappsCodingAgents from repository and add to .gitignore** (959fd1a) - wtthornton
+
+### Fixed
+
+- **Fix database corruption detection and error handling in ai-pattern-service** (34f9633) - wtthornton
+- **Fix Playwright test import paths - Corrected relative import paths for shared helpers and fixtures across all test files** (eca533c) - wtthornton
+- **fix(ha-ai-agent): Add motion-based dimming pattern detection and fix YAML generation issues** (d2501c5) - wtthornton
+- **fix(ha-ai-agent-service): resolve SQLite readonly database error in Docker** (4116a4f) - wtthornton
+- **Fix CORS preflight error for YAML validation service** (cac3663) - wtthornton
+- **Fix entity validation in ai-automation-service-new YAML generation** (c85808b) - wtthornton
+- **Fix database schema issue: Add table creation logic to init_db()** (3622349) - wtthornton
+- **Use enhanced prompt from toolCall arguments instead of original user prompt** (8645b64) - wtthornton
+
 
 ### Added
 
