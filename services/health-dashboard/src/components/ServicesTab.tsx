@@ -61,24 +61,47 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
           const container = containersData.find(c => c.service_name === serviceName);
           const containerStatus = container?.status?.toLowerCase();
           
-          // Determine status: prioritize health API, but validate with container status
+          // Determine status: prioritize container status (ground truth) when available
+          // If container is stopped, service cannot be running regardless of health API
           let normalized: string;
           
-          // If health API says healthy, trust it (even if container status is unclear)
-          if (health.status === 'healthy' || health.status === 'pass') {
-            normalized = 'running';
-          } else if (health.status === 'degraded') {
-            normalized = 'degraded';
-          } else if (health.status === 'unhealthy' || health.status === 'error') {
-            normalized = 'error';
+          // First check container status - if stopped/exited, service is stopped
+          if (container && containerStatus) {
+            if (containerStatus === 'stopped' || containerStatus === 'exited') {
+              // Container is stopped - service cannot be running
+              normalized = 'stopped';
+            } else if (containerStatus === 'running') {
+              // Container is running - check health API for actual service health
+              if (health.status === 'healthy' || health.status === 'pass') {
+                normalized = 'running';
+              } else if (health.status === 'degraded') {
+                normalized = 'degraded';
+              } else if (health.status === 'unhealthy' || health.status === 'error') {
+                normalized = 'error';
+              } else {
+                // Health API unclear but container running - assume running
+                normalized = 'running';
+              }
+            } else {
+              // Container in unknown/other state - use health API
+              if (health.status === 'healthy' || health.status === 'pass') {
+                normalized = 'running';
+              } else if (health.status === 'degraded') {
+                normalized = 'degraded';
+              } else if (health.status === 'unhealthy' || health.status === 'error') {
+                normalized = 'error';
+              } else {
+                normalized = 'stopped';
+              }
+            }
           } else {
-            // Health API status is unknown/stopped - check container status
-            if (container && containerStatus) {
-              normalized = containerStatus === 'running' 
-                ? 'running'
-                : containerStatus === 'stopped' || containerStatus === 'exited'
-                  ? 'stopped'
-                  : 'error';
+            // No container info - fall back to health API
+            if (health.status === 'healthy' || health.status === 'pass') {
+              normalized = 'running';
+            } else if (health.status === 'degraded') {
+              normalized = 'degraded';
+            } else if (health.status === 'unhealthy' || health.status === 'error') {
+              normalized = 'error';
             } else {
               // No container info and health API is unclear - default to stopped
               normalized = 'stopped';

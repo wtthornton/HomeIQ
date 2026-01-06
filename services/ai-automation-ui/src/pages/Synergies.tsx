@@ -243,23 +243,6 @@ export const Synergies: React.FC = () => {
 
   const handleCreateAutomation = async (synergy: SynergyOpportunity) => {
     try {
-      // Convert synergy to automation suggestion format
-      const automationData = {
-        name: `Synergy: ${getSynergyTypeLabel(synergy.synergy_type)}`,
-        description: synergy.opportunity_metadata?.rationale || (synergy as any).explanation?.summary || 'Automation created from detected synergy',
-        trigger: {
-          entity_id: synergy.opportunity_metadata?.trigger_entity || synergy.device_ids?.split(',')[0],
-          state: (synergy.opportunity_metadata as any)?.trigger_state || 'on',
-        },
-        action: {
-          entity_id: synergy.opportunity_metadata?.action_entity || synergy.device_ids?.split(',')[1],
-          service: (synergy.opportunity_metadata as any)?.action_service || 'turn_on',
-        },
-        synergy_id: synergy.id,
-        confidence: synergy.confidence,
-        impact_score: synergy.impact_score,
-      };
-
       // Show confirmation dialog
       const confirmed = window.confirm(
         `Create automation from this synergy?\n\n` +
@@ -271,10 +254,45 @@ export const Synergies: React.FC = () => {
 
       if (!confirmed) return;
 
-      // TODO: Call API to create automation
-      // For now, show success message
-      toast.success('Automation creation initiated! This feature will be available soon.');
-      console.log('Would create automation:', automationData);
+      // Show loading toast
+      const loadingToast = toast.loading('Generating automation...');
+
+      try {
+        // Call API to generate and deploy automation
+        // Uses Recommendation 1.1: Complete Automation Generation Pipeline
+        const result = await api.generateAutomationFromSynergy(synergy.id.toString());
+
+        toast.dismiss(loadingToast);
+
+        if (result.success && result.data) {
+          toast.success(
+            `✅ Automation created successfully!\n` +
+            `Automation ID: ${result.data.automation_id}\n` +
+            `Status: ${result.data.deployment_status}`,
+            { duration: 5000 }
+          );
+          
+          // Log automation details for debugging
+          console.log('Automation generated:', {
+            automation_id: result.data.automation_id,
+            blueprint_id: result.data.blueprint_id,
+            deployment_status: result.data.deployment_status,
+            estimated_impact: result.data.estimated_impact
+          });
+        } else {
+          toast.error('Failed to create automation: Unknown error');
+        }
+      } catch (apiError: any) {
+        toast.dismiss(loadingToast);
+        
+        // Extract error message from API response
+        const errorMessage = apiError.response?.data?.detail || 
+                           apiError.message || 
+                           'Unknown error occurred';
+        
+        toast.error(`Failed to create automation: ${errorMessage}`, { duration: 5000 });
+        console.error('Error generating automation:', apiError);
+      }
     } catch (error: any) {
       toast.error(`Failed to create automation: ${error.message || 'Unknown error'}`);
       console.error('Error creating automation:', error);
