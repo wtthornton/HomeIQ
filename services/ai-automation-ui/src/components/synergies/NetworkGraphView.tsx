@@ -44,16 +44,26 @@ class GraphErrorBoundary extends Component<{ children: ReactNode; fallback: Reac
   }
 }
 
-// Dynamic import with state management
+// Dynamic import with state management and timeout
 let ForceGraph2DComponent: any = null;
 let loadPromise: Promise<any> | null = null;
+let retryCount = 0;
+const MAX_RETRIES = 2;
+const LOAD_TIMEOUT_MS = 30000; // 30 seconds timeout
 
-const loadForceGraph = async (): Promise<any> => {
-  if (ForceGraph2DComponent) {
-    return ForceGraph2DComponent;
-  }
-  
-  // Ensure AFRAME stub is available before importing react-force-graph
+/**
+ * Creates a timeout promise that rejects after specified milliseconds
+ */
+const createTimeout = (ms: number): Promise<never> => {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(`Load timeout after ${ms}ms`)), ms);
+  });
+};
+
+/**
+ * Sets up AFRAME stub to prevent errors from react-force-graph
+ */
+const setupAFRAMEStub = (): void => {
   if (typeof window !== 'undefined' && !(window as any).AFRAME) {
     (window as any).AFRAME = {
       registerComponent: () => {},
@@ -63,123 +73,115 @@ const loadForceGraph = async (): Promise<any> => {
       version: '1.0.0'
     };
   }
-  
-  // Ensure THREE.js is available globally before importing react-force-graph
-  // This must be done carefully to avoid "not extensible" errors
-  if (typeof window !== 'undefined') {
-    try {
-      // Always reload THREE.js to ensure it's fresh and extensible
-      // Remove existing THREE if it exists
-      if ((window as any).THREE) {
-        delete (window as any).THREE;
-      }
-      
-      // Load THREE.js fresh
-      const THREE = await import('three');
-      // THREE.js exports as a namespace object (no .default in ES modules)
-      const THREE_export = THREE as any;
-      
-      // Create an extensible wrapper using Proxy to allow property additions
-      // This ensures react-force-graph can add ColladaLoader and other loaders
-      (window as any).THREE = new Proxy(THREE_export, {
-        get(target, prop) {
-          return (target as any)[prop];
-        },
-        set(target, prop, value) {
-          // Allow setting new properties (like ColladaLoader)
-          (target as any)[prop] = value;
-          return true;
-        },
-        defineProperty(target, prop, descriptor) {
-          // Allow defining new properties
-          return Reflect.defineProperty(target, prop, descriptor);
-        },
-        has(target, prop) {
-          return prop in target;
-        },
-        ownKeys(target) {
-          return Reflect.ownKeys(target);
-        }
-      });
-    } catch (err) {
-      console.warn('Failed to load THREE.js:', err);
-      // Continue anyway - react-force-graph might handle it
+};
+
+/**
+ * Sets up THREE.js with extensible Proxy wrapper
+ */
+const setupTHREE = async (): Promise<void> => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    // Remove existing THREE if it exists
+    if ((window as any).THREE) {
+      delete (window as any).THREE;
     }
+    
+    // Load THREE.js fresh
+    const THREE = await import('three');
+    const THREE_export = THREE as any;
+    
+    // Create an extensible wrapper using Proxy to allow property additions
+    // This ensures react-force-graph can add ColladaLoader and other loaders
+    (window as any).THREE = new Proxy(THREE_export, {
+      get(target, prop) {
+        return (target as any)[prop];
+      },
+      set(target, prop, value) {
+        (target as any)[prop] = value;
+        return true;
+      },
+      defineProperty(target, prop, descriptor) {
+        return Reflect.defineProperty(target, prop, descriptor);
+      },
+      has(target, prop) {
+        return prop in target;
+      },
+      ownKeys(target) {
+        return Reflect.ownKeys(target);
+      }
+    });
+  } catch (err) {
+    console.warn('[NetworkGraphView] Failed to load THREE.js:', err);
+    // Continue anyway - react-force-graph might handle it
+  }
+};
+
+/**
+ * Loads react-force-graph with timeout and error handling
+ */
+const loadForceGraph = async (): Promise<any> => {
+  // Return cached component if already loaded
+  if (ForceGraph2DComponent) {
+    return ForceGraph2DComponent;
   }
   
-  if (!loadPromise) {
-    loadPromise = import('react-force-graph')
-      .then((module: any) => {
-        if (!module || !module.ForceGraph2D) {
-          throw new Error('ForceGraph2D component not found in react-force-graph module');
-        }
-        ForceGraph2DComponent = module.ForceGraph2D;
-        return ForceGraph2DComponent;
-      })
-      .catch((error: any) => {
-        // Suppress AFRAME-related errors as we don't use 3D graphs
-        const errorMessage = error?.message || String(error);
-        if (errorMessage.includes('AFRAME')) {
-          console.warn('AFRAME error suppressed (expected for 2D graphs):', errorMessage);
-          // Set AFRAME stub and retry
-          if (typeof window !== 'undefined' && !(window as any).AFRAME) {
-            (window as any).AFRAME = {
-              registerComponent: () => {},
-              registerSystem: () => {},
-              registerPrimitive: () => {},
-              scenes: [],
-              version: '1.0.0'
-            };
-          }
-          // Retry the import
-          loadPromise = null;
-          return loadForceGraph();
-        }
-        // Handle THREE-related errors (including ColladaLoader and extensibility issues)
-        if (errorMessage.includes('THREE') || errorMessage.includes('three') || 
-            errorMessage.includes('ColladaLoader') || errorMessage.includes('not extensible') ||
-            errorMessage.includes('extensible')) {
-          console.warn('THREE.js error detected, attempting to reload THREE.js with Proxy:', errorMessage);
-          // Try to load THREE again with Proxy wrapper to ensure extensibility
-          if (typeof window !== 'undefined') {
-            return import('three').then((THREE) => {
-              const THREE_export = THREE as any;
-              // Remove existing THREE
-              delete (window as any).THREE;
-              // Create extensible Proxy wrapper
-              (window as any).THREE = new Proxy(THREE_export, {
-                get(target, prop) {
-                  return (target as any)[prop];
-                },
-                set(target, prop, value) {
-                  (target as any)[prop] = value;
-                  return true;
-                },
-                defineProperty(target, prop, descriptor) {
-                  return Reflect.defineProperty(target, prop, descriptor);
-                },
-                has(target, prop) {
-                  return prop in target;
-                },
-                ownKeys(target) {
-                  return Reflect.ownKeys(target);
-                }
-              });
-              // Retry react-force-graph import
-              loadPromise = null;
-              return loadForceGraph();
-            }).catch((threeErr) => {
-              console.error('Failed to reload THREE.js:', threeErr);
-              loadPromise = null;
-              throw new Error('THREE.js is required but could not be loaded');
-            });
-          }
-        }
-        console.error('Failed to load react-force-graph:', error);
-        loadPromise = null; // Reset so we can retry
-        throw error;
-      });
+  // Setup prerequisites
+  setupAFRAMEStub();
+  await setupTHREE();
+  
+  // If there's already a load in progress, return that promise
+  if (loadPromise) {
+    return loadPromise;
   }
+  
+  // Create load promise with timeout
+  loadPromise = Promise.race([
+    import('react-force-graph').then((module: any) => {
+      if (!module || !module.ForceGraph2D) {
+        throw new Error('ForceGraph2D component not found in react-force-graph module');
+      }
+      ForceGraph2DComponent = module.ForceGraph2D;
+      retryCount = 0; // Reset retry count on success
+      return ForceGraph2DComponent;
+    }),
+    createTimeout(LOAD_TIMEOUT_MS)
+  ]).catch((error: any) => {
+    const errorMessage = error?.message || String(error);
+    
+    // Suppress AFRAME-related errors as we don't use 3D graphs
+    if (errorMessage.includes('AFRAME')) {
+      console.warn('[NetworkGraphView] AFRAME error suppressed (expected for 2D graphs):', errorMessage);
+      setupAFRAMEStub();
+      // Retry if under max retries
+      if (retryCount < MAX_RETRIES) {
+        retryCount++;
+        loadPromise = null;
+        return loadForceGraph();
+      }
+    }
+    
+    // Handle THREE-related errors
+    if (errorMessage.includes('THREE') || errorMessage.includes('three') || 
+        errorMessage.includes('ColladaLoader') || errorMessage.includes('not extensible') ||
+        errorMessage.includes('extensible')) {
+      console.warn('[NetworkGraphView] THREE.js error detected, attempting to reload:', errorMessage);
+      // Retry if under max retries
+      if (retryCount < MAX_RETRIES) {
+        retryCount++;
+        loadPromise = null;
+        return setupTHREE().then(() => loadForceGraph());
+      }
+    }
+    
+    // Reset promise and throw error
+    console.error('[NetworkGraphView] Failed to load react-force-graph:', error);
+    loadPromise = null;
+    retryCount = 0;
+    throw error;
+  });
   
   return loadPromise;
 };
@@ -245,20 +247,39 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
 
   // Load the graph component on mount
   useEffect(() => {
-    console.log('[NetworkGraphView] Starting graph library load...');
-    console.log('[NetworkGraphView] Synergies received:', synergies.length);
-    loadForceGraph()
-      .then((GraphComponent: any) => {
-        console.log('[NetworkGraphView] Graph library loaded successfully:', GraphComponent);
-        setForceGraph2D(() => GraphComponent);
-        setGraphLoaded(true);
-        setLoadError(null);
-      })
-      .catch((err: any) => {
+    let isMounted = true;
+    const loadGraph = async () => {
+      console.log('[NetworkGraphView] Starting graph library load...');
+      console.log('[NetworkGraphView] Synergies received:', synergies.length);
+      
+      try {
+        const GraphComponent = await loadForceGraph();
+        
+        // Only update state if component is still mounted
+        if (isMounted) {
+          console.log('[NetworkGraphView] Graph library loaded successfully');
+          setForceGraph2D(() => GraphComponent);
+          setGraphLoaded(true);
+          setLoadError(null);
+        }
+      } catch (err: any) {
         console.error('[NetworkGraphView] Error loading ForceGraph2D:', err);
-        setLoadError(err?.message || 'Failed to load network graph library');
-        setGraphLoaded(false);
-      });
+        
+        // Only update state if component is still mounted
+        if (isMounted) {
+          const errorMessage = err?.message || 'Failed to load network graph library';
+          setLoadError(errorMessage);
+          setGraphLoaded(false);
+        }
+      }
+    };
+    
+    loadGraph();
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
   }, []);
   
   // Transform synergies into graph format
