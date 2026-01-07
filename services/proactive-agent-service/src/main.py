@@ -55,7 +55,7 @@ except ImportError:
     setup_logging = lambda name: logging.getLogger(name)  # noqa: E731
 
 from .config import Settings
-from .api.health import router as health_router
+from .api.health import router as health_router, set_scheduler_service_for_health
 from .api.suggestions import router as suggestions_router, set_scheduler_service
 from .database import init_database, close_database
 from .services.scheduler_service import SchedulerService
@@ -103,7 +103,8 @@ async def lifespan(_app: FastAPI):
         pipeline_service = SuggestionPipelineService()
         scheduler_service = SchedulerService(settings, pipeline_service=pipeline_service)
         scheduler_service.start()
-        set_scheduler_service(scheduler_service)  # Set for API endpoints
+        set_scheduler_service(scheduler_service)  # Set for suggestions API endpoints
+        set_scheduler_service_for_health(scheduler_service)  # Set for health endpoint
         logger.info("Scheduler initialized")
 
         logger.info("Proactive Agent Service started successfully")

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -95,11 +96,14 @@ class SchedulerService:
         except Exception as e:
             logger.error(f"Failed to stop scheduler: {e}", exc_info=True)
 
-    async def _run_daily_suggestions(self):
+    async def _run_daily_suggestions(self) -> dict[str, Any]:
         """
         Execute daily suggestion generation job.
 
         This method is called by APScheduler at the scheduled time.
+
+        Returns:
+            Dictionary with pipeline results
         """
         logger.info("Starting daily suggestion generation job")
 
@@ -116,8 +120,17 @@ class SchedulerService:
             if not results.get("success", False):
                 logger.warning("Daily suggestion generation completed with errors")
 
+            return results
+
         except Exception as e:
             logger.error(f"Error in daily suggestion generation job: {e}", exc_info=True)
+            return {
+                "success": False,
+                "suggestions_created": 0,
+                "suggestions_sent": 0,
+                "suggestions_failed": 0,
+                "details": [{"step": "pipeline", "error": str(e)}],
+            }
 
     async def trigger_manual(self) -> dict[str, Any]:
         """
