@@ -58,6 +58,10 @@ Use explicit commands for guaranteed workflow execution:
 | `*review {file}` | Review code quality | @reviewer → @improver |
 | `*fix {file} {description}` | Fix bugs/errors | @debugger → @implementer → @tester |
 | `*test {file}` | Generate tests | @tester |
+| `*explore {query}` | Explore codebase | @analyst → @reviewer |
+| `*refactor {file}` | Refactor code | @reviewer → @architect → @implementer → @tester → @reviewer |
+| `*plan-analysis {description}` | Safe planning (read-only) | @analyst → @architect → @reviewer |
+| `*pr {title}` | Create pull request | @reviewer → @documenter |
 | `*full {description}` | Full SDLC workflow | All skills in sequence |
 | `*help` | Show help | - |
 | `*status` | Check status | - |
@@ -70,7 +74,42 @@ Simple Mode detects intent from keywords:
 - **Review**: review, check, analyze, inspect, examine, score, quality, audit
 - **Fix**: fix, repair, resolve, debug, error, bug, issue, problem, broken
 - **Test**: test, verify, validate, coverage, testing
+- **Explore**: explore, understand, navigate, find, discover, overview, codebase, trace, search, locate
+- **Refactor**: refactor, modernize, update, improve code, modernize code, legacy, deprecated
+- **Plan**: plan, planning, analyze, analysis, design, proposal, strategy, roadmap
+- **PR**: pr, pull request, create pr, open pr, merge request, mr
 - **Full**: full, complete, sdlc, lifecycle, everything
+
+## ⚠️ CRITICAL: Explicit Command Precedence
+
+**When a user explicitly specifies a command (e.g., `*build`, `*full`, `*review`), you MUST respect that command regardless of keywords in the prompt.**
+
+**Examples:**
+- ✅ `@simple-mode *build "Improve test coverage and code quality"` → Use **BUILD** workflow (7 steps)
+- ✅ `@simple-mode *build "Add comprehensive unit tests"` → Use **BUILD** workflow (7 steps)
+- ✅ `@simple-mode *full "Build a new feature"` → Use **FULL** workflow (9 steps)
+- ❌ **DO NOT** switch from `*build` to `*full` just because the prompt contains words like "comprehensive", "quality", "complete", or "improve"
+
+**When to Use Each Workflow:**
+
+| Use Case | Workflow | Why |
+|----------|----------|-----|
+| New features | `*build` | 7-step workflow covers design → implementation → testing |
+| Quality improvements | `*build` | Can refactor/improve existing code with full design cycle |
+| Bug fixes | `*fix` | Focused debugging → fix → test workflow |
+| Code reviews | `*review` | Review → improve workflow |
+| Test generation | `*test` | Test-focused workflow |
+| Codebase exploration | `*explore` | Understand and navigate existing codebases |
+| Code modernization | `*refactor` | Systematic refactoring with pattern detection |
+| Safe planning | `*plan-analysis` | Read-only analysis without code modifications |
+| Pull requests | `*pr` | PR creation with quality scores |
+| Framework development | `*full` | Requires requirements → security → documentation (9 steps) |
+| Enterprise/critical features | `*full` | When user explicitly requests full SDLC with security scanning |
+
+**Key Rule:** If the user says `*build`, use BUILD workflow. Only use `*full` if:
+1. User explicitly says `*full`
+2. Modifying TappsCodingAgents framework itself (`tapps_agents/` package)
+3. User explicitly requests "full SDLC" or "complete lifecycle"
 
 ## Skill Orchestration Workflows
 

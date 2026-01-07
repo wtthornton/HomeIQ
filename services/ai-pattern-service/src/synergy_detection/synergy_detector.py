@@ -551,7 +551,9 @@ class DeviceSynergyDetector:
         chains_3: list[dict[str, Any]],
         chains_4: list[dict[str, Any]],
         final_synergies: list[dict[str, Any]],
-        duration: float
+        duration: float,
+        scene_synergies: list[dict[str, Any]] | None = None,
+        context_synergies: list[dict[str, Any]] | None = None
     ) -> None:
         """
         Log synergy detection results.
@@ -562,12 +564,19 @@ class DeviceSynergyDetector:
             chains_4: 4-device chains
             final_synergies: Final combined synergies
             duration: Detection duration in seconds
+            scene_synergies: Scene-based synergies (optional)
+            context_synergies: Context-aware synergies (optional)
         """
+        scene_count = len(scene_synergies) if scene_synergies else 0
+        context_count = len(context_synergies) if context_synergies else 0
+        
         logger.info(
             f"✅ Synergy detection complete in {duration:.1f}s\n"
             f"   Pairwise opportunities: {len(pairwise_synergies)}\n"
             f"   3-device chains: {len(chains_3)}\n"
             f"   4-device chains: {len(chains_4)}\n"
+            f"   Scene-based: {scene_count}\n"
+            f"   Context-aware: {context_count}\n"
             f"   Total opportunities: {len(final_synergies)}\n"
             f"   Above confidence threshold ({self.min_confidence}): {len(final_synergies)}"
         )
@@ -617,9 +626,12 @@ class DeviceSynergyDetector:
         co_occurrence_patterns = [p for p in patterns if p.get('pattern_type') == 'co_occurrence']
         logger.info(f"   → Found {len(co_occurrence_patterns)} co-occurrence patterns")
         
+        # Get entities for area lookup
+        entities = self._entity_cache if self._entity_cache else []
+        
         for pattern in co_occurrence_patterns:
             try:
-                synergy = self._pattern_to_synergy(pattern)
+                synergy = self._pattern_to_synergy(pattern, entities)
                 if synergy:
                     synergies.append(synergy)
             except Exception as e:
@@ -630,56 +642,195 @@ class DeviceSynergyDetector:
         time_patterns = [p for p in patterns if p.get('pattern_type') == 'time_of_day']
         logger.info(f"   → Found {len(time_patterns)} time-of-day patterns")
         
-        # Group time patterns by time window to find schedule-based synergies
-        time_groups = {}
+        # Group time patterns by 30-minute windows for flexible matching
+        # This allows devices that activate within ±15 minutes to form synergies
+        time_groups_30min: dict[str, list[dict[str, Any]]] = {}
+        time_groups_hourly: dict[str, list[dict[str, Any]]] = {}
+        
         for pattern in time_patterns:
+            # Hour/minute can be at top level OR in pattern_metadata
             metadata = pattern.get('pattern_metadata', {})
-            hour = metadata.get('hour') if isinstance(metadata, dict) else None
-            minute = metadata.get('minute') if isinstance(metadata, dict) else None
+            if not isinstance(metadata, dict):
+                metadata = {}
             
-            if hour is not None and minute is not None:
-                time_key = f"{hour:02d}:{minute:02d}"
-                if time_key not in time_groups:
-                    time_groups[time_key] = []
-                time_groups[time_key].append(pattern)
+            # Try top-level first (from TimeOfDayPatternDetector), then metadata
+            hour = pattern.get('hour') or metadata.get('hour')
+            minute = pattern.get('minute') or metadata.get('minute', 0)
+            
+            if hour is not None:
+                hour = int(hour)
+                minute = int(minute) if minute else 0
+                
+                # 30-minute window grouping (more precise)
+                # Windows: 00:00-00:29, 00:30-00:59, 01:00-01:29, etc.
+                window_start = 0 if minute < 30 else 30
+                time_key_30min = f"{hour:02d}:{window_start:02d}"
+                if time_key_30min not in time_groups_30min:
+                    time_groups_30min[time_key_30min] = []
+                time_groups_30min[time_key_30min].append(pattern)
+                
+                # Hourly grouping (fallback for sparse patterns)
+                time_key_hourly = f"{hour:02d}:00"
+                if time_key_hourly not in time_groups_hourly:
+                    time_groups_hourly[time_key_hourly] = []
+                time_groups_hourly[time_key_hourly].append(pattern)
+        
+        logger.info(f"   → Grouped into {len(time_groups_30min)} 30-min windows, {len(time_groups_hourly)} hourly windows")
         
         # Create schedule-based synergies for devices that activate at the same time
-        for time_key, patterns_at_time in time_groups.items():
+        # Get entities for area lookup
+        entities = self._entity_cache if self._entity_cache else []
+        
+        # Track created synergies to avoid duplicates
+        created_device_pairs: set[tuple[str, str]] = set()
+        MAX_SCHEDULE_SYNERGIES = 100
+        
+        # First pass: 30-minute windows (more precise matches)
+        for time_key, patterns_at_time in time_groups_30min.items():
+            if len(synergies) >= MAX_SCHEDULE_SYNERGIES:
+                break
             if len(patterns_at_time) >= 2:
-                # Multiple devices activate at same time → schedule synergy
                 devices = [p.get('device_id') for p in patterns_at_time if p.get('device_id')]
-                if len(devices) >= 2:
-                    synergy = {
-                        'synergy_id': str(uuid.uuid4()),
-                        'synergy_type': 'schedule_based',
-                        'devices': devices[:2],  # Use first 2 devices
-                        'trigger_entity': devices[0],
-                        'action_entity': devices[1],
-                        'area': 'unknown',  # Could be enhanced with device lookup
-                        'impact_score': sum(p.get('confidence', 0.7) for p in patterns_at_time) / len(patterns_at_time),
-                        'confidence': min(1.0, sum(p.get('confidence', 0.7) for p in patterns_at_time) / len(patterns_at_time)),
-                        'complexity': 'low',
-                        'rationale': f"Schedule-based: {len(devices)} devices activate at {time_key}",
-                        'pattern_support_score': 1.0,  # Strong pattern support
-                        'validated_by_patterns': True,
-                        'supporting_pattern_ids': [p.get('id') for p in patterns_at_time if p.get('id')],
-                        'synergy_depth': 2,
-                        'chain_devices': devices[:2]
-                    }
-                    synergies.append(synergy)
+                unique_devices = list(dict.fromkeys(devices))  # Preserve order, remove duplicates
+                
+                if len(unique_devices) >= 2:
+                    # Create synergies for device pairs
+                    for i, device1 in enumerate(unique_devices[:5]):  # Limit to 5 devices
+                        for device2 in unique_devices[i+1:5]:
+                            pair_key = tuple(sorted([device1, device2]))
+                            if pair_key in created_device_pairs:
+                                continue
+                            created_device_pairs.add(pair_key)
+                            
+                            if len(synergies) >= MAX_SCHEDULE_SYNERGIES:
+                                break
+                            
+                            area = self._lookup_area_from_entities([device1, device2], entities)
+                            avg_confidence = sum(p.get('confidence', 0.7) for p in patterns_at_time) / len(patterns_at_time)
+                            
+                            synergy = {
+                                'synergy_id': str(uuid.uuid4()),
+                                'synergy_type': 'schedule_based',
+                                'devices': [device1, device2],
+                                'trigger_entity': device1,
+                                'action_entity': device2,
+                                'area': area,
+                                'impact_score': min(0.9, avg_confidence + 0.1),  # Boost for 30-min match
+                                'confidence': min(1.0, avg_confidence + 0.05),
+                                'complexity': 'low',
+                                'rationale': f"Schedule-based: Devices activate within 30-min window at {time_key}",
+                                'pattern_support_score': 1.0,
+                                'validated_by_patterns': True,
+                                'supporting_pattern_ids': [p.get('id') for p in patterns_at_time if p.get('id')],
+                                'synergy_depth': 2,
+                                'chain_devices': [device1, device2],
+                                'context_metadata': {
+                                    'time_window': '30min',
+                                    'time_slot': time_key,
+                                    'device_count': len(unique_devices)
+                                }
+                            }
+                            synergies.append(synergy)
+        
+        # Second pass: Hourly windows (catch patterns missed by 30-min windows)
+        for time_key, patterns_at_time in time_groups_hourly.items():
+            if len(synergies) >= MAX_SCHEDULE_SYNERGIES:
+                break
+            if len(patterns_at_time) >= 2:
+                devices = [p.get('device_id') for p in patterns_at_time if p.get('device_id')]
+                unique_devices = list(dict.fromkeys(devices))
+                
+                if len(unique_devices) >= 2:
+                    for i, device1 in enumerate(unique_devices[:5]):
+                        for device2 in unique_devices[i+1:5]:
+                            pair_key = tuple(sorted([device1, device2]))
+                            if pair_key in created_device_pairs:
+                                continue
+                            created_device_pairs.add(pair_key)
+                            
+                            if len(synergies) >= MAX_SCHEDULE_SYNERGIES:
+                                break
+                            
+                            area = self._lookup_area_from_entities([device1, device2], entities)
+                            avg_confidence = sum(p.get('confidence', 0.7) for p in patterns_at_time) / len(patterns_at_time)
+                            
+                            synergy = {
+                                'synergy_id': str(uuid.uuid4()),
+                                'synergy_type': 'schedule_based',
+                                'devices': [device1, device2],
+                                'trigger_entity': device1,
+                                'action_entity': device2,
+                                'area': area,
+                                'impact_score': avg_confidence,  # No boost for hourly match
+                                'confidence': min(1.0, avg_confidence),
+                                'complexity': 'low',
+                                'rationale': f"Schedule-based: Devices activate within same hour at {time_key}",
+                                'pattern_support_score': 0.9,  # Slightly lower for hourly match
+                                'validated_by_patterns': True,
+                                'supporting_pattern_ids': [p.get('id') for p in patterns_at_time if p.get('id')],
+                                'synergy_depth': 2,
+                                'chain_devices': [device1, device2],
+                                'context_metadata': {
+                                    'time_window': 'hourly',
+                                    'time_slot': time_key,
+                                    'device_count': len(unique_devices)
+                                }
+                            }
+                            synergies.append(synergy)
         
         logger.info(f"✅ Generated {len(synergies)} synergies from patterns")
         return synergies
     
+    def _lookup_area_from_entities(
+        self,
+        entity_ids: list[str],
+        entities: list[dict[str, Any]] | None = None
+    ) -> str | None:
+        """
+        Look up area from entity IDs.
+        
+        Args:
+            entity_ids: List of entity IDs to look up
+            entities: Optional list of entities (uses cached if not provided)
+        
+        Returns:
+            Area ID if found (and same for all entities), None otherwise
+        """
+        # Use provided entities or fall back to cached
+        entities_to_search = entities if entities is not None else self._entity_cache
+        
+        if not entities_to_search:
+            return None
+        
+        # Create lookup map for faster access
+        entity_map = {e.get('entity_id'): e for e in entities_to_search if e.get('entity_id')}
+        
+        # Find areas for all entities
+        areas = []
+        for entity_id in entity_ids:
+            entity = entity_map.get(entity_id)
+            if entity:
+                area_id = entity.get('area_id')
+                if area_id:
+                    areas.append(area_id)
+        
+        # Return area if all entities are in the same area
+        if areas and len(set(areas)) == 1:
+            return areas[0]
+        
+        return None
+    
     def _pattern_to_synergy(
         self,
-        pattern: dict[str, Any]
+        pattern: dict[str, Any],
+        entities: list[dict[str, Any]] | None = None
     ) -> dict[str, Any] | None:
         """
         Convert a co-occurrence pattern to a synergy.
         
         Args:
             pattern: Pattern dictionary with pattern_type='co_occurrence'
+            entities: Optional list of entities for area lookup
         
         Returns:
             Synergy dictionary or None if conversion fails
@@ -710,6 +861,9 @@ class DeviceSynergyDetector:
         if len(devices) < 2:
             return None
         
+        # Look up area from entities
+        area = self._lookup_area_from_entities(devices[:2], entities)
+        
         # Create synergy from pattern
         return {
             'synergy_id': str(uuid.uuid4()),
@@ -717,7 +871,7 @@ class DeviceSynergyDetector:
             'devices': devices[:2],
             'trigger_entity': devices[0],
             'action_entity': devices[1],
-            'area': 'unknown',  # Could be enhanced with device lookup
+            'area': area,  # Looked up from entities
             'impact_score': pattern.get('confidence', 0.7),
             'confidence': pattern.get('confidence', 0.7),
             'complexity': 'low',
@@ -756,19 +910,29 @@ class DeviceSynergyDetector:
             # Step 2-4: Find pairs, filter compatible, check existing automations
             compatible_pairs = await self._detect_compatible_pairs_pipeline(devices, entities)
             synergies = await self._filter_existing_automations(compatible_pairs)
-            if not synergies:
-                logger.info("🆕 No new synergy opportunities found")
-                return []
-
+            
             # Step 5-6: Rank and filter by confidence (with pattern validation if db available)
-            pairwise_synergies = await self._rank_and_filter_synergies(synergies, entities, db=db)
+            pairwise_synergies: list[dict[str, Any]] = []
+            chains_3: list[dict[str, Any]] = []
+            chains_4: list[dict[str, Any]] = []
+            
+            if synergies:
+                pairwise_synergies = await self._rank_and_filter_synergies(synergies, entities, db=db)
 
-            # Step 7-8: Detect chains
-            chains_3 = await self._detect_3_device_chains(pairwise_synergies, devices, entities)
-            chains_4 = await self._detect_4_device_chains(chains_3, pairwise_synergies, devices, entities)
+                # Step 7-8: Detect chains
+                chains_3 = await self._detect_3_device_chains(pairwise_synergies, devices, entities)
+                chains_4 = await self._detect_4_device_chains(chains_3, pairwise_synergies, devices, entities)
+            else:
+                logger.info("   → No pairwise synergies found, skipping chain detection")
+            
+            # Step 9: Detect scene-based synergies (always run, independent of pairwise)
+            scene_synergies = await self._detect_scene_based_synergies(entities)
+            
+            # Step 10: Detect context-aware synergies (weather + energy + carbon)
+            context_synergies = await self._detect_context_aware_synergies(pairwise_synergies, entities)
 
             # Combine and sort all synergies
-            final_synergies = pairwise_synergies + chains_3 + chains_4
+            final_synergies = pairwise_synergies + chains_3 + chains_4 + scene_synergies + context_synergies
             final_synergies.sort(key=lambda x: x.get('impact_score', 0), reverse=True)
             
             # Step 9: Add XAI explanations (2025 Enhancement)
@@ -785,7 +949,10 @@ class DeviceSynergyDetector:
 
             # Log results
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-            self._log_synergy_results(pairwise_synergies, chains_3, chains_4, final_synergies, duration)
+            self._log_synergy_results(
+                pairwise_synergies, chains_3, chains_4, final_synergies, duration,
+                scene_synergies=scene_synergies, context_synergies=context_synergies
+            )
 
             return final_synergies
 
@@ -1648,19 +1815,31 @@ class DeviceSynergyDetector:
             List of 3-device chain synergies
         """
         # Limit chain detection to prevent timeout with large datasets
-        MAX_CHAINS = 100  # Maximum chains to detect
-        MAX_PAIRWISE_FOR_CHAINS = 500  # Skip chain detection if too many pairs
+        MAX_CHAINS = 200  # Maximum chains to detect (increased from 100)
+        TOP_PAIRS_FOR_CHAINS = 1000  # Use top N pairs by quality for chain detection
 
-        if len(pairwise_synergies) > MAX_PAIRWISE_FOR_CHAINS:
-            logger.info(f"   → Skipping 3-device chain detection: {len(pairwise_synergies)} pairs (limit: {MAX_PAIRWISE_FOR_CHAINS})")
-            return []
+        # Use top pairs by quality score instead of skipping entirely
+        pairs_to_use = pairwise_synergies
+        if len(pairwise_synergies) > TOP_PAIRS_FOR_CHAINS:
+            # Sort by quality score (confidence * 0.6 + impact * 0.4)
+            sorted_pairs = sorted(
+                pairwise_synergies,
+                key=lambda x: (x.get('confidence', 0) * 0.6 + x.get('impact_score', 0) * 0.4),
+                reverse=True
+            )
+            pairs_to_use = sorted_pairs[:TOP_PAIRS_FOR_CHAINS]
+            logger.info(
+                f"   → Using top {TOP_PAIRS_FOR_CHAINS} pairs by quality for chain detection "
+                f"(from {len(pairwise_synergies)} total, avg quality: "
+                f"{sum(p.get('confidence', 0) * 0.6 + p.get('impact_score', 0) * 0.4 for p in pairs_to_use) / len(pairs_to_use):.3f})"
+            )
 
         chains = []
-        action_lookup = self._build_action_lookup(pairwise_synergies)
+        action_lookup = self._build_action_lookup(pairs_to_use)
 
         # Find chains: For each pair A→B, find pairs B→C
         processed_count = 0
-        for synergy in pairwise_synergies:
+        for synergy in pairs_to_use:
             # Early exit if we've found enough chains
             if len(chains) >= MAX_CHAINS:
                 logger.info(f"   → Reached chain limit ({MAX_CHAINS}), stopping chain detection")
@@ -1831,22 +2010,29 @@ class DeviceSynergyDetector:
             List of 4-device chain synergies
         """
         # Reasonable limits for single home (20-50 devices)
-        MAX_CHAINS = 50  # Maximum 4-level chains to detect
-        MAX_3CHAINS_FOR_4 = 200  # Skip 4-level detection if too many 3-chains
-
-        if len(three_level_chains) > MAX_3CHAINS_FOR_4:
-            logger.info(
-                f"   → Skipping 4-device chain detection: {len(three_level_chains)} 3-chains "
-                f"(limit: {MAX_3CHAINS_FOR_4})"
-            )
-            return []
+        MAX_CHAINS = 100  # Maximum 4-level chains to detect (increased from 50)
+        TOP_PAIRS_FOR_4_CHAINS = 1000  # Use top N pairs for action lookup
 
         if not three_level_chains:
             logger.debug("   → No 3-level chains to extend to 4-level")
             return []
 
+        # Use top pairs by quality for action lookup (same approach as 3-chain detection)
+        pairs_to_use = pairwise_synergies
+        if len(pairwise_synergies) > TOP_PAIRS_FOR_4_CHAINS:
+            sorted_pairs = sorted(
+                pairwise_synergies,
+                key=lambda x: (x.get('confidence', 0) * 0.6 + x.get('impact_score', 0) * 0.4),
+                reverse=True
+            )
+            pairs_to_use = sorted_pairs[:TOP_PAIRS_FOR_4_CHAINS]
+            logger.info(
+                f"   → Using top {TOP_PAIRS_FOR_4_CHAINS} pairs for 4-chain detection "
+                f"(from {len(pairwise_synergies)} total)"
+            )
+
         chains = []
-        action_lookup = self._build_action_lookup(pairwise_synergies)
+        action_lookup = self._build_action_lookup(pairs_to_use)
 
         # For each 3-chain A→B→C, find pairs C→D
         processed_count = 0
@@ -1923,6 +2109,314 @@ class DeviceSynergyDetector:
         # Simple rule: Allow cross-area chains (common pattern like bedroom → hallway → kitchen)
         # Could be enhanced with adjacency checks, but keeping it simple for now
         return True
+
+    async def _detect_scene_based_synergies(
+        self,
+        entities: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """
+        Detect scene-based synergies.
+        
+        Finds devices that could be grouped into scenes based on:
+        1. Existing scenes (suggest expanding them)
+        2. Devices in the same area (suggest creating area scenes)
+        3. Devices of the same domain (suggest creating domain scenes)
+        
+        Args:
+            entities: List of entity dictionaries
+            
+        Returns:
+            List of scene-based synergy opportunities
+        """
+        logger.info("   → Step 9: Detecting scene-based synergies...")
+        synergies: list[dict[str, Any]] = []
+        
+        # Find existing scenes
+        scene_entities = [e for e in entities if e.get('entity_id', '').startswith('scene.')]
+        logger.info(f"      Found {len(scene_entities)} existing scenes")
+        
+        actionable_domains = {'light', 'switch', 'climate', 'media_player', 'cover', 'fan'}
+        
+        # Strategy 1: Group devices by area (if area_id available)
+        area_devices: dict[str, list[str]] = {}
+        # Strategy 2: Group devices by domain (fallback when no area_id)
+        domain_devices: dict[str, list[str]] = {}
+        
+        for entity in entities:
+            entity_id = entity.get('entity_id', '')
+            domain = entity_id.split('.')[0] if '.' in entity_id else ''
+            area_id = entity.get('area_id')
+            
+            if domain in actionable_domains:
+                # Group by area if available
+                if area_id:
+                    if area_id not in area_devices:
+                        area_devices[area_id] = []
+                    area_devices[area_id].append(entity_id)
+                
+                # Always group by domain (for domain-based scenes)
+                if domain not in domain_devices:
+                    domain_devices[domain] = []
+                domain_devices[domain].append(entity_id)
+        
+        MAX_SCENE_SYNERGIES = 50
+        
+        # Create scene-based synergies for areas with 3+ actionable devices
+        for area_id, devices in area_devices.items():
+            if len(synergies) >= MAX_SCENE_SYNERGIES:
+                break
+                
+            if len(devices) >= 3:
+                area_scenes = [s for s in scene_entities 
+                              if area_id.lower() in s.get('entity_id', '').lower()]
+                
+                if not area_scenes:
+                    synergy = {
+                        'synergy_id': str(uuid.uuid4()),
+                        'synergy_type': 'scene_based',
+                        'devices': devices[:5],
+                        'trigger_entity': f"scene.{area_id}_all",
+                        'action_entity': devices[0],
+                        'area': area_id,
+                        'impact_score': min(0.9, 0.5 + len(devices) * 0.1),
+                        'confidence': 0.80,  # Higher confidence for area-based
+                        'complexity': 'low',
+                        'rationale': f"Scene opportunity: {len(devices)} devices in {area_id} could be controlled together",
+                        'synergy_depth': len(devices[:5]),
+                        'chain_devices': devices[:5],
+                        'context_metadata': {
+                            'scene_type': 'area_based',
+                            'suggested_scene_name': f"{area_id.replace('_', ' ').title()} All",
+                            'device_count': len(devices),
+                            'device_domains': list(set(d.split('.')[0] for d in devices))
+                        }
+                    }
+                    synergies.append(synergy)
+        
+        # Create domain-based scene synergies (e.g., "All Lights", "All Switches")
+        # Only if we haven't found enough area-based synergies
+        if len(synergies) < MAX_SCENE_SYNERGIES // 2:
+            for domain, devices in domain_devices.items():
+                if len(synergies) >= MAX_SCENE_SYNERGIES:
+                    break
+                    
+                if len(devices) >= 5:  # Require more devices for domain-based scenes
+                    # Check if there's already a domain-wide scene
+                    domain_scenes = [s for s in scene_entities 
+                                    if f"all_{domain}" in s.get('entity_id', '').lower() or
+                                       f"{domain}_all" in s.get('entity_id', '').lower()]
+                    
+                    if not domain_scenes:
+                        synergy = {
+                            'synergy_id': str(uuid.uuid4()),
+                            'synergy_type': 'scene_based',
+                            'devices': devices[:10],  # More devices for domain scenes
+                            'trigger_entity': f"scene.all_{domain}s",
+                            'action_entity': devices[0],
+                            'area': None,
+                            'impact_score': min(0.85, 0.4 + len(devices) * 0.05),
+                            'confidence': 0.70,  # Lower confidence for domain-based
+                            'complexity': 'low',
+                            'rationale': f"Scene opportunity: {len(devices)} {domain} devices could be controlled together",
+                            'synergy_depth': min(len(devices), 10),
+                            'chain_devices': devices[:10],
+                            'context_metadata': {
+                                'scene_type': 'domain_based',
+                                'suggested_scene_name': f"All {domain.title()}s",
+                                'device_count': len(devices),
+                                'domain': domain
+                            }
+                        }
+                        synergies.append(synergy)
+        
+        logger.info(f"      ✅ Generated {len(synergies)} scene-based synergies "
+                   f"(area: {len(area_devices)}, domain: {len(domain_devices)})")
+        return synergies
+
+    async def _detect_context_aware_synergies(
+        self,
+        pairwise_synergies: list[dict[str, Any]],
+        entities: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """
+        Detect context-aware synergies based on weather, energy, and carbon data.
+        
+        These synergies combine multiple context factors (weather + energy + carbon)
+        to suggest automations that optimize for comfort, cost, and sustainability.
+        
+        Args:
+            pairwise_synergies: Existing pairwise synergies to enhance
+            entities: List of entity dictionaries
+            
+        Returns:
+            List of context-aware synergy opportunities
+        """
+        logger.info("   → Step 10: Detecting context-aware synergies...")
+        synergies: list[dict[str, Any]] = []
+        
+        # Find climate and energy-related devices
+        climate_devices = [e.get('entity_id') for e in entities 
+                         if e.get('entity_id', '').startswith('climate.')]
+        cover_devices = [e.get('entity_id') for e in entities 
+                        if e.get('entity_id', '').startswith('cover.')]
+        light_devices = [e.get('entity_id') for e in entities 
+                        if e.get('entity_id', '').startswith('light.')]
+        
+        # Find weather and energy sensors
+        weather_entities = [e for e in entities 
+                          if e.get('entity_id', '').startswith('weather.')]
+        energy_sensors = [e for e in entities 
+                        if 'energy' in e.get('entity_id', '').lower() or 
+                           'power' in e.get('entity_id', '').lower()]
+        
+        logger.info(f"      Found {len(climate_devices)} climate, {len(cover_devices)} cover, "
+                   f"{len(weather_entities)} weather, {len(energy_sensors)} energy entities")
+        
+        MAX_CONTEXT_SYNERGIES = 30
+        
+        # Weather + Climate synergies (pre-cooling/heating based on forecast)
+        if weather_entities and climate_devices:
+            for climate in climate_devices[:5]:  # Limit to 5 climate devices
+                if len(synergies) >= MAX_CONTEXT_SYNERGIES:
+                    break
+                    
+                weather = weather_entities[0].get('entity_id')
+                area = self._lookup_area_from_entities([climate], entities)
+                
+                synergy = {
+                    'synergy_id': str(uuid.uuid4()),
+                    'synergy_type': 'context_aware',
+                    'devices': [weather, climate],
+                    'trigger_entity': weather,
+                    'action_entity': climate,
+                    'area': area,
+                    'impact_score': 0.75,
+                    'confidence': 0.70,
+                    'complexity': 'medium',
+                    'rationale': 'Context-aware: Pre-cool/heat based on weather forecast to optimize energy',
+                    'synergy_depth': 2,
+                    'chain_devices': [weather, climate],
+                    'context_metadata': {
+                        'context_type': 'weather_climate',
+                        'triggers': {
+                            'weather': {'condition': 'sunny', 'temp_above': 80},
+                            'energy': {'peak_hours': True}
+                        },
+                        'benefits': ['energy_savings', 'comfort', 'cost_reduction'],
+                        'estimated_savings': '10-15% cooling costs'
+                    }
+                }
+                synergies.append(synergy)
+        
+        # Weather + Cover synergies (close blinds when sunny and hot)
+        if weather_entities and cover_devices:
+            for cover in cover_devices[:5]:  # Limit to 5 covers
+                if len(synergies) >= MAX_CONTEXT_SYNERGIES:
+                    break
+                    
+                weather = weather_entities[0].get('entity_id')
+                area = self._lookup_area_from_entities([cover], entities)
+                
+                synergy = {
+                    'synergy_id': str(uuid.uuid4()),
+                    'synergy_type': 'context_aware',
+                    'devices': [weather, cover],
+                    'trigger_entity': weather,
+                    'action_entity': cover,
+                    'area': area,
+                    'impact_score': 0.70,
+                    'confidence': 0.75,
+                    'complexity': 'low',
+                    'rationale': 'Context-aware: Close blinds when sunny to reduce cooling load',
+                    'synergy_depth': 2,
+                    'chain_devices': [weather, cover],
+                    'context_metadata': {
+                        'context_type': 'weather_cover',
+                        'triggers': {
+                            'weather': {'condition': 'sunny', 'temp_above': 75}
+                        },
+                        'benefits': ['energy_savings', 'comfort'],
+                        'estimated_savings': '5-10% cooling costs'
+                    }
+                }
+                synergies.append(synergy)
+        
+        # Energy + High-power device synergies (shift to off-peak)
+        high_power_domains = {'climate', 'water_heater', 'dryer', 'washer', 'dishwasher', 'ev_charger'}
+        high_power_devices = [e.get('entity_id') for e in entities 
+                            if e.get('entity_id', '').split('.')[0] in high_power_domains]
+        
+        if energy_sensors and high_power_devices:
+            for device in high_power_devices[:5]:  # Limit to 5 devices
+                if len(synergies) >= MAX_CONTEXT_SYNERGIES:
+                    break
+                    
+                energy = energy_sensors[0].get('entity_id') if energy_sensors else 'sensor.energy_price'
+                area = self._lookup_area_from_entities([device], entities)
+                
+                synergy = {
+                    'synergy_id': str(uuid.uuid4()),
+                    'synergy_type': 'context_aware',
+                    'devices': [energy, device],
+                    'trigger_entity': energy,
+                    'action_entity': device,
+                    'area': area,
+                    'impact_score': 0.80,
+                    'confidence': 0.70,
+                    'complexity': 'medium',
+                    'rationale': f'Context-aware: Schedule {device.split(".")[0]} during off-peak energy hours',
+                    'synergy_depth': 2,
+                    'chain_devices': [energy, device],
+                    'context_metadata': {
+                        'context_type': 'energy_scheduling',
+                        'triggers': {
+                            'energy': {'peak_hours': False, 'price_below': 0.12}
+                        },
+                        'benefits': ['cost_reduction', 'grid_optimization'],
+                        'estimated_savings': '15-25% energy costs'
+                    }
+                }
+                synergies.append(synergy)
+        
+        # Weather + Light synergies (adjust lighting based on weather/daylight)
+        if weather_entities and light_devices and len(synergies) < MAX_CONTEXT_SYNERGIES:
+            # Create synergy for daylight-adaptive lighting
+            weather = weather_entities[0].get('entity_id')
+            
+            # Group lights by first 5 unique
+            for light in light_devices[:5]:
+                if len(synergies) >= MAX_CONTEXT_SYNERGIES:
+                    break
+                    
+                area = self._lookup_area_from_entities([light], entities)
+                
+                synergy = {
+                    'synergy_id': str(uuid.uuid4()),
+                    'synergy_type': 'context_aware',
+                    'devices': [weather, light],
+                    'trigger_entity': weather,
+                    'action_entity': light,
+                    'area': area,
+                    'impact_score': 0.65,
+                    'confidence': 0.70,
+                    'complexity': 'low',
+                    'rationale': 'Context-aware: Adjust lighting based on weather conditions and daylight',
+                    'synergy_depth': 2,
+                    'chain_devices': [weather, light],
+                    'context_metadata': {
+                        'context_type': 'weather_lighting',
+                        'triggers': {
+                            'weather': {'condition': 'cloudy'},
+                            'time': {'is_daytime': True}
+                        },
+                        'benefits': ['comfort', 'energy_savings'],
+                        'estimated_savings': '5-10% lighting costs'
+                    }
+                }
+                synergies.append(synergy)
+        
+        logger.info(f"      ✅ Generated {len(synergies)} context-aware synergies")
+        return synergies
 
     def clear_cache(self) -> None:
         """Clear cached data (useful for testing)."""

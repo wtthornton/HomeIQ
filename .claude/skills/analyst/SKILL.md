@@ -92,7 +92,7 @@ Gather and extract detailed requirements from a description. (Alias: `*analyze`)
 
 **Execution Modes:**
 - **File-Based** (default): Command files created in worktrees, manual/UI execution
-- **API-Based** (optional): Programmatic execution via Background Agent API (requires `CURSOR_API_KEY`)
+- **API-Based** (optional): Programmatic execution via Cursor API (requires `CURSOR_API_KEY`)
 
 ### `*stakeholder-analysis {feature} [--stakeholders]`
 

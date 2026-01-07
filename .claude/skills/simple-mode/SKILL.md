@@ -38,7 +38,42 @@ Detect intent from keywords:
 | **Review** | review, check, analyze, inspect, examine, score, quality, audit, assess, evaluate |
 | **Fix** | fix, repair, resolve, debug, error, bug, issue, problem, broken, correct |
 | **Test** | test, verify, validate, coverage, testing, tests |
+| **Explore** | explore, understand, navigate, find, discover, overview, codebase, trace, search, locate |
+| **Refactor** | refactor, modernize, update, improve code, modernize code, legacy, deprecated |
+| **Plan** | plan, planning, analyze, analysis, design, proposal, strategy, roadmap |
+| **PR** | pr, pull request, create pr, open pr, merge request, mr |
 | **Full** | full, complete, sdlc, lifecycle, everything |
+
+## ⚠️ CRITICAL: Explicit Command Precedence
+
+**When a user explicitly specifies a command (e.g., `*build`, `*full`, `*review`), you MUST respect that command regardless of keywords in the prompt.**
+
+**Examples:**
+- ✅ `@simple-mode *build "Improve test coverage and code quality"` → Use **BUILD** workflow (7 steps)
+- ✅ `@simple-mode *build "Add comprehensive unit tests"` → Use **BUILD** workflow (7 steps)
+- ✅ `@simple-mode *full "Build a new feature"` → Use **FULL** workflow (9 steps)
+- ❌ **DO NOT** switch from `*build` to `*full` just because the prompt contains words like "comprehensive", "quality", "complete", or "improve"
+
+**When to Use Each Workflow:**
+
+| Use Case | Workflow | Why |
+|----------|----------|-----|
+| New features | `*build` | 7-step workflow covers design → implementation → testing |
+| Quality improvements | `*build` | Can refactor/improve existing code with full design cycle |
+| Bug fixes | `*fix` | Focused debugging → fix → test workflow |
+| Code reviews | `*review` | Review → improve workflow |
+| Test generation | `*test` | Test-focused workflow |
+| Codebase exploration | `*explore` | Understand and navigate existing codebases |
+| Code modernization | `*refactor` | Systematic refactoring with pattern detection |
+| Safe planning | `*plan-analysis` | Read-only analysis without code modifications |
+| Pull requests | `*pr` | PR creation with quality scores |
+| Framework development | `*full` | Requires requirements → security → documentation (9 steps) |
+| Enterprise/critical features | `*full` | When user explicitly requests full SDLC with security scanning |
+
+**Key Rule:** If the user says `*build`, use BUILD workflow. Only use `*full` if:
+1. User explicitly says `*full`
+2. Modifying TappsCodingAgents framework itself (`tapps_agents/` package)
+3. User explicitly requests "full SDLC" or "complete lifecycle"
 
 ## Skill Orchestration Workflows
 
@@ -223,6 +258,77 @@ Orchestrate a test workflow.
 **Execution:**
 1. Invoke `@tester *test {file}`
 2. Report results
+
+### `*explore {query}`
+
+Orchestrate an explore workflow - understand and navigate codebases.
+
+**Example:**
+```
+@simple-mode *explore "authentication system"
+@simple-mode *explore --find "user login code"
+@simple-mode *explore --trace "login flow from frontend to database"
+```
+
+**Execution:**
+1. Invoke `@analyst *gather-requirements "{query}"`
+2. Code discovery - Find relevant files
+3. Invoke `@reviewer *analyze-project` - Architecture analysis
+4. Flow tracing (optional) - Execution path analysis
+5. Generate exploration report
+
+### `*refactor {file}`
+
+Orchestrate a refactor workflow - systematic code modernization.
+
+**Example:**
+```
+@simple-mode *refactor src/utils/legacy.py
+@simple-mode *refactor src/api --pattern "**/*.js" --modernize
+```
+
+**Execution:**
+1. Invoke `@reviewer *review {files}` - Identify legacy patterns
+2. Invoke `@architect *design "{modern patterns}"` - Design modern architecture
+3. Generate refactoring plan
+4. Invoke `@implementer *refactor {file}` - Apply refactoring incrementally
+5. Invoke `@tester *test {file}` - Verify behavior preservation
+6. Invoke `@reviewer *review {files}` - Final quality check
+
+### `*plan-analysis {description}`
+
+Orchestrate a plan analysis workflow - safe, read-only code analysis.
+
+**Example:**
+```
+@simple-mode *plan-analysis "Refactor authentication to OAuth2"
+@simple-mode *plan-analysis --explore "payment processing system"
+```
+
+**Execution:**
+1. Invoke `@analyst *gather-requirements "{query}"` - Read-only requirements analysis
+2. Code exploration (optional) - Find related files
+3. Invoke `@architect *design "{plan}"` - Architecture planning (read-only)
+4. Invoke `@reviewer *analyze-project` - Impact analysis (read-only)
+5. Generate comprehensive plan document
+
+**Note:** This workflow is read-only - no code modifications are made.
+
+### `*pr {title}`
+
+Orchestrate a PR workflow - create pull requests with quality scores.
+
+**Example:**
+```
+@simple-mode *pr "Add user authentication feature"
+@simple-mode *pr --from-branch feature/auth
+```
+
+**Execution:**
+1. Analyze Git changes
+2. Invoke `@reviewer *review {changed_files}` - Final quality check
+3. Invoke `@documenter *document` - Generate PR description
+4. Create PR via Git API/CLI
 
 ### `*epic {epic-doc.md}`
 

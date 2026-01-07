@@ -4,7 +4,7 @@ Tests for filters.py
 
 import pytest
 
-from services.ai-pattern-service.src.pattern_analyzer.filters import *
+from src.pattern_analyzer.filters import *
 
 # Test functions
 

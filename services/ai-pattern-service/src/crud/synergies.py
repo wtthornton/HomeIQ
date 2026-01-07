@@ -201,9 +201,12 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
             explanation = synergy_data.get('explanation')
             context_breakdown = synergy_data.get('context_breakdown')
             
+            # Epic AI-4: Extract n-level synergy fields
+            synergy_depth = synergy_data.get('synergy_depth', 2)
+            chain_devices = synergy_data.get('chain_devices', synergy_data.get('devices', []))
+            
             if existing:
-                # Update - include 2025 enhancement fields if they exist in table
-                # Check if columns exist (SQLite doesn't support IF EXISTS in ALTER, so we'll try to update)
+                # Update - include 2025 enhancement fields and n-level synergy fields
                 update_query = text("""
                     UPDATE synergy_opportunities 
                     SET synergy_type = :synergy_type,
@@ -214,8 +217,9 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                         confidence = :confidence,
                         area = :area,
                         pattern_support_score = :pattern_support_score,
-                        validated_by_patterns = :validated_by_patterns
-                        -- Note: explanation and context_breakdown will be added via migration script
+                        validated_by_patterns = :validated_by_patterns,
+                        synergy_depth = :synergy_depth,
+                        chain_devices = :chain_devices
                     WHERE synergy_id = :synergy_id
                 """)
                 params = {
@@ -228,7 +232,9 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                     "confidence": synergy_data['confidence'],
                     "area": synergy_data.get('area', ''),
                     "pattern_support_score": synergy_data.get('pattern_support_score', 0.0),
-                    "validated_by_patterns": synergy_data.get('validated_by_patterns', False)
+                    "validated_by_patterns": synergy_data.get('validated_by_patterns', False),
+                    "synergy_depth": synergy_depth,
+                    "chain_devices": json.dumps(chain_devices) if chain_devices else None
                 }
                 
                 # Try to update explanation and context_breakdown if columns exist
@@ -256,11 +262,11 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                 
                 await db.execute(update_query, params)
             else:
-                # Insert - include 2025 enhancement fields if columns exist
+                # Insert - include 2025 enhancement fields and n-level synergy fields
                 insert_query = text("""
                     INSERT INTO synergy_opportunities 
-                    (synergy_id, synergy_type, device_ids, opportunity_metadata, impact_score, complexity, confidence, area, created_at, pattern_support_score, validated_by_patterns)
-                    VALUES (:synergy_id, :synergy_type, :device_ids, :metadata, :impact_score, :complexity, :confidence, :area, :created_at, :pattern_support_score, :validated_by_patterns)
+                    (synergy_id, synergy_type, device_ids, opportunity_metadata, impact_score, complexity, confidence, area, created_at, pattern_support_score, validated_by_patterns, synergy_depth, chain_devices)
+                    VALUES (:synergy_id, :synergy_type, :device_ids, :metadata, :impact_score, :complexity, :confidence, :area, :created_at, :pattern_support_score, :validated_by_patterns, :synergy_depth, :chain_devices)
                 """)
                 params = {
                     "synergy_id": synergy_id,
@@ -273,7 +279,9 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                     "area": synergy_data.get('area', ''),
                     "created_at": now,
                     "pattern_support_score": synergy_data.get('pattern_support_score', 0.0),
-                    "validated_by_patterns": synergy_data.get('validated_by_patterns', False)
+                    "validated_by_patterns": synergy_data.get('validated_by_patterns', False),
+                    "synergy_depth": synergy_depth,
+                    "chain_devices": json.dumps(chain_devices) if chain_devices else None
                 }
                 await db.execute(insert_query, params)
                 

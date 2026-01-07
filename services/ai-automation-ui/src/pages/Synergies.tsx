@@ -1601,7 +1601,7 @@ export const Synergies: React.FC = () => {
                 </div>
 
                 {/* Area - Emphasize Spatial Proximity */}
-                {synergy.area && (
+                {synergy.area && synergy.area !== 'unknown' && (
                   <div className={`p-2 rounded-lg mb-3 ${darkMode ? 'bg-blue-900/20 border border-blue-700/50' : 'bg-blue-50 border border-blue-200'}`}>
                     <div className={`text-xs font-semibold mb-1 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
                       📍 Same Room/Area

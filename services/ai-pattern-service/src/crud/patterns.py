@@ -70,12 +70,20 @@ async def store_patterns(
             )
             result = await db.execute(query)
             existing_pattern = result.scalar_one_or_none()
+            
+            # Build metadata: start with nested 'metadata' dict, then add top-level fields
+            # This ensures hour/minute from TimeOfDayPatternDetector are preserved
+            metadata = dict(pattern_data.get('metadata', {}))
+            # Add top-level fields that should be in metadata (for time_of_day patterns)
+            for key in ['hour', 'minute', 'cluster', 'avg_time_decimal', 'std_minutes']:
+                if key in pattern_data and key not in metadata:
+                    metadata[key] = pattern_data[key]
 
             if existing_pattern:
                 # Update existing pattern
                 existing_pattern.confidence = max(existing_pattern.confidence, pattern_data['confidence'])
                 existing_pattern.occurrences = pattern_data.get('occurrences', existing_pattern.occurrences)
-                existing_pattern.pattern_metadata = pattern_data.get('metadata', existing_pattern.pattern_metadata)
+                existing_pattern.pattern_metadata = metadata
                 if hasattr(existing_pattern, 'last_seen'):
                     existing_pattern.last_seen = now
                 existing_pattern.updated_at = now
@@ -85,7 +93,7 @@ async def store_patterns(
                 pattern = Pattern(
                     pattern_type=pattern_data['pattern_type'],
                     device_id=pattern_data['device_id'],
-                    pattern_metadata=pattern_data.get('metadata', {}),
+                    pattern_metadata=metadata,
                     confidence=pattern_data['confidence'],
                     occurrences=pattern_data.get('occurrences', 0),
                     created_at=now,
@@ -117,12 +125,21 @@ async def store_patterns(
 async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int:
     """Fallback: Store patterns using raw SQL if models aren't available"""
     from sqlalchemy import text
+    import json
     
     stored_count = 0
     now = datetime.now(timezone.utc).isoformat()
     
     for pattern_data in patterns:
         try:
+            # Build metadata: start with nested 'metadata' dict, then add top-level fields
+            # This ensures hour/minute from TimeOfDayPatternDetector are preserved
+            metadata = dict(pattern_data.get('metadata', {}))
+            for key in ['hour', 'minute', 'cluster', 'avg_time_decimal', 'std_minutes']:
+                if key in pattern_data and key not in metadata:
+                    metadata[key] = pattern_data[key]
+            metadata_str = json.dumps(metadata)
+            
             # Check if pattern exists
             check_query = text("""
                 SELECT id FROM patterns 
@@ -153,7 +170,7 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
                         "id": existing,
                         "confidence": pattern_data['confidence'],
                         "occurrences": pattern_data.get('occurrences', 0),
-                        "metadata": str(pattern_data.get('metadata', {})),
+                        "metadata": metadata_str,
                         "updated_at": now
                     }
                 )
@@ -169,7 +186,7 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
                     {
                         "pattern_type": pattern_data['pattern_type'],
                         "device_id": pattern_data['device_id'],
-                        "metadata": str(pattern_data.get('metadata', {})),
+                        "metadata": metadata_str,
                         "confidence": pattern_data['confidence'],
                         "occurrences": pattern_data.get('occurrences', 0),
                         "created_at": now,
