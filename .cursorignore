@@ -1,52 +1,9 @@
-# Cursor indexing ignore list (2025)
-#
-# Goal: keep Cursor fast (especially with agents) by excluding large/generated artifacts
-# that don't improve code understanding.
-
-# Python caches / environments
-.venv/
-venv/
-__pycache__/
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-
-# Build artifacts
-build/
-dist/
-htmlcov/
-coverage.xml
-.coverage
-
-# Reports & generated outputs
-reports/
-.tapps-agents/kb/
-.tapps-agents/cache/
-.tapps-agents/reports/
-.tapps-agents/worktrees/
-.tapps-agents/workflow-state/
-.tapps-agents/sessions/
-.tapps-agents/progress/
-
-# Misc generated/test artifacts in this repo
-MagicMock/
-fixed-code/
-tapps_agents.egg-info/
-
+# Cursor ignore patterns
 
 # Agent customizations (project-specific, gitignored by default)
 .tapps-agents/customizations/
 
-# TappsCodingAgents backups (old framework versions - exclude from indexing)
+# TappsCodingAgents generated artifacts (auto-added)
 .tapps-agents/backups/
-
-# Simple Mode workflow artifacts (temporary outputs - exclude from autocomplete)
-docs/workflows/simple-mode/step*.md
-docs/workflows/simple-mode/*-step*.md
-docs/workflows/simple-mode/*-summary.md
-docs/workflows/simple-mode/*-complete.md
-docs/workflows/simple-mode/*-COMPLETE.md
-docs/workflows/simple-mode/*-SUMMARY.md
-docs/workflows/simple-mode/*-NEXT_STEPS*.md
-docs/workflows/simple-mode/*-IMPLEMENTATION*.md
-docs/workflows/simple-mode/LOGGING_*.md
+.tapps-agents/archives/
+.tapps-agents/artifacts/
