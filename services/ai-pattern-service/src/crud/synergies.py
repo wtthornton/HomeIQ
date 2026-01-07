@@ -212,7 +212,9 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                         impact_score = :impact_score,
                         complexity = :complexity,
                         confidence = :confidence,
-                        area = :area
+                        area = :area,
+                        pattern_support_score = :pattern_support_score,
+                        validated_by_patterns = :validated_by_patterns
                         -- Note: explanation and context_breakdown will be added via migration script
                     WHERE synergy_id = :synergy_id
                 """)
@@ -224,7 +226,9 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                     "impact_score": synergy_data['impact_score'],
                     "complexity": synergy_data['complexity'],
                     "confidence": synergy_data['confidence'],
-                    "area": synergy_data.get('area', '')
+                    "area": synergy_data.get('area', ''),
+                    "pattern_support_score": synergy_data.get('pattern_support_score', 0.0),
+                    "validated_by_patterns": synergy_data.get('validated_by_patterns', False)
                 }
                 
                 # Try to update explanation and context_breakdown if columns exist
@@ -255,8 +259,8 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                 # Insert - include 2025 enhancement fields if columns exist
                 insert_query = text("""
                     INSERT INTO synergy_opportunities 
-                    (synergy_id, synergy_type, device_ids, opportunity_metadata, impact_score, complexity, confidence, area, created_at)
-                    VALUES (:synergy_id, :synergy_type, :device_ids, :metadata, :impact_score, :complexity, :confidence, :area, :created_at)
+                    (synergy_id, synergy_type, device_ids, opportunity_metadata, impact_score, complexity, confidence, area, created_at, pattern_support_score, validated_by_patterns)
+                    VALUES (:synergy_id, :synergy_type, :device_ids, :metadata, :impact_score, :complexity, :confidence, :area, :created_at, :pattern_support_score, :validated_by_patterns)
                 """)
                 params = {
                     "synergy_id": synergy_id,
@@ -267,7 +271,9 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                     "complexity": synergy_data['complexity'],
                     "confidence": synergy_data['confidence'],
                     "area": synergy_data.get('area', ''),
-                    "created_at": now
+                    "created_at": now,
+                    "pattern_support_score": synergy_data.get('pattern_support_score', 0.0),
+                    "validated_by_patterns": synergy_data.get('validated_by_patterns', False)
                 }
                 await db.execute(insert_query, params)
                 
