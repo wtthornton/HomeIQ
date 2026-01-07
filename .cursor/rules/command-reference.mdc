@@ -44,11 +44,11 @@ tapps-agents reviewer score README.md --no-progress
 ## Top-Level Commands
 
 ### `init` - Initialize Project
-**Purpose:** Set up TappsCodingAgents in your project (Cursor Rules, Skills, config). **This is the first command you should run on any project** to enable all tapps-agents capabilities in Cursor IDE. Background Agents are opt-in (use `--background-agents` flag).
+**Purpose:** Set up TappsCodingAgents in your project (Cursor Rules, Skills, config). **This is the first command you should run on any project** to enable all tapps-agents capabilities in Cursor IDE.
 
 **CLI Syntax:**
 ```bash
-tapps-agents init [--no-rules] [--no-presets] [--no-config] [--no-skills] [--background-agents] [--no-background-agents] [--no-cache] [--no-cursorignore] [--reset] [--upgrade] [--no-backup] [--reset-mcp] [--preserve-custom] [--rollback <path>] [--yes] [--dry-run]
+tapps-agents init [--no-rules] [--no-presets] [--no-config] [--no-skills] [--no-cache] [--no-cursorignore] [--reset] [--upgrade] [--no-backup] [--reset-mcp] [--preserve-custom] [--rollback <path>] [--yes] [--dry-run]
 ```
 
 **When to Use:**
@@ -103,13 +103,7 @@ When you run `tapps-agents init` on any project (new or existing), it:
        - Natural language commands (e.g., `@simple-mode Build a feature`)
      - **Simple Mode is enabled by default** in config after `init`
 
-3. **Background Agents** (`.cursor/background-agents.yaml`):
-   - **NOT installed by default** - Use `--background-agents` flag to enable
-   - Defines automatic workflow execution triggers
-   - Enables auto-execution of quality checks, testing, security scans
-   - Configurable triggers (file changes, git commits, etc.)
-
-4. **Configuration** (`.tapps-agents/config.yaml`):
+3. **Configuration** (`.tapps-agents/config.yaml`):
    - Framework settings and agent configurations
    - Tech stack detection results
    - Quality thresholds and automation settings
@@ -130,6 +124,8 @@ When you run `tapps-agents init` on any project (new or existing), it:
 8. **`.cursorignore`**:
    - Performance optimization patterns
    - Excludes large/generated files from Cursor indexing
+   - Auto-updated with TappsCodingAgents patterns (backups, archives, artifacts)
+   - Preserves existing user patterns
 
 **Parameters:**
 
@@ -149,21 +145,15 @@ When you run `tapps-agents init` on any project (new or existing), it:
   - **When to use**: If you only use CLI commands, not Cursor chat
   - **Why**: Reduces setup time, but disables `@agent-name` commands in Cursor
 
-- `--background-agents`: Install Background Agents config (opt-in, not installed by default)
-  - **When to use**: If you want automatic workflow execution in Cursor IDE
-  - **Why**: Enables automatic quality checks, testing, and security scans via Background Agents
-
-- `--no-background-agents`: (Deprecated) Explicitly skip Background Agents config
-  - **When to use**: No longer needed - Background Agents are not installed by default
-  - **Why**: Kept for backward compatibility only
 
 - `--no-cache`: Skip pre-populating Context7 cache
   - **When to use**: If Context7 is not configured or you want to populate manually
   - **Why**: Faster init if Context7 API key not available
 
-- `--no-cursorignore`: Skip creating `.cursorignore` file
-  - **When to use**: If you have custom indexing preferences
-  - **Why**: Manual control over Cursor indexing patterns
+- `--no-cursorignore`: Skip creating/updating `.cursorignore` file
+ - **When to use**: If you have custom indexing preferences
+ - **Why**: Manual control over Cursor indexing patterns
+ - **Note**: If `.cursorignore` exists, `init` will append missing TappsCodingAgents patterns (preserves your custom patterns)
 
 - `--reset` / `--upgrade`: Reset framework-managed files to latest version
   - **When to use**: After upgrading tapps-agents package, to get latest framework files
@@ -274,20 +264,19 @@ tapps-agents simple-mode full --prompt "Build feature" --auto
 
 **CLI Syntax:**
 ```bash
-tapps-agents create "<description>" [--workflow <preset>] [--cursor-mode]
+tapps-agents create "<description>" [--workflow <preset>]
 ```
 
 **Parameters:**
 - `description` (required): Natural language description
 - `--workflow`: `full` (default), `rapid`, `enterprise`, `feature`
-- `--cursor-mode`: Use Cursor Background Agents
 
 ### `workflow` - Run Preset Workflows
 **Purpose:** Execute predefined workflow presets
 
 **CLI Syntax:**
 ```bash
-tapps-agents workflow <preset> [--prompt "<description>"] [--file <path>] [--auto] [--cursor-mode]
+tapps-agents workflow <preset> [--prompt "<description>"] [--file <path>] [--auto]
 ```
 
 **Available Presets:**
@@ -306,7 +295,6 @@ tapps-agents workflow <preset> [--prompt "<description>"] [--file <path>] [--aut
 - `--prompt` / `-p`: Natural language description
 - `--file`: Target file/directory
 - `--auto`: Fully automated execution
-- `--cursor-mode`: Use Cursor Background Agents
 
 **Workflow State Management:**
 ```bash
@@ -315,6 +303,50 @@ tapps-agents workflow state show <workflow_id> [--format json|text]
 tapps-agents workflow state cleanup [--retention-days 30] [--max-states-per-workflow 10] [--remove-completed] [--dry-run]
 tapps-agents workflow resume [--workflow-id <id>] [--validate]
 ```
+
+### `cleanup` - Cleanup TappsCodingAgents Artifacts
+**Purpose:** Clean up various TappsCodingAgents artifacts to free disk space and reduce IDE clutter
+
+**CLI Syntax:**
+```bash
+tapps-agents cleanup workflow-docs [--keep-latest <n>] [--retention-days <n>] [--archive] [--no-archive] [--dry-run]
+```
+
+**Subcommands:**
+- `workflow-docs` - Clean up old workflow documentation directories
+
+**Parameters:**
+- `--keep-latest <n>`: Keep N most recent workflows visible (default: from config, typically 5)
+- `--retention-days <n>`: Archive workflows older than N days (default: from config, typically 30)
+- `--archive`: Enable archival of old workflows (default: from config)
+- `--no-archive`: Disable archival (workflows will be kept visible)
+- `--dry-run`: Preview changes without making them
+
+**When to Use:**
+- Reducing IDE clutter from accumulated workflow directories
+- Freeing disk space from old workflow documentation
+- Managing workflow artifact retention policies
+
+**Examples:**
+```bash
+# Preview cleanup (dry-run)
+tapps-agents cleanup workflow-docs --dry-run
+
+# Cleanup with defaults from config
+tapps-agents cleanup workflow-docs
+
+# Custom retention policy
+tapps-agents cleanup workflow-docs --keep-latest 10 --retention-days 60
+
+# Cleanup without archiving (keep workflows visible)
+tapps-agents cleanup workflow-docs --no-archive
+```
+
+**What It Does:**
+- Scans `docs/workflows/simple-mode/` for workflow directories
+- Keeps the N most recent workflows visible
+- Archives workflows older than retention period to `.tapps-agents/archives/workflows/`
+- Preserves workflow history while reducing IDE clutter
 
 ### `score` - Quick Code Scoring
 **Purpose:** Fast code quality scoring (shortcut for `reviewer score`)
@@ -334,8 +366,45 @@ tapps-agents score <file> [--format json|text]
 
 **CLI Syntax:**
 ```bash
-tapps-agents doctor [--format json|text] [--config-path <path>]
+tapps-agents doctor [--format json|text] [--config-path <path>] [--full]
 ```
+
+**Parameters:**
+- `--format json|text`: Output format (default: `text`)
+- `--config-path <path>`: Explicit path to config file if not in default location
+- `--full`: Run both doctor checks and health checks for comprehensive diagnostics
+
+**What It Checks:**
+- Python version compatibility
+- Required tools (ruff, mypy, pytest, etc.)
+- MCP server configuration (Context7, Playwright)
+- Cursor integration components (Rules, Skills, Background Agents)
+- Workflow presets
+- Project configuration
+- **Context7 cache status** (enabled/disabled, directory accessible, entry count)
+
+**When to Use:**
+- **Initial setup verification**: After `tapps-agents init` to verify installation
+- **Troubleshooting**: When commands aren't working as expected
+- **CI/CD validation**: Ensure environment is properly configured
+- **Comprehensive diagnostics**: Use `--full` flag for detailed health checks including cache metrics
+
+**Examples:**
+```bash
+# Basic environment check
+tapps-agents doctor
+
+# JSON output for automation
+tapps-agents doctor --format json
+
+# Comprehensive diagnostics (doctor + health checks)
+tapps-agents doctor --full
+
+# Full diagnostics with JSON output
+tapps-agents doctor --full --format json
+```
+
+**Note:** The `--full` flag runs both doctor checks (environment validation) and health checks (operational metrics). Doctor provides basic Context7 cache status; health checks provide detailed metrics (hit rate, response time, staleness analysis).
 
 ### `cursor` - Cursor AI Integration Verification
 **Purpose:** Verify and manage Cursor AI integration components
@@ -361,7 +430,6 @@ tapps-agents cursor check [--format json|text]  # alias
 - **Cursor Rules** (`.cursor/rules/`) - Validates all 7 rule files are present
   - Checks for required rule files (workflow-presets, quick-reference, agent-capabilities, etc.)
   - Verifies file format (.mdc extension)
-- **Background Agents** (`.cursor/background-agents.yaml`) - Validates configuration
   - Checks YAML syntax validity
   - Verifies agents are configured
   - Reports agent count

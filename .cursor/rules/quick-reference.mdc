@@ -33,7 +33,6 @@ alwaysApply: false
 - Natural language interaction
 - Context-aware (file open, selection)
 - Integrated with IDE
-- Background Agent support
 - Skill-based execution
 
 ### Use Terminal/CI (Recommended for Automation)
@@ -139,7 +138,7 @@ python -m tapps_agents.cli create "Create a modern web application"
 
 # This is a shortcut for: workflow full --auto --prompt
 # Automatically runs in Cursor-native mode
-# Uses Cursor Skills and Background Agents
+# Uses Cursor Skills
 ```
 
 ### Code Generation
@@ -444,7 +443,6 @@ You can use these phrases in Cursor AI conversations:
 - **Sessions:** `.tapps-agents/sessions/` (Enhancer sessions)
 - **Cache:** `.tapps-agents/kb/context7-cache/` (Context7 cache)
 - **Cursor Skills:** `.claude/skills/` (13 agent skills)
-- **Background Agents:** `.cursor/background-agents.yaml`
 
 ## Getting Help
 
@@ -470,17 +468,9 @@ python -m tapps_agents.cli setup-experts init --yes --non-interactive
 python -c "import tapps_agents; print(tapps_agents.__version__)"
 ```
 
-## Background Agents
-
-Background Agents are configured in `.cursor/background-agents.yaml`:
-- Quality Analyzer
-- Refactoring Agent
-- Testing Agent
-- Documentation Agent
 - Security Agent
 - Multi-Service Analyzer
 
-Trigger via natural language in Cursor's Background Agents panel.
 
 ### Cursor Native Execution Mode
 
@@ -488,7 +478,6 @@ When running in Cursor IDE, workflows automatically use **Cursor Native Executio
 - ✅ **No API Key Required** (file-based mode by default)
 - ✅ Uses Cursor Skills (`@agent-name` commands)
 - ✅ Leverages Cursor's configured LLM
-- ✅ Background Agent API support (optional, with API key)
 - ✅ Project profiling automatically included
 - ✅ Worktree isolation per workflow step
 

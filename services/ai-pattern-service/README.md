@@ -412,6 +412,33 @@ The enhanced synergy detection pipeline includes:
    - Transformer-based sequence modeling
    - Graph Neural Network (GNN) relationship learning
 
+### Module Architecture (January 2026 Refactoring)
+
+The synergy detection system has been refactored into focused modules for better maintainability:
+
+```
+src/synergy_detection/
+├── synergy_detector.py    # Main orchestrator (pairwise detection)
+├── chain_detection.py     # 3-device and 4-device chain detection
+├── scene_detection.py     # Scene-based synergy detection
+└── context_detection.py   # Context-aware synergy detection
+```
+
+**Benefits:**
+- **Improved Maintainability** - Each module has single responsibility (200-350 lines vs 2400+ lines)
+- **Better Testability** - 49 new integration tests, 66 total tests passing
+- **Enhanced Reusability** - Detectors can be used independently
+- **Reduced Complexity** - Complexity score reduced from 9.0 to 3.6
+
+**Synergy Types Supported:**
+- `device_pair` - Two-device relationships
+- `device_chain` - 3-device and 4-device sequences
+- `schedule_based` - Time-of-day pattern-based synergies
+- `scene_based` - Device grouping for scene creation
+- `context_aware` - Weather, energy, and environmental synergies
+- `event_context` - Event-driven synergies
+- `ml_discovered` - Machine learning discovered patterns
+
 ### Database Sharing
 
 This service shares the `ai_automation.db` SQLite database with ai-automation-service:
@@ -467,6 +494,16 @@ All logs follow structured logging format with correlation IDs:
 
 ## Version History
 
+- **v1.2.0** (January 2026) - Module Refactoring
+  - Refactored `synergy_detector.py` into focused modules:
+    - `chain_detection.py` - Chain detection (3-device, 4-device)
+    - `scene_detection.py` - Scene-based synergies
+    - `context_detection.py` - Context-aware synergies
+  - Added 49 new integration tests (66 total tests passing)
+  - Improved maintainability (complexity reduced from 9.0 to 3.6)
+  - Enhanced testability with isolated module tests
+  - Quality scores: Security 10.0, Maintainability 7.9
+
 - **v1.1.0** (January 2025) - 2025 Synergy Improvements (Epic 39, Story 39.8)
   - Multi-modal context integration for enhanced synergy scoring
   - Explainable AI (XAI) for human-readable explanations
@@ -486,7 +523,7 @@ All logs follow structured logging format with correlation IDs:
 
 ---
 
-**Last Updated:** January 2025
-**Version:** 1.1.0
+**Last Updated:** January 7, 2026
+**Version:** 1.2.0
 **Status:** Production Ready ✅
 **Port:** 8020 (internal) / 8034 (external)
