@@ -17,6 +17,11 @@ from ..services.suggestion_storage_service import SuggestionStorageService
 logger = logging.getLogger(__name__)
 
 
+class PipelineInitializationError(Exception):
+    """Raised when pipeline services fail to initialize"""
+    pass
+
+
 class SuggestionPipelineService:
     """Service for orchestrating suggestion generation pipeline"""
 
@@ -39,16 +44,49 @@ class SuggestionPipelineService:
             storage_service: Suggestion Storage Service (creates default if None)
             quality_threshold: Minimum quality score for suggestions (default: 0.6)
             max_suggestions_per_batch: Maximum suggestions per batch (default: 10)
+            
+        Raises:
+            PipelineInitializationError: If any required service fails to initialize
         """
-        self.context_service = context_service or ContextAnalysisService()
-        self.prompt_service = prompt_service or PromptGenerationService()
-        self.agent_client = agent_client or HAAgentClient()
-        self.storage_service = storage_service or SuggestionStorageService()
+        try:
+            self.context_service = context_service or ContextAnalysisService()
+        except Exception as e:
+            logger.error(f"Failed to initialize ContextAnalysisService: {e}", exc_info=True)
+            raise PipelineInitializationError(f"ContextAnalysisService initialization failed: {e}") from e
+            
+        try:
+            self.prompt_service = prompt_service or PromptGenerationService()
+        except Exception as e:
+            logger.error(f"Failed to initialize PromptGenerationService: {e}", exc_info=True)
+            raise PipelineInitializationError(f"PromptGenerationService initialization failed: {e}") from e
+            
+        try:
+            self.agent_client = agent_client or HAAgentClient()
+        except Exception as e:
+            logger.error(f"Failed to initialize HAAgentClient: {e}", exc_info=True)
+            raise PipelineInitializationError(f"HAAgentClient initialization failed: {e}") from e
+            
+        try:
+            self.storage_service = storage_service or SuggestionStorageService()
+        except Exception as e:
+            logger.error(f"Failed to initialize SuggestionStorageService: {e}", exc_info=True)
+            raise PipelineInitializationError(f"SuggestionStorageService initialization failed: {e}") from e
+
+        # Validate all services are properly initialized (not None)
+        if self.context_service is None:
+            raise PipelineInitializationError("ContextAnalysisService is None after initialization")
+        if self.prompt_service is None:
+            raise PipelineInitializationError("PromptGenerationService is None after initialization")
+        if self.agent_client is None:
+            raise PipelineInitializationError("HAAgentClient is None after initialization")
+        if self.storage_service is None:
+            raise PipelineInitializationError("SuggestionStorageService is None after initialization")
+            
         self.quality_threshold = quality_threshold
         self.max_suggestions_per_batch = max_suggestions_per_batch
 
         logger.info(
-            f"Suggestion Pipeline Service initialized "
+            f"Suggestion Pipeline Service initialized successfully "
             f"(quality_threshold={quality_threshold}, max_batch={max_suggestions_per_batch})"
         )
 
@@ -95,9 +133,35 @@ class SuggestionPipelineService:
 
             # Step 2: Generate prompts
             logger.debug("Step 2: Generating prompts")
-            prompts = self.prompt_service.generate_prompts(
-                context_analysis, max_prompts=self.max_suggestions_per_batch
-            )
+            try:
+                # Verify prompt_service is callable
+                if not callable(getattr(self.prompt_service, 'generate_prompts', None)):
+                    raise TypeError(
+                        f"prompt_service.generate_prompts is not callable: "
+                        f"type={type(self.prompt_service)}, "
+                        f"generate_prompts={type(getattr(self.prompt_service, 'generate_prompts', None))}"
+                    )
+                    
+                prompts = self.prompt_service.generate_prompts(
+                    context_analysis, max_prompts=self.max_suggestions_per_batch
+                )
+            except TypeError as e:
+                logger.error(f"TypeError in prompt generation: {e}", exc_info=True)
+                results["success"] = False
+                results["details"].append({
+                    "step": "prompt_generation", 
+                    "error": f"TypeError: {str(e)}",
+                    "prompt_service_type": str(type(self.prompt_service)),
+                })
+                return results
+            except Exception as e:
+                logger.error(f"Error generating prompts: {e}", exc_info=True)
+                results["success"] = False
+                results["details"].append({
+                    "step": "prompt_generation", 
+                    "error": str(e),
+                })
+                return results
 
             if not prompts:
                 logger.warning("No prompts generated from context analysis")

@@ -28,6 +28,20 @@ _engine = None
 _async_session_maker = None
 
 
+def get_async_session_maker():
+    """
+    Get the async session maker.
+    
+    Returns:
+        The async_sessionmaker instance, or None if not initialized.
+        
+    Note:
+        This function allows callers to get the current session maker
+        even after database initialization, avoiding import-time binding issues.
+    """
+    return _async_session_maker
+
+
 async def init_database(settings: Settings):
     """
     Initialize database connection and create tables.
