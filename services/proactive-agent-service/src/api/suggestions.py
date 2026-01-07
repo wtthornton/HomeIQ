@@ -41,8 +41,25 @@ class SuggestionResponse(BaseModel):
     sent_at: str | None = None
     updated_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
+
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Convert datetime fields to ISO strings before validation"""
+        from datetime import datetime as dt
+
+        if hasattr(obj, "__dict__"):
+            data = {}
+            for key in ["id", "prompt", "context_type", "status", "quality_score",
+                       "context_metadata", "prompt_metadata", "agent_response",
+                       "created_at", "sent_at", "updated_at"]:
+                value = getattr(obj, key, None)
+                if isinstance(value, dt):
+                    data[key] = value.isoformat()
+                else:
+                    data[key] = value
+            return super().model_validate(data, **kwargs)
+        return super().model_validate(obj, **kwargs)
 
 
 class UpdateSuggestionRequest(BaseModel):
@@ -276,3 +293,72 @@ async def trigger_suggestion_generation():
         logger.error(f"Failed to trigger suggestion generation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to trigger suggestion generation") from e
 
+
+@router.get("/debug/context")
+async def debug_context_analysis():
+    """
+    Debug endpoint to analyze context without creating suggestions.
+
+    Returns context analysis results to help diagnose why no suggestions are generated.
+    """
+    from ..services.context_analysis_service import ContextAnalysisService
+
+    try:
+        context_service = ContextAnalysisService()
+        context_analysis = await context_service.analyze_all_context()
+        await context_service.close()
+
+        return {
+            "success": True,
+            "context_analysis": context_analysis,
+            "summary": {
+                "weather_available": context_analysis.get("weather", {}).get("available", False),
+                "sports_available": context_analysis.get("sports", {}).get("available", False),
+                "energy_available": context_analysis.get("energy", {}).get("available", False),
+                "historical_available": context_analysis.get("historical_patterns", {}).get("available", False),
+                "total_insights": len(context_analysis.get("summary", {}).get("insights", [])),
+            },
+        }
+    except Exception as e:
+        logger.error(f"Failed to analyze context: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to analyze context: {str(e)}") from e
+
+
+@router.post("/sample")
+async def create_sample_suggestion(
+    db: AsyncSession = Depends(get_db),
+    storage_service: SuggestionStorageService = Depends(get_storage_service),
+):
+    """
+    Create a sample suggestion for testing the UI.
+
+    This endpoint is for debugging purposes to verify the API and UI integration.
+    """
+    try:
+        # Create a sample suggestion
+        suggestion = await storage_service.create_suggestion(
+            prompt="It's going to be 90°F today. Should I create an automation to pre-cool your home before you arrive?",
+            context_type="weather",
+            quality_score=0.85,
+            context_metadata={
+                "weather": {
+                    "available": True,
+                    "current": {"temperature": 90, "condition": "sunny", "humidity": 45},
+                },
+                "timestamp": "2025-01-07T12:00:00Z",
+            },
+            prompt_metadata={
+                "trigger": "high_temperature",
+                "temperature": 90,
+            },
+            db=db,
+        )
+
+        return {
+            "success": True,
+            "message": "Sample suggestion created",
+            "suggestion_id": suggestion.id,
+        }
+    except Exception as e:
+        logger.error(f"Failed to create sample suggestion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create sample suggestion: {str(e)}") from e

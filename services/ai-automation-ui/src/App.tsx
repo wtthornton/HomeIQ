@@ -18,6 +18,7 @@ import { DiscoveryPage } from './pages/Discovery';  // Epic AI-4, Story AI4.3
 import { Admin } from './pages/Admin';
 import { NameEnhancementDashboard } from './components/name-enhancement';  // Device Name Enhancement
 import { HAAgentChat } from './pages/HAAgentChat';  // Epic AI-20, Story AI20.7
+import { ProactiveSuggestions } from './pages/ProactiveSuggestions';  // Epic AI-21: Context-aware suggestions
 import { useAppStore } from './store';
 
 export const App: React.FC = () => {
@@ -53,6 +54,14 @@ export const App: React.FC = () => {
               element={
                 <PageErrorBoundaryWrapper pageName="Dashboard">
                   <ConversationalDashboard />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
+            <Route 
+              path="/proactive" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Proactive Suggestions">
+                  <ProactiveSuggestions />
                 </PageErrorBoundaryWrapper>
               } 
             />

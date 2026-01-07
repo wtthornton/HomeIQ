@@ -16,6 +16,7 @@ export const Navigation: React.FC = memo(() => {
   // PERFORMANCE: Memoize nav items to prevent recreation on every render
   const navItems = useMemo(() => [
     { path: '/', label: '🤖 Suggestions', icon: '🤖', ariaLabel: 'Navigate to Suggestions' },
+    { path: '/proactive', label: '💡 Proactive', icon: '💡', ariaLabel: 'Navigate to Proactive Suggestions' },  // Epic AI-21: Context-aware suggestions
     { path: '/ha-agent', label: '🤖 Agent', icon: '🤖', ariaLabel: 'Navigate to HA Agent' },  // Epic AI-20, Story AI20.7
     { path: '/patterns', label: '📊 Patterns', icon: '📊', ariaLabel: 'Navigate to Patterns' },
     { path: '/synergies', label: '🔮 Synergies', icon: '🔮', ariaLabel: 'Navigate to Synergies' },  // Epic AI-3, Story AI3.8

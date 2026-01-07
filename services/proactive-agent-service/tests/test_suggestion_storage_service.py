@@ -123,3 +123,22 @@ async def test_get_suggestion_stats(storage_service, mock_db_session):
     assert "by_context_type" in stats
     assert stats["total"] >= 2
 
+
+@pytest.mark.asyncio
+async def test_create_suggestion_raises_error_when_db_not_initialized():
+    """Test that create_suggestion raises DatabaseNotInitializedError when DB not initialized"""
+    from src.services.suggestion_storage_service import (
+        SuggestionStorageService,
+        DatabaseNotInitializedError,
+    )
+    from unittest.mock import patch
+    
+    service = SuggestionStorageService()
+    
+    # Mock get_async_session_maker to return None (simulating uninitialized DB)
+    with patch('src.services.suggestion_storage_service.get_async_session_maker', return_value=None):
+        with pytest.raises(DatabaseNotInitializedError):
+            await service.create_suggestion(
+                prompt="Test prompt",
+                context_type="weather",
+            )

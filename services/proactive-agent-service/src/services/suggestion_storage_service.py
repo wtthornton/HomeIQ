@@ -13,10 +13,34 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import _async_session_maker
+from ..database import get_async_session_maker
 from ..models import Suggestion
 
 logger = logging.getLogger(__name__)
+
+
+class DatabaseNotInitializedError(Exception):
+    """Raised when database session maker is not initialized"""
+    pass
+
+
+def _get_session_maker():
+    """
+    Get the async session maker, raising a clear error if not initialized.
+    
+    Returns:
+        The async session maker
+        
+    Raises:
+        DatabaseNotInitializedError: If database not initialized
+    """
+    session_maker = get_async_session_maker()
+    if session_maker is None:
+        raise DatabaseNotInitializedError(
+            "Database not initialized. Call init_database() before using storage service. "
+            "Ensure the service is started and database initialization completed."
+        )
+    return session_maker
 
 
 class SuggestionStorageService:
@@ -26,7 +50,7 @@ class SuggestionStorageService:
         """Initialize storage service"""
         # Note: Database initialization is checked at runtime when methods are called
         # The database should be initialized before creating this service
-        pass
+        logger.debug("SuggestionStorageService initialized")
 
     async def create_suggestion(
         self,
@@ -52,7 +76,7 @@ class SuggestionStorageService:
             Created Suggestion object
         """
         if db is None:
-            async with _async_session_maker() as session:
+            async with _get_session_maker()() as session:
                 try:
                     suggestion = Suggestion(
                         prompt=prompt,
@@ -107,7 +131,7 @@ class SuggestionStorageService:
             Suggestion object or None if not found
         """
         if db is None:
-            async with _async_session_maker() as session:
+            async with _get_session_maker()() as session:
                 try:
                     result = await session.execute(select(Suggestion).where(Suggestion.id == suggestion_id))
                     return result.scalar_one_or_none()
@@ -144,7 +168,7 @@ class SuggestionStorageService:
             List of Suggestion objects
         """
         if db is None:
-            async with _async_session_maker() as session:
+            async with _get_session_maker()() as session:
                 try:
                     query = select(Suggestion)
 
@@ -197,7 +221,7 @@ class SuggestionStorageService:
             Updated Suggestion object or None if not found
         """
         if db is None:
-            async with _async_session_maker() as session:
+            async with _get_session_maker()() as session:
                 try:
                     # Get existing suggestion
                     result = await session.execute(select(Suggestion).where(Suggestion.id == suggestion_id))
@@ -266,7 +290,7 @@ class SuggestionStorageService:
             True if deleted, False if not found
         """
         if db is None:
-            async with _async_session_maker() as session:
+            async with _get_session_maker()() as session:
                 try:
                     result = await session.execute(delete(Suggestion).where(Suggestion.id == suggestion_id))
                     await session.commit()
@@ -317,7 +341,7 @@ class SuggestionStorageService:
             Number of suggestions deleted
         """
         if db is None:
-            async with _async_session_maker() as session:
+            async with _get_session_maker()() as session:
                 try:
                     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
 
@@ -374,7 +398,7 @@ class SuggestionStorageService:
             Total count
         """
         if db is None:
-            async with _async_session_maker() as session:
+            async with _get_session_maker()() as session:
                 try:
                     query = select(func.count(Suggestion.id))
 
@@ -414,7 +438,7 @@ class SuggestionStorageService:
             Dictionary with statistics
         """
         if db is None:
-            async with _async_session_maker() as session:
+            async with _get_session_maker()() as session:
                 try:
                     # Total count
                     total_result = await session.execute(select(func.count(Suggestion.id)))

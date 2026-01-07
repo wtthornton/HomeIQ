@@ -1003,8 +1003,8 @@ services:
 
   proactive-agent-service:
     build:
-      context: ./services/proactive-agent-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/proactive-agent-service/Dockerfile
     container_name: homeiq-proactive-agent-service
     restart: unless-stopped
     ports:
@@ -1450,6 +1450,47 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=ai-automation-service-new,environment=production"
+
+  # Blueprint Index Service - Indexes and searches Home Assistant community blueprints
+  blueprint-index:
+    build:
+      context: ./services/blueprint-index
+      dockerfile: Dockerfile
+    container_name: homeiq-blueprint-index
+    restart: unless-stopped
+    ports:
+      - "8038:8031"  # External 8038, internal 8031
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///data/blueprint_index.db
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - SERVICE_PORT=8031
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - blueprint_index_data:/app/data
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8031/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=blueprint-index,environment=production"
 
   automation-miner:
     build:
@@ -1947,6 +1988,7 @@ volumes:
   ha_test_data:  # Home Assistant test container data
   ha_ai_agent_data:  # HA AI Agent Service context cache
   proactive_agent_data:  # Proactive Agent Service suggestions storage
+  blueprint_index_data:  # Blueprint Index Service data
 
 networks:
   homeiq-network:
