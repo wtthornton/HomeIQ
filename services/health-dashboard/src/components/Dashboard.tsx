@@ -48,9 +48,17 @@ export const Dashboard: React.FC = () => {
   // State management
   const [darkMode, setDarkMode] = useState(() => {
     // Check localStorage for saved preference, or system preference
-    const saved = localStorage.getItem('darkMode');
-    if (saved !== null) return saved === 'true';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Wrapped in try-catch for SSR and localStorage errors
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('darkMode');
+        if (saved !== null) return saved === 'true';
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+    } catch (error) {
+      console.warn('Failed to read darkMode from localStorage:', error);
+    }
+    return false; // Default to light mode
   });
   const [selectedTimeRange, setSelectedTimeRange] = useState('1h');
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -62,12 +70,22 @@ export const Dashboard: React.FC = () => {
   
   // Apply theme to document and persist preference
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('darkMode', 'true');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('darkMode', 'false');
+    try {
+      if (darkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('darkMode', 'true');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('darkMode', 'false');
+      }
+    } catch (error) {
+      console.warn('Failed to save darkMode to localStorage:', error);
+      // Still apply theme to document even if localStorage fails
+      if (darkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     }
   }, [darkMode]);
   
@@ -85,8 +103,13 @@ export const Dashboard: React.FC = () => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e: MediaQueryListEvent) => {
       // Only auto-switch if user hasn't manually set preference
-      const saved = localStorage.getItem('darkMode');
-      if (saved === null) {
+      try {
+        const saved = localStorage.getItem('darkMode');
+        if (saved === null) {
+          setDarkMode(e.matches);
+        }
+      } catch (error) {
+        console.warn('Failed to read darkMode from localStorage:', error);
         setDarkMode(e.matches);
       }
     };
@@ -107,18 +130,22 @@ export const Dashboard: React.FC = () => {
 
   // One-time cleanup of deprecated Custom tab localStorage
   useEffect(() => {
-    const cleanupKey = 'dashboard-layout-cleanup-v1';
-    const hasCleanedUp = localStorage.getItem(cleanupKey);
-    
-    if (!hasCleanedUp) {
-      const oldLayout = localStorage.getItem('dashboard-layout');
-      if (oldLayout) {
-        localStorage.removeItem('dashboard-layout');
-        if (import.meta.env.MODE !== 'production') {
-          console.log('✅ Cleaned up deprecated Custom tab layout from localStorage');
+    try {
+      const cleanupKey = 'dashboard-layout-cleanup-v1';
+      const hasCleanedUp = localStorage.getItem(cleanupKey);
+      
+      if (!hasCleanedUp) {
+        const oldLayout = localStorage.getItem('dashboard-layout');
+        if (oldLayout) {
+          localStorage.removeItem('dashboard-layout');
+          if (import.meta.env.MODE !== 'production') {
+            console.log('✅ Cleaned up deprecated Custom tab layout from localStorage');
+          }
         }
+        localStorage.setItem(cleanupKey, 'true');
       }
-      localStorage.setItem(cleanupKey, 'true');
+    } catch (error) {
+      console.warn('Failed to cleanup deprecated localStorage:', error);
     }
   }, []);
 

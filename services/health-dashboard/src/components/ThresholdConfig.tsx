@@ -52,16 +52,19 @@ export const ThresholdConfig: React.FC<ThresholdConfigProps> = ({ darkMode, onSa
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Load saved preferences
+  // Load saved preferences with full error handling
   useEffect(() => {
-    const saved = localStorage.getItem('user-preferences');
-    if (saved) {
-      try {
+    try {
+      if (typeof window === 'undefined') return;
+      
+      const saved = localStorage.getItem('user-preferences');
+      if (saved) {
         const parsed = JSON.parse(saved);
         setPreferences(parsed);
-      } catch (e) {
-        console.error('Failed to load preferences:', e);
       }
+    } catch (e) {
+      console.error('Failed to load preferences from localStorage:', e);
+      // Continue with default preferences
     }
   }, []);
 
@@ -85,9 +88,14 @@ export const ThresholdConfig: React.FC<ThresholdConfigProps> = ({ darkMode, onSa
     setHasChanges(true);
   };
 
-  // Save preferences
+  // Save preferences with error handling
   const handleSave = () => {
-    localStorage.setItem('user-preferences', JSON.stringify(preferences));
+    try {
+      localStorage.setItem('user-preferences', JSON.stringify(preferences));
+    } catch (error) {
+      console.error('Failed to save preferences to localStorage:', error);
+      // Still notify parent even if localStorage fails
+    }
     onSave(preferences);
     setHasChanges(false);
   };
