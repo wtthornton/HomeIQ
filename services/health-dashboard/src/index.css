@@ -1,30 +1,193 @@
-/* Import custom animations */
+/* Import fonts and animations */
+@import './styles/fonts.css';
 @import './styles/animations.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc;
+/* ============================================
+   HomeIQ Design System - CSS Variables
+   ============================================ */
+
+@layer base {
+  :root {
+    /* Colors - Light theme */
+    --background: 0 0% 100%;
+    --background-secondary: 210 40% 98%;
+    --background-tertiary: 210 40% 96%;
+    --foreground: 222 47% 11%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 217 91% 44%;
+    
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Status colors */
+    --status-healthy: 142 76% 36%;
+    --status-healthy-light: 142 76% 94%;
+    --status-warning: 38 92% 50%;
+    --status-warning-light: 38 92% 94%;
+    --status-critical: 0 84% 60%;
+    --status-critical-light: 0 84% 94%;
+    --status-offline: 220 9% 46%;
+    --status-offline-light: 220 9% 94%;
+    
+    /* Smart home accent colors */
+    --accent-weather: 199 89% 48%;
+    --accent-sports: 262 83% 58%;
+    --accent-automation: 25 95% 53%;
+    --accent-energy: 142 71% 45%;
+    
+    /* Borders */
+    --border: 214 32% 91%;
+    --border-hover: 215 20% 65%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 50%;
+    
+    /* Border radius */
+    --radius: 0.5rem;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+
+  .dark {
+    /* Colors - Dark theme */
+    --background: 222 47% 11%;
+    --background-secondary: 217 33% 17%;
+    --background-tertiary: 215 25% 22%;
+    --foreground: 210 40% 98%;
+    
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --primary-hover: 217 91% 66%;
+    
+    --secondary: 215 25% 27%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 215 25% 27%;
+    --muted-foreground: 215 20% 65%;
+    
+    --accent: 215 25% 27%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Borders */
+    --border: 215 25% 27%;
+    --border-hover: 215 16% 47%;
+    --input: 215 25% 27%;
+    --ring: 217 91% 60%;
+    
+    /* Adjusted shadows for dark mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+  }
+
+  /* Ambient theme - Low light dashboard viewing */
+  .ambient {
+    --background: 222 40% 8%;
+    --background-secondary: 217 33% 12%;
+    --background-tertiary: 215 25% 16%;
+    --foreground: 0 0% 85%;
+    
+    --card: 217 33% 12%;
+    --card-foreground: 0 0% 85%;
+    
+    --popover: 217 33% 12%;
+    --popover-foreground: 0 0% 85%;
+    
+    --primary: 217 91% 55%;
+    --primary-foreground: 222 40% 8%;
+    --primary-hover: 217 91% 60%;
+    
+    --secondary: 215 25% 20%;
+    --secondary-foreground: 0 0% 85%;
+    
+    --muted: 215 25% 20%;
+    --muted-foreground: 0 0% 60%;
+    
+    --accent: 215 25% 20%;
+    --accent-foreground: 0 0% 85%;
+    
+    /* Reduced saturation for ambient mode */
+    --status-healthy: 142 60% 30%;
+    --status-warning: 38 70% 45%;
+    --status-critical: 0 70% 50%;
+    --status-offline: 220 9% 40%;
+    
+    /* Borders */
+    --border: 215 25% 20%;
+    --border-hover: 215 16% 35%;
+    --input: 215 25% 20%;
+    --ring: 217 91% 55%;
+    
+    /* Softer shadows for ambient mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+  }
 }
 
-.dark body {
-  background-color: #111827;
+/* ============================================
+   Base Styles
+   ============================================ */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code {
+    font-family: var(--font-mono);
+  }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
+/* ============================================
+   Epic 14: Design System Standards
+   ============================================ */
 
-/* Epic 14: Design System Standards */
 @layer components {
   /* Consistent spacing scale (4px/8px grid) */
   .spacing-sm { @apply space-y-2; }
@@ -34,7 +197,7 @@ code {
   
   /* Consistent card styles */
   .card-base {
-    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md transition-all duration-200;
+    @apply bg-card text-card-foreground rounded-lg shadow-md transition-all duration-200;
   }
   
   .card-hover {
@@ -43,13 +206,13 @@ code {
   
   /* Consistent button styles */
   .btn-primary {
-    @apply px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium 
+    @apply px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium 
            transition-all duration-150 active:scale-95 shadow-sm hover:shadow-md;
   }
   
   .btn-secondary {
-    @apply px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 
-           text-gray-800 dark:text-gray-200 rounded-lg font-medium transition-all duration-150 
+    @apply px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 
+           rounded-lg font-medium transition-all duration-150 
            active:scale-95 shadow-sm;
   }
   
@@ -59,7 +222,7 @@ code {
   }
   
   .btn-danger {
-    @apply px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium 
+    @apply px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg font-medium 
            transition-all duration-150 active:scale-95 shadow-sm hover:shadow-md;
   }
   
@@ -86,27 +249,27 @@ code {
   
   /* Input styles */
   .input-base {
-    @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
-           bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
-           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+    @apply w-full px-3 py-2 border border-input rounded-lg 
+           bg-background text-foreground 
+           focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent 
            transition-all duration-150;
   }
   
   /* Typography scale */
   .text-display {
-    @apply text-4xl font-bold tracking-tight;
+    @apply text-4xl font-bold tracking-tight font-display;
   }
   
   .text-h1 {
-    @apply text-3xl font-bold;
+    @apply text-3xl font-bold font-display;
   }
   
   .text-h2 {
-    @apply text-2xl font-semibold;
+    @apply text-2xl font-semibold font-display;
   }
   
   .text-h3 {
-    @apply text-xl font-semibold;
+    @apply text-xl font-semibold font-display;
   }
   
   .text-body {
@@ -114,11 +277,11 @@ code {
   }
   
   .text-small {
-    @apply text-sm text-gray-600 dark:text-gray-400;
+    @apply text-sm text-muted-foreground;
   }
   
   .text-tiny {
-    @apply text-xs text-gray-500 dark:text-gray-500;
+    @apply text-xs text-muted-foreground;
   }
   
   /* Hide scrollbars for horizontal scroll (mobile tabs) */
@@ -152,22 +315,20 @@ code {
   
   /* :has() selector for modern browsers */
   .card:has(.status-healthy) {
-    border-left: 4px solid #10b981;
+    border-left: 4px solid hsl(var(--status-healthy));
   }
   
   .card:has(.status-warning) {
-    border-left: 4px solid #f59e0b;
+    border-left: 4px solid hsl(var(--status-warning));
   }
   
   .card:has(.status-error) {
-    border-left: 4px solid #ef4444;
+    border-left: 4px solid hsl(var(--status-critical));
   }
   
   /* Improved focus visible for accessibility */
   *:focus-visible {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
-    border-radius: 4px;
+    @apply outline-2 outline-offset-2 outline-ring rounded;
   }
   
   /* Reduced motion support */
@@ -203,5 +364,57 @@ code {
       background: white;
       color: black;
     }
+  }
+}
+
+/* ============================================
+   Glow Effects & Gradients
+   ============================================ */
+
+@layer utilities {
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    @apply bg-gradient-to-br from-primary/10 via-transparent to-transparent;
+  }
+  
+  .bg-gradient-success {
+    @apply bg-gradient-to-br from-green-500/10 via-transparent to-transparent;
+  }
+  
+  .bg-gradient-warning {
+    @apply bg-gradient-to-br from-amber-500/10 via-transparent to-transparent;
+  }
+  
+  .bg-gradient-error {
+    @apply bg-gradient-to-br from-red-500/10 via-transparent to-transparent;
+  }
+  
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3), 0 0 40px hsl(var(--primary) / 0.1);
+  }
+  
+  .glow-success {
+    box-shadow: 0 0 20px hsl(var(--status-healthy) / 0.3), 0 0 40px hsl(var(--status-healthy) / 0.1);
+  }
+  
+  .glow-warning {
+    box-shadow: 0 0 20px hsl(var(--status-warning) / 0.3), 0 0 40px hsl(var(--status-warning) / 0.1);
+  }
+  
+  .glow-error {
+    box-shadow: 0 0 20px hsl(var(--status-critical) / 0.3), 0 0 40px hsl(var(--status-critical) / 0.1);
+  }
+  
+  /* Shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--foreground) / 0.1) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
   }
 }
