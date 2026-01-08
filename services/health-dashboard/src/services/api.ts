@@ -85,7 +85,27 @@ export interface APIKeyTestResponse {
 // Epic 13 Story 13.2: Separated API clients for admin vs data APIs
 const ADMIN_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const DATA_API_BASE_URL = import.meta.env.VITE_DATA_API_URL || '';  // Will use nginx routing
-const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+
+/**
+ * Get API key from environment variable
+ * Security: No hardcoded fallback - API key must be configured via environment
+ */
+function getApiKey(): string {
+  const apiKey = import.meta.env.VITE_API_KEY;
+  
+  if (!apiKey) {
+    if (import.meta.env.MODE === 'production') {
+      throw new Error('VITE_API_KEY environment variable is required in production mode');
+    }
+    // Development mode: warn but allow requests without API key
+    console.warn('⚠️ VITE_API_KEY not set. API requests may fail authentication.');
+    return '';
+  }
+  
+  return apiKey;
+}
+
+const API_KEY = getApiKey();
 
 /**
  * Add authentication headers to request options
