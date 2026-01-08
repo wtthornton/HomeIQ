@@ -933,8 +933,24 @@ msw@^2.12.1                     # API mocking
 
 ---
 
-**Last Updated:** November 17, 2025
-**Version:** 2.2
+### 2.3 (January 7, 2026)
+- **Major UI Enhancement:** Implemented comprehensive shadcn/ui component library
+- Added 26 UI primitive components (Button, Card, Badge, Dialog, Tabs, etc.)
+- Integrated variable fonts (Inter, Outfit, JetBrains Mono) via fontsource
+- Created centralized color configuration system with HomeIQ-specific tokens
+- Added height-aware breakpoints for dashboard optimization
+- Implemented ambient theme mode for low-light viewing
+- Enhanced animation library with speed variants and new effects
+- Migrated ServiceCard, StatusCard, MetricCard, AlertBanner to use new primitives
+- Updated Tailwind config with fonts, colors, animations, and screens
+- Added CSS variables system for light/dark/ambient themes
+- Improved design system consistency across all components
+
+---
+
+**Last Updated:** January 7, 2026
+**Version:** 2.3
 **Status:** Production Ready ✅
 **Port:** 3000
 **Framework:** React 18.3 + TypeScript 5.6 + Vite 5.4
+**UI Library:** shadcn/ui + Radix UI primitives + HomeIQ design system

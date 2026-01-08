@@ -1,0 +1,28 @@
+# NLP Fine-Tuning Service Dependencies
+# Production-ready 2025 libraries
+
+# Data Processing
+polars>=1.0.0
+pyarrow>=14.0.0
+
+# Hugging Face
+datasets>=3.0.0
+transformers>=4.45.0
+accelerate>=1.0.0
+peft>=0.13.0
+
+# ML Frameworks
+torch>=2.5.0
+bitsandbytes>=0.43.0  # For quantization
+
+# OpenAI
+openai>=1.0.0
+
+# Evaluation
+nltk>=3.8.0
+scikit-learn>=1.4.0
+
+# Utilities
+python-dotenv>=1.0.0
+structlog>=24.1.0
+tqdm>=4.66.0

@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rule-recommendation-ml"
+version = "1.0.0"
+description = "Rule Recommendation ML Service for HomeIQ"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "ISC"}
+authors = [
+    {name = "HomeIQ Team"}
+]
+keywords = ["homeiq", "ml", "recommendation", "smart-home", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "polars>=1.0.0",
+    "duckdb>=1.0.0",
+    "pyarrow>=14.0.0",
+    "datasets>=3.0.0",
+    "implicit>=0.7.0",
+    "scipy>=1.12.0",
+    "numpy>=1.26.0",
+    "scikit-learn>=1.4.0",
+    "onnxruntime>=1.19.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.4.0",
+    "mypy>=1.9.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
