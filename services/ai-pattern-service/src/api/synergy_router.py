@@ -27,9 +27,12 @@ from ..config import settings
 # Blueprint Opportunity Engine imports (Phase 2)
 try:
     from ..blueprint_opportunity.opportunity_engine import BlueprintOpportunityEngine
-    from ..blueprint_opportunity.schemas import BlueprintOpportunityResponse, DeviceInventory
+    from ..blueprint_opportunity.schemas import BlueprintOpportunity, DeviceSignature
     BLUEPRINT_ENGINE_AVAILABLE = True
-except ImportError:
+except (ImportError, Exception) as e:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Blueprint Opportunity Engine not available: {e}")
     BLUEPRINT_ENGINE_AVAILABLE = False
 
 # 2025 Enhancement: XAI for explanations
@@ -1136,39 +1139,32 @@ async def list_blueprint_opportunities(
     try:
         # Initialize blueprint opportunity engine
         engine = BlueprintOpportunityEngine(
-            blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
+            blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031",
+            data_api_url=settings.data_api_url
         )
         
-        # Fetch device inventory from Home Assistant via data-api
-        device_inventory = []
-        try:
-            async with DataAPIClient(base_url=settings.data_api_url) as data_client:
-                # Fetch devices from data-api (which caches HA device registry)
-                devices_response = await data_client.get("/api/devices")
-                if devices_response and "data" in devices_response:
-                    device_inventory = devices_response["data"]
-                    logger.info(f"Fetched {len(device_inventory)} devices from data-api")
-        except Exception as e:
-            logger.warning(f"Failed to fetch device inventory from data-api: {e}")
-            # Continue with empty inventory - will return fewer matches
-        
-        # Discover blueprint opportunities
-        opportunities = await engine.discover_opportunities(
-            device_inventory=device_inventory,
-            limit=limit,
+        # Create discovery request
+        from ..blueprint_opportunity.schemas import OpportunityDiscoveryRequest
+        discovery_request = OpportunityDiscoveryRequest(
             min_fit_score=min_fit_score,
-            domain_filter=domain,
-            use_case_filter=use_case
+            limit=limit,
+            use_cases=[use_case] if use_case else None
         )
+        
+        # Discover blueprint opportunities (engine handles device fetching internally)
+        response = await engine.discover_opportunities(request=discovery_request)
         
         return {
             "success": True,
             "data": {
-                "opportunities": [opp.model_dump() for opp in opportunities],
-                "count": len(opportunities),
-                "device_count": len(device_inventory)
+                "opportunities": [opp.model_dump() for opp in response.opportunities],
+                "count": len(response.opportunities),
+                "total_found": response.total_found,
+                "device_count": response.device_count,
+                "area_count": response.area_count,
+                "discovery_time_ms": response.discovery_time_ms
             },
-            "message": f"Found {len(opportunities)} blueprint opportunities"
+            "message": f"Found {response.total_found} blueprint opportunities"
         }
         
     except HTTPException:

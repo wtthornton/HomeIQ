@@ -31,6 +31,21 @@ async def health_check():
     return {"status": "healthy", "service": "blueprint-index"}
 
 
+@router.get("/status", response_model=IndexingStatusResponse)
+async def get_indexing_status(db: AsyncSession = Depends(get_db)):
+    """
+    Get current indexing status and statistics.
+    """
+    try:
+        search_engine = BlueprintSearchEngine(db)
+        status = await search_engine.get_indexing_status()
+        return status
+        
+    except Exception as e:
+        logger.error(f"Get status failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Get status failed: {str(e)}")
+
+
 @router.get("/search", response_model=BlueprintSearchResponse)
 async def search_blueprints(
     domains: Optional[str] = Query(default=None, description="Comma-separated required domains"),
@@ -146,21 +161,6 @@ async def get_blueprint(
     except Exception as e:
         logger.error(f"Get blueprint failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Get blueprint failed: {str(e)}")
-
-
-@router.get("/status", response_model=IndexingStatusResponse)
-async def get_indexing_status(db: AsyncSession = Depends(get_db)):
-    """
-    Get current indexing status and statistics.
-    """
-    try:
-        search_engine = BlueprintSearchEngine(db)
-        status = await search_engine.get_indexing_status()
-        return status
-        
-    except Exception as e:
-        logger.error(f"Get status failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Get status failed: {str(e)}")
 
 
 @router.post("/index/refresh", response_model=IndexingJobResponse)
