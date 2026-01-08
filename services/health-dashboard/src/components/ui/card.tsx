@@ -3,30 +3,30 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const cardVariants = cva(
-  "rounded-lg border bg-card text-card-foreground shadow-sm transition-all duration-200",
+  "rounded border bg-card text-card-foreground shadow-sm transition-colors duration-150",
   {
     variants: {
       variant: {
         default: "border-border",
-        elevated: "border-transparent shadow-md",
+        elevated: "border-border shadow-md",
         outline: "border-border bg-transparent shadow-none",
         ghost: "border-transparent bg-transparent shadow-none",
-        // HomeIQ status variants
-        healthy: "border-l-4 border-l-status-healthy border-t-border border-r-border border-b-border",
-        warning: "border-l-4 border-l-status-warning border-t-border border-r-border border-b-border",
-        critical: "border-l-4 border-l-status-critical border-t-border border-r-border border-b-border",
-        offline: "border-l-4 border-l-status-offline border-t-border border-r-border border-b-border",
+        // HomeIQ status variants - left border accent
+        healthy: "border-l-2 border-l-status-healthy border-t-border border-r-border border-b-border",
+        warning: "border-l-2 border-l-status-warning border-t-border border-r-border border-b-border",
+        critical: "border-l-2 border-l-status-critical border-t-border border-r-border border-b-border",
+        offline: "border-l-2 border-l-status-offline border-t-border border-r-border border-b-border",
       },
       hover: {
-        true: "hover:shadow-lg hover:-translate-y-0.5 cursor-pointer",
+        true: "hover:border-border-hover hover:shadow-md cursor-pointer",
         false: "",
       },
       glow: {
         none: "",
-        primary: "glow-primary",
-        success: "glow-success",
-        warning: "glow-warning",
-        error: "glow-error",
+        primary: "",
+        success: "",
+        warning: "",
+        error: "",
       },
     },
     defaultVariants: {
@@ -58,7 +58,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    className={cn("flex flex-col space-y-1 p-3 pb-0", className)}
     {...props}
   />
 ));
@@ -70,7 +70,7 @@ const CardTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("font-display font-semibold leading-none tracking-tight", className)}
+    className={cn("font-display font-semibold text-sm leading-none tracking-tight", className)}
     {...props}
   />
 ));
@@ -82,7 +82,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-xs text-muted-foreground", className)}
     {...props}
   />
 ));
@@ -92,7 +92,7 @@ const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("p-3", className)} {...props} />
 ));
 CardContent.displayName = "CardContent";
 
@@ -102,7 +102,7 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-6 pt-0", className)}
+    className={cn("flex items-center gap-2 p-3 pt-0", className)}
     {...props}
   />
 ));

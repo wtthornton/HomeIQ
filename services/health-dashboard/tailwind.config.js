@@ -81,11 +81,15 @@ export default {
         "accent-energy": "hsl(var(--accent-energy))",
       },
 
-      // Border radius
+      // Border radius - Tighter, more intentional (4px base)
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        none: "0",
+        sm: "0.125rem",    /* 2px */
+        DEFAULT: "0.25rem", /* 4px */
+        md: "0.25rem",     /* 4px */
+        lg: "0.375rem",    /* 6px */
+        xl: "0.5rem",      /* 8px */
+        full: "9999px",
       },
 
       // Box shadows
