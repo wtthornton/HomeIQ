@@ -170,6 +170,9 @@ class SceneDetector:
         Returns:
             Scene-based synergy dictionary
         """
+        if not devices:
+            raise ValueError(f"Cannot create scene synergy for area {area_id}: devices list is empty")
+        
         devices_to_include = devices[:MAX_DEVICES_PER_SCENE]
         
         return {
@@ -208,6 +211,9 @@ class SceneDetector:
         Returns:
             Scene-based synergy dictionary
         """
+        if not devices:
+            raise ValueError(f"Cannot create scene synergy for domain {domain}: devices list is empty")
+        
         devices_to_include = devices[:MAX_DEVICES_PER_SCENE]
         
         return {

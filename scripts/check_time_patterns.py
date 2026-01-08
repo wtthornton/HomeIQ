@@ -32,7 +32,7 @@ def main():
             # Parse metadata
             try:
                 metadata = json.loads(metadata_str) if metadata_str else {}
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 metadata = {}
             
             hour = metadata.get('hour')

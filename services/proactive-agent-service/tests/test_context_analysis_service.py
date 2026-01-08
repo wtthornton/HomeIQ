@@ -219,7 +219,9 @@ async def test_analyze_energy_unavailable(context_service, mock_carbon_client):
 @pytest.mark.asyncio
 async def test_analyze_historical_patterns_success(context_service, mock_data_api_client):
     """Test successful historical pattern analysis"""
-    now = datetime.utcnow()
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    # Need at least 3 events for the same entity to trigger "frequent_entities" pattern
     events = [
         {
             "entity_id": "light.living_room",
@@ -232,9 +234,14 @@ async def test_analyze_historical_patterns_success(context_service, mock_data_ap
             "timestamp": (now - timedelta(hours=2)).isoformat(),
         },
         {
-            "entity_id": "light.kitchen",
+            "entity_id": "light.living_room",
             "state": "on",
             "timestamp": (now - timedelta(hours=3)).isoformat(),
+        },
+        {
+            "entity_id": "light.kitchen",
+            "state": "on",
+            "timestamp": (now - timedelta(hours=4)).isoformat(),
         },
     ]
 
@@ -243,7 +250,7 @@ async def test_analyze_historical_patterns_success(context_service, mock_data_ap
     result = await context_service.analyze_historical_patterns(days_back=7)
 
     assert result["available"] is True
-    assert result["events_count"] == 3
+    assert result["events_count"] == 4
     assert len(result["patterns"]) > 0
     assert "frequent_entities" in [p["type"] for p in result["patterns"]]
 
@@ -332,7 +339,8 @@ async def test_detect_patterns(context_service):
 @pytest.mark.asyncio
 async def test_detect_time_patterns(context_service):
     """Test time-based pattern detection"""
-    now = datetime.utcnow()
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
     events = [
         {"entity_id": "light.living_room", "timestamp": now.isoformat()},
         {"entity_id": "light.kitchen", "timestamp": now.isoformat()},

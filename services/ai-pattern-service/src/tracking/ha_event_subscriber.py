@@ -7,7 +7,7 @@ Monitors automation_triggered and automation_error events.
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Awaitable
 from dataclasses import dataclass
 import json
@@ -101,9 +101,11 @@ class HAEventSubscriber:
         
         logger.info(f"Connecting to Home Assistant WebSocket: {self.ha_url}")
         
-        async with websockets.connect(self.ha_url) as ws:
-            self._ws = ws
-            
+        # Connect without context manager to manage lifecycle manually
+        ws = await websockets.connect(self.ha_url)
+        self._ws = ws
+        
+        try:
             # Wait for auth_required message
             auth_required = await ws.recv()
             auth_msg = json.loads(auth_required)
@@ -145,6 +147,12 @@ class HAEventSubscriber:
                     logger.error(f"Error receiving message: {e}")
                     if not self._running:
                         break
+        except Exception as e:
+            # Close websocket on error
+            if ws:
+                await ws.close()
+            self._ws = None
+            raise
     
     async def _subscribe_to_events(self, ws) -> None:
         """Subscribe to automation events."""
@@ -206,7 +214,7 @@ class HAEventSubscriber:
         # Store start time for this automation execution
         self._pending_automations[context_id] = {
             "automation_id": automation_id,
-            "started_at": datetime.utcnow(),
+            "started_at": datetime.now(timezone.utc),
             "trigger": data.get("trigger", {}),
             "context": context,
         }
@@ -254,7 +262,7 @@ class HAEventSubscriber:
             if pending["automation_id"] == entity_id:
                 # Calculate execution time
                 started_at = pending["started_at"]
-                completed_at = datetime.utcnow()
+                completed_at = datetime.now(timezone.utc)
                 execution_time_ms = int((completed_at - started_at).total_seconds() * 1000)
                 
                 # Determine success (no error state)
@@ -306,7 +314,7 @@ class HAEventSubscriber:
         Returns:
             Number of stale entries removed
         """
-        cutoff = datetime.utcnow()
+        cutoff = datetime.now(timezone.utc)
         stale = []
         
         for context_id, pending in self._pending_automations.items():

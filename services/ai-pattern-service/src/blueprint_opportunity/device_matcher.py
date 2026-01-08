@@ -1,7 +1,15 @@
-"""Device-to-blueprint matching algorithm with Wyze pattern integration."""
+"""Device-to-blueprint matching algorithm with Wyze pattern integration.
+
+Enhanced January 2026:
+- Added temporal relevance scoring (seasonal/time-of-day awareness)
+- Added user profile matching (preferences, usage history)
+- Improved scoring weights for better recommendations
+"""
 
 import logging
 import os
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Optional
 
 import httpx
@@ -11,24 +19,81 @@ from .schemas import DeviceSignature, BlueprintSummary
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class UserProfile:
+    """User profile for personalized blueprint recommendations."""
+    
+    # Usage preferences
+    preferred_domains: list[str] = field(default_factory=list)
+    preferred_use_cases: list[str] = field(default_factory=list)
+    
+    # Automation preferences
+    prefers_simple_automations: bool = True
+    prefers_energy_saving: bool = False
+    prefers_security_focused: bool = False
+    
+    # Usage history
+    deployed_blueprint_ids: list[str] = field(default_factory=list)
+    dismissed_blueprint_ids: list[str] = field(default_factory=list)
+    
+    # Home characteristics
+    has_presence_detection: bool = False
+    has_voice_assistant: bool = False
+    home_type: str = "house"  # house, apartment, condo
+    
+    # Time preferences
+    active_hours_start: int = 6  # 6 AM
+    active_hours_end: int = 22   # 10 PM
+
+
 class DeviceMatcher:
     """
     Matches user devices to blueprint requirements.
     
-    Scoring components (updated with Wyze ML integration):
-    - Required domains coverage: 30% (was 40%)
-    - Required device classes coverage: 25% (was 30%)
-    - Same area bonus: 15% (was 20%)
-    - Community rating bonus: 10% (unchanged)
-    - Wyze pattern score: 20% (NEW - ML-based pattern matching)
+    Scoring components (enhanced January 2026):
+    - Required domains coverage: 25% (was 30%)
+    - Required device classes coverage: 20% (was 25%)
+    - Same area bonus: 12% (was 15%)
+    - Community rating bonus: 8% (was 10%)
+    - Wyze pattern score: 15% (was 20%)
+    - Temporal relevance: 10% (NEW - seasonal/time awareness)
+    - User profile match: 10% (NEW - personalization)
     """
     
-    # Updated scoring weights with Wyze pattern component
-    DOMAIN_WEIGHT = 0.30           # Was 0.40
-    DEVICE_CLASS_WEIGHT = 0.25     # Was 0.30
-    SAME_AREA_WEIGHT = 0.15        # Was 0.20
-    COMMUNITY_RATING_WEIGHT = 0.10 # Same
-    WYZE_PATTERN_WEIGHT = 0.20     # NEW - ML-based pattern matching
+    # Enhanced scoring weights (January 2026)
+    DOMAIN_WEIGHT = 0.25           # Was 0.30
+    DEVICE_CLASS_WEIGHT = 0.20     # Was 0.25
+    SAME_AREA_WEIGHT = 0.12        # Was 0.15
+    COMMUNITY_RATING_WEIGHT = 0.08 # Was 0.10
+    WYZE_PATTERN_WEIGHT = 0.15     # Was 0.20
+    TEMPORAL_WEIGHT = 0.10         # NEW - seasonal/time relevance
+    PROFILE_WEIGHT = 0.10          # NEW - user profile matching
+    
+    # Seasonal domain relevance mapping
+    SEASONAL_DOMAINS = {
+        # Winter months (Dec, Jan, Feb)
+        'climate': {12, 1, 2},
+        'thermostat': {12, 1, 2},
+        'heater': {12, 1, 2},
+        # Summer months (Jun, Jul, Aug)
+        'fan': {6, 7, 8},
+        'air_conditioner': {6, 7, 8},
+        'cover': {6, 7, 8},  # Blinds/shades for sun
+        # Dark months (Nov, Dec, Jan, Feb)
+        'light': {11, 12, 1, 2},
+        # Holiday months
+        'scene': {11, 12},  # Holiday scenes
+    }
+    
+    # Use case seasonal relevance
+    SEASONAL_USE_CASES = {
+        'heating': {10, 11, 12, 1, 2, 3},
+        'cooling': {5, 6, 7, 8, 9},
+        'lighting': {10, 11, 12, 1, 2},
+        'holiday': {11, 12},
+        'vacation': {6, 7, 8},
+        'energy_saving': {6, 7, 8, 12, 1, 2},  # Peak usage months
+    }
     
     # Rule recommendation service URL
     RULE_REC_SERVICE_URL = os.getenv(
@@ -58,15 +123,21 @@ class DeviceMatcher:
         devices: list[DeviceSignature],
         same_area: bool = False,
         wyze_pattern_score: Optional[float] = None,
+        current_time: Optional[datetime] = None,
+        user_profile: Optional[UserProfile] = None,
     ) -> float:
         """
         Calculate how well user's devices match blueprint requirements.
+        
+        Enhanced with temporal relevance and user profile matching (January 2026).
         
         Args:
             blueprint: Blueprint to score
             devices: User's available devices
             same_area: Whether all matched devices are in the same area
             wyze_pattern_score: Optional pre-computed Wyze pattern score (0.0-1.0)
+            current_time: Current datetime for temporal relevance (uses now if None)
+            user_profile: User profile for personalized scoring
             
         Returns:
             Fit score between 0.0 and 1.0
@@ -77,7 +148,7 @@ class DeviceMatcher:
         user_domains = {d.domain for d in devices}
         user_device_classes = {d.device_class for d in devices if d.device_class}
         
-        # Required domains coverage (30% - reduced from 40%)
+        # Required domains coverage (25%)
         required_domains = set(blueprint.required_domains)
         if required_domains:
             matched_domains = required_domains & user_domains
@@ -86,7 +157,7 @@ class DeviceMatcher:
         else:
             score += self.DOMAIN_WEIGHT  # No requirements = full score
         
-        # Required device classes coverage (25% - reduced from 30%)
+        # Required device classes coverage (20%)
         required_classes = set(blueprint.required_device_classes)
         if required_classes:
             matched_classes = required_classes & user_device_classes
@@ -95,30 +166,180 @@ class DeviceMatcher:
         else:
             score += self.DEVICE_CLASS_WEIGHT  # No requirements = full score
         
-        # Same area bonus (15% - reduced from 20%)
+        # Same area bonus (12%)
         if same_area:
             score += self.SAME_AREA_WEIGHT
         else:
             score += self.SAME_AREA_WEIGHT * 0.5  # Partial score for different areas
         
-        # Community rating bonus (10%)
+        # Community rating bonus (8%)
         score += blueprint.community_rating * self.COMMUNITY_RATING_WEIGHT
         
-        # NEW: Wyze pattern score (20%)
+        # Wyze pattern score (15%)
         if self.enable_wyze_scoring:
             if wyze_pattern_score is not None:
                 score += wyze_pattern_score * self.WYZE_PATTERN_WEIGHT
             else:
-                # Compute Wyze pattern score synchronously using cache
                 pattern_score = self._get_cached_wyze_score(
                     list(required_domains),
                     list(user_domains)
                 )
                 score += pattern_score * self.WYZE_PATTERN_WEIGHT
         else:
-            # When Wyze scoring disabled, redistribute weight proportionally
-            # to maintain total of 1.0
-            score = score / (1.0 - self.WYZE_PATTERN_WEIGHT)
+            # Redistribute Wyze weight to other components
+            redistribution_factor = 1.0 / (1.0 - self.WYZE_PATTERN_WEIGHT)
+            score = score * redistribution_factor * (1.0 - self.TEMPORAL_WEIGHT - self.PROFILE_WEIGHT)
+        
+        # NEW: Temporal relevance score (10%)
+        temporal_score = self._calculate_temporal_score(
+            blueprint, 
+            current_time or datetime.now()
+        )
+        score += temporal_score * self.TEMPORAL_WEIGHT
+        
+        # NEW: User profile match score (10%)
+        if user_profile:
+            profile_score = self._calculate_profile_score(blueprint, user_profile)
+            score += profile_score * self.PROFILE_WEIGHT
+        else:
+            # Neutral score when no profile available
+            score += 0.5 * self.PROFILE_WEIGHT
+        
+        return min(1.0, score)
+    
+    def _calculate_temporal_score(
+        self,
+        blueprint: BlueprintSummary,
+        current_time: datetime,
+    ) -> float:
+        """
+        Calculate temporal relevance score based on season and time of day.
+        
+        Boosts score for seasonally relevant blueprints:
+        - Climate blueprints score higher in extreme weather months
+        - Lighting blueprints score higher in winter (shorter days)
+        - Holiday blueprints score higher in Nov/Dec
+        
+        Args:
+            blueprint: Blueprint to score
+            current_time: Current datetime
+            
+        Returns:
+            Temporal relevance score between 0.0 and 1.0
+        """
+        month = current_time.month
+        hour = current_time.hour
+        
+        score = 0.5  # Neutral baseline
+        
+        # Check domain seasonal relevance
+        for domain in blueprint.required_domains:
+            domain_lower = domain.lower()
+            if domain_lower in self.SEASONAL_DOMAINS:
+                if month in self.SEASONAL_DOMAINS[domain_lower]:
+                    score = max(score, 0.9)  # High relevance
+                    break
+        
+        # Check use case seasonal relevance
+        use_case = (blueprint.use_case or "").lower()
+        for use_case_key, months in self.SEASONAL_USE_CASES.items():
+            if use_case_key in use_case:
+                if month in months:
+                    score = max(score, 0.85)
+                    break
+        
+        # Time-of-day relevance for lighting
+        if any(d.lower() in ['light', 'scene'] for d in blueprint.required_domains):
+            # Boost lighting blueprints during evening hours
+            if 17 <= hour <= 22:  # 5 PM to 10 PM
+                score = max(score, 0.8)
+        
+        # Morning routine relevance
+        if 'morning' in use_case or 'wake' in use_case:
+            if 5 <= hour <= 9:
+                score = max(score, 0.85)
+        
+        # Night/sleep routine relevance
+        if 'night' in use_case or 'sleep' in use_case or 'bedtime' in use_case:
+            if 20 <= hour <= 23 or 0 <= hour <= 2:
+                score = max(score, 0.85)
+        
+        return score
+    
+    def _calculate_profile_score(
+        self,
+        blueprint: BlueprintSummary,
+        profile: UserProfile,
+    ) -> float:
+        """
+        Calculate user profile match score.
+        
+        Considers:
+        - User's preferred domains and use cases
+        - Automation complexity preferences
+        - Previously deployed/dismissed blueprints
+        - Home characteristics
+        
+        Args:
+            blueprint: Blueprint to score
+            profile: User profile
+            
+        Returns:
+            Profile match score between 0.0 and 1.0
+        """
+        score = 0.5  # Neutral baseline
+        
+        # Check if blueprint was previously dismissed (strong negative signal)
+        if blueprint.id in profile.dismissed_blueprint_ids:
+            return 0.1  # Very low score for dismissed blueprints
+        
+        # Check if similar blueprint already deployed (slight negative - avoid duplicates)
+        if blueprint.id in profile.deployed_blueprint_ids:
+            return 0.3  # Lower score to avoid re-recommending
+        
+        # Domain preference match
+        if profile.preferred_domains:
+            domain_overlap = set(blueprint.required_domains) & set(profile.preferred_domains)
+            if domain_overlap:
+                score = max(score, 0.7 + 0.1 * len(domain_overlap))
+        
+        # Use case preference match
+        use_case = (blueprint.use_case or "").lower()
+        for preferred in profile.preferred_use_cases:
+            if preferred.lower() in use_case:
+                score = max(score, 0.8)
+                break
+        
+        # Complexity preference
+        complexity = (blueprint.complexity or "medium").lower()
+        if profile.prefers_simple_automations:
+            if complexity == "simple":
+                score = max(score, 0.75)
+            elif complexity == "complex":
+                score = min(score, 0.5)  # Penalize complex automations
+        
+        # Energy saving preference
+        if profile.prefers_energy_saving:
+            if 'energy' in use_case or 'power' in use_case or 'saving' in use_case:
+                score = max(score, 0.85)
+        
+        # Security preference
+        if profile.prefers_security_focused:
+            if any(d in ['lock', 'alarm_control_panel', 'camera', 'motion'] 
+                   for d in blueprint.required_domains):
+                score = max(score, 0.85)
+            if 'security' in use_case or 'alert' in use_case:
+                score = max(score, 0.85)
+        
+        # Presence detection bonus
+        if profile.has_presence_detection:
+            if 'presence' in use_case or 'away' in use_case or 'home' in use_case:
+                score = max(score, 0.8)
+        
+        # Voice assistant bonus
+        if profile.has_voice_assistant:
+            if 'voice' in use_case or 'assistant' in use_case:
+                score = max(score, 0.75)
         
         return min(1.0, score)
     

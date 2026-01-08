@@ -191,14 +191,29 @@ class SuggestionPipelineService:
                         )
                         continue
 
-                    # Store suggestion (pending status)
+                    # Store suggestion (pending status) - duplicate check enabled by default
                     suggestion = await self.storage_service.create_suggestion(
                         prompt=prompt_data["prompt"],
                         context_type=prompt_data["context_type"],
                         quality_score=prompt_data.get("quality_score", 0.0),
                         context_metadata=context_analysis,
                         prompt_metadata=prompt_data.get("metadata", {}),
+                        check_duplicates=True,  # Prevent duplicate suggestions
+                        duplicate_window_hours=24,  # Check last 24 hours
                     )
+                    
+                    # Skip if duplicate (None returned)
+                    if not suggestion:
+                        logger.debug(f"Skipping duplicate prompt: {prompt_data.get('prompt', '')[:50]}...")
+                        results["suggestions_failed"] += 1
+                        results["details"].append(
+                            {
+                                "step": "duplicate_check",
+                                "prompt": prompt_data.get("prompt", "")[:50],
+                                "reason": "Duplicate suggestion found within time window",
+                            }
+                        )
+                        continue
 
                     results["suggestions_created"] += 1
                     logger.debug(f"Created suggestion {suggestion.id}")

@@ -19,6 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 
+logger = logging.getLogger(__name__)
+
 # 2025 Enhancements: Multi-modal context and XAI
 try:
     from .multimodal_context import MultiModalContextEnhancer
@@ -47,8 +49,6 @@ try:
 except ImportError:
     logger.warning("DeviceSequenceTransformer not available")
     TRANSFORMER_AVAILABLE = False
-
-logger = logging.getLogger(__name__)
 
 # 2025 Enhancement: Graph Neural Network (GNN) integration
 # GNN integration is fully functional and enabled (Epic 39, Story 39.8)
@@ -618,18 +618,20 @@ class DeviceSynergyDetector:
         # If multiple devices have time patterns, that's a strong signal
         if len(device_time_patterns) >= 2:
             # Multiple devices have time patterns - temporal alignment
-            avg_confidence = sum(
-                sum(p.get('confidence', 0.0) for p in patterns) / len(patterns)
-                for patterns in device_time_patterns.values()
-            ) / len(device_time_patterns)
+            pattern_confidences = []
+            for patterns in device_time_patterns.values():
+                if patterns and len(patterns) > 0:
+                    pattern_confidences.append(sum(p.get('confidence', 0.0) for p in patterns) / len(patterns))
+            avg_confidence = sum(pattern_confidences) / len(pattern_confidences) if pattern_confidences else 0.0
             contribution = avg_confidence * 0.3
             support_score += contribution
         elif len(device_time_patterns) == 1:
             # Single device has time pattern - weaker signal
             patterns_list = list(device_time_patterns.values())[0]
-            avg_confidence = sum(p.get('confidence', 0.0) for p in patterns_list) / len(patterns_list)
-            contribution = avg_confidence * 0.15
-            support_score += contribution
+            if patterns_list:  # Prevent division by zero
+                avg_confidence = sum(p.get('confidence', 0.0) for p in patterns_list) / len(patterns_list)
+                contribution = avg_confidence * 0.15
+                support_score += contribution
         
         # Criterion 3: Individual device patterns (0.2 weight)
         device_patterns = [

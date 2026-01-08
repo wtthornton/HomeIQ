@@ -8,7 +8,7 @@ context-aware insights for automation suggestions.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from ..clients.carbon_intensity_client import CarbonIntensityClient
@@ -77,7 +77,7 @@ class ContextAnalysisService:
             "energy": energy_analysis,
             "historical_patterns": historical_analysis,
             "summary": summary,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         logger.info("Context analysis complete")
@@ -269,7 +269,7 @@ class ContextAnalysisService:
 
         try:
             # Calculate time range
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             start_time = end_time - timedelta(days=days_back)
 
             # Fetch recent events

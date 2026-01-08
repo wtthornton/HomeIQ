@@ -5,11 +5,19 @@ Retrieves user feedback on synergies and devices to influence pattern detection.
 Implements Recommendation 2.1: Integrate Feedback into Pattern Detection.
 
 Based on PATTERNS_SYNERGIES_IMPROVEMENT_RECOMMENDATIONS.md
+
+Refactored: January 2026
+- Added cache TTL with expiration
+- Added bounded cache size with LRU eviction
+- Added async lock for thread-safe cache access
+- Added cache statistics for monitoring
 """
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from sqlalchemy import text
@@ -36,6 +44,57 @@ class DeviceFeedbackStats:
             'positive_count': self.positive_count,
             'negative_count': self.negative_count,
             'acceptance_rate': self.acceptance_rate
+        }
+
+
+@dataclass
+class CachedFeedback:
+    """Cached feedback entry with expiration."""
+    
+    data: dict[str, Any]
+    expires_at: datetime
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    access_count: int = 0
+    last_accessed: datetime = field(default_factory=datetime.utcnow)
+    
+    @property
+    def is_expired(self) -> bool:
+        """Check if cache entry has expired."""
+        return datetime.utcnow() >= self.expires_at
+    
+    def touch(self) -> None:
+        """Update access tracking for LRU eviction."""
+        self.access_count += 1
+        self.last_accessed = datetime.utcnow()
+
+
+@dataclass
+class CacheStatistics:
+    """Statistics for cache monitoring."""
+    
+    hits: int = 0
+    misses: int = 0
+    evictions: int = 0
+    expirations: int = 0
+    current_size: int = 0
+    max_size: int = 0
+    
+    @property
+    def hit_rate(self) -> float:
+        """Calculate cache hit rate."""
+        total = self.hits + self.misses
+        return self.hits / total if total > 0 else 0.0
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            'hits': self.hits,
+            'misses': self.misses,
+            'evictions': self.evictions,
+            'expirations': self.expirations,
+            'current_size': self.current_size,
+            'max_size': self.max_size,
+            'hit_rate': round(self.hit_rate, 3)
         }
 
 
@@ -90,6 +149,12 @@ class FeedbackClient:
     
     Aggregates feedback from synergy_feedback table to provide device-level
     feedback statistics for pattern detection enhancement.
+    
+    Features:
+    - Cache with TTL expiration
+    - Bounded cache size with LRU eviction
+    - Thread-safe async access
+    - Cache statistics for monitoring
     """
     
     # SQL query for fetching feedback data
@@ -103,16 +168,35 @@ class FeedbackClient:
         WHERE sf.feedback_data IS NOT NULL
     """)
     
-    def __init__(self, db: Optional[AsyncSession] = None):
+    # Default configuration
+    DEFAULT_CACHE_TTL_SECONDS = 300  # 5 minutes
+    DEFAULT_MAX_CACHE_SIZE = 1000
+    
+    def __init__(
+        self,
+        db: Optional[AsyncSession] = None,
+        cache_ttl_seconds: int = DEFAULT_CACHE_TTL_SECONDS,
+        max_cache_size: int = DEFAULT_MAX_CACHE_SIZE
+    ):
         """
         Initialize feedback client.
         
         Args:
             db: Optional database session for querying feedback
+            cache_ttl_seconds: Time-to-live for cache entries in seconds
+            max_cache_size: Maximum number of entries in cache
         """
         self.db = db
-        self._feedback_cache: dict[str, dict[str, Any]] = {}
-        logger.info("FeedbackClient initialized")
+        self._cache_ttl = timedelta(seconds=cache_ttl_seconds)
+        self._max_cache_size = max_cache_size
+        self._feedback_cache: dict[str, CachedFeedback] = {}
+        self._cache_lock = asyncio.Lock()
+        self._stats = CacheStatistics(max_size=max_cache_size)
+        
+        logger.info(
+            f"FeedbackClient initialized: cache_ttl={cache_ttl_seconds}s, "
+            f"max_cache_size={max_cache_size}"
+        )
     
     async def get_device_feedback(
         self,
@@ -123,6 +207,7 @@ class FeedbackClient:
         Get aggregated feedback for a device.
         
         Aggregates feedback from synergies that involve this device.
+        Uses cache with TTL and LRU eviction.
         
         Args:
             device_id: Device identifier (e.g., "light.bedroom")
@@ -136,10 +221,12 @@ class FeedbackClient:
                 - negative_count: Number of negative feedbacks (rating < 2.0)
                 - acceptance_rate: Rate of accepted synergies (0.0-1.0)
         """
-        # Check cache first
-        if device_id in self._feedback_cache:
-            return self._feedback_cache[device_id]
+        # Check cache first (with lock)
+        cached_result = await self._get_from_cache(device_id)
+        if cached_result is not None:
+            return cached_result
         
+        # Cache miss - fetch from database
         session = db or self.db
         if not session:
             logger.debug(f"No database session available for device feedback: {device_id}")
@@ -147,11 +234,82 @@ class FeedbackClient:
         
         try:
             feedback_stats = await self._fetch_and_aggregate_feedback(session, device_id)
-            self._feedback_cache[device_id] = feedback_stats
+            await self._add_to_cache(device_id, feedback_stats)
             return feedback_stats
         except Exception as e:
             logger.warning(f"Failed to get device feedback for {device_id}: {e}")
             return DeviceFeedbackStats().to_dict()
+    
+    async def _get_from_cache(self, device_id: str) -> Optional[dict[str, Any]]:
+        """
+        Get entry from cache if valid.
+        
+        Args:
+            device_id: Device identifier
+            
+        Returns:
+            Cached data or None if not found/expired
+        """
+        async with self._cache_lock:
+            if device_id in self._feedback_cache:
+                entry = self._feedback_cache[device_id]
+                
+                if entry.is_expired:
+                    # Remove expired entry
+                    del self._feedback_cache[device_id]
+                    self._stats.expirations += 1
+                    self._stats.misses += 1
+                    self._stats.current_size = len(self._feedback_cache)
+                    logger.debug(f"Cache entry expired for {device_id}")
+                    return None
+                
+                # Valid cache hit
+                entry.touch()
+                self._stats.hits += 1
+                return entry.data
+            
+            # Cache miss
+            self._stats.misses += 1
+            return None
+    
+    async def _add_to_cache(self, device_id: str, data: dict[str, Any]) -> None:
+        """
+        Add entry to cache with TTL.
+        
+        Args:
+            device_id: Device identifier
+            data: Data to cache
+        """
+        async with self._cache_lock:
+            # Evict if cache is full
+            if len(self._feedback_cache) >= self._max_cache_size:
+                await self._evict_lru_entry()
+            
+            # Add new entry
+            self._feedback_cache[device_id] = CachedFeedback(
+                data=data,
+                expires_at=datetime.utcnow() + self._cache_ttl
+            )
+            self._stats.current_size = len(self._feedback_cache)
+    
+    async def _evict_lru_entry(self) -> None:
+        """
+        Evict least recently used cache entry.
+        
+        Must be called while holding _cache_lock.
+        """
+        if not self._feedback_cache:
+            return
+        
+        # Find LRU entry (oldest last_accessed)
+        lru_key = min(
+            self._feedback_cache,
+            key=lambda k: self._feedback_cache[k].last_accessed
+        )
+        
+        del self._feedback_cache[lru_key]
+        self._stats.evictions += 1
+        logger.debug(f"Evicted LRU cache entry: {lru_key}")
     
     async def _fetch_and_aggregate_feedback(
         self,
@@ -200,10 +358,18 @@ class FeedbackClient:
             device_id: Device identifier to filter by
             aggregator: Aggregator to collect statistics
         """
-        feedback_type, feedback_data_json, device_ids = row
+        if len(row) < 3:
+            logger.warning(f"Invalid row format: expected 3 columns, got {len(row)}")
+            return
+        
+        feedback_type, feedback_data_json, device_ids = row[0], row[1], row[2]
         
         # Check if this synergy involves the device
-        if not device_ids or device_id not in device_ids:
+        # device_ids should be a list/set; handle both None and empty cases
+        if not device_ids or not isinstance(device_ids, (list, set, tuple)):
+            return
+        
+        if device_id not in device_ids:
             return
         
         aggregator.increment_synergy_count()
@@ -263,6 +429,101 @@ class FeedbackClient:
         return None
     
     def clear_cache(self) -> None:
-        """Clear the feedback cache."""
+        """Clear the feedback cache synchronously."""
         self._feedback_cache.clear()
+        self._stats.current_size = 0
         logger.debug("Feedback cache cleared")
+    
+    async def clear_cache_async(self) -> None:
+        """Clear the feedback cache with async lock."""
+        async with self._cache_lock:
+            self._feedback_cache.clear()
+            self._stats.current_size = 0
+            logger.debug("Feedback cache cleared (async)")
+    
+    async def invalidate_device(self, device_id: str) -> bool:
+        """
+        Invalidate cache entry for a specific device.
+        
+        Args:
+            device_id: Device identifier to invalidate
+            
+        Returns:
+            True if entry was found and removed, False otherwise
+        """
+        async with self._cache_lock:
+            if device_id in self._feedback_cache:
+                del self._feedback_cache[device_id]
+                self._stats.current_size = len(self._feedback_cache)
+                logger.debug(f"Invalidated cache for device: {device_id}")
+                return True
+            return False
+    
+    async def get_cache_stats(self) -> dict[str, Any]:
+        """
+        Get cache statistics for monitoring.
+        
+        Returns:
+            Dictionary with cache statistics
+        """
+        async with self._cache_lock:
+            self._stats.current_size = len(self._feedback_cache)
+            return self._stats.to_dict()
+    
+    async def cleanup_expired(self) -> int:
+        """
+        Remove all expired cache entries.
+        
+        Returns:
+            Number of entries removed
+        """
+        async with self._cache_lock:
+            expired_keys = [
+                key for key, entry in self._feedback_cache.items()
+                if entry.is_expired
+            ]
+            
+            for key in expired_keys:
+                del self._feedback_cache[key]
+            
+            self._stats.expirations += len(expired_keys)
+            self._stats.current_size = len(self._feedback_cache)
+            
+            if expired_keys:
+                logger.info(f"Cleaned up {len(expired_keys)} expired cache entries")
+            
+            return len(expired_keys)
+    
+    async def get_multiple_device_feedback(
+        self,
+        device_ids: list[str],
+        db: Optional[AsyncSession] = None
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Get feedback for multiple devices efficiently.
+        
+        Args:
+            device_ids: List of device identifiers
+            db: Optional database session
+            
+        Returns:
+            Dictionary mapping device_id to feedback stats
+        """
+        results: dict[str, dict[str, Any]] = {}
+        
+        # Gather all feedback requests concurrently
+        tasks = [
+            self.get_device_feedback(device_id, db)
+            for device_id in device_ids
+        ]
+        
+        feedback_results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        for device_id, result in zip(device_ids, feedback_results):
+            if isinstance(result, Exception):
+                logger.warning(f"Failed to get feedback for {device_id}: {result}")
+                results[device_id] = DeviceFeedbackStats().to_dict()
+            else:
+                results[device_id] = result
+        
+        return results

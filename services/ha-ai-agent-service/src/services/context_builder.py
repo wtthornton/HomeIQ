@@ -43,6 +43,8 @@ class ContextBuilder:
         # Phase 3: Context prioritization and filtering services
         self._context_prioritization_service = None
         self._context_filtering_service = None
+        # Enhanced context builder for area-focused entity context
+        self._enhanced_context_builder = None
 
     async def initialize(self) -> None:
         """Initialize context builder and all services"""
@@ -98,6 +100,9 @@ class ContextBuilder:
         # Phase 3: Initialize prioritization and filtering services
         self._context_prioritization_service = ContextPrioritizationService()
         self._context_filtering_service = ContextFilteringService()
+        # Enhanced context builder for area-focused entity context
+        from .enhanced_context_builder import EnhancedContextBuilder
+        self._enhanced_context_builder = EnhancedContextBuilder(settings=self.settings)
         self._initialized = True
         logger.info("✅ Context builder initialized with all services")
 
@@ -121,6 +126,8 @@ class ContextBuilder:
             await self._device_state_context_service.close()
         if self._automation_patterns_service:
             await self._automation_patterns_service.close()
+        if hasattr(self, '_enhanced_context_builder') and self._enhanced_context_builder:
+            await self._enhanced_context_builder.close()
         self._initialized = False
         logger.info("✅ Context builder closed")
 
@@ -205,6 +212,29 @@ class ContextBuilder:
         # Automation patterns are added per-message based on user prompt, not in static context
         # This keeps context size manageable while providing relevant patterns when needed
         logger.debug("⏭️ Skipping automation patterns in static context (added dynamically per-message)")
+
+        # Enhanced Context: Binary sensors and trigger platforms reference
+        # Critical for automation creation - provides entity IDs for motion/presence triggers
+        try:
+            if hasattr(self, '_enhanced_context_builder') and self._enhanced_context_builder:
+                # Add binary sensor context (motion/presence sensors)
+                binary_sensor_context = await self._enhanced_context_builder.build_binary_sensor_context()
+                if binary_sensor_context and "Unavailable" not in binary_sensor_context:
+                    context_parts.append(f"\n{binary_sensor_context}")
+                    logger.info("✅ Added binary sensor context for motion/presence detection")
+                
+                # Add existing automations (for duplicate detection)
+                automations_context = await self._enhanced_context_builder.build_existing_automations_context()
+                if automations_context and "Unavailable" not in automations_context:
+                    context_parts.append(f"\n{automations_context}")
+                    logger.info("✅ Added existing automations context for duplicate detection")
+                
+                # Add trigger platforms reference
+                trigger_ref = self._enhanced_context_builder.build_trigger_platforms_reference()
+                context_parts.append(f"\n{trigger_ref}")
+                logger.info("✅ Added trigger platforms reference")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to add enhanced context: {e}")
 
         context = "\n".join(context_parts)
         

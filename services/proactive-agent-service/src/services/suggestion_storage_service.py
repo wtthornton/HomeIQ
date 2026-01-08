@@ -60,7 +60,9 @@ class SuggestionStorageService:
         context_metadata: dict[str, Any] | None = None,
         prompt_metadata: dict[str, Any] | None = None,
         db: AsyncSession | None = None,
-    ) -> Suggestion:
+        check_duplicates: bool = True,
+        duplicate_window_hours: int = 24,
+    ) -> Suggestion | None:
         """
         Create a new suggestion.
 
@@ -71,13 +73,27 @@ class SuggestionStorageService:
             context_metadata: Context analysis metadata
             prompt_metadata: Prompt generation metadata
             db: Optional database session (will create one if not provided)
+            check_duplicates: Whether to check for duplicate prompts (default: True)
+            duplicate_window_hours: Hours to look back for duplicates (default: 24)
 
         Returns:
-            Created Suggestion object
+            Created Suggestion object, or None if duplicate found and skipped
         """
         if db is None:
             async with _get_session_maker()() as session:
                 try:
+                    # Check for duplicates if enabled
+                    if check_duplicates:
+                        duplicate = await self._check_duplicate(
+                            prompt, context_type, duplicate_window_hours, session
+                        )
+                        if duplicate:
+                            logger.info(
+                                f"Skipping duplicate suggestion (prompt: {prompt[:50]}..., "
+                                f"existing_id: {duplicate.id}, created: {duplicate.created_at})"
+                            )
+                            return None
+                    
                     suggestion = Suggestion(
                         prompt=prompt,
                         context_type=context_type,
@@ -99,6 +115,18 @@ class SuggestionStorageService:
                     raise
         else:
             try:
+                # Check for duplicates if enabled
+                if check_duplicates:
+                    duplicate = await self._check_duplicate(
+                        prompt, context_type, duplicate_window_hours, db
+                    )
+                    if duplicate:
+                        logger.info(
+                            f"Skipping duplicate suggestion (prompt: {prompt[:50]}..., "
+                            f"existing_id: {duplicate.id}, created: {duplicate.created_at})"
+                        )
+                        return None
+                
                 suggestion = Suggestion(
                     prompt=prompt,
                     context_type=context_type,
@@ -119,6 +147,40 @@ class SuggestionStorageService:
                 logger.error(f"Failed to create suggestion: {e}", exc_info=True)
                 raise
 
+    async def _check_duplicate(
+        self,
+        prompt: str,
+        context_type: str,
+        window_hours: int,
+        db: AsyncSession,
+    ) -> Suggestion | None:
+        """
+        Check if a duplicate suggestion exists within the time window.
+        
+        Args:
+            prompt: Prompt text to check
+            context_type: Context type to check
+            window_hours: Hours to look back for duplicates
+            db: Database session
+            
+        Returns:
+            Existing Suggestion if duplicate found, None otherwise
+        """
+        from datetime import timedelta
+        
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+        
+        result = await db.execute(
+            select(Suggestion)
+            .where(Suggestion.prompt == prompt.strip())
+            .where(Suggestion.context_type == context_type)
+            .where(Suggestion.created_at >= cutoff_time)
+            .order_by(Suggestion.created_at.desc())
+            .limit(1)
+        )
+        
+        return result.scalar_one_or_none()
+    
     async def get_suggestion(self, suggestion_id: str, db: AsyncSession | None = None) -> Suggestion | None:
         """
         Get a suggestion by ID.
