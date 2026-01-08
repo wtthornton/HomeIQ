@@ -30,6 +30,7 @@ export type HygieneStatus = 'open' | 'ignored' | 'resolved';
 
 const createEmptyDataSources = (): DataSourcesHealthMap => ({
   weather: null,
+  sports: null,
   carbonIntensity: null,
   electricityPricing: null,
   airQuality: null,
@@ -218,7 +219,8 @@ class AdminApiClient extends BaseApiClient {
         'air-quality-service': 'airQuality',
         'calendar-service': 'calendar',
         'smart-meter-service': 'smartMeter',
-        'weather-api': 'weather'
+        'weather-api': 'weather',
+        'sports-api': 'sports'
       };
 
       const result: DataSourcesHealthMap = createEmptyDataSources();

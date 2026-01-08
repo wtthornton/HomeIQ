@@ -1,5 +1,5 @@
 # Multi-stage build for Sports API Service
-# Epic 31 Architecture Pattern
+# Epic 31 Architecture Pattern: Home Assistant Team Tracker Integration
 FROM python:3.12-alpine AS builder
 
 # Set working directory
@@ -12,7 +12,7 @@ RUN pip install --upgrade pip==25.2
 RUN apk add --no-cache gcc musl-dev linux-headers
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt .
+COPY services/sports-api/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements.txt
 
@@ -33,8 +33,8 @@ RUN addgroup -g 1001 -S appgroup && \
 COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code and shared modules
-COPY --chown=appuser:appgroup src ./src
-COPY --chown=appuser:appgroup ../shared ./shared
+COPY --chown=appuser:appgroup services/sports-api/src ./src
+COPY --chown=appuser:appgroup shared ./shared
 
 # Set environment variables
 ENV PATH=/home/appuser/.local/bin:$PATH
@@ -53,4 +53,3 @@ EXPOSE 8005
 
 # Run application
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8005"]
-

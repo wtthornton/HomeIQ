@@ -526,9 +526,53 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    profiles:
-      - production
-      # Excluded from test profile to save resources and prevent API quota usage
+
+  # Sports API Service - Home Assistant Team Tracker Integration (Epic 31)
+  sports-api:
+    build:
+      context: .
+      dockerfile: services/sports-api/Dockerfile
+    container_name: homeiq-sports-api
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    env_file:
+      - .env
+    environment:
+      - SERVICE_PORT=8005
+      - HA_HTTP_URL=${HA_HTTP_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
+      - SPORTS_POLL_INTERVAL=${SPORTS_POLL_INTERVAL:-60}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: '0.5'
+        reservations:
+          memory: 96M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=sports-api,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   calendar:
     build:

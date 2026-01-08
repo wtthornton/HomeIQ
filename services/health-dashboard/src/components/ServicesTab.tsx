@@ -25,7 +25,8 @@ const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   { id: 'influxdb', name: 'InfluxDB', icon: '🗄️', type: 'core', port: 8086, description: 'Time-series database' },
   
   // External Data Services
-  { id: 'weather-api', name: 'Weather API', icon: '☁️', type: 'external', description: 'Weather data integration' },
+  { id: 'weather-api', name: 'Weather API', icon: '☁️', type: 'external', port: 8009, description: 'Weather data integration (OpenWeatherMap)' },
+  { id: 'sports-api', name: 'Sports API', icon: '⚽', type: 'external', port: 8005, description: 'Team Tracker integration' },
   { id: 'carbon-intensity-service', name: 'Carbon Intensity', icon: '🌱', type: 'external', description: 'Carbon footprint tracking' },
   { id: 'electricity-pricing-service', name: 'Electricity Pricing', icon: '⚡', type: 'external', description: 'Energy cost monitoring' },
   { id: 'air-quality-service', name: 'Air Quality', icon: '💨', type: 'external', description: 'Air quality monitoring' },
