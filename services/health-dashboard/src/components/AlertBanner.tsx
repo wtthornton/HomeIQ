@@ -1,18 +1,17 @@
 /**
- * Alert Banner Component (REFACTORED)
+ * Alert Banner Component (REFACTORED with UI Primitives)
  * Epic 17.4: Critical Alerting System
  * 
- * Displays active critical alerts. Stale alerts are automatically cleaned up by the backend.
- * 
- * REFACTORING: Story 32.2
- * - Extracted constants to constants/alerts.ts
- * - Reduced from 145 lines to <100
- * - Added explicit return types
+ * Displays active critical alerts using the new UI component library.
  */
 
 import React, { useState, useEffect } from 'react';
 import { Alert, AlertSeverity } from '../constants/alerts';
 import { adminApi } from '../services/api';
+import { Card } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { cn } from '@/lib/utils';
 
 interface AlertBannerProps {
   darkMode: boolean;
@@ -36,7 +35,7 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
     };
 
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 30000); // Reduced from 10s to 30s
+    const interval = setInterval(fetchAlerts, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -60,7 +59,6 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
     }
   };
 
-  // Don't render if loading or no alerts
   if (loading || alerts.length === 0) {
     return <></>;
   }
@@ -73,7 +71,6 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
           alert={alert}
           onAcknowledge={acknowledgeAlert}
           onResolve={resolveAlert}
-          darkMode={darkMode}
         />
       ))}
     </div>
@@ -82,35 +79,29 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
 
 /**
  * AlertBannerItem Component
- * 
- * Individual alert display extracted to reduce complexity
  */
 interface AlertBannerItemProps {
   alert: Alert;
   onAcknowledge: (id: string) => void;
   onResolve: (id: string) => void;
-  darkMode: boolean;
 }
 
 const AlertBannerItem: React.FC<AlertBannerItemProps> = ({
   alert,
   onAcknowledge,
   onResolve,
-  darkMode
 }): JSX.Element => {
-  const getSeverityStyle = (severity: AlertSeverity): string => {
-    const styles = {
-      [AlertSeverity.CRITICAL]: darkMode
-        ? 'border-red-500 bg-red-900/30 text-red-200'
-        : 'border-red-400 bg-red-50 text-red-800',
-      [AlertSeverity.WARNING]: darkMode
-        ? 'border-yellow-500 bg-yellow-900/30 text-yellow-200'
-        : 'border-yellow-400 bg-yellow-50 text-yellow-800',
-      [AlertSeverity.INFO]: darkMode
-        ? 'border-blue-500 bg-blue-900/30 text-blue-200'
-        : 'border-blue-400 bg-blue-50 text-blue-800',
-    };
-    return styles[severity] || (darkMode ? 'border-gray-500 bg-gray-800 text-gray-200' : 'border-gray-400 bg-gray-50 text-gray-800');
+  const getSeverityVariant = (severity: AlertSeverity) => {
+    switch (severity) {
+      case AlertSeverity.CRITICAL:
+        return 'critical';
+      case AlertSeverity.WARNING:
+        return 'warning';
+      case AlertSeverity.INFO:
+        return 'secondary';
+      default:
+        return 'secondary';
+    }
   };
 
   const getSeverityIcon = (severity: AlertSeverity): string => {
@@ -122,70 +113,71 @@ const AlertBannerItem: React.FC<AlertBannerItemProps> = ({
     return icons[severity] || 'ℹ️';
   };
 
+  const getCardVariant = (severity: AlertSeverity) => {
+    switch (severity) {
+      case AlertSeverity.CRITICAL:
+        return 'critical';
+      case AlertSeverity.WARNING:
+        return 'warning';
+      default:
+        return 'default';
+    }
+  };
+
   return (
-    <div
-      className={`border-l-4 p-4 rounded-lg ${getSeverityStyle(alert.severity)} shadow-sm`}
+    <Card
+      variant={getCardVariant(alert.severity)}
+      className="animate-slide-in-right"
       role="alert"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3 flex-1">
-          <span className="text-2xl mt-0.5">{getSeverityIcon(alert.severity)}</span>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-sm uppercase tracking-wide">
-                {alert.severity}
-              </span>
-              <span className="text-xs opacity-75">•</span>
-              <span className="text-xs opacity-75">{alert.service}</span>
-              {alert.metric && (
-                <>
-                  <span className="text-xs opacity-75">•</span>
-                  <span className="text-xs opacity-75 font-mono">{alert.metric}</span>
-                </>
-              )}
-            </div>
-            <p className="font-medium mb-1">{alert.message}</p>
-            <div className="text-xs opacity-75 flex items-center gap-3">
-              {alert.created_at && (
-                <span>Triggered: {new Date(alert.created_at).toLocaleString()}</span>
-              )}
-              {alert.current_value !== undefined && (
-                <span>
-                  Current: {(alert.current_value ?? 0).toFixed(1)}
-                  {alert.threshold_value !== undefined && ` (threshold: ${alert.threshold_value})`}
-                </span>
-              )}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 flex-1">
+            <span className="text-2xl mt-0.5">{getSeverityIcon(alert.severity)}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <Badge variant={getSeverityVariant(alert.severity)} size="sm">
+                  {alert.severity}
+                </Badge>
+                <span className="text-xs text-muted-foreground">{alert.service}</span>
+                {alert.metric && (
+                  <span className="text-xs text-muted-foreground font-mono">{alert.metric}</span>
+                )}
+              </div>
+              <p className="font-medium text-foreground mb-1">{alert.message}</p>
+              <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                {alert.created_at && (
+                  <span>Triggered: {new Date(alert.created_at).toLocaleString()}</span>
+                )}
+                {alert.current_value !== undefined && (
+                  <span className="font-mono">
+                    Current: {(alert.current_value ?? 0).toFixed(1)}
+                    {alert.threshold_value !== undefined && ` (threshold: ${alert.threshold_value})`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <button
-            onClick={() => onAcknowledge(alert.id)}
-            className={`px-3 py-1 text-xs rounded transition-colors min-h-[32px] ${
-              darkMode
-                ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-            }`}
-            title="Acknowledge alert"
-          >
-            ✓ Ack
-          </button>
-          <button
-            onClick={() => onResolve(alert.id)}
-            className={`px-3 py-1 text-xs rounded transition-colors min-h-[32px] ${
-              darkMode
-                ? 'bg-green-700 hover:bg-green-600 text-white'
-                : 'bg-green-100 hover:bg-green-200 text-green-700'
-            }`}
-            title="Resolve alert"
-          >
-            ✓ Resolve
-          </button>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button
+              onClick={() => onAcknowledge(alert.id)}
+              variant="secondary"
+              size="sm"
+            >
+              Ack
+            </Button>
+            <Button
+              onClick={() => onResolve(alert.id)}
+              variant="success"
+              size="sm"
+            >
+              Resolve
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 
 export default AlertBanner;
-

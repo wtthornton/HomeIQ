@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { Card, CardContent } from './ui/card';
+import { cn } from '@/lib/utils';
 
 interface MetricCardProps {
   title: string;
@@ -6,7 +8,7 @@ interface MetricCardProps {
   unit?: string;
   trend?: 'up' | 'down' | 'stable';
   className?: string;
-  isLive?: boolean; // Pulse animation for live data
+  isLive?: boolean;
 }
 
 const getTrendIcon = (trend?: string) => {
@@ -19,6 +21,17 @@ const getTrendIcon = (trend?: string) => {
       return '➡️';
     default:
       return null;
+  }
+};
+
+const getTrendColor = (trend?: string) => {
+  switch (trend) {
+    case 'up':
+      return 'text-status-healthy';
+    case 'down':
+      return 'text-status-critical';
+    default:
+      return 'text-muted-foreground';
   }
 };
 
@@ -37,7 +50,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   useEffect(() => {
     if (typeof value === 'number' && typeof displayValue === 'number' && value !== displayValue) {
       setIsAnimating(true);
-      const duration = 500; // ms
+      const duration = 500;
       const steps = 20;
       const stepValue = (value - displayValue) / steps;
       let currentStep = 0;
@@ -60,25 +73,44 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   }, [value, displayValue]);
 
   return (
-    <div className={`card-base card-hover ${isLive ? 'live-pulse' : ''} ${className}`}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-300">{title}</h3>
-        {trend && (
-          <span className="text-lg icon-entrance">{getTrendIcon(trend)}</span>
-        )}
-        {isLive && (
-          <span className="live-indicator"></span>
-        )}
-      </div>
-      
-      <div className="flex items-baseline">
-        <p className={`text-3xl font-bold text-gray-900 dark:text-white ${isAnimating ? 'number-counter' : ''}`}>
-          {typeof displayValue === 'number' ? Math.round(displayValue).toLocaleString() : displayValue}
-        </p>
-        {unit && (
-          <p className="ml-2 text-sm text-gray-500 dark:text-gray-400">{unit}</p>
-        )}
-      </div>
-    </div>
+    <Card 
+      hover 
+      className={cn(
+        "animate-fade-in",
+        isLive && "ring-2 ring-primary/20",
+        className
+      )}
+    >
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+          <div className="flex items-center gap-2">
+            {trend && (
+              <span className={cn("text-lg", getTrendColor(trend))}>
+                {getTrendIcon(trend)}
+              </span>
+            )}
+            {isLive && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-baseline">
+          <p className={cn(
+            "text-3xl font-bold text-foreground font-display metric-value",
+            isAnimating && "animate-pulse"
+          )}>
+            {typeof displayValue === 'number' ? Math.round(displayValue).toLocaleString() : displayValue}
+          </p>
+          {unit && (
+            <p className="ml-2 text-sm text-muted-foreground">{unit}</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
