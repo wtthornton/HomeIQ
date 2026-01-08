@@ -5,131 +5,89 @@ description: Overview of all available Cursor rules
 
 # Cursor Rules Overview
 
-This project includes comprehensive Cursor rules to enhance development workflow and code quality.
+This project uses **TappsCodingAgents** for AI-assisted development with comprehensive workflow orchestration, code quality enforcement, and automated testing.
+
+## 🚀 Quick Start
+
+**Use Simple Mode for all development tasks:**
+```
+@simple-mode *build "Create a user authentication feature"
+@simple-mode *review src/api/auth.py
+@simple-mode *fix src/buggy.py "Fix the error"
+@simple-mode *test src/api/auth.py
+```
 
 ## Available Rules
 
-### BMAD Agent Rules (`.cursor/rules/bmad/`)
-- **bmad-master.mdc** - Universal task executor and BMAD method expert (NEW: workflow-init, customizations)
-- **architect.mdc** - System architecture and design specialist
-- **dev.mdc** - Full-stack development and implementation
-- **pm.mdc** - Product management and PRD creation
-- **qa.mdc** - Quality assurance and testing specialist
-- **po.mdc** - Product ownership and story management
-- **sm.mdc** - Scrum master and process management
-- **ux-expert.mdc** - User experience design specialist
-- **analyst.mdc** - Business analysis and research
-- **bmad-orchestrator.mdc** - Workflow orchestration and coordination
+### TappsCodingAgents Rules
+- **simple-mode.mdc** - Primary interface for all development (RECOMMENDED)
+- **tapps-agents-command-guide.mdc** - Complete command reference for AI agents
+- **tapps-agents-workflow-selection.mdc** - Workflow selection guide
+- **agent-capabilities.mdc** - All 13 workflow agents documentation
+- **quick-reference.mdc** - Quick command reference
+- **workflow-presets.mdc** - Workflow preset documentation
 
 ### Project Rules
 - **project-structure.mdc** - Project structure and file organization guidelines
 - **code-quality.mdc** - Code quality standards and best practices
-- **bmad-workflow.mdc** - BMAD workflow integration and process guidelines (UPDATED: Phase 1 features)
-- **development-environment.mdc** - Development environment setup and configuration (UPDATED: PowerShell warnings)
-- **powershell-commands.mdc** - PowerShell command guidelines - CRITICAL rules for Windows (NEW)
-- **documentation-standards.mdc** - Documentation standards and formatting guidelines
+- **development-environment.mdc** - Development environment setup (includes PowerShell)
+- **powershell-commands.mdc** - PowerShell command guidelines (CRITICAL for Windows)
+- **documentation-standards.mdc** - Documentation standards and formatting
 - **security-best-practices.mdc** - Security best practices and guidelines
-- **epic-31-architecture.mdc** - Current architecture patterns (Epic 31 - enrichment-pipeline deprecated)
-- **tapps-agents-command-guide.mdc** - Comprehensive guide for AI agents on when and how to use TappsCodingAgents commands (NEW - CRITICAL for all agents)
+- **epic-31-architecture.mdc** - Current architecture patterns (Epic 31)
 
-## How to Use
+### Support Rules
+- **simple-mode-tool-invocation.mdc** - Tool invocation helper
+- **project-profiling.mdc** - Project profiling system
+- **context7.mdc** - Context7 auto-invoke rules
 
-### Activating BMAD Agents
+## TappsCodingAgents: 13 Workflow Agents
 
-**In Cursor IDE, use one of these methods:**
+| Agent | Purpose |
+|-------|---------|
+| `@enhancer` | Prompt enhancement (7-stage pipeline) |
+| `@planner` | User story creation and sprint planning |
+| `@architect` | System architecture design |
+| `@designer` | API and data model design |
+| `@implementer` | Code generation and refactoring |
+| `@reviewer` | Code review with 5-metric scoring |
+| `@tester` | Test generation and execution |
+| `@debugger` | Error analysis and debugging |
+| `@improver` | Code improvement suggestions |
+| `@analyst` | Requirements gathering |
+| `@documenter` | Documentation generation |
+| `@ops` | Security scanning and deployment |
+| `@orchestrator` | YAML workflow coordination |
 
-1. **Type and Select (Recommended):**
-   - Type `@agent-name` (e.g., `@bmad-master`)
-   - When autocomplete appears, press **Enter** or **Tab** to select the first option
-   - Or click on the desired file from the dropdown list
+## Simple Mode Commands
 
-2. **Use Agent Dropdown:**
-   - Click the **"Agent"** dropdown (infinity icon) in the chat interface
-   - Select the agent from the list
+| Command | Description | Workflow |
+|---------|-------------|----------|
+| `*build {description}` | Build new features | enhancer → planner → architect → designer → implementer → reviewer → tester |
+| `*review {file}` | Review code quality | reviewer → improver |
+| `*fix {file} {description}` | Fix bugs/errors | debugger → implementer → tester |
+| `*test {file}` | Generate tests | tester |
+| `*full {description}` | Full SDLC workflow | All 9 steps including security |
+| `*epic {file}` | Execute Epic document | All stories in dependency order |
 
-3. **Type and Send Immediately:**
-   - Type `@agent-name` and immediately press **Enter** to send
-   - This bypasses autocomplete selection
+## Quality Requirements
 
-**Available Agents:**
-```
-@bmad-master    # Universal task executor
-@architect      # System architecture and design
-@dev           # Full-stack development
-@pm            # Product management
-@qa            # Quality assurance
-@po            # Product ownership
-@sm            # Scrum master
-@ux-expert     # User experience design
-@analyst       # Business analysis
-```
-
-**Note:** If autocomplete clears your input, press **Escape** first, then type `@agent-name` and press **Enter**.
-
-### BMad Master Commands (NEW - Phase 1)
-- `*workflow-init` - Analyze project and recommend workflow track (Quick Flow / BMad Method / Enterprise)
-- All existing commands plus new workflow initialization
-
-### QA Agent Commands
-- `*gate {story}` - Execute quality gate decision
-- `*nfr-assess {story}` - Validate non-functional requirements
-- `*review {story}` - Comprehensive story review
-- `*review-task {story} {task_number}` - Progressive task-level code review
-- `*risk-profile {story}` - Generate risk assessment matrix
-- `*test-design {story}` - Create test scenarios
-- `*trace {story}` - Map requirements to tests
-
-### Phase 1 Features (NEW)
-- **Scale-Adaptive Intelligence**: `*workflow-init` command for automatic workflow selection
-- **Agent Customization**: Customize agents via `.bmad-core/customizations/{agent-id}-custom.yaml` (gitignored, update-safe)
-- **Enhanced Sharding**: 90% token savings with cross-references and intelligent section loading
-- **Quick Fix Workflow**: Streamlined workflow for bug fixes and small features
-- **Visual Diagrams**: SVG workflow diagram support
-- **Context7 KB Integration**: All agents support KB-first documentation lookup with intelligent caching
-- **Progressive Code Review**: Task-level reviews during development (QA agent)
-- **Auto-Refresh Queue**: Background processing of stale KB cache entries
-
-See [bmad-workflow.mdc](mdc:.cursor/rules/bmad-workflow.mdc) for details.
-
-### Context7 KB Integration Commands (All Agents)
-**Available across all BMAD agents** - Each agent has Context7 KB integration for domain-specific documentation:
-- `*context7-resolve {library}` - Resolve library name to Context7-compatible library ID
-- `*context7-docs {library} {topic}` - Get KB-first documentation (checks cache, then Context7 API)
-- `*context7-kb-refresh` - Check and refresh stale cache entries
-- `*context7-kb-process-queue` - Process queued background refreshes
-
-**BMad Master additional commands:**
-- `*context7-help` - Show Context7 usage examples and best practices
-- `*context7-kb-status` - Show knowledge base statistics and hit rates
-- `*context7-kb-search {query}` - Search local knowledge base
-- `*context7-kb-cleanup` - Clean up old/unused cached documentation
-- `*context7-kb-rebuild` - Rebuild knowledge base index
-- `*context7-kb-analytics` - Show detailed KB usage analytics
-- `*context7-kb-test` - Test KB integration and cache functionality
-
-**Agent-Specific Usage:**
-- **@dev** - Library implementation patterns and testing frameworks
-- **@architect** - Technology selection and architecture patterns
-- **@qa** - Testing libraries and quality tools
-- **@pm** - Technology feasibility research
-- **@analyst** - Competitive technology analysis
-- **@ux-expert** - UI libraries and design systems
-- **@po** - Technical validation and complexity assessment
-- **@sm** - Technical story preparation
-
-### File References
-When referencing files in rules, use the format:
-- `[filename](mdc:path/to/file)` for relative paths
-- Always reference from workspace root
+**All code MUST meet these thresholds:**
+- Overall quality score: ≥ 70 (≥ 80 for critical services)
+- Security score: ≥ 7.0/10
+- Maintainability score: ≥ 7.0/10
+- Test coverage: ≥ 80%
 
 ## Rule Types
 
 ### Always Apply Rules
 Rules with `alwaysApply: true` are automatically applied to every request:
-- **project-structure.mdc** - Project structure guidance
-- **epic-31-architecture.mdc** - Current architecture (Epic 31 - critical for accuracy)
-- **tapps-agents-command-guide.mdc** - TappsCodingAgents command usage guide (critical for AI agents)
 - **README.mdc** - This overview
+- **simple-mode.mdc** - Simple Mode orchestrator
+- **tapps-agents-command-guide.mdc** - AI agent command guide
+- **tapps-agents-workflow-selection.mdc** - Workflow selection
+- **epic-31-architecture.mdc** - Current architecture patterns
+- **powershell-commands.mdc** - Windows command guidelines
 
 ### File-Specific Rules
 Rules with `globs` apply only to matching file types:
@@ -138,90 +96,45 @@ Rules with `globs` apply only to matching file types:
 - **documentation-standards.mdc** - Applies to documentation files
 - **security-best-practices.mdc** - Applies to code and config files
 
-### Manual Rules
-Rules with `description` can be manually invoked:
-- **bmad-workflow.mdc** - BMAD workflow integration
-
-## Context Management
-
-**Important:** Manage context window for optimal performance. See **[Context Management Guide](../context-management-guide.md)** for:
-- How to start new chats efficiently
-- Using `.cursorignore` to exclude large files
-- Leveraging BMAD sharding for 90% token savings
-- Best practices for focused queries
-- Epic isolation strategies
-
-**Quick Tips:**
-- Start new chat per epic (`Cmd/Ctrl + L`)
-- Close files when done editing
-- Use file references (`@filename`) instead of broad queries
-- Check `.cursorignore` excludes simulation data and archives
-
 ## Best Practices
 
-1. **⚠️ CRITICAL: Use TappsCodingAgents & Simple Mode** - **ALWAYS** use `@simple-mode` commands for code creation, reviews, testing, and fixes. This ensures quality, comprehensive testing, and proper workflow orchestration.
-2. **Use Appropriate Agents**: Choose the right BMAD agent for your task
-3. **Follow Standards**: Adhere to code quality and documentation standards
-4. **Security First**: Always consider security implications
-5. **Document Everything**: Keep documentation up-to-date
-6. **Test Thoroughly**: Write tests for all new functionality using `@simple-mode *test` or `python -m tapps_agents.cli tester test`
-7. **Run Code Reviews**: **ALWAYS** run `@simple-mode *review` or `python -m tapps_agents.cli reviewer review` before finalizing code
-8. **Check Quality Scores**: Verify code meets quality thresholds (70+ overall, 80+ for critical services) using `python -m tapps_agents.cli reviewer score`
-9. **Run Unit Tests**: Use `python scripts/simple-unit-tests.py` before committing changes
-10. **Leverage Context7 KB**: All agents automatically use KB-first approach - check cache before API calls
-11. **Know the Architecture**: Understand Epic 31 changes (enrichment-pipeline deprecated, direct InfluxDB writes)
-12. **Customize Agents**: Create customizations in `.bmad-core/customizations/` for team-specific preferences
-13. **Progressive Reviews**: Use `*review-task` during development for early feedback (QA agent)
-14. **Manage Context**: Start new chats frequently, use focused queries, close unused files (see Context Management Guide)
+1. **Use Simple Mode** - `@simple-mode *build` for features, `*review` for quality, `*fix` for bugs
+2. **Always Review Code** - Run `@simple-mode *review` or `reviewer score` before commits
+3. **Generate Tests** - Use `@simple-mode *test` for new code
+4. **Check Quality Scores** - Ensure code meets thresholds (70+ overall)
+5. **Know the Architecture** - Understand Epic 31 patterns (direct InfluxDB writes)
+6. **Use PowerShell Correctly** - Use `Invoke-RestMethod`, not `curl`
 
-## 🤖 TappsCodingAgents Integration
+## CLI Commands
 
-**This project uses TappsCodingAgents for AI-assisted development. AI assistants MUST use these tools:**
-
-### Simple Mode (Primary Interface)
-
-**Use `@simple-mode` for all development tasks:**
-- `@simple-mode *build "{description}"` - Build new features (full workflow)
-- `@simple-mode *review {file}` - Review code quality
-- `@simple-mode *fix {file} {description}"` - Fix bugs
-- `@simple-mode *test {file}` - Generate tests
-- `@simple-mode *full "{description}"` - Full SDLC workflow
-
-### Direct Agent Commands
-
-**For specific tasks, use direct agent commands:**
 ```bash
-# Code quality
+# Quick quality check
 python -m tapps_agents.cli reviewer score {file}
+
+# Full code review
 python -m tapps_agents.cli reviewer review {file}
 
-# Testing
+# Generate tests
 python -m tapps_agents.cli tester test {file}
 
-# Code improvement
-python -m tapps_agents.cli improver improve {file} "{description}"
-
-# Feature planning
-python -m tapps_agents.cli planner plan "{description}"
-python -m tapps_agents.cli enhancer enhance "{description}"
+# Run workflow
+python -m tapps_agents.cli workflow rapid --prompt "{description}" --auto
 ```
-
-### Quality Requirements
-
-**All code MUST meet these thresholds:**
-- Overall quality score: ≥ 70 (≥ 80 for critical services)
-- Security score: ≥ 7.0/10
-- Maintainability score: ≥ 7.0/10
-- Test coverage: ≥ 80%
-
-**See:**
-- [TappsCodingAgents Command Guide](mdc:.cursor/rules/tapps-agents-command-guide.mdc) - **CRITICAL:** Complete guide for when and how to use all TappsCodingAgents commands (ALWAYS APPLIED)
-- [Simple Mode Guide](mdc:.cursor/rules/simple-mode.mdc) - Complete Simple Mode documentation
-- [Agent Capabilities](mdc:.cursor/rules/agent-capabilities.mdc) - All 13 workflow agents
-- [Workflow Selection Guide](mdc:.cursor/rules/tapps-agents-workflow-selection.mdc) - When to use Simple Mode vs workflows vs direct agents
 
 ## Getting Help
 
-- Use `*help` command with any BMAD agent
-- Refer to [.bmad-core/user-guide.md](mdc:.bmad-core/user-guide.md) for detailed BMAD methodology
-- Check [.bmad-core/core-config.yaml](mdc:.bmad-core/core-config.yaml) for project configuration
+```bash
+# General help
+python -m tapps_agents.cli --help
+
+# Agent-specific help
+python -m tapps_agents.cli reviewer help
+python -m tapps_agents.cli simple-mode status
+```
+
+## Related Documentation
+
+- [Simple Mode Guide](mdc:.cursor/rules/simple-mode.mdc) - Complete Simple Mode documentation
+- [Agent Capabilities](mdc:.cursor/rules/agent-capabilities.mdc) - All 13 workflow agents
+- [Command Guide](mdc:.cursor/rules/tapps-agents-command-guide.mdc) - Complete command reference
+- [Quick Reference](mdc:.cursor/rules/quick-reference.mdc) - Quick command reference

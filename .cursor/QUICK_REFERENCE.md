@@ -20,13 +20,14 @@
 | Service | Port | Tech | Entry Point |
 |---------|------|------|-------------|
 | **websocket-ingestion** | 8001 | Python/aiohttp | `src/main.py` |
-| **enrichment-pipeline** | 8002 | Python/FastAPI | `src/main.py` |
+| **data-api** | 8006 | Python/FastAPI | `src/main.py` |
 | **admin-api** | 8003→8004 | Python/FastAPI | `src/main.py` |
 | **sports-data** | 8005 | Python/FastAPI | `src/main.py` |
-| **data-retention** | 8080 | Python/FastAPI | `src/main.py` |
+| **ai-automation-service** | 8024 | Python/FastAPI | `src/main.py` |
 | **health-dashboard** | 3000 | React/nginx | `src/main.tsx` |
-| **log-aggregator** | 8015 | Python | `src/main.py` |
 | **influxdb** | 8086 | InfluxDB 2.7 | N/A |
+
+> ⚠️ **Note:** `enrichment-pipeline` was **DEPRECATED** in Epic 31. Events flow directly from websocket-ingestion → InfluxDB.
 
 ---
 
@@ -265,13 +266,21 @@ export const useHealth = () => {};
 
 ## 📞 Health Check URLs
 
+### PowerShell (Windows - RECOMMENDED)
+```powershell
+# Check service health (use Invoke-RestMethod, NOT curl)
+(Invoke-RestMethod -Uri "http://localhost:8001/health").status  # WebSocket Ingestion
+(Invoke-RestMethod -Uri "http://localhost:8006/health").status  # Data API
+(Invoke-RestMethod -Uri "http://localhost:8024/health").status  # AI Automation
+Start-Process "http://localhost:3000"                            # Dashboard
+```
+
+### Bash (Linux/Mac)
 ```bash
 curl http://localhost:8001/health   # WebSocket Ingestion
-curl http://localhost:8002/health   # Enrichment Pipeline
-curl http://localhost:8003/health   # Admin API
+curl http://localhost:8006/health   # Data API
+curl http://localhost:8024/health   # AI Automation
 curl http://localhost:8005/health   # Sports Data
-curl http://localhost:8080/health   # Data Retention
-curl http://localhost:8015/health   # Log Aggregator
 open http://localhost:3000          # Dashboard
 ```
 

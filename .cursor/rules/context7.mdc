@@ -1,6 +1,28 @@
+---
+description: Context7 auto-invoke rules for library documentation
+alwaysApply: true
+---
+
 # Context7 Auto-Invoke Rule
 
-Always use context7 when you need code generation, setup or configuration steps, or
+Always use Context7 when you need code generation, setup or configuration steps, or
 library/API documentation. This means you should automatically run
 `resolve-library-id` followed by `get-library-docs` without waiting for the user to
 explicitly ask.
+
+## When to Use Context7
+
+- **Library Documentation**: Looking up API references, usage patterns
+- **Code Generation**: Need accurate library-specific code
+- **Configuration**: Setting up frameworks, tools, or libraries
+- **Best Practices**: Understanding recommended patterns for a library
+
+## Commands
+
+```
+# Resolve library ID first
+mcp_Context7_resolve-library-id
+
+# Then query documentation
+mcp_Context7_query-docs
+```
