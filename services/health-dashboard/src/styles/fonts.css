@@ -1,14 +1,18 @@
 /**
- * HomeIQ Typography - Variable Font Configuration
+ * HomeIQ Typography - Industrial Design System
  * 
- * Uses fontsource variable fonts for optimal performance and self-hosting.
- * All fonts support variable weights (100-900).
+ * Font Stack:
+ * - Display: Outfit (geometric, confident)
+ * - Body: Inter (readable, professional)
+ * - Mono: JetBrains Mono (clean metrics, distinct)
+ * 
+ * Weight contrast: 400 (body) vs 700 (display) for clear hierarchy
  */
 
 /* Inter Variable - Body text, UI elements */
 @import '@fontsource-variable/inter';
 
-/* Outfit Variable - Display text, headings */
+/* Outfit Variable - Display text, headings (geometric, modern) */
 @import '@fontsource-variable/outfit';
 
 /* JetBrains Mono Variable - Code, metrics, monospace */
@@ -16,69 +20,81 @@
 
 /* Font family CSS variables for consistent usage */
 :root {
-  /* Primary fonts */
-  --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-display: 'Outfit Variable', 'Outfit', 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  /* Primary fonts - Optimized for dashboard readability */
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit Variable', 'Outfit', 'Inter Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
 
-  /* Font weight scale */
+  /* Font weight scale - Higher contrast for modern feel */
+  --font-weight-light: 300;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
 
-  /* Font size scale (using clamp for fluid typography) */
-  --font-size-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
-  --font-size-sm: clamp(0.8125rem, 0.775rem + 0.1875vw, 0.875rem);
-  --font-size-base: clamp(0.875rem, 0.85rem + 0.125vw, 1rem);
-  --font-size-lg: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
-  --font-size-xl: clamp(1.125rem, 1.05rem + 0.375vw, 1.25rem);
-  --font-size-2xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
-  --font-size-3xl: clamp(1.5rem, 1.35rem + 0.75vw, 1.875rem);
-  --font-size-4xl: clamp(1.875rem, 1.65rem + 1.125vw, 2.25rem);
-  --font-size-5xl: clamp(2.25rem, 1.95rem + 1.5vw, 3rem);
+  /* Font size scale - Tighter, more functional */
+  --font-size-xs: 0.6875rem;    /* 11px */
+  --font-size-sm: 0.75rem;      /* 12px */
+  --font-size-base: 0.8125rem;  /* 13px */
+  --font-size-md: 0.875rem;     /* 14px */
+  --font-size-lg: 1rem;         /* 16px */
+  --font-size-xl: 1.125rem;     /* 18px */
+  --font-size-2xl: 1.25rem;     /* 20px */
+  --font-size-3xl: 1.5rem;      /* 24px */
+  --font-size-4xl: 1.875rem;    /* 30px */
+  --font-size-5xl: 2.25rem;     /* 36px */
 
-  /* Line height scale */
+  /* Line height scale - Tighter for density */
   --leading-none: 1;
-  --leading-tight: 1.25;
-  --leading-snug: 1.375;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.625;
-  --leading-loose: 2;
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
 
-  /* Letter spacing */
-  --tracking-tighter: -0.05em;
-  --tracking-tight: -0.025em;
+  /* Letter spacing - More intentional */
+  --tracking-tighter: -0.03em;
+  --tracking-tight: -0.015em;
   --tracking-normal: 0;
-  --tracking-wide: 0.025em;
-  --tracking-wider: 0.05em;
-  --tracking-widest: 0.1em;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.04em;
+  --tracking-widest: 0.08em;
 }
 
 /* Apply base font settings */
 body {
   font-family: var(--font-sans);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-normal);
   line-height: var(--leading-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1, 'cv11' 1;
 }
 
-/* Display text (headings, titles) */
+/* Display text (headings, titles) - Bold and confident */
 h1, h2, h3, h4, h5, h6,
 .font-display {
   font-family: var(--font-display);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
 }
+
+/* Specific heading styles */
+h1 { font-size: var(--font-size-3xl); font-weight: var(--font-weight-bold); }
+h2 { font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); }
+h3 { font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); }
+h4 { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); }
+h5 { font-size: var(--font-size-md); font-weight: var(--font-weight-medium); }
+h6 { font-size: var(--font-size-base); font-weight: var(--font-weight-medium); }
 
 /* Monospace (code, metrics, data) */
 code, pre, kbd, samp,
 .font-mono {
   font-family: var(--font-mono);
+  font-size: 0.9em;
   font-feature-settings: 'kern' 0, 'liga' 1, 'calt' 1;
 }
 
@@ -100,10 +116,19 @@ code, pre, kbd, samp,
   font-variant-numeric: tabular-nums;
 }
 
-/* Metric display optimization */
+/* Metric display optimization - Bold, clear numbers */
 .metric-value {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
   letter-spacing: var(--tracking-tight);
+}
+
+/* Label text - Small, uppercase, tracked */
+.label-text {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-muted, hsl(220 9% 46%));
 }

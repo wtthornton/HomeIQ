@@ -6,61 +6,65 @@
  */
 
 :root {
-  /* Dark Backgrounds */
-  --bg-primary: #0a0e27;
-  --bg-secondary: #1a1f3a;
-  --bg-tertiary: #0f1419;
+  /* ============================================
+     HomeIQ Industrial Design System
+     Palette: Slate + Amber + Warm Neutrals
+     ============================================ */
+  
+  /* Dark Backgrounds - Industrial slate */
+  --bg-primary: #09090b;
+  --bg-secondary: #18181b;
+  --bg-tertiary: #27272a;
   
   /* Card/Surface Colors */
-  --card-bg: rgba(15, 23, 42, 0.95);
-  --card-bg-alt: rgba(30, 41, 59, 0.95);
-  --card-border: rgba(51, 65, 85, 0.5);
+  --card-bg: rgba(24, 24, 27, 0.95);
+  --card-bg-alt: rgba(39, 39, 42, 0.95);
+  --card-border: rgba(63, 63, 70, 0.5);
   
-  /* Accent Colors */
-  --accent-primary: #3b82f6;
-  --accent-secondary: #06b6d4;
-  --accent-glow: rgba(59, 130, 246, 0.2);
+  /* Accent Colors - Amber/Orange (Industrial) */
+  --accent-primary: #f97316;
+  --accent-secondary: #eab308;
+  --accent-glow: rgba(249, 115, 22, 0.15);
   
   /* Text Colors */
-  --text-primary: #ffffff;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #fafafa;
+  --text-secondary: #d4d4d8;
+  --text-tertiary: #a1a1aa;
+  --text-muted: #71717a;
   
-  /* Status Colors */
-  --success: #10b981;
-  --success-glow: rgba(16, 185, 129, 0.2);
-  --warning: #f59e0b;
+  /* Status Colors - Clear, functional */
+  --success: #22c55e;
+  --success-glow: rgba(34, 197, 94, 0.15);
+  --warning: #eab308;
   --error: #ef4444;
-  --info: #3b82f6;
+  --info: #f97316;
   
   /* Interactive States */
-  --hover-bg: rgba(51, 65, 85, 0.3);
-  --active-bg: rgba(51, 65, 85, 0.5);
-  --focus-ring: rgba(59, 130, 246, 0.5);
+  --hover-bg: rgba(63, 63, 70, 0.3);
+  --active-bg: rgba(63, 63, 70, 0.5);
+  --focus-ring: rgba(249, 115, 22, 0.5);
   
-  /* Spacing */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  --spacing-2xl: 2.5rem;
-  --spacing-3xl: 3rem;
+  /* Spacing - Tighter for density */
+  --spacing-xs: 0.125rem;
+  --spacing-sm: 0.375rem;
+  --spacing-md: 0.75rem;
+  --spacing-lg: 1rem;
+  --spacing-xl: 1.5rem;
+  --spacing-2xl: 2rem;
+  --spacing-3xl: 2.5rem;
   
-  /* Border Radius */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  /* Border Radius - Tighter, more intentional */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
   --radius-full: 9999px;
   
-  /* Shadows */
-  --shadow-card: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 
-                  0 0 0 1px rgba(59, 130, 246, 0.2), 
-                  0 0 100px rgba(59, 130, 246, 0.1);
-  --shadow-button: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-  --shadow-hover: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+  /* Shadows - Subtle, no colored glows */
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 
+                  0 0 0 1px rgba(63, 63, 70, 0.3);
+  --shadow-button: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+  --shadow-hover: 0 4px 12px -2px rgba(0, 0, 0, 0.25);
 }
 
 /* Utility Classes */
@@ -75,49 +79,20 @@
   position: relative;
 }
 
-.ds-card-corner-accent {
-  position: absolute;
-  width: 5rem;
-  height: 5rem;
-}
-
-.ds-card-corner-accent-top-left {
-  top: 0;
-  left: 0;
-  border-top: 2px solid rgba(59, 130, 246, 0.5);
-  border-left: 2px solid rgba(59, 130, 246, 0.5);
-}
-
-.ds-card-corner-accent-top-right {
-  top: 0;
-  right: 0;
-  border-top: 2px solid rgba(59, 130, 246, 0.5);
-  border-right: 2px solid rgba(59, 130, 246, 0.5);
-}
-
-.ds-card-corner-accent-bottom-left {
-  bottom: 0;
-  left: 0;
-  border-bottom: 2px solid rgba(59, 130, 246, 0.5);
-  border-left: 2px solid rgba(59, 130, 246, 0.5);
-}
-
+/* Corner accents removed - too decorative */
+.ds-card-corner-accent,
+.ds-card-corner-accent-top-left,
+.ds-card-corner-accent-top-right,
+.ds-card-corner-accent-bottom-left,
 .ds-card-corner-accent-bottom-right {
-  bottom: 0;
-  right: 0;
-  border-bottom: 2px solid rgba(59, 130, 246, 0.5);
-  border-right: 2px solid rgba(59, 130, 246, 0.5);
+  display: none;
 }
 
 .ds-title-hero {
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.025em;
-  background: linear-gradient(to right, #60a5fa, #06b6d4, #60a5fa);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  text-transform: uppercase;
+  color: var(--text-primary);
 }
 
 .ds-title-section {
@@ -151,27 +126,25 @@
 }
 
 .ds-btn-primary {
-  background: linear-gradient(to right, #3b82f6, #2563eb);
-  color: white;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
   font-weight: 600;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   border-radius: var(--radius-md);
   border: none;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 0.875rem;
   box-shadow: var(--shadow-button);
-  transition: all 0.2s ease-in-out;
+  transition: all 0.15s ease-out;
   cursor: pointer;
 }
 
 .ds-btn-primary:hover {
-  background: linear-gradient(to right, #2563eb, #1d4ed8);
+  background: #ea580c;
   box-shadow: var(--shadow-hover);
-  transform: translateY(-1px);
 }
 
 .ds-btn-primary:active {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .ds-btn-secondary {
@@ -224,20 +197,9 @@
 
 .ds-progress-fill {
   height: 100%;
-  background: linear-gradient(to right, #2563eb, #06b6d4, #2563eb);
+  background: var(--accent-primary);
   border-radius: var(--radius-full);
   position: relative;
-}
-
-.ds-progress-fill::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to right, 
-    transparent, 
-    rgba(255, 255, 255, 0.3), 
-    transparent);
-  animation: ds-shimmer 1.5s infinite linear;
 }
 
 @keyframes ds-shimmer {
@@ -293,24 +255,21 @@
 }
 
 .ds-glow-primary {
-  box-shadow: 
-    0 0 20px rgba(59, 130, 246, 0.3),
-    0 0 40px rgba(59, 130, 246, 0.2),
-    0 0 60px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 1px var(--card-border);
 }
 
 .ds-grid-bg {
   background-image: 
-    linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
-  background-size: 50px 50px;
-  opacity: 0.1;
+    linear-gradient(rgba(63, 63, 70, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(63, 63, 70, 0.3) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.05;
   position: absolute;
   inset: 0;
 }
 
 .ds-bg-gradient-primary {
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
+  background: var(--bg-primary);
 }
 
 /* Respect reduced motion preference */

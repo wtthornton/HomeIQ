@@ -1,11 +1,10 @@
 /**
- * Navigation Component - Fixed Version
- * Without framer-motion dependency
+ * Navigation Component - Industrial Design System
+ * Clean, icon-free navigation with subtle styling
  */
 
 import React, { memo, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useAppStore } from '../store';
 
 // PERFORMANCE: Memoize Navigation component
@@ -15,16 +14,16 @@ export const Navigation: React.FC = memo(() => {
 
   // PERFORMANCE: Memoize nav items to prevent recreation on every render
   const navItems = useMemo(() => [
-    { path: '/', label: '🤖 Suggestions', icon: '🤖', ariaLabel: 'Navigate to Suggestions' },
-    { path: '/proactive', label: '💡 Proactive', icon: '💡', ariaLabel: 'Navigate to Proactive Suggestions' },  // Epic AI-21: Context-aware suggestions
-    { path: '/ha-agent', label: '🤖 Agent', icon: '🤖', ariaLabel: 'Navigate to HA Agent' },  // Epic AI-20, Story AI20.7
-    { path: '/patterns', label: '📊 Patterns', icon: '📊', ariaLabel: 'Navigate to Patterns' },
-    { path: '/synergies', label: '🔮 Synergies', icon: '🔮', ariaLabel: 'Navigate to Synergies' },  // Epic AI-3, Story AI3.8
-    { path: '/deployed', label: '🚀 Deployed', icon: '🚀', ariaLabel: 'Navigate to Deployed Automations' },
-    { path: '/discovery', label: '🔍 Discovery', icon: '🔍', ariaLabel: 'Navigate to Discovery' },  // Epic AI-4, Story AI4.3
-    { path: '/name-enhancement', label: '✏️ Names', icon: '✏️', ariaLabel: 'Navigate to Name Enhancement' },  // Device Name Enhancement
-    { path: '/settings', label: '⚙️ Settings', icon: '⚙️', ariaLabel: 'Navigate to Settings' },
-    { path: '/admin', label: '🔧 Admin', icon: '🔧', ariaLabel: 'Navigate to Admin' },
+    { path: '/', label: 'Suggestions', shortLabel: 'Suggest', ariaLabel: 'Navigate to Suggestions' },
+    { path: '/proactive', label: 'Proactive', shortLabel: 'Proactive', ariaLabel: 'Navigate to Proactive Suggestions' },
+    { path: '/ha-agent', label: 'Agent', shortLabel: 'Agent', ariaLabel: 'Navigate to HA Agent' },
+    { path: '/patterns', label: 'Patterns', shortLabel: 'Patterns', ariaLabel: 'Navigate to Patterns' },
+    { path: '/synergies', label: 'Synergies', shortLabel: 'Synergy', ariaLabel: 'Navigate to Synergies' },
+    { path: '/deployed', label: 'Deployed', shortLabel: 'Deployed', ariaLabel: 'Navigate to Deployed Automations' },
+    { path: '/discovery', label: 'Discovery', shortLabel: 'Discover', ariaLabel: 'Navigate to Discovery' },
+    { path: '/name-enhancement', label: 'Names', shortLabel: 'Names', ariaLabel: 'Navigate to Name Enhancement' },
+    { path: '/settings', label: 'Settings', shortLabel: 'Settings', ariaLabel: 'Navigate to Settings' },
+    { path: '/admin', label: 'Admin', shortLabel: 'Admin', ariaLabel: 'Navigate to Admin' },
   ], []);
 
   // PERFORMANCE: Memoize active path
@@ -35,46 +34,27 @@ export const Navigation: React.FC = memo(() => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b shadow-sm transition-colors" style={{
-      background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
-      borderColor: 'rgba(51, 65, 85, 0.5)',
-      backdropFilter: 'blur(12px)'
-    }}>
+    <nav className="sticky top-0 z-50 border-b border-[var(--card-border)] bg-[var(--bg-secondary)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-8">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-1.5">
-            <motion.div
-              animate={{ rotate: [0, 360] }}
-              transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-              className="text-lg"
-            >
-              🤖
-            </motion.div>
-            <div className="ds-title-card text-xs" style={{ color: '#ffffff' }}>
-              HA AUTOMATEAI
-            </div>
+        <div className="flex justify-between items-center h-10">
+          {/* Logo - Simple text */}
+          <Link to="/" className="flex items-center gap-2">
+            <span className="text-sm font-bold text-[var(--text-primary)]">
+              HA AutomateAI
+            </span>
           </Link>
 
           {/* Nav Links - Desktop */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-0.5">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-3 py-0.5 text-xs font-medium transition-all rounded-xl ${
+                className={`px-2.5 py-1 text-xs font-medium transition-colors duration-150 rounded ${
                   isActive(item.path)
-                    ? darkMode
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
-                      : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
-                    : darkMode
-                    ? 'text-gray-300 hover:bg-gray-700/50'
-                    : 'text-gray-700 hover:bg-gray-100/50'
+                    ? 'bg-[var(--accent-primary)] text-[var(--bg-primary)]'
+                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]'
                 }`}
-                style={{
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}
                 aria-label={item.ariaLabel}
                 aria-current={isActive(item.path) ? 'page' : undefined}
               >
@@ -82,59 +62,45 @@ export const Navigation: React.FC = memo(() => {
               </Link>
             ))}
 
-            {/* Dark Mode Toggle - 44x44px minimum touch target */}
-              <button
+            {/* Dark Mode Toggle */}
+            <button
               onClick={toggleDarkMode}
-              className="p-1 rounded-xl ml-2 min-w-[28px] min-h-[28px] flex items-center justify-center text-sm transition-all hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              style={{
-                background: 'rgba(30, 41, 59, 0.6)',
-                border: '1px solid rgba(51, 65, 85, 0.5)'
-              }}
+              className="p-1.5 rounded ml-2 min-w-[28px] min-h-[28px] flex items-center justify-center text-xs transition-colors duration-150 bg-[var(--hover-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
               aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               aria-pressed={darkMode}
               type="button"
             >
-              {darkMode ? '☀️' : '🌙'}
+              {darkMode ? '☀' : '☾'}
             </button>
-
           </div>
 
           {/* Mobile Menu */}
           <div className="md:hidden flex items-center gap-2">
             <button
               onClick={toggleDarkMode}
-              className={`p-1 rounded-xl min-w-[28px] min-h-[28px] flex items-center justify-center text-sm transition-all hover:scale-105 active:scale-95 ${
-                darkMode ? 'bg-gray-800/60 backdrop-blur-sm border border-gray-700/50' : 'bg-white/80 backdrop-blur-sm border border-gray-200/50'
-              }`}
+              className="p-1.5 rounded min-w-[28px] min-h-[28px] flex items-center justify-center text-xs bg-[var(--hover-bg)] text-[var(--text-secondary)]"
               aria-label="Toggle dark mode"
             >
-              {darkMode ? '☀️' : '🌙'}
+              {darkMode ? '☀' : '☾'}
             </button>
           </div>
         </div>
 
-        {/* Mobile Nav - Bottom */}
-        <div className="md:hidden flex justify-around pb-1">
+        {/* Mobile Nav - Horizontal scroll */}
+        <div className="md:hidden flex gap-1 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
           {navItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+              className={`flex-shrink-0 px-2.5 py-1 text-xs font-medium rounded transition-colors duration-150 ${
                 isActive(item.path)
-                  ? darkMode
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
-                    : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
-                  : darkMode
-                  ? 'text-gray-400 hover:bg-gray-700/50'
-                  : 'text-gray-600 hover:bg-gray-100/50'
+                  ? 'bg-[var(--accent-primary)] text-[var(--bg-primary)]'
+                  : 'text-[var(--text-tertiary)] hover:bg-[var(--hover-bg)]'
               }`}
               aria-label={item.ariaLabel}
               aria-current={isActive(item.path) ? 'page' : undefined}
             >
-              <span className="text-lg" aria-hidden="true">{item.icon}</span>
-              <span className="text-[10px] font-medium uppercase" style={{ letterSpacing: '0.05em' }}>
-                {item.label.replace(/[\u{1F916}\u{1F4AC}\u{1F4CA}\u{1F52E}\u{1F680}\u{1F50D}\u{2699}\u{1F527}]/gu, '').trim()}
-              </span>
+              {item.shortLabel}
             </Link>
           ))}
         </div>

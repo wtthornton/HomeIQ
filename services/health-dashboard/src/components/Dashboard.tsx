@@ -3,6 +3,7 @@ import { AlertBanner } from './AlertBanner';
 import { ErrorBoundary } from './ErrorBoundary';
 import { LoadingSpinner } from './LoadingSpinner';
 import * as Tabs from './tabs';
+import { TabIcons, ThemeIcons, Icon, RefreshCw, Pause } from './ui/icons';
 
 // Tab configuration
 const TAB_COMPONENTS: Record<string, React.FC<Tabs.TabProps>> = {
@@ -25,23 +26,23 @@ const TAB_COMPONENTS: Record<string, React.FC<Tabs.TabProps>> = {
 };
 
 const TAB_CONFIG = [
-  { id: 'overview', label: '📊 Overview', icon: '📊', shortLabel: 'Overview' },
-  { id: 'setup', label: '🏥 Setup & Health', icon: '🏥', shortLabel: 'Setup' },
-  { id: 'services', label: '🔧 Services', icon: '🔧', shortLabel: 'Services' },
-  { id: 'dependencies', label: '🔗 Dependencies', icon: '🔗', shortLabel: 'Deps' },
-  { id: 'devices', label: '📱 Devices', icon: '📱', shortLabel: 'Devices' },
-  { id: 'events', label: '📡 Events', icon: '📡', shortLabel: 'Events' },
-  { id: 'logs', label: '📜 Logs', icon: '📜', shortLabel: 'Logs' },
-  { id: 'sports', label: '🏈 Sports', icon: '🏈', shortLabel: 'Sports' },
-  { id: 'data-sources', label: '🌐 Data Sources', icon: '🌐', shortLabel: 'Data' },
-  { id: 'energy', label: '⚡ Energy', icon: '⚡', shortLabel: 'Energy' },
-  { id: 'analytics', label: '📈 Analytics', icon: '📈', shortLabel: 'Analytics' },
-  { id: 'alerts', label: '🚨 Alerts', icon: '🚨', shortLabel: 'Alerts' },
-  { id: 'hygiene', label: '🧼 Device Hygiene', icon: '🧼', shortLabel: 'Hygiene' },
-  { id: 'validation', label: '🔍 HA Validation', icon: '🔍', shortLabel: 'Validation' },
-  { id: 'synergies', label: '🔗 Synergies', icon: '🔗', shortLabel: 'Synergies' },
-  { id: 'configuration', label: '⚙️ Configuration', icon: '⚙️', shortLabel: 'Config' },
-];
+  { id: 'overview', label: 'Overview', shortLabel: 'Overview' },
+  { id: 'setup', label: 'Setup & Health', shortLabel: 'Setup' },
+  { id: 'services', label: 'Services', shortLabel: 'Services' },
+  { id: 'dependencies', label: 'Dependencies', shortLabel: 'Deps' },
+  { id: 'devices', label: 'Devices', shortLabel: 'Devices' },
+  { id: 'events', label: 'Events', shortLabel: 'Events' },
+  { id: 'logs', label: 'Logs', shortLabel: 'Logs' },
+  { id: 'sports', label: 'Sports', shortLabel: 'Sports' },
+  { id: 'data-sources', label: 'Data Sources', shortLabel: 'Data' },
+  { id: 'energy', label: 'Energy', shortLabel: 'Energy' },
+  { id: 'analytics', label: 'Analytics', shortLabel: 'Analytics' },
+  { id: 'alerts', label: 'Alerts', shortLabel: 'Alerts' },
+  { id: 'hygiene', label: 'Device Hygiene', shortLabel: 'Hygiene' },
+  { id: 'validation', label: 'HA Validation', shortLabel: 'Validation' },
+  { id: 'synergies', label: 'Synergies', shortLabel: 'Synergies' },
+  { id: 'configuration', label: 'Configuration', shortLabel: 'Config' },
+] as const;
 
 export const Dashboard: React.FC = () => {
   const automationUiUrl = import.meta.env.VITE_AI_AUTOMATION_UI_URL;
@@ -189,48 +190,48 @@ export const Dashboard: React.FC = () => {
   }, [handleTabChange]);
 
   return (
-    <div data-testid="dashboard-root" className={`min-h-screen ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800' : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'} transition-all duration-500`}>
-      {/* Header - Mobile Optimized with gradient accent */}
-      <div data-testid="dashboard-header" className={`${darkMode ? 'bg-gradient-to-r from-gray-800 to-gray-900 border-gray-700' : 'bg-gradient-to-r from-white to-gray-50 border-gray-200'} shadow-lg border-b transition-all duration-300 backdrop-blur-sm`}>
+    <div data-testid="dashboard-root" className={`min-h-screen bg-background transition-colors duration-150`}>
+      {/* Header - Clean, minimal */}
+      <div data-testid="dashboard-header" className={`bg-card border-b border-border`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Mobile: Stacked Layout, Desktop: Side by Side */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 sm:py-6 gap-4">
             <div className="w-full sm:w-auto">
-              <h1 data-testid="dashboard-title" className={`text-xl sm:text-2xl lg:text-3xl font-bold ${darkMode ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300' : 'text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600'} animate-fade-in`}>
-                🏠 HomeIQ Dashboard
+              <h1 data-testid="dashboard-title" className={`text-xl sm:text-2xl lg:text-3xl font-bold ${darkMode ? 'text-white' : 'text-foreground'}`}>
+                HomeIQ Dashboard
               </h1>
-              <p className={`text-xs sm:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'} hidden sm:block mt-1`}>
-                AI-Powered Home Assistant Intelligence & Monitoring Platform
+              <p className={`text-xs sm:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} hidden sm:block mt-0.5`}>
+                Home Assistant Intelligence Platform
               </p>
-              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} sm:hidden mt-1`}>
-                AI-Powered HA Monitor
+              <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} sm:hidden mt-0.5`}>
+                HA Monitor
               </p>
             </div>
             
             {/* Controls - Mobile Optimized */}
-            <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 sm:gap-3">
+            <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 sm:gap-2">
               {/* Theme Toggle */}
               <button
                 data-testid="theme-toggle"
                 onClick={() => setDarkMode(!darkMode)}
-                className={`p-2.5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+                className={`p-2 rounded min-w-[36px] min-h-[36px] flex items-center justify-center ${darkMode ? 'bg-secondary hover:bg-secondary/80' : 'bg-secondary hover:bg-secondary/80'} transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2`}
                 title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                 aria-label={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                 aria-pressed={darkMode}
               >
-                {darkMode ? '☀️' : '🌙'}
+                <Icon icon={darkMode ? ThemeIcons.light : ThemeIcons.dark} size="sm" />
               </button>
               
               {/* Auto Refresh Toggle */}
               <button
                 data-testid="auto-refresh-toggle"
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`p-2.5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center ${autoRefresh ? (darkMode ? 'bg-green-700 hover:bg-green-600' : 'bg-green-100 hover:bg-green-200') : (darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200')} transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+                className={`p-2 rounded min-w-[36px] min-h-[36px] flex items-center justify-center ${autoRefresh ? 'bg-status-healthy/20 text-status-healthy' : (darkMode ? 'bg-secondary' : 'bg-secondary')} transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2`}
                 title={autoRefresh ? 'Auto Refresh: ON' : 'Auto Refresh: OFF'}
                 aria-label={autoRefresh ? 'Auto Refresh: ON' : 'Auto Refresh: OFF'}
                 aria-pressed={autoRefresh}
               >
-                {autoRefresh ? '🔄' : '⏸️'}
+                <Icon icon={autoRefresh ? RefreshCw : Pause} size="sm" className={autoRefresh ? 'animate-spin-slow' : ''} />
               </button>
               
               {/* Time Range Selector */}
@@ -254,11 +255,11 @@ export const Dashboard: React.FC = () => {
                   href={automationUiUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`px-3 py-2 rounded-lg border text-sm min-h-[44px] flex items-center gap-2 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-gradient-to-r from-blue-600 to-blue-700 border-blue-500 text-white hover:from-blue-500 hover:to-blue-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-400 text-white hover:from-blue-600 hover:to-blue-700'} transition-all duration-200`}
+                  className={`px-3 py-2 rounded text-sm min-h-[36px] flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-150`}
                   title="Open AI Automation UI"
                 >
-                  <span className="text-lg">🤖</span>
-                  <span className="hidden sm:inline font-semibold">AI Automations</span>
+                  <Icon icon={TabIcons.services} size="sm" />
+                  <span className="hidden sm:inline font-medium">AI Automations</span>
                 </a>
               )}
               
@@ -279,34 +280,36 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           
-          {/* Navigation Tabs - Mobile Optimized with enhanced styling and accessibility */}
-          <nav data-testid="tab-navigation" role="tablist" aria-label="Dashboard navigation tabs" className="border-t border-gray-200 dark:border-gray-700 pt-4 -mx-4 px-4 sm:mx-0 sm:px-0">
-            <div className="flex space-x-2 sm:space-x-3 overflow-x-auto pb-2 scrollbar-hide">
-              {TAB_CONFIG.map((tab, index) => (
-                <button
-                  key={tab.id}
-                  data-testid={`tab-${tab.id}`}
-                  data-tab={tab.id}
-                  role="tab"
-                  aria-selected={selectedTab === tab.id}
-                  aria-controls={`tabpanel-${tab.id}`}
-                  tabIndex={selectedTab === tab.id ? 0 : -1}
-                  onClick={() => handleTabChange(tab.id)}
-                  onKeyDown={(e) => handleTabKeyDown(e, tab.id, index)}
-                  className={`flex-shrink-0 px-3 sm:px-4 py-2.5 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base min-h-[44px] transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                    selectedTab === tab.id
-                      ? darkMode
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg'
-                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                      : darkMode
-                        ? 'text-gray-300 hover:text-white hover:bg-gray-700/50 bg-gray-800/30'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-white/50'
-                  }`}
-                >
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.icon} {tab.shortLabel}</span>
-                </button>
-              ))}
+          {/* Navigation Tabs - Clean, icon-based */}
+          <nav data-testid="tab-navigation" role="tablist" aria-label="Dashboard navigation tabs" className="border-t border-border pt-3 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
+              {TAB_CONFIG.map((tab, index) => {
+                const TabIcon = TabIcons[tab.id as keyof typeof TabIcons];
+                return (
+                  <button
+                    key={tab.id}
+                    data-testid={`tab-${tab.id}`}
+                    data-tab={tab.id}
+                    role="tab"
+                    aria-selected={selectedTab === tab.id}
+                    aria-controls={`tabpanel-${tab.id}`}
+                    tabIndex={selectedTab === tab.id ? 0 : -1}
+                    onClick={() => handleTabChange(tab.id)}
+                    onKeyDown={(e) => handleTabKeyDown(e, tab.id, index)}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded text-sm font-medium transition-colors duration-150 min-h-[32px] flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 ${
+                      selectedTab === tab.id
+                        ? 'bg-primary text-primary-foreground'
+                        : darkMode
+                          ? 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                    }`}
+                  >
+                    {TabIcon && <Icon icon={TabIcon} size="sm" />}
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.shortLabel}</span>
+                  </button>
+                );
+              })}
             </div>
           </nav>
         </div>

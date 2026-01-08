@@ -3,6 +3,7 @@ import type { ServiceStatus } from '../types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { Icon, StatusIndicator, TabIcons } from './ui/icons';
 import { cn } from '@/lib/utils';
 
 interface ServiceCardProps {
@@ -59,50 +60,59 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
     }
   };
 
+  // Map status for StatusIndicator
+  const indicatorStatus = (status: string): 'healthy' | 'warning' | 'critical' | 'offline' => {
+    switch (status) {
+      case 'running': return 'healthy';
+      case 'degraded': return 'warning';
+      case 'error': return 'critical';
+      case 'stopped': return 'offline';
+      default: return 'offline';
+    }
+  };
+
   return (
-    <Card variant={getCardVariant(service.status)} hover className="animate-fade-in">
-      {/* Header */}
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="text-3xl">{icon}</div>
-            <div>
-              <CardTitle className="text-lg">{service.service}</CardTitle>
+    <Card variant={getCardVariant(service.status)} hover>
+      {/* Header - Compact */}
+      <CardHeader>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Icon icon={TabIcons.services} size="sm" className="text-muted-foreground flex-shrink-0" />
+            <div className="min-w-0">
+              <CardTitle className="truncate">{service.service}</CardTitle>
               {service.port && (
-                <CardDescription>Port {service.port}</CardDescription>
+                <CardDescription className="font-mono">:{service.port}</CardDescription>
               )}
             </div>
           </div>
-          <Badge variant={getStatusVariant(service.status)} dot={service.status === 'running'}>
-            {service.status}
-          </Badge>
+          <StatusIndicator status={indicatorStatus(service.status)} size="sm" />
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Metrics */}
-        <div className="space-y-2">
+      <CardContent className="space-y-2">
+        {/* Metrics - Compact table */}
+        <div className="space-y-1">
           {service.uptime && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Uptime</span>
-              <span className="text-sm font-medium font-mono">{service.uptime}</span>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">Uptime</span>
+              <span className="font-mono">{service.uptime}</span>
             </div>
           )}
           
           {service.metrics?.requests_per_minute !== undefined && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Requests/min</span>
-              <span className="text-sm font-medium font-mono">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">Req/min</span>
+              <span className="font-mono">
                 {(service.metrics.requests_per_minute ?? 0).toFixed(1)}
               </span>
             </div>
           )}
           
           {service.metrics?.error_rate !== undefined && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Error Rate</span>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">Errors</span>
               <span className={cn(
-                "text-sm font-medium font-mono",
+                "font-mono",
                 service.metrics.error_rate > 5 
                   ? "text-status-critical" 
                   : "text-status-healthy"
@@ -113,29 +123,29 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
           )}
         </div>
 
-        {/* Error Message */}
+        {/* Error Message - Compact */}
         {service.error && (
-          <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+          <div className="p-2 rounded bg-destructive/10 text-destructive text-xs">
             {service.error}
           </div>
         )}
 
         {/* Container Status */}
         {containerStatus && containerStatus !== 'unknown' && containerStatus !== service.status && (
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">Container:</span>
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-muted-foreground">Container</span>
             <Badge 
               variant={containerStatus === 'running' ? 'healthy' : 'critical'} 
               size="sm"
             >
-              {containerStatus === 'running' ? 'Running' : 'Stopped'}
+              {containerStatus === 'running' ? 'Up' : 'Down'}
             </Badge>
           </div>
         )}
 
-        {/* Container Actions */}
+        {/* Container Actions - Compact */}
         {(onStart || onStop || onRestart) && (
-          <div className="flex gap-1">
+          <div className="flex gap-1 pt-1">
             {containerStatus === 'stopped' && onStart && (
               <Button
                 onClick={onStart}
@@ -175,19 +185,21 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
         )}
       </CardContent>
 
-      {/* Actions */}
-      <CardFooter className="gap-2">
-        {onViewDetails && (
-          <Button onClick={onViewDetails} className="flex-1">
-            View Details
-          </Button>
-        )}
-        {onConfigure && (
-          <Button onClick={onConfigure} variant="secondary" className="flex-1">
-            Configure
-          </Button>
-        )}
-      </CardFooter>
+      {/* Actions - Compact */}
+      {(onViewDetails || onConfigure) && (
+        <CardFooter>
+          {onViewDetails && (
+            <Button onClick={onViewDetails} size="sm" className="flex-1">
+              Details
+            </Button>
+          )}
+          {onConfigure && (
+            <Button onClick={onConfigure} variant="secondary" size="sm" className="flex-1">
+              Config
+            </Button>
+          )}
+        </CardFooter>
+      )}
     </Card>
   );
 };
