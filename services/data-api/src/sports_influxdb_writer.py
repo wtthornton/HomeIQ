@@ -108,7 +108,7 @@ class SportsInfluxDBWriter:
                     try:
                         dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
                         point.time(dt, WritePrecision.S)
-                    except:
+                    except (ValueError, TypeError):
                         point.time(datetime.now(), WritePrecision.S)
                 else:
                     point.time(start_time, WritePrecision.S)
@@ -167,7 +167,7 @@ class SportsInfluxDBWriter:
                     try:
                         dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
                         point.time(dt, WritePrecision.S)
-                    except:
+                    except (ValueError, TypeError):
                         point.time(datetime.now(), WritePrecision.S)
                 else:
                     point.time(start_time, WritePrecision.S)
@@ -216,13 +216,13 @@ class SportsInfluxDBWriter:
         if self.write_api:
             try:
                 self.write_api.close()
-            except:
+            except Exception:
                 pass
         
         if self.client:
             try:
                 self.client.close()
-            except:
+            except Exception:
                 pass
         
         self.is_connected = False

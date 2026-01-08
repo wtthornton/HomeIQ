@@ -868,17 +868,30 @@ async def generate_automation_from_synergy(
             else:
                 if s.synergy_id == synergy_id:
                     # Convert to dict if needed
+                    device_ids = getattr(s, 'device_ids', None)
+                    devices = device_ids.split(",") if device_ids and isinstance(device_ids, str) else []
+                    
+                    context_breakdown = None
+                    if hasattr(s, 'context_breakdown') and s.context_breakdown:
+                        if isinstance(s.context_breakdown, str):
+                            try:
+                                context_breakdown = json.loads(s.context_breakdown)
+                            except (json.JSONDecodeError, TypeError):
+                                context_breakdown = None
+                        else:
+                            context_breakdown = s.context_breakdown
+                    
                     synergy_data = {
                         "synergy_id": s.synergy_id,
                         "synergy_type": s.synergy_type,
-                        "devices": s.device_ids.split(",") if hasattr(s, 'device_ids') else [],
+                        "devices": devices,
                         "trigger_entity": getattr(s, 'trigger_entity', None),
                         "action_entity": getattr(s, 'action_entity', None),
                         "area": s.area,
                         "impact_score": s.impact_score,
                         "confidence": s.confidence,
                         "rationale": getattr(s, 'rationale', ''),
-                        "context_breakdown": json.loads(s.context_breakdown) if hasattr(s, 'context_breakdown') and s.context_breakdown else None
+                        "context_breakdown": context_breakdown
                     }
                     break
         

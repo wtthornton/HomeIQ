@@ -320,7 +320,7 @@ class PatternValidator:
             if isinstance(device_ids, str):
                 try:
                     device_ids = json.loads(device_ids)
-                except:
+                except (json.JSONDecodeError, TypeError, ValueError):
                     device_ids = []
             
             if isinstance(device_ids, list):
@@ -382,7 +382,7 @@ class PatternValidator:
             if isinstance(metadata, str):
                 try:
                     metadata = json.loads(metadata)
-                except:
+                except (json.JSONDecodeError, TypeError, ValueError):
                     metadata = {}
             
             # Check if device has events at the expected time
@@ -642,8 +642,8 @@ async def main():
             try:
                 temp_db_path.unlink()
                 temp_db_path.parent.rmdir()
-            except:
-                pass
+            except (OSError, PermissionError) as e:
+                logger.warning(f"Failed to clean up temp file {temp_db_path}: {e}")
 
 
 if __name__ == "__main__":
