@@ -12,7 +12,7 @@ alwaysApply: true
 
 # Epic 31 Architecture Pattern
 
-**Last Updated:** October 20, 2025  
+**Last Updated:** January 8, 2026  
 **Status:** Current Production Architecture
 
 ## Critical Architecture Facts
@@ -23,7 +23,10 @@ alwaysApply: true
 - **Status**: DEPRECATED in Epic 31 (Story 31.4)
 - **Why**: Simplified architecture, reduced latency, fewer failure points
 - **Replacement**: Inline normalization in websocket-ingestion
-- **Code Evidence**: See `services/websocket-ingestion/src/main.py:411-420`
+- **Code Evidence**: See `services/websocket-ingestion/src/main.py`:
+  - Lines 136-137, 206-207: Comments about Epic 31 standalone pattern
+  - Lines 237-250: InfluxDBBatchWriter initialization (direct writes)
+  - Lines 512-521: `_write_event_to_influxdb()` method (direct writes)
 
 **DO NOT:**
 - ❌ Reference enrichment-pipeline in new documentation
@@ -69,9 +72,11 @@ health-dashboard (Port 3000)
 4. **Display** on dashboard
 
 **Examples:**
-- `weather-api` (Port 8009) - Standalone, reads weather domain from InfluxDB
-- `sports-data` (Port 8005) - Writes scores to InfluxDB
+- `weather-api` (Port 8009) - Standalone, writes weather data to InfluxDB
+- `sports-api` (Port 8005) - Polls HA Team Tracker sensors, writes scores to InfluxDB
 - `carbon-intensity` (Port 8010) - Writes carbon data to InfluxDB
+
+**Note:** `sports-api` is not in docker-compose.yml by default (standalone service).
 
 **DO NOT:**
 - ❌ Make services HTTP POST to websocket-ingestion
@@ -159,4 +164,4 @@ Update when:
 - Data flow patterns change
 - Epic milestones reached
 
-**Current as of:** Epic 31 (October 2025)
+**Current as of:** Epic 31+ (January 2026)

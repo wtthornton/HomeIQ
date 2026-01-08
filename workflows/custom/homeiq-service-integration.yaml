@@ -49,7 +49,7 @@ workflow:
         - Direct InfluxDB writes (NO enrichment-pipeline, NO HTTP POST to websocket-ingestion)
         - Query data via data-api endpoints
         - Standalone service pattern (no service-to-service HTTP dependencies)
-        - Follow existing external service patterns (weather-api, sports-data, carbon-intensity)
+        - Follow existing external service patterns (weather-api, sports-api, carbon-intensity)
         - Document bucket names, measurement names, and query patterns
       requires:
         - integration-analysis.md
@@ -66,7 +66,7 @@ workflow:
         Implement InfluxDB direct writes following Epic 31 architecture:
         - Use InfluxDB Python client library
         - Write directly to InfluxDB (no intermediate services)
-        - Follow existing patterns (see services/weather-api, services/sports-data)
+        - Follow existing patterns (see services/weather-api, services/sports-api)
         - Include proper error handling, retry logic, and batch writes
         - Document bucket and measurement names
         - Include connection management and health checks

@@ -279,7 +279,8 @@ END
 
 **Database Files:**
 - `data/metadata.db` (data-api service) - Devices and entities
-- `data/webhooks.db` (sports-data service) - Webhook subscriptions
+
+**Note:** Sports data is stored in InfluxDB (`sports_data` measurement), not SQLite. The sports-api service writes directly to InfluxDB following Epic 31 architecture.
 
 **Data Population** (Updated October 2025):
 - **Devices & Entities**: Direct from Home Assistant WebSocket discovery
@@ -414,58 +415,32 @@ The EntityRegistry service provides relationship query methods:
 - `get_entities_by_config_entry(config_entry_id)` - Get entities by config entry
 - `get_device_hierarchy(device_id)` - Get device hierarchy (via_device relationships)
 
-### Webhooks Table (sports-data)
+### Sports Data Storage (InfluxDB - Epic 31)
 
-**Purpose:** Store webhook subscriptions for game event notifications
+**Storage:** InfluxDB (not SQLite) - sports-api service writes directly to InfluxDB following Epic 31 architecture.
 
-**Schema:**
-```sql
-CREATE TABLE webhooks (
-    webhook_id TEXT PRIMARY KEY,
-    url TEXT NOT NULL,
-    events TEXT NOT NULL,
-    secret TEXT NOT NULL,
-    team TEXT,
-    created_at TIMESTAMP,
-    total_calls INTEGER DEFAULT 0,
-    failed_calls INTEGER DEFAULT 0,
-    last_success TEXT,
-    last_failure TEXT,
-    enabled BOOLEAN DEFAULT 1
-);
+**Measurement:** `sports_data`
 
-CREATE INDEX idx_webhooks_team ON webhooks(team);
-```
+**Tags:**
+- `entity_id`: Team Tracker sensor entity ID
+- `sport`: Sport type (nfl, nhl, mlb, nba, etc.)
+- `league`: League name
+- `team_abbr`: Team abbreviation
+- `team_id`: Team ID
+- `state`: Game state (PRE, IN, POST, BYE)
+- `opponent_abbr`: Opponent abbreviation
+- `opponent_id`: Opponent ID
+- `venue`: Game venue
 
 **Fields:**
-- `webhook_id`: Unique webhook identifier (UUID)
-- `url`: Webhook delivery URL
-- `events`: JSON array of subscribed events (e.g., '["game_started", "score_changed"]')
-- `secret`: HMAC secret for signature verification
-- `team`: Optional team filter (e.g., "sf", "dal")
-- `created_at`: Registration timestamp
-- `total_calls`: Successful delivery count
-- `failed_calls`: Failed delivery count
-- `last_success`: Last successful delivery timestamp (ISO string)
-- `last_failure`: Last failed delivery timestamp (ISO string)
-- `enabled`: Whether webhook is active
+- `team_score`: Integer score
+- `opponent_score`: Integer score
+- `quarter`: Current period/quarter
+- `clock`: Time remaining
 
-**Example Row:**
-```json
-{
-  "webhook_id": "550e8400-e29b-41d4-a716-446655440000",
-  "url": "https://example.com/webhook/sports",
-  "events": "[\"game_started\", \"score_changed\", \"game_ended\"]",
-  "secret": "secret_key_at_least_16_chars",
-  "team": "sf",
-  "created_at": "2025-01-14T10:00:00Z",
-  "total_calls": 45,
-  "failed_calls": 2,
-  "last_success": "2025-01-14T12:30:00Z",
-  "last_failure": "2025-01-13T15:20:00Z",
-  "enabled": true
-}
-```
+**Data Source:** Home Assistant Team Tracker sensors polled via REST API.
+
+**See:** [Sports API Service](../api/API_REFERENCE.md#sports-api-service) for API endpoints.
 
 ---
 
@@ -499,6 +474,6 @@ CREATE INDEX idx_webhooks_team ON webhooks(team);
 mkdir -p backups/influxdb backups/sqlite
 influx backup backups/influxdb/
 cp services/data-api/data/metadata.db backups/sqlite/
-cp services/sports-data/data/webhooks.db backups/sqlite/
+# Note: sports-api stores data in InfluxDB (sports_data measurement), not SQLite
 ```
 

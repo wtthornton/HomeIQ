@@ -196,73 +196,7 @@ This document describes the complete event flow from Home Assistant through the 
 # AFTER:  event['new_state']['state'] (no entity_id in state object)
 ```
 
-### Stage 3: Validated Event
-
-**Source:** Enrichment Pipeline's `DataValidationEngine.validate_event()`  
-**Format:** Same as Stage 2, with validation metadata
-
-**Validation Checks:**
-1. **Entity ID Validation**
-   - Must be present at top level
-   - Must match pattern: `^[a-z_]+\.[a-z0-9_]+$`
-   - Domain should be in known domains list (warning if not)
-
-2. **Event Structure Validation**
-   - Must have `event_type` field
-   - Must have `entity_id` field at top level
-   - State objects must NOT have `entity_id` field
-
-3. **State Object Validation**
-   - Must have `state` field (can be empty string, not null)
-   - Must have `last_changed` timestamp
-   - Must have `last_updated` timestamp
-   - May have `attributes` object
-
-4. **Timestamp Validation**
-   - Should be valid ISO 8601 format
-   - Should be reasonable (not far future/past)
-
-**Validation Result:**
-```python
-ValidationResult(
-    is_valid=True,
-    errors=[],  # List of error messages
-    warnings=['Unknown domain: custom_sensor'],  # List of warnings
-    domain='sensor',
-    event_type='state_changed',
-    severity='info'
-)
-```
-
-### Stage 4: Normalized Event
-
-**Source:** Enrichment Pipeline's `DataNormalizer.normalize_event()`  
-**Format:** Enhanced with normalization metadata
-
-```json
-{
-  "event_type": "state_changed",
-  "entity_id": "sensor.living_room_temperature",
-  "domain": "sensor",
-  "normalized_state": 22.5,
-  "normalized_unit": "celsius",
-  ...
-  "_normalized": {
-    "timestamp": "2025-10-13T02:30:00.500000+00:00",
-    "version": "1.0.0",
-    "source": "websocket-ingestion"
-  }
-}
-```
-
-**Normalization Operations:**
-- Timestamp normalization (ensure ISO 8601 format)
-- State value type conversion
-- Unit standardization
-- Entity metadata extraction
-- Data quality validation
-
-### Stage 3: InfluxDB Point
+### Stage 3: InfluxDB Point (Epic 31 - Direct Write)
 
 **Source:** WebSocket Ingestion Service's InfluxDB Writer (inline normalization - Epic 31)  
 **Format:** InfluxDB Line Protocol
@@ -452,11 +386,11 @@ docker exec homeiq-influxdb influx query \
 
 ### Validation Test
 
-```python
-# Test event validation
-from services.enrichment_pipeline.src.data_validator import DataValidationEngine
+**Note:** Event validation is now done inline in websocket-ingestion (Epic 31).
+Events are validated before being written to InfluxDB.
 
-validator = DataValidationEngine()
+```python
+# Test event structure
 test_event = {
     "event_type": "state_changed",
     "entity_id": "sensor.test",
@@ -469,31 +403,28 @@ test_event = {
     }
 }
 
-result = validator.validate_event(test_event)
-print(f"Valid: {result.is_valid}")
-print(f"Errors: {result.errors}")
-print(f"Warnings: {result.warnings}")
+# Validation happens inline in websocket-ingestion service
+# See: services/websocket-ingestion/src/event_processor.py
 ```
 
 ## Performance Characteristics
 
-### Throughput
-- **WebSocket → Enrichment**: 1000+ events/second
-- **Validation**: < 1ms per event
-- **Normalization**: < 2ms per event
-- **InfluxDB Write**: < 5ms per event
-- **Total Latency**: < 10ms end-to-end
+### Throughput (Epic 31 - Direct Writes)
+- **WebSocket → InfluxDB**: 10,000+ events/second
+- **Validation**: < 1ms per event (inline)
+- **InfluxDB Batch Write**: 10-30ms per batch
+- **Total Latency**: < 50ms end-to-end
 
 ### Resource Usage
 - **CPU**: < 10% per service under normal load
-- **Memory**: < 256MB per service
-- **Network**: < 1MB/s between services
+- **Memory**: < 512MB for websocket-ingestion
+- **Network**: Minimal (direct writes to InfluxDB)
 
 ### Scaling Considerations
-- **Horizontal Scaling**: Multiple enrichment pipeline instances supported
-- **Load Balancing**: Round-robin across instances
+- **Batch Processing**: Configurable batch size (BATCH_SIZE, default: 100)
+- **Batch Timeout**: Configurable timeout (BATCH_TIMEOUT, default: 5.0s)
 - **Circuit Breaker**: Prevents cascade failures
-- **Batch Processing**: Supports batch writes to InfluxDB
+- **Horizontal Scaling**: Multiple websocket-ingestion instances supported
 
 ## Monitoring and Observability
 
@@ -505,30 +436,30 @@ print(f"Warnings: {result.warnings}")
 5. **Circuit Breaker Status**: Open/closed state and failure count
 6. **Processing Latency**: P50, P95, P99 latencies
 
-### Health Checks
-- **Enrichment Pipeline**: `/health` endpoint shows validation and normalization stats
-- **WebSocket Service**: Circuit breaker status indicates enrichment pipeline health
-- **InfluxDB**: Connection status in enrichment pipeline health check
+### Health Checks (Epic 31)
+- **WebSocket Ingestion**: `/health` endpoint shows connection status, batch stats, InfluxDB status
+- **InfluxDB**: Connection status in websocket-ingestion health check
+- **External Services**: Each service has its own `/health` endpoint
 
 ### Troubleshooting
 
 #### Events Not Flowing
-1. Check WebSocket service circuit breaker status
-2. Check enrichment pipeline health endpoint
-3. Review enrichment pipeline logs for validation errors
-4. Verify InfluxDB connection
+1. Check websocket-ingestion health: `curl http://localhost:8001/health`
+2. Verify HA WebSocket connection is established
+3. Check InfluxDB connection status
+4. Review websocket-ingestion logs for errors
 
 #### Validation Failures
 1. Check event structure matches flattened format
 2. Verify `entity_id` is at top level, not in state objects
 3. Check state objects have required fields: `state`, `last_changed`, `last_updated`
-4. Review validation error messages in logs
+4. Review validation error messages in websocket-ingestion logs
 
 #### Performance Issues
-1. Check InfluxDB write latency
-2. Monitor validation and normalization duration
-3. Check for memory leaks
-4. Verify circuit breaker isn't thrashing
+1. Check InfluxDB write latency (batch processor stats)
+2. Monitor batch queue size
+3. Check for memory pressure (MAX_MEMORY_MB setting)
+4. Verify batch timeout settings (BATCH_TIMEOUT)
 
 ## Automation Generation Flow (January 2026)
 

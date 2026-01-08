@@ -1,6 +1,6 @@
 # Services Architecture Quick Reference
 
-**Last Updated:** October 20, 2025 (Epic 31)  
+**Last Updated:** January 8, 2026 (Epic 31+)  
 **Purpose:** Quick reference for developers working on services
 
 ---
@@ -57,7 +57,7 @@ HA → websocket-ingestion → InfluxDB (DIRECT)
 
 ### Pattern B: External API Integration
 
-**Services:** weather-api, sports-data, carbon-intensity, air-quality, etc.
+**Services:** weather-api, sports-api, carbon-intensity, air-quality, etc.
 
 **Flow:**
 ```
@@ -67,13 +67,13 @@ HA → websocket-ingestion → InfluxDB (DIRECT)
 4. Dashboard queries via data-api
 ```
 
-**Example:** sports-data (Port 8005)
+**Example:** sports-api (Port 8005)
 ```python
-# Fetch from ESPN
-games = await espn_client.get_nfl_games()
+# Fetch from Home Assistant Team Tracker sensors
+sensors = await ha_client.get_team_tracker_sensors()
 
 # Write directly to InfluxDB
-await influxdb.write_nfl_scores(games)
+await influxdb.write_sports_data(sensors)
 
 # Dashboard queries via data-api
 # GET http://localhost:8006/api/v1/sports/games
@@ -214,7 +214,7 @@ await influxdb_manager.write_points(points)
 | websocket-ingestion | 8001 | HA event ingestion | InfluxDB, data-api |
 | ~~enrichment-pipeline~~ | ~~8002~~ | **DEPRECATED** | ~~None~~ |
 | admin-api | 8003 | System monitoring | All services |
-| sports-data | 8005 | ESPN integration | InfluxDB |
+| sports-api | 8005 | Team Tracker integration | InfluxDB (standalone) |
 | data-api | 8006 | Query hub | InfluxDB, SQLite |
 | weather-api | 8009 | Weather data | InfluxDB |
 | carbon-intensity | 8010 | Carbon data | InfluxDB |
@@ -324,6 +324,6 @@ HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 
 ---
 
-**Last Updated:** October 20, 2025  
+**Last Updated:** January 8, 2026  
 **Epic Context:** Post-Epic 31 (enrichment-pipeline deprecated)
 
