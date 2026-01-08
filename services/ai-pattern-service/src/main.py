@@ -238,6 +238,28 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Failed to include blueprint_router: {e}")
 
+# Include Analytics, Rating, and Tracking Routers (Patterns & Synergies Enhancement)
+try:
+    from .analytics.routes import router as analytics_router
+    app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
+    logger.info("✅ Included analytics_router for Blueprint Analytics")
+except ImportError as e:
+    logger.warning(f"⚠️ Analytics router not available: {e}")
+
+try:
+    from .rating.routes import router as rating_router
+    app.include_router(rating_router, prefix="/api/v1", tags=["ratings"])
+    logger.info("✅ Included rating_router for Blueprint Rating System")
+except ImportError as e:
+    logger.warning(f"⚠️ Rating router not available: {e}")
+
+try:
+    from .tracking.routes import router as tracking_router
+    app.include_router(tracking_router, prefix="/api/v1", tags=["tracking"])
+    logger.info("✅ Included tracking_router for Execution Tracking")
+except ImportError as e:
+    logger.warning(f"⚠️ Tracking router not available: {e}")
+
 @app.get("/")
 async def root() -> dict[str, str]:
     """

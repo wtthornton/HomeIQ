@@ -32,7 +32,13 @@ class OpenAIClient:
     - Automatic retry logic
     - Token usage tracking
     - Proper error handling
+    - Support for fine-tuned models (Phase 2 ML Enhancement)
     """
+    
+    # Fine-tuned model configuration
+    # Set via OPENAI_FINE_TUNED_MODEL env var after fine-tuning
+    # Format: ft:gpt-4o-mini-2024-07-18:homeiq:ha-commands:xxx
+    FINE_TUNED_MODEL_ENV = "OPENAI_FINE_TUNED_MODEL"
 
     def __init__(self, api_key: str | None = None, model: str | None = None):
         """
@@ -41,16 +47,39 @@ class OpenAIClient:
         Args:
             api_key: OpenAI API key (defaults to settings.openai_api_key)
             model: Model to use (defaults to settings.openai_model)
+        
+        Model Selection Priority:
+        1. Explicit model parameter
+        2. OPENAI_FINE_TUNED_MODEL env var (if set, uses fine-tuned model)
+        3. settings.openai_model
+        4. Default: gpt-4o-mini
         """
+        import os
+        
         self.api_key = api_key or settings.openai_api_key
-        self.model = model or settings.openai_model or "gpt-4o-mini"
+        
+        # Model selection with fine-tuned model support
+        fine_tuned_model = os.getenv(self.FINE_TUNED_MODEL_ENV)
+        if model:
+            self.model = model
+        elif fine_tuned_model:
+            self.model = fine_tuned_model
+            logger.info(f"Using fine-tuned model: {fine_tuned_model}")
+        else:
+            self.model = settings.openai_model or "gpt-4o-mini"
+        
+        # Track if using fine-tuned model
+        self.is_fine_tuned = self.model.startswith("ft:")
         
         if not self.api_key:
             logger.warning("OpenAI API key not configured")
             self.client = None
         else:
             self.client = AsyncOpenAI(api_key=self.api_key)
-            logger.info(f"OpenAI client initialized with model={self.model}")
+            logger.info(
+                f"OpenAI client initialized with model={self.model} "
+                f"(fine-tuned={self.is_fine_tuned})"
+            )
         
         # Usage tracking
         self.total_tokens_used = 0

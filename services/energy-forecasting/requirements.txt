@@ -1,0 +1,31 @@
+# Energy Forecasting Service Dependencies
+# Production-ready 2025 libraries
+
+# Data Processing
+polars>=1.0.0
+pandas>=2.2.0
+numpy>=1.26.0
+
+# Time Series Forecasting
+darts>=0.30.0
+statsforecast>=1.7.0
+
+# ML
+torch>=2.5.0
+pytorch-lightning>=2.2.0
+
+# Optional: Prophet
+# prophet>=1.1.0
+
+# API
+fastapi>=0.115.0
+uvicorn>=0.30.0
+httpx>=0.27.0
+pydantic>=2.5.0
+
+# InfluxDB (optional)
+influxdb-client>=1.40.0
+
+# Utilities
+python-dotenv>=1.0.0
+structlog>=24.1.0

@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import type { TabProps } from './types';
+import { AnalyticsDashboard } from '../AnalyticsDashboard';
 
 // Blueprint Opportunity types
 interface BlueprintOpportunity {
@@ -61,7 +62,7 @@ const API_BASE_URL = import.meta.env.VITE_AI_PATTERN_SERVICE_URL || 'http://loca
 
 export const SynergiesTab: React.FC<TabProps> = ({ darkMode }) => {
   // State for active sub-tab
-  const [activeSubTab, setActiveSubTab] = useState<'synergies' | 'blueprints'>('synergies');
+  const [activeSubTab, setActiveSubTab] = useState<'synergies' | 'blueprints' | 'analytics'>('synergies');
   
   // Synergies state
   const [synergies, setSynergies] = useState<Synergy[]>([]);
@@ -222,6 +223,18 @@ export const SynergiesTab: React.FC<TabProps> = ({ darkMode }) => {
               }`}
             >
               📋 Blueprint Opportunities
+            </button>
+            <button
+              onClick={() => setActiveSubTab('analytics')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                activeSubTab === 'analytics'
+                  ? 'bg-blue-600 text-white'
+                  : darkMode
+                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              📊 Analytics
             </button>
           </div>
         </div>
@@ -658,6 +671,64 @@ export const SynergiesTab: React.FC<TabProps> = ({ darkMode }) => {
                 🚀 Deploy Blueprint
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analytics Tab Content */}
+      {activeSubTab === 'analytics' && (
+        <div className="space-y-6">
+          {/* Analytics Dashboard */}
+          <AnalyticsDashboard
+            refreshInterval={60000}
+            totalSynergies={synergies.length}
+          />
+          
+          {/* Additional Analytics Info */}
+          <div className={`rounded-lg p-4 ${
+            darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+          }`}>
+            <h3 className={`text-lg font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              📈 Target Metrics (from RECOMMENDATIONS_FEASIBILITY_ANALYSIS.md)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className={`p-3 rounded ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                <div className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  Automation Adoption Rate
+                </div>
+                <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Target: 30% of synergies → automations
+                </div>
+              </div>
+              <div className={`p-3 rounded ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                <div className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  Automation Success Rate
+                </div>
+                <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Target: 85% execute successfully
+                </div>
+              </div>
+              <div className={`p-3 rounded ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                <div className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  Pattern Quality
+                </div>
+                <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Target: 90% of patterns lead to successful automations
+                </div>
+              </div>
+              <div className={`p-3 rounded ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                <div className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  User Satisfaction
+                </div>
+                <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Target: 4.0+ average rating
+                </div>
+              </div>
+            </div>
+            <p className={`mt-4 text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              These metrics are tracked to measure the effectiveness of the Blueprint-First Architecture
+              and continuous improvement through user feedback.
+            </p>
           </div>
         </div>
       )}
