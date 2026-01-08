@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from './ui/card';
+import { Icon, TrendIcons, LiveIndicator } from './ui/icons';
 import { cn } from '@/lib/utils';
 
 interface MetricCardProps {
@@ -10,19 +11,6 @@ interface MetricCardProps {
   className?: string;
   isLive?: boolean;
 }
-
-const getTrendIcon = (trend?: string) => {
-  switch (trend) {
-    case 'up':
-      return '📈';
-    case 'down':
-      return '📉';
-    case 'stable':
-      return '➡️';
-    default:
-      return null;
-  }
-};
 
 const getTrendColor = (trend?: string) => {
   switch (trend) {
@@ -76,38 +64,34 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     <Card 
       hover 
       className={cn(
-        "animate-fade-in",
-        isLive && "ring-2 ring-primary/20",
+        isLive && "ring-1 ring-primary/30",
         className
       )}
     >
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-          <div className="flex items-center gap-2">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</h3>
+          <div className="flex items-center gap-1.5">
             {trend && (
-              <span className={cn("text-lg", getTrendColor(trend))}>
-                {getTrendIcon(trend)}
-              </span>
+              <Icon 
+                icon={TrendIcons[trend]} 
+                size="xs" 
+                className={getTrendColor(trend)} 
+              />
             )}
-            {isLive && (
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-              </span>
-            )}
+            {isLive && <LiveIndicator size="sm" />}
           </div>
         </div>
         
         <div className="flex items-baseline">
           <p className={cn(
-            "text-3xl font-bold text-foreground font-display metric-value",
-            isAnimating && "animate-pulse"
+            "text-2xl font-bold text-foreground font-mono tabular-nums",
+            isAnimating && "opacity-70"
           )}>
             {typeof displayValue === 'number' ? Math.round(displayValue).toLocaleString() : displayValue}
           </p>
           {unit && (
-            <p className="ml-2 text-sm text-muted-foreground">{unit}</p>
+            <p className="ml-1.5 text-xs text-muted-foreground">{unit}</p>
           )}
         </div>
       </CardContent>

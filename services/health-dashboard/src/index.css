@@ -12,154 +12,161 @@
 
 @layer base {
   :root {
+    /* ============================================
+       HomeIQ Industrial Design System
+       Palette: Slate + Amber + Warm Neutrals
+       ============================================ */
+    
     /* Colors - Light theme */
-    --background: 0 0% 100%;
-    --background-secondary: 210 40% 98%;
-    --background-tertiary: 210 40% 96%;
-    --foreground: 222 47% 11%;
+    --background: 0 0% 98%;
+    --background-secondary: 220 14% 96%;
+    --background-tertiary: 220 13% 93%;
+    --foreground: 224 71% 4%;
     
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 224 71% 4%;
     
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 224 71% 4%;
     
-    --primary: 217 91% 50%;
+    /* Primary: Amber/Orange - Industrial accent */
+    --primary: 25 95% 53%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 217 91% 44%;
+    --primary-hover: 25 95% 45%;
     
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 71% 4%;
     
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
     
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 45 93% 47%;
+    --accent-foreground: 224 71% 4%;
     
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
     
-    /* Status colors */
-    --status-healthy: 142 76% 36%;
+    /* Status colors - Clear, functional */
+    --status-healthy: 142 71% 45%;
     --status-healthy-light: 142 76% 94%;
-    --status-warning: 38 92% 50%;
-    --status-warning-light: 38 92% 94%;
-    --status-critical: 0 84% 60%;
+    --status-warning: 45 93% 47%;
+    --status-warning-light: 45 93% 94%;
+    --status-critical: 0 72% 51%;
     --status-critical-light: 0 84% 94%;
     --status-offline: 220 9% 46%;
     --status-offline-light: 220 9% 94%;
     
-    /* Smart home accent colors */
+    /* Smart home accent colors - Warm industrial */
     --accent-weather: 199 89% 48%;
-    --accent-sports: 262 83% 58%;
-    --accent-automation: 25 95% 53%;
+    --accent-sports: 25 95% 53%;
+    --accent-automation: 45 93% 47%;
     --accent-energy: 142 71% 45%;
     
-    /* Borders */
-    --border: 214 32% 91%;
-    --border-hover: 215 20% 65%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 50%;
+    /* Borders - Subtle, defined */
+    --border: 220 13% 91%;
+    --border-hover: 220 9% 75%;
+    --input: 220 13% 91%;
+    --ring: 25 95% 53%;
     
-    /* Border radius */
-    --radius: 0.5rem;
+    /* Border radius - Tighter, more intentional */
+    --radius: 0.25rem;
     
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    /* Shadows - Subtle, functional */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.06);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.06);
   }
 
   .dark {
-    /* Colors - Dark theme */
-    --background: 222 47% 11%;
-    --background-secondary: 217 33% 17%;
-    --background-tertiary: 215 25% 22%;
-    --foreground: 210 40% 98%;
+    /* Colors - Dark theme (Industrial slate) */
+    --background: 224 71% 4%;
+    --background-secondary: 220 14% 10%;
+    --background-tertiary: 220 13% 14%;
+    --foreground: 210 20% 98%;
     
-    --card: 217 33% 17%;
-    --card-foreground: 210 40% 98%;
+    --card: 220 14% 10%;
+    --card-foreground: 210 20% 98%;
     
-    --popover: 217 33% 17%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 220 14% 10%;
+    --popover-foreground: 210 20% 98%;
     
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-    --primary-hover: 217 91% 66%;
+    /* Primary: Amber/Orange in dark */
+    --primary: 25 95% 53%;
+    --primary-foreground: 224 71% 4%;
+    --primary-hover: 25 95% 60%;
     
-    --secondary: 215 25% 27%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 14% 18%;
+    --secondary-foreground: 210 20% 98%;
     
-    --muted: 215 25% 27%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 220 14% 18%;
+    --muted-foreground: 220 9% 60%;
     
-    --accent: 215 25% 27%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 45 93% 47%;
+    --accent-foreground: 224 71% 4%;
     
     --destructive: 0 62% 50%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 210 20% 98%;
     
     /* Borders */
-    --border: 215 25% 27%;
-    --border-hover: 215 16% 47%;
-    --input: 215 25% 27%;
-    --ring: 217 91% 60%;
+    --border: 220 14% 20%;
+    --border-hover: 220 9% 35%;
+    --input: 220 14% 20%;
+    --ring: 25 95% 53%;
     
     /* Adjusted shadows for dark mode */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.25);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.35), 0 4px 6px -4px rgb(0 0 0 / 0.25);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.35), 0 8px 10px -6px rgb(0 0 0 / 0.25);
   }
 
   /* Ambient theme - Low light dashboard viewing */
   .ambient {
-    --background: 222 40% 8%;
-    --background-secondary: 217 33% 12%;
-    --background-tertiary: 215 25% 16%;
+    --background: 224 40% 3%;
+    --background-secondary: 220 25% 6%;
+    --background-tertiary: 220 20% 9%;
     --foreground: 0 0% 85%;
     
-    --card: 217 33% 12%;
+    --card: 220 25% 6%;
     --card-foreground: 0 0% 85%;
     
-    --popover: 217 33% 12%;
+    --popover: 220 25% 6%;
     --popover-foreground: 0 0% 85%;
     
-    --primary: 217 91% 55%;
-    --primary-foreground: 222 40% 8%;
-    --primary-hover: 217 91% 60%;
+    --primary: 25 85% 48%;
+    --primary-foreground: 224 40% 3%;
+    --primary-hover: 25 85% 55%;
     
-    --secondary: 215 25% 20%;
+    --secondary: 220 20% 12%;
     --secondary-foreground: 0 0% 85%;
     
-    --muted: 215 25% 20%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 220 20% 12%;
+    --muted-foreground: 0 0% 55%;
     
-    --accent: 215 25% 20%;
+    --accent: 45 80% 42%;
     --accent-foreground: 0 0% 85%;
     
     /* Reduced saturation for ambient mode */
-    --status-healthy: 142 60% 30%;
-    --status-warning: 38 70% 45%;
-    --status-critical: 0 70% 50%;
-    --status-offline: 220 9% 40%;
+    --status-healthy: 142 55% 35%;
+    --status-warning: 45 70% 42%;
+    --status-critical: 0 60% 45%;
+    --status-offline: 220 9% 35%;
     
     /* Borders */
-    --border: 215 25% 20%;
-    --border-hover: 215 16% 35%;
-    --input: 215 25% 20%;
-    --ring: 217 91% 55%;
+    --border: 220 20% 15%;
+    --border-hover: 220 15% 28%;
+    --input: 220 20% 15%;
+    --ring: 25 85% 48%;
     
     /* Softer shadows for ambient mode */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.35);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.35);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.45), 0 4px 6px -4px rgb(0 0 0 / 0.35);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.35);
   }
 }
 
@@ -189,99 +196,112 @@
    ============================================ */
 
 @layer components {
-  /* Consistent spacing scale (4px/8px grid) */
-  .spacing-sm { @apply space-y-2; }
-  .spacing-md { @apply space-y-4; }
-  .spacing-lg { @apply space-y-6; }
-  .spacing-xl { @apply space-y-8; }
+  /* ============================================
+     Spacing Scale - Tighter for Data Density
+     Base unit: 4px (0.25rem)
+     ============================================ */
+  .spacing-xs { @apply space-y-1; }     /* 4px */
+  .spacing-sm { @apply space-y-1.5; }   /* 6px */
+  .spacing-md { @apply space-y-2; }     /* 8px */
+  .spacing-lg { @apply space-y-3; }     /* 12px */
+  .spacing-xl { @apply space-y-4; }     /* 16px */
   
-  /* Consistent card styles */
+  /* Gap utilities for grids */
+  .gap-tight { @apply gap-2; }          /* 8px */
+  .gap-normal { @apply gap-3; }         /* 12px */
+  .gap-loose { @apply gap-4; }          /* 16px */
+  
+  /* Consistent card styles - Compact */
   .card-base {
-    @apply bg-card text-card-foreground rounded-lg shadow-md transition-all duration-200;
+    @apply bg-card text-card-foreground rounded border border-border shadow-sm transition-colors duration-150;
   }
   
   .card-hover {
-    @apply card-base hover:shadow-lg hover:-translate-y-0.5 cursor-pointer;
+    @apply card-base hover:border-border-hover cursor-pointer;
   }
   
-  /* Consistent button styles */
+  /* Consistent button styles - Compact */
   .btn-primary {
-    @apply px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium 
-           transition-all duration-150 active:scale-95 shadow-sm hover:shadow-md;
+    @apply px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded font-medium 
+           transition-colors duration-150 active:scale-[0.98];
   }
   
   .btn-secondary {
-    @apply px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 
-           rounded-lg font-medium transition-all duration-150 
-           active:scale-95 shadow-sm;
+    @apply px-3 py-1.5 bg-secondary text-secondary-foreground hover:bg-secondary/80 
+           rounded font-medium transition-colors duration-150 active:scale-[0.98];
   }
   
   .btn-success {
-    @apply px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium 
-           transition-all duration-150 active:scale-95 shadow-sm hover:shadow-md;
+    @apply px-3 py-1.5 bg-status-healthy hover:bg-status-healthy/90 text-white rounded font-medium 
+           transition-colors duration-150 active:scale-[0.98];
   }
   
   .btn-danger {
-    @apply px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg font-medium 
-           transition-all duration-150 active:scale-95 shadow-sm hover:shadow-md;
+    @apply px-3 py-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded font-medium 
+           transition-colors duration-150 active:scale-[0.98];
   }
   
-  /* Status badge styles */
+  /* Status badge styles - Compact, no rounded-full */
   .badge-success {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-           bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium 
+           bg-status-healthy/15 text-status-healthy;
   }
   
   .badge-warning {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-           bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium 
+           bg-status-warning/15 text-status-warning;
   }
   
   .badge-error {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-           bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium 
+           bg-status-critical/15 text-status-critical;
   }
   
   .badge-info {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-           bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium 
+           bg-primary/15 text-primary;
   }
   
-  /* Input styles */
+  /* Input styles - Compact */
   .input-base {
-    @apply w-full px-3 py-2 border border-input rounded-lg 
-           bg-background text-foreground 
+    @apply w-full px-2.5 py-1.5 border border-input rounded 
+           bg-background text-foreground text-sm
            focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent 
-           transition-all duration-150;
+           transition-colors duration-150;
   }
   
-  /* Typography scale */
+  /* Typography scale - Tighter */
   .text-display {
-    @apply text-4xl font-bold tracking-tight font-display;
+    @apply text-2xl font-bold tracking-tight font-display;
   }
   
   .text-h1 {
-    @apply text-3xl font-bold font-display;
+    @apply text-xl font-bold font-display;
   }
   
   .text-h2 {
-    @apply text-2xl font-semibold font-display;
+    @apply text-lg font-semibold font-display;
   }
   
   .text-h3 {
-    @apply text-xl font-semibold font-display;
+    @apply text-base font-semibold font-display;
   }
   
   .text-body {
-    @apply text-base leading-relaxed;
+    @apply text-sm leading-normal;
   }
   
   .text-small {
-    @apply text-sm text-muted-foreground;
+    @apply text-xs text-muted-foreground;
   }
   
   .text-tiny {
-    @apply text-xs text-muted-foreground;
+    @apply text-[11px] text-muted-foreground;
+  }
+  
+  /* Label text - Small, uppercase */
+  .text-label {
+    @apply text-[11px] font-medium uppercase tracking-wider text-muted-foreground;
   }
   
   /* Hide scrollbars for horizontal scroll (mobile tabs) */
@@ -368,53 +388,38 @@
 }
 
 /* ============================================
-   Glow Effects & Gradients
+   Utility Classes
    ============================================ */
 
 @layer utilities {
-  /* Gradient backgrounds */
-  .bg-gradient-primary {
-    @apply bg-gradient-to-br from-primary/10 via-transparent to-transparent;
+  /* Subtle background tints for status - No gradients */
+  .bg-status-healthy-subtle {
+    @apply bg-status-healthy/5;
   }
   
-  .bg-gradient-success {
-    @apply bg-gradient-to-br from-green-500/10 via-transparent to-transparent;
+  .bg-status-warning-subtle {
+    @apply bg-status-warning/5;
   }
   
-  .bg-gradient-warning {
-    @apply bg-gradient-to-br from-amber-500/10 via-transparent to-transparent;
+  .bg-status-critical-subtle {
+    @apply bg-status-critical/5;
   }
   
-  .bg-gradient-error {
-    @apply bg-gradient-to-br from-red-500/10 via-transparent to-transparent;
+  /* Border accents - Subtle, functional */
+  .border-accent-left {
+    @apply border-l-2;
   }
   
-  /* Glow effects */
-  .glow-primary {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3), 0 0 40px hsl(var(--primary) / 0.1);
+  /* Focus ring - Visible but subtle */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1;
   }
   
-  .glow-success {
-    box-shadow: 0 0 20px hsl(var(--status-healthy) / 0.3), 0 0 40px hsl(var(--status-healthy) / 0.1);
-  }
-  
-  .glow-warning {
-    box-shadow: 0 0 20px hsl(var(--status-warning) / 0.3), 0 0 40px hsl(var(--status-warning) / 0.1);
-  }
-  
+  /* Remove all glow effects - Keep it clean */
+  .glow-primary,
+  .glow-success,
+  .glow-warning,
   .glow-error {
-    box-shadow: 0 0 20px hsl(var(--status-critical) / 0.3), 0 0 40px hsl(var(--status-critical) / 0.1);
-  }
-  
-  /* Shimmer effect */
-  .shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      hsl(var(--foreground) / 0.1) 50%,
-      transparent 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 2s linear infinite;
+    /* Disabled - too decorative */
   }
 }
