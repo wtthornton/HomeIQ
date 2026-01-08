@@ -5,6 +5,10 @@ Converts synergies to Home Assistant automations using 2025 best practices.
 Uses Home Assistant REST API for programmatic automation creation.
 
 Based on PATTERNS_SYNERGIES_IMPROVEMENT_RECOMMENDATIONS.md
+
+Phase 3 Enhancement: Blueprint-First Architecture
+- Attempts to deploy via blueprint when a matching blueprint is found
+- Falls back to YAML generation if no blueprint match
 """
 
 import logging
@@ -26,6 +30,14 @@ from shared.homeiq_automation.schema import (
 )
 from .automation_pre_deployment_validator import AutomationPreDeploymentValidator
 
+# Phase 3: Blueprint Deployment Integration
+try:
+    from ..blueprint_deployment import BlueprintDeployer, DeploymentRequest
+    from ..blueprint_opportunity import BlueprintOpportunityEngine
+    BLUEPRINT_DEPLOYMENT_AVAILABLE = True
+except ImportError:
+    BLUEPRINT_DEPLOYMENT_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,13 +47,19 @@ class AutomationGenerator:
     
     Uses Home Assistant WebSocket/REST API for programmatic automation creation.
     References: /websites/developers_home-assistant_io (Context7)
+    
+    Phase 3 Enhancement: Blueprint-First Architecture
+    - Prioritizes blueprint deployment over raw YAML generation
+    - Falls back to YAML only when no suitable blueprint is found
     """
     
     def __init__(
         self,
         ha_url: str,
         ha_token: str,
-        ha_version: str = "2025.1"
+        ha_version: str = "2025.1",
+        blueprint_index_url: str | None = None,
+        prefer_blueprints: bool = True,
     ):
         """
         Initialize automation generator.
@@ -50,30 +68,52 @@ class AutomationGenerator:
             ha_url: Home Assistant URL (e.g., "http://192.168.1.86:8123")
             ha_token: Home Assistant long-lived access token
             ha_version: Home Assistant version (default: 2025.1)
+            blueprint_index_url: Optional Blueprint Index service URL (Phase 3)
+            prefer_blueprints: If True, attempt blueprint deployment first (Phase 3)
         """
         self.ha_url = ha_url.rstrip('/')
         self.ha_token = ha_token
         self.ha_version = ha_version
+        self.blueprint_index_url = blueprint_index_url
+        self.prefer_blueprints = prefer_blueprints
+        
         self.yaml_transformer = YAMLTransformer(ha_version=ha_version)
         self.blueprint_library = BlueprintPatternLibrary()
         self.validator = AutomationPreDeploymentValidator(ha_url=ha_url, ha_token=ha_token)
+        
+        # Phase 3: Initialize blueprint deployer if available
+        self.blueprint_deployer: BlueprintDeployer | None = None
+        self.blueprint_engine: BlueprintOpportunityEngine | None = None
+        
+        if BLUEPRINT_DEPLOYMENT_AVAILABLE and blueprint_index_url:
+            self.blueprint_deployer = BlueprintDeployer(
+                ha_url=ha_url,
+                ha_token=ha_token,
+                blueprint_index_url=blueprint_index_url,
+            )
+            self.blueprint_engine = BlueprintOpportunityEngine(
+                blueprint_index_url=blueprint_index_url
+            )
     
     async def generate_automation_from_synergy(
         self,
         synergy: dict[str, Any],
         ha_client: httpx.AsyncClient,
-        db: Optional[AsyncSession] = None
+        db: Optional[AsyncSession] = None,
+        device_inventory: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """
         Generate and deploy Home Assistant automation from synergy.
         
-        Uses Home Assistant REST API: POST /api/services/automation/create
-        or WebSocket API: call_service domain="automation" service="create"
+        Phase 3: Blueprint-First Architecture
+        - First attempts to find and deploy a matching blueprint
+        - Falls back to YAML generation if no blueprint match
         
         Args:
             synergy: Synergy dictionary with devices, trigger_entity, action_entity, etc.
             ha_client: HTTP client for Home Assistant API calls
             db: Optional database session for pattern lookups
+            device_inventory: Optional device inventory for blueprint auto-fill
         
         Returns:
             {
@@ -81,53 +121,167 @@ class AutomationGenerator:
                 'automation_yaml': str,
                 'blueprint_id': str | None,
                 'deployment_status': str,
-                'estimated_impact': float
+                'estimated_impact': float,
+                'deployment_method': str  # 'blueprint' or 'yaml'
             }
         """
+        synergy_id = synergy.get('synergy_id', 'unknown')
+        
         try:
-            # 1. Convert synergy to HomeIQAutomation schema
-            homeiq_automation = self._synergy_to_homeiq_automation(synergy)
+            # Phase 3: Try blueprint deployment first
+            if self.prefer_blueprints and self.blueprint_engine and self.blueprint_deployer:
+                blueprint_result = await self._try_blueprint_deployment(
+                    synergy=synergy,
+                    device_inventory=device_inventory,
+                    http_client=ha_client,
+                )
+                
+                if blueprint_result:
+                    logger.info(f"✅ Deployed synergy {synergy_id} via blueprint: {blueprint_result['blueprint_id']}")
+                    return {
+                        **blueprint_result,
+                        'deployment_method': 'blueprint',
+                        'estimated_impact': synergy.get('impact_score', 0.0),
+                    }
+                else:
+                    logger.info(f"No matching blueprint for synergy {synergy_id}, falling back to YAML")
             
-            # 2. Transform to YAML using blueprint library or strict rules
-            yaml_content = await self.yaml_transformer.transform_to_yaml(
-                homeiq_automation,
-                strategy="auto"  # Try blueprint first, then strict rules
+            # Fallback: YAML generation (original approach)
+            return await self._generate_automation_via_yaml(
+                synergy=synergy,
+                ha_client=ha_client,
             )
             
-            # 2.5. Validate automation before deployment (Recommendation 4.2)
-            validation_result = await self.validator.validate_automation(
-                yaml_content,
-                ha_client
-            )
-            
-            if not validation_result['valid']:
-                error_msg = f"Automation validation failed: {', '.join(validation_result['errors'])}"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-            
-            if validation_result['warnings']:
-                logger.warning(f"Automation validation warnings: {', '.join(validation_result['warnings'])}")
-            
-            # 3. Deploy via Home Assistant API (2025 best practice: use REST API)
-            automation_id = await self._deploy_automation(
-                ha_client,
-                yaml_content,
-                synergy.get('synergy_id')
-            )
-            
-            # 4. Find matching blueprint (if used)
-            blueprint_id = self.blueprint_library.find_matching_blueprint(homeiq_automation)
-            
-            return {
-                'automation_id': automation_id,
-                'automation_yaml': yaml_content,
-                'blueprint_id': blueprint_id,
-                'deployment_status': 'deployed',
-                'estimated_impact': synergy.get('impact_score', 0.0)
-            }
         except Exception as e:
-            logger.error(f"Failed to generate automation from synergy {synergy.get('synergy_id')}: {e}", exc_info=True)
+            logger.error(f"Failed to generate automation from synergy {synergy_id}: {e}", exc_info=True)
             raise
+    
+    async def _try_blueprint_deployment(
+        self,
+        synergy: dict[str, Any],
+        device_inventory: list[dict[str, Any]] | None,
+        http_client: httpx.AsyncClient,
+    ) -> dict[str, Any] | None:
+        """
+        Attempt to deploy synergy via blueprint.
+        
+        Args:
+            synergy: Synergy dictionary
+            device_inventory: Device inventory for auto-fill
+            http_client: HTTP client
+            
+        Returns:
+            Deployment result dict or None if no blueprint match
+        """
+        if not self.blueprint_engine or not self.blueprint_deployer:
+            return None
+        
+        try:
+            # Find matching blueprints for this synergy
+            matches = await self.blueprint_engine.find_blueprints_for_synergy(
+                synergy=synergy,
+                limit=1,  # Get best match only
+            )
+            
+            if not matches:
+                return None
+            
+            best_match = matches[0]
+            
+            # Only deploy if fit score is above threshold
+            if best_match.fit_score < 0.6:
+                logger.info(
+                    f"Blueprint {best_match.blueprint_id} has low fit score "
+                    f"({best_match.fit_score:.2f}), skipping"
+                )
+                return None
+            
+            # Prepare deployment request
+            request = DeploymentRequest(
+                blueprint_id=best_match.blueprint_id,
+                automation_name=f"Synergy: {synergy.get('synergy_id', 'auto')}",
+                description=f"Generated from synergy {synergy.get('synergy_id')} via blueprint",
+                input_values={
+                    k: v.suggested_entity
+                    for k, v in best_match.auto_fill_suggestions.items()
+                },
+                use_auto_fill=True,
+            )
+            
+            # Deploy
+            result = await self.blueprint_deployer.deploy_blueprint(
+                request=request,
+                device_inventory=device_inventory,
+                http_client=http_client,
+            )
+            
+            if result.success:
+                return {
+                    'automation_id': result.automation_id,
+                    'automation_yaml': result.automation_yaml,
+                    'blueprint_id': best_match.blueprint_id,
+                    'deployment_status': 'deployed',
+                }
+            else:
+                logger.warning(f"Blueprint deployment failed: {result.error}")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"Blueprint deployment attempt failed: {e}")
+            return None
+    
+    async def _generate_automation_via_yaml(
+        self,
+        synergy: dict[str, Any],
+        ha_client: httpx.AsyncClient,
+    ) -> dict[str, Any]:
+        """
+        Generate automation via YAML transformation (fallback method).
+        
+        This is the original implementation, now used as a fallback when
+        no suitable blueprint is found.
+        """
+        # 1. Convert synergy to HomeIQAutomation schema
+        homeiq_automation = self._synergy_to_homeiq_automation(synergy)
+        
+        # 2. Transform to YAML using blueprint library or strict rules
+        yaml_content = await self.yaml_transformer.transform_to_yaml(
+            homeiq_automation,
+            strategy="auto"  # Try blueprint first, then strict rules
+        )
+        
+        # 2.5. Validate automation before deployment (Recommendation 4.2)
+        validation_result = await self.validator.validate_automation(
+            yaml_content,
+            ha_client
+        )
+        
+        if not validation_result['valid']:
+            error_msg = f"Automation validation failed: {', '.join(validation_result['errors'])}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        if validation_result['warnings']:
+            logger.warning(f"Automation validation warnings: {', '.join(validation_result['warnings'])}")
+        
+        # 3. Deploy via Home Assistant API (2025 best practice: use REST API)
+        automation_id = await self._deploy_automation(
+            ha_client,
+            yaml_content,
+            synergy.get('synergy_id')
+        )
+        
+        # 4. Find matching blueprint (if used)
+        blueprint_id = self.blueprint_library.find_matching_blueprint(homeiq_automation)
+        
+        return {
+            'automation_id': automation_id,
+            'automation_yaml': yaml_content,
+            'blueprint_id': blueprint_id,
+            'deployment_status': 'deployed',
+            'deployment_method': 'yaml',
+            'estimated_impact': synergy.get('impact_score', 0.0)
+        }
     
     def _synergy_to_homeiq_automation(
         self,

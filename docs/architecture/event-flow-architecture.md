@@ -530,8 +530,40 @@ print(f"Warnings: {result.warnings}")
 3. Check for memory leaks
 4. Verify circuit breaker isn't thrashing
 
+## Automation Generation Flow (January 2026)
+
+The event data flowing through this architecture is also analyzed by the AI Pattern Service to detect automation opportunities. See [Blueprint Architecture](./BLUEPRINT_ARCHITECTURE.md) for the complete automation generation flow.
+
+### High-Level Flow
+
+```
+Events from InfluxDB
+        ↓
+AI Pattern Service (Pattern Analysis)
+        ↓
+Synergy Detection (Cross-device correlations)
+        ↓
+Blueprint Opportunity Engine (Blueprint matching)
+        ↓
+Blueprint Deployer (Home Assistant automation creation)
+```
+
+### Integration Points
+
+1. **Data API → AI Pattern Service**: Query historical event data for pattern analysis
+2. **Blueprint Index Service → AI Pattern Service**: Search indexed community blueprints
+3. **AI Pattern Service → Home Assistant**: Deploy automations via REST API
+
+### Key Benefits
+
+- Events are automatically analyzed for automation opportunities
+- Community blueprints are matched to user device inventory
+- Automations are deployed with auto-filled entity IDs
+- Higher success rate than manual automation creation
+
 ## References
 
+- [Blueprint Architecture](./BLUEPRINT_ARCHITECTURE.md) - Blueprint-First Architecture details
 - [API Documentation](../API_DOCUMENTATION.md) - Complete API reference
 - [Data Models](./data-models.md) - Detailed data model specifications
 - [Event Validation Fix](../fixes/event-validation-fix-summary.md) - October 2025 validation fix details
