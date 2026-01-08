@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nlp-fine-tuning"
+version = "1.0.0"
+description = "NLP Fine-Tuning Service for HomeIQ"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "ISC"}
+authors = [
+    {name = "HomeIQ Team"}
+]
+keywords = ["homeiq", "nlp", "fine-tuning", "smart-home", "peft", "lora"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "polars>=1.0.0",
+    "pyarrow>=14.0.0",
+    "datasets>=3.0.0",
+    "transformers>=4.45.0",
+    "accelerate>=1.0.0",
+    "peft>=0.13.0",
+    "torch>=2.5.0",
+    "openai>=1.0.0",
+    "nltk>=3.8.0",
+    "scikit-learn>=1.4.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.4.0",
+    "mypy>=1.9.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

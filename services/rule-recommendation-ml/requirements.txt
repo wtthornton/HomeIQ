@@ -1,0 +1,33 @@
+# Rule Recommendation ML Service Dependencies
+# Production-ready 2025 libraries
+
+# Data Processing
+polars>=1.0.0
+duckdb>=1.0.0
+pyarrow>=14.0.0
+
+# Hugging Face
+datasets>=3.0.0
+
+# ML - Recommendation
+implicit>=0.7.0
+lightfm>=1.17
+scipy>=1.12.0
+numpy>=1.26.0
+
+# ML - General
+scikit-learn>=1.4.0
+joblib>=1.3.0
+
+# Deployment
+onnxruntime>=1.19.0
+
+# API
+fastapi>=0.115.0
+uvicorn>=0.30.0
+httpx>=0.27.0
+pydantic>=2.5.0
+
+# Utilities
+python-dotenv>=1.0.0
+structlog>=24.1.0
