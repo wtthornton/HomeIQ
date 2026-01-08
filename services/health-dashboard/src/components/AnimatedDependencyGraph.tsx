@@ -8,7 +8,7 @@
  * - enrichment-pipeline DEPRECATED - all normalization now inline in websocket-ingestion
  * - Weather enrichment REMOVED from websocket-ingestion - now standalone weather-api service (port 8009)
  * - Direct write path: websocket-ingestion → InfluxDB (no intermediate services)
- * - External services (weather-api, sports-data, etc.) write directly to InfluxDB
+ * - External services (weather-api, sports-api, etc.) write directly to InfluxDB
  * - AI Automation reads from InfluxDB (via data-api or direct query)
  * 
  * Research from Context7 KB:
@@ -137,7 +137,7 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
     
     // Layer 2: Ingestion Services (Spread horizontally, second row)
     { id: 'external-services', name: 'External Services', icon: '🔌', type: 'processor', position: { x: 60, y: 160 }, layer: 2, description: 'Periodic external data fetch & write' },
-    { id: 'sports-data', name: 'Sports Data', icon: '⚡', type: 'processor', position: { x: 180, y: 160 }, layer: 2, description: 'ESPN cache + persistence (port 8005)' },
+    { id: 'sports-api', name: 'Sports API', icon: '⚽', type: 'processor', position: { x: 180, y: 160 }, layer: 2, description: 'Team Tracker integration (port 8005)' },
     { id: 'websocket-ingestion', name: 'WebSocket Ingestion', icon: '📡', type: 'processor', position: { x: 300, y: 160 }, layer: 2, description: 'Event capture + inline normalization (Epic 31 - weather enrichment removed)' },
     { id: 'weather-api', name: 'Weather API', icon: '☁️', type: 'processor', position: { x: 420, y: 160 }, layer: 2, description: 'Standalone weather service (port 8009) - Epic 31' },
     
@@ -178,10 +178,9 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
     { id: 'external-fetch', from: 'external-apis', to: 'external-services', type: 'api', active: true, color: '#6B7280' },
     { id: 'external-influx', from: 'external-services', to: 'influxdb', type: 'storage', active: true, color: '#6B7280' },
     
-    // Sports Data Flow (Hybrid Pattern: InfluxDB + SQLite)
-    { id: 'espn-sports', from: 'espn-api', to: 'sports-data', type: 'api', active: realTimeData?.dataSourcesActive?.includes('sports') || false, throughput: 0.5, color: '#8B5CF6' },
-    { id: 'sports-influx', from: 'sports-data', to: 'influxdb', type: 'storage', active: true, color: '#8B5CF6' },
-    { id: 'sports-sqlite', from: 'sports-data', to: 'sqlite', type: 'storage', active: true, color: '#8B5CF6' },
+    // Sports API Flow (Epic 31: Direct InfluxDB writes via Team Tracker)
+    { id: 'ha-sports', from: 'home-assistant', to: 'sports-api', type: 'api', active: realTimeData?.dataSourcesActive?.includes('sports') || false, throughput: 0.5, color: '#8B5CF6' },
+    { id: 'sports-influx', from: 'sports-api', to: 'influxdb', type: 'storage', active: true, color: '#8B5CF6' },
     
     // ===== AI PATTERN ANALYSIS FLOWS =====
     // AI Automation reads from InfluxDB (Epic 31: Direct query or via data-api)

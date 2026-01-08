@@ -1,7 +1,7 @@
 """
 Sports Data Client for Proactive Agent Service
 
-Fetches sports scores and schedules from sports-data service.
+Fetches sports scores and schedules from sports-api service (Team Tracker integration).
 Note: Sports data is now accessed via data-api service.
 """
 

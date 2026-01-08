@@ -199,3 +199,65 @@ Comprehensive review of all key project documents and code to ensure 100% accura
 
 **Status:** ✅ All critical discrepancies fixed. Documentation now accurately reflects the codebase.
 
+---
+
+## Fixes Applied (January 8, 2026)
+
+### Epic 31 Documentation Accuracy Review
+
+**Scope:** Verified Epic 31 architecture documentation against actual code.
+
+### Issues Found and Fixed:
+
+#### 1. sports-data → sports-api Naming
+**Issue:** Documentation referenced "sports-data" but actual service is "sports-api"
+
+**Files Updated:**
+- `.cursor/rules/epic-31-architecture.mdc` - Fixed service name
+- `services/README_ARCHITECTURE_QUICK_REF.md` - Fixed service name and description
+- `docs/api/API_REFERENCE.md` - Rewrote entire Sports Data Service section to match actual sports-api implementation
+- `docs/api/README.md` - Updated link text
+- `docs/architecture/database-schema.md` - Updated storage description
+- `services/health-dashboard/src/components/AnimatedDependencyGraph.tsx` - Fixed node and flow definitions
+- `services/proactive-agent-service/src/clients/sports_data_client.py` - Updated docstring
+- `workflows/custom/homeiq-microservice-creation.yaml` - Fixed reference
+- `workflows/custom/homeiq-service-integration.yaml` - Fixed references (2 occurrences)
+
+#### 2. Incorrect Code Line Reference
+**Issue:** Epic 31 rule referenced `main.py:411-420` but those lines don't contain the relevant code
+
+**Fix:** Updated to reference correct lines:
+- Lines 136-137, 206-207: Comments about Epic 31 standalone pattern
+- Lines 237-250: InfluxDBBatchWriter initialization
+- Lines 512-521: `_write_event_to_influxdb()` method
+
+#### 3. Deprecated enrichment-pipeline References
+**Issue:** `event-flow-architecture.md` still had extensive enrichment-pipeline references
+
+**Fix:** Removed deprecated Stage 3 (Validated Event) and Stage 4 (Normalized Event) sections that referenced enrichment-pipeline. Updated performance characteristics and troubleshooting sections.
+
+#### 4. sports-api Not in docker-compose.yml
+**Issue:** Documentation didn't note that sports-api is a standalone service
+
+**Fix:** Added note that sports-api is not in docker-compose.yml by default (standalone service pattern).
+
+#### 5. Outdated Timestamps
+**Issue:** Documentation showed "October 2025" but we're now in January 2026
+
+**Fix:** Updated timestamps in:
+- `.cursor/rules/epic-31-architecture.mdc`
+- `services/README_ARCHITECTURE_QUICK_REF.md`
+
+### Verification Summary:
+
+| Item | Status |
+|------|--------|
+| Epic 31 architecture (direct writes) | ✅ Accurate |
+| enrichment-pipeline deprecated | ✅ Documented correctly |
+| sports-api service naming | ✅ Fixed |
+| Code line references | ✅ Fixed |
+| Service port numbers | ✅ Accurate |
+| Database architecture | ✅ Accurate |
+| Event flow diagram | ✅ Accurate |
+
+**Status:** ✅ All Epic 31 documentation now accurately reflects the codebase.
