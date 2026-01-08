@@ -243,12 +243,36 @@ npm run preview
 }
 ```
 
-**Styling:**
+**Styling & UI Components:**
 ```json
 {
   "tailwindcss": "^3.4.13",
   "autoprefixer": "^10.4.20",
-  "postcss": "^8.4.41"
+  "postcss": "^8.4.41",
+  "@fontsource-variable/inter": "^5.0.0",
+  "@fontsource-variable/outfit": "^5.0.0",
+  "@fontsource-variable/jetbrains-mono": "^5.0.0",
+  "tailwindcss-animate": "^1.0.7",
+  "class-variance-authority": "^0.7.0",
+  "clsx": "^2.1.0",
+  "tailwind-merge": "^2.2.1",
+  "@radix-ui/react-dialog": "^1.0.5",
+  "@radix-ui/react-dropdown-menu": "^2.0.6",
+  "@radix-ui/react-tooltip": "^1.0.7",
+  "@radix-ui/react-tabs": "^1.0.4",
+  "@radix-ui/react-progress": "^1.0.3",
+  "@radix-ui/react-avatar": "^1.0.4",
+  "@radix-ui/react-separator": "^1.0.3",
+  "@radix-ui/react-scroll-area": "^1.0.5",
+  "@radix-ui/react-select": "^2.0.0",
+  "@radix-ui/react-popover": "^1.0.7",
+  "@radix-ui/react-accordion": "^1.1.2",
+  "@radix-ui/react-switch": "^1.0.3",
+  "@radix-ui/react-checkbox": "^1.0.4",
+  "@radix-ui/react-label": "^2.0.2",
+  "@radix-ui/react-slot": "^1.0.2",
+  "@radix-ui/react-slider": "^1.1.2",
+  "lucide-react": "^0.344.0"
 }
 ```
 
@@ -283,11 +307,32 @@ npm run preview
 ```
 src/
 ├── components/
+│   ├── ui/                        # UI Component Library (shadcn/ui based)
+│   │   ├── button.tsx             # Button component with variants
+│   │   ├── card.tsx               # Card component with status variants
+│   │   ├── badge.tsx              # Badge with status colors
+│   │   ├── dialog.tsx             # Modal dialogs
+│   │   ├── tabs.tsx               # Tab navigation
+│   │   ├── input.tsx              # Form inputs
+│   │   ├── skeleton.tsx           # Loading skeletons
+│   │   ├── progress.tsx           # Progress indicators
+│   │   ├── toast.tsx              # Toast notifications
+│   │   ├── glow-bg.tsx            # Atmospheric glow effects
+│   │   └── ... (26 total components)
 │   ├── AlertsTab.tsx              # Alert management interface
 │   ├── ConfigurationTab.tsx       # Service configuration UI
-│   ├── ServiceCard.tsx            # Service status display
+│   ├── ServiceCard.tsx            # Service status display (uses ui/Card)
+│   ├── StatusCard.tsx             # Status display (uses ui/Card, ui/Badge)
+│   ├── MetricCard.tsx             # Metrics display (uses ui/Card)
+│   ├── AlertBanner.tsx            # Alert banner (uses ui/Card, ui/Button)
 │   ├── MetricsChart.tsx           # Chart components
 │   └── HealthIndicator.tsx        # Status indicators
+├── config/
+│   └── colors.ts                  # Centralized color configuration
+├── lib/
+│   └── utils.ts                   # Utility functions (cn, etc.)
+├── styles/
+│   └── fonts.css                  # Variable font configuration
 ├── services/
 │   └── api.ts                     # API client (admin-api, data-api)
 ├── hooks/
@@ -442,25 +487,84 @@ npm run lint
 npm run build
 ```
 
-### Adding New Features
+### UI Component Library
 
-**1. Create Component:**
+The dashboard uses a comprehensive UI component library based on **shadcn/ui** patterns with HomeIQ customizations:
+
+**Available Components (26 total):**
+- **Core:** Button, Card, Badge, Dialog, DropdownMenu, Tooltip, Popover, Tabs
+- **Forms:** Input, Textarea, Select, Checkbox, Switch, Slider, Label
+- **Feedback:** Skeleton, Progress, Toast, AlertDialog
+- **Layout:** Separator, ScrollArea, Avatar, Accordion, GlowBg
+
+**Usage:**
 ```typescript
-// src/components/MyComponent.tsx
-import React from 'react';
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui';
 
-interface MyComponentProps {
-  title: string;
-}
-
-export const MyComponent: React.FC<MyComponentProps> = ({ title }) => {
+export const MyComponent = () => {
   return (
-    <div className="p-4 bg-white rounded-lg shadow">
-      <h2 className="text-xl font-bold">{title}</h2>
-    </div>
+    <Card variant="healthy" hover>
+      <CardHeader>
+        <CardTitle>Title</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Badge variant="success">Status</Badge>
+        <Button variant="primary">Action</Button>
+      </CardContent>
+    </Card>
   );
 };
 ```
+
+**Design System:**
+- **Colors:** Centralized in `src/config/colors.ts` with status colors, accents, and themes
+- **Fonts:** Variable fonts (Inter, Outfit, JetBrains Mono) via fontsource
+- **Themes:** Light, Dark, and Ambient modes
+- **Animations:** Enhanced animation library with speed variants
+- **Breakpoints:** Height-aware breakpoints for dashboard optimization
+
+**Documentation:**
+- See `src/components/ui/index.ts` for all exports
+- Component variants and props documented in component files
+- Design tokens in `src/config/colors.ts`
+
+### Adding New Features
+
+**1. Create Component with UI Primitives:**
+```typescript
+// src/components/MyComponent.tsx
+import React from 'react';
+import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui';
+import { cn } from '@/lib/utils';
+
+interface MyComponentProps {
+  title: string;
+  variant?: 'default' | 'healthy' | 'warning' | 'critical';
+}
+
+export const MyComponent: React.FC<MyComponentProps> = ({ 
+  title, 
+  variant = 'default' 
+}) => {
+  return (
+    <Card variant={variant} hover className="animate-fade-in">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Button variant="primary">Action</Button>
+      </CardContent>
+    </Card>
+  );
+};
+```
+
+**Best Practices:**
+- ✅ Use UI primitives from `@/components/ui` instead of custom CSS classes
+- ✅ Use `cn()` utility for conditional class merging
+- ✅ Leverage status variants (healthy, warning, critical, offline)
+- ✅ Use semantic color tokens from the design system
+- ✅ Follow component composition patterns (CardHeader, CardContent, etc.)
 
 **2. Add to App:**
 ```typescript
@@ -721,6 +825,42 @@ typescript@^5.6.3               # Type safety
 vite@^5.4.8                     # Build tool
 @vitejs/plugin-react@^4.3.1     # React plugin
 tailwindcss@^3.4.13             # CSS framework
+tailwindcss-animate@^1.0.7      # Animation utilities
+```
+
+### UI Component Library
+
+```
+# Core utilities
+class-variance-authority@^0.7.0  # Component variants
+clsx@^2.1.0                      # Conditional classes
+tailwind-merge@^2.2.1            # Tailwind class merging
+
+# Radix UI primitives (headless components)
+@radix-ui/react-dialog@^1.0.5
+@radix-ui/react-dropdown-menu@^2.0.6
+@radix-ui/react-tooltip@^1.0.7
+@radix-ui/react-tabs@^1.0.4
+@radix-ui/react-progress@^1.0.3
+@radix-ui/react-avatar@^1.0.4
+@radix-ui/react-separator@^1.0.3
+@radix-ui/react-scroll-area@^1.0.5
+@radix-ui/react-select@^2.0.0
+@radix-ui/react-popover@^1.0.7
+@radix-ui/react-accordion@^1.1.2
+@radix-ui/react-switch@^1.0.3
+@radix-ui/react-checkbox@^1.0.4
+@radix-ui/react-label@^2.0.2
+@radix-ui/react-slot@^1.0.2
+@radix-ui/react-slider@^1.1.2
+
+# Icons
+lucide-react@^0.344.0            # Icon library
+
+# Fonts (self-hosted variable fonts)
+@fontsource-variable/inter@^5.0.0
+@fontsource-variable/outfit@^5.0.0
+@fontsource-variable/jetbrains-mono@^5.0.0
 ```
 
 ### Charts & Visualization
