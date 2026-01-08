@@ -1,0 +1,109 @@
+/**
+ * HomeIQ Typography - Variable Font Configuration
+ * 
+ * Uses fontsource variable fonts for optimal performance and self-hosting.
+ * All fonts support variable weights (100-900).
+ */
+
+/* Inter Variable - Body text, UI elements */
+@import '@fontsource-variable/inter';
+
+/* Outfit Variable - Display text, headings */
+@import '@fontsource-variable/outfit';
+
+/* JetBrains Mono Variable - Code, metrics, monospace */
+@import '@fontsource-variable/jetbrains-mono';
+
+/* Font family CSS variables for consistent usage */
+:root {
+  /* Primary fonts */
+  --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Outfit Variable', 'Outfit', 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+
+  /* Font weight scale */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Font size scale (using clamp for fluid typography) */
+  --font-size-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --font-size-sm: clamp(0.8125rem, 0.775rem + 0.1875vw, 0.875rem);
+  --font-size-base: clamp(0.875rem, 0.85rem + 0.125vw, 1rem);
+  --font-size-lg: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --font-size-xl: clamp(1.125rem, 1.05rem + 0.375vw, 1.25rem);
+  --font-size-2xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+  --font-size-3xl: clamp(1.5rem, 1.35rem + 0.75vw, 1.875rem);
+  --font-size-4xl: clamp(1.875rem, 1.65rem + 1.125vw, 2.25rem);
+  --font-size-5xl: clamp(2.25rem, 1.95rem + 1.5vw, 3rem);
+
+  /* Line height scale */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* Letter spacing */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+}
+
+/* Apply base font settings */
+body {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+}
+
+/* Display text (headings, titles) */
+h1, h2, h3, h4, h5, h6,
+.font-display {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* Monospace (code, metrics, data) */
+code, pre, kbd, samp,
+.font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: 'kern' 0, 'liga' 1, 'calt' 1;
+}
+
+/* Utility classes for font families */
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Numeric tabular figures for metrics/dashboards */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Metric display optimization */
+.metric-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
