@@ -20,6 +20,7 @@ const TAB_COMPONENTS: Record<string, React.FC<Tabs.TabProps>> = {
   alerts: Tabs.AlertsTab,
   hygiene: Tabs.HygieneTab,
   validation: Tabs.ValidationTab,
+  synergies: Tabs.SynergiesTab,
   configuration: Tabs.ConfigurationTab,
 };
 
@@ -38,6 +39,7 @@ const TAB_CONFIG = [
   { id: 'alerts', label: '🚨 Alerts', icon: '🚨', shortLabel: 'Alerts' },
   { id: 'hygiene', label: '🧼 Device Hygiene', icon: '🧼', shortLabel: 'Hygiene' },
   { id: 'validation', label: '🔍 HA Validation', icon: '🔍', shortLabel: 'Validation' },
+  { id: 'synergies', label: '🔗 Synergies', icon: '🔗', shortLabel: 'Synergies' },
   { id: 'configuration', label: '⚙️ Configuration', icon: '⚙️', shortLabel: 'Config' },
 ];
 

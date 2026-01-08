@@ -61,6 +61,13 @@ except (ImportError, SyntaxError, IndentationError) as e:
     GNN_AVAILABLE = False
     GNNSynergyDetector = None
 
+# Phase 4: Blueprint-Aware Pattern Detection
+try:
+    from ..blueprint_opportunity import BlueprintOpportunityEngine
+    BLUEPRINT_ENGINE_AVAILABLE = True
+except ImportError:
+    BLUEPRINT_ENGINE_AVAILABLE = False
+
 
 # Compatible device relationship mappings
 COMPATIBLE_RELATIONSHIPS = {
@@ -405,6 +412,20 @@ class DeviceSynergyDetector:
                 logger.warning(f"Failed to validate synergies against patterns: {e}")
                 # Continue without pattern validation rather than failing
 
+        # Phase 4: Blueprint enrichment - boost synergies that match known blueprints
+        # This adds blueprint_id, blueprint_fit_score, and confidence boost
+        blueprint_index_url = getattr(settings, 'blueprint_index_url', None)
+        if BLUEPRINT_ENGINE_AVAILABLE and blueprint_index_url:
+            try:
+                ranked_synergies = await self._enrich_with_blueprints(
+                    ranked_synergies,
+                    entities,
+                    blueprint_index_url,
+                )
+            except Exception as e:
+                logger.warning(f"Blueprint enrichment failed: {e}")
+                # Continue without blueprint enrichment
+        
         # Filter by confidence threshold
         filtered_synergies = [
             s for s in ranked_synergies
@@ -412,6 +433,86 @@ class DeviceSynergyDetector:
         ]
         
         return filtered_synergies
+    
+    async def _enrich_with_blueprints(
+        self,
+        synergies: list[dict[str, Any]],
+        entities: list[dict[str, Any]],
+        blueprint_index_url: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Enrich synergies with blueprint metadata (Phase 4).
+        
+        For each synergy, find matching blueprints and:
+        - Add blueprint_id and blueprint_fit_score
+        - Boost confidence if a good blueprint match exists
+        - Add blueprint metadata to opportunity_metadata
+        
+        Args:
+            synergies: List of synergies to enrich
+            entities: Entity list for device inventory
+            blueprint_index_url: Blueprint Index service URL
+            
+        Returns:
+            Enriched synergies
+        """
+        if not synergies:
+            return synergies
+        
+        try:
+            engine = BlueprintOpportunityEngine(blueprint_index_url=blueprint_index_url)
+            
+            enriched_count = 0
+            for synergy in synergies:
+                # Find matching blueprints
+                matches = await engine.find_blueprints_for_synergy(
+                    synergy=synergy,
+                    limit=1,
+                )
+                
+                if matches:
+                    best_match = matches[0]
+                    synergy['blueprint_id'] = best_match.blueprint_id
+                    synergy['blueprint_fit_score'] = best_match.fit_score
+                    synergy['blueprint_name'] = best_match.name
+                    
+                    # Update opportunity_metadata
+                    opp_meta = synergy.get('opportunity_metadata', {})
+                    if isinstance(opp_meta, str):
+                        try:
+                            opp_meta = json.loads(opp_meta)
+                        except (json.JSONDecodeError, TypeError):
+                            opp_meta = {}
+                    
+                    opp_meta['blueprint'] = {
+                        'id': best_match.blueprint_id,
+                        'name': best_match.name,
+                        'fit_score': best_match.fit_score,
+                        'community_rating': best_match.community_rating,
+                    }
+                    synergy['opportunity_metadata'] = opp_meta
+                    
+                    # Boost confidence based on blueprint fit score
+                    # High fit score (>0.8) → +15% confidence
+                    # Moderate fit score (>0.6) → +10% confidence
+                    if best_match.fit_score >= 0.8:
+                        synergy['confidence'] = min(1.0, synergy.get('confidence', 0.7) + 0.15)
+                        synergy['impact_score'] = min(1.0, synergy.get('impact_score', 0.5) + 0.1)
+                    elif best_match.fit_score >= 0.6:
+                        synergy['confidence'] = min(1.0, synergy.get('confidence', 0.7) + 0.1)
+                        synergy['impact_score'] = min(1.0, synergy.get('impact_score', 0.5) + 0.05)
+                    
+                    enriched_count += 1
+                else:
+                    synergy['blueprint_id'] = None
+                    synergy['blueprint_fit_score'] = 0.0
+            
+            logger.info(f"   → Blueprint enrichment: {enriched_count}/{len(synergies)} synergies matched blueprints")
+            return synergies
+            
+        except Exception as e:
+            logger.warning(f"Blueprint enrichment error: {e}")
+            return synergies
 
     def _calculate_pattern_support(
         self,

@@ -228,6 +228,16 @@ app.include_router(synergy_router.router, tags=["synergies"])
 app.include_router(community_pattern_router.router, tags=["community-patterns"])
 app.include_router(analysis_router.router, tags=["analysis"])
 
+# Include Blueprint Opportunity Router (Phase 2 - Blueprint-First Architecture)
+try:
+    if hasattr(synergy_router, 'blueprint_router'):
+        app.include_router(synergy_router.blueprint_router, tags=["blueprint-opportunities"])
+        logger.info("✅ Included blueprint_router for Blueprint Opportunity Engine")
+    else:
+        logger.warning("⚠️ blueprint_router not found in synergy_router module")
+except Exception as e:
+    logger.warning(f"⚠️ Failed to include blueprint_router: {e}")
+
 @app.get("/")
 async def root() -> dict[str, str]:
     """

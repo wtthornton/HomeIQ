@@ -1,9 +1,9 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** January 2025 (Epic AI-24: Device Mapping Library Architecture)  
-**API Version:** v4.8  
+**Last Updated:** January 2026 (Blueprint-First Architecture)  
+**API Version:** v4.9  
 **Status:** ✅ Production Ready  
-**Recent Updates:** Epic AI-24 Device Mapping Library (January 2025), Device mapping API endpoints, Plugin-based device handlers, Epic AI-6 Blueprint-Enhanced Suggestion Intelligence (December 2025), Preference API endpoints, Blueprint opportunity discovery, Pattern validation, Preference-aware ranking, Home Type Categorization System (ML-based classification, November 2025), Device Database enhancements (health monitoring, classification, setup assistant, recommendations), device-specific automation templates, HA API-only capability discovery
+**Recent Updates:** Blueprint-First Architecture (January 2026) - Blueprint Index Service, Blueprint Opportunity Engine, Blueprint Deployer, Blueprint-enriched synergies; Epic AI-24 Device Mapping Library (January 2025), Device mapping API endpoints, Plugin-based device handlers, Epic AI-6 Blueprint-Enhanced Suggestion Intelligence (December 2025), Preference API endpoints, Pattern validation, Preference-aware ranking
 
 > **📌 This is the SINGLE SOURCE OF TRUTH for all HA Ingestor API documentation.**  
 > **Supersedes:** API_DOCUMENTATION.md, API_COMPREHENSIVE_REFERENCE.md, API_ENDPOINTS_REFERENCE.md
@@ -21,9 +21,11 @@
 7. [AI Automation Services](#ai-automation-services-epic-39-modularization) (Ports 8016-8018, 8021)
 8. [HA AI Agent Service](#ha-ai-agent-service) (Port 8030)
 9. [Device Intelligence Service](#device-intelligence-service) (Port 8028)
-10. [Statistics API](#statistics-api)
-11. [Error Handling](#error-handling)
-12. [Integration Examples](#integration-examples)
+10. [Blueprint Index Service](#blueprint-index-service) (Port 8031) - NEW
+11. [AI Pattern Service](#ai-pattern-service) (Port 8020) - Blueprint Opportunities
+12. [Statistics API](#statistics-api)
+13. [Error Handling](#error-handling)
+14. [Integration Examples](#integration-examples)
 
 ---
 
@@ -48,6 +50,8 @@ The HA Ingestor is an **API-first platform** designed for Home Automation data m
 | **Admin API** | 8003 | `http://localhost:8003` | System monitoring, Docker management |
 | **Data API** | 8006 | `http://localhost:8006` | Feature data (events, devices, sports, analytics) |
 | **AI Automation** | 8024 | `http://localhost:8024` | Automation suggestions & conversational AI |
+| **AI Pattern Service** | 8020/8034 | `http://localhost:8034` | Pattern detection, synergy analysis, blueprint opportunities |
+| **Blueprint Index** | 8031 | `http://localhost:8031` | Blueprint indexing and search (NEW) |
 | **HA AI Agent** | 8030 | `http://localhost:8030` | Tier 1 Context Injection for Home Assistant AI Agent [Epic AI-19] |
 | **Dashboard** | 3000 | `http://localhost:3000` | Frontend (nginx proxy to APIs) |
 | **AI Automation UI** | 3001 | `http://localhost:3001` | Conversational automation UI |
@@ -1938,6 +1942,373 @@ Get enriched context for a device.
 
 ---
 
+## Blueprint Index Service
+
+**Base URL:** `http://localhost:8031`  
+**Purpose:** Index and search community Home Assistant blueprints  
+**Status:** ✅ Production (January 2026)
+
+### Overview
+
+The Blueprint Index Service crawls GitHub and Discourse to build a searchable index of 5,000+ community blueprints. It enables:
+- Blueprint opportunity discovery based on user device inventory
+- Pattern matching to community-validated blueprints
+- Blueprint deployment via Home Assistant API
+
+### Health Check
+
+#### GET /health
+
+Service health check.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "blueprint-index",
+  "indexed_blueprints": 5234,
+  "last_update": "2026-01-07T03:00:00Z"
+}
+```
+
+### Search Endpoints
+
+#### GET /api/blueprints/search
+
+Search blueprints by criteria.
+
+**Query Parameters:**
+- `query` (optional): Full-text search query
+- `domains` (optional): Comma-separated required domains (e.g., "binary_sensor,light")
+- `device_classes` (optional): Comma-separated required device classes (e.g., "motion")
+- `use_case` (optional): Use case filter (energy, comfort, security, convenience)
+- `min_quality_score` (optional, default: 0): Minimum quality score (0.0-1.0)
+- `limit` (optional, default: 20): Maximum results
+
+**Response:**
+```json
+{
+  "blueprints": [
+    {
+      "id": "homeassistant/motion_light",
+      "name": "Motion-activated Light",
+      "description": "Turn on a light when motion is detected",
+      "source_url": "https://github.com/home-assistant/core/tree/dev/homeassistant/components/automation/blueprints",
+      "required_domains": ["binary_sensor", "light"],
+      "required_device_classes": ["motion"],
+      "use_case": "convenience",
+      "quality_score": 0.95,
+      "community_rating": 0.92,
+      "stars": 245,
+      "downloads": 12000
+    }
+  ],
+  "count": 1,
+  "total_available": 5234
+}
+```
+
+#### GET /api/blueprints/{blueprint_id}
+
+Get detailed blueprint information.
+
+**Response:**
+```json
+{
+  "id": "homeassistant/motion_light",
+  "name": "Motion-activated Light",
+  "description": "Turn on a light when motion is detected and turn it off after a delay",
+  "source_url": "https://github.com/home-assistant/core/...",
+  "required_domains": ["binary_sensor", "light"],
+  "required_device_classes": ["motion"],
+  "inputs": {
+    "motion_entity": {
+      "name": "Motion Sensor",
+      "selector": {"entity": {"domain": "binary_sensor", "device_class": "motion"}}
+    },
+    "light_entity": {
+      "name": "Light",
+      "selector": {"entity": {"domain": "light"}}
+    },
+    "no_motion_wait": {
+      "name": "Wait time",
+      "default": 120,
+      "selector": {"number": {"min": 0, "max": 3600, "unit_of_measurement": "seconds"}}
+    }
+  },
+  "yaml_content": "blueprint:\n  name: Motion-activated Light\n  ...",
+  "use_case": "convenience",
+  "quality_score": 0.95,
+  "community_rating": 0.92,
+  "stars": 245,
+  "downloads": 12000,
+  "author": "home-assistant",
+  "ha_min_version": "2021.3.0"
+}
+```
+
+#### GET /api/blueprints/by-pattern
+
+Find blueprints matching a trigger-action pattern.
+
+**Query Parameters:**
+- `trigger_domain` (required): Trigger domain (e.g., "binary_sensor")
+- `action_domain` (required): Action domain (e.g., "light")
+- `trigger_device_class` (optional): Trigger device class (e.g., "motion")
+- `limit` (optional, default: 10): Maximum results
+
+**Response:**
+```json
+{
+  "blueprints": [...],
+  "count": 5
+}
+```
+
+### Indexing Endpoints
+
+#### POST /api/blueprints/index/refresh
+
+Trigger re-indexing of blueprints.
+
+**Request:**
+```json
+{
+  "job_type": "full"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "started",
+  "job_id": "index-20260107-1200",
+  "estimated_duration_minutes": 30
+}
+```
+
+#### GET /api/blueprints/status
+
+Get indexing status.
+
+**Response:**
+```json
+{
+  "total_blueprints": 5234,
+  "by_source": {
+    "github": 4500,
+    "discourse": 734
+  },
+  "last_update": "2026-01-07T03:00:00Z",
+  "next_scheduled_update": "2026-01-08T03:00:00Z"
+}
+```
+
+---
+
+## AI Pattern Service
+
+**Base URL:** `http://localhost:8020` (internal) / `http://localhost:8034` (external)  
+**Purpose:** Pattern detection, synergy analysis, and blueprint opportunity discovery  
+**Status:** ✅ Production (January 2026 - v1.3.0)
+
+### Blueprint Opportunity Endpoints (NEW January 2026)
+
+The Blueprint Opportunity Engine proactively discovers blueprint opportunities based on user device inventory.
+
+#### GET /api/v1/blueprint-opportunities
+
+List blueprint opportunities matching user devices.
+
+**Query Parameters:**
+- `min_fit_score` (optional, default: 0.5): Minimum fit score (0.0-1.0)
+- `domain` (optional): Filter by blueprint domain
+- `limit` (optional, default: 20): Maximum results
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "opportunities": [
+      {
+        "blueprint_id": "homeassistant/motion_light",
+        "blueprint_name": "Motion-activated Light",
+        "description": "Turn on a light when motion is detected",
+        "fit_score": 0.92,
+        "required_domains": ["binary_sensor", "light"],
+        "required_device_classes": ["motion"],
+        "matched_devices": [
+          {
+            "input_name": "motion_sensor",
+            "required_domain": "binary_sensor",
+            "required_device_class": "motion",
+            "suggested_entity": "binary_sensor.kitchen_motion",
+            "confidence": 0.95,
+            "alternatives": ["binary_sensor.hallway_motion"]
+          },
+          {
+            "input_name": "light_entity",
+            "required_domain": "light",
+            "suggested_entity": "light.kitchen_main",
+            "confidence": 0.90,
+            "alternatives": ["light.kitchen_ceiling"]
+          }
+        ],
+        "community_stats": {
+          "stars": 245,
+          "downloads": 12000,
+          "rating": 0.94
+        }
+      }
+    ],
+    "count": 15
+  }
+}
+```
+
+#### POST /api/v1/blueprint-opportunities/discover
+
+Discover blueprint opportunities for a custom device inventory.
+
+**Request:**
+```json
+{
+  "devices": [
+    {
+      "entity_id": "binary_sensor.kitchen_motion",
+      "domain": "binary_sensor",
+      "device_class": "motion",
+      "area_id": "kitchen"
+    },
+    {
+      "entity_id": "light.kitchen_main",
+      "domain": "light",
+      "area_id": "kitchen"
+    }
+  ]
+}
+```
+
+**Response:** Same as GET endpoint
+
+#### GET /api/v1/blueprint-opportunities/{blueprint_id}
+
+Get detailed blueprint opportunity by ID.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "blueprint_id": "homeassistant/motion_light",
+    "blueprint_name": "Motion-activated Light",
+    "fit_score": 0.92,
+    "matched_devices": [...],
+    "blueprint_details": {
+      "inputs": {...},
+      "yaml_content": "...",
+      "author": "home-assistant",
+      "ha_min_version": "2021.3.0"
+    }
+  }
+}
+```
+
+#### POST /api/v1/blueprint-opportunities/{blueprint_id}/preview
+
+Preview a blueprint deployment with auto-filled inputs.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "blueprint_id": "homeassistant/motion_light",
+    "preview_yaml": "alias: Kitchen Motion Light\nuse_blueprint:\n  path: homeassistant/motion_light\n  input:\n    motion_entity: binary_sensor.kitchen_motion\n    light_entity: light.kitchen_main\n    no_motion_wait: 120",
+    "autofilled_inputs": {
+      "motion_entity": "binary_sensor.kitchen_motion",
+      "light_entity": "light.kitchen_main",
+      "no_motion_wait": 120
+    },
+    "missing_inputs": [],
+    "warnings": []
+  }
+}
+```
+
+#### POST /api/v1/blueprint-opportunities/{blueprint_id}/deploy
+
+Deploy a blueprint as a Home Assistant automation.
+
+**Request:**
+```json
+{
+  "inputs": {
+    "motion_entity": "binary_sensor.kitchen_motion",
+    "light_entity": "light.kitchen_main",
+    "no_motion_wait": 180
+  },
+  "automation_alias": "Kitchen Motion Light"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "automation_id": "automation.kitchen_motion_light",
+    "deployed_at": "2026-01-07T12:00:00Z",
+    "blueprint_id": "homeassistant/motion_light"
+  }
+}
+```
+
+### Enhanced Synergy Endpoints
+
+Synergies are now enriched with blueprint metadata.
+
+#### GET /api/v1/synergies/list
+
+List synergies with blueprint enrichment.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "synergies": [
+      {
+        "id": 1,
+        "synergy_id": "device_pair_abc123",
+        "synergy_type": "device_pair",
+        "devices": ["binary_sensor.kitchen_motion", "light.kitchen_main"],
+        "impact_score": 0.85,
+        "confidence": 0.92,
+        "blueprint_id": "homeassistant/motion_light",
+        "blueprint_name": "Motion-activated Light",
+        "blueprint_fit_score": 0.92,
+        "has_blueprint_match": true,
+        "explanation": {...},
+        "context_breakdown": {...}
+      }
+    ],
+    "count": 48
+  }
+}
+```
+
+**Blueprint Fields:**
+- `blueprint_id`: Matched blueprint ID (null if no match)
+- `blueprint_name`: Matched blueprint name
+- `blueprint_fit_score`: Fit score (0.0-1.0)
+- `has_blueprint_match`: Boolean indicating if a blueprint matches
+
+**See:** `services/ai-pattern-service/README.md` for complete API documentation
+
+---
+
 ## Statistics API
 
 **Base URL:** `http://localhost:8003`
@@ -2173,8 +2544,8 @@ setInterval(updateDashboard, 5000);
 
 ---
 
-**Document Version:** 4.7  
-**Last Updated:** December 2025 (Epic AI-6: Blueprint-Enhanced Suggestion Intelligence)  
+**Document Version:** 4.9  
+**Last Updated:** January 2026 (Blueprint-First Architecture)  
 **Status:** ✅ Production Ready  
 **Maintained By:** HA Ingestor Team
 

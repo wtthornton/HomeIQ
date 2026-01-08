@@ -24,6 +24,14 @@ from ..services.automation_generator import AutomationGenerator
 from ..services.automation_tracker import AutomationTracker
 from ..config import settings
 
+# Blueprint Opportunity Engine imports (Phase 2)
+try:
+    from ..blueprint_opportunity.opportunity_engine import BlueprintOpportunityEngine
+    from ..blueprint_opportunity.schemas import BlueprintOpportunityResponse, DeviceInventory
+    BLUEPRINT_ENGINE_AVAILABLE = True
+except ImportError:
+    BLUEPRINT_ENGINE_AVAILABLE = False
+
 # 2025 Enhancement: XAI for explanations
 try:
     from ..synergy_detection.explainable_synergy import ExplainableSynergyGenerator
@@ -294,6 +302,9 @@ async def list_synergies(
                     except Exception as e:
                         logger.warning(f"Failed to generate explanation for synergy {synergy_dict.get('synergy_id')}: {e}")
                 
+                # Phase 4: Extract blueprint metadata from opportunity_metadata
+                blueprint_info = metadata.get('blueprint', {}) if metadata else {}
+                
                 synergies_list.append({
                     "id": synergy_dict.get("id"),
                     "synergy_id": synergy_dict.get("synergy_id"),
@@ -308,6 +319,11 @@ async def list_synergies(
                     "synergy_depth": synergy_dict.get("synergy_depth", 2),
                     "explanation": explanation,  # 2025 Enhancement: XAI explanation
                     "context_breakdown": context_breakdown,  # 2025 Enhancement: Multi-modal context
+                    # Phase 4: Blueprint metadata
+                    "blueprint_id": synergy_dict.get("blueprint_id") or blueprint_info.get('id'),
+                    "blueprint_name": synergy_dict.get("blueprint_name") or blueprint_info.get('name'),
+                    "blueprint_fit_score": synergy_dict.get("blueprint_fit_score") or blueprint_info.get('fit_score'),
+                    "has_blueprint_match": bool(synergy_dict.get("blueprint_id") or blueprint_info.get('id')),
                     "created_at": synergy_dict.get("created_at"),
                     "updated_at": synergy_dict.get("updated_at")
                 })
@@ -372,6 +388,9 @@ async def list_synergies(
                     except Exception as e:
                         logger.warning(f"Failed to generate explanation for synergy {s.synergy_id}: {e}")
                 
+                # Phase 4: Extract blueprint metadata from opportunity_metadata
+                blueprint_info = metadata.get('blueprint', {}) if metadata else {}
+                
                 synergies_list.append({
                     "id": s.id,
                     "synergy_id": s.synergy_id,
@@ -386,6 +405,11 @@ async def list_synergies(
                     "synergy_depth": getattr(s, 'synergy_depth', 2),
                     "explanation": explanation,  # 2025 Enhancement: XAI explanation
                     "context_breakdown": context_breakdown,  # 2025 Enhancement: Multi-modal context
+                    # Phase 4: Blueprint metadata
+                    "blueprint_id": getattr(s, 'blueprint_id', None) or blueprint_info.get('id'),
+                    "blueprint_name": getattr(s, 'blueprint_name', None) or blueprint_info.get('name'),
+                    "blueprint_fit_score": getattr(s, 'blueprint_fit_score', None) or blueprint_info.get('fit_score'),
+                    "has_blueprint_match": bool(getattr(s, 'blueprint_id', None) or blueprint_info.get('id')),
                     "created_at": s.created_at.isoformat() if s.created_at else None,
                     "updated_at": s.updated_at.isoformat() if hasattr(s, 'updated_at') and s.updated_at else None
                 })
@@ -1048,6 +1072,422 @@ async def get_automation_execution_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get execution stats: {str(e)}"
+        ) from e
+
+
+# =============================================================================
+# BLUEPRINT OPPORTUNITY ENDPOINTS (Phase 2 - Blueprint-First Architecture)
+# =============================================================================
+
+# Create a dedicated router for blueprint opportunities
+blueprint_router = APIRouter(prefix="/api/v1/blueprint-opportunities", tags=["blueprint-opportunities"])
+
+
+class BlueprintOpportunityRequest(BaseModel):
+    """Request model for discovering blueprint opportunities."""
+    device_inventory: list[dict[str, Any]] | None = None
+    limit: int = 20
+    min_fit_score: float = 0.5
+    include_partial_matches: bool = True
+
+
+class BlueprintDeployRequest(BaseModel):
+    """Request model for deploying a blueprint."""
+    blueprint_id: str
+    input_values: dict[str, Any] | None = None
+    automation_name: str | None = None
+    description: str | None = None
+
+
+@blueprint_router.get("/")
+async def list_blueprint_opportunities(
+    limit: int = Query(default=20, ge=1, le=100, description="Maximum opportunities to return"),
+    min_fit_score: float = Query(default=0.5, ge=0.0, le=1.0, description="Minimum fit score threshold"),
+    domain: str | None = Query(default=None, description="Filter by domain (e.g., 'light', 'climate')"),
+    use_case: str | None = Query(default=None, description="Filter by use case (e.g., 'motion', 'presence')"),
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Discover blueprint opportunities based on device inventory.
+    
+    This endpoint implements Phase 2 of the Blueprint-First Architecture.
+    It analyzes the user's Home Assistant device inventory and recommends
+    blueprints that can be deployed with their existing devices.
+    
+    Args:
+        limit: Maximum number of opportunities to return
+        min_fit_score: Minimum fit score threshold (0.0-1.0)
+        domain: Optional filter by domain
+        use_case: Optional filter by use case
+        db: Database session dependency
+        
+    Returns:
+        dict: Blueprint opportunities with fit scores and auto-fill suggestions
+        
+    Raises:
+        HTTPException: If blueprint engine unavailable (503) or query fails (500)
+    """
+    if not BLUEPRINT_ENGINE_AVAILABLE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Blueprint Opportunity Engine not available. Check module installation."
+        )
+    
+    try:
+        # Initialize blueprint opportunity engine
+        engine = BlueprintOpportunityEngine(
+            blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
+        )
+        
+        # Fetch device inventory from Home Assistant via data-api
+        device_inventory = []
+        try:
+            async with DataAPIClient(base_url=settings.data_api_url) as data_client:
+                # Fetch devices from data-api (which caches HA device registry)
+                devices_response = await data_client.get("/api/devices")
+                if devices_response and "data" in devices_response:
+                    device_inventory = devices_response["data"]
+                    logger.info(f"Fetched {len(device_inventory)} devices from data-api")
+        except Exception as e:
+            logger.warning(f"Failed to fetch device inventory from data-api: {e}")
+            # Continue with empty inventory - will return fewer matches
+        
+        # Discover blueprint opportunities
+        opportunities = await engine.discover_opportunities(
+            device_inventory=device_inventory,
+            limit=limit,
+            min_fit_score=min_fit_score,
+            domain_filter=domain,
+            use_case_filter=use_case
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "opportunities": [opp.model_dump() for opp in opportunities],
+                "count": len(opportunities),
+                "device_count": len(device_inventory)
+            },
+            "message": f"Found {len(opportunities)} blueprint opportunities"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to discover blueprint opportunities: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to discover blueprint opportunities: {str(e)}"
+        ) from e
+
+
+@blueprint_router.post("/discover")
+async def discover_blueprint_opportunities(
+    request: BlueprintOpportunityRequest,
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Discover blueprint opportunities with custom device inventory.
+    
+    This endpoint allows passing a custom device inventory for opportunity discovery.
+    Useful for testing or when the device inventory differs from the live HA instance.
+    
+    Args:
+        request: Request with device_inventory, limit, min_fit_score, include_partial_matches
+        db: Database session dependency
+        
+    Returns:
+        dict: Blueprint opportunities with fit scores and auto-fill suggestions
+        
+    Raises:
+        HTTPException: If blueprint engine unavailable (503) or query fails (500)
+    """
+    if not BLUEPRINT_ENGINE_AVAILABLE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Blueprint Opportunity Engine not available. Check module installation."
+        )
+    
+    try:
+        # Initialize blueprint opportunity engine
+        engine = BlueprintOpportunityEngine(
+            blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
+        )
+        
+        # Use provided inventory or fetch from data-api
+        device_inventory = request.device_inventory
+        if device_inventory is None:
+            try:
+                async with DataAPIClient(base_url=settings.data_api_url) as data_client:
+                    devices_response = await data_client.get("/api/devices")
+                    if devices_response and "data" in devices_response:
+                        device_inventory = devices_response["data"]
+            except Exception as e:
+                logger.warning(f"Failed to fetch device inventory: {e}")
+                device_inventory = []
+        
+        # Discover opportunities
+        opportunities = await engine.discover_opportunities(
+            device_inventory=device_inventory,
+            limit=request.limit,
+            min_fit_score=request.min_fit_score,
+            include_partial_matches=request.include_partial_matches
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "opportunities": [opp.model_dump() for opp in opportunities],
+                "count": len(opportunities),
+                "device_count": len(device_inventory) if device_inventory else 0
+            },
+            "message": f"Discovered {len(opportunities)} blueprint opportunities"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to discover blueprint opportunities: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to discover blueprint opportunities: {str(e)}"
+        ) from e
+
+
+@blueprint_router.get("/{blueprint_id}")
+async def get_blueprint_opportunity_details(
+    blueprint_id: str,
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Get detailed information about a specific blueprint opportunity.
+    
+    This includes the full blueprint definition, input requirements,
+    device compatibility analysis, and auto-fill suggestions.
+    
+    Args:
+        blueprint_id: Unique blueprint identifier
+        db: Database session dependency
+        
+    Returns:
+        dict: Blueprint details with compatibility analysis
+        
+    Raises:
+        HTTPException: If blueprint not found (404) or query fails (500)
+    """
+    if not BLUEPRINT_ENGINE_AVAILABLE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Blueprint Opportunity Engine not available."
+        )
+    
+    try:
+        engine = BlueprintOpportunityEngine(
+            blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
+        )
+        
+        # Fetch device inventory
+        device_inventory = []
+        try:
+            async with DataAPIClient(base_url=settings.data_api_url) as data_client:
+                devices_response = await data_client.get("/api/devices")
+                if devices_response and "data" in devices_response:
+                    device_inventory = devices_response["data"]
+        except Exception as e:
+            logger.warning(f"Failed to fetch device inventory: {e}")
+        
+        # Get blueprint details with opportunity analysis
+        opportunity = await engine.get_blueprint_opportunity(
+            blueprint_id=blueprint_id,
+            device_inventory=device_inventory
+        )
+        
+        if not opportunity:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Blueprint not found: {blueprint_id}"
+            )
+        
+        return {
+            "success": True,
+            "data": opportunity.model_dump(),
+            "message": f"Blueprint opportunity details retrieved for {blueprint_id}"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get blueprint opportunity details: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get blueprint opportunity details: {str(e)}"
+        ) from e
+
+
+@blueprint_router.post("/{blueprint_id}/preview")
+async def preview_blueprint_deployment(
+    blueprint_id: str,
+    request: BlueprintDeployRequest,
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Preview what a blueprint deployment would look like.
+    
+    This generates a preview of the automation that would be created
+    without actually deploying it to Home Assistant.
+    
+    Args:
+        blueprint_id: Blueprint to preview
+        request: Deployment configuration with input values
+        db: Database session dependency
+        
+    Returns:
+        dict: Preview of the automation YAML and configuration
+        
+    Raises:
+        HTTPException: If blueprint not found (404) or preview fails (500)
+    """
+    if not BLUEPRINT_ENGINE_AVAILABLE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Blueprint Opportunity Engine not available."
+        )
+    
+    try:
+        engine = BlueprintOpportunityEngine(
+            blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
+        )
+        
+        # Fetch device inventory for auto-fill
+        device_inventory = []
+        try:
+            async with DataAPIClient(base_url=settings.data_api_url) as data_client:
+                devices_response = await data_client.get("/api/devices")
+                if devices_response and "data" in devices_response:
+                    device_inventory = devices_response["data"]
+        except Exception as e:
+            logger.warning(f"Failed to fetch device inventory: {e}")
+        
+        # Generate deployment preview
+        preview = await engine.preview_deployment(
+            blueprint_id=blueprint_id,
+            input_values=request.input_values or {},
+            automation_name=request.automation_name,
+            description=request.description,
+            device_inventory=device_inventory
+        )
+        
+        if not preview:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Blueprint not found: {blueprint_id}"
+            )
+        
+        return {
+            "success": True,
+            "data": preview,
+            "message": f"Deployment preview generated for blueprint {blueprint_id}"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to generate deployment preview: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate deployment preview: {str(e)}"
+        ) from e
+
+
+@blueprint_router.get("/synergy/{synergy_id}/matches")
+async def get_blueprint_matches_for_synergy(
+    synergy_id: str,
+    limit: int = Query(default=5, ge=1, le=20, description="Maximum blueprints to return"),
+    db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Find blueprints that match a detected synergy pattern.
+    
+    This endpoint bridges synergy detection with blueprint deployment by
+    finding blueprints that can implement detected synergy patterns.
+    
+    Args:
+        synergy_id: Synergy ID to find blueprint matches for
+        limit: Maximum number of matching blueprints to return
+        db: Database session dependency
+        
+    Returns:
+        dict: Matching blueprints ranked by fit score
+        
+    Raises:
+        HTTPException: If synergy not found (404) or query fails (500)
+    """
+    if not BLUEPRINT_ENGINE_AVAILABLE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Blueprint Opportunity Engine not available."
+        )
+    
+    try:
+        # Fetch synergy details
+        synergies = await get_synergy_opportunities(db, limit=10000)
+        synergy_data = None
+        for s in synergies:
+            if isinstance(s, dict):
+                if s.get("synergy_id") == synergy_id:
+                    synergy_data = s.copy()
+                    # Parse opportunity_metadata if string
+                    opp_meta = synergy_data.get("opportunity_metadata")
+                    if isinstance(opp_meta, str):
+                        try:
+                            synergy_data["opportunity_metadata"] = json.loads(opp_meta)
+                        except (json.JSONDecodeError, TypeError):
+                            synergy_data["opportunity_metadata"] = {}
+                    break
+            else:
+                if s.synergy_id == synergy_id:
+                    synergy_data = {
+                        "synergy_id": s.synergy_id,
+                        "synergy_type": s.synergy_type,
+                        "device_ids": s.device_ids,
+                        "area": s.area,
+                        "opportunity_metadata": json.loads(s.opportunity_metadata) if isinstance(s.opportunity_metadata, str) else s.opportunity_metadata or {}
+                    }
+                    break
+        
+        if not synergy_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Synergy not found: {synergy_id}"
+            )
+        
+        engine = BlueprintOpportunityEngine(
+            blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
+        )
+        
+        # Find blueprint matches for the synergy pattern
+        matches = await engine.find_blueprints_for_synergy(
+            synergy=synergy_data,
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "synergy_id": synergy_id,
+                "matches": [match.model_dump() for match in matches],
+                "count": len(matches)
+            },
+            "message": f"Found {len(matches)} blueprint matches for synergy {synergy_id}"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to find blueprint matches for synergy: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to find blueprint matches: {str(e)}"
         ) from e
 
 

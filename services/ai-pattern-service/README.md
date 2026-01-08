@@ -24,6 +24,9 @@ The AI Pattern Service is a microservice extracted from ai-automation-service (E
 - **MQTT Notifications** - Optional notifications for pattern detection events
 - **Incremental Updates** - Enable/disable incremental pattern analysis
 - **Observability** - OpenTelemetry tracing, correlation middleware, structured logging
+- **Blueprint Opportunity Engine** (January 2026) - Proactive blueprint recommendations based on device inventory
+- **Blueprint-Driven Deployment** (January 2026) - Prioritize community blueprints for automation creation
+- **Blueprint-Enriched Synergies** (January 2026) - Synergies are enriched with matching blueprint metadata
 
 ### 2025 Enhancements (Epic 39, Story 39.8)
 
@@ -34,6 +37,31 @@ The AI Pattern Service is a microservice extracted from ai-automation-service (E
 - **Graph Neural Network (GNN) Integration** - Optional GNN models for advanced relationship learning (framework ready)
 - **Enhanced API Endpoints** - Synergy router with XAI explanations and RL feedback endpoints
 - **Community Pattern Router** - API endpoints for community pattern sharing and discovery
+
+### 2026 Enhancements - Blueprint-First Architecture
+
+The Blueprint-First Architecture (January 2026) shifts HomeIQ from using blueprints for validation to proactively recommending and deploying community blueprints.
+
+**New Modules:**
+- `src/blueprint_opportunity/` - Blueprint Opportunity Engine
+  - `device_matcher.py` - Fit score calculation for blueprints against user devices
+  - `input_autofill.py` - Automatic entity ID suggestions for blueprint inputs
+  - `opportunity_engine.py` - Main orchestrator for blueprint discovery
+- `src/blueprint_deployment/` - Blueprint Deployer
+  - `deployer.py` - Deploys blueprints as Home Assistant automations
+
+**Key Features:**
+- **Blueprint Opportunity Discovery** - Searches indexed blueprints matching user's device inventory
+- **Fit Score Calculation** - Ranks blueprints by domain match, device class match, area bonus, and community rating
+- **Input Autofill** - Automatically suggests entity IDs for blueprint inputs
+- **Blueprint-Driven Deployment** - Prioritizes blueprint deployment over raw YAML generation
+- **Synergy Enrichment** - Detected synergies are enriched with matching blueprint metadata
+- **Confidence Boost** - Synergies with high-fit blueprint matches receive confidence and impact score boosts
+
+**Integration with Blueprint Index Service (Port 8031):**
+- The Blueprint Opportunity Engine queries the Blueprint Index Service for matching blueprints
+- See `services/blueprint-index/README.md` for the Blueprint Index Service documentation
+- See `docs/architecture/BLUEPRINT_ARCHITECTURE.md` for complete architecture details
 
 ## API Endpoints
 
@@ -241,6 +269,94 @@ GET /api/v1/community/patterns/{pattern_id}/ratings
 ```
 Get ratings and comments for a community pattern.
 
+### Blueprint Opportunity Endpoints (2026 New)
+
+```bash
+GET /api/v1/blueprint-opportunities
+```
+List blueprint opportunities matching user's device inventory.
+
+**Query Parameters:**
+- `min_fit_score` (float, 0-1) - Minimum fit score threshold (default: 0.5)
+- `domain` (string) - Filter by blueprint domain (e.g., "light", "climate")
+- `limit` (int) - Maximum number of results (default: 20)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "opportunities": [
+      {
+        "blueprint_id": "homeassistant/motion_light",
+        "blueprint_name": "Motion-activated Light",
+        "description": "Turn on a light when motion is detected",
+        "fit_score": 0.92,
+        "required_domains": ["binary_sensor", "light"],
+        "required_device_classes": ["motion"],
+        "matched_devices": [
+          {
+            "input_name": "motion_sensor",
+            "suggested_entity": "binary_sensor.kitchen_motion",
+            "confidence": 0.95
+          }
+        ],
+        "community_stats": {
+          "stars": 245,
+          "downloads": 12000,
+          "rating": 0.94
+        }
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+```bash
+POST /api/v1/blueprint-opportunities/discover
+```
+Discover blueprint opportunities for a custom device inventory.
+
+**Request Body:**
+```json
+{
+  "devices": [
+    {
+      "entity_id": "binary_sensor.kitchen_motion",
+      "domain": "binary_sensor",
+      "device_class": "motion",
+      "area_id": "kitchen"
+    }
+  ]
+}
+```
+
+```bash
+GET /api/v1/blueprint-opportunities/{blueprint_id}
+```
+Get detailed blueprint opportunity by ID.
+
+```bash
+POST /api/v1/blueprint-opportunities/{blueprint_id}/preview
+```
+Preview a blueprint deployment with auto-filled inputs.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "blueprint_id": "homeassistant/motion_light",
+    "preview_yaml": "alias: Kitchen Motion Light\nuse_blueprint:\n  path: homeassistant/motion_light\n  input:\n    motion_entity: binary_sensor.kitchen_motion\n    light_entity: light.kitchen_main",
+    "autofilled_inputs": {
+      "motion_entity": "binary_sensor.kitchen_motion",
+      "light_entity": "light.kitchen_main"
+    }
+  }
+}
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -252,6 +368,7 @@ Get ratings and comments for a community pattern.
 | `DATABASE_POOL_SIZE` | `10` | Database connection pool size (max 20 per service) |
 | `DATABASE_MAX_OVERFLOW` | `5` | Max overflow connections |
 | `DATA_API_URL` | `http://data-api:8006` | Data API service URL |
+| `BLUEPRINT_INDEX_URL` | `http://blueprint-index:8031` | Blueprint Index service URL |
 | `SERVICE_PORT` | `8020` | Internal service port |
 | `SERVICE_NAME` | `ai-pattern-service` | Service name for logging/tracing |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
@@ -333,6 +450,7 @@ curl http://localhost:8034/
 ### Service Dependencies
 
 - **data-api** (Port 8006) - Historical data queries, device/entity metadata
+- **blueprint-index** (Port 8031) - Blueprint indexing and search service
 - **SQLite Database** - Shared ai_automation.db for pattern storage
 - **MQTT Broker** (Optional) - Pattern detection notifications (typically Home Assistant's MQTT at 192.168.1.86:1883)
 
@@ -494,6 +612,21 @@ All logs follow structured logging format with correlation IDs:
 
 ## Version History
 
+- **v1.3.0** (January 2026) - Blueprint-First Architecture
+  - **Blueprint Opportunity Engine** - Proactive blueprint recommendations
+    - Device matcher with fit score calculation
+    - Input autofill for blueprint inputs
+    - Blueprint opportunity discovery API endpoints
+  - **Blueprint Deployer** - Blueprint-driven automation deployment
+    - HA Blueprint API integration
+    - YAML fallback for unmatched patterns
+  - **Blueprint-Enriched Synergies** - Synergy detection now enriches with blueprint metadata
+    - `blueprint_id`, `blueprint_name`, `blueprint_fit_score` in synergy responses
+    - Confidence boost for high-fit blueprint matches
+  - **Integration with Blueprint Index Service** (Port 8031)
+  - New API endpoints: `/api/v1/blueprint-opportunities/*`
+  - See `docs/architecture/BLUEPRINT_ARCHITECTURE.md` for complete architecture
+
 - **v1.2.0** (January 2026) - Module Refactoring
   - Refactored `synergy_detector.py` into focused modules:
     - `chain_detection.py` - Chain detection (3-device, 4-device)
@@ -524,6 +657,6 @@ All logs follow structured logging format with correlation IDs:
 ---
 
 **Last Updated:** January 7, 2026
-**Version:** 1.2.0
+**Version:** 1.3.0
 **Status:** Production Ready ✅
 **Port:** 8020 (internal) / 8034 (external)
