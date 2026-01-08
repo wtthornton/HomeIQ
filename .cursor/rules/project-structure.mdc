@@ -3,55 +3,42 @@ alwaysApply: true
 description: Project structure and file organization guidelines
 ---
 
-# BMAD Project Structure Guide
+# HomeIQ Project Structure Guide
 
-This project follows the BMAD (Business Model and Architecture Design) methodology with a structured approach to documentation and development.
+This project uses **TappsCodingAgents** for AI-assisted development with structured documentation and quality enforcement.
 
 ## Core Structure
 
-- **`.bmad-core/`** - Contains all BMAD methodology files, agents, templates, and workflows
-- **`.cursor/rules/`** - Contains Cursor IDE rules for AI agent personas
-- **`docs/`** - Project documentation (PRD, architecture, stories, QA results)
+- **`.cursor/rules/`** - Cursor IDE rules for AI agent guidance
+- **`.tapps-agents/`** - TappsCodingAgents configuration and cache
+- **`docs/`** - Project documentation (architecture, PRD, stories)
+- **`services/`** - Microservices (30+ services)
+- **`implementation/`** - Implementation notes and status reports
 
-## Key Files and Locations
+## Key Directories
 
-- **Core Configuration**: [.bmad-core/core-config.yaml](mdc:.bmad-core/core-config.yaml)
-- **User Guide**: [.bmad-core/user-guide.md](mdc:.bmad-core/user-guide.md)
-- **Working in Brownfield**: [.bmad-core/working-in-the-brownfield.md](mdc:.bmad-core/working-in-the-brownfield.md)
+### Services (`services/`)
+Each microservice follows this structure:
+```
+services/{service-name}/
+├── src/
+│   └── main.py          # Service entry point
+├── tests/               # Service tests
+├── Dockerfile           # Container definition
+├── requirements.txt     # Python dependencies
+└── README.md            # Service documentation
+```
 
-## Document Structure
+### Documentation (`docs/`)
+- **`docs/architecture/`** - System architecture documentation
+- **`docs/prd/`** - Product requirements and epics
+- **`docs/stories/`** - User stories
+- **`docs/workflows/`** - Workflow documentation (Simple Mode outputs)
 
-- **PRD**: `docs/prd.md` (sharded to `docs/prd/`)
-- **Architecture**: `docs/architecture.md` (sharded to `docs/architecture/`)
-- **Stories**: `docs/stories/` directory
-- **QA Results**: `docs/qa/` directory
-
-## Agent Activation
-
-Use `@agent-name` to activate specific BMAD agents:
-- `@bmad-master` - Universal task executor
-- `@architect` - System architecture and design
-- `@dev` - Full-stack development
-- `@pm` - Product management and PRD creation
-- `@qa` - Quality assurance and testing
-- `@po` - Product ownership and story management
-- `@sm` - Scrum master and process management
-- `@ux-expert` - User experience design
-- `@analyst` - Business analysis and research
-
-## File Naming Conventions
-
-- Stories: `story-{epic}-{number}-{slug}.md`
-- Epics: `epic-{number}-{slug}.md`
-- QA Gates: `{epic}.{story}-{slug}.yml`
-- Architecture shards: `{section}-{slug}.md`
-
-## Development Workflow
-
-1. Planning phase uses web agents for cost efficiency
-2. Development phase uses IDE agents for implementation
-3. Documents are sharded for better navigation
-4. QA gates ensure quality before story completion
+### TappsCodingAgents Config (`.tapps-agents/`)
+- **`config.yaml`** - Framework configuration
+- **`project-profile.yaml`** - Auto-detected project profile
+- **`kb/`** - Knowledge base cache (Context7)
 
 ## File Organization Rules - MANDATORY
 
@@ -68,24 +55,19 @@ Use `@agent-name` to activate specific BMAD agents:
 - **Status**: Archived by quarter (2024/, 2025-q1/, 2025-q2/, 2025-q3/, 2025-q4/)
 
 #### `docs/` - Reference Documentation ONLY
-- **Purpose**: Permanent, reusable documentation for the project (being migrated to docs/current/)
+- **Purpose**: Permanent, reusable documentation for the project
 - **Allowed**:
   - Architecture documentation (`docs/architecture/`)
   - PRD and epics (`docs/prd/`)
   - User stories (`docs/stories/`)
-  - QA assessments and gates (`docs/qa/`)
-  - Knowledge base cache (`docs/kb/`)
+  - Workflow outputs (`docs/workflows/`)
   - Reference guides (API_DOCUMENTATION.md, TROUBLESHOOTING_GUIDE.md)
   - User manuals (USER_MANUAL.md, QUICK_START.md)
-  - Deployment guides (DEPLOYMENT_GUIDE.md)
 - **FORBIDDEN**:
   - Status reports (DEPLOYMENT_COMPLETE.md, *_STATUS.md)
   - Session summaries (*_SUMMARY.md for implementation work)
   - Fix reports (*_FIX_*.md, *_FIXES_SUMMARY.md)
   - Completion reports (*_COMPLETE.md, EPIC_*_COMPLETE.md)
-  - Implementation notes (*_IMPLEMENTATION_*.md)
-  - Analysis/diagnosis reports (*_ANALYSIS.md, *_DIAGNOSIS.md)
-  - Verification results (*_VERIFICATION_RESULTS.md)
 
 #### `implementation/` - Implementation Notes and Status
 - **Purpose**: Session notes, status reports, and implementation artifacts
@@ -96,7 +78,6 @@ Use `@agent-name` to activate specific BMAD agents:
   - Implementation plans (*_PLAN.md, *_IMPLEMENTATION_*.md)
   - Fix reports (*_FIX_*.md, *_FIXES_SUMMARY.md)
   - Analysis reports (*_ANALYSIS.md) → `implementation/analysis/`
-  - Diagnosis results (*_DIAGNOSIS.md) → `implementation/analysis/`
   - Verification results (*_VERIFICATION_RESULTS.md) → `implementation/verification/`
 - **Subdirectories**:
   - `implementation/analysis/` - Technical analysis and diagnosis
@@ -121,31 +102,24 @@ When creating ANY of these file types, you MUST place them in the correct locati
 
 1. **Status/Completion Reports** → `implementation/`
    - Pattern: *_COMPLETE.md, *_STATUS.md, EPIC_*_COMPLETE.md
-   - Examples: DEPLOYMENT_COMPLETE.md, IMPLEMENTATION_STATUS.md
 
 2. **Session Summaries** → `implementation/`
    - Pattern: SESSION_*.md, *_SUMMARY.md (implementation-related)
-   - Examples: SESSION_COMPLETE_*.md, EPIC_*_SUMMARY.md
 
 3. **Fix/Enhancement Reports** → `implementation/`
    - Pattern: *_FIX_*.md, *_FIXES_SUMMARY.md
-   - Examples: DASHBOARD_FIX_SUMMARY.md, UX_FIXES_SUCCESS_SUMMARY.md
 
 4. **Analysis/Diagnosis** → `implementation/analysis/`
    - Pattern: *_ANALYSIS.md, *_DIAGNOSIS.md, *_CALL_TREE.md
-   - Examples: API_DATA_SOURCE_ANALYSIS.md, DATA_FLOW_CALL_TREE.md
 
 5. **Verification Results** → `implementation/verification/`
    - Pattern: *_VERIFICATION_RESULTS.md, *_VERIFICATION.md
-   - Examples: GUI_VERIFICATION_RESULTS.md, UI_API_VERIFICATION_RESULTS.md
 
 6. **Implementation Plans** → `implementation/`
    - Pattern: *_PLAN.md, *_IMPLEMENTATION_*.md
-   - Examples: HEALTH_DASHBOARD_FIX_PLAN.md, *_IMPLEMENTATION_PLAN.md
 
 7. **Reference Documentation** → `docs/`
    - Pattern: Guides, manuals, API docs
-   - Examples: API_DOCUMENTATION.md, TROUBLESHOOTING_GUIDE.md, USER_MANUAL.md
 
 ### CRITICAL RULE: Never Create Files at Root
 
@@ -160,13 +134,13 @@ When creating ANY of these file types, you MUST place them in the correct locati
 ```
 Creating a new .md file?
 ├─ Is it README.md? → Root (ONLY exception)
-├─ Is it a status/completion report? → implementation/ (will archive quarterly)
+├─ Is it a status/completion report? → implementation/
 ├─ Is it a session summary? → implementation/
 ├─ Is it a fix/enhancement report? → implementation/
 ├─ Is it analysis/diagnosis? → implementation/analysis/
 ├─ Is it verification results? → implementation/verification/
 ├─ Is it an implementation plan? → implementation/
-├─ Is it a reference guide/manual? → docs/ (active) or docs/current/ (migrated)
+├─ Is it a reference guide/manual? → docs/
 └─ When in doubt → Ask user or default to implementation/
 
 Archiving completed work?
@@ -178,9 +152,23 @@ Archiving completed work?
 └─ Superseded documentation? → docs/archive/{quarter}/
 ```
 
+## TappsCodingAgents Integration
+
+### Simple Mode Workflow Outputs
+When using `@simple-mode *build`, outputs go to:
+- `docs/workflows/simple-mode/step1-enhanced-prompt.md`
+- `docs/workflows/simple-mode/step2-user-stories.md`
+- `docs/workflows/simple-mode/step3-architecture.md`
+- `docs/workflows/simple-mode/step4-design.md`
+- `docs/workflows/simple-mode/step6-review.md`
+- `docs/workflows/simple-mode/step7-testing.md`
+
+### Quality Reports
+- `reports/quality/` - Generated quality reports
+
 ## Enforcement
 
-- All BMAD agents MUST follow these rules
+- All AI agents MUST follow these rules
 - Any .md file created at root (except README.md) is a violation
 - Code review should check for misplaced files
 - Periodic cleanup to move misplaced files to correct locations

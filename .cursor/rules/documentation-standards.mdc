@@ -42,13 +42,13 @@ See [project-structure.mdc](mdc:.cursor/rules/project-structure.mdc) for complet
 - Include context for external links
 - Keep links up-to-date
 
-## BMAD Documentation
+## Project Documentation
 
 ### PRD Documentation
-- Follow the PRD template structure
 - Include functional and non-functional requirements
 - Define acceptance criteria clearly
 - Include user stories and epics
+- Reference TappsCodingAgents workflow outputs
 
 ### Architecture Documentation
 - Document system components and interactions
@@ -57,10 +57,10 @@ See [project-structure.mdc](mdc:.cursor/rules/project-structure.mdc) for complet
 - Include deployment and scaling considerations
 
 ### Story Documentation
-- Use the story template format
 - Include clear acceptance criteria
 - Define tasks and subtasks
 - Include testing requirements
+- Link to Simple Mode workflow outputs when available
 
 ## Technical Documentation
 
