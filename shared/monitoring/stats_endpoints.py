@@ -62,7 +62,7 @@ class StatsEndpoints:
             "admin-api": os.getenv("ADMIN_API_URL", "http://homeiq-admin:8004"),
             "data-api": os.getenv("DATA_API_URL", "http://homeiq-data-api:8006"),
             "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://homeiq-websocket:8001"),
-            "sports-data": os.getenv("SPORTS_DATA_URL", "http://homeiq-sports-data:8005"),
+            "sports-api": os.getenv("SPORTS_API_URL", "http://homeiq-sports-api:8005"),
             "air-quality-service": os.getenv("AIR_QUALITY_URL", "http://homeiq-air-quality:8012"),
             "calendar-service": os.getenv("CALENDAR_URL", "http://homeiq-calendar:8013"),
             "carbon-intensity-service": os.getenv("CARBON_INTENSITY_URL", "http://homeiq-carbon-intensity:8010"),
@@ -632,7 +632,7 @@ class StatsEndpoints:
         # List of data-feeding API services (removed admin-api and data-api)
         api_services = [
             {"name": "websocket-ingestion", "priority": "high", "timeout": 3},
-            {"name": "sports-data", "priority": "medium", "timeout": 5},
+            {"name": "sports-api", "priority": "medium", "timeout": 5},
             {"name": "air-quality-service", "priority": "medium", "timeout": 5},
             {"name": "calendar-service", "priority": "medium", "timeout": 5},
             {"name": "carbon-intensity-service", "priority": "medium", "timeout": 5},
@@ -866,7 +866,7 @@ class StatsEndpoints:
                                 logger.warning(f"Could not get weather API stats from websocket-ingestion: {e}")
                                 events_per_hour = 0.0
                         
-                        elif service_name in ["sports-data", "air-quality-service", "calendar-service", "carbon-intensity-service", 
+                        elif service_name in ["sports-api", "air-quality-service", "calendar-service", "carbon-intensity-service", 
                                             "electricity-pricing-service", "energy-correlator", "smart-meter-service"]:
                             # These services typically don't process events but provide data
                             # Set to 0 as they are data providers, not event processors

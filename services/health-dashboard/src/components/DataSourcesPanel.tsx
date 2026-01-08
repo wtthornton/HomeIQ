@@ -21,6 +21,7 @@ type DataSourceKey = keyof DataSourcesHealthMap;
 
 const DATA_SOURCE_DEFINITIONS: Array<{ id: DataSourceKey; name: string; icon: string; }> = [
   { id: 'weather', name: 'Weather API', icon: '☁️' },
+  { id: 'sports', name: 'Sports API', icon: '⚽' },
   { id: 'carbonIntensity', name: 'Carbon Intensity', icon: '🌱' },
   { id: 'airQuality', name: 'Air Quality', icon: '💨' },
   { id: 'electricityPricing', name: 'Electricity Pricing', icon: '⚡' },

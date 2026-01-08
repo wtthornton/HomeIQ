@@ -41,6 +41,7 @@ export interface DataSourceHealth {
 
 export interface DataSourcesHealthMap {
   weather: DataSourceHealth | null;
+  sports: DataSourceHealth | null;
   carbonIntensity: DataSourceHealth | null;
   electricityPricing: DataSourceHealth | null;
   airQuality: DataSourceHealth | null;
