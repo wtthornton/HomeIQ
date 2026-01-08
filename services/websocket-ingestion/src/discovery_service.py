@@ -176,7 +176,9 @@ class DiscoveryService:
             logger.info("🔌 DISCOVERING ENTITIES (via HTTP API)")
             logger.info("=" * 80)
 
-            # Use HTTP API to fetch entity registry (avoids WebSocket concurrency issues)
+            # Use HTTP States API to fetch entities (avoids WebSocket concurrency issues)
+            # Note: Entity registry listing is WebSocket-only, but states API returns all entities
+            # States API provides entity_id which is sufficient for basic entity discovery
             ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
             ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
 
@@ -202,44 +204,42 @@ class DiscoveryService:
             # Internal service calls (data-api) can disable SSL separately
             connector = aiohttp.TCPConnector(ssl=ssl_verify)
             async with aiohttp.ClientSession(connector=connector) as session:
-                logger.info(f"📡 Fetching entity registry from: {ha_url}/api/config/entity_registry/list")
+                # Use /api/states endpoint (HTTP) instead of entity registry (WebSocket-only)
+                # States API returns all entities with current states, which includes entity_id
+                logger.info(f"📡 Fetching entities from States API: {ha_url}/api/states")
                 async with session.get(
-                    f"{ha_url}/api/config/entity_registry/list",
+                    f"{ha_url}/api/states",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
                     logger.info(f"📥 Response status: {response.status}")
                     if response.status != 200:
                         error_text = await response.text()
-                        logger.warning(f"⚠️  HTTP entity registry endpoint failed: HTTP {response.status} - {error_text}")
-                        # Fallback to WebSocket if available
-                        if websocket:
-                            logger.info("🔄 Falling back to WebSocket for entity discovery...")
-                            try:
-                                entities = await self._discover_entities_websocket(websocket)
-                                if entities:
-                                    logger.info(f"✅ Entity discovery succeeded via WebSocket fallback: {len(entities)} entities")
-                                else:
-                                    logger.error("❌ WebSocket fallback returned empty result - entity discovery failed")
-                                return entities
-                            except Exception as ws_error:
-                                logger.error(f"❌ WebSocket fallback failed: {ws_error}")
-                                logger.error("Entity discovery completely failed - both HTTP and WebSocket methods failed")
-                                return []
-                        else:
-                            logger.error("❌ No WebSocket available for fallback - entity discovery failed")
-                            logger.error("This indicates a configuration issue - check HA_HTTP_URL and HA_TOKEN, or ensure WebSocket is available")
-                            return []
+                        logger.error(f"❌ HTTP States API endpoint failed: HTTP {response.status} - {error_text}")
+                        logger.error("Entity discovery failed - States API is required for HTTP-based discovery")
+                        return []
 
-                    entities = await response.json()
-                    logger.info(f"📦 Response type: {type(entities)}, length: {len(entities) if isinstance(entities, (list, dict)) else 'N/A'}")
+                    states = await response.json()
+                    logger.info(f"📦 Response type: {type(states)}, length: {len(states) if isinstance(states, list) else 'N/A'}")
 
-                    # Handle both list and dict responses
-                    if isinstance(entities, dict):
-                        entities = entities.get('entities', entities.get('result', []))
+                    # Convert states to entity registry format
+                    # States API returns array of state objects, each with entity_id
+                    entities = []
+                    for state in states:
+                        entity_id = state.get("entity_id")
+                        if entity_id:
+                            # Extract domain from entity_id (format: domain.entity_name)
+                            domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
+                            entities.append({
+                                "entity_id": entity_id,
+                                "platform": domain,  # Use domain as platform identifier
+                                # States API doesn't provide full registry metadata,
+                                # but entity_id is sufficient for basic entity discovery
+                                # Full metadata can be obtained from entity registry events over time
+                            })
 
                     entity_count = len(entities)
-                    logger.info(f"✅ Discovered {entity_count} entities")
+                    logger.info(f"✅ Discovered {entity_count} entities via States API")
 
                     # Epic 23.2: Build entity → device and entity → area mapping caches
                     for entity in entities:

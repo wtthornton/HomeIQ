@@ -456,13 +456,13 @@ def main():
         num_classes=10,
     )
     
-    print(f"Model architecture:\n{model}")
+    logger.info(f"Model architecture:\n{model}")
     
     # Count parameters
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"\nTotal parameters: {total_params:,}")
-    print(f"Trainable parameters: {trainable_params:,}")
+    logger.info(f"\nTotal parameters: {total_params:,}")
+    logger.info(f"Trainable parameters: {trainable_params:,}")
     
     # Create synthetic data
     n_samples = 1000
@@ -489,7 +489,7 @@ def main():
         checkpoint_dir=Path("./models"),
     )
     
-    print(f"\nTraining history: {history}")
+    logger.info(f"\nTraining history: {history}")
     
     # Export to ONNX
     export_to_onnx(model, Path("./models/activity_lstm.onnx"), sequence_length=seq_len)
@@ -498,8 +498,8 @@ def main():
     session = load_onnx_model("./models/activity_lstm.onnx")
     test_input = np.random.randn(2, seq_len, n_features).astype(np.float32)
     predictions, probs = predict_with_onnx(session, test_input)
-    print(f"\nONNX predictions: {predictions}")
-    print(f"Activity names: {[ACTIVITIES[p] for p in predictions]}")
+    logger.info(f"\nONNX predictions: {predictions}")
+    logger.info(f"Activity names: {[ACTIVITIES[p] for p in predictions]}")
 
 
 if __name__ == "__main__":

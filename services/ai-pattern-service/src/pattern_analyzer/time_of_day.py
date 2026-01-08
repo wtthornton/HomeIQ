@@ -348,12 +348,28 @@ class TimeOfDayPatternDetector:
             }
         }
 
+    # Security-sensitive domains that require user confirmation before deployment
+    SECURITY_SENSITIVE_DOMAINS = frozenset([
+        'lock', 'cover', 'garage', 'alarm_control_panel', 'gate', 'door'
+    ])
+    
+    # Safety levels for automation suggestions
+    SAFETY_LEVEL_HIGH = 'high'  # Requires confirmation
+    SAFETY_LEVEL_NORMAL = 'normal'  # Standard automation
+    SAFETY_LEVEL_LOW = 'low'  # Simple, reversible actions
+    
     def suggest_automation(self, pattern: dict) -> dict[str, any]:
         """
-        Suggest automation from time-of-day pattern.
+        Suggest automation from time-of-day pattern with safety checks.
         
         Implements Recommendation 1.2: Pattern-Based Automation Suggestions.
         Converts time-of-day patterns to schedule-based automation suggestions.
+        
+        Enhanced with safety features (January 2026):
+        - Security-sensitive domain detection
+        - Safety level classification
+        - State conditions to prevent duplicate actions
+        - Confirmation requirements for sensitive domains
         
         Example:
             - Pattern: "light.bedroom turns on at 7:00 AM daily"
@@ -372,10 +388,14 @@ class TimeOfDayPatternDetector:
             Automation suggestion dictionary with keys:
                 - automation_type: "schedule"
                 - trigger: Trigger configuration (time-based)
+                - condition: State conditions to prevent duplicate actions
                 - action: Action configuration (service call)
                 - confidence: Confidence score from pattern
                 - description: Human-readable description
                 - device_id: Device identifier
+                - requires_confirmation: Whether user must confirm before deployment
+                - safety_level: 'high', 'normal', or 'low'
+                - safety_warnings: List of safety-related warnings
         """
         if pattern.get('pattern_type') != 'time_of_day':
             logger.warning(f"Pattern type {pattern.get('pattern_type')} is not time_of_day, cannot suggest automation")
@@ -389,15 +409,11 @@ class TimeOfDayPatternDetector:
         # Extract domain from device_id (e.g., "light" from "light.bedroom")
         domain = self._get_domain(device_id)
         
-        # Determine service based on domain
-        # Default to turn_on for most domains, but can be customized
-        service_name = 'turn_on'
-        if domain in ['climate', 'thermostat']:
-            service_name = 'set_temperature'  # Would need additional params
-        elif domain in ['cover', 'garage']:
-            service_name = 'open_cover'
-        elif domain in ['lock']:
-            service_name = 'unlock'  # Security consideration - might need confirmation
+        # Determine service and safety parameters based on domain
+        service_name, expected_state, safety_level, safety_warnings = self._get_service_config(domain)
+        
+        # Check if domain is security-sensitive
+        requires_confirmation = domain in self.SECURITY_SENSITIVE_DOMAINS
         
         # Format time string (HH:MM:SS)
         time_str = f"{hour:02d}:{minute:02d}:00"
@@ -406,7 +422,18 @@ class TimeOfDayPatternDetector:
         device_name = device_id.split('.')[-1].replace('_', ' ').title() if '.' in device_id else device_id
         description = f"Schedule: {service_name.replace('_', ' ').title()} {device_name} at {hour:02d}:{minute:02d}"
         
-        # Build automation suggestion
+        # Build condition to prevent duplicate actions
+        condition = None
+        if expected_state:
+            condition = [
+                {
+                    'condition': 'state',
+                    'entity_id': device_id,
+                    'state': expected_state
+                }
+            ]
+        
+        # Build automation suggestion with safety features
         suggestion = {
             'automation_type': 'schedule',
             'trigger': {
@@ -423,18 +450,108 @@ class TimeOfDayPatternDetector:
             'confidence': float(confidence),
             'description': description,
             'device_id': device_id,
-            'pattern_id': pattern.get('pattern_id'),  # Link back to pattern if available
+            'pattern_id': pattern.get('pattern_id'),
+            
+            # Safety features (NEW)
+            'requires_confirmation': requires_confirmation,
+            'safety_level': safety_level,
+            'safety_warnings': safety_warnings,
+            
             'metadata': {
                 'source': 'time_of_day_pattern',
                 'occurrences': pattern.get('occurrences', 0),
                 'time_range': pattern.get('metadata', {}).get('time_range', f"{hour:02d}:{minute:02d}"),
-                'std_minutes': pattern.get('metadata', {}).get('std_minutes', 0.0)
+                'std_minutes': pattern.get('metadata', {}).get('std_minutes', 0.0),
+                'domain': domain,
+                'is_security_sensitive': requires_confirmation
             }
         }
         
+        # Add condition if available
+        if condition:
+            suggestion['condition'] = condition
+        
+        # Log with appropriate level based on safety
+        if requires_confirmation:
+            logger.warning(
+                f"⚠️ Security-sensitive automation suggested for {device_id} - "
+                f"requires user confirmation before deployment"
+            )
+        
         logger.info(
             f"✅ Suggested automation: {description} "
-            f"(confidence={confidence:.0%}, device={device_id})"
+            f"(confidence={confidence:.0%}, device={device_id}, "
+            f"safety={safety_level}, requires_confirmation={requires_confirmation})"
         )
         
         return suggestion
+    
+    def _get_service_config(self, domain: str) -> tuple[str, str | None, str, list[str]]:
+        """
+        Get service configuration based on domain.
+        
+        Args:
+            domain: Entity domain (e.g., 'light', 'lock', 'climate')
+            
+        Returns:
+            Tuple of (service_name, expected_state, safety_level, safety_warnings)
+            - service_name: Home Assistant service to call
+            - expected_state: State to check before action (for condition)
+            - safety_level: 'high', 'normal', or 'low'
+            - safety_warnings: List of safety-related warnings
+        """
+        # Domain-specific configurations
+        config = {
+            # Lighting - low risk, reversible
+            'light': ('turn_on', 'off', self.SAFETY_LEVEL_LOW, []),
+            'switch': ('turn_on', 'off', self.SAFETY_LEVEL_LOW, []),
+            
+            # Climate - normal risk
+            'climate': ('set_temperature', None, self.SAFETY_LEVEL_NORMAL, [
+                'Climate automations may affect comfort and energy usage'
+            ]),
+            'thermostat': ('set_temperature', None, self.SAFETY_LEVEL_NORMAL, [
+                'Thermostat automations may affect comfort and energy usage'
+            ]),
+            'fan': ('turn_on', 'off', self.SAFETY_LEVEL_LOW, []),
+            
+            # Security-sensitive - high risk
+            'lock': ('unlock', 'locked', self.SAFETY_LEVEL_HIGH, [
+                'SECURITY: Unlocking doors automatically may compromise home security',
+                'Consider using presence detection as additional condition',
+                'Review automation carefully before deployment'
+            ]),
+            'cover': ('open_cover', 'closed', self.SAFETY_LEVEL_HIGH, [
+                'SECURITY: Opening covers/blinds may expose interior',
+                'Consider time-of-day and presence conditions'
+            ]),
+            'garage': ('open_cover', 'closed', self.SAFETY_LEVEL_HIGH, [
+                'SECURITY: Opening garage automatically may compromise security',
+                'Strongly recommend presence detection condition',
+                'Review automation carefully before deployment'
+            ]),
+            'gate': ('open_cover', 'closed', self.SAFETY_LEVEL_HIGH, [
+                'SECURITY: Opening gates automatically may compromise perimeter security',
+                'Strongly recommend presence detection condition'
+            ]),
+            'door': ('open_cover', 'closed', self.SAFETY_LEVEL_HIGH, [
+                'SECURITY: Opening doors automatically may compromise security',
+                'Strongly recommend presence detection condition'
+            ]),
+            'alarm_control_panel': ('alarm_disarm', 'armed_away', self.SAFETY_LEVEL_HIGH, [
+                'SECURITY: Disarming alarm automatically is a significant security risk',
+                'Strongly recommend presence detection and notification conditions',
+                'Consider manual confirmation requirement'
+            ]),
+            
+            # Media - low risk
+            'media_player': ('turn_on', 'off', self.SAFETY_LEVEL_LOW, []),
+            
+            # Vacuum - normal risk
+            'vacuum': ('start', 'docked', self.SAFETY_LEVEL_NORMAL, [
+                'Vacuum may run when house is occupied - consider presence conditions'
+            ]),
+        }
+        
+        # Return config for domain, or default for unknown domains
+        return config.get(domain, ('turn_on', 'off', self.SAFETY_LEVEL_NORMAL, []))

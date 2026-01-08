@@ -240,7 +240,11 @@ class DeviceAnomalyDetector:
                 is_anomaly = labels.get("iforest", 0) == 1
             
             # Calculate ensemble score (average of decision functions)
-            ensemble_score = np.mean(list(raw_scores.values()))
+            if raw_scores:
+                ensemble_score = np.mean(list(raw_scores.values()))
+            else:
+                # All models failed - use default score
+                ensemble_score = 0.0
             
             # Normalize score to 0-1 range
             normalized_score = self._normalize_score(ensemble_score)
@@ -249,9 +253,10 @@ class DeviceAnomalyDetector:
             severity = self._score_to_severity(normalized_score)
             
             # Calculate feature contributions
+            iforest_model = models.get("iforest")
             contributions = self._calculate_feature_contributions(
-                sample, feature_names, models["iforest"]
-            )
+                sample, feature_names, iforest_model
+            ) if iforest_model else {}
             
             # Generate description
             description = self._generate_description(
@@ -302,7 +307,7 @@ class DeviceAnomalyDetector:
         self,
         sample: np.ndarray,
         feature_names: list[str],
-        model: IForest,
+        model: IForest | None,
     ) -> dict[str, float]:
         """
         Calculate feature contributions to anomaly score.
@@ -332,8 +337,11 @@ class DeviceAnomalyDetector:
         except Exception as e:
             logger.debug(f"Could not calculate feature contributions: {e}")
             # Fallback: equal contributions
-            for name in feature_names:
-                contributions[name] = 1.0 / len(feature_names)
+            if feature_names and len(feature_names) > 0:
+                for name in feature_names:
+                    contributions[name] = 1.0 / len(feature_names)
+            else:
+                logger.warning("Cannot calculate feature contributions: feature_names is empty")
         
         return contributions
     
