@@ -87,7 +87,7 @@ workflow:
         - Direct InfluxDB writes (NO enrichment-pipeline)
         - Use InfluxDB Python client library
         - Write directly to InfluxDB (no HTTP POST to other services)
-        - Follow existing patterns (see services/weather-api, services/sports-data)
+        - Follow existing patterns (see services/weather-api, services/sports-api)
         - Include proper error handling and retry logic
         - Document bucket and measurement names
       requires:

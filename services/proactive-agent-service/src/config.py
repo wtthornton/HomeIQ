@@ -28,10 +28,8 @@ class Settings(BaseSettings):
         default="http://weather-api:8009",
         description="Weather API service URL"
     )
-    sports_data_url: str = Field(
-        default="http://sports-data:8005",
-        description="Sports Data service URL"
-    )
+    # Note: Sports data is accessed via data-api (Epic 31 architecture)
+    # The sports-api service writes directly to InfluxDB, and data-api queries it
     carbon_intensity_url: str = Field(
         default="http://carbon-intensity:8010",
         description="Carbon Intensity service URL"

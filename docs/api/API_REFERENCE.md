@@ -17,7 +17,7 @@
 3. [Authentication](#authentication)
 4. [Admin API](#admin-api) (Port 8003)
 5. [Data API](#data-api) (Port 8006)
-6. [Sports Data Service](#sports-data-service) (Port 8005)
+6. [Sports API Service](#sports-api-service) (Port 8005)
 7. [AI Automation Services](#ai-automation-services-epic-39-modularization) (Ports 8016-8018, 8021)
 8. [HA AI Agent Service](#ha-ai-agent-service) (Port 8030)
 9. [Device Intelligence Service](#device-intelligence-service) (Port 8028)
@@ -607,104 +607,127 @@ Find similar devices.
 
 ---
 
-## Sports Data Service
+## Sports API Service
 
 **Base URL:** `http://localhost:8005`  
-**Purpose:** ESPN sports data with InfluxDB persistence and Home Assistant webhooks
+**Purpose:** Home Assistant Team Tracker integration with InfluxDB persistence  
+**Architecture:** Standalone service (Epic 31 pattern - direct InfluxDB writes)  
+**Note:** Not in docker-compose.yml by default - run separately if needed
 
-### Real-Time Endpoints
+### Overview
 
-#### GET /api/v1/games/live
-Get currently live games.
+The Sports API Service integrates with Home Assistant's [Team Tracker](https://github.com/xyzroe/ha-teamtracker) integration to:
+1. Poll Team Tracker sensors from HA REST API
+2. Parse sensor states and attributes (PRE, IN, POST, BYE states)
+3. Write normalized sports data directly to InfluxDB
+4. Supports all leagues supported by Team Tracker (NFL, NHL, MLB, NBA, etc.)
 
-**Query Parameters:**
-- `league` (optional): "NFL" or "NHL"
-- `team_ids` (optional): Comma-separated team IDs
+### API Endpoints
+
+#### GET /
+Service information.
 
 **Response:**
 ```json
 {
-  "games": [
+  "service": "sports-api",
+  "version": "1.0.0",
+  "status": "running",
+  "endpoints": ["/health", "/metrics", "/sports-data", "/stats"]
+}
+```
+
+#### GET /health
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "sports-api",
+  "version": "1.0.0",
+  "ha_connected": true,
+  "influxdb_connected": true,
+  "last_fetch": "2025-01-08T10:30:00Z"
+}
+```
+
+#### GET /sports-data
+Get current sports data from Team Tracker sensors.
+
+**Response:**
+```json
+{
+  "sensors": [
     {
-      "id": "401547402",
+      "entity_id": "sensor.team_tracker_nfl_patriots",
+      "state": "IN",
+      "sport": "nfl",
       "league": "NFL",
-      "status": "live",
-      "home_team": {"abbreviation": "ne", "name": "Patriots"},
-      "away_team": {"abbreviation": "kc", "name": "Chiefs"},
-      "score": {"home": 21, "away": 17},
-      "period": {"current": 3, "time_remaining": "10:32"}
+      "team_abbr": "NE",
+      "team_name": "Patriots",
+      "team_score": 21,
+      "opponent_abbr": "KC",
+      "opponent_name": "Chiefs",
+      "opponent_score": 17,
+      "quarter": 3,
+      "clock": "10:32",
+      "venue": "Gillette Stadium",
+      "last_updated": "2025-01-08T10:30:00Z"
     }
-  ]
+  ],
+  "count": 1,
+  "last_update": "2025-01-08T10:30:00Z"
 }
 ```
 
-#### GET /api/v1/games/upcoming
-Get upcoming games in next N hours.
+#### GET /stats
+Service statistics.
 
-### Historical Query Endpoints
-
-#### GET /api/v1/games/history
-Query historical games with filters.
-
-**Query Parameters:**
-- `sport` (default: "nfl"): "nfl" or "nhl"
-- `team` (optional): Team name filter
-- `season` (optional): Season year
-- `status` (optional): "scheduled", "live", or "finished"
-- `page` (default: 1): Page number
-- `page_size` (default: 100, max: 1000): Results per page
-
-#### GET /api/v1/games/timeline/{game_id}
-Get score progression for a specific game.
-
-#### GET /api/v1/games/schedule/{team}
-Get full season schedule for a team.
-
-### Home Assistant Automation Endpoints
-
-#### GET /api/v1/ha/game-status/{team}
-Quick game status check for HA automations (<50ms).
-
+**Response:**
 ```json
 {
-  "team": "ne",
-  "status": "playing",
-  "game_id": "401547402",
-  "opponent": "kc",
-  "start_time": "2025-10-20T13:00:00Z"
+  "fetch_count": 150,
+  "sensors_processed": 450,
+  "influx_write_success": 148,
+  "influx_write_failures": 2,
+  "last_successful_fetch": "2025-01-08T10:30:00Z",
+  "last_influx_write": "2025-01-08T10:30:00Z",
+  "poll_interval_seconds": 60,
+  "cached_sensors_count": 3
 }
 ```
 
-#### GET /api/v1/ha/game-context/{team}
-Full game context for advanced automations.
+### Game States
 
-### Webhook Management
+| State | Description |
+|-------|-------------|
+| `PRE` | Pre-game (scheduled, not started) |
+| `IN` | Game in progress |
+| `POST` | Game completed |
+| `BYE` | Team has bye week |
+| `NOT_FOUND` | No game found |
 
-#### POST /api/v1/webhooks/register
-Register webhook for game event notifications.
+### Configuration
 
-**Request:**
-```json
-{
-  "url": "http://homeassistant.local:8123/api/webhook/your_webhook_id",
-  "events": ["game_started", "score_changed", "game_ended"],
-  "secret": "your-secure-secret-min-16-chars",
-  "team": "ne",
-  "sport": "nfl"
-}
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SERVICE_PORT` | 8005 | Service port |
+| `HA_HTTP_URL` | - | Home Assistant URL |
+| `HA_TOKEN` | - | Home Assistant long-lived access token |
+| `SPORTS_POLL_INTERVAL` | 60 | Polling interval in seconds |
+| `INFLUXDB_URL` | http://influxdb:8086 | InfluxDB URL |
+| `INFLUXDB_TOKEN` | - | InfluxDB auth token |
+| `INFLUXDB_BUCKET` | home_assistant_events | InfluxDB bucket |
+
+### Historical Data
+
+Historical sports data is stored in InfluxDB and can be queried via data-api:
+
+```bash
+# Query via data-api
+curl "http://localhost:8006/api/v1/sports/games?sport=nfl&limit=10"
 ```
-
-**Webhook Delivery:**
-- Fire-and-forget (non-blocking)
-- 3 retries with exponential backoff (1s, 2s, 4s)
-- 5-second timeout
-- HMAC-SHA256 signed
-
-#### GET /api/v1/webhooks/list
-List all registered webhooks.
-
-#### DELETE /api/v1/webhooks/{webhook_id}
-Unregister a webhook.
 
 ---
 

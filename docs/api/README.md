@@ -18,7 +18,7 @@ This is the **ONLY** API reference you need. It consolidates:
 ### By Service
 - [Admin API](./API_REFERENCE.md#admin-api) - Health checks, Docker, configuration
 - [Data API](./API_REFERENCE.md#data-api) - Events, devices, analytics
-- [Sports Data](./API_REFERENCE.md#sports-data-service) - Game data & webhooks
+- [Sports API](./API_REFERENCE.md#sports-api-service) - Team Tracker integration
 - [AI Automation](./API_REFERENCE.md#ai-automation-service) - Suggestions & conversational AI
 - [Statistics](./API_REFERENCE.md#statistics-api) - Metrics & performance
 

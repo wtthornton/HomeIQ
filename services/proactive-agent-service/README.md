@@ -35,7 +35,7 @@ Environment variables:
 - `PROACTIVE_AGENT_ALLOWED_ORIGINS` - Comma-delimited CORS origins
 - `HA_AI_AGENT_URL` - HA AI Agent Service URL (default: http://ha-ai-agent-service:8030)
 - `WEATHER_API_URL` - Weather API service URL (default: http://weather-api:8009)
-- `SPORTS_DATA_URL` - Sports Data service URL (default: http://sports-data:8005)
+- Note: Sports data is accessed via DATA_API_URL (Epic 31 architecture - sports-api writes to InfluxDB, data-api queries it)
 - `CARBON_INTENSITY_URL` - Carbon Intensity service URL (default: http://carbon-intensity:8010)
 - `DATA_API_URL` - Data API service URL (default: http://data-api:8006)
 - `DATABASE_URL` - SQLite database URL
