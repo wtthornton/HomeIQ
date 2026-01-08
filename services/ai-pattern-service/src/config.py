@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     ha_token: str | None = None  # Home Assistant long-lived access token
     ha_version: str = "2025.1"  # Home Assistant version
     
+    # Blueprint Index Service Configuration (Phase 2 - Blueprint-First Architecture)
+    blueprint_index_url: str | None = "http://blueprint-index:8031"
+    
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
