@@ -121,7 +121,11 @@ export const IntegrationDetailsModal: React.FC<IntegrationDetailsModalProps> = (
         setError(null);
         
         // Fetch analytics - use authenticated API client
-        const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+        // Security: No hardcoded API key fallback
+        const API_KEY = import.meta.env.VITE_API_KEY || '';
+        if (!API_KEY && import.meta.env.MODE !== 'production') {
+          console.warn('⚠️ VITE_API_KEY not set. API requests may fail authentication.');
+        }
         const analyticsResponse = await fetch(`/api/integrations/${platform}/analytics`, {
           headers: {
             'Authorization': `Bearer ${API_KEY}`,
