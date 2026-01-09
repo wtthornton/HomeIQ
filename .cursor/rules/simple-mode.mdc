@@ -6,6 +6,52 @@ alwaysApply: true
 
 # Simple Mode - Cursor-Native Skill Orchestrator
 
+## ⚠️ CRITICAL: Default to @simple-mode for ALL Development Tasks
+
+**When a user asks you to implement features, fix bugs, review code, or write tests, you MUST DEFAULT to using `@simple-mode` commands.**
+
+### Automatic Routing Rules
+
+| User Request | You MUST Use |
+|--------------|--------------|
+| "Add/implement/create/build a feature" | `@simple-mode *build "description"` |
+| "Fix this bug/error/issue" | `@simple-mode *fix <file> "description"` |
+| "Review/check this code" | `@simple-mode *review <file>` |
+| "Add/write/generate tests" | `@simple-mode *test <file>` |
+| "Refactor/improve this code" | `@simple-mode *refactor <file>` |
+| Framework development (`tapps_agents/`) | `@simple-mode *full "description"` |
+
+### When NOT to Use @simple-mode
+
+Only skip @simple-mode when:
+1. User **explicitly** asks for a specific agent (e.g., "use @reviewer to score this")
+2. Task is a **simple one-off operation** (e.g., "just lint this file")
+3. User is doing **quick exploration** (e.g., "what's the score of this file?")
+
+### Example: Correct Behavior
+
+```
+User: "Add user authentication to my app"
+
+✅ CORRECT:
+"I'll use the Simple Mode build workflow for proper implementation:
+@simple-mode *build 'Add user authentication with login, logout, and session management'
+
+This will run the 7-step workflow:
+1. @enhancer → Requirements analysis
+2. @planner → User stories
+3. @architect → Architecture design
+4. @designer → Component specs
+5. @implementer → Code implementation
+6. @reviewer → Quality review (loops if < 70)
+7. @tester → Test generation"
+
+❌ WRONG:
+"I'll implement this directly..." [edits files without workflow]
+```
+
+---
+
 ## What is Simple Mode?
 
 Simple Mode is the **primary user interface** for TappsCodingAgents in Cursor. It provides natural language commands that automatically orchestrate multiple specialized skills through a **structured workflow** that produces better, more maintainable code with comprehensive documentation.

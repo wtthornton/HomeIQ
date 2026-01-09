@@ -28,9 +28,9 @@ logger = logging.getLogger(__name__)
 
 # Response Models
 class GameResponse(BaseModel):
-    """Game response model"""
+    """Game response model with automation-relevant attributes"""
     game_id: str
-    league: str  # NFL or NHL
+    league: str  # NFL, NHL, MLB, NBA, MLS, etc.
     season: int
     week: str | None = None  # For NFL
     home_team: str
@@ -41,6 +41,26 @@ class GameResponse(BaseModel):
     quarter_period: str | None = None  # Quarter (NFL) or Period (NHL)
     time_remaining: str | None = None
     timestamp: str
+    
+    # NEW: 6 high-value automation attributes
+    # 1. Home/away status - for different lighting scenes
+    team_homeaway: str | None = None  # "home" or "away"
+    
+    # 2. Team colors - for smart light integration (hex colors)
+    team_color_primary: str | None = None  # e.g., "#344043"
+    team_color_secondary: str | None = None  # e.g., "#b4975a"
+    
+    # 3. Team winner flag - for celebration automations
+    team_winner: bool | None = None
+    
+    # 4. Opponent winner flag - for "better luck" automations
+    opponent_winner: bool | None = None
+    
+    # 5. Event name - for rich notifications ("CBJ @ VGK")
+    event_name: str | None = None
+    
+    # 6. Last play - for real-time play reactions (touchdowns, goals)
+    last_play: str | None = None
 
 
 class GameListResponse(BaseModel):
@@ -106,51 +126,88 @@ async def get_live_games(
     For historical data, use /sports/games/history endpoint.
     """
     try:
+        # Ensure InfluxDB connection
+        if not influxdb_client.is_connected:
+            await influxdb_client.connect()
         # Query InfluxDB for live games
+        # Data is written by sports-api to home_assistant_events bucket with measurement "sports_data"
+        # State values: PRE (pre-game), IN (live), POST (finished), BYE, NOT_FOUND
+        # Use pivot() to combine all fields into single records
+        # Short time range (-5m) ensures we get only recent data with all fields
         query = '''
-            from(bucket: "sports_data")
-                |> range(start: -24h)
-                |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
-                |> filter(fn: (r) => r.status == "live")
+            from(bucket: "home_assistant_events")
+                |> range(start: -5m)
+                |> filter(fn: (r) => r._measurement == "sports_data")
+                |> filter(fn: (r) => r.state == "IN")
+                |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                 |> sort(columns: ["_time"], desc: true)
-                |> limit(n: 50)
         '''
         
         if league:
             query = f'''
-                from(bucket: "sports_data")
-                    |> range(start: -24h)
-                    |> filter(fn: (r) => r._measurement == "{league.lower()}_scores")
-                    |> filter(fn: (r) => r.status == "live")
+                from(bucket: "home_assistant_events")
+                    |> range(start: -5m)
+                    |> filter(fn: (r) => r._measurement == "sports_data")
+                    |> filter(fn: (r) => r.league == "{league.upper()}")
+                    |> filter(fn: (r) => r.state == "IN")
+                    |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                     |> sort(columns: ["_time"], desc: true)
-                    |> limit(n: 50)
             '''
         
         results = await influxdb_client._execute_query(query)
         
         games = []
+        seen_entities = set()  # Deduplicate by entity_id
         for record in results:
+            entity_id = record.get("entity_id", "")
+            if entity_id in seen_entities:
+                continue
+            seen_entities.add(entity_id)
+            
             # Filter by team_ids if provided
             if team_ids:
                 team_list = [t.strip().lower() for t in team_ids.split(",")]
-                home_team = record.get("home_team", "").lower()
-                away_team = record.get("away_team", "").lower()
-                if home_team not in team_list and away_team not in team_list:
+                team_abbr = record.get("team_abbr", "").lower()
+                opponent_abbr = record.get("opponent_abbr", "").lower()
+                if team_abbr not in team_list and opponent_abbr not in team_list:
                     continue
             
+            # Map sports-api data structure to GameResponse
+            # sports-api writes: team_abbr, opponent_abbr, team_score, opponent_score, state, league
+            # Handle timestamp - convert datetime to ISO string if needed
+            raw_time = record.get("_time", datetime.now())
+            if hasattr(raw_time, 'isoformat'):
+                timestamp_str = raw_time.isoformat()
+            else:
+                timestamp_str = str(raw_time)
+            
+            # Parse team_winner/opponent_winner from string to bool
+            team_winner_str = record.get("team_winner")
+            opponent_winner_str = record.get("opponent_winner")
+            team_winner = team_winner_str == "true" if team_winner_str else None
+            opponent_winner = opponent_winner_str == "true" if opponent_winner_str else None
+            
             game = GameResponse(
-                game_id=record.get("game_id", ""),
-                league=record.get("_measurement", "").split('_')[0].upper(),
-                season=int(record.get("season", datetime.now().year)),
-                week=record.get("week"),
-                home_team=record.get("home_team", ""),
-                away_team=record.get("away_team", ""),
-                home_score=record.get("home_score"),
-                away_score=record.get("away_score"),
-                status=record.get("status", "live"),
+                game_id=entity_id,  # Use entity_id as game_id
+                league=record.get("league", ""),
+                season=datetime.now().year,
+                week=None,
+                home_team=record.get("team_abbr", ""),  # Team being tracked
+                away_team=record.get("opponent_abbr", ""),  # Opponent
+                home_score=record.get("team_score") if record.get("_field") == "team_score" else record.get("team_score", 0),
+                away_score=record.get("opponent_score") if record.get("_field") == "opponent_score" else record.get("opponent_score", 0),
+                status="live",  # IN state = live
                 quarter_period=record.get("quarter") or record.get("period"),
-                time_remaining=record.get("time_remaining"),
-                timestamp=record.get("_time", datetime.now().isoformat())
+                time_remaining=record.get("clock", ""),
+                timestamp=timestamp_str,
+                # NEW: 6 automation attributes
+                team_homeaway=record.get("team_homeaway"),
+                team_color_primary=record.get("team_color_primary"),
+                team_color_secondary=record.get("team_color_secondary"),
+                team_winner=team_winner,
+                opponent_winner=opponent_winner,
+                event_name=record.get("event_name"),
+                last_play=record.get("last_play")
             )
             games.append(game)
             
@@ -198,51 +255,82 @@ async def get_upcoming_games(
     For historical data, use /sports/games/history endpoint.
     """
     try:
-        # Query InfluxDB for upcoming games
+        # Ensure InfluxDB connection
+        if not influxdb_client.is_connected:
+            await influxdb_client.connect()
+        
+        # Query InfluxDB for upcoming games (PRE state = pre-game/upcoming)
+        # Data is written by sports-api to home_assistant_events bucket with measurement "sports_data"
+        # We query recent data and filter by PRE state (upcoming games)
+        # Use pivot() to combine all fields into single records
+        # Short time range (-5m) ensures we get only recent data with all fields
         query = f'''
-            from(bucket: "sports_data")
-                |> range(start: now(), stop: now() + {hours}h)
-                |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
-                |> filter(fn: (r) => r.status == "scheduled" or r.status == "upcoming")
-                |> sort(columns: ["_time"], desc: false)
-                |> limit(n: 50)
+            from(bucket: "home_assistant_events")
+                |> range(start: -5m)
+                |> filter(fn: (r) => r._measurement == "sports_data")
+                |> filter(fn: (r) => r.state == "PRE")
+                |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                |> sort(columns: ["_time"], desc: true)
         '''
         
         if league:
             query = f'''
-                from(bucket: "sports_data")
-                    |> range(start: now(), stop: now() + {hours}h)
-                    |> filter(fn: (r) => r._measurement == "{league.lower()}_scores")
-                    |> filter(fn: (r) => r.status == "scheduled" or r.status == "upcoming")
-                    |> sort(columns: ["_time"], desc: false)
-                    |> limit(n: 50)
+                from(bucket: "home_assistant_events")
+                    |> range(start: -5m)
+                    |> filter(fn: (r) => r._measurement == "sports_data")
+                    |> filter(fn: (r) => r.league == "{league.upper()}")
+                    |> filter(fn: (r) => r.state == "PRE")
+                    |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                    |> sort(columns: ["_time"], desc: true)
             '''
         
         results = await influxdb_client._execute_query(query)
         
         games = []
+        seen_entities = set()  # Deduplicate by entity_id
         for record in results:
+            entity_id = record.get("entity_id", "")
+            if entity_id in seen_entities:
+                continue
+            seen_entities.add(entity_id)
+            
             # Filter by team_ids if provided
             if team_ids:
                 team_list = [t.strip().lower() for t in team_ids.split(",")]
-                home_team = record.get("home_team", "").lower()
-                away_team = record.get("away_team", "").lower()
-                if home_team not in team_list and away_team not in team_list:
+                team_abbr = record.get("team_abbr", "").lower()
+                opponent_abbr = record.get("opponent_abbr", "").lower()
+                if team_abbr not in team_list and opponent_abbr not in team_list:
                     continue
             
+            # Map sports-api data structure to GameResponse
+            # Handle timestamp - convert datetime to ISO string if needed
+            raw_time = record.get("_time", datetime.now())
+            if hasattr(raw_time, 'isoformat'):
+                timestamp_str = raw_time.isoformat()
+            else:
+                timestamp_str = str(raw_time)
+            
             game = GameResponse(
-                game_id=record.get("game_id", ""),
-                league=record.get("_measurement", "").split('_')[0].upper(),
-                season=int(record.get("season", datetime.now().year)),
-                week=record.get("week"),
-                home_team=record.get("home_team", ""),
-                away_team=record.get("away_team", ""),
-                home_score=record.get("home_score"),
-                away_score=record.get("away_score"),
-                status=record.get("status", "upcoming"),
-                quarter_period=record.get("quarter") or record.get("period"),
-                time_remaining=record.get("time_remaining"),
-                timestamp=record.get("_time", datetime.now().isoformat())
+                game_id=entity_id,  # Use entity_id as game_id
+                league=record.get("league", ""),
+                season=datetime.now().year,
+                week=None,
+                home_team=record.get("team_abbr", ""),  # Team being tracked
+                away_team=record.get("opponent_abbr", ""),  # Opponent
+                home_score=0,  # PRE state = no score yet
+                away_score=0,
+                status="upcoming",  # PRE state = upcoming
+                quarter_period=None,
+                time_remaining=record.get("clock", ""),  # Clock shows game time for PRE
+                timestamp=timestamp_str,
+                # NEW: 6 automation attributes (available even for upcoming games)
+                team_homeaway=record.get("team_homeaway"),
+                team_color_primary=record.get("team_color_primary"),
+                team_color_secondary=record.get("team_color_secondary"),
+                team_winner=None,  # Not applicable for upcoming
+                opponent_winner=None,  # Not applicable for upcoming
+                event_name=record.get("event_name"),
+                last_play=None  # Not applicable for upcoming
             )
             games.append(game)
             

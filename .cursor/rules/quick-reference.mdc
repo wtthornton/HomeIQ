@@ -1,9 +1,26 @@
 ---
-description: Quick reference guide for common TappsCodingAgents commands and workflows
+description: Quick reference guide for common TappsCodingAgents commands and workflows. DEFAULT to @simple-mode for all development tasks.
 alwaysApply: false
 ---
 
 # TappsCodingAgents Quick Reference
+
+## ⚠️ IMPORTANT: Default to @simple-mode
+
+**For ALL development tasks, you should DEFAULT to using `@simple-mode` commands.**
+
+### Quick Decision Guide
+
+| User Wants To... | Use This Command |
+|------------------|------------------|
+| Build a new feature | `@simple-mode *build "description"` |
+| Fix a bug/error | `@simple-mode *fix <file> "description"` |
+| Review code quality | `@simple-mode *review <file>` |
+| Add tests | `@simple-mode *test <file>` |
+| Refactor code | `@simple-mode *refactor <file>` |
+| Quick score only | `@reviewer *score <file>` (exception) |
+
+---
 
 ## Where to Run Commands: Cursor Chat vs Terminal/CI
 
@@ -11,17 +28,19 @@ alwaysApply: false
 
 **Best for:** Interactive development, natural language, learning, iterative work
 
-**Syntax:** `@agent-name *command` or `@simple-mode *command`
+**Primary Syntax:** `@simple-mode *command` (orchestrates multiple agents)
+**Advanced Syntax:** `@agent-name *command` (single agent operations)
 
 **Examples:**
 ```cursor
-# Simple Mode (recommended for new users)
+# Simple Mode (RECOMMENDED - use this by default)
 @simple-mode *build "Add user authentication"
 @simple-mode *review src/api.py
 @simple-mode *fix src/buggy.py "Fix the error"
 @simple-mode *test src/service.py
+@simple-mode *refactor src/legacy.py
 
-# Individual agents
+# Individual agents (use only for targeted operations)
 @reviewer *score src/main.py
 @reviewer *review src/api.py
 @implementer *implement "Add feature" src/feature.py

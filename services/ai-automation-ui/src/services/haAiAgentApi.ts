@@ -51,11 +51,15 @@ export interface ChatResponse {
   };
 }
 
+export type ConversationSource = 'user' | 'proactive' | 'pattern';
+
 export interface Conversation {
   conversation_id: string;
   created_at: string;
   updated_at: string;
   state: 'active' | 'archived';
+  title?: string | null;  // Epic AI-20.9: Conversation title
+  source?: ConversationSource | null;  // Epic AI-20.9: Conversation origin
   message_count: number;
   messages?: Message[];
   metadata?: Record<string, any>;

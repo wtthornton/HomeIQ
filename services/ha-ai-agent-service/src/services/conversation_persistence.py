@@ -25,11 +25,17 @@ def _conversation_model_to_domain(model: ConversationModel) -> Conversation:
     if not debug_id:
         debug_id = str(uuid4())  # Generate as fallback if missing
     
+    # Get title and source from model (Epic AI-20.9)
+    title = getattr(model, 'title', None)
+    source = getattr(model, 'source', None) or 'user'
+    
     conversation = Conversation(
         conversation_id=model.conversation_id,
         created_at=model.created_at,
         state=ConversationState(model.state),
         debug_id=debug_id,
+        title=title,
+        source=source,
     )
     conversation.updated_at = model.updated_at
 
@@ -71,9 +77,23 @@ def _message_model_to_domain(model: MessageModel) -> Message:
 
 
 async def create_conversation(
-    session: AsyncSession, conversation_id: str | None = None
+    session: AsyncSession, 
+    conversation_id: str | None = None,
+    title: str | None = None,
+    source: str | None = None,
 ) -> Conversation:
-    """Create a new conversation in the database"""
+    """
+    Create a new conversation in the database.
+    
+    Args:
+        session: Database session
+        conversation_id: Optional conversation ID (generated if not provided)
+        title: Optional conversation title (Epic AI-20.9)
+        source: Conversation source - 'user', 'proactive', or 'pattern' (Epic AI-20.9)
+    
+    Returns:
+        Created Conversation domain object
+    """
     conv_id = conversation_id or str(uuid4())
     debug_id = str(uuid4())  # Generate unique troubleshooting ID
     now = datetime.now()
@@ -82,6 +102,8 @@ async def create_conversation(
         conversation_id=conv_id,
         debug_id=debug_id,
         state=ConversationState.ACTIVE.value,
+        title=title,
+        source=source or "user",
         created_at=now,
         updated_at=now,
     )
@@ -93,7 +115,7 @@ async def create_conversation(
     # Mark messages as loaded (empty list for new conversation)
     conversation_model._messages_loaded = []
 
-    logger.info(f"Created conversation {conv_id} in database with debug_id {debug_id}")
+    logger.info(f"Created conversation {conv_id} in database with debug_id {debug_id}, source={source or 'user'}")
     return _conversation_model_to_domain(conversation_model)
 
 
@@ -289,6 +311,119 @@ async def update_conversation_state(
     conversation_model.updated_at = datetime.now()
     await session.commit()
     return True
+
+
+async def update_conversation_title(
+    session: AsyncSession, conversation_id: str, title: str | None
+) -> bool:
+    """
+    Update conversation title (Epic AI-20.9).
+    
+    Args:
+        session: Database session
+        conversation_id: Conversation ID
+        title: New title (max 200 chars, will be truncated)
+    
+    Returns:
+        True if updated, False if conversation not found
+    """
+    conversation_model = await session.get(ConversationModel, conversation_id)
+    if not conversation_model:
+        return False
+
+    # Truncate title if too long
+    if title and len(title) > 200:
+        title = title[:197] + "..."
+    
+    conversation_model.title = title
+    conversation_model.updated_at = datetime.now()
+    await session.commit()
+    
+    logger.debug(f"Updated title for conversation {conversation_id}: {title}")
+    return True
+
+
+async def update_conversation_source(
+    session: AsyncSession, conversation_id: str, source: str
+) -> bool:
+    """
+    Update conversation source (Epic AI-20.9).
+    
+    Args:
+        session: Database session
+        conversation_id: Conversation ID
+        source: Source type ('user', 'proactive', 'pattern')
+    
+    Returns:
+        True if updated, False if conversation not found
+    """
+    valid_sources = ['user', 'proactive', 'pattern']
+    if source not in valid_sources:
+        logger.warning(f"Invalid source '{source}', must be one of {valid_sources}")
+        return False
+    
+    conversation_model = await session.get(ConversationModel, conversation_id)
+    if not conversation_model:
+        return False
+
+    conversation_model.source = source
+    conversation_model.updated_at = datetime.now()
+    await session.commit()
+    
+    logger.debug(f"Updated source for conversation {conversation_id}: {source}")
+    return True
+
+
+async def auto_generate_title(
+    session: AsyncSession, conversation_id: str
+) -> str | None:
+    """
+    Auto-generate title from first user message if not set (Epic AI-20.9).
+    
+    Args:
+        session: Database session
+        conversation_id: Conversation ID
+    
+    Returns:
+        Generated title or None if no user messages
+    """
+    from sqlalchemy.orm import selectinload
+    
+    stmt = (
+        select(ConversationModel)
+        .where(ConversationModel.conversation_id == conversation_id)
+        .options(selectinload(ConversationModel.messages))
+    )
+    
+    result = await session.execute(stmt)
+    conversation_model = result.scalar_one_or_none()
+    
+    if not conversation_model:
+        return None
+    
+    # If title is already set, don't override
+    if conversation_model.title:
+        return conversation_model.title
+    
+    # Find first user message
+    for msg in sorted(conversation_model.messages, key=lambda m: m.created_at):
+        if msg.role == "user":
+            content = msg.content.strip()
+            # Generate title from first 50 chars
+            if len(content) > 50:
+                title = content[:47] + "..."
+            else:
+                title = content
+            
+            # Save generated title
+            conversation_model.title = title
+            conversation_model.updated_at = datetime.now()
+            await session.commit()
+            
+            logger.debug(f"Auto-generated title for conversation {conversation_id}: {title}")
+            return title
+    
+    return None
 
 
 async def cleanup_old_conversations(
