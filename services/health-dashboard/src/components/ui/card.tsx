@@ -18,7 +18,7 @@ const cardVariants = cva(
         offline: "border-l-2 border-l-status-offline border-t-border border-r-border border-b-border",
       },
       hover: {
-        true: "hover:border-border-hover hover:shadow-md cursor-pointer",
+        true: "hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-md cursor-pointer",
         false: "",
       },
       glow: {

@@ -27,6 +27,12 @@ class ChatRequest(BaseModel):
     source: str | None = Field(
         None, description="Conversation source: user, proactive, or pattern (default: user)"
     )
+    # Proactive Suggestions Enhancement: Hidden context for LLM
+    hidden_context: dict[str, Any] | None = Field(
+        None, 
+        description="Structured context to inject into system prompt (not shown to user). "
+                    "Useful for passing automation hints like game_time, team_colors, trigger_type."
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -36,6 +42,12 @@ class ChatRequest(BaseModel):
                 "refresh_context": False,
                 "title": "Kitchen lighting request",
                 "source": "user",
+                "hidden_context": {
+                    "game_time": "7:00 PM",
+                    "team_colors": ["#B4975A", "#333F48"],
+                    "trigger_type": "state_change",
+                    "trigger_entity": "sensor.vgk_team_tracker"
+                }
             }
         }
     )

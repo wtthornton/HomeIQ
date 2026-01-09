@@ -146,6 +146,48 @@ export const getMockDataSources = (): DataSource[] => {
         size_bytes: 409600,
         item_count: 52
       }
+    },
+    {
+      id: 'blueprint-index',
+      name: 'Blueprint Index',
+      icon: '📘',
+      status: 'healthy',
+      api_usage: {
+        calls_today: 156,
+        quota_percentage: 0  // No quota limit for GitHub API with token
+      },
+      performance: {
+        avg_response_time_ms: 320,
+        last_success: new Date(Date.now() - 30 * 60000).toISOString(),
+        retry_count: 0,
+        error_count_24h: 0
+      },
+      cache: {
+        hit_rate_percentage: 95,
+        size_bytes: 2097152,  // 2MB cache of indexed blueprints
+        item_count: 5247
+      }
+    },
+    {
+      id: 'rule-recommendation',
+      name: 'Rule Recommendations',
+      icon: '🤖',
+      status: 'healthy',
+      api_usage: {
+        calls_today: 89,
+        quota_percentage: 0  // Local ML model, no external API
+      },
+      performance: {
+        avg_response_time_ms: 45,  // Fast local inference
+        last_success: new Date(Date.now() - 3 * 60000).toISOString(),
+        retry_count: 0,
+        error_count_24h: 0
+      },
+      cache: {
+        hit_rate_percentage: 82,
+        size_bytes: 1048576,  // 1MB for cached recommendations
+        item_count: 1024
+      }
     }
   ];
 };

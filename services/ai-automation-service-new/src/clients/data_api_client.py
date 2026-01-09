@@ -3,10 +3,20 @@ Data API Client for AI Automation Service (2025 Patterns)
 
 Epic 39, Story 39.10: Automation Service Foundation
 Provides async access to historical Home Assistant data via Data API service.
+
+Architecture Notes (Epic 31):
+- Events are queried via data-api, which reads from InfluxDB
+- Devices/Entities are queried via data-api, which reads from SQLite
+- This client follows the Epic 31 pattern: Query via data-api, NOT direct writes
+- See .cursor/rules/epic-31-architecture.mdc for architecture details
+
+API Endpoint Paths:
+- Events: /api/v1/events (with v1 prefix)
+- Devices: /api/devices (no v1 prefix)  
+- Entities: /api/entities (no v1 prefix)
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -62,48 +72,35 @@ class DataAPIClient:
     )
     async def fetch_events(
         self,
-        start_time: datetime | None = None,
-        end_time: datetime | None = None,
         entity_id: str | None = None,
         device_id: str | None = None,
         event_type: str | None = None,
         limit: int = 10000,
-        days: int | None = None
+        **kwargs: Any  # Accept but ignore unused params for backward compatibility
     ) -> list[dict[str, Any]]:
         """
         Fetch historical events from Data API.
         
+        Note: Data-api returns events from its default time window (typically 24h).
+        Time filtering parameters are not currently supported due to a bug in the
+        data-api InfluxDB query builder. The default window is sufficient for
+        pattern detection and suggestion generation.
+        
         Args:
-            start_time: Start datetime (default: 30 days ago or days parameter)
-            end_time: End datetime (default: now)
             entity_id: Optional filter for specific entity
-            device_id: Optional filter for specific device
+            device_id: Optional filter for specific device  
             event_type: Optional filter for event type (e.g., 'state_changed')
-            limit: Maximum number of events to return
-            days: Number of days to look back (alternative to start_time)
+            limit: Maximum number of events to return (default: 10000)
+            **kwargs: Ignored parameters for backward compatibility (start_time, end_time, days)
         
         Returns:
             List of event dictionaries
         
         Raises:
-            httpx.HTTPError: If API request fails
+            httpx.HTTPError: If API request fails after retries
         """
-        # Calculate time range
-        if end_time is None:
-            end_time = datetime.now(timezone.utc)
-        
-        if start_time is None:
-            if days:
-                start_time = end_time - timedelta(days=days)
-            else:
-                start_time = end_time - timedelta(days=30)
-        
         # Build query parameters
-        params: dict[str, Any] = {
-            "start_time": start_time.isoformat(),
-            "end_time": end_time.isoformat(),
-            "limit": limit
-        }
+        params: dict[str, Any] = {"limit": limit}
         
         if entity_id:
             params["entity_id"] = entity_id
@@ -112,14 +109,28 @@ class DataAPIClient:
         if event_type:
             params["event_type"] = event_type
         
-        # Make request (internal service, no API key needed)
-        url = f"{self.base_url}/api/events"
+        # Events endpoint uses /api/v1/events (with v1 prefix)
+        url = f"{self.base_url}/api/v1/events"
         headers = {"X-Internal-Service": "true"}
+        
         try:
+            logger.debug(f"Fetching events from {url} with params: {params}")
             response = await self.client.get(url, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
-            return data.get("events", [])
+            
+            # Handle both list response (direct) and dict response (wrapped)
+            if isinstance(data, list):
+                logger.info(f"Fetched {len(data)} events from Data API")
+                return data
+            
+            events = data.get("events", []) if isinstance(data, dict) else []
+            logger.info(f"Fetched {len(events)} events from Data API")
+            return events
+            
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Data API returned {e.response.status_code}: {e.response.text[:200]}")
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to fetch events from Data API: {e}")
             raise
@@ -130,23 +141,35 @@ class DataAPIClient:
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
         reraise=True
     )
-    async def fetch_devices(self) -> list[dict[str, Any]]:
+    async def fetch_devices(self, limit: int = 1000) -> list[dict[str, Any]]:
         """
-        Fetch all devices from Data API.
+        Fetch devices from Data API (SQLite).
+        
+        Args:
+            limit: Maximum number of devices to return (default: 1000)
         
         Returns:
             List of device dictionaries
         
         Raises:
-            httpx.HTTPError: If API request fails
+            httpx.HTTPError: If API request fails after retries
         """
+        # Devices endpoint uses /api/devices (no v1 prefix)
         url = f"{self.base_url}/api/devices"
         headers = {"X-Internal-Service": "true"}
+        params = {"limit": limit}
+        
         try:
-            response = await self.client.get(url, headers=headers)
+            logger.debug(f"Fetching devices from {url}")
+            response = await self.client.get(url, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
-            return data.get("devices", [])
+            devices = data.get("devices", [])
+            logger.info(f"Fetched {len(devices)} devices from Data API")
+            return devices
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Data API returned {e.response.status_code}: {e.response.text[:200]}")
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to fetch devices from Data API: {e}")
             raise
@@ -157,23 +180,35 @@ class DataAPIClient:
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
         reraise=True
     )
-    async def fetch_entities(self) -> list[dict[str, Any]]:
+    async def fetch_entities(self, limit: int = 1000) -> list[dict[str, Any]]:
         """
-        Fetch all entities from Data API.
+        Fetch entities from Data API (SQLite).
+        
+        Args:
+            limit: Maximum number of entities to return (default: 1000)
         
         Returns:
             List of entity dictionaries
         
         Raises:
-            httpx.HTTPError: If API request fails
+            httpx.HTTPError: If API request fails after retries
         """
+        # Entities endpoint uses /api/entities (no v1 prefix)
         url = f"{self.base_url}/api/entities"
         headers = {"X-Internal-Service": "true"}
+        params = {"limit": limit}
+        
         try:
-            response = await self.client.get(url, headers=headers)
+            logger.debug(f"Fetching entities from {url}")
+            response = await self.client.get(url, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
-            return data.get("entities", [])
+            entities = data.get("entities", [])
+            logger.info(f"Fetched {len(entities)} entities from Data API")
+            return entities
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Data API returned {e.response.status_code}: {e.response.text[:200]}")
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to fetch entities from Data API: {e}")
             raise

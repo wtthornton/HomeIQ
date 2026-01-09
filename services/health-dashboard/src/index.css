@@ -217,7 +217,7 @@
   }
   
   .card-hover {
-    @apply card-base hover:border-border-hover cursor-pointer;
+    @apply card-base hover:border-gray-400 dark:hover:border-gray-500 cursor-pointer;
   }
   
   /* Consistent button styles - Compact */
