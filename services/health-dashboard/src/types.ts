@@ -47,6 +47,8 @@ export interface DataSourcesHealthMap {
   airQuality: DataSourceHealth | null;
   calendar: DataSourceHealth | null;
   smartMeter: DataSourceHealth | null;
+  blueprintIndex: DataSourceHealth | null;
+  ruleRecommendation: DataSourceHealth | null;
 }
 
 export interface DataSourceMetrics {

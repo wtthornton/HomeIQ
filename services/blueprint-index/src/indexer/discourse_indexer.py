@@ -147,6 +147,7 @@ class DiscourseBlueprintIndexer:
     async def _get_category_topics(
         self, 
         category_id: int,
+        category_slug: str = BLUEPRINT_EXCHANGE_CATEGORY,
         max_pages: int = 50,
     ) -> list[dict[str, Any]]:
         """Get all topics from a category."""
@@ -154,9 +155,10 @@ class DiscourseBlueprintIndexer:
         page = 0
         
         while page < max_pages:
+            # Use the full category path with slug to avoid redirects
             data = await self._request(
                 "GET", 
-                f"/c/{category_id}.json",
+                f"/c/{category_slug}/{category_id}.json",
                 params={"page": page}
             )
             

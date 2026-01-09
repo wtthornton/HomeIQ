@@ -55,6 +55,7 @@ class HAAgentClient:
         refresh_context: bool = False,
         title: str | None = None,
         source: str = "proactive",  # Default to proactive for this client
+        hidden_context: dict[str, Any] | None = None,  # NEW: Structured context for LLM
     ) -> dict[str, Any] | None:
         """
         Send a message to the HA AI Agent Service.
@@ -65,6 +66,8 @@ class HAAgentClient:
             refresh_context: Force context refresh (default: False)
             title: Optional title for new conversation (Epic AI-20.9)
             source: Conversation source - defaults to 'proactive' for this client (Epic AI-20.9)
+            hidden_context: Optional structured context to inject into system prompt (not shown to user).
+                           Useful for passing automation hints like game_time, team_colors, trigger_type.
 
         Returns:
             Dictionary with response:
@@ -86,6 +89,8 @@ class HAAgentClient:
                 payload["conversation_id"] = conversation_id
             if title:
                 payload["title"] = title
+            if hidden_context:
+                payload["hidden_context"] = hidden_context  # NEW: Pass structured context
 
             logger.debug(f"Sending message to HA AI Agent: {message[:100]}...")
             response = await self.client.post(

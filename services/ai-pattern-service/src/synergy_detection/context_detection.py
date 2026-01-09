@@ -177,7 +177,7 @@ class ContextAwareDetector:
         """
         return {
             'synergy_id': str(uuid.uuid4()),
-            'synergy_type': 'context_aware',
+            'synergy_type': 'weather_context',  # Specific type for weather-based synergies
             'devices': [weather_entity_id, climate_entity_id],
             'trigger_entity': weather_entity_id,
             'action_entity': climate_entity_id,
@@ -185,7 +185,7 @@ class ContextAwareDetector:
             'impact_score': 0.75,
             'confidence': 0.70,
             'complexity': 'medium',
-            'rationale': 'Context-aware: Pre-cool/heat based on weather forecast to optimize energy',
+            'rationale': 'Weather context: Pre-cool/heat based on weather forecast to optimize energy',
             'synergy_depth': 2,
             'chain_devices': [weather_entity_id, climate_entity_id],
             'context_metadata': {
@@ -218,7 +218,7 @@ class ContextAwareDetector:
         """
         return {
             'synergy_id': str(uuid.uuid4()),
-            'synergy_type': 'context_aware',
+            'synergy_type': 'weather_context',  # Specific type for weather-based synergies
             'devices': [weather_entity_id, cover_entity_id],
             'trigger_entity': weather_entity_id,
             'action_entity': cover_entity_id,
@@ -226,7 +226,7 @@ class ContextAwareDetector:
             'impact_score': 0.70,
             'confidence': 0.75,
             'complexity': 'low',
-            'rationale': 'Context-aware: Close blinds when sunny to reduce cooling load',
+            'rationale': 'Weather context: Close blinds when sunny to reduce cooling load',
             'synergy_depth': 2,
             'chain_devices': [weather_entity_id, cover_entity_id],
             'context_metadata': {
@@ -260,7 +260,7 @@ class ContextAwareDetector:
         
         return {
             'synergy_id': str(uuid.uuid4()),
-            'synergy_type': 'context_aware',
+            'synergy_type': 'energy_context',  # Specific type for energy-based synergies
             'devices': [energy_entity_id, device_entity_id],
             'trigger_entity': energy_entity_id,
             'action_entity': device_entity_id,
@@ -268,7 +268,7 @@ class ContextAwareDetector:
             'impact_score': 0.80,
             'confidence': 0.70,
             'complexity': 'medium',
-            'rationale': f'Context-aware: Schedule {device_domain} during off-peak energy hours',
+            'rationale': f'Energy context: Schedule {device_domain} during off-peak energy hours',
             'synergy_depth': 2,
             'chain_devices': [energy_entity_id, device_entity_id],
             'context_metadata': {
@@ -300,7 +300,7 @@ class ContextAwareDetector:
         """
         return {
             'synergy_id': str(uuid.uuid4()),
-            'synergy_type': 'context_aware',
+            'synergy_type': 'weather_context',  # Specific type for weather-based synergies
             'devices': [weather_entity_id, light_entity_id],
             'trigger_entity': weather_entity_id,
             'action_entity': light_entity_id,
@@ -308,7 +308,7 @@ class ContextAwareDetector:
             'impact_score': 0.65,
             'confidence': 0.70,
             'complexity': 'low',
-            'rationale': 'Context-aware: Adjust lighting based on weather conditions and daylight',
+            'rationale': 'Weather context: Adjust lighting based on weather conditions and daylight',
             'synergy_depth': 2,
             'chain_devices': [weather_entity_id, light_entity_id],
             'context_metadata': {

@@ -72,6 +72,8 @@ export const handlers = [
       weather: { status: 'active', last_update: new Date().toISOString() },
       carbon: { status: 'active', last_update: new Date().toISOString() },
       sports: { status: 'active', last_update: new Date().toISOString() },
+      blueprintIndex: { status: 'active', last_update: new Date().toISOString() },
+      ruleRecommendation: { status: 'active', last_update: new Date().toISOString() },
     });
   }),
 

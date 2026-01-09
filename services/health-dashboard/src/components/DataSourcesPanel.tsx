@@ -19,24 +19,29 @@ interface DataSourcesPanelProps {
 // Data source definitions for display
 type DataSourceKey = keyof DataSourcesHealthMap;
 
-const DATA_SOURCE_DEFINITIONS: Array<{ id: DataSourceKey; name: string; icon: string; }> = [
-  { id: 'weather', name: 'Weather API', icon: '☁️' },
-  { id: 'sports', name: 'Sports API', icon: '⚽' },
-  { id: 'carbonIntensity', name: 'Carbon Intensity', icon: '🌱' },
-  { id: 'airQuality', name: 'Air Quality', icon: '💨' },
-  { id: 'electricityPricing', name: 'Electricity Pricing', icon: '⚡' },
-  { id: 'calendar', name: 'Calendar Service', icon: '📅' },
-  { id: 'smartMeter', name: 'Smart Meter', icon: '📈' }
+const DATA_SOURCE_DEFINITIONS: Array<{ id: DataSourceKey; name: string; icon: string; description?: string; }> = [
+  { id: 'weather', name: 'Weather API', icon: '☁️', description: 'OpenWeatherMap integration' },
+  { id: 'sports', name: 'Sports API', icon: '⚽', description: 'HA Team Tracker integration' },
+  { id: 'carbonIntensity', name: 'Carbon Intensity', icon: '🌱', description: 'UK National Grid carbon data' },
+  { id: 'airQuality', name: 'Air Quality', icon: '💨', description: 'Air quality index monitoring' },
+  { id: 'electricityPricing', name: 'Electricity Pricing', icon: '⚡', description: 'Real-time electricity rates' },
+  { id: 'calendar', name: 'Calendar Service', icon: '📅', description: 'Calendar & occupancy data' },
+  { id: 'smartMeter', name: 'Smart Meter', icon: '📈', description: 'Energy consumption metrics' },
+  { id: 'blueprintIndex', name: 'Blueprint Index', icon: '📘', description: 'HA blueprints from GitHub & Discourse' },
+  { id: 'ruleRecommendation', name: 'Rule Recommendations', icon: '🤖', description: 'ML-powered automation suggestions' },
 ];
 
 // Service port mapping
 const SERVICE_PORTS: Record<string, number> = {
   weather: 8009,
+  sports: 8005,  // Sports API - Team Tracker integration
   carbonIntensity: 8010,
   electricityPricing: 8011,
   airQuality: 8012,
   calendar: 8013,
   smartMeter: 8014,
+  blueprintIndex: 8038,  // Blueprint Index - HA blueprints from GitHub/Discourse (external port)
+  ruleRecommendation: 8040,  // Rule Recommendation ML - Wyze dataset (external port)
 };
 
 export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) => {
@@ -124,6 +129,16 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours} hr ago`;
     return `${Math.floor(diffHours / 24)} days ago`;
+  };
+
+  const formatUptime = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    if (mins < 60) return `${mins}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ${mins % 60}m`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
   };
 
   const handleTest = async (serviceId: string, serviceName: string) => {
@@ -391,7 +406,7 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
                   {source?.uptime_seconds !== undefined && source.uptime_seconds > 0 && (
                     <div className={`flex justify-between ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       <span>Uptime:</span>
-                      <span className="font-medium">{formatTimestamp(source.uptime_seconds)}</span>
+                      <span className="font-medium">{formatUptime(source.uptime_seconds)}</span>
                     </div>
                   )}
                 </div>
@@ -452,6 +467,97 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
             </div>
           );
         })}
+      </div>
+
+      {/* ML Datasets Section */}
+      <div className={`rounded-lg shadow-md p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
+              <span>🤗</span>
+              ML Training Datasets
+            </h3>
+            <p className={`mt-1 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Hugging Face datasets used for AI model training
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* HA Requests Dataset */}
+          <div className={`rounded-lg p-4 border ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">🏠</span>
+              <div>
+                <h4 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Home Assistant Requests
+                </h4>
+                <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  acon96/Home-Assistant-Requests
+                </p>
+              </div>
+            </div>
+            <div className={`text-sm space-y-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <p>• Intent classification training data</p>
+              <p>• Entity extraction labels</p>
+              <p>• NLP fine-tuning for voice commands</p>
+            </div>
+            <a 
+              href="https://huggingface.co/datasets/acon96/Home-Assistant-Requests" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-1 mt-3 text-sm ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+            >
+              View on Hugging Face →
+            </a>
+          </div>
+
+          {/* Wyze Rules Dataset */}
+          <div className={`rounded-lg p-4 border ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">📊</span>
+              <div>
+                <h4 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Wyze Rule Recommendations
+                </h4>
+                <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  1M+ automation rules from 300K+ users
+                </p>
+              </div>
+            </div>
+            <div className={`text-sm space-y-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <p>• Collaborative filtering model</p>
+              <p>• Personalized rule suggestions</p>
+              <p>• Device-based recommendations</p>
+            </div>
+            <span className={`inline-flex items-center gap-1 mt-3 text-sm ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
+              ✓ Loaded into rule-recommendation-ml
+            </span>
+          </div>
+
+          {/* HA Datasets (Local) */}
+          <div className={`rounded-lg p-4 border ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">🧪</span>
+              <div>
+                <h4 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  HA Evaluation Datasets
+                </h4>
+                <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Synthetic home data for testing
+                </p>
+              </div>
+            </div>
+            <div className={`text-sm space-y-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <p>• Assist & intents datasets</p>
+              <p>• Automation generation tests</p>
+              <p>• Model evaluation benchmarks</p>
+            </div>
+            <span className={`inline-flex items-center gap-1 mt-3 text-sm ${darkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+              📁 services/tests/datasets/
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Configuration Tip */}

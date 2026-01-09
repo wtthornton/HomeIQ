@@ -1536,6 +1536,38 @@ services:
         max-file: "3"
         labels: "service=blueprint-index,environment=production"
 
+  # Rule Recommendation ML Service - ML-powered automation recommendations
+  rule-recommendation-ml:
+    build:
+      context: ./services/rule-recommendation-ml
+      dockerfile: Dockerfile
+    container_name: homeiq-rule-recommendation-ml
+    restart: unless-stopped
+    ports:
+      - "8040:8035"  # External:Internal - using 8040 as 803x range is in use
+    environment:
+      - PORT=8035
+      - HOST=0.0.0.0
+      - MODEL_PATH=./models/rule_recommender.pkl
+      - DEBUG=false
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - rule_recommendation_models:/app/models
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8035/api/v1/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=rule-recommendation-ml,environment=production"
+
   automation-miner:
     build:
       context: ./services/automation-miner
@@ -2033,6 +2065,7 @@ volumes:
   ha_ai_agent_data:  # HA AI Agent Service context cache
   proactive_agent_data:  # Proactive Agent Service suggestions storage
   blueprint_index_data:  # Blueprint Index Service data
+  rule_recommendation_models:  # Rule Recommendation ML Service models
 
 networks:
   homeiq-network:

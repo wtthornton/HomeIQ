@@ -11,7 +11,7 @@ datasets>=3.0.0
 
 # ML - Recommendation
 implicit>=0.7.0
-lightfm>=1.17
+# lightfm>=1.17  # Disabled - compatibility issues with Python 3.12
 scipy>=1.12.0
 numpy>=1.26.0
 

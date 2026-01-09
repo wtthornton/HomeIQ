@@ -61,6 +61,7 @@ class PromptAssemblyService:
         user_message: str,
         refresh_context: bool = False,
         skip_add_message: bool = False,
+        hidden_context: dict[str, Any] | None = None,
     ) -> list[dict[str, str]]:
         """
         Assemble complete message list for OpenAI API call.
@@ -69,12 +70,14 @@ class PromptAssemblyService:
         - System prompt with Tier 1 context
         - Conversation history (truncated if needed)
         - New user message
+        - Hidden context from proactive suggestions (if provided)
 
         Args:
             conversation_id: Conversation ID
             user_message: New user message to add
             refresh_context: Force context refresh (default: False, uses cache if available)
             skip_add_message: If True, skip adding the user message (use when message already added)
+            hidden_context: Optional structured context from proactive agent (game_time, team_colors, etc.)
 
         Returns:
             List of message dicts in OpenAI format
@@ -245,6 +248,15 @@ class PromptAssemblyService:
             logger.info(
                 f"[Preview Context] Conversation {conversation_id}: "
                 f"Injected pending preview context for automation '{pending_preview.get('alias', 'unknown')}'"
+            )
+
+        # Inject hidden context from proactive suggestions (not shown to user)
+        if hidden_context:
+            hidden_context_str = self._build_hidden_context(hidden_context)
+            system_prompt = f"{system_prompt}\n\n---\n\n{hidden_context_str}\n\n---\n"
+            logger.info(
+                f"[Hidden Context] Conversation {conversation_id}: "
+                f"Injected proactive hidden context with {len(hidden_context)} fields"
             )
 
         # Get conversation history (without system prompt)
@@ -655,3 +667,76 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
         
         return "\n".join(lines)
 
+    def _build_hidden_context(self, hidden_context: dict[str, Any]) -> str:
+        """
+        Build context string from proactive agent hidden context.
+        
+        This context is injected into the system prompt but NOT shown to users.
+        It helps the LLM make better automation decisions with structured data
+        that the proactive agent gathered (game times, team colors, etc.).
+
+        Args:
+            hidden_context: Dictionary with automation hints from proactive agent
+
+        Returns:
+            Formatted context string for system prompt injection
+        """
+        lines = [
+            "## PROACTIVE CONTEXT (from suggestion engine - not visible to user)",
+            "",
+            "The following context was gathered by the proactive suggestion engine.",
+            "Use this information to create accurate automations:",
+            "",
+        ]
+        
+        # Game time (for sports automations)
+        if game_time := hidden_context.get("game_time"):
+            lines.append(f"- **Game Time**: {game_time}")
+        
+        # Kickoff countdown
+        if kickoff_in := hidden_context.get("kickoff_in"):
+            lines.append(f"- **Kickoff In**: {kickoff_in}")
+        
+        # Team colors (for lighting automations)
+        if team_colors := hidden_context.get("team_colors"):
+            if isinstance(team_colors, list) and len(team_colors) >= 1:
+                lines.append(f"- **Team Colors**: Primary: {team_colors[0]}")
+                if len(team_colors) >= 2:
+                    lines.append(f"                  Secondary: {team_colors[1]}")
+        
+        # Trigger type recommendation
+        if trigger_type := hidden_context.get("trigger_type"):
+            lines.append(f"- **Recommended Trigger Type**: {trigger_type}")
+        
+        # Trigger entity (e.g., Team Tracker sensor)
+        if trigger_entity := hidden_context.get("trigger_entity"):
+            lines.append(f"- **Trigger Entity**: {trigger_entity}")
+        
+        # Trigger condition
+        if trigger_condition := hidden_context.get("trigger_condition"):
+            lines.append(f"- **Trigger Condition**: {trigger_condition}")
+        
+        # Target color (RGB)
+        if target_color := hidden_context.get("target_color"):
+            lines.append(f"- **Target Color**: {target_color}")
+        
+        # Context type (sports, weather, energy, etc.)
+        if context_type := hidden_context.get("context_type"):
+            lines.append(f"- **Context Type**: {context_type}")
+        
+        # Any additional fields
+        standard_fields = {
+            "game_time", "kickoff_in", "team_colors", "trigger_type", 
+            "trigger_entity", "trigger_condition", "target_color", "context_type"
+        }
+        for key, value in hidden_context.items():
+            if key not in standard_fields and value:
+                lines.append(f"- **{key.replace('_', ' ').title()}**: {value}")
+        
+        lines.extend([
+            "",
+            "⚠️ IMPORTANT: Use sensor state triggers for sports events, NOT fixed times.",
+            "If game_time is provided, it's for informational display only - trigger on sensor state change.",
+        ])
+        
+        return "\n".join(lines)

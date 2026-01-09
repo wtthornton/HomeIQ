@@ -2,20 +2,26 @@
 Suggestions API Router for Proactive Agent Service
 
 REST API endpoints for managing proactive automation suggestions.
+Enhanced with invalid suggestion reporting for user feedback.
+
+Epic: Proactive Suggestions Device Validation
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import select, func as sql_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..services.suggestion_storage_service import SuggestionStorageService
-from ..models import Suggestion
+from ..models import Suggestion, InvalidSuggestionReport, InvalidReportReason
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +89,48 @@ class SuggestionListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class InvalidSuggestionReportRequest(BaseModel):
+    """Request model for reporting an invalid suggestion."""
+    
+    reason: str = Field(
+        ...,
+        description="Reason for reporting",
+        pattern="^(device_not_found|not_relevant|already_automated|other)$",
+    )
+    feedback: str | None = Field(
+        None,
+        max_length=500,
+        description="Optional user feedback",
+    )
+
+
+class InvalidSuggestionReportResponse(BaseModel):
+    """Response model for invalid suggestion report."""
+    
+    success: bool
+    report_id: str
+    message: str
+
+
+class InvalidReportItem(BaseModel):
+    """Item in invalid reports list."""
+    
+    id: str
+    suggestion_id: str
+    reason: str
+    feedback: str | None
+    reported_at: str
+    suggestion_prompt: str | None = None
+
+
+class InvalidReportsListResponse(BaseModel):
+    """Response for listing invalid reports."""
+    
+    reports: list[InvalidReportItem]
+    total: int
+    by_reason: dict[str, int]
 
 
 # Dependency for storage service
@@ -362,3 +410,142 @@ async def create_sample_suggestion(
     except Exception as e:
         logger.error(f"Failed to create sample suggestion: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create sample suggestion: {str(e)}") from e
+
+
+@router.post("/{suggestion_id}/report", response_model=InvalidSuggestionReportResponse)
+async def report_invalid_suggestion(
+    suggestion_id: str,
+    report_data: InvalidSuggestionReportRequest,
+    db: AsyncSession = Depends(get_db),
+    storage_service: SuggestionStorageService = Depends(get_storage_service),
+):
+    """
+    Report a suggestion as invalid.
+    
+    Allows users to report suggestions that reference non-existent devices,
+    are not relevant, or have other issues.
+    
+    Epic: Proactive Suggestions Device Validation
+    Story: User Feedback for Invalid Suggestions (P2)
+    
+    Args:
+        suggestion_id: ID of the suggestion to report
+        report_data: Report details (reason, feedback)
+        db: Database session
+        storage_service: Storage service instance
+        
+    Returns:
+        Report confirmation with report ID
+    """
+    try:
+        # Verify suggestion exists
+        suggestion = await storage_service.get_suggestion(suggestion_id, db=db)
+        if not suggestion:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+        
+        # Create report
+        report = InvalidSuggestionReport(
+            suggestion_id=suggestion_id,
+            reason=report_data.reason,
+            feedback=report_data.feedback,
+        )
+        db.add(report)
+        await db.commit()
+        await db.refresh(report)
+        
+        logger.info(
+            f"Invalid suggestion reported: suggestion_id={suggestion_id}, "
+            f"reason={report_data.reason}, report_id={report.id}"
+        )
+        
+        return InvalidSuggestionReportResponse(
+            success=True,
+            report_id=report.id,
+            message=f"Thank you for reporting. This helps improve our suggestions.",
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to report suggestion {suggestion_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to submit report"
+        ) from e
+
+
+@router.get("/reports/invalid", response_model=InvalidReportsListResponse)
+async def list_invalid_reports(
+    reason: str | None = Query(None, description="Filter by reason"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List invalid suggestion reports (admin endpoint).
+    
+    Returns reports with aggregated statistics by reason.
+    
+    Epic: Proactive Suggestions Device Validation
+    
+    Args:
+        reason: Optional filter by reason
+        limit: Maximum number of results
+        db: Database session
+        
+    Returns:
+        List of reports with statistics
+    """
+    try:
+        # Build query
+        query = select(InvalidSuggestionReport).order_by(
+            InvalidSuggestionReport.reported_at.desc()
+        ).limit(limit)
+        
+        if reason:
+            query = query.where(InvalidSuggestionReport.reason == reason)
+        
+        result = await db.execute(query)
+        reports = result.scalars().all()
+        
+        # Get totals by reason
+        count_query = select(
+            InvalidSuggestionReport.reason,
+            sql_func.count().label("count")
+        ).group_by(InvalidSuggestionReport.reason)
+        
+        count_result = await db.execute(count_query)
+        by_reason = {row.reason: row.count for row in count_result.all()}
+        
+        # Get suggestion prompts for context
+        report_items = []
+        for report in reports:
+            # Fetch suggestion prompt
+            suggestion_query = select(Suggestion.prompt).where(
+                Suggestion.id == report.suggestion_id
+            )
+            suggestion_result = await db.execute(suggestion_query)
+            suggestion_prompt = suggestion_result.scalar_one_or_none()
+            
+            report_items.append(InvalidReportItem(
+                id=report.id,
+                suggestion_id=report.suggestion_id,
+                reason=report.reason,
+                feedback=report.feedback,
+                reported_at=report.reported_at.isoformat() if report.reported_at else "",
+                suggestion_prompt=suggestion_prompt[:100] + "..." if suggestion_prompt and len(suggestion_prompt) > 100 else suggestion_prompt,
+            ))
+        
+        total = sum(by_reason.values())
+        
+        return InvalidReportsListResponse(
+            reports=report_items,
+            total=total,
+            by_reason=by_reason,
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to list invalid reports: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to list reports"
+        ) from e

@@ -128,8 +128,17 @@ class ContextAnalysisService:
             if condition and "rain" in condition.lower():
                 insights.append("Rainy conditions - consider window/outdoor device automation")
 
+            # REMOVED: Generic humidity insight that suggests non-existent devices
+            # if humidity and humidity > 70:
+            #     insights.append("High humidity - consider dehumidifier automation")
+            # 
+            # Device-specific insights are now generated in AIPromptGenerationService
+            # based on actual device inventory. This prevents suggesting devices
+            # the user doesn't have. See: device_validation_service.py
             if humidity and humidity > 70:
-                insights.append("High humidity - consider dehumidifier automation")
+                insights.append("High humidity detected")  # Generic, no device suggestion
+            elif humidity and humidity < 30:
+                insights.append("Low humidity detected")  # Generic, no device suggestion
 
             # Analyze forecast trends
             trends = self._analyze_weather_trends(forecast)

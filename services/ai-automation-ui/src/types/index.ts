@@ -206,7 +206,7 @@ export interface UsageStats {
 export interface SynergyOpportunity {
   id: number;
   synergy_id: string;
-  synergy_type: 'device_pair' | 'weather_context' | 'energy_context' | 'event_context';
+  synergy_type: 'device_pair' | 'device_chain' | 'weather_context' | 'energy_context' | 'event_context' | 'scene_based' | 'context_aware';
   device_ids: string;  // JSON array
   opportunity_metadata: {
     trigger_entity?: string;

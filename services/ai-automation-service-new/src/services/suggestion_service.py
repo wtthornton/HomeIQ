@@ -67,7 +67,10 @@ class SuggestionService:
         """
         try:
             # Fetch events from Data API
+            logger.info(f"Fetching events for suggestion generation (days={days}, limit=10000)")
             events = await self.data_api_client.fetch_events(days=days, limit=10000)
+            
+            logger.info(f"Received {len(events) if events else 0} events from Data API")
             
             if not events:
                 logger.warning("No events found for suggestion generation")
@@ -79,30 +82,34 @@ class SuggestionService:
             
             suggestions = []
             
+            # Calculate how many suggestions we can generate (1 per 100 events)
+            max_suggestions = len(events) // 100
+            actual_limit = min(limit, max_suggestions)
+            logger.info(f"Can generate up to {max_suggestions} suggestions, requested {limit}, will generate {actual_limit}")
+            
             # Generate suggestions using OpenAI
-            for i in range(min(limit, len(events) // 100)):  # Limit suggestions
+            for i in range(actual_limit):
                 try:
-                    # Build prompt from events
-                    prompt = f"Generate an automation suggestion based on these events: {events[i*100:(i+1)*100]}"
+                    # Get batch of events for this suggestion
+                    event_batch = events[i * 100:(i + 1) * 100]
                     
-                    # Generate description
+                    # Generate description using OpenAI
                     description = await self.openai_client.generate_suggestion_description(
-                        pattern_data={"events": events[i*100:(i+1)*100]}
+                        pattern_data={"events": event_batch}
                     )
                     
-                    # Create suggestion
+                    # Create suggestion dictionary (matches Suggestion model fields)
                     suggestion = {
-                        "title": f"Automation Suggestion {i+1}",
+                        "title": f"Automation Suggestion {i + 1}",
                         "description": description,
                         "status": "pending",
-                        "created_at": datetime.now(timezone.utc),
-                        "pattern_data": {"event_count": len(events[i*100:(i+1)*100])}
                     }
-                    
                     suggestions.append(suggestion)
                     
+                    logger.debug(f"Generated suggestion {i + 1}/{actual_limit}")
+                    
                 except Exception as e:
-                    logger.error(f"Failed to generate suggestion {i+1}: {e}")
+                    logger.error(f"Failed to generate suggestion {i + 1}: {e}")
                     continue
             
             # Store suggestions in database
@@ -112,8 +119,8 @@ class SuggestionService:
                     suggestion = Suggestion(
                         title=suggestion_data["title"],
                         description=suggestion_data["description"],
-                        status=suggestion_data["status"],
-                        pattern_data=suggestion_data.get("pattern_data", {})
+                        status=suggestion_data["status"]
+                        # Note: pattern_data is stored in automation_json field if needed
                     )
                     self.db.add(suggestion)
                     await self.db.flush()
