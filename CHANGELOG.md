@@ -5,7 +5,34 @@ All notable changes to the HA-Ingestor project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-01-08
+## [Unreleased] - 2026-01-09
+
+### Added
+
+- **Epic AI-20.9 conversation management + sports automation attributes** (5333ea4) - wtthornton
+- **feat(ui): Industrial design system overhaul - remove AI-generated aesthetic** (2df5663) - wtthornton
+- **feat(health-dashboard): apply security and quality fixes from ai-automation-ui - remove hardcoded API keys, add input sanitization, localStorage error handling, PageErrorBoundary, and test suite (47 tests)** (435b1eb) - wtthornton
+- **Implement ML Dataset Integration & Patterns/Synergies Enhancement** (fdb2f55) - wtthornton
+- **feat(health-dashboard): Implement comprehensive UI enhancement with shadcn/ui component library** (8f133e6) - wtthornton
+- **Blueprint service deployment and synergy router fixes** (0afb82e) - wtthornton
+- **Add recommendations implementation guide and test script** (711eb0d) - wtthornton
+- **Implement complete Patterns & Synergies improvement recommendations** (dbe02a0) - wtthornton
+- **Add database repair feature and fix Docker dependencies** (7dff22a) - wtthornton
+
+### Changed
+
+- **Refactor synergy detection into focused modules (v1.2.0)** (1ab1f6b) - wtthornton
+- **Improve NetworkGraphView error handling and fix test SQLAlchemy usage** (002b0e3) - wtthornton
+- **Update AI pattern service and test configurations** (3fdffeb) - wtthornton
+
+### Fixed
+
+- **Add sports-api service and fix weather-api health checks** (e4ef4f2) - wtthornton
+- **Fix synergy storage: Add missing pattern_support_score and validated_by_patterns columns** (04a55a7) - wtthornton
+- **Fix database corruption detection and error handling in ai-pattern-service** (34f9633) - wtthornton
+- **Fix Playwright test import paths - Corrected relative import paths for shared helpers and fixtures across all test files** (eca533c) - wtthornton
+- **fix(ha-ai-agent): Add motion-based dimming pattern detection and fix YAML generation issues** (d2501c5) - wtthornton
+
 
 ### Added
 
