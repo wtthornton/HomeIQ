@@ -67,8 +67,68 @@ from .api.middlewares import (
     start_rate_limit_cleanup,
     stop_rate_limit_cleanup
 )
+from .clients.data_api_client import DataAPIClient
+from .clients.openai_client import OpenAIClient
 from .config import settings
-from .database import init_db
+from .database import async_session_maker, init_db
+from .services.suggestion_service import SuggestionService
+
+# Scheduler for automatic suggestion generation
+try:
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    APSCHEDULER_AVAILABLE = True
+except ImportError:
+    APSCHEDULER_AVAILABLE = False
+    AsyncIOScheduler = None
+    CronTrigger = None
+
+scheduler: AsyncIOScheduler | None = None
+
+
+async def generate_daily_suggestions():
+    """
+    Scheduled job to generate automation suggestions daily.
+    
+    This function runs at the configured time (default: 2 AM) and generates
+    new automation suggestions from detected patterns.
+    """
+    logger.info("Starting scheduled daily suggestion generation")
+    
+    try:
+        # Create database session for this job
+        async with async_session_maker() as db_session:
+            # Create clients and service
+            data_api_client = DataAPIClient(base_url=settings.data_api_url)
+            openai_client = OpenAIClient(
+                api_key=settings.openai_api_key,
+                model=settings.openai_model
+            )
+            suggestion_service = SuggestionService(
+                db=db_session,
+                data_api_client=data_api_client,
+                openai_client=openai_client
+            )
+            
+            # Generate suggestions
+            suggestions = await suggestion_service.generate_suggestions(
+                limit=settings.scheduler_suggestion_limit,
+                days=30
+            )
+            
+            logger.info(
+                f"Scheduled suggestion generation complete: "
+                f"Generated {len(suggestions)} suggestions"
+            )
+            
+            # Cleanup clients
+            await data_api_client.close()
+            
+    except Exception as e:
+        logger.error(
+            f"Error in scheduled suggestion generation: {e}",
+            exc_info=True
+        )
 
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
@@ -122,6 +182,53 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Rate limit cleanup setup failed: {e}")
     
+    # Start scheduler for automatic suggestion generation (if enabled)
+    global scheduler
+    if settings.scheduler_enabled and APSCHEDULER_AVAILABLE:
+        if scheduler is None:
+            scheduler = AsyncIOScheduler()
+        
+        if scheduler:
+        try:
+            # Parse schedule time (format: "HH:MM")
+            schedule_time = settings.scheduler_time.split(":")
+            hour = int(schedule_time[0])
+            minute = int(schedule_time[1]) if len(schedule_time) > 1 else 0
+            
+            # Add daily suggestion generation job
+            scheduler.add_job(
+                generate_daily_suggestions,
+                CronTrigger(
+                    hour=hour,
+                    minute=minute,
+                    timezone=settings.scheduler_timezone
+                ),
+                id="daily_suggestion_generation",
+                name="Daily Automation Suggestion Generation",
+                replace_existing=True,
+                max_instances=1,  # Prevent overlap
+                coalesce=True,  # Skip if previous run still active
+                misfire_grace_time=3600,  # Allow 1 hour delay if server was down
+            )
+            
+            scheduler.start()
+            
+            job = scheduler.get_job("daily_suggestion_generation")
+            next_run = job.next_run_time if job else None
+            
+            logger.info(
+                f"✅ Scheduler started: daily suggestions at {settings.scheduler_time} "
+                f"({settings.scheduler_timezone})"
+            )
+            if next_run:
+                logger.info(f"Next scheduled run: {next_run}")
+        except Exception as e:
+            logger.error(f"Failed to start scheduler: {e}", exc_info=True)
+            # Don't raise - scheduler failure shouldn't prevent service startup
+            logger.warning("Service will continue without automatic suggestion generation")
+    elif not settings.scheduler_enabled:
+        logger.info("Scheduler is disabled in settings")
+    
     logger.info("✅ AI Automation Service startup complete")
     logger.info("=" * 60)
     
@@ -131,6 +238,15 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info("AI Automation Service Shutting Down")
     logger.info("=" * 60)
+    
+    # Stop scheduler
+    global scheduler
+    if scheduler and scheduler.running:
+        try:
+            scheduler.shutdown(wait=True)
+            logger.info("✅ Scheduler stopped")
+        except Exception as e:
+            logger.warning(f"Scheduler shutdown failed: {e}")
     
     # Stop rate limit cleanup
     try:

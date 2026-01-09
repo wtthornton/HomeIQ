@@ -26,6 +26,9 @@ pyyaml>=6.0.1,<7.0.0
 # Retry logic
 tenacity>=8.2.0,<9.0.0
 
+# Scheduler
+apscheduler>=3.10.4,<3.11.0  # Async scheduler for daily suggestion generation
+
 # Utilities
 python-dotenv>=1.0.0,<2.0.0
 

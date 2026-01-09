@@ -77,7 +77,7 @@ async def test_json_storage_and_retrieval_e2e(db_session):
         automation_json=homeiq_json,
         ha_version="2025.10.3",
         json_schema_version="1.0.0",
-        status="pending"
+        status="draft"
     )
     
     db_session.add(suggestion)
@@ -132,7 +132,7 @@ async def test_json_query_e2e(db_session):
             title=f"Test Automation {i+1}",
             description=f"Test automation {i+1}",
             automation_json=automation_json,
-            status="pending"
+            status="draft"
         )
         db_session.add(suggestion)
     
@@ -191,7 +191,7 @@ async def test_json_update_e2e(db_session):
         title="Test Update",
         description="Test JSON update",
         automation_json=initial_json,
-        status="pending"
+        status="draft"
     )
     db_session.add(suggestion)
     await db_session.commit()

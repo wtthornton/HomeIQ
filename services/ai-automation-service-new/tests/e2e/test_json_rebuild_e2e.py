@@ -54,7 +54,7 @@ action:
         title="Rebuild Test",
         description="Test JSON rebuild from YAML",
         automation_yaml=yaml_content,
-        status="pending"
+        status="draft"
     )
     db_session.add(suggestion)
     await db_session.commit()

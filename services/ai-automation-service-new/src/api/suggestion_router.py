@@ -95,21 +95,34 @@ async def get_usage_stats(
 
 
 @router.post("/refresh")
+@handle_route_errors("refresh suggestions")
 async def refresh_suggestions(
-    db: DatabaseSession
+    db: DatabaseSession,
+    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
 ) -> dict[str, Any]:
     """
-    Manually trigger suggestion refresh.
+    Manually trigger suggestion generation.
     
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
+    Generates new automation suggestions and stores them in the database
+    with status="draft" for user review.
+    
+    Returns:
+        {
+            "success": True,
+            "message": "Suggestion generation completed",
+            "count": <number_of_suggestions_generated>,
+            "suggestions": [<suggestion_dicts>]
+        }
     """
-    # TODO: Epic 39, Story 39.10 - Migrate suggestion refresh functionality from archived service
-    # Current: Placeholder endpoint
-    # Future: Background job processing, status tracking, progress reporting
+    # Generate suggestions synchronously (Option 1 from analysis)
+    # Default: 10 suggestions, 30 days of data
+    suggestions = await service.generate_suggestions(limit=10, days=30)
+    
     return {
-        "message": "Refresh endpoint - implementation in progress",
-        "status": "queued"
+        "success": True,
+        "message": f"Suggestion generation completed. Generated {len(suggestions)} suggestions.",
+        "count": len(suggestions),
+        "suggestions": suggestions
     }
 
 

@@ -71,7 +71,7 @@ When you run `tapps-agents init` on any project (new or existing), it:
 
 **What it installs:**
 
-1. **Cursor Rules** (`.cursor/rules/`) - 7 rule files:
+1. **Cursor Rules** (`.cursor/rules/`) - 8 rule files:
    - `workflow-presets.mdc` - Workflow preset documentation (auto-generated from YAML)
    - `quick-reference.mdc` - Quick command reference
    - `agent-capabilities.mdc` - Agent capability descriptions
@@ -79,6 +79,7 @@ When you run `tapps-agents init` on any project (new or existing), it:
    - `project-profiling.mdc` - Project profiling guide
    - `simple-mode.mdc` - Simple Mode guide (natural language orchestration)
    - `command-reference.mdc` - This file (complete command reference)
+   - `context7.mdc` - Context7 auto-invoke rules for library documentation
 
 2. **Cursor Skills** (`.claude/skills/`) - 13 agent skills + simple-mode skill:
    - Enables `@agent-name *command` syntax in Cursor chat
@@ -427,8 +428,8 @@ tapps-agents cursor check [--format json|text]  # alias
   - Checks directory structure
   - Verifies YAML frontmatter in SKILL.md files
   - Reports missing skills
-- **Cursor Rules** (`.cursor/rules/`) - Validates all 7 rule files are present
-  - Checks for required rule files (workflow-presets, quick-reference, agent-capabilities, etc.)
+- **Cursor Rules** (`.cursor/rules/`) - Validates all 8 rule files are present
+  - Checks for required rule files (workflow-presets, quick-reference, agent-capabilities, context7, etc.)
   - Verifies file format (.mdc extension)
   - Checks YAML syntax validity
   - Verifies agents are configured
