@@ -350,7 +350,7 @@ class AdminApiClient extends BaseApiClient {
         }
         return {
           success: false,
-          message: `Service returned status ${response.status}${errorText ? `: ${errorText.substring(0, 100)}` : ''}`,
+          message: `${serviceName} returned status ${response.status}${errorText ? `: ${errorText.substring(0, 100)}` : ''}`,
         };
       }
 
@@ -365,8 +365,8 @@ class AdminApiClient extends BaseApiClient {
       // Extract status from response if available
       const status = data.status || data.health || 'healthy';
       const statusMessage = status === 'healthy' || status === 'ok' || status === 'pass'
-        ? 'Service is healthy'
-        : `Service status: ${status}`;
+        ? `${serviceName} is healthy`
+        : `${serviceName} status: ${status}`;
 
       return {
         success: true,
@@ -377,7 +377,7 @@ class AdminApiClient extends BaseApiClient {
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
         return {
           success: false,
-          message: 'Service did not respond within 5 seconds. It may be starting up or not running.',
+          message: `${serviceName} did not respond within 5 seconds. It may be starting up or not running.`,
         };
       }
       if (error.message?.includes('Failed to fetch') || 
@@ -386,12 +386,12 @@ class AdminApiClient extends BaseApiClient {
           error.message?.includes('ERR_CONNECTION_REFUSED')) {
         return {
           success: false,
-          message: 'Service is not reachable. It may not be running or the port may be incorrect.',
+          message: `${serviceName} is not reachable on port ${port}. It may not be running or the port may be incorrect.`,
         };
       }
       return {
         success: false,
-        message: error.message || 'Unknown error occurred while testing service',
+        message: `${serviceName} test failed: ${error.message || 'Unknown error occurred'}`,
       };
     }
   }
