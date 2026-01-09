@@ -23,12 +23,14 @@ WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
+# Create models directory
+RUN mkdir -p /app/models
+
 # Copy application code
 COPY src/ ./src/
-COPY models/ ./models/ 2>/dev/null || true
 
-# Create models directory if it doesn't exist
-RUN mkdir -p /app/models
+# Copy models if they exist (optional - models can be trained in container)
+# Models directory will be mounted as a volume in production
 
 # Environment variables
 ENV PORT=8035

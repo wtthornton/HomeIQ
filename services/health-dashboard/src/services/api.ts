@@ -34,6 +34,8 @@ const createEmptyDataSources = (): DataSourcesHealthMap => ({
   carbonIntensity: null,
   electricityPricing: null,
   airQuality: null,
+  blueprintIndex: null,
+  ruleRecommendation: null,
   calendar: null,
   smartMeter: null,
 });
@@ -240,7 +242,9 @@ class AdminApiClient extends BaseApiClient {
         'calendar-service': 'calendar',
         'smart-meter-service': 'smartMeter',
         'weather-api': 'weather',
-        'sports-api': 'sports'
+        'sports-api': 'sports',
+        'blueprint-index': 'blueprintIndex',
+        'rule-recommendation-ml': 'ruleRecommendation',
       };
 
       const result: DataSourcesHealthMap = createEmptyDataSources();

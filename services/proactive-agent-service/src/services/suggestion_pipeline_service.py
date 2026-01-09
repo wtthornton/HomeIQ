@@ -261,10 +261,23 @@ class SuggestionPipelineService:
                         context_type = prompt_data.get("context_type", "general")
                         title = f"💡 {context_type.title()} suggestion"
                         
+                        # Build hidden context from automation_hints (if AI-generated)
+                        # This passes structured data to HA Agent for better automation generation
+                        hidden_context = None
+                        automation_hints = prompt_data.get("metadata", {}).get("automation_hints") or \
+                                          prompt_data.get("automation_hints")
+                        if automation_hints:
+                            hidden_context = {
+                                "context_type": context_type,
+                                **automation_hints
+                            }
+                            logger.debug(f"Passing hidden context to HA Agent: {hidden_context}")
+                        
                         agent_response = await self.agent_client.send_message(
                             prompt_data["prompt"],
                             title=title,
                             source="proactive",
+                            hidden_context=hidden_context,
                         )
 
                         if agent_response:

@@ -2,18 +2,30 @@
 Database models for Proactive Agent Service
 
 SQLAlchemy 2.0 async models for suggestion storage.
+Enhanced with invalid suggestion report tracking.
+
+Epic: Proactive Suggestions Device Validation
 """
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
-from sqlalchemy import DateTime, Index, JSON, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, Index, JSON, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+
+
+class InvalidReportReason(str, Enum):
+    """Reasons for reporting an invalid suggestion."""
+    DEVICE_NOT_FOUND = "device_not_found"
+    NOT_RELEVANT = "not_relevant"
+    ALREADY_AUTOMATED = "already_automated"
+    OTHER = "other"
 
 
 class Suggestion(Base):
@@ -63,4 +75,58 @@ class Suggestion(Base):
 # Indexes for performance
 Index("idx_suggestions_status_created", Suggestion.status, Suggestion.created_at)
 Index("idx_suggestions_context_type_status", Suggestion.context_type, Suggestion.status)
+
+
+class InvalidSuggestionReport(Base):
+    """
+    Model for tracking invalid suggestion reports.
+    
+    Allows users to report suggestions that are invalid (e.g., reference
+    non-existent devices) for tracking and improvement.
+    
+    Epic: Proactive Suggestions Device Validation
+    Story: User Feedback for Invalid Suggestions (P2)
+    """
+    
+    __tablename__ = "invalid_suggestion_reports"
+    
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    suggestion_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("suggestions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reason: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        index=True,
+    )  # InvalidReportReason value
+    feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        index=True,
+    )
+    
+    # Relationship
+    suggestion: Mapped["Suggestion"] = relationship(
+        "Suggestion",
+        backref="invalid_reports",
+    )
+    
+    def __repr__(self) -> str:
+        return (
+            f"<InvalidSuggestionReport(id={self.id}, "
+            f"suggestion_id={self.suggestion_id}, reason={self.reason})>"
+        )
+
+
+# Indexes for invalid reports
+Index("idx_invalid_reports_reason_date", InvalidSuggestionReport.reason, InvalidSuggestionReport.reported_at)
 

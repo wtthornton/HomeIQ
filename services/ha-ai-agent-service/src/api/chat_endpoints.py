@@ -208,14 +208,19 @@ async def chat(
         # Assemble messages with context
         logger.info(
             f"[Chat Request] Conversation {conversation_id}: "
-            f"Assembling messages with refresh_context={request.refresh_context}"
+            f"Assembling messages with refresh_context={request.refresh_context}, "
+            f"has_hidden_context={request.hidden_context is not None}"
         )
         message_assembly_id = start_tracking("message_assembly", {
             "refresh_context": request.refresh_context,
-            "message_length": len(request.message)
+            "message_length": len(request.message),
+            "has_hidden_context": request.hidden_context is not None
         })
         messages = await prompt_assembly_service.assemble_messages(
-            conversation_id, request.message, refresh_context=request.refresh_context
+            conversation_id, 
+            request.message, 
+            refresh_context=request.refresh_context,
+            hidden_context=request.hidden_context  # Pass proactive agent context
         )
         end_tracking(message_assembly_id, {
             "message_count": len(messages),

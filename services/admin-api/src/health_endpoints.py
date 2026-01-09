@@ -70,7 +70,10 @@ class HealthEndpoints:
             "electricity-pricing-service": os.getenv("ELECTRICITY_PRICING_URL", "http://homeiq-electricity-pricing:8011"),
             "air-quality-service": os.getenv("AIR_QUALITY_URL", "http://homeiq-air-quality:8012"),
             "calendar-service": os.getenv("CALENDAR_URL", "http://homeiq-calendar:8013"),
-            "smart-meter-service": os.getenv("SMART_METER_URL", "http://homeiq-smart-meter:8014")
+            "smart-meter-service": os.getenv("SMART_METER_URL", "http://homeiq-smart-meter:8014"),
+            # ML & Blueprint services
+            "blueprint-index": os.getenv("BLUEPRINT_INDEX_URL", "http://homeiq-blueprint-index:8031"),
+            "rule-recommendation-ml": os.getenv("RULE_RECOMMENDATION_URL", "http://homeiq-rule-recommendation-ml:8035")
         }
 
         self._add_routes()
@@ -192,6 +195,11 @@ class HealthEndpoints:
         """Check health of all services"""
         services_health = {}
 
+        # Custom health paths for services that don't use /health
+        custom_health_paths = {
+            "rule-recommendation-ml": "/api/v1/health",
+        }
+
         logger.debug(f"Checking {len(self.service_urls)} services: {list(self.service_urls.keys())}")
 
         for service_name, service_url in self.service_urls.items():
@@ -199,9 +207,12 @@ class HealthEndpoints:
             try:
                 start_time = datetime.now()
 
+                # Get custom health path or use default /health
+                health_path = custom_health_paths.get(service_name, "/health")
+
                 # Standard health check for internal services
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:
-                    async with session.get(f"{service_url}/health") as response:
+                    async with session.get(f"{service_url}{health_path}") as response:
                         response_time = (datetime.now() - start_time).total_seconds() * 1000
 
                         if response.status == 200:
