@@ -24,7 +24,7 @@ class Suggestion(Base):
     automation_yaml = Column(Text, nullable=True)  # Generated from JSON
     ha_version = Column(String, nullable=True)  # Target Home Assistant version
     json_schema_version = Column(String, nullable=True)  # HomeIQ JSON schema version
-    status = Column(String, default="pending")  # pending, approved, rejected, deployed
+    status = Column(String, default="draft")  # draft, refining, yaml_generated, deployed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     automation_id = Column(String, nullable=True)  # HA automation ID after deployment

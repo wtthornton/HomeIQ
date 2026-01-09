@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     max_suggestions_per_request: int = 50
     suggestion_cache_ttl: int = 3600  # 1 hour cache
     
+    # Scheduler Configuration (for automatic suggestion generation)
+    scheduler_enabled: bool = True
+    scheduler_time: str = "02:00"  # 2 AM daily (after pattern analysis completes)
+    scheduler_timezone: str = "America/Los_Angeles"
+    scheduler_suggestion_limit: int = 10  # Max suggestions to generate per day
+    
     # Logging
     log_level: str = "INFO"
     

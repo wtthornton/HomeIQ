@@ -59,7 +59,7 @@ async def test_json_generation_complete_workflow(db_session):
     suggestion = Suggestion(
         title="Test Automation",
         description="Turn on light when motion detected",
-        status="pending"
+        status="draft"
     )
     db_session.add(suggestion)
     await db_session.commit()

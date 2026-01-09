@@ -102,7 +102,7 @@ class SuggestionService:
                     suggestion = {
                         "title": f"Automation Suggestion {i + 1}",
                         "description": description,
-                        "status": "pending",
+                        "status": "draft",
                     }
                     suggestions.append(suggestion)
                     
