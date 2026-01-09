@@ -28,6 +28,8 @@ class ConversationResponse(BaseModel):
 
     conversation_id: str = Field(..., description="Conversation ID")
     state: str = Field(..., description="Conversation state (active, archived)")
+    title: str | None = Field(None, description="Conversation title (auto-generated or user-set)")
+    source: str | None = Field("user", description="Conversation source (user, proactive, pattern)")
     message_count: int = Field(..., description="Number of messages in conversation")
     created_at: datetime = Field(..., description="Conversation creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
@@ -58,11 +60,39 @@ class CreateConversationRequest(BaseModel):
     initial_message: str | None = Field(
         None, description="Optional initial message to start the conversation"
     )
+    title: str | None = Field(
+        None, max_length=200, description="Optional conversation title (max 200 chars)"
+    )
+    source: str | None = Field(
+        "user", description="Conversation source: user, proactive, or pattern"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "initial_message": "Hello, I need help with my home automation",
+                "title": "Smart lighting setup",
+                "source": "user",
+            }
+        }
+    )
+
+
+class UpdateConversationRequest(BaseModel):
+    """Request model for updating a conversation (Epic AI-20.9)"""
+
+    title: str | None = Field(
+        None, max_length=200, description="New conversation title (max 200 chars)"
+    )
+    state: str | None = Field(
+        None, description="New conversation state (active, archived)"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "title": "Kitchen automation setup",
+                "state": "active",
             }
         }
     )

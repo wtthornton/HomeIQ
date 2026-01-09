@@ -198,7 +198,6 @@ class ActivityTrainer:
             mode="min",
             factor=0.5,
             patience=5,
-            verbose=True,
         )
         
         self.train_losses: list[float] = []
@@ -376,10 +375,10 @@ def export_to_onnx(
     # Create dummy input
     dummy_input = torch.randn(1, sequence_length, model.input_size)
     
-    # Export
+    # Export (pass input as tuple for correct type signature)
     torch.onnx.export(
         model,
-        dummy_input,
+        (dummy_input,),
         str(output_path),
         input_names=["sensor_sequence"],
         output_names=["activity_logits"],

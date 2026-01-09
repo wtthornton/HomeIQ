@@ -240,10 +240,15 @@ class SportsService:
                 if response.status == 200:
                     states = await response.json()
                     
-                    # Filter for Team Tracker sensors (entity_id starts with sensor.team_tracker_)
+                    # Filter for Team Tracker sensors
+                    # Team Tracker sensors can be named:
+                    # - sensor.<team>_team_tracker (e.g., sensor.vgk_team_tracker)
+                    # - sensor.team_tracker_<team> (legacy pattern)
+                    # We detect them by checking if entity_id contains 'team_tracker'
                     team_tracker_sensors = [
                         state for state in states
-                        if state.get('entity_id', '').startswith('sensor.team_tracker_')
+                        if state.get('entity_id', '').startswith('sensor.') 
+                        and 'team_tracker' in state.get('entity_id', '')
                     ]
                     
                     logger.info(f"Fetched {len(team_tracker_sensors)} Team Tracker sensors from HA")
@@ -257,12 +262,16 @@ class SportsService:
             return []
 
     def parse_sensor_data(self, sensor: dict[str, Any]) -> dict[str, Any]:
-        """Parse Team Tracker sensor data into normalized format"""
+        """Parse Team Tracker sensor data into normalized format.
+        
+        Captures all automation-relevant attributes from Team Tracker sensors.
+        See: https://github.com/vasqued2/ha-teamtracker for full attribute list.
+        """
         entity_id = sensor.get('entity_id', '')
         state = sensor.get('state', 'NOT_FOUND')
         attributes = sensor.get('attributes', {})
         
-        # Extract key attributes
+        # Extract key attributes (existing)
         parsed = {
             'entity_id': entity_id,
             'state': state,
@@ -286,6 +295,26 @@ class SportsService:
             'last_update': attributes.get('last_update', sensor.get('last_updated', '')),
             'last_updated': sensor.get('last_updated', ''),
             'last_changed': sensor.get('last_changed', ''),
+            
+            # NEW: 6 high-value automation attributes
+            # 1. Home/away status - for different lighting scenes
+            'team_homeaway': attributes.get('team_homeaway', ''),
+            
+            # 2. Team colors - for smart light integration (array of 2 hex colors)
+            'team_colors': attributes.get('team_colors', []),
+            
+            # 3. Team winner flag - for celebration automations
+            'team_winner': attributes.get('team_winner'),
+            
+            # 4. Opponent winner flag - for "better luck" automations
+            'opponent_winner': attributes.get('opponent_winner'),
+            
+            # 5. Event name - for rich notifications ("CBJ @ VGK")
+            'event_name': attributes.get('event_name', ''),
+            
+            # 6. Last play - for real-time play reactions (touchdowns, goals)
+            'last_play': attributes.get('last_play', ''),
+            
             # Include all other attributes for completeness
             'all_attributes': attributes
         }
@@ -382,6 +411,7 @@ class SportsService:
         Returns:
             Updated InfluxDB Point object
         """
+        # Existing fields
         if sensor_data.get('quarter'):
             point = point.field("quarter", str(sensor_data['quarter']))
         if sensor_data.get('clock'):
@@ -392,6 +422,37 @@ class SportsService:
             point = point.tag("opponent_id", str(sensor_data['opponent_id']))
         if sensor_data.get('venue'):
             point = point.tag("venue", sensor_data['venue'])
+        
+        # NEW: 6 high-value automation attributes
+        
+        # 1. Home/away status (tag for filtering)
+        if sensor_data.get('team_homeaway'):
+            point = point.tag("team_homeaway", sensor_data['team_homeaway'])
+        
+        # 2. Team colors (field - stored as comma-separated hex values)
+        team_colors = sensor_data.get('team_colors', [])
+        if team_colors and isinstance(team_colors, list) and len(team_colors) >= 1:
+            point = point.field("team_color_primary", team_colors[0])
+            if len(team_colors) >= 2:
+                point = point.field("team_color_secondary", team_colors[1])
+        
+        # 3. Team winner (field - boolean as string for InfluxDB compatibility)
+        team_winner = sensor_data.get('team_winner')
+        if team_winner is not None:
+            point = point.field("team_winner", str(team_winner).lower())
+        
+        # 4. Opponent winner (field - boolean as string)
+        opponent_winner = sensor_data.get('opponent_winner')
+        if opponent_winner is not None:
+            point = point.field("opponent_winner", str(opponent_winner).lower())
+        
+        # 5. Event name (field - for notifications)
+        if sensor_data.get('event_name'):
+            point = point.field("event_name", sensor_data['event_name'])
+        
+        # 6. Last play (field - for real-time reactions)
+        if sensor_data.get('last_play'):
+            point = point.field("last_play", sensor_data['last_play'])
         
         return point
 

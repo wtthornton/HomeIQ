@@ -19,6 +19,7 @@ from .conversation_models import (
     ConversationListResponse,
     ConversationResponse,
     CreateConversationRequest,
+    UpdateConversationRequest,
     MessageResponse,
 )
 from .dependencies import get_conversation_service, get_prompt_assembly_service
@@ -106,6 +107,8 @@ async def list_conversations(
             ConversationResponse(
                 conversation_id=conv.conversation_id,
                 state=conv.state.value,
+                title=conv.title,
+                source=conv.source,
                 message_count=conv.message_count,
                 created_at=conv.created_at,
                 updated_at=conv.updated_at,
@@ -455,6 +458,8 @@ async def get_conversation(
         return ConversationResponse(
             conversation_id=conversation.conversation_id,
             state=conversation.state.value,
+            title=conversation.title,
+            source=conversation.source,
             message_count=conversation.message_count,
             created_at=conversation.created_at,
             updated_at=conversation.updated_at,
@@ -481,17 +486,34 @@ async def create_conversation(
 
     **Request Body:**
     - `initial_message` (optional): Initial message to start the conversation
+    - `title` (optional): Conversation title (max 200 chars)
+    - `source` (optional): Conversation source - user, proactive, or pattern (default: user)
     """
     try:
-        # Create conversation
-        conversation = await conversation_service.create_conversation()
+        # Validate source
+        valid_sources = ['user', 'proactive', 'pattern']
+        source = request.source or 'user'
+        if source not in valid_sources:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid source: {source}. Must be one of {valid_sources}",
+            )
+
+        # Create conversation with title and source (Epic AI-20.9)
+        conversation = await conversation_service.create_conversation(
+            title=request.title,
+            source=source,
+        )
 
         # Add initial message if provided
         if request.initial_message:
             await conversation_service.add_message(
                 conversation.conversation_id, "user", request.initial_message
             )
-            # Refresh conversation to get updated message count
+            # Auto-generate title from initial message if not provided
+            if not request.title:
+                await conversation_service.auto_generate_title(conversation.conversation_id)
+            # Refresh conversation to get updated message count and title
             conversation = await conversation_service.get_conversation(
                 conversation.conversation_id
             )
@@ -513,12 +535,16 @@ async def create_conversation(
         return ConversationResponse(
             conversation_id=conversation.conversation_id,
             state=conversation.state.value,
+            title=conversation.title,
+            source=conversation.source,
             message_count=conversation.message_count,
             created_at=conversation.created_at,
             updated_at=conversation.updated_at,
             messages=message_responses,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Error creating conversation")
         raise HTTPException(
@@ -556,6 +582,88 @@ async def delete_conversation(
         raise
     except Exception as e:
         logger.exception(f"Error deleting conversation {conversation_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        ) from e
+
+
+@router.patch("/{conversation_id}", response_model=ConversationResponse)
+async def update_conversation(
+    conversation_id: str,
+    request: UpdateConversationRequest,
+    conversation_service: ConversationService = Depends(get_conversation_service),
+):
+    """
+    Update a conversation (title, state) - Epic AI-20.9.
+
+    **Path Parameters:**
+    - `conversation_id`: Conversation ID to update
+
+    **Request Body:**
+    - `title` (optional): New conversation title (max 200 chars)
+    - `state` (optional): New conversation state (active, archived)
+    """
+    try:
+        # Check if conversation exists
+        conversation = await conversation_service.get_conversation(conversation_id)
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Conversation {conversation_id} not found",
+            )
+
+        # Update title if provided
+        if request.title is not None:
+            await conversation_service.update_conversation_title(
+                conversation_id, request.title
+            )
+
+        # Update state if provided
+        if request.state is not None:
+            try:
+                state = ConversationState(request.state.lower())
+                await conversation_service.archive_conversation(conversation_id) \
+                    if state == ConversationState.ARCHIVED \
+                    else await conversation_service.activate_conversation(conversation_id)
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid state: {request.state}. Must be 'active' or 'archived'",
+                ) from e
+
+        # Get updated conversation
+        conversation = await conversation_service.get_conversation(conversation_id)
+
+        # Get messages
+        messages = conversation.messages if conversation else []
+
+        # Convert to response model
+        message_responses = [
+            MessageResponse(
+                message_id=msg.message_id,
+                role=msg.role,
+                content=msg.content,
+                created_at=msg.created_at,
+            )
+            for msg in messages
+        ]
+
+        return ConversationResponse(
+            conversation_id=conversation.conversation_id,
+            state=conversation.state.value,
+            title=conversation.title,
+            source=conversation.source,
+            message_count=conversation.message_count,
+            created_at=conversation.created_at,
+            updated_at=conversation.updated_at,
+            messages=message_responses,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error updating conversation {conversation_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",

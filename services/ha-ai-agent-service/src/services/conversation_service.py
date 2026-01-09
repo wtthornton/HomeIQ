@@ -33,6 +33,10 @@ from .conversation_persistence import (
 from .conversation_persistence import (
     list_conversations as db_list_conversations,
 )
+from .conversation_persistence import (
+    update_conversation_title as db_update_conversation_title,
+    auto_generate_title as db_auto_generate_title,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -104,19 +108,29 @@ class ConversationService:
         logger.info("✅ Conversation service initialized (database-backed)")
 
     async def create_conversation(
-        self, conversation_id: str | None = None
+        self, 
+        conversation_id: str | None = None,
+        title: str | None = None,
+        source: str | None = None,
     ) -> Conversation:
         """
         Create a new conversation.
 
         Args:
             conversation_id: Optional conversation ID (generated if not provided)
+            title: Optional conversation title (Epic AI-20.9)
+            source: Conversation source - user, proactive, or pattern (Epic AI-20.9)
 
         Returns:
             Created Conversation instance
         """
         async for session in get_session():
-            return await db_create_conversation(session, conversation_id)
+            return await db_create_conversation(
+                session, 
+                conversation_id, 
+                title=title, 
+                source=source or "user"
+            )
 
     async def get_conversation_by_debug_id(self, debug_id: str) -> Conversation | None:
         """Get a conversation by debug_id (troubleshooting ID)"""
@@ -226,6 +240,35 @@ class ConversationService:
         if not conversation:
             return []
         return conversation.get_messages()
+
+    async def update_conversation_title(
+        self, conversation_id: str, title: str | None
+    ) -> bool:
+        """
+        Update conversation title (Epic AI-20.9).
+
+        Args:
+            conversation_id: Conversation ID
+            title: New title (max 200 chars)
+
+        Returns:
+            True if updated, False if conversation not found
+        """
+        async for session in get_session():
+            return await db_update_conversation_title(session, conversation_id, title)
+
+    async def auto_generate_title(self, conversation_id: str) -> str | None:
+        """
+        Auto-generate title from first user message (Epic AI-20.9).
+
+        Args:
+            conversation_id: Conversation ID
+
+        Returns:
+            Generated title or None if no user messages
+        """
+        async for session in get_session():
+            return await db_auto_generate_title(session, conversation_id)
 
     async def get_openai_messages(
         self, conversation_id: str, include_system: bool = True

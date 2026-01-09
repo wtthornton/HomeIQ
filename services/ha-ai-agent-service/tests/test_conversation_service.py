@@ -362,3 +362,170 @@ def test_is_generic_welcome_message_case_insensitive():
     assert is_generic_welcome_message("how can i help you")
     assert is_generic_welcome_message("How Can I Assist You Today?")
 
+
+# Epic AI-20.9: Tests for conversation title and source functionality
+class TestConversationTitleAndSource:
+    """Tests for Epic AI-20.9: Better conversation naming and source tracking"""
+
+    @pytest.mark.asyncio
+    async def test_create_conversation_with_title(self, conversation_service):
+        """Test creating a conversation with a custom title"""
+        conversation = await conversation_service.create_conversation(
+            title="My Test Conversation"
+        )
+        assert conversation is not None
+        assert conversation.title == "My Test Conversation"
+        assert conversation.state == ConversationState.ACTIVE
+
+    @pytest.mark.asyncio
+    async def test_create_conversation_with_source_user(self, conversation_service):
+        """Test creating a conversation with user source"""
+        conversation = await conversation_service.create_conversation(
+            source="user"
+        )
+        assert conversation is not None
+        assert conversation.source == "user"
+
+    @pytest.mark.asyncio
+    async def test_create_conversation_with_source_proactive(self, conversation_service):
+        """Test creating a conversation with proactive source"""
+        conversation = await conversation_service.create_conversation(
+            title="💡 Energy suggestion",
+            source="proactive"
+        )
+        assert conversation is not None
+        assert conversation.title == "💡 Energy suggestion"
+        assert conversation.source == "proactive"
+
+    @pytest.mark.asyncio
+    async def test_create_conversation_with_source_pattern(self, conversation_service):
+        """Test creating a conversation with pattern source"""
+        conversation = await conversation_service.create_conversation(
+            title="Pattern-based automation",
+            source="pattern"
+        )
+        assert conversation is not None
+        assert conversation.source == "pattern"
+
+    @pytest.mark.asyncio
+    async def test_create_conversation_default_source(self, conversation_service):
+        """Test that default source is 'user' when not specified"""
+        conversation = await conversation_service.create_conversation()
+        # Default source should be 'user' or None (handled by API layer)
+        assert conversation.source in ("user", None)
+
+    @pytest.mark.asyncio
+    async def test_create_conversation_with_title_and_source(self, conversation_service):
+        """Test creating a conversation with both title and source"""
+        conversation = await conversation_service.create_conversation(
+            title="Test Title",
+            source="proactive"
+        )
+        assert conversation.title == "Test Title"
+        assert conversation.source == "proactive"
+
+    @pytest.mark.asyncio
+    async def test_update_title(self, conversation_service):
+        """Test updating a conversation title"""
+        conversation = await conversation_service.create_conversation(
+            title="Original Title"
+        )
+        
+        # Update the title
+        result = await conversation_service.update_title(
+            conversation.conversation_id,
+            "Updated Title"
+        )
+        assert result is True
+        
+        # Verify the title was updated
+        updated = await conversation_service.get_conversation(conversation.conversation_id)
+        assert updated.title == "Updated Title"
+
+    @pytest.mark.asyncio
+    async def test_update_title_nonexistent_conversation(self, conversation_service):
+        """Test updating title of a non-existent conversation"""
+        result = await conversation_service.update_title(
+            "non-existent-id",
+            "New Title"
+        )
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_auto_generate_title_from_message(self, conversation_service):
+        """Test auto-generating title from first user message"""
+        conversation = await conversation_service.create_conversation()
+        
+        # Add a user message
+        await conversation_service.add_message(
+            conversation.conversation_id,
+            "user",
+            "Turn on the living room lights please"
+        )
+        
+        # Auto-generate title
+        result = await conversation_service.auto_generate_title(conversation.conversation_id)
+        assert result is True
+        
+        # Verify title was generated
+        updated = await conversation_service.get_conversation(conversation.conversation_id)
+        assert updated.title is not None
+        assert "Turn on the living room lights" in updated.title
+
+    @pytest.mark.asyncio
+    async def test_auto_generate_title_truncates_long_messages(self, conversation_service):
+        """Test that auto-generated titles are truncated to 50 chars"""
+        conversation = await conversation_service.create_conversation()
+        
+        # Add a long user message
+        long_message = "This is a very long message that should be truncated when used as a conversation title because it exceeds the maximum length"
+        await conversation_service.add_message(
+            conversation.conversation_id,
+            "user",
+            long_message
+        )
+        
+        # Auto-generate title
+        await conversation_service.auto_generate_title(conversation.conversation_id)
+        
+        # Verify title is truncated
+        updated = await conversation_service.get_conversation(conversation.conversation_id)
+        assert updated.title is not None
+        assert len(updated.title) <= 53  # 50 chars + "..."
+
+    @pytest.mark.asyncio
+    async def test_conversation_to_dict_includes_title_and_source(self, conversation_service):
+        """Test that conversation serialization includes title and source"""
+        conversation = await conversation_service.create_conversation(
+            title="Test Title",
+            source="proactive"
+        )
+        
+        conv_dict = conversation.to_dict()
+        assert "title" in conv_dict
+        assert conv_dict["title"] == "Test Title"
+        assert "source" in conv_dict
+        assert conv_dict["source"] == "proactive"
+
+    @pytest.mark.asyncio
+    async def test_list_conversations_includes_title_and_source(self, conversation_service):
+        """Test that listed conversations include title and source"""
+        await conversation_service.create_conversation(
+            title="Conversation 1",
+            source="user"
+        )
+        await conversation_service.create_conversation(
+            title="Conversation 2",
+            source="proactive"
+        )
+        
+        conversations = await conversation_service.list_conversations()
+        assert len(conversations) >= 2
+        
+        # Check that at least one has the expected title and source
+        titles = [c.title for c in conversations]
+        sources = [c.source for c in conversations]
+        assert "Conversation 1" in titles
+        assert "Conversation 2" in titles
+        assert "user" in sources
+        assert "proactive" in sources

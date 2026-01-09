@@ -61,10 +61,16 @@ class ConversationModel(Base):
     )
 
     # Unique troubleshooting ID for debug screen (stored in DB)
-    debug_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=True)
-
-    # Unique troubleshooting ID for debug screen (stored in DB)
     debug_id: Mapped[str | None] = mapped_column(String(36), unique=True, index=True, nullable=True)
+    
+    # Conversation title - auto-generated from first message or user-set
+    # Epic AI-20.9: Better conversation naming
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    
+    # Source of conversation creation
+    # Values: 'user' (direct chat), 'proactive' (from proactive suggestions), 'pattern' (from pattern-based)
+    # Epic AI-20.9: Track conversation origin
+    source: Mapped[str | None] = mapped_column(String(20), default="user", nullable=True, index=True)
 
     # Relationship to messages
     messages: Mapped[list["MessageModel"]] = relationship(
@@ -78,7 +84,7 @@ class ConversationModel(Base):
     pending_preview: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     def __repr__(self) -> str:
-        return f"<ConversationModel(id={self.conversation_id}, state={self.state})>"
+        return f"<ConversationModel(id={self.conversation_id}, state={self.state}, title={self.title})>"
 
 
 class MessageModel(Base):
@@ -272,6 +278,43 @@ async def init_database(database_url: str) -> None:
                                 logger.warning(f"⚠️  Could not create index on debug_id (may already exist): {idx_error}")
                         else:
                             logger.debug("✅ Column debug_id already exists")
+                        
+                        # Check and migrate title column (Epic AI-20.9)
+                        title_result = await conn.execute(
+                            text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'title'")
+                        )
+                        title_count = title_result.scalar() or 0
+                        if title_count == 0:
+                            logger.info("🔄 Adding missing column: title to conversations table")
+                            await conn.execute(
+                                text("ALTER TABLE conversations ADD COLUMN title TEXT")
+                            )
+                            logger.info("✅ Successfully added title column")
+                        else:
+                            logger.debug("✅ Column title already exists")
+                        
+                        # Check and migrate source column (Epic AI-20.9)
+                        source_result = await conn.execute(
+                            text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'source'")
+                        )
+                        source_count = source_result.scalar() or 0
+                        if source_count == 0:
+                            logger.info("🔄 Adding missing column: source to conversations table")
+                            await conn.execute(
+                                text("ALTER TABLE conversations ADD COLUMN source TEXT DEFAULT 'user'")
+                            )
+                            logger.info("✅ Successfully added source column")
+                            
+                            # Create index on source
+                            try:
+                                await conn.execute(
+                                    text("CREATE INDEX idx_conversations_source ON conversations(source)")
+                                )
+                                logger.info("✅ Created index on source column")
+                            except Exception as idx_error:
+                                logger.warning(f"⚠️  Could not create index on source (may already exist): {idx_error}")
+                        else:
+                            logger.debug("✅ Column source already exists")
                     else:
                         logger.debug("ℹ️  Conversations table doesn't exist yet (will be created with all columns)")
             except Exception as e:

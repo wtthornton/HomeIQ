@@ -6,7 +6,6 @@ FastAPI service that provides activity recognition from sensor data.
 Port: 8036
 """
 
-import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path

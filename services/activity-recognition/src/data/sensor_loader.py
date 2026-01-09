@@ -12,7 +12,6 @@ activity recognition models.
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterator
 
 import polars as pl
 import numpy as np

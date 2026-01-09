@@ -79,18 +79,22 @@ class SuggestionStorageService:
         Returns:
             Created Suggestion object, or None if duplicate found and skipped
         """
+        # Extract trigger type from prompt_metadata for smart duplicate detection
+        trigger_type = (prompt_metadata or {}).get("trigger")
+        
         if db is None:
             async with _get_session_maker()() as session:
                 try:
                     # Check for duplicates if enabled
                     if check_duplicates:
                         duplicate = await self._check_duplicate(
-                            prompt, context_type, duplicate_window_hours, session
+                            prompt, context_type, duplicate_window_hours, session,
+                            trigger_type=trigger_type
                         )
                         if duplicate:
                             logger.info(
-                                f"Skipping duplicate suggestion (prompt: {prompt[:50]}..., "
-                                f"existing_id: {duplicate.id}, created: {duplicate.created_at})"
+                                f"Skipping duplicate suggestion (trigger: {trigger_type}, "
+                                f"context: {context_type}, existing_id: {duplicate.id})"
                             )
                             return None
                     
@@ -118,12 +122,13 @@ class SuggestionStorageService:
                 # Check for duplicates if enabled
                 if check_duplicates:
                     duplicate = await self._check_duplicate(
-                        prompt, context_type, duplicate_window_hours, db
+                        prompt, context_type, duplicate_window_hours, db,
+                        trigger_type=trigger_type
                     )
                     if duplicate:
                         logger.info(
-                            f"Skipping duplicate suggestion (prompt: {prompt[:50]}..., "
-                            f"existing_id: {duplicate.id}, created: {duplicate.created_at})"
+                            f"Skipping duplicate suggestion (trigger: {trigger_type}, "
+                            f"context: {context_type}, existing_id: {duplicate.id})"
                         )
                         return None
                 
@@ -153,23 +158,48 @@ class SuggestionStorageService:
         context_type: str,
         window_hours: int,
         db: AsyncSession,
+        trigger_type: str | None = None,
     ) -> Suggestion | None:
         """
         Check if a duplicate suggestion exists within the time window.
+        
+        Uses smart duplicate detection:
+        1. If trigger_type provided, checks for same context_type + trigger_type
+        2. Falls back to exact prompt matching if no trigger_type
         
         Args:
             prompt: Prompt text to check
             context_type: Context type to check
             window_hours: Hours to look back for duplicates
             db: Database session
+            trigger_type: Optional trigger type for smarter matching (e.g., "low_temperature")
             
         Returns:
             Existing Suggestion if duplicate found, None otherwise
         """
-        from datetime import timedelta
-        
         cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
         
+        # If trigger_type provided, use smarter duplicate detection
+        # This prevents duplicates like "44°F" and "45°F" both generating pre-heat suggestions
+        if trigger_type:
+            # Query using JSON path for trigger in prompt_metadata
+            result = await db.execute(
+                select(Suggestion)
+                .where(Suggestion.context_type == context_type)
+                .where(Suggestion.created_at >= cutoff_time)
+                .order_by(Suggestion.created_at.desc())
+            )
+            suggestions = result.scalars().all()
+            
+            # Check if any suggestion has the same trigger type
+            for suggestion in suggestions:
+                metadata = suggestion.prompt_metadata or {}
+                if metadata.get("trigger") == trigger_type:
+                    return suggestion
+            
+            return None
+        
+        # Fallback to exact prompt matching
         result = await db.execute(
             select(Suggestion)
             .where(Suggestion.prompt == prompt.strip())

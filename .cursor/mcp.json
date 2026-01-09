@@ -1,8 +1,8 @@
-﻿{
+{
   "mcpServers": {
     "Context7": {
       "command": "npx",
-      "args": ["-y", "@context7/mcp-server"]
+      "args": ["-y", "@upstash/context7-mcp"]
     },
     "Playwright": {
       "command": "npx",
@@ -10,14 +10,14 @@
     },
     "FileSystem": {
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-filesystem"],
-      "env": {
-        "ALLOWED_PATHS": "C:\\cursor\\HomeIQ"
-      }
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\cursor\\HomeIQ"]
     },
     "GitHub": {
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-github"]
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      }
     }
   }
 }

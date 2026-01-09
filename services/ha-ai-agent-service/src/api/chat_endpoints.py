@@ -149,10 +149,25 @@ async def chat(
             "is_new": not conversation_id
         })
         if not conversation_id:
-            conversation = await conversation_service.create_conversation()
+            # Epic AI-20.9: Auto-generate title from message if not provided
+            title = request.title
+            if not title:
+                # Generate title from first 50 chars of user message
+                msg_text = request.message.strip()
+                if len(msg_text) > 50:
+                    title = msg_text[:47] + "..."
+                else:
+                    title = msg_text
+            
+            # Epic AI-20.9: Pass title and source for new conversations
+            conversation = await conversation_service.create_conversation(
+                title=title,
+                source=request.source or "user",
+            )
             conversation_id = conversation.conversation_id
             logger.info(
-                f"[Chat Request] Created new conversation {conversation_id} for user message: "
+                f"[Chat Request] Created new conversation {conversation_id} "
+                f"(source={request.source or 'user'}, title={title}) for user message: "
                 f"{request.message[:100]}..."
             )
         else:

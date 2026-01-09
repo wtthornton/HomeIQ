@@ -60,6 +60,13 @@ class Message:
         }
 
 
+class ConversationSource(str, Enum):
+    """Conversation source enum - tracks where the conversation originated"""
+    USER = "user"           # Direct user chat
+    PROACTIVE = "proactive" # From proactive suggestions
+    PATTERN = "pattern"     # From pattern-based suggestions
+
+
 class Conversation:
     """Represents a conversation with message history and metadata"""
 
@@ -69,6 +76,8 @@ class Conversation:
         created_at: datetime | None = None,
         state: ConversationState = ConversationState.ACTIVE,
         debug_id: str | None = None,
+        title: str | None = None,
+        source: str | None = None,
     ):
         """
         Initialize a conversation.
@@ -78,12 +87,16 @@ class Conversation:
             created_at: Optional creation timestamp (current time if not provided)
             state: Conversation state (default: ACTIVE)
             debug_id: Optional unique troubleshooting ID (generated if not provided)
+            title: Optional conversation title (auto-generated from first message if not set)
+            source: Conversation source ('user', 'proactive', 'pattern')
         """
         self.conversation_id = conversation_id or str(uuid4())
         self.debug_id = debug_id or str(uuid4())  # Generate unique troubleshooting ID
         self.created_at = created_at or datetime.now()
         self.updated_at = self.created_at
         self.state = state
+        self.title = title  # Epic AI-20.9: Better conversation naming
+        self.source = source or ConversationSource.USER.value  # Epic AI-20.9: Track origin
         self.messages: list[Message] = []
         self._context_cache: str | None = None
         self._context_updated_at: datetime | None = None
@@ -141,9 +154,40 @@ class Conversation:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "state": self.state.value,
+            "title": self.title,
+            "source": self.source,
             "message_count": self.message_count,
             "messages": [msg.to_dict() for msg in self.messages],
         }
+    
+    def generate_title_from_first_message(self) -> str | None:
+        """
+        Generate a title from the first user message.
+        
+        Returns:
+            Generated title (max 50 chars) or None if no user messages
+        """
+        for msg in self.messages:
+            if msg.role == "user":
+                content = msg.content.strip()
+                if len(content) > 50:
+                    return content[:47] + "..."
+                return content
+        return None
+    
+    def set_title(self, title: str | None) -> None:
+        """Set the conversation title"""
+        self.title = title[:200] if title and len(title) > 200 else title
+        self.updated_at = datetime.now()
+    
+    def set_source(self, source: str) -> None:
+        """Set the conversation source"""
+        valid_sources = [s.value for s in ConversationSource]
+        if source in valid_sources:
+            self.source = source
+            self.updated_at = datetime.now()
+        else:
+            logger.warning(f"Invalid source '{source}', using 'user' as default")
 
     def set_context_cache(self, context: str) -> None:
         """
