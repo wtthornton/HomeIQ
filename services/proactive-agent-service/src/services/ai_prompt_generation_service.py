@@ -62,19 +62,22 @@ CRITICAL RULE: You may ONLY suggest automations for devices that exist in the AV
 - ❌ Temperature advice without climate/thermostat device in the list
 - ❌ Humidity advice without humidifier/dehumidifier device in the list
 - ❌ Any device name you invented or assumed
-- ❌ Vague time references like "tonight" or "soon" - use EXACT times
+- ❌ Vague time references like "tonight" or "soon" - use specific times OR relative timing (e.g., "30 minutes before")
 - ❌ Fixed time triggers for sports events - use sensor state triggers
+- ❌ Hardcoded game times/dates in sports suggestions - use generic timing relative to game events
 
 ## ⚠️ CRITICAL: Prompt Detail Requirements
 
 Your prompts MUST be detailed and include ALL automation-relevant information:
 
 ### For Sports Suggestions:
-- Include the EXACT game start time (e.g., "7:00 PM" not "tonight")
-- Include the Team Tracker sensor entity_id for the trigger
-- Mention team colors (hex codes if available) for lighting
-- Specify the trigger type: "when game starts" = sensor state PRE→IN
-- Example: "The VGK vs CBJ game starts at **7:00 PM** (in 15 minutes). Set your Living Room lights to VGK gold (#B4975A) when the Team Tracker sensor (sensor.vgk_team_tracker) changes to 'IN' (game started)."
+- DO NOT hardcode specific game times or dates - game times change frequently
+- Use GENERIC timing relative to game start (e.g., "30 minutes before game starts" not "at 7:00 PM")
+- Suggestions should work for ALL games, not just one specific game/team
+- Include the Team Tracker sensor entity_id pattern for triggers (e.g., "any Team Tracker sensor")
+- Mention team colors pattern (team colors are available in sensor attributes)
+- Specify the trigger type: sensor state PRE→IN for game start, IN→POST for game end
+- Example: "Set your Living Room lights to pulse with your team's colors 30 minutes before every game starts. When any Team Tracker sensor changes from PRE to IN (game started), the lights will automatically activate. Team colors are read from the sensor's team_color_secondary attribute."
 
 ### For Weather Suggestions:
 - Include current temperature and forecast
@@ -89,7 +92,7 @@ Your prompts MUST be detailed and include ALL automation-relevant information:
 ## Response Format
 Return a JSON array of suggestions. Each suggestion:
 {
-    "prompt": "DETAILED natural language suggestion (3-5 sentences with exact times, devices, triggers, and colors)",
+    "prompt": "DETAILED natural language suggestion (3-5 sentences with devices, triggers, colors, and timing - use generic timing for sports, not hardcoded times)",
     "context_type": "weather|sports|energy|pattern|device|synergy",
     "trigger": "unique_identifier_for_deduplication",
     "confidence": 0.0-1.0,
@@ -320,7 +323,10 @@ class AIPromptGenerationService:
                     game_date = g.get('date', '')
                     kickoff_in = g.get('kickoff_in', '')
                     team_colors = g.get('team_colors', [])
-                    entity_id = g.get('entity_id', '')
+                    # game_id maps to entity_id in data-api response
+                    entity_id = g.get('entity_id') or g.get('game_id', '')
+                    team_color_primary = g.get('team_color_primary', '')
+                    team_color_secondary = g.get('team_color_secondary', '')
                     
                     game_str = f"{team} vs {opponent} ({league}, {status})"
                     if game_date:
@@ -329,7 +335,11 @@ class AIPromptGenerationService:
                         game_str += f" (starts in {kickoff_in})"
                     if time_remaining:
                         game_str += f" [{time_remaining}]"
-                    if team_colors:
+                    # Include team colors (prefer individual fields, fallback to array)
+                    if team_color_primary or team_color_secondary:
+                        colors_str = f"primary: {team_color_primary}, secondary: {team_color_secondary}"
+                        game_str += f" colors: {colors_str}"
+                    elif team_colors:
                         game_str += f" colors: {team_colors}"
                     if entity_id:
                         game_str += f" sensor: {entity_id}"
@@ -341,11 +351,14 @@ class AIPromptGenerationService:
 - Games: {'; '.join(games_info)}
 - Sports insights: {', '.join(sports.get('insights', []))}
 
-⚠️ IMPORTANT FOR SPORTS AUTOMATIONS:
-- Use the Team Tracker sensor entity_id for triggers (state changes: PRE→IN for game start, IN→POST for game end)
-- Include the EXACT game time in your suggestion (not "tonight" but the actual time)
-- Reference team colors for lighting automations
+⚠️ CRITICAL FOR SPORTS AUTOMATIONS:
+- DO NOT hardcode specific game times or dates - game times change frequently and differ for each game
+- Use GENERIC timing relative to game events (e.g., "30 minutes before game starts", "when game ends")
+- Suggestions must work for ALL Team Tracker sensors/games, not just one specific game
+- Use Team Tracker sensor state changes as triggers: PRE→IN for game start, IN→POST for game end
+- Team colors are available in sensor attributes (team_color_primary, team_color_secondary) - reference the pattern, not specific colors
 - NEVER suggest fixed time triggers - always use sensor state triggers
+- Focus on automation patterns that work for every game automatically
 """)
         
         # Energy context
