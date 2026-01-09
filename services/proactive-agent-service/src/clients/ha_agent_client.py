@@ -53,6 +53,8 @@ class HAAgentClient:
         message: str,
         conversation_id: str | None = None,
         refresh_context: bool = False,
+        title: str | None = None,
+        source: str = "proactive",  # Default to proactive for this client
     ) -> dict[str, Any] | None:
         """
         Send a message to the HA AI Agent Service.
@@ -61,6 +63,8 @@ class HAAgentClient:
             message: Message/prompt to send to the agent
             conversation_id: Optional conversation ID (creates new if not provided)
             refresh_context: Force context refresh (default: False)
+            title: Optional title for new conversation (Epic AI-20.9)
+            source: Conversation source - defaults to 'proactive' for this client (Epic AI-20.9)
 
         Returns:
             Dictionary with response:
@@ -76,9 +80,12 @@ class HAAgentClient:
             payload: dict[str, Any] = {
                 "message": message,
                 "refresh_context": refresh_context,
+                "source": source,  # Epic AI-20.9: Mark as proactive
             }
             if conversation_id:
                 payload["conversation_id"] = conversation_id
+            if title:
+                payload["title"] = title
 
             logger.debug(f"Sending message to HA AI Agent: {message[:100]}...")
             response = await self.client.post(

@@ -12,6 +12,20 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def celsius_to_fahrenheit(celsius: float) -> int:
+    """
+    Convert Celsius to Fahrenheit and round to whole number.
+    
+    Args:
+        celsius: Temperature in Celsius
+        
+    Returns:
+        Temperature in Fahrenheit as whole number
+    """
+    fahrenheit = (celsius * 9 / 5) + 32
+    return round(fahrenheit)
+
+
 class PromptGenerationService:
     """Service for generating context-aware prompts"""
 
@@ -75,36 +89,44 @@ class PromptGenerationService:
             return prompts
 
         current = weather_data.get("current", {})
-        temperature = current.get("temperature")
+        temperature_celsius = current.get("temperature")
         condition = current.get("condition", "").lower()
         forecast = weather_data.get("forecast", [])
 
-        # High temperature prompt
-        if temperature and temperature > 85:
+        # Convert Celsius to Fahrenheit and round to whole number
+        if temperature_celsius is not None:
+            temperature_f = celsius_to_fahrenheit(temperature_celsius)
+        else:
+            temperature_f = None
+
+        # High temperature prompt (85°F = 29.4°C, so check against ~29°C)
+        if temperature_celsius is not None and temperature_celsius > 29:
             prompt = (
-                f"It's going to be {temperature}°F today. "
-                "Should I create an automation to pre-cool your home before you arrive?"
+                f"Today's high is {temperature_f}F. "
+                "Want me to set up pre-cooling before you get home?"
             )
             prompts.append({
                 "prompt": prompt,
                 "context_type": "weather",
                 "metadata": {
-                    "temperature": temperature,
+                    "temperature_celsius": temperature_celsius,
+                    "temperature_fahrenheit": temperature_f,
                     "trigger": "high_temperature",
                 },
             })
 
-        # Low temperature prompt
-        elif temperature and temperature < 50:
+        # Low temperature prompt (50°F = 10°C, so check against ~10°C)
+        elif temperature_celsius is not None and temperature_celsius < 10:
             prompt = (
-                f"It's going to be {temperature}°F today. "
-                "Should I create an automation to pre-heat your home before you arrive?"
+                f"It's cold out there - only {temperature_f}F. "
+                "Should I warm up the house before you arrive?"
             )
             prompts.append({
                 "prompt": prompt,
                 "context_type": "weather",
                 "metadata": {
-                    "temperature": temperature,
+                    "temperature_celsius": temperature_celsius,
+                    "temperature_fahrenheit": temperature_f,
                     "trigger": "low_temperature",
                 },
             })
@@ -112,8 +134,8 @@ class PromptGenerationService:
         # Rainy weather prompt
         if "rain" in condition or "rainy" in condition:
             prompt = (
-                "It's going to rain today. "
-                "Should I create an automation to close windows and adjust outdoor devices?"
+                "Rain is expected today. "
+                "Want me to close windows and adjust outdoor devices automatically?"
             )
             prompts.append({
                 "prompt": prompt,
@@ -126,17 +148,20 @@ class PromptGenerationService:
 
         # Forecast-based prompt
         if forecast and len(forecast) > 0:
-            tomorrow_temp = forecast[0].get("temperature") if forecast else None
-            if tomorrow_temp and tomorrow_temp > 90:
+            tomorrow_temp_celsius = forecast[0].get("temperature") if forecast else None
+            # 90°F = 32.2°C, so check against ~32°C
+            if tomorrow_temp_celsius is not None and tomorrow_temp_celsius > 32:
+                tomorrow_temp_f = celsius_to_fahrenheit(tomorrow_temp_celsius)
                 prompt = (
-                    f"It's going to be {tomorrow_temp}°F tomorrow. "
-                    "Should I create an automation to pre-cool your home in the morning?"
+                    f"Tomorrow will hit {tomorrow_temp_f}F. "
+                    "Should I schedule morning pre-cooling?"
                 )
                 prompts.append({
                     "prompt": prompt,
                     "context_type": "weather",
                     "metadata": {
-                        "temperature": tomorrow_temp,
+                        "temperature_celsius": tomorrow_temp_celsius,
+                        "temperature_fahrenheit": tomorrow_temp_f,
                         "trigger": "forecast_high_temperature",
                     },
                 })
@@ -157,11 +182,11 @@ class PromptGenerationService:
         if upcoming_games:
             next_game = upcoming_games[0]
             game_time = next_game.get("time", "tonight")
-            team = next_game.get("team", "your team")
+            team = next_game.get("team", "Your team")
 
             prompt = (
-                f"{team} plays at {game_time} tonight. "
-                "Should I create an automation to dim lights and adjust temperature during the game?"
+                f"{team} plays at {game_time}. "
+                "Want me to set game-day lighting and temperature?"
             )
             prompts.append({
                 "prompt": prompt,
@@ -175,11 +200,11 @@ class PromptGenerationService:
         # Live game prompt
         if live_games:
             live_game = live_games[0]
-            team = live_game.get("team", "your team")
+            team = live_game.get("team", "Your team")
 
             prompt = (
-                f"{team} is playing right now. "
-                "Should I create an automation to optimize your viewing experience?"
+                f"{team} is playing now! "
+                "Should I switch to game mode?"
             )
             prompts.append({
                 "prompt": prompt,
@@ -205,8 +230,8 @@ class PromptGenerationService:
         # Low carbon intensity prompt
         if intensity_value and intensity_value < 200:
             prompt = (
-                "Carbon intensity is low right now. "
-                "Should I schedule your EV charging or other energy-intensive tasks for this time?"
+                "Grid energy is clean right now. "
+                "Good time to charge your EV or run heavy appliances."
             )
             prompts.append({
                 "prompt": prompt,
@@ -220,8 +245,8 @@ class PromptGenerationService:
         # High carbon intensity prompt
         elif intensity_value and intensity_value > 400:
             prompt = (
-                "Carbon intensity is high right now. "
-                "Should I delay energy-intensive tasks until intensity drops?"
+                "Grid carbon is high. "
+                "Want me to delay energy-heavy tasks until it drops?"
             )
             prompts.append({
                 "prompt": prompt,
@@ -242,7 +267,6 @@ class PromptGenerationService:
             return prompts
 
         patterns = historical_data.get("patterns", [])
-        insights = historical_data.get("insights", [])
 
         # Frequent entity pattern prompt
         frequent_pattern = next(
@@ -254,10 +278,13 @@ class PromptGenerationService:
                 top_entity = entities[0]
                 entity_id = top_entity.get("entity_id", "device")
                 count = top_entity.get("count", 0)
+                
+                # Make entity_id more readable (remove domain prefix if present)
+                display_name = entity_id.split(".")[-1].replace("_", " ").title()
 
                 prompt = (
-                    f"I noticed you use {entity_id} frequently ({count} times recently). "
-                    "Should I create an automation to make this more convenient?"
+                    f"You've used {display_name} {count} times this week. "
+                    "Want me to automate it?"
                 )
                 prompts.append({
                     "prompt": prompt,
@@ -278,10 +305,20 @@ class PromptGenerationService:
             if hours:
                 top_hour = hours[0]
                 hour = top_hour.get("hour", 0)
+                
+                # Format hour nicely (e.g., "7 AM" or "8 PM")
+                if hour == 0:
+                    time_str = "midnight"
+                elif hour == 12:
+                    time_str = "noon"
+                elif hour < 12:
+                    time_str = f"{hour} AM"
+                else:
+                    time_str = f"{hour - 12} PM"
 
                 prompt = (
-                    f"I noticed peak activity around {hour}:00. "
-                    "Should I create an automation to prepare your home at that time?"
+                    f"Your home is busiest around {time_str}. "
+                    "Should I prepare things automatically at that time?"
                 )
                 prompts.append({
                     "prompt": prompt,
@@ -345,20 +382,20 @@ class PromptGenerationService:
         """
         return {
             "weather": [
-                "It's going to be {temperature}°F {timeframe}. Should I create an automation to {action}?",
-                "Weather conditions suggest {condition}. Should I create an automation to {action}?",
+                "Today's high is {temperature}F. Want me to set up {action}?",
+                "It's {condition} outside. Should I {action}?",
             ],
             "sports": [
-                "{team} plays at {time}. Should I create an automation to {action}?",
-                "{team} is playing right now. Should I create an automation to {action}?",
+                "{team} plays at {time}. Want game-day settings?",
+                "{team} is on now! Switch to game mode?",
             ],
             "energy": [
-                "Carbon intensity is {level} right now. Should I {action}?",
-                "Energy conditions are optimal. Should I schedule {action}?",
+                "Grid is clean right now. Good time for {action}.",
+                "Carbon is high. Delay {action} until later?",
             ],
             "historical_pattern": [
-                "I noticed you {pattern}. Should I create an automation to {action}?",
-                "Based on your usage patterns, should I create an automation to {action}?",
+                "You use {device} often. Automate it?",
+                "Home is busiest at {time}. Prepare automatically?",
             ],
         }
 

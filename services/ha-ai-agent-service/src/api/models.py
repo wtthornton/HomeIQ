@@ -20,6 +20,13 @@ class ChatRequest(BaseModel):
     refresh_context: bool = Field(
         False, description="Force context refresh (default: False, uses cache)"
     )
+    # Epic AI-20.9: Conversation metadata for new conversations
+    title: str | None = Field(
+        None, max_length=200, description="Optional title for new conversation (max 200 chars)"
+    )
+    source: str | None = Field(
+        None, description="Conversation source: user, proactive, or pattern (default: user)"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -27,6 +34,8 @@ class ChatRequest(BaseModel):
                 "message": "Turn on the kitchen lights",
                 "conversation_id": "conv-123",
                 "refresh_context": False,
+                "title": "Kitchen lighting request",
+                "source": "user",
             }
         }
     )
