@@ -9,6 +9,8 @@ AI-generated suggestions that understand the full home context.
 
 Enhanced with device validation to prevent LLM hallucination of non-existent devices.
 Epic: Proactive Suggestions Device Validation
+
+Uses shared prompt guidance system for consistent LLM communication.
 """
 
 from __future__ import annotations
@@ -16,99 +18,47 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
 
+# Add shared directory to path for imports
+shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+try:
+    app_root = Path(__file__).resolve().parents[2]  # services/proactive-agent-service/src/services -> services
+except Exception:
+    app_root = Path("/app")
+
+candidate_paths = []
+if shared_path_override:
+    candidate_paths.append(Path(shared_path_override).expanduser())
+candidate_paths.extend([
+    app_root.parent / "shared",  # services/../shared
+    Path("/app/shared"),
+    Path.cwd() / "shared",
+])
+
+shared_path: Path | None = None
+for p in candidate_paths:
+    if p.exists():
+        shared_path = p.resolve()
+        break
+
+if shared_path and str(shared_path) not in sys.path:
+    sys.path.append(str(shared_path))
+
+try:
+    from shared.prompt_guidance.builder import PromptBuilder
+except ImportError:
+    # Fallback if shared module not available
+    PromptBuilder = None  # type: ignore
+    logging.warning("Could not import PromptBuilder from shared.prompt_guidance.builder - using fallback prompt")
+
 from .device_validation_service import DeviceValidationService
 
 logger = logging.getLogger(__name__)
-
-
-# System prompt for the suggestion generation LLM - ENHANCED with device constraints and rich context
-SUGGESTION_SYSTEM_PROMPT = """You are HomeIQ's Proactive Automation Intelligence.
-
-Your role is to analyze the current home context and generate 1-3 highly personalized, 
-actionable automation suggestions that would genuinely help this specific homeowner.
-
-## ⚠️ CRITICAL: Device Constraints
-
-CRITICAL RULE: You may ONLY suggest automations for devices that exist in the AVAILABLE DEVICES list below.
-- If no device exists for a suggestion type (e.g., no humidifier), DO NOT suggest it
-- NEVER invent, assume, or hallucinate device names
-- If uncertain whether a device exists, DO NOT mention it
-- Return an empty array [] rather than suggesting non-existent devices
-- Use the EXACT device names from the AVAILABLE DEVICES list
-
-## Your Capabilities
-- You understand smart home devices, their states, and capabilities
-- You know about weather patterns and their impact on home comfort
-- You understand energy pricing and carbon intensity for cost/eco optimization
-- You recognize behavioral patterns from historical data
-- You can correlate multiple data sources to find synergies
-
-## What Makes a Great Suggestion
-1. **Device-Verified**: ONLY reference devices from the AVAILABLE DEVICES list
-2. **Specific**: Reference actual devices/areas by their exact friendly name
-3. **Timely**: Based on current conditions, not generic advice
-4. **Actionable**: Something that can become an automation
-5. **Valuable**: Saves money, increases comfort, or improves safety
-6. **Novel**: Not something they're already doing
-
-## Bad Suggestions (AVOID)
-- ❌ Generic tips like "turn off lights when not in use"
-- ❌ Things already covered by existing automations
-- ❌ Suggestions for devices NOT in the AVAILABLE DEVICES list
-- ❌ Temperature advice without climate/thermostat device in the list
-- ❌ Humidity advice without humidifier/dehumidifier device in the list
-- ❌ Any device name you invented or assumed
-- ❌ Vague time references like "tonight" or "soon" - use specific times OR relative timing (e.g., "30 minutes before")
-- ❌ Fixed time triggers for sports events - use sensor state triggers
-- ❌ Hardcoded game times/dates in sports suggestions - use generic timing relative to game events
-
-## ⚠️ CRITICAL: Prompt Detail Requirements
-
-Your prompts MUST be detailed and include ALL automation-relevant information:
-
-### For Sports Suggestions:
-- DO NOT hardcode specific game times or dates - game times change frequently
-- Use GENERIC timing relative to game start (e.g., "30 minutes before game starts" not "at 7:00 PM")
-- Suggestions should work for ALL games, not just one specific game/team
-- Include the Team Tracker sensor entity_id pattern for triggers (e.g., "any Team Tracker sensor")
-- Mention team colors pattern (team colors are available in sensor attributes)
-- Specify the trigger type: sensor state PRE→IN for game start, IN→POST for game end
-- Example: "Set your Living Room lights to pulse with your team's colors 30 minutes before every game starts. When any Team Tracker sensor changes from PRE to IN (game started), the lights will automatically activate. Team colors are read from the sensor's team_color_secondary attribute."
-
-### For Weather Suggestions:
-- Include current temperature and forecast
-- Specify the condition that triggers the automation
-- Example: "Temperature is dropping to 45°F tonight. Turn on the Living Room heater when outdoor temperature falls below 50°F."
-
-### For All Suggestions:
-- Name the EXACT devices/areas affected
-- Specify the trigger condition (state change, time, etc.)
-- Include any relevant context (why now, what value it provides)
-
-## Response Format
-Return a JSON array of suggestions. Each suggestion:
-{
-    "prompt": "DETAILED natural language suggestion (3-5 sentences with devices, triggers, colors, and timing - use generic timing for sports, not hardcoded times)",
-    "context_type": "weather|sports|energy|pattern|device|synergy",
-    "trigger": "unique_identifier_for_deduplication",
-    "confidence": 0.0-1.0,
-    "reasoning": "Brief explanation of why this suggestion is valuable",
-    "referenced_devices": ["exact_device_name_from_list"],
-    "automation_hints": {
-        "trigger_type": "state_change|time|template",
-        "trigger_entity": "sensor.entity_id if applicable",
-        "trigger_condition": "state value or time",
-        "target_color": "#hexcode if lighting",
-        "game_time": "HH:MM if sports"
-    }
-}
-
-Return 1-3 suggestions, or empty array [] if no good suggestions available.
-Quality over quantity - only suggest things that are genuinely useful AND for devices that exist."""
 
 
 class AIPromptGenerationService:
@@ -470,10 +420,27 @@ class AIPromptGenerationService:
         self,
         context: str,
         max_prompts: int,
+        device_inventory: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Call OpenAI to generate suggestions.
+        
+        Args:
+            context: Home context string
+            max_prompts: Maximum number of suggestions to generate
+            device_inventory: Device inventory for prompt building (optional)
         """
+        # Use shared prompt guidance system if available
+        if PromptBuilder:
+            system_prompt = PromptBuilder.build_suggestion_generation_prompt(
+                device_inventory=device_inventory,
+                home_context=context
+            )
+        else:
+            # Fallback to basic prompt if PromptBuilder not available
+            system_prompt = "You are HomeIQ's Proactive Automation Intelligence. Generate automation suggestions based on the home context."
+            logger.warning("Using fallback prompt - PromptBuilder not available")
+        
         try:
             response = await self.http_client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -484,7 +451,7 @@ class AIPromptGenerationService:
                 json={
                     "model": self.model,
                     "messages": [
-                        {"role": "system", "content": SUGGESTION_SYSTEM_PROMPT},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": f"""Based on this home context, generate up to {max_prompts} proactive automation suggestions:
 
 {context}

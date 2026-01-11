@@ -150,6 +150,24 @@ python -m tapps_agents.cli workflow fix         # Bug fixes & refactoring
 python -m tapps_agents.cli workflow hotfix     # Urgent fixes
 ```
 
+### Workflow Execution Flags
+```bash
+# Pre-flight validation (check before running)
+tapps-agents workflow rapid --dry-run --prompt "Add feature"
+
+# Explicit mode control
+tapps-agents workflow rapid --cli-mode --prompt "Add feature"   # Force CLI/headless
+tapps-agents workflow rapid --cursor-mode --prompt "Add feature" # Force Cursor Skills
+
+# Resume/partial execution
+tapps-agents workflow rapid --continue-from implementation --prompt "Add feature"
+tapps-agents workflow rapid --skip-steps "enhance,plan" --prompt "Add feature"
+
+# Output control
+tapps-agents workflow rapid --print-paths --prompt "Add feature"  # Show artifact paths (default)
+tapps-agents workflow rapid --no-print-paths --prompt "Add feature"
+```
+
 ### Quick Project Creation (Cursor Native)
 ```bash
 # Create a complete project from description (uses full SDLC workflow)
@@ -461,7 +479,53 @@ You can use these phrases in Cursor AI conversations:
 - **Reports:** `reports/quality/` or `.tapps-agents/reports/`
 - **Sessions:** `.tapps-agents/sessions/` (Enhancer sessions)
 - **Cache:** `.tapps-agents/kb/context7-cache/` (Context7 cache)
-- **Cursor Skills:** `.claude/skills/` (13 agent skills)
+- **Cursor Skills:** `.claude/skills/` (15 agent skills including simple-mode)
+
+## Context7 MCP Best Practices
+
+**Context7** provides library documentation lookup via MCP (Model Context Protocol). These rules help you use Context7 effectively in Cursor.
+
+### Automatic Context7 Usage
+
+This rule file automatically instructs Cursor to use Context7 MCP when you need library/API documentation, code generation, setup or configuration steps - you don't need to explicitly ask.
+
+**Example:**
+```
+User: "How do I use FastAPI routing?"
+AI: [Automatically uses Context7] @reviewer *docs fastapi routing
+```
+
+### Use Library ID for Faster Lookups
+
+If you already know the exact library you want, use the Context7 library ID syntax to skip library matching:
+
+**Syntax:** `use library /library/id`
+
+**Example:**
+```
+User: "Implement basic authentication with Supabase. use library /supabase/supabase for API and docs."
+AI: [Directly loads Supabase docs without matching step]
+```
+
+The slash syntax (`/library/id`) tells Context7 exactly which library to load, making lookups faster and more precise.
+
+### Specify Version for Version-Specific Docs
+
+Mention the version in your prompt to get documentation for a specific library version:
+
+**Example:**
+```
+User: "How do I set up Next.js 14 middleware? use context7"
+AI: [Automatically matches Next.js 14 version and retrieves appropriate docs]
+```
+
+**Best Practices:**
+- ✅ Always use Context7 for library documentation questions
+- ✅ Use library ID syntax (`/library/id`) when you know the exact library
+- ✅ Mention version numbers when you need version-specific documentation
+- ✅ Use `@reviewer *docs <library>` or `@implementer *docs <library>` commands explicitly when needed
+
+**Reference:** See [Context7 Best Practices](https://context7.com/docs/tips) for more information.
 
 ## Getting Help
 

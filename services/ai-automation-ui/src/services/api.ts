@@ -140,7 +140,10 @@ export const api = {
     if (_status) params.append('status', _status);
     params.append('limit', _limit.toString());
     
-    return fetchJSON(`${API_BASE_URL}/suggestions/list?${params}`);
+    // API returns { suggestions: [...], total: N, limit: N, offset: N }
+    // Frontend expects { data: { suggestions: [...], count: N } }
+    const response = await fetchJSON<{ suggestions: Suggestion[], total: number }>(`${API_BASE_URL}/suggestions/list?${params}`);
+    return { data: { suggestions: response.suggestions || [], count: response.total || 0 } };
   },
 
   async getSuggestionByAutomationId(automationId: string): Promise<any> {
