@@ -1,5 +1,5 @@
 ---
-description: Comprehensive guide to all 13 TappsCodingAgents workflow agents, their capabilities, and usage patterns
+description: Comprehensive guide to all 14 TappsCodingAgents workflow agents, their capabilities, and usage patterns
 alwaysApply: false
 ---
 
@@ -9,13 +9,13 @@ This guide helps you understand what each agent does, when to use them, and comm
 
 ## Overview
 
-TappsCodingAgents provides **13 specialized workflow agents** covering the complete software development lifecycle:
+TappsCodingAgents provides **14 specialized workflow agents** covering the complete software development lifecycle:
 
 - **Planning**: analyst, planner
 - **Design**: architect, designer
 - **Development**: implementer, debugger, documenter
 - **Testing**: tester
-- **Quality**: reviewer, improver
+- **Quality**: reviewer, improver, evaluator
 - **Operations**: ops
 - **Orchestration**: orchestrator
 - **Enhancement**: enhancer
@@ -361,6 +361,37 @@ python -m tapps_agents.cli improver refactor file.py "Extract common patterns"
 
 ---
 
+### Evaluator Agent
+
+**Purpose**: Framework effectiveness evaluation, usage pattern analysis, and continuous improvement recommendations.
+
+**When to Use**:
+- Evaluating TappsCodingAgents framework effectiveness
+- Analyzing usage patterns (CLI vs Cursor Skills vs Simple Mode)
+- Measuring workflow adherence
+- Generating improvement recommendations
+- Tracking quality metrics over time
+
+**Capabilities**:
+- Usage pattern analysis
+- Workflow adherence measurement
+- Quality metrics collection
+- Structured evaluation reports
+- Prioritized recommendations (Priority 1, 2, 3)
+
+**Common Commands**:
+```bash
+python -m tapps_agents.cli evaluator evaluate
+python -m tapps_agents.cli evaluator evaluate --workflow-id workflow-123
+python -m tapps_agents.cli evaluator evaluate-workflow workflow-123
+```
+
+**Output**: Structured markdown reports saved to `.tapps-agents/evaluations/`
+
+**Expert Integration**: Read-only agent focused on framework analysis.
+
+---
+
 ## Operations Agent
 
 ### Ops Agent
@@ -485,6 +516,7 @@ python -m tapps_agents.cli enhancer enhance-resume <session-id>
 | **Bug Fix** | debugger → implementer | tester, reviewer |
 | **Code Review** | reviewer | - |
 | **Refactoring** | improver | reviewer, tester |
+| **Framework Evaluation** | evaluator | reviewer |
 | **Architecture** | architect | analyst, designer |
 | **API Design** | designer | architect, documenter |
 | **Testing** | tester | reviewer |

@@ -27,6 +27,36 @@ When a user invokes `@simple-mode` with a command:
 - Run CLI commands (`tapps-agents ...`) unless the user explicitly asks
 - Implement code directly without using the appropriate skill
 - Skip skills in the workflow
+- Say "I can't invoke @skill-name commands" - YOU ARE the orchestrator and MUST invoke skills directly
+- Tell the user to type commands - YOU execute the workflow by invoking skills
+
+## ⚠️ CRITICAL: You MUST Invoke Skills Directly
+
+**When you are running as the simple-mode skill, you ARE the orchestrator. You MUST directly invoke other skills using `@skill-name *command` syntax.**
+
+**WRONG (DO NOT DO THIS):**
+```
+"I can't directly invoke @simple-mode commands; those are Cursor IDE chat commands you type."
+"I'll implement the change directly, then you can use @simple-mode for review."
+```
+
+**CORRECT (DO THIS):**
+```
+✅ Starting Build Workflow...
+
+📝 Step 1/7: Enhancing prompt...
+@enhancer *enhance "Create a user authentication API with JWT tokens"
+
+[Then actually invoke the enhancer skill and wait for its output]
+```
+
+**You are an active orchestrator, not a passive coordinator. When the user invokes `@simple-mode *build`, you execute the workflow by:**
+1. **Directly invoking** `@enhancer *enhance` and using its output
+2. **Directly invoking** `@planner *plan` with the enhanced output
+3. **Directly invoking** each subsequent skill in the workflow
+4. **Continuing until all steps are complete**
+
+**If you cannot invoke skills directly, you are not operating correctly as simple-mode.**
 
 ## Intent Detection
 
