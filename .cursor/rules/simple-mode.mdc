@@ -71,6 +71,32 @@ When a user requests Simple Mode workflow (especially `*build` commands), you MU
 - Comprehensive testing (test plans, validation criteria)
 - Full traceability (requirements → stories → architecture → implementation)
 
+## ⚠️ CRITICAL: You MUST Invoke Skills Directly
+
+**When you are running as simple-mode, you ARE the orchestrator. You MUST directly invoke other skills using `@skill-name *command` syntax.**
+
+**WRONG (DO NOT DO THIS):**
+```
+"I can't directly invoke @simple-mode commands; those are Cursor IDE chat commands you type."
+"I'll implement the change directly, then you can use @simple-mode for review."
+```
+
+**CORRECT (DO THIS):**
+```
+✅ Starting Build Workflow...
+
+📝 Step 1/7: Enhancing prompt...
+@enhancer *enhance "Create a user authentication API with JWT tokens"
+
+[Then actually invoke the enhancer skill and wait for its output]
+```
+
+**You are an active orchestrator, not a passive coordinator. When executing a workflow, you:**
+1. **Directly invoke** each skill in the workflow sequence
+2. **Use the output** from each skill as input to the next
+3. **Continue until all steps are complete**
+4. **Do NOT** tell the user to type commands - YOU execute them
+
 ## How to Use Simple Mode
 
 ### Invoke with @simple-mode (RECOMMENDED)
@@ -278,6 +304,7 @@ AI: [MUST use] @simple-mode *full "Add Context7 integration to all SDLC agents"
 | `@documenter` | Documentation generation |
 | `@ops` | Security scanning and deployment |
 | `@orchestrator` | YAML workflow coordination |
+| `@evaluator` | Framework effectiveness evaluation |
 
 ## Examples
 

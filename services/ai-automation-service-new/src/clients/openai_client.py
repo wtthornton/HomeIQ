@@ -4,10 +4,15 @@ OpenAI Client for YAML Generation (2025 Patterns)
 Epic 39, Story 39.10: Automation Service Foundation
 Epic 51, Story 51.8: Structured Plan Generation
 Async client for generating Home Assistant automation YAML using OpenAI.
+
+Uses shared prompt guidance system for consistent LLM communication.
 """
 
 import json
 import logging
+import os
+import sys
+from pathlib import Path
 from typing import Any
 
 from openai import AsyncOpenAI, APIError, RateLimitError
@@ -19,6 +24,38 @@ from tenacity import (
 )
 
 from ..config import settings
+
+# Add shared directory to path for imports
+shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+try:
+    app_root = Path(__file__).resolve().parents[2]  # services/ai-automation-service-new/src/clients -> services
+except Exception:
+    app_root = Path("/app")
+
+candidate_paths = []
+if shared_path_override:
+    candidate_paths.append(Path(shared_path_override).expanduser())
+candidate_paths.extend([
+    app_root.parent / "shared",  # services/../shared
+    Path("/app/shared"),
+    Path.cwd() / "shared",
+])
+
+shared_path: Path | None = None
+for p in candidate_paths:
+    if p.exists():
+        shared_path = p.resolve()
+        break
+
+if shared_path and str(shared_path) not in sys.path:
+    sys.path.append(str(shared_path))
+
+try:
+    from shared.prompt_guidance.builder import PromptBuilder
+except ImportError:
+    # Fallback if shared module not available
+    PromptBuilder = None  # type: ignore
+    logging.warning("Could not import PromptBuilder from shared.prompt_guidance.builder - using fallback prompt")
 
 logger = logging.getLogger(__name__)
 
@@ -393,33 +430,25 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
                     if len(entity_list) > 30:
                         entity_context_section += f"  ... and {len(entity_list) - 30} more {domain} entities\n"
         
-        # HomeIQ JSON schema (simplified for LLM - full validation happens server-side)
-        system_prompt = f"""You are a Home Assistant automation expert generating HomeIQ JSON Automation format.
-
-Generate a comprehensive JSON automation that includes:
-1. Core automation fields: id (optional), alias (required), description, triggers, conditions, actions, mode, initial_state
-2. HomeIQ metadata: created_by, created_at, pattern_id (if from pattern), suggestion_id, confidence_score, safety_score, use_case, complexity
-3. Device context: device_ids, entity_ids, device_types, area_ids, device_capabilities
-4. Pattern context (if applicable): pattern_type, pattern_id, pattern_metadata, confidence, occurrences
-5. Safety checks: requires_confirmation, critical_devices, time_constraints, safety_warnings
-6. Energy impact: estimated_power_w, estimated_daily_kwh, peak_hours
-7. Dependencies: list of automation IDs this depends on
-8. Tags: list of tags for categorization
-
-Return ONLY valid JSON matching the HomeIQ Automation schema. Include all relevant HomeIQ metadata and context.
+        # Use shared prompt guidance system if available
+        if PromptBuilder:
+            # Build additional context from homeiq_context and entity_context
+            additional_context = context_section if context_section else ""
+            
+            # Build system prompt using PromptBuilder
+            system_prompt = PromptBuilder.build_automation_generation_prompt(
+                additional_context=additional_context,
+                entity_context=entity_context
+            )
+        else:
+            # Fallback to basic prompt if PromptBuilder not available
+            system_prompt = f"""You are HomeIQ's Automation Generation Assistant.
+Generate HomeIQ JSON Automation format from the provided description.
+Return ONLY valid JSON matching the HomeIQ Automation schema.
 {context_section}
 {entity_context_section}
-
-Important:
-- Use exact entity IDs and device IDs from the context provided
-- Set use_case to one of: "energy", "comfort", "security", "convenience"
-- Set complexity to one of: "low", "medium", "high"
-- Include device_capabilities if devices have special features (effects, presets, modes)
-- Set safety_checks.requires_confirmation=true for critical devices (locks, security systems)
-- Calculate energy_impact if automation involves power-consuming devices
-- Include pattern_context if automation is generated from a pattern
-
 Return ONLY the JSON object, no explanations or markdown code blocks."""
+            logger.warning("Using fallback prompt - PromptBuilder not available")
         
         try:
             response = await self.client.chat.completions.create(

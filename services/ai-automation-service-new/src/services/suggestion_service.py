@@ -195,6 +195,7 @@ class SuggestionService:
                     "title": suggestion.title,
                     "description": suggestion.description,
                     "status": suggestion.status,
+                    "confidence": (suggestion.confidence_score if suggestion.confidence_score is not None else 0.5),  # Default to 0.5 if null
                     "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
                     "updated_at": suggestion.updated_at.isoformat() if suggestion.updated_at else None
                 })
@@ -233,6 +234,7 @@ class SuggestionService:
                 "title": suggestion.title,
                 "description": suggestion.description,
                 "status": suggestion.status,
+                "confidence": (suggestion.confidence_score if suggestion.confidence_score is not None else 0.5),  # Default to 0.5 if null
                 "automation_yaml": suggestion.automation_yaml,
                 "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
                 "updated_at": suggestion.updated_at.isoformat() if suggestion.updated_at else None,

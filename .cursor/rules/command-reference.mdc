@@ -71,7 +71,7 @@ When you run `tapps-agents init` on any project (new or existing), it:
 
 **What it installs:**
 
-1. **Cursor Rules** (`.cursor/rules/`) - 8 rule files:
+1. **Cursor Rules** (`.cursor/rules/`) - 7 rule files:
    - `workflow-presets.mdc` - Workflow preset documentation (auto-generated from YAML)
    - `quick-reference.mdc` - Quick command reference
    - `agent-capabilities.mdc` - Agent capability descriptions
@@ -79,12 +79,12 @@ When you run `tapps-agents init` on any project (new or existing), it:
    - `project-profiling.mdc` - Project profiling guide
    - `simple-mode.mdc` - Simple Mode guide (natural language orchestration)
    - `command-reference.mdc` - This file (complete command reference)
-   - `context7.mdc` - Context7 auto-invoke rules for library documentation
 
-2. **Cursor Skills** (`.claude/skills/`) - 13 agent skills + simple-mode skill:
+2. **Cursor Skills** (`.claude/skills/`) - 14 agent skills + simple-mode skill:
    - Enables `@agent-name *command` syntax in Cursor chat
    - Each skill defines agent capabilities, tools, and instructions
    - Skills are model-agnostic (use Cursor's configured LLM)
+   - **Agents**: analyst, architect, debugger, designer, documenter, enhancer, evaluator, implementer, improver, ops, orchestrator, planner, reviewer, tester
    - **Simple Mode skill** (`.claude/skills/simple-mode/`) - **INSTALLED BY DEFAULT**:
      - **Primary interface** for TappsCodingAgents in Cursor
      - Natural language orchestration of multiple skills
@@ -277,7 +277,7 @@ tapps-agents create "<description>" [--workflow <preset>]
 
 **CLI Syntax:**
 ```bash
-tapps-agents workflow <preset> [--prompt "<description>"] [--file <path>] [--auto]
+tapps-agents workflow <preset> [--prompt "<description>"] [--file <path>] [--auto] [--cli-mode] [--cursor-mode] [--dry-run] [--continue-from <step>] [--skip-steps <steps>]
 ```
 
 **Available Presets:**
@@ -297,12 +297,42 @@ tapps-agents workflow <preset> [--prompt "<description>"] [--file <path>] [--aut
 - `--file`: Target file/directory
 - `--auto`: Fully automated execution
 
+**Execution Mode Parameters:**
+- `--cli-mode`: Force CLI/headless mode (direct LLM calls, no Cursor Skills)
+- `--cursor-mode`: Force Cursor mode (uses Cursor Skills for LLM operations)
+
+**Pre-flight Validation:**
+- `--dry-run`: Validate workflow without executing. Shows what steps would run, checks for existing artifacts, validates environment, and reports potential issues.
+
+**Partial Execution (Resume/Skip):**
+- `--continue-from <step>`: Continue workflow from a specific step (e.g., 'implement', 'review'). Skips earlier steps. Use `tapps-agents workflow state list` to see available steps.
+- `--skip-steps <steps>`: Comma-separated list of steps to skip (e.g., 'enhance,plan'). Useful when those steps were already completed manually.
+
+**Output Control:**
+- `--print-paths`: Print artifact file paths after each step completes (default: True)
+- `--no-print-paths`: Disable printing artifact paths after each step
+
 **Workflow State Management:**
 ```bash
 tapps-agents workflow state list [--workflow-id <id>] [--format json|text]
 tapps-agents workflow state show <workflow_id> [--format json|text]
 tapps-agents workflow state cleanup [--retention-days 30] [--max-states-per-workflow 10] [--remove-completed] [--dry-run]
 tapps-agents workflow resume [--workflow-id <id>] [--validate]
+```
+
+**Examples:**
+```bash
+# Pre-flight validation before running
+tapps-agents workflow rapid --dry-run --prompt "Add user authentication"
+
+# Resume from a specific step after failure
+tapps-agents workflow rapid --continue-from implementation --prompt "Add user auth"
+
+# Skip already-completed steps
+tapps-agents workflow rapid --skip-steps "enhance,planning" --prompt "Add user auth"
+
+# Force CLI mode for CI/CD pipelines
+tapps-agents workflow rapid --cli-mode --auto --prompt "Add user auth"
 ```
 
 ### `cleanup` - Cleanup TappsCodingAgents Artifacts
@@ -424,12 +454,12 @@ tapps-agents cursor check [--format json|text]  # alias
 - **Pre-commit checks**: Validate setup before committing integration files
 
 **What It Checks:**
-- **Cursor Skills** (`.claude/skills/`) - Validates all 13 agent skills + simple-mode are present
+- **Cursor Skills** (`.claude/skills/`) - Validates all 14 agent skills + simple-mode are present
   - Checks directory structure
   - Verifies YAML frontmatter in SKILL.md files
   - Reports missing skills
-- **Cursor Rules** (`.cursor/rules/`) - Validates all 8 rule files are present
-  - Checks for required rule files (workflow-presets, quick-reference, agent-capabilities, context7, etc.)
+- **Cursor Rules** (`.cursor/rules/`) - Validates all 7 rule files are present
+  - Checks for required rule files (workflow-presets, quick-reference, agent-capabilities, etc.)
   - Verifies file format (.mdc extension)
   - Checks YAML syntax validity
   - Verifies agents are configured
@@ -1213,6 +1243,50 @@ tapps-agents orchestrator sequence "<agent-list>" [--format json|text]
 ```
 
 **Example:** `"plan,design,implement,test"`
+
+### Evaluator Agent (`@evaluator`)
+
+**Available Commands:**
+
+#### `*evaluate` / `evaluate` (Dual-Mode)
+**Purpose:** Evaluate TappsCodingAgents framework effectiveness
+
+**CLI Syntax:**
+```bash
+tapps-agents evaluator evaluate [--workflow-id <id>] [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@evaluator *evaluate
+@evaluator *evaluate --workflow-id workflow-123
+```
+
+**Parameters:**
+- `--workflow-id` (optional): Evaluate specific workflow execution
+- `--format`: Output format (`json` or `text`)
+
+**Output:**
+- Structured evaluation report saved to `.tapps-agents/evaluations/`
+- Report includes: usage statistics, workflow adherence, quality metrics, recommendations
+
+#### `*evaluate-workflow` / `evaluate-workflow` (Dual-Mode)
+**Purpose:** Evaluate a specific workflow execution
+
+**CLI Syntax:**
+```bash
+tapps-agents evaluator evaluate-workflow <workflow_id> [--format json|text]
+```
+
+**Cursor Syntax:**
+```cursor
+@evaluator *evaluate-workflow workflow-123
+```
+
+**When to Use:**
+- After completing a workflow to assess adherence
+- To identify gaps between intended and actual usage
+- For continuous improvement analysis
 
 ## Simple Mode Workflows
 

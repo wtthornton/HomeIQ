@@ -6,11 +6,11 @@
 
 ### 1. Framework Development (Primary Role)
 **TappsCodingAgents is a framework** that provides:
-- 13 workflow agents (analyst, planner, architect, implementer, tester, reviewer, etc.)
+- 14 workflow agents (analyst, planner, architect, implementer, tester, reviewer, evaluator, etc.)
 - Industry Experts system
-- Model Abstraction Layer (MAL)
+- Cursor Skills integration (model-agnostic)
 - Code quality analysis tools
-- Workflow orchestration
+- Workflow orchestration with CLI flags for control
 
 **When working on framework development:**
 - You're modifying the framework code itself (`tapps_agents/` package)
