@@ -71,20 +71,40 @@ class EnergyImpact(BaseModel):
     peak_hours: list[int] | None = Field(None, description="Peak consumption hours (0-23)")
 
 
+class Target(BaseModel):
+    """Generic target specification for enhanced targeting (areas, floors, labels)."""
+    entity_id: str | list[str] | None = Field(None, description="Entity ID(s)")
+    device_id: str | list[str] | None = Field(None, description="Device ID(s)")
+    area_id: str | list[str] | None = Field(None, description="Area ID(s)")
+    floor_id: str | list[str] | None = Field(None, description="Floor ID(s)")
+    labels: list[str] | None = Field(None, description="Label ID(s) for organizational filtering")
+
+
+class TriggerConfig(BaseModel):
+    """Generic trigger configuration for all trigger types."""
+    entity_id: str | list[str] | None = Field(None, description="Entity ID(s)")
+    device_id: str | list[str] | None = Field(None, description="Device ID(s)")
+    
+    # Generic trigger parameters (key-value pairs for any trigger type)
+    # Examples:
+    # - state triggers: {"to": "on", "from": "off"}
+    # - time triggers: {"at": "08:00:00"}
+    # - button triggers: {"action": "press"}
+    # - climate triggers: {"mode": "heating", "temperature_threshold": 20.0}
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Trigger-specific parameters")
+
+
 class HomeIQTrigger(BaseModel):
-    """HomeIQ trigger specification (extends TriggerSpec with HomeIQ context)."""
-    platform: str = Field(..., description="Trigger platform (e.g., 'state', 'time', 'time_pattern')")
-    entity_id: str | list[str] | None = Field(None, description="Entity ID(s) for state triggers")
-    to: str | None = Field(None, description="Target state for state triggers")
-    from_state: str | None = Field(None, alias="from", description="Source state for state triggers")
-    at: str | None = Field(None, description="Time for time triggers (HH:MM:SS)")
-    minutes: str | int | None = Field(None, description="Minutes pattern for time_pattern triggers")
-    hours: str | int | None = Field(None, description="Hours pattern for time_pattern triggers")
-    days: str | int | None = Field(None, description="Days pattern for time_pattern triggers")
-    # HomeIQ extensions
-    device_id: str | None = Field(None, description="Device ID if trigger is device-specific")
-    area_id: str | None = Field(None, description="Area ID if trigger is area-specific")
-    # Additional trigger fields
+    """HomeIQ trigger specification (generic, platform-agnostic)."""
+    platform: str = Field(..., description="Trigger platform (e.g., 'state', 'button', 'climate', 'time')")
+    
+    # Single source of truth for trigger configuration
+    config: TriggerConfig = Field(..., description="Trigger configuration")
+    
+    # Enhanced targeting (areas, floors, labels)
+    target: Target | None = Field(None, description="Enhanced targeting (areas, floors, labels)")
+    
+    # Additional trigger fields (rarely used)
     extra: dict[str, Any] = Field(default_factory=dict, description="Additional trigger-specific fields")
 
     class Config:
@@ -92,37 +112,43 @@ class HomeIQTrigger(BaseModel):
 
 
 class HomeIQCondition(BaseModel):
-    """HomeIQ condition specification (extends ConditionSpec with HomeIQ context)."""
+    """HomeIQ condition specification (generic, platform-agnostic)."""
     condition: str = Field(..., description="Condition type (e.g., 'state', 'numeric_state', 'time')")
-    entity_id: str | list[str] | None = Field(None, description="Entity ID(s) for state conditions")
+    
+    # Entity/state fields
+    entity_id: str | list[str] | None = Field(None, description="Entity ID(s)")
     state: str | None = Field(None, description="State value for state conditions")
     above: float | None = Field(None, description="Above value for numeric_state conditions")
     below: float | None = Field(None, description="Below value for numeric_state conditions")
-    # HomeIQ extensions
-    device_id: str | None = Field(None, description="Device ID if condition is device-specific")
-    area_id: str | None = Field(None, description="Area ID if condition is area-specific")
+    
+    # Enhanced targeting (replaces old device_id, area_id fields)
+    target: Target | None = Field(None, description="Enhanced targeting (areas, floors, labels)")
+    
     # Additional condition fields
     extra: dict[str, Any] = Field(default_factory=dict, description="Additional condition-specific fields")
 
 
 class HomeIQAction(BaseModel):
-    """HomeIQ action specification (extends ActionSpec with HomeIQ context)."""
+    """HomeIQ action specification (generic, platform-agnostic)."""
     service: str | None = Field(None, description="Service to call (e.g., 'light.turn_on')")
     scene: str | None = Field(None, description="Scene to activate")
     delay: str | None = Field(None, description="Delay duration (e.g., '00:00:05')")
-    target: dict[str, Any] | None = Field(None, description="Target specification (entity_id, area_id, device_id)")
     data: dict[str, Any] = Field(default_factory=dict, description="Service data")
+    
+    # Enhanced targeting (REPLACES old dict target field)
+    target: Target | None = Field(None, description="Enhanced targeting (areas, floors, labels, devices, entities)")
+    
     # Advanced action types
-    choose: list[dict[str, Any]] | None = Field(None, description="Choose action (list of conditions/sequences)")
+    choose: list[dict[str, Any]] | None = Field(None, description="Choose action")
     repeat: dict[str, Any] | None = Field(None, description="Repeat action")
     parallel: list[dict[str, Any]] | None = Field(None, description="Parallel actions")
     sequence: list[dict[str, Any]] | None = Field(None, description="Sequence actions")
+    
     # Error handling
     error: str | None = Field(None, description="Error handling ('continue', 'stop', 'abort')")
-    continue_on_error: bool | None = Field(None, description="Legacy error handling (deprecated, use 'error')")
+    
     # HomeIQ extensions
-    energy_impact_w: float | None = Field(None, ge=0.0, description="Estimated power consumption for this action")
-    # Additional action fields
+    energy_impact_w: float | None = Field(None, ge=0.0, description="Estimated power consumption")
     extra: dict[str, Any] = Field(default_factory=dict, description="Additional action-specific fields")
 
 
@@ -138,7 +164,7 @@ class HomeIQAutomation(BaseModel):
     id: str | None = Field(None, description="Automation ID (optional, can be generated)")
     alias: str = Field(..., description="Automation alias/name")
     description: str | None = Field(None, description="Automation description")
-    version: str = Field(default="1.0.0", description="HomeIQ JSON schema version")
+    version: str = Field(default="2.0.0", description="HomeIQ JSON schema version")
     
     # HomeIQ-specific metadata
     homeiq_metadata: HomeIQMetadata = Field(..., description="HomeIQ metadata")

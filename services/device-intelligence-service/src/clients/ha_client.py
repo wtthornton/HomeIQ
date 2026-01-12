@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+import aiohttp
 import websockets
 from websockets.exceptions import ConnectionClosed
 
@@ -497,6 +498,84 @@ class HomeAssistantClient:
             logger.error(f"❌ Failed to get config entries: {e}")
             return {}
 
+    async def get_states(self) -> list[dict[str, Any]]:
+        """
+        Get all entity states from Home Assistant (runtime values + attributes).
+        
+        Uses WebSocket command: {"type": "get_states"}
+        Returns current state, attributes, device_class, state_class, friendly_name
+        for all entities.
+        
+        Returns:
+            List of entity state dictionaries with keys:
+            - entity_id
+            - state (current state value)
+            - attributes (dict of entity attributes)
+            - last_changed
+            - last_updated
+            - context
+            - etc.
+            
+        Raises:
+            Exception: If WebSocket command fails (returns empty list on error)
+        """
+        try:
+            response = await self.send_message({
+                "type": "get_states"
+            })
+
+            states = response.get("result", [])
+            logger.info(f"📊 Retrieved {len(states)} entity states from Home Assistant")
+            return states
+
+        except Exception as e:
+            logger.error(f"❌ Failed to get entity states: {e}")
+            return []
+
+    async def get_config(self) -> dict[str, Any]:
+        """
+        Get Home Assistant system configuration (version, timezone, location, etc.).
+        
+        Uses REST API endpoint: GET /api/config
+        This endpoint is REST-only (not available via WebSocket).
+        
+        Returns:
+            Dictionary with system configuration including:
+            - version (HA version)
+            - location_name
+            - time_zone
+            - unit_system
+            - components
+            - config_dir
+            - etc.
+            
+        Raises:
+            Exception: If API request fails (returns empty dict on error)
+        """
+        try:
+            # Use REST API for system config (not available via WebSocket)
+            http_url = self.primary_url.replace('ws://', 'http://').replace('wss://', 'https://')
+            url = f"{http_url}/api/config"
+            
+            headers = {
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json"
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    if response.status == 200:
+                        config = await response.json()
+                        logger.info(f"📋 Retrieved Home Assistant system config (version: {config.get('version', 'unknown')})")
+                        return config
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"❌ Failed to get system config: HTTP {response.status} - {error_text}")
+                        return {}
+        except Exception as e:
+            logger.error(f"❌ Failed to get system config: {e}")
+            return {}
+
     async def update_device_registry_entry(self, device_id: str, **fields: Any) -> dict[str, Any]:
         """Update device registry entry with safety checks."""
         if not device_id:
@@ -621,6 +700,38 @@ class HomeAssistantClient:
 
         except Exception as e:
             logger.error(f"❌ Failed to subscribe to registry updates: {e}")
+
+    async def subscribe_to_state_changes(
+        self,
+        callback: Callable[[dict[str, Any]], Awaitable[None]]
+    ):
+        """
+        Subscribe to state_changed events for real-time telemetry updates.
+        
+        This enables real-time monitoring of entity state changes (sensor readings,
+        switch toggles, etc.) for Zigbee2MQTT and other devices.
+        
+        Args:
+            callback: Async callback function that receives state_changed event data.
+                      Event data structure:
+                      {
+                          "event_type": "state_changed",
+                          "event": {
+                              "entity_id": "sensor.example",
+                              "old_state": {...},
+                              "new_state": {...}
+                          },
+                          "time_fired": "2026-01-16T12:00:00.000Z",
+                          "origin": "LOCAL",
+                          "context": {...}
+                      }
+        """
+        try:
+            await self.subscribe_to_events("state_changed", callback)
+            logger.info("✅ Subscribed to state_changed events for real-time telemetry")
+        except Exception as e:
+            logger.error(f"❌ Failed to subscribe to state_changed events: {e}")
+            raise
 
     async def start_message_handler(self):
         """Start the message handler task."""

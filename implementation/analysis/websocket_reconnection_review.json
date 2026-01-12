@@ -1,0 +1,289 @@
+{
+  "file": "C:\\cursor\\HomeIQ\\services\\websocket-ingestion\\src\\connection_manager.py",
+  "review": {},
+  "file_type": "python",
+  "language_detection": {
+    "language": "python",
+    "confidence": 1.0,
+    "method": "extension"
+  },
+  "context7_verification": {
+    "discovery_service": {
+      "api_docs_available": true,
+      "best_practices_available": true,
+      "api_mentioned": true,
+      "docs_source": "fuzzy_match",
+      "best_practices_source": "fuzzy_match"
+    },
+    "error_handler": {
+      "api_docs_available": true,
+      "best_practices_available": true,
+      "api_mentioned": true,
+      "docs_source": "fuzzy_match",
+      "best_practices_source": "api"
+    },
+    "event_processor": {
+      "api_docs_available": true,
+      "best_practices_available": true,
+      "api_mentioned": true,
+      "docs_source": "api",
+      "best_practices_source": "fuzzy_match"
+    },
+    "event_rate_monitor": {
+      "api_docs_available": true,
+      "best_practices_available": true,
+      "api_mentioned": true,
+      "docs_source": "fuzzy_match",
+      "best_practices_source": "api"
+    },
+    "event_subscription": {
+      "api_docs_available": true,
+      "best_practices_available": true,
+      "api_mentioned": true,
+      "docs_source": "fuzzy_match",
+      "best_practices_source": "fuzzy_match"
+    },
+    "state_machine": {
+      "api_docs_available": true,
+      "best_practices_available": true,
+      "api_mentioned": true,
+      "docs_source": "fuzzy_match",
+      "best_practices_source": "api"
+    },
+    "websocket_client": {
+      "api_docs_available": true,
+      "best_practices_available": true,
+      "api_mentioned": true,
+      "docs_source": "fuzzy_match",
+      "best_practices_source": "fuzzy_match"
+    }
+  },
+  "libraries_detected": [
+    "discovery_service",
+    "error_handler",
+    "event_processor",
+    "event_rate_monitor",
+    "event_subscription",
+    "state_machine",
+    "websocket_client"
+  ],
+  "context7_debug": {
+    "helper_enabled": true,
+    "has_library_detector": true,
+    "mcp_gateway_available": true
+  },
+  "scoring": {
+    "complexity_score": 3.4,
+    "security_score": 10.0,
+    "maintainability_score": 7.361428571428572,
+    "test_coverage_score": 0.9463,
+    "performance_score": 10.0,
+    "linting_score": 10.0,
+    "type_checking_score": 5.0,
+    "duplication_score": 10.0,
+    "linting_issue_count": 0.0,
+    "type_issue_count": 0.0,
+    "overall_score": 73.02302142857143,
+    "_explanations": {
+      "complexity_score": {
+        "explanation": "Areas for improvement: complexity needs significant improvement (3.4/10)",
+        "suggestions": [
+          "Break down complex functions into smaller, focused functions",
+          "Reduce nesting depth (aim for < 4 levels)",
+          "Extract complex logic into separate functions or modules",
+          "Use early returns to reduce nesting",
+          "Consider using list comprehensions or generator expressions"
+        ]
+      },
+      "security_score": {
+        "explanation": "Strengths: security is excellent (10.0/10), Code demonstrates best practices",
+        "suggestions": []
+      },
+      "maintainability_score": {
+        "explanation": "Strengths: maintainability is good (7.4/10)",
+        "suggestions": [
+          "Consider minor improvements to reach excellent level (>8.5)"
+        ]
+      },
+      "test_coverage_score": {
+        "explanation": "Areas for improvement: test_coverage needs significant improvement (0.9/10)",
+        "suggestions": [
+          "Increase test coverage to at least 70%",
+          "Add unit tests for critical functions",
+          "Include edge cases and error handling in tests",
+          "Add integration tests for important workflows"
+        ]
+      },
+      "performance_score": {
+        "explanation": "Strengths: performance is excellent (10.0/10), Code demonstrates best practices",
+        "suggestions": []
+      },
+      "linting_score": {
+        "explanation": "Strengths: linting is excellent (10.0/10), Code demonstrates best practices",
+        "suggestions": []
+      },
+      "type_checking_score": {
+        "explanation": "Areas for improvement: type_checking is acceptable but could be improved (5.0/10)",
+        "suggestions": [
+          "Add type annotations to function parameters and return types",
+          "Fix type errors reported by type checker",
+          "Use type hints consistently throughout the codebase",
+          "Enable strict type checking mode for better type safety",
+          "Run 'mypy <file>' to see specific type errors",
+          "Add type hints using typing module or Python 3.9+ built-in types",
+          "Use Optional[T] for nullable types, Union[T, U] for multiple types",
+          "Consider using mypy --strict for maximum type safety",
+          "Add return type annotations: 'def func() -> int:'",
+          "Use TypeVar for generic types, Protocol for structural typing"
+        ]
+      },
+      "duplication_score": {
+        "explanation": "Strengths: duplication is excellent (10.0/10), Code demonstrates best practices",
+        "suggestions": []
+      },
+      "linting_issue_count": {
+        "explanation": "Areas for improvement: linting_issue_count needs significant improvement (0.0/10)",
+        "suggestions": []
+      },
+      "type_issue_count": {
+        "explanation": "Areas for improvement: type_issue_count needs significant improvement (0.0/10)",
+        "suggestions": []
+      },
+      "overall_score": {
+        "explanation": "Strengths: overall is good (73.0/10)",
+        "suggestions": [
+          "Consider minor improvements to reach excellent level (>8.5)"
+        ]
+      }
+    },
+    "dependency_security_score": 10.0
+  },
+  "library_recommendations": {
+    "discovery_service": {
+      "best_practices": [],
+      "common_mistakes": [],
+      "usage_examples": [
+        "_snackbarService.showSnackbar(\n  message: 'This is a snack bar',\n  title: 'The title',\n  duration: Duration(seconds: 2),\n  onTap: (_) {\n    print('snackbar tapped');\n  },\n  mainButtonTitle: 'Undo',\n  onMainButtonTapped: () => print('Undo the action!'),\n);"
+      ],
+      "source": "context7",
+      "cached": false
+    },
+    "error_handler": {
+      "best_practices": [],
+      "common_mistakes": [],
+      "usage_examples": [
+        "use Symfony\\Component\\ErrorHandler\\Debug;\nuse Symfony\\Component\\ErrorHandler\\ErrorHandler;\nuse Symfony\\Component\\ErrorHandler\\DebugClassLoader;\n\nDebug::enable();\n\n// or enable only one feature\n//ErrorHandler::register();\n//DebugClassLoader::enable();\n\n// If you want a custom generic template when debug is not enabled\n// HtmlErrorRenderer::setTemplate('/path/to/custom/error.html.php');\n\n$data = ErrorHandler::call(static function () use ($filename, $datetimeFormat) {\n    // if any code executed inside this anonymous function fails, a PHP exception\n    // will be thrown, even if the code uses the '@' PHP silence operator\n    $data = json_decode(file_get_contents($filename), true);\n    $data['read_at'] = date($datetimeFormat);\n    file_put_contents($filename, json_encode($data));\n\n    return $data;\n});",
+        "composer require symfony/error-handler",
+        "use Symfony\\Component\\ErrorHandler\\Debug;\nuse Symfony\\Component\\ErrorHandler\\ErrorHandler;\nuse Symfony\\Component\\ErrorHandler\\DebugClassLoader;\n\nDebug::enable();\n\n// or enable only one feature\n//ErrorHandler::register();\n//DebugClassLoader::enable();\n\n// If you want a custom generic template when debug is not enabled\n// HtmlErrorRenderer::setTemplate('/path/to/custom/error.html.php');\n\n$data = ErrorHandler::call(static function () use ($filename, $datetimeFormat) {\n    // if any code executed inside this anonymous function fails, a PHP exception\n    // will be thrown, even if the code uses the '@' PHP silence operator\n    $data = json_decode(file_get_contents($filename), true);\n    $data['read_at'] = date($datetimeFormat);\n    file_put_contents($filename, json_encode($data));\n\n    return $data;\n});"
+      ],
+      "source": "context7",
+      "cached": false
+    },
+    "event_processor": {
+      "best_practices": [],
+      "common_mistakes": [],
+      "usage_examples": [
+        "php artisan schedule-monitor:sync",
+        "php artisan schedule-monitor:sync --keep-old",
+        "php artisan vendor:publish --provider=\"Spatie\\ScheduleMonitor\\ScheduleMonitorServiceProvider\" --tag=\"schedule-monitor-migrations\"\nphp artisan migrate"
+      ],
+      "source": "context7",
+      "cached": false
+    },
+    "event_rate_monitor": {
+      "best_practices": [],
+      "common_mistakes": [],
+      "usage_examples": [
+        "php artisan schedule-monitor:sync",
+        "php artisan schedule-monitor:sync --keep-old",
+        "php artisan vendor:publish --provider=\"Spatie\\ScheduleMonitor\\ScheduleMonitorServiceProvider\" --tag=\"schedule-monitor-migrations\"\nphp artisan migrate"
+      ],
+      "source": "context7",
+      "cached": false
+    },
+    "event_subscription": {
+      "best_practices": [],
+      "common_mistakes": [],
+      "usage_examples": [
+        "require 'algorithms'\ninclude Containers\n"
+      ],
+      "source": "context7",
+      "cached": false
+    },
+    "state_machine": {
+      "best_practices": [],
+      "common_mistakes": [],
+      "usage_examples": [
+        "vehicle = Vehicle.new                   # => #<Vehicle:0xb708412c @state=\"parked\" ...>\nvehicle.state                           # => \"parked\"\nvehicle.machine.ignite                  # => true\nvehicle.machine.state                   # => \"idling\"\nvehicle.state                           # => \"idling\"\nvehicle.machine.state_transitions       # => [#<StateMachines:Transition ...>]\nvehicle.machine.definition.states.keys  # => :first_gear, :second_gear, :parked, :idling",
+        "vehicle.state_paths                                       # => [[#<StateMachines:Transition ...], [#<StateMachines:Transition ...], ...]\nvehicle.state_paths.to_states                             # => [:parked, :idling, :first_gear, :stalled, :second_gear, :third_gear]\nvehicle.state_paths.events                                # => [:park, :ignite, :shift_up, :idle, :crash, :repair, :shift_down]",
+        "class Vehicle\n  state_machine initial: 'parked' do\n    event 'ignite' do\n      transition 'parked' => 'idling'\n    end\n\n    # ...\n  end\nend"
+      ],
+      "source": "context7",
+      "cached": false
+    },
+    "websocket_client": {
+      "best_practices": [],
+      "common_mistakes": [],
+      "usage_examples": [
+        "$ echo \"Are cats faster than dogs?\" | openai complete -\nIt depends on the breed of the cat and dog. Generally,\ncats are faster than dogs over short distances,\nbut dogs are better at sustained running."
+      ],
+      "source": "context7",
+      "cached": false
+    }
+  },
+  "influxdb_validation": {
+    "flux_queries": [],
+    "connection_issues": [],
+    "data_modeling_issues": [],
+    "suggestions": []
+  },
+  "websocket_validation": {
+    "connection_issues": [],
+    "suggestions": []
+  },
+  "feedback": {
+    "instruction": {
+      "agent_name": "reviewer",
+      "command": "generate-feedback",
+      "prompt": "Review this code and provide detailed feedback:\n\nCode:\n```python\n\"\"\"\nConnection Manager for Home Assistant WebSocket with Retry Logic\n\"\"\"\n\nimport asyncio\nimport logging\nimport os\nimport random\nfrom collections.abc import Callable\nfrom datetime import datetime, timezone\nfrom typing import Any\n\nfrom .discovery_service import DiscoveryService\nfrom .error_handler import ErrorHandler\nfrom .event_processor import EventProcessor\nfrom .event_rate_monitor import EventRateMonitor\nfrom .event_subscription import EventSubscriptionManager\nfrom .state_machine import ConnectionState, ConnectionStateMachine, InvalidStateTransition\nfrom .websocket_client import HomeAssistantWebSocketClient\n\nlogger = logging.getLogger(__name__)\n\n\nclass ConnectionManager:\n    \"\"\"\n    Manages WebSocket connection with automatic retry and reconnection.\n    \n    This is the core component that orchestrates the WebSocket connection lifecycle,\n    event processing, and service discovery. It uses a state machine pattern for\n    reliable connection state management and includes infinite retry capability\n    for maximum uptime.\n    \n    Key Features:\n    - State machine-based connection management (ConnectionStateMachine)\n    - Infinite retry with exponential backoff (configurable)\n    - Automatic device/entity discovery with periodic refresh\n    - Event rate monitoring and health tracking\n    - Circuit breaker pattern for graceful degradation\n    \n    State Transitions:\n    - DISCONNECTED → CONNECTING → AUTHENTICATING → CONNECTED\n    - CONNECTED → RECONNECTING (on connection loss)\n    - Any state → FAILED (on critical errors)\n    - FAILED → RECONNECTING (automatic recovery)\n    \n    Example:\n        manager = ConnectionManager(\n            base_url=\"http://192.168.1.86:8123\",\n            token=\"your-token\",\n            influxdb_manager=influxdb_manager\n        )\n        await manager.start()\n    \"\"\"\n\n    def __init__(self, base_url: str, token: str, influxdb_manager=None):\n        self.base_url = base_url\n        self.token = token\n        self.client: HomeAssistantWebSoc\n```\n\nFocus on Python best practices:\n- PEP 8 style compliance\n- Type hints (Python 3.9+)\n- Error handling patterns\n- Docstring quality\n- Import organization\n\nCode Quality Scores:\n- Complexity: 3.4/10\n- Security: 10.0/10\n- Maintainability: 7.4/10\n- Test Coverage: 0.9/10\n- Performance: 10.0/10\n- Overall Score: 73.0/100\n\nProvide detailed feedback:\n\n1. What the code does (brief summary)\n2. Potential issues or improvements\n3. Security concerns (if any)\n4. Style/best practices recommendations\n5. Type hint usage and improvements\n6. Error handling improvements\n7. Documentation quality (docstrings)",
+      "parameters": {
+        "model": "reviewer-agent"
+      }
+    },
+    "skill_command": "@reviewer generate-feedback --model \"reviewer-agent\""
+  },
+  "quality_gate": {
+    "passed": false,
+    "overall_passed": false,
+    "security_passed": true,
+    "maintainability_passed": true,
+    "complexity_passed": true,
+    "test_coverage_passed": false,
+    "performance_passed": true,
+    "failures": [
+      "Overall score 7.30 below threshold 8.0"
+    ],
+    "warnings": [
+      "Test coverage 9.46% below threshold 80.0%"
+    ],
+    "scores": {
+      "overall_score": 7.302302142857142,
+      "security_score": 10.0,
+      "maintainability_score": 7.361428571428572,
+      "complexity_score": 3.4,
+      "test_coverage_score": 0.9463,
+      "performance_score": 10.0
+    },
+    "thresholds": {
+      "overall_min": 8.0,
+      "security_min": 8.5,
+      "maintainability_min": 7.0,
+      "complexity_max": 5.0,
+      "test_coverage_min": 80.0,
+      "performance_min": 7.0
+    }
+  },
+  "quality_gate_blocked": true,
+  "passed": false,
+  "threshold": 70.0
+}
