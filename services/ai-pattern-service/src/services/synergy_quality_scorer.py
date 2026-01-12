@@ -33,7 +33,7 @@ class SynergyQualityScorer:
     QUALITY_TIER_LOW = 0.30
     
     # Default filtering thresholds
-    DEFAULT_MIN_QUALITY_SCORE = 0.30
+    DEFAULT_MIN_QUALITY_SCORE = 0.50  # Medium+ quality threshold (updated per storage strategy recommendation)
     DEFAULT_MIN_CONFIDENCE = 0.50
     DEFAULT_MIN_IMPACT = 0.30
     DEFAULT_MIN_PATTERN_SUPPORT = 0.30

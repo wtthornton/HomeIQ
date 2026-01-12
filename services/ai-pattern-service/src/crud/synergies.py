@@ -24,7 +24,7 @@ async def store_synergy_opportunities(
     min_pattern_confidence: float = 0.7,
     calculate_quality: bool = True,  # 2025 Enhancement: Calculate quality scores
     filter_low_quality: bool = True,  # 2025 Enhancement: Filter low-quality synergies
-    min_quality_score: float = 0.30,  # 2025 Enhancement: Minimum quality score threshold
+    min_quality_score: float = 0.50,  # 2025 Enhancement: Minimum quality score threshold (medium+ quality)
     deduplicate: bool = True  # 2025 Enhancement: Remove duplicates
 ) -> tuple[int, int]:
     """
@@ -39,7 +39,7 @@ async def store_synergy_opportunities(
         min_pattern_confidence: Minimum pattern confidence for validation
         calculate_quality: Calculate quality_score for each synergy (default: True)
         filter_low_quality: Filter synergies below min_quality_score (default: True)
-        min_quality_score: Minimum quality score threshold (default: 0.30)
+        min_quality_score: Minimum quality score threshold (default: 0.50, medium+ quality)
         deduplicate: Remove duplicate synergies before storage (default: True)
     
     Returns:
