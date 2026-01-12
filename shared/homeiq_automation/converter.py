@@ -22,6 +22,8 @@ from .schema import (
     HomeIQAutomation,
     HomeIQCondition,
     HomeIQTrigger,
+    Target,
+    TriggerConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -93,37 +95,67 @@ class HomeIQToAutomationSpecConverter:
         logger.debug(f"Converted HomeIQ automation '{homeiq_automation.alias}' to AutomationSpec")
         return spec
     
+    def _target_to_dict(self, target: Target) -> dict[str, Any]:
+        """Convert Target model to YAML-compatible dict."""
+        target_dict: dict[str, Any] = {}
+        if target.area_id:
+            target_dict["area_id"] = target.area_id
+        if target.floor_id:
+            target_dict["floor_id"] = target.floor_id
+        if target.labels:
+            target_dict["labels"] = target.labels
+        if target.device_id:
+            target_dict["device_id"] = target.device_id
+        if target.entity_id:
+            target_dict["entity_id"] = target.entity_id
+        return target_dict
+    
+    def _map_trigger_config_to_yaml(
+        self, 
+        platform: str, 
+        config: TriggerConfig
+    ) -> dict[str, Any]:
+        """
+        Map generic trigger configuration to YAML-compatible fields.
+        
+        Maps platform-agnostic config to HA 2026.1 YAML format.
+        """
+        yaml_fields: dict[str, Any] = {}
+        
+        # Always include entity_id if present
+        if config.entity_id:
+            yaml_fields["entity_id"] = config.entity_id
+        
+        # Copy all parameters directly (they're already in YAML-compatible format)
+        # Examples:
+        # - state triggers: {"to": "on", "from": "off"}
+        # - time triggers: {"at": "08:00:00"}
+        # - button triggers: {"action": "press"}
+        # - climate triggers: {"mode": "heating", "temperature_threshold": 20.0}
+        yaml_fields.update(config.parameters)
+        
+        return yaml_fields
+    
     def _convert_trigger(self, trigger: HomeIQTrigger) -> TriggerSpec:
         """Convert HomeIQ trigger to TriggerSpec."""
         trigger_data: dict[str, Any] = {
             "platform": trigger.platform,
         }
         
-        # Copy standard fields
-        if trigger.entity_id is not None:
-            trigger_data["entity_id"] = trigger.entity_id
-        if trigger.to is not None:
-            trigger_data["to"] = trigger.to
-        if trigger.from_state is not None:
-            trigger_data["from"] = trigger.from_state
-        if trigger.at is not None:
-            trigger_data["at"] = trigger.at
-        if trigger.minutes is not None:
-            trigger_data["minutes"] = trigger.minutes
-        if trigger.hours is not None:
-            trigger_data["hours"] = trigger.hours
-        if trigger.days is not None:
-            trigger_data["days"] = trigger.days
+        # Map trigger config to YAML fields
+        yaml_fields = self._map_trigger_config_to_yaml(
+            platform=trigger.platform,
+            config=trigger.config
+        )
+        trigger_data.setdefault("extra", {}).update(yaml_fields)
         
-        # Preserve HomeIQ extensions in extra
-        if trigger.device_id or trigger.area_id:
-            trigger_data["extra"] = {}
-            if trigger.device_id:
-                trigger_data["extra"]["device_id"] = trigger.device_id
-            if trigger.area_id:
-                trigger_data["extra"]["area_id"] = trigger.area_id
+        # Handle enhanced targeting
+        if trigger.target:
+            target_dict = self._target_to_dict(trigger.target)
+            if target_dict:
+                trigger_data.setdefault("extra", {})["target"] = target_dict
         
-        # Merge with existing extra
+        # Merge any additional extra fields
         if trigger.extra:
             trigger_data.setdefault("extra", {}).update(trigger.extra)
         
@@ -145,15 +177,13 @@ class HomeIQToAutomationSpecConverter:
         if condition.below is not None:
             condition_data["below"] = condition.below
         
-        # Preserve HomeIQ extensions in extra
-        if condition.device_id or condition.area_id:
-            condition_data["extra"] = {}
-            if condition.device_id:
-                condition_data["extra"]["device_id"] = condition.device_id
-            if condition.area_id:
-                condition_data["extra"]["area_id"] = condition.area_id
+        # Handle enhanced targeting
+        if condition.target:
+            target_dict = self._target_to_dict(condition.target)
+            if target_dict:
+                condition_data.setdefault("extra", {})["target"] = target_dict
         
-        # Merge with existing extra
+        # Merge extra fields
         if condition.extra:
             condition_data.setdefault("extra", {}).update(condition.extra)
         
@@ -170,10 +200,16 @@ class HomeIQToAutomationSpecConverter:
             action_data["scene"] = action.scene
         if action.delay:
             action_data["delay"] = action.delay
-        if action.target:
-            action_data["target"] = action.target
         if action.data:
             action_data["data"] = action.data
+        
+        # Handle enhanced targeting (REPLACES old dict target)
+        if action.target:
+            target_dict = self._target_to_dict(action.target)
+            if target_dict:
+                action_data["target"] = target_dict
+        
+        # Advanced actions
         if action.choose:
             action_data["choose"] = action.choose
         if action.repeat:
@@ -182,16 +218,16 @@ class HomeIQToAutomationSpecConverter:
             action_data["parallel"] = action.parallel
         if action.sequence:
             action_data["sequence"] = action.sequence
+        
+        # Error handling
         if action.error:
             action_data["error"] = action.error
-        elif action.continue_on_error is not None:
-            action_data["continue_on_error"] = action.continue_on_error
         
-        # Preserve HomeIQ extensions in extra
+        # HomeIQ extensions (preserve in extra)
         if action.energy_impact_w is not None:
-            action_data["extra"] = {"energy_impact_w": action.energy_impact_w}
+            action_data.setdefault("extra", {})["energy_impact_w"] = action.energy_impact_w
         
-        # Merge with existing extra
+        # Merge extra fields
         if action.extra:
             action_data.setdefault("extra", {}).update(action.extra)
         

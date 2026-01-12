@@ -60,11 +60,23 @@ class ZigbeeGroup:
 class MQTTClient:
     """MQTT client for Zigbee2MQTT bridge integration."""
 
-    def __init__(self, broker_url: str, username: str | None = None, password: str | None = None, base_topic: str = "zigbee2mqtt"):
+    def __init__(
+        self,
+        broker_url: str,
+        username: str | None = None,
+        password: str | None = None,
+        base_topic: str = "zigbee2mqtt",
+        subscribe_discovery_configs: bool = False,
+        subscribe_device_states: bool = False
+    ):
         self.broker_url = broker_url
         self.username = username
         self.password = password
         self.base_topic = base_topic.rstrip('/')  # Remove trailing slash if present
+
+        # Optional feature flags
+        self.subscribe_discovery_configs = subscribe_discovery_configs
+        self.subscribe_device_states = subscribe_device_states
 
         # Parse broker URL
         parsed = urlparse(broker_url)
@@ -211,6 +223,16 @@ class MQTTClient:
             f"{self.base_topic}/bridge/response/group/list",  # Response to group list request
         ]
 
+        # Optional: Subscribe to Home Assistant discovery config topics
+        if self.subscribe_discovery_configs:
+            topics.append("homeassistant/+/+/+/config")
+            logger.info("📡 Discovery config subscription enabled")
+
+        # Optional: Subscribe to Zigbee2MQTT device state topics
+        if self.subscribe_device_states:
+            topics.append(f"{self.base_topic}/+")
+            logger.info("📡 Device state subscription enabled (high volume)")
+
         for topic in topics:
             self.client.subscribe(topic)
             logger.info(f"📡 Subscribed to {topic}")
@@ -248,6 +270,16 @@ class MQTTClient:
                 await self._handle_info_message(data)
             elif topic == f"{self.base_topic}/bridge/networkmap":
                 await self._handle_networkmap_message(data)
+            elif topic.startswith("homeassistant/") and topic.endswith("/config"):
+                # Home Assistant discovery config message
+                await self._handle_discovery_config(topic, data)
+            elif (
+                self.subscribe_device_states
+                and topic.startswith(f"{self.base_topic}/")
+                and not topic.startswith(f"{self.base_topic}/bridge/")
+            ):
+                # Zigbee2MQTT device state message (not bridge messages)
+                await self._handle_device_state(topic, data)
             else:
                 logger.debug(f"📨 Unhandled message on topic {topic}")
 
@@ -350,6 +382,44 @@ class MQTTClient:
         # Call message handler if registered
         if "networkmap" in self.message_handlers:
             await self.message_handlers["networkmap"](data)
+
+    async def _handle_discovery_config(self, topic: str, data: dict[str, Any]):
+        """Handle Home Assistant discovery config message."""
+        # Parse topic: homeassistant/<component>/<device_id>/<object_id>/config
+        topic_parts = topic.split("/")
+        if len(topic_parts) >= 5:
+            component = topic_parts[1]
+            device_id = topic_parts[2]
+            object_id = topic_parts[3] if len(topic_parts) > 3 else None
+            
+            logger.debug(f"📋 Received HA discovery config: {component}/{device_id}/{object_id}")
+            
+            # Call message handler if registered
+            if "discovery_config" in self.message_handlers:
+                await self.message_handlers["discovery_config"]({
+                    "topic": topic,
+                    "component": component,
+                    "device_id": device_id,
+                    "object_id": object_id,
+                    "config": data
+                })
+        else:
+            logger.debug(f"📋 Received HA discovery config: {topic}")
+
+    async def _handle_device_state(self, topic: str, data: dict[str, Any]):
+        """Handle Zigbee2MQTT device state message."""
+        # Extract device friendly_name from topic: zigbee2mqtt/<friendly_name>
+        friendly_name = topic.replace(f"{self.base_topic}/", "")
+        
+        logger.debug(f"📊 Received Zigbee2MQTT device state: {friendly_name}")
+        
+        # Call message handler if registered
+        if "device_state" in self.message_handlers:
+            await self.message_handlers["device_state"]({
+                "topic": topic,
+                "friendly_name": friendly_name,
+                "state": data
+            })
 
     async def _handle_reconnection(self):
         """Handle automatic reconnection."""
