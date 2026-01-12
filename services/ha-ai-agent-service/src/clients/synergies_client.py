@@ -28,14 +28,14 @@ class SynergiesClient:
             settings = Settings()
         self.base_url = (base_url or settings.ai_automation_service_url).rstrip("/")
         self.api_key = settings.ai_automation_api_key
-        self.timeout = aiohttp.ClientTimeout(total=10)
+        self.timeout = aiohttp.ClientTimeout(total=60)  # Increased for larger result sets (5000 limit)
 
     async def get_synergies(
         self,
         area: str | None = None,
         device_ids: list[str] | None = None,
         min_confidence: float = 0.6,
-        limit: int = 10
+        limit: int = 5000
     ) -> list[dict[str, Any]]:
         """
         Get synergies from AI Automation Service.
@@ -44,7 +44,7 @@ class SynergiesClient:
             area: Filter by area
             device_ids: Filter by device IDs (checks if devices are in synergy)
             min_confidence: Minimum confidence threshold
-            limit: Maximum number of synergies to return
+            limit: Maximum number of synergies to return (default: 5000)
 
         Returns:
             List of synergy dictionaries

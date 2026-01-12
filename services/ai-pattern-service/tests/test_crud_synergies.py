@@ -22,9 +22,10 @@ class TestSynergyCRUD:
     ):
         """Test storing synergy opportunities."""
         synergies = [sample_synergy_data]
-        stored_count = await store_synergy_opportunities(test_db, synergies)
+        stored_count, filtered_count = await store_synergy_opportunities(test_db, synergies)
         
         assert stored_count >= 1
+        assert filtered_count >= 0  # Filtered count should be non-negative
     
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -33,8 +34,9 @@ class TestSynergyCRUD:
         self, test_db: AsyncSession
     ):
         """Test storing empty synergy list."""
-        stored_count = await store_synergy_opportunities(test_db, [])
+        stored_count, filtered_count = await store_synergy_opportunities(test_db, [])
         assert stored_count == 0
+        assert filtered_count == 0
     
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -51,8 +53,9 @@ class TestSynergyCRUD:
                 "devices": ["binary_sensor.motion_kitchen", "light.kitchen"]
             }
         ]
-        stored_count = await store_synergy_opportunities(test_db, synergies)
+        stored_count, filtered_count = await store_synergy_opportunities(test_db, synergies)
         assert stored_count >= 2
+        assert filtered_count >= 0
     
     @pytest.mark.asyncio
     @pytest.mark.unit

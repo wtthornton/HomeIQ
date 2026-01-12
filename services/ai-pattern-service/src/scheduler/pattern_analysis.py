@@ -202,12 +202,13 @@ class PatternAnalysisScheduler:
                     
                     # Store synergies (with pattern validation already done during detection)
                     if synergies:
-                        stored_synergies = await store_synergy_opportunities(
+                        stored_result = await store_synergy_opportunities(
                             db,
                             synergies,
                             validate_with_patterns=False  # Already validated during detection
                         )
-                        logger.info(f"✅ Stored {stored_synergies} synergies in database")
+                        stored_count, filtered_count = stored_result
+                        logger.info(f"✅ Stored {stored_count} synergies in database" + (f", filtered {filtered_count} low-quality" if filtered_count > 0 else ""))
                         await db.commit()
 
         except Exception as e:
@@ -665,12 +666,13 @@ class PatternAnalysisScheduler:
                     logger.info(f"✅ Stored {stored_patterns} patterns in database")
                 
                 if synergies:
-                    stored_synergies = await store_synergy_opportunities(
+                    stored_result = await store_synergy_opportunities(
                         db,
                         synergies,
                         validate_with_patterns=False  # Disabled for Story 39.6
                     )
-                    logger.info(f"✅ Stored {stored_synergies} synergies in database")
+                    stored_count, filtered_count = stored_result
+                    logger.info(f"✅ Stored {stored_count} synergies in database" + (f", filtered {filtered_count} low-quality" if filtered_count > 0 else ""))
             except Exception as e:
                 logger.error(f"❌ Failed to store results: {e}", exc_info=True)
                 job_result["errors"].append(f"Storage: {str(e)}")
