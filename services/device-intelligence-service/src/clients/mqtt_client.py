@@ -79,6 +79,9 @@ class MQTTClient:
         self.max_reconnect_attempts = 5
         self.reconnect_delay = 5.0
 
+        # Event loop for async callbacks from MQTT thread
+        self.event_loop: asyncio.AbstractEventLoop | None = None
+
         # Message handlers
         self.message_handlers: dict[str, Callable[[dict[str, Any]], Awaitable[None]]] = {}
 
@@ -91,6 +94,9 @@ class MQTTClient:
         """Establish MQTT connection to Zigbee2MQTT bridge."""
         try:
             logger.info(f"🔌 Connecting to MQTT broker: {self.host}:{self.port}")
+
+            # Store event loop for use in MQTT callbacks (which run in different thread)
+            self.event_loop = asyncio.get_running_loop()
 
             # Create MQTT client
             self.client = mqtt.Client()
@@ -163,16 +169,24 @@ class MQTTClient:
         try:
             topic = msg.topic
             payload = msg.payload.decode('utf-8')
+            
+            # Enhanced logging: Log ALL received MQTT messages for debugging
+            payload_preview = payload[:200] if len(payload) > 200 else payload
+            logger.debug(f"📨 MQTT message received: topic={topic}, payload_size={len(payload)} bytes, preview={payload_preview}...")
 
             # Parse JSON payload
             try:
                 data = json.loads(payload)
             except json.JSONDecodeError:
-                logger.warning(f"⚠️ Non-JSON message on topic {topic}")
+                logger.warning(f"⚠️ Non-JSON message on topic {topic}: {payload[:100]}")
                 return
 
             # Handle message based on topic
-            asyncio.create_task(self._handle_message(topic, data))
+            # Use run_coroutine_threadsafe since this callback runs in MQTT client thread
+            if self.event_loop and self.event_loop.is_running():
+                asyncio.run_coroutine_threadsafe(self._handle_message(topic, data), self.event_loop)
+            else:
+                logger.error(f"❌ Cannot handle MQTT message: event loop not available for topic {topic}")
 
         except Exception as e:
             logger.error(f"❌ Error handling MQTT message: {e}")
