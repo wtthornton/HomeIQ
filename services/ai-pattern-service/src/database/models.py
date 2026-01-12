@@ -58,6 +58,12 @@ class SynergyOpportunity(Base):
     # 2025 Enhancement: XAI and Multi-modal context (Phase 3.3)
     explanation = Column(JSON, nullable=True)  # XAI explanation (summary, detailed, score_breakdown, evidence, benefits, visualization)
     context_breakdown = Column(JSON, nullable=True)  # Multi-modal context breakdown (temporal_boost, weather_boost, energy_boost, behavior_boost)
+    
+    # 2025 Enhancement: Quality scoring and filtering (Phase 1)
+    quality_score = Column(Float, nullable=True)  # Calculated quality score (0.0-1.0)
+    quality_tier = Column(String(20), nullable=True)  # 'high', 'medium', 'low', 'poor'
+    last_validated_at = Column(DateTime, nullable=True)  # Last quality validation timestamp
+    filter_reason = Column(String(200), nullable=True)  # Reason if filtered (for audit)
 
     def __repr__(self) -> str:
         validated = "✓" if self.validated_by_patterns else "✗"
