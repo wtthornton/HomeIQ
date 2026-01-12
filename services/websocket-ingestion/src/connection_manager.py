@@ -297,6 +297,15 @@ class ConnectionManager:
                     # Subscribe to events
                     await self._subscribe_to_events()
 
+                    # Cancel any existing listen task before creating a new one (prevent duplicates)
+                    if self.listen_task and not self.listen_task.done():
+                        logger.info("🛑 Cancelling existing listen task before starting new one...")
+                        self.listen_task.cancel()
+                        try:
+                            await self.listen_task
+                        except asyncio.CancelledError:
+                            pass
+
                     # Start listening task
                     self.listen_task = asyncio.create_task(self._listen_loop())
                     logger.info("Reconnection successful")
@@ -537,6 +546,16 @@ class ConnectionManager:
     async def _on_disconnect(self):
         """Handle disconnection"""
         logger.info("Disconnected from Home Assistant")
+
+        # Cancel listen task if running (critical: prevent multiple listen tasks)
+        if self.listen_task and not self.listen_task.done():
+            logger.info("🛑 Cancelling listen task...")
+            self.listen_task.cancel()
+            try:
+                await self.listen_task
+            except asyncio.CancelledError:
+                pass
+            self.listen_task = None
 
         # Cancel periodic discovery task if running
         if self.periodic_discovery_task and not self.periodic_discovery_task.done():
