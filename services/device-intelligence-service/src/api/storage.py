@@ -30,6 +30,7 @@ class DeviceResponse(BaseModel):
     area_id: str | None
     entity_count: int
     timestamp: str
+    integration: str | None = None  # Integration/domain name (e.g., 'mqtt', 'hue', 'zigbee2mqtt')
     # Zigbee2MQTT fields
     lqi: int | None = None
     availability_status: str | None = None
@@ -97,6 +98,7 @@ async def get_devices(
                 area_id=device.area_id,
                 entity_count=0,  # Not available in Device Intelligence Service yet
                 timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
+                integration=device.integration,  # Include integration field
                 # Zigbee2MQTT fields
                 lqi=device.lqi,
                 availability_status=device.availability_status,
@@ -186,6 +188,7 @@ async def get_device(
             area_id=device.area_id,
             entity_count=0,  # Not available in Device Intelligence Service yet
             timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
+            integration=device.integration,  # Include integration field
             # Zigbee2MQTT fields
             lqi=device.lqi,
             availability_status=device.availability_status,
@@ -218,6 +221,7 @@ async def get_devices_by_area(
                 area_id=device.area_id,
                 entity_count=0,  # Not available in Device Intelligence Service yet
                 timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
+                integration=device.integration,  # Include integration field
                 # Zigbee2MQTT fields
                 lqi=device.lqi,
                 availability_status=device.availability_status,
@@ -250,6 +254,7 @@ async def get_devices_by_integration(
                 area_id=device.area_id,
                 entity_count=0,  # Not available in Device Intelligence Service yet
                 timestamp=device.updated_at.isoformat() if device.updated_at else datetime.now().isoformat(),
+                integration=device.integration,  # Include integration field
                 # Zigbee2MQTT fields
                 lqi=device.lqi,
                 availability_status=device.availability_status,

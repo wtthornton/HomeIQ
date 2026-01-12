@@ -414,8 +414,35 @@ class DiscoveryService:
                     device_data["suggested_area"] = device.ha_device.suggested_area
                     device_data["entry_type"] = device.ha_device.entry_type
                     device_data["configuration_url"] = device.ha_device.configuration_url
+                    
+                    # Set source based on HA device integration if Zigbee2MQTT
+                    # This allows Zigbee devices to be identified even without MQTT data
+                    # Note: Zigbee2MQTT devices in HA may use 'mqtt' as integration name
+                    integration_lower = integration_value.lower()
+                    if ('zigbee' in integration_lower or 
+                        integration_lower == 'zigbee2mqtt' or
+                        integration_lower == 'mqtt'):
+                        # For MQTT integration, check if it's a Zigbee device by checking identifiers
+                        # Zigbee devices typically have identifiers with 'ieee' or 'zigbee' patterns
+                        is_zigbee = False
+                        if integration_lower == 'mqtt':
+                            # Check if device has Zigbee-like identifiers
+                            identifiers = device.ha_device.identifiers or []
+                            for identifier in identifiers:
+                                identifier_str = str(identifier).lower()
+                                if 'zigbee' in identifier_str or 'ieee' in identifier_str:
+                                    is_zigbee = True
+                                    break
+                            # Only set source to zigbee2mqtt if we confirm it's a Zigbee device
+                            if not is_zigbee:
+                                continue
+                        
+                        device_data["source"] = "zigbee2mqtt"
+                        # Ensure integration field is set correctly
+                        if device.ha_device.integration:
+                            device_data["integration"] = device.ha_device.integration
 
-                # Add Zigbee2MQTT data if available
+                # Add Zigbee2MQTT data if available (from MQTT - this will override source if MQTT data exists)
                 if device.zigbee_device:
                     device_data["zigbee_ieee"] = device.zigbee_device.ieee_address
                     device_data["source"] = "zigbee2mqtt"
