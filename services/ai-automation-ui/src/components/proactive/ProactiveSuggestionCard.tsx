@@ -29,8 +29,18 @@ export const ProactiveSuggestionCard: React.FC<ProactiveSuggestionCardProps> = (
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const contextConfig = CONTEXT_TYPE_CONFIG[suggestion.context_type];
-  const statusConfig = STATUS_CONFIG[suggestion.status];
+  // Safe access with fallback for unknown context types
+  const contextConfig = CONTEXT_TYPE_CONFIG[suggestion.context_type] || {
+    icon: '📌',
+    label: suggestion.context_type || 'Unknown',
+    color: 'text-gray-400',
+    bgColor: 'bg-gray-500/20',
+  };
+  const statusConfig = STATUS_CONFIG[suggestion.status] || {
+    label: suggestion.status || 'Unknown',
+    color: 'text-gray-400',
+    bgColor: 'bg-gray-500/20',
+  };
 
   const handleApprove = async () => {
     setIsApproving(true);

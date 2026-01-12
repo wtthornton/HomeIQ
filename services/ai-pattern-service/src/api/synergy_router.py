@@ -164,10 +164,15 @@ async def list_synergies(
     order_by_priority: bool = Query(default=True, description="Order by priority score (impact + confidence)"),
     include_inactive: bool = Query(default=False, description="Include synergies for inactive devices"),
     activity_window_days: int = Query(default=30, ge=1, le=365, description="Activity window in days"),
+    min_quality_score: float | None = Query(default=None, ge=0.0, le=1.0, description="2025 Enhancement: Minimum quality score (0.0-1.0)"),
+    quality_tier: str | None = Query(default=None, description="2025 Enhancement: Filter by quality tier ('high', 'medium', 'low')"),
+    exclude_filtered: bool = Query(default=True, description="2025 Enhancement: Exclude filtered synergies (default: True)"),
     db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     List synergy opportunities with optional filters.
+    
+    2025 Enhancement: Added quality score and tier filtering.
     
     Returns synergies with safely parsed metadata and opportunity details.
     Optionally filters by device activity (default: only active devices).
@@ -180,6 +185,9 @@ async def list_synergies(
         order_by_priority: If True, order by priority score (impact + confidence)
         include_inactive: If True, include synergies for inactive devices
         activity_window_days: Activity window in days (default: 30)
+        min_quality_score: Minimum quality score (0.0-1.0, default: None = no filter)
+        quality_tier: Filter by quality tier ('high', 'medium', 'low', default: None = no filter)
+        exclude_filtered: Exclude synergies with filter_reason set (default: True)
         db: Database session dependency
         
     Returns:
@@ -195,7 +203,10 @@ async def list_synergies(
             min_confidence=min_confidence,
             synergy_depth=synergy_depth,
             limit=limit,
-            order_by_priority=order_by_priority
+            order_by_priority=order_by_priority,
+            min_quality_score=min_quality_score,
+            quality_tier=quality_tier,
+            exclude_filtered=exclude_filtered
         )
         
         # Filter by device activity if requested
