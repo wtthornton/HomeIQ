@@ -889,8 +889,8 @@ services:
   # OpenVINO Service - Optimized Model Inference (Phase 1)
   openvino-service:
     build:
-      context: ./services/openvino-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/openvino-service/Dockerfile
     container_name: homeiq-openvino-service
     restart: unless-stopped
     ports:
@@ -969,8 +969,8 @@ services:
   # ML Service - Classical Machine Learning (Phase 1)
   ml-service:
     build:
-      context: ./services/ml-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ml-service/Dockerfile
     container_name: homeiq-ml-service
     restart: unless-stopped
     ports:
@@ -1001,8 +1001,8 @@ services:
   # AI Core Service - Orchestrator (Phase 1)
   ai-core-service:
     build:
-      context: ./services/ai-core-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ai-core-service/Dockerfile
     container_name: homeiq-ai-core-service
     restart: unless-stopped
     ports:
@@ -1220,8 +1220,8 @@ services:
 
   ai-code-executor:
     build:
-      context: ./services/ai-code-executor
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ai-code-executor/Dockerfile
     container_name: ai-code-executor
     restart: unless-stopped
     # Internal service - no external port mapping needed
@@ -1619,8 +1619,8 @@ services:
 
   automation-miner:
     build:
-      context: ./services/automation-miner
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/automation-miner/Dockerfile
     container_name: automation-miner
     restart: unless-stopped
     ports:
