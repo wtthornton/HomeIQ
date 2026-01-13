@@ -71,7 +71,7 @@ class StatsEndpoints:
             "energy-correlator": os.getenv("ENERGY_CORRELATOR_URL", "http://homeiq-energy-correlator:8017"),
             "smart-meter-service": os.getenv("SMART_METER_URL", "http://homeiq-smart-meter:8014"),
             "log-aggregator": os.getenv("LOG_AGGREGATOR_URL", "http://homeiq-log-aggregator:8015"),
-            "weather-api": os.getenv("WEATHER_API_URL", "http://homeiq-weather-api:8009")
+            "weather-api": os.getenv("WEATHER_SERVICE_URL", "http://homeiq-weather-api:8009")
         }
         
         self._add_routes()
