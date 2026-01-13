@@ -802,6 +802,24 @@ export const api = {
     return fetchJSON(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/devices/${deviceId}/suggestions`);
   },
 
+  async getPendingNameSuggestions(limit: number = 100, offset: number = 0): Promise<{
+    devices: Array<{
+      device_id: string;
+      current_name: string;
+      suggestions: Array<{
+        name: string;
+        confidence: number;
+        source: string;
+        reasoning: string | null;
+      }>;
+    }>;
+    count: number;
+  }> {
+    const DEVICE_INTELLIGENCE_API = import.meta.env.VITE_DEVICE_INTELLIGENCE_API || 'http://localhost:8019';
+    // Note: API currently only supports limit parameter, offset may not be implemented yet
+    return fetchJSON(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/devices/pending?limit=${limit}`);
+  },
+
   async acceptNameSuggestion(deviceId: string, suggestedName: string, syncToHA: boolean = false): Promise<{
     success: boolean;
     device_id: string;

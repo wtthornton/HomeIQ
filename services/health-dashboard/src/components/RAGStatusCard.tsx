@@ -7,10 +7,12 @@
 
 import React from 'react';
 import { RAGStatus, RAGState } from '../types/rag';
+import { Statistics } from '../types';
 import { LoadingSpinner } from './LoadingSpinner';
 
 export interface RAGStatusCardProps {
   ragStatus: RAGStatus | null;
+  statistics?: Statistics | null;
   loading?: boolean;
   darkMode: boolean;
   onExpand?: () => void;
@@ -61,8 +63,34 @@ const getComponentLabel = (component: string): string => {
   }
 };
 
+const formatNumber = (num: number | undefined): string => {
+  if (num === undefined || num === null) return 'N/A';
+  if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(2)}K`;
+  return num.toLocaleString();
+};
+
+const formatTimeAgo = (timestamp: string): string => {
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffSecs < 60) return `${diffSecs}s ago`;
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return 'N/A';
+  }
+};
+
 export const RAGStatusCard: React.FC<RAGStatusCardProps> = ({
   ragStatus,
+  statistics,
   loading = false,
   darkMode,
   onExpand
@@ -178,8 +206,70 @@ export const RAGStatusCard: React.FC<RAGStatusCardProps> = ({
         })}
       </div>
 
+      {/* Data Metrics Section */}
+      {statistics && (
+        <div className={`mt-4 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h4 className={`text-xs font-semibold mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            Data Metrics
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Total Events */}
+            <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Total Events
+              </div>
+              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {formatNumber(statistics.metrics?.['websocket-ingestion']?.total_events_received)}
+              </div>
+              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                {statistics.period || '1h'}
+              </div>
+            </div>
+
+            {/* Events per Minute */}
+            <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Throughput
+              </div>
+              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {statistics.metrics?.['websocket-ingestion']?.events_per_minute?.toFixed(1) || 'N/A'} <span className="text-xs font-normal">evt/min</span>
+              </div>
+              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Current rate
+              </div>
+            </div>
+
+            {/* Connection Attempts (Read Count) */}
+            <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Connections
+              </div>
+              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {statistics.metrics?.['websocket-ingestion']?.connection_attempts || 'N/A'}
+              </div>
+              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Total attempts
+              </div>
+            </div>
+
+            {/* Last Refresh */}
+            <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Last Refresh
+              </div>
+              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {statistics.timestamp ? formatTimeAgo(statistics.timestamp) : 'N/A'}
+              </div>
+              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                {statistics.timestamp ? new Date(statistics.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
-      <div className={`flex items-center justify-between text-xs pt-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className={`flex items-center justify-between text-xs pt-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${!statistics ? 'mt-4' : ''}`}>
         <span className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           Last updated
         </span>

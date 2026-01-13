@@ -1,0 +1,31 @@
+# RAG Service Requirements
+# 2025 Patterns: FastAPI, async SQLAlchemy, httpx
+
+# FastAPI and web framework
+fastapi>=0.115.0,<0.116.0
+uvicorn[standard]>=0.32.0,<0.33.0
+pydantic>=2.9.0,<3.0.0
+pydantic-settings>=2.5.0,<3.0.0
+
+# Database
+sqlalchemy>=2.0.35,<3.0.0
+aiosqlite>=0.20.0,<0.21.0
+
+# HTTP clients (2025 patterns)
+httpx>=0.28.1,<0.29.0
+
+# Retry logic
+tenacity>=8.2.0,<9.0.0
+
+# Numerical operations
+numpy>=1.26.0,<2.0.0
+
+# Utilities
+python-dotenv>=1.0.0,<2.0.0
+
+# OpenTelemetry Observability (optional)
+opentelemetry-api>=1.24.0,<2.0.0
+opentelemetry-sdk>=1.24.0,<2.0.0
+opentelemetry-instrumentation-fastapi>=0.45b0,<1.0.0
+opentelemetry-exporter-otlp-proto-grpc>=1.24.0,<2.0.0
+opentelemetry-instrumentation-httpx>=0.45b0,<1.0.0

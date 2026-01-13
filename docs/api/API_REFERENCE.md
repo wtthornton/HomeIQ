@@ -1664,30 +1664,93 @@ List detected device synergies with priority-based ordering.
 - `chain_path`: Human-readable chain path (e.g., "entity1 → entity2 → entity3 → entity4")
 
 #### GET /api/synergies/stats
-Get synergy detection statistics including counts by type, complexity, and validation status.
+Get comprehensive synergy detection statistics including counts by type, complexity, depth, and detailed breakdowns. Returns ALL data from the database (data cleanup occurs on insert, not output).
 
 **Response:**
 ```json
 {
   "success": true,
   "data": {
-    "total_synergies": 48,
+    "total_synergies": 48934,
     "by_type": {
-      "event_context": 48
+      "device_pair": 48713,
+      "device_chain": 200,
+      "scene_based": 16,
+      "weather_context": 5
     },
     "by_complexity": {
-      "low": 2,
-      "medium": 46
+      "low": 48734,
+      "medium": 200
     },
-    "avg_impact_score": 0.64,
-    "avg_confidence": 0.60,
-    "unique_areas": 1
+    "by_depth": {
+      "2": 48718,
+      "3": 200,
+      "10": 16
+    },
+    "by_type_and_depth": {
+      "device_pair": {
+        "2": {
+          "count": 48713,
+          "avg_impact": 0.715,
+          "avg_confidence": 0.908,
+          "min_impact": 0.5,
+          "max_impact": 1.0
+        }
+      },
+      "device_chain": {
+        "3": {
+          "count": 200,
+          "avg_impact": 0.85,
+          "avg_confidence": 0.9,
+          "min_impact": 0.85,
+          "max_impact": 0.85
+        }
+      }
+    },
+    "by_type_and_complexity": {
+      "device_pair": {
+        "low": {
+          "count": 48713,
+          "avg_impact": 0.715,
+          "avg_confidence": 0.908
+        }
+      },
+      "device_chain": {
+        "medium": {
+          "count": 200,
+          "avg_impact": 0.85,
+          "avg_confidence": 0.9
+        }
+      }
+    },
+    "avg_impact_score": 0.716,
+    "avg_confidence": 0.908,
+    "min_impact_score": 0.5,
+    "max_impact_score": 1.0,
+    "unique_areas": 0
   },
   "message": "Synergy statistics retrieved successfully"
 }
 ```
 
-**Note:** This endpoint must be defined before the parameterized `/{synergy_id}` route to ensure correct FastAPI route matching.
+**Response Fields:**
+- `total_synergies`: Total count of all synergies (includes all data, no filtering)
+- `by_type`: Count of synergies by type (device_pair, device_chain, scene_based, weather_context, etc.)
+- `by_complexity`: Count of synergies by complexity level (low, medium, high)
+- `by_depth`: Count of synergies by depth/level (2=pair, 3=chain, etc.)
+- `by_type_and_depth`: Detailed breakdown by type and depth with counts, averages, min/max impact scores
+- `by_type_and_complexity`: Detailed breakdown by type and complexity with counts and averages
+- `avg_impact_score`: Average impact score across all synergies
+- `avg_confidence`: Average confidence score across all synergies
+- `min_impact_score`: Minimum impact score in dataset
+- `max_impact_score`: Maximum impact score in dataset
+- `unique_areas`: Count of unique areas
+
+**Notes:**
+- This endpoint (proxied as `/api/synergies/stats`) maps to `/api/v1/synergies/statistics` in the pattern service
+- Must be defined before the parameterized `/{synergy_id}` route to ensure correct FastAPI route matching
+- Returns ALL data from database - data filtering/cleanup occurs on insert, not output
+- Uses SQL aggregate queries for efficient calculation across large datasets
 
 #### GET /api/synergies/{synergy_id}
 Get detailed synergy information including metadata, devices involved, and opportunity details.
