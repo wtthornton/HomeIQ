@@ -6,11 +6,14 @@
 
 import React, { useEffect, useRef } from 'react';
 import { RAGStatus, RAGState } from '../types/rag';
+import { Statistics } from '../types';
 
 export interface RAGDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   ragStatus: RAGStatus | null;
+  statistics?: Statistics | null;
+  eventsStats?: any | null; // Events stats from /api/v1/events/stats (event_types, unique_entities, etc.)
   darkMode: boolean;
 }
 
@@ -64,10 +67,37 @@ const formatMetric = (value: number | undefined, unit: string = ''): string => {
   return String(value);
 };
 
+const formatNumber = (num: number | undefined): string => {
+  if (num === undefined || num === null) return 'N/A';
+  if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(2)}K`;
+  return num.toLocaleString();
+};
+
+const formatTimeAgo = (timestamp: string): string => {
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffSecs < 60) return `${diffSecs}s ago`;
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return 'N/A';
+  }
+};
+
 export const RAGDetailsModal: React.FC<RAGDetailsModalProps> = ({
   isOpen,
   onClose,
   ragStatus,
+  statistics,
+  eventsStats,
   darkMode
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -199,6 +229,219 @@ export const RAGDetailsModal: React.FC<RAGDetailsModalProps> = ({
               Last updated: {ragStatus.lastUpdated.toLocaleString()}
             </p>
           </div>
+
+          {/* Data Metrics Section */}
+          {statistics && (
+            <div className={`
+              rounded-lg p-4 border-2
+              ${darkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}
+            `}>
+              <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Data Metrics
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {/* Total Events */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Total Events
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {formatNumber(statistics.metrics?.['websocket-ingestion']?.total_events_received)}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Period: {statistics.period || '1h'}
+                  </div>
+                </div>
+
+                {/* Events per Minute */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Throughput
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {statistics.metrics?.['websocket-ingestion']?.events_per_minute?.toFixed(1) || 'N/A'}
+                    <span className="text-sm font-normal ml-1">evt/min</span>
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Current rate
+                  </div>
+                </div>
+
+                {/* Connection Attempts */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Connection Attempts
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {statistics.metrics?.['websocket-ingestion']?.connection_attempts || 'N/A'}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Total attempts
+                  </div>
+                </div>
+
+                {/* Error Rate */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Error Rate
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {statistics.metrics?.['websocket-ingestion']?.error_rate?.toFixed(2) || 'N/A'}%
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Percentage
+                  </div>
+                </div>
+
+                {/* Response Time */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Response Time
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {statistics.metrics?.['websocket-ingestion']?.response_time_ms?.toFixed(1) || 'N/A'}
+                    <span className="text-sm font-normal ml-1">ms</span>
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Average latency
+                  </div>
+                </div>
+
+                {/* Last Data Refresh */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Last Data Refresh
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {statistics.timestamp ? formatTimeAgo(statistics.timestamp) : 'N/A'}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {statistics.timestamp ? new Date(statistics.timestamp).toLocaleString() : ''}
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Source */}
+              {statistics.source && (
+                <div className={`mt-4 pt-4 border-t ${darkMode ? 'border-gray-600' : 'border-gray-200'}`}>
+                  <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Data Source: <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{statistics.source}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Additional Data Metrics (Event Types, Entities, etc.) */}
+          {eventsStats && (
+            <div className={`
+              rounded-lg p-4 border-2
+              ${darkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}
+            `}>
+              <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Data Breakdown
+              </h3>
+
+              {/* Key Metrics Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                {/* Events Processed Count (Data Read Count) */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Events Processed
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {formatNumber(eventsStats.total_events || statistics?.metrics?.['websocket-ingestion']?.total_events_received)}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Total processed
+                  </div>
+                </div>
+
+                {/* Unique Entities Count */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Unique Entities
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {formatNumber(eventsStats.unique_entities)}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Distinct entities
+                  </div>
+                </div>
+
+                {/* Events per Entity */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Events per Entity
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {eventsStats.unique_entities && eventsStats.total_events
+                      ? (eventsStats.total_events / eventsStats.unique_entities).toFixed(1)
+                      : eventsStats.unique_entities && statistics?.metrics?.['websocket-ingestion']?.total_events_received
+                      ? (statistics.metrics['websocket-ingestion'].total_events_received / eventsStats.unique_entities).toFixed(1)
+                      : 'N/A'}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Average
+                  </div>
+                </div>
+
+                {/* Events per Minute (from eventsStats) */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Events/Minute
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {eventsStats.events_per_minute?.toFixed(1) || statistics?.metrics?.['websocket-ingestion']?.events_per_minute?.toFixed(1) || 'N/A'}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Processing rate
+                  </div>
+                </div>
+              </div>
+
+              {/* Event Types Breakdown */}
+              {eventsStats.event_types && Object.keys(eventsStats.event_types).length > 0 && (
+                <div className={`mt-4 pt-4 border-t ${darkMode ? 'border-gray-600' : 'border-gray-200'}`}>
+                  <h4 className={`text-sm font-semibold mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Event Types Breakdown
+                  </h4>
+                  <div className={`space-y-2 max-h-64 overflow-y-auto ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {(() => {
+                      const eventTypes = eventsStats.event_types;
+                      const totalEvents = eventsStats.total_events || Object.values(eventTypes).reduce((sum: number, count: any) => sum + (typeof count === 'number' ? count : 0), 0);
+                      const sortedTypes = Object.entries(eventTypes)
+                        .map(([type, count]) => ({ type, count: typeof count === 'number' ? count : 0 }))
+                        .sort((a, b) => b.count - a.count)
+                        .slice(0, 10); // Top 10
+                      
+                      return sortedTypes.map(({ type, count }) => {
+                        const percentage = totalEvents > 0 ? ((count / totalEvents) * 100).toFixed(1) : '0.0';
+                        return (
+                          <div key={type} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-700/30">
+                            <div className="flex-1 min-w-0">
+                              <div className={`text-sm font-medium truncate ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                {type}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3 ml-4">
+                              <span className={`text-sm font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                {formatNumber(count)}
+                              </span>
+                              <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                {percentage}%
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Component Details */}
           {Object.entries(ragStatus.components).map(([key, component]) => {

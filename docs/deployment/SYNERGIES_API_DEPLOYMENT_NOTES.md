@@ -141,14 +141,32 @@ curl http://localhost:3001/api/synergies/stats
 - [ ] Frontend integration test passes (no console errors)
 - [ ] Statistics display correctly in UI
 
+## Enhanced Statistics Response (January 2026)
+
+The `/api/v1/synergies/statistics` endpoint now returns comprehensive statistics with detailed breakdowns:
+
+**New Response Fields:**
+- `by_depth`: Count of synergies by depth/level
+- `by_type_and_depth`: Detailed breakdown by type and depth with counts, averages, min/max impact scores
+- `by_type_and_complexity`: Detailed breakdown by type and complexity
+- `min_impact_score` / `max_impact_score`: Impact score ranges
+
+**Important Changes:**
+- Returns ALL data from database (no filtering on output - data cleanup occurs on insert)
+- Uses SQL aggregate queries for efficient calculation across large datasets
+- Proxy endpoint `/api/synergies/stats` maps to `/api/v1/synergies/statistics`
+
+See [API Reference](../api/API_REFERENCE.md) for complete response format.
+
 ## Related Documentation
 
 - [Synergies API Fix Complete](../implementation/SYNERGIES_API_FIX_COMPLETE.md)
 - [Deployment Runbook](./DEPLOYMENT_RUNBOOK.md)
 - [Deployment Fixes December 2025](./DEPLOYMENT_FIXES_DECEMBER_2025.md)
+- [API Reference - Synergies Statistics](../api/API_REFERENCE.md#get-apisynergiesstats)
 
 ---
 
 **Maintainer:** DevOps Team  
-**Last Updated:** December 29, 2025
+**Last Updated:** January 16, 2026
 

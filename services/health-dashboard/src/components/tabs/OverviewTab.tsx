@@ -16,7 +16,7 @@ import { RAGStatusCard } from '../RAGStatusCard';
 import { RAGDetailsModal } from '../RAGDetailsModal';
 import { DataFreshnessIndicator } from '../DataFreshnessIndicator';
 import { ServiceHealthResponse } from '../../types/health';
-import { apiService } from '../../services/api';
+import { apiService, dataApi } from '../../services/api';
 import { TabProps } from './types';
 
 // Enhanced status color system (Phase 2.2)
@@ -76,6 +76,10 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   
   // RAG Status modal
   const [showRAGDetails, setShowRAGDetails] = useState(false);
+
+  // Events stats for RAG modal (event types, unique entities)
+  const [eventsStats, setEventsStats] = useState<any>(null);
+  const [eventsStatsLoading, setEventsStatsLoading] = useState(false);
 
   // Error state for enhanced health
   const [enhancedHealthError, setEnhancedHealthError] = useState<string | null>(null);
@@ -152,6 +156,27 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   
   // Devices & Integrations data (for HA Integration section)
   const { devices, entities, integrations, loading: devicesLoading } = useDevices();
+  
+  // Fetch events stats for RAG modal (event types, unique entities)
+  useEffect(() => {
+    const fetchEventsStats = async () => {
+      try {
+        setEventsStatsLoading(true);
+        const stats = await dataApi.getEventsStats('1h');
+        setEventsStats(stats);
+      } catch (error) {
+        console.error('Failed to fetch events stats:', error);
+        // Don't set error state - just don't show the metrics
+      } finally {
+        setEventsStatsLoading(false);
+      }
+    };
+
+    // Only fetch when modal is open to reduce API calls
+    if (showRAGDetails) {
+      fetchEventsStats();
+    }
+  }, [showRAGDetails]);
   
   // Container data for service status
   const [containers, setContainers] = useState<any[]>([]);
@@ -567,6 +592,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <RAGStatusCard
             ragStatus={ragStatus}
+            statistics={statistics}
             loading={ragLoading}
             darkMode={darkMode}
             onExpand={() => setShowRAGDetails(true)}
@@ -909,6 +935,8 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
         isOpen={showRAGDetails}
         onClose={() => setShowRAGDetails(false)}
         ragStatus={ragStatus}
+        statistics={statistics}
+        eventsStats={eventsStats}
         darkMode={darkMode}
       />
     </>

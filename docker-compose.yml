@@ -918,6 +918,54 @@ services:
         max-file: "3"
         labels: "service=openvino-models,environment=production"
 
+  # RAG Service - Retrieval-Augmented Generation (2025 Architecture)
+  rag-service:
+    build:
+      context: .
+      dockerfile: services/rag-service/Dockerfile
+    container_name: homeiq-rag-service
+    restart: unless-stopped
+    ports:
+      - "8027:8027"
+    env_file:
+      - .env
+    environment:
+      - RAG_SERVICE_PORT=8027
+      - RAG_SERVICE_HOST=0.0.0.0
+      - RAG_DATABASE_PATH=/app/data/rag_service.db
+      - RAG_OPENVINO_SERVICE_URL=http://openvino-service:8019
+      - RAG_LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - RAG_CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+      # OpenTelemetry Configuration
+      - OTLP_ENDPOINT=http://jaeger:4317
+    volumes:
+      - ./services/rag-service/data:/app/data
+    networks:
+      - homeiq-network
+    depends_on:
+      openvino-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8027/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=rag-service,environment=production"
+
   # ML Service - Classical Machine Learning (Phase 1)
   ml-service:
     build:
