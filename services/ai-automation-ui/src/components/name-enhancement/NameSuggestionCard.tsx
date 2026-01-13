@@ -95,15 +95,33 @@ export const NameSuggestionCard: React.FC<NameSuggestionCardProps> = ({
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className={`${textColor} font-semibold text-base`}>
                     {suggestion.name}
                   </span>
-                  <span className={`${darkMode ? 'bg-blue-600' : 'bg-blue-100'} ${darkMode ? 'text-white' : 'text-blue-800'} text-xs px-2 py-1 rounded`}>
-                    {Math.round(suggestion.confidence * 100)}% confidence
-                  </span>
-                  <span className={`${darkMode ? 'text-gray-400' : 'text-gray-500'} text-xs`}>
-                    ({suggestion.source})
+                  {/* Confidence with progress bar */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-16 h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                        <div
+                          className={`h-full transition-all ${
+                            suggestion.confidence >= 0.8
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                              : suggestion.confidence >= 0.6
+                              ? 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                              : 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                          }`}
+                          style={{ width: `${suggestion.confidence * 100}%` }}
+                        />
+                      </div>
+                      <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'} text-xs font-medium min-w-[3rem]`}>
+                        {Math.round(suggestion.confidence * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                  {/* Source badge */}
+                  <span className={`${darkMode ? 'bg-slate-700 text-gray-300' : 'bg-gray-100 text-gray-600'} text-xs px-2 py-1 rounded-full font-medium`}>
+                    {suggestion.source}
                   </span>
                 </div>
                 {suggestion.reasoning && (

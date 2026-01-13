@@ -182,7 +182,16 @@ HomeIQ runs as a collection of 30+ microservices in Docker containers, designed 
                   └─────────────────┘
 ```
 
-For detailed architecture documentation, see [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md).
+**Event Flow (Epic 31 Architecture):**
+Home Assistant → websocket-ingestion → InfluxDB (direct writes)
+- All normalization happens inline in websocket-ingestion
+- External services write directly to InfluxDB
+- Query via data-api endpoint
+
+For detailed architecture documentation, see:
+- [Event Flow Architecture](docs/architecture/event-flow-architecture.md) - Event processing and data flow
+- [Development Guide](docs/DEVELOPMENT.md) - Complete system architecture
+- [Services Architecture Quick Reference](services/README_ARCHITECTURE_QUICK_REF.md) - Service patterns
 
 ---
 

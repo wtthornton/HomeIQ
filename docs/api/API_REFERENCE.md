@@ -93,6 +93,42 @@ The HA Ingestor is an **API-first platform** designed for Home Automation data m
                └─────────────────┘
 ```
 
+### Epic 31 Event Flow Architecture (October 2025)
+
+**Current Event Flow (Post-Epic 31):**
+```
+Home Assistant WebSocket (192.168.1.86:8123)
+        ↓
+websocket-ingestion (Port 8001)
+  - Event validation (inline)
+  - Inline normalization
+  - Device/area lookups (Epic 23.2)
+  - Duration calculation (Epic 23.3)
+  - DIRECT InfluxDB writes
+        ↓
+InfluxDB (Port 8086)
+  bucket: home_assistant_events
+        ↓
+data-api (Port 8006)
+  - Query endpoint for events
+        ↓
+health-dashboard (Port 3000)
+```
+
+**Key Changes (Epic 31):**
+- ❌ **Deprecated:** enrichment-pipeline service (Port 8002) - Removed to simplify architecture
+- ✅ **Current:** Direct InfluxDB writes from websocket-ingestion (inline normalization)
+- ✅ **External Services:** Standalone pattern - Fetch → Write to InfluxDB → Query via data-api
+- ✅ **Benefits:** Reduced latency, fewer failure points, simplified architecture
+
+**External Services Pattern (Epic 31):**
+- `weather-api` (Port 8009) - Writes weather data directly to InfluxDB
+- `sports-api` (Port 8005) - Writes sports scores directly to InfluxDB
+- `carbon-intensity` (Port 8010) - Writes carbon data directly to InfluxDB
+- All services query via data-api, no service-to-service HTTP dependencies
+
+**See:** [Event Flow Architecture](../architecture/event-flow-architecture.md) for detailed event processing flow
+
 ---
 
 ## Authentication

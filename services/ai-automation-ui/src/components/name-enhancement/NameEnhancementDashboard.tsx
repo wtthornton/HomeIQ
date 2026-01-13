@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { useAppStore } from '../../store';
 import { NameSuggestionCard } from './NameSuggestionCard';
 import { NameEnhancementSkeleton } from './NameEnhancementSkeleton';
+import { BatchEnhanceConfirmDialog } from './BatchEnhanceConfirmDialog';
 import { ErrorBanner } from '../ErrorBanner';
 import api from '../../services/api';
 
@@ -43,6 +44,8 @@ export const NameEnhancementDashboard: React.FC = () => {
   const [statsLoading, setStatsLoading] = useState(true);
   const [batchEnhancing, setBatchEnhancing] = useState<boolean>(false);
   const [batchJobId, setBatchJobId] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
+  const [pendingBatchType, setPendingBatchType] = useState<boolean>(false); // false = Pattern, true = AI
 
   const loadPendingSuggestions = useCallback(async () => {
     try {
@@ -114,7 +117,13 @@ export const NameEnhancementDashboard: React.FC = () => {
     }
   };
 
+  const handleBatchEnhanceClick = (useAI: boolean = false) => {
+    setPendingBatchType(useAI);
+    setShowConfirmDialog(true);
+  };
+
   const handleBatchEnhance = async (useAI: boolean = false) => {
+    setShowConfirmDialog(false);
     try {
       setBatchEnhancing(true);
       setError(null);
@@ -128,6 +137,11 @@ export const NameEnhancementDashboard: React.FC = () => {
       toast.error(errorMessage);
       setBatchEnhancing(false);
     }
+  };
+
+  const handleCancelBatchEnhance = () => {
+    setShowConfirmDialog(false);
+    setPendingBatchType(false);
   };
 
   const bgColor = darkMode ? 'bg-gray-900' : 'bg-gray-50';
@@ -145,7 +159,7 @@ export const NameEnhancementDashboard: React.FC = () => {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => handleBatchEnhance(false)}
+              onClick={() => handleBatchEnhanceClick(false)}
               disabled={batchEnhancing}
               className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
                 batchEnhancing
@@ -164,11 +178,14 @@ export const NameEnhancementDashboard: React.FC = () => {
                   Processing...
                 </>
               ) : (
-                'Batch Enhance (Pattern)'
+                <>
+                  <span>🔍</span>
+                  Batch Enhance (Pattern)
+                </>
               )}
             </button>
             <button
-              onClick={() => handleBatchEnhance(true)}
+              onClick={() => handleBatchEnhanceClick(true)}
               disabled={batchEnhancing}
               className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
                 batchEnhancing
@@ -187,7 +204,10 @@ export const NameEnhancementDashboard: React.FC = () => {
                   Processing...
                 </>
               ) : (
-                'Batch Enhance (AI)'
+                <>
+                  <span>🤖</span>
+                  Batch Enhance (AI)
+                </>
               )}
             </button>
           </div>
@@ -247,33 +267,45 @@ export const NameEnhancementDashboard: React.FC = () => {
             ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
             : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
           } rounded-xl p-8 text-center ${textColor}`}>
-            <div className="text-5xl mb-4">✨</div>
-            <p className="text-lg mb-2">No pending name suggestions</p>
-            <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm mb-4`}>
+            <div className="text-6xl mb-4">✨</div>
+            <h3 className={`text-xl font-bold mb-2 ${textColor}`}>
+              No Pending Name Suggestions
+            </h3>
+            <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm mb-2`}>
               All devices have been reviewed or no suggestions are available yet.
             </p>
+            <p className={`${darkMode ? 'text-gray-500' : 'text-gray-500'} text-xs mb-6`}>
+              Run a batch enhancement to generate new name suggestions for your devices.
+            </p>
             {!batchEnhancing && (
-              <div className="flex gap-3 justify-center mt-4">
-                <button
-                  onClick={() => handleBatchEnhance(false)}
-                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                    darkMode
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-                      : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
-                  }`}
-                >
-                  Run Batch Enhance (Pattern)
-                </button>
-                <button
-                  onClick={() => handleBatchEnhance(true)}
-                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                    darkMode
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
-                      : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
-                  }`}
-                >
-                  Run Batch Enhance (AI)
-                </button>
+              <div className="flex flex-col items-center gap-3 mt-6">
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => handleBatchEnhanceClick(false)}
+                    className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
+                      darkMode
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                        : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                    }`}
+                  >
+                    <span>🔍</span>
+                    <span>Run Batch Enhance (Pattern)</span>
+                  </button>
+                  <button
+                    onClick={() => handleBatchEnhanceClick(true)}
+                    className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
+                      darkMode
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
+                        : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
+                    }`}
+                  >
+                    <span>🤖</span>
+                    <span>Run Batch Enhance (AI)</span>
+                  </button>
+                </div>
+                <p className={`${darkMode ? 'text-gray-500' : 'text-gray-400'} text-xs mt-2 max-w-md`}>
+                  💡 Pattern matching is faster and uses rule-based logic. AI-powered analysis provides more sophisticated suggestions but takes longer.
+                </p>
               </div>
             )}
           </div>
@@ -292,6 +324,16 @@ export const NameEnhancementDashboard: React.FC = () => {
             ))}
           </div>
         )}
+
+        {/* Confirmation Dialog */}
+        <BatchEnhanceConfirmDialog
+          isOpen={showConfirmDialog}
+          useAI={pendingBatchType}
+          deviceCount={stats?.total_suggestions}
+          onConfirm={() => handleBatchEnhance(pendingBatchType)}
+          onCancel={handleCancelBatchEnhance}
+          darkMode={darkMode}
+        />
       </div>
     </div>
   );
