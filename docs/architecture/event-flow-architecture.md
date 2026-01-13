@@ -310,7 +310,7 @@ ERROR → STARTING | STOPPED | RUNNING
 
 ### Why Flatten Event Structure?
 
-**Decision:** WebSocket Service flattens Home Assistant events before sending to Enrichment Pipeline
+**Decision:** WebSocket Service flattens Home Assistant events inline before writing to InfluxDB (Epic 31)
 
 **Rationale:**
 1. **Reduced Payload Size**: Eliminates redundant `entity_id` fields
@@ -327,11 +327,11 @@ ERROR → STARTING | STOPPED | RUNNING
 
 ### Why Validate at Multiple Levels?
 
-**Validation Points:**
-1. **WebSocket Service**: Basic event type and structure checks
-2. **Enrichment Pipeline HTTP Handler**: Request format validation
-3. **DataValidationEngine**: Comprehensive event validation
-4. **DataNormalizer**: Post-normalization validation
+**Validation Points (Epic 31 - Inline Processing):**
+1. **WebSocket Service**: Basic event type and structure checks (inline validation)
+2. **EventProcessor**: Comprehensive event validation before normalization
+3. **InfluxDB Writer**: Final validation before database write
+4. **Post-write validation**: Data integrity checks (optional)
 
 **Rationale:**
 - Defense in depth
