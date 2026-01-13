@@ -2,12 +2,15 @@
  * Name Enhancement Dashboard
  * 
  * Main dashboard for reviewing and managing device name suggestions.
+ * Enhanced with skeleton loaders, statistics, error handling, and batch operation improvements.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../../store';
 import { NameSuggestionCard } from './NameSuggestionCard';
+import { NameEnhancementSkeleton } from './NameEnhancementSkeleton';
+import { ErrorBanner } from '../ErrorBanner';
 import api from '../../services/api';
 
 interface DeviceSuggestion {
@@ -21,41 +24,81 @@ interface DeviceSuggestion {
   }>;
 }
 
+interface EnhancementStats {
+  total_suggestions: number;
+  by_status: Record<string, number>;
+  by_confidence: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+}
+
 export const NameEnhancementDashboard: React.FC = () => {
   const { darkMode } = useAppStore();
   const [devices, setDevices] = useState<DeviceSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<EnhancementStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [batchEnhancing, setBatchEnhancing] = useState<boolean>(false);
+  const [batchJobId, setBatchJobId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadPendingSuggestions();
-  }, []);
-
-  const loadPendingSuggestions = async () => {
+  const loadPendingSuggestions = useCallback(async () => {
     try {
       setLoading(true);
-      // Get pending suggestions from bulk endpoint
-      const DEVICE_INTELLIGENCE_API = import.meta.env.VITE_DEVICE_INTELLIGENCE_API || 'http://localhost:8019';
-      const response = await fetch(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/devices/pending?limit=100`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to load pending suggestions');
-      }
-      
-      const data = await response.json();
+      setError(null);
+      const data = await api.getPendingNameSuggestions(100, 0);
       setDevices(data.devices || []);
-    } catch (error) {
-      toast.error(`Failed to load suggestions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load pending suggestions';
+      setError(errorMessage);
+      toast.error(errorMessage);
       setDevices([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      setStatsLoading(true);
+      const statsData = await api.getEnhancementStatus();
+      setStats(statsData);
+    } catch (err) {
+      console.error('Failed to load enhancement stats:', err);
+      // Don't show error for stats, just log it
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPendingSuggestions();
+    loadStats();
+  }, [loadPendingSuggestions, loadStats]);
+
+  // Handle batch enhancement completion
+  useEffect(() => {
+    if (!batchJobId) return;
+
+    // Reload after batch operation completes (5 second delay)
+    // In a production system, you'd poll the job status endpoint
+    const reloadTimer = setTimeout(() => {
+      loadPendingSuggestions();
+      loadStats();
+      setBatchJobId(null);
+      setBatchEnhancing(false);
+    }, 5000);
+
+    return () => clearTimeout(reloadTimer);
+  }, [batchJobId, loadPendingSuggestions, loadStats]);
 
   const handleAccept = async (deviceId: string, suggestedName: string) => {
     try {
       await api.acceptNameSuggestion(deviceId, suggestedName, false);
-      // Reload suggestions
       await loadPendingSuggestions();
+      await loadStats(); // Refresh stats after accepting
     } catch (error) {
       toast.error(`Failed to accept suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -64,8 +107,8 @@ export const NameEnhancementDashboard: React.FC = () => {
   const handleReject = async (deviceId: string, suggestedName: string) => {
     try {
       await api.rejectNameSuggestion(deviceId, suggestedName);
-      // Reload suggestions
       await loadPendingSuggestions();
+      await loadStats(); // Refresh stats after rejecting
     } catch (error) {
       toast.error(`Failed to reject suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -73,15 +116,17 @@ export const NameEnhancementDashboard: React.FC = () => {
 
   const handleBatchEnhance = async (useAI: boolean = false) => {
     try {
+      setBatchEnhancing(true);
+      setError(null);
       const result = await api.batchEnhanceNames(null, useAI, false);
       toast.success(`Batch enhancement started: ${result.job_id}`);
-      
-      // Reload after a delay
-      setTimeout(() => {
-        loadPendingSuggestions();
-      }, 5000);
+      setBatchJobId(result.job_id);
+      // Reload handled by useEffect when batchJobId is set
     } catch (error) {
-      toast.error(`Failed to start batch enhancement: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to start batch enhancement: ${errorMessage}`);
+      toast.error(errorMessage);
+      setBatchEnhancing(false);
     }
   };
 
@@ -101,38 +146,136 @@ export const NameEnhancementDashboard: React.FC = () => {
           <div className="flex gap-3">
             <button
               onClick={() => handleBatchEnhance(false)}
-              className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                darkMode
+              disabled={batchEnhancing}
+              className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
+                batchEnhancing
+                  ? 'bg-gray-400 cursor-not-allowed text-white'
+                  : darkMode
                   ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
                   : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
               }`}
             >
-              Batch Enhance (Pattern)
+              {batchEnhancing ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                'Batch Enhance (Pattern)'
+              )}
             </button>
             <button
               onClick={() => handleBatchEnhance(true)}
-              className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                darkMode
+              disabled={batchEnhancing}
+              className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
+                batchEnhancing
+                  ? 'bg-gray-400 cursor-not-allowed text-white'
+                  : darkMode
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
                   : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
               }`}
             >
-              Batch Enhance (AI)
+              {batchEnhancing ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                'Batch Enhance (AI)'
+              )}
             </button>
           </div>
         </div>
 
+        {/* Statistics Section */}
+        {!statsLoading && stats && (
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6`}>
+            <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} shadow-lg`}>
+              <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {stats.total_suggestions || 0}
+              </div>
+              <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Total Suggestions
+              </div>
+            </div>
+            <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} shadow-lg`}>
+              <div className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                {stats.by_confidence.high || 0}
+              </div>
+              <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                High Confidence
+              </div>
+            </div>
+            <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} shadow-lg`}>
+              <div className="text-2xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+                {stats.by_confidence.medium || 0}
+              </div>
+              <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Medium Confidence
+              </div>
+            </div>
+            <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} shadow-lg`}>
+              <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                {stats.by_confidence.low || 0}
+              </div>
+              <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Low Confidence
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        <ErrorBanner
+          error={error}
+          onRetry={loadPendingSuggestions}
+          onDismiss={() => setError(null)}
+          variant="banner"
+        />
+
+        {/* Loading State */}
         {loading ? (
-          <div className={`${textColor} text-center py-12`}>Loading suggestions...</div>
+          <NameEnhancementSkeleton count={3} darkMode={darkMode} />
         ) : devices.length === 0 ? (
           <div className={`${darkMode 
             ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
             : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
           } rounded-xl p-8 text-center ${textColor}`}>
+            <div className="text-5xl mb-4">✨</div>
             <p className="text-lg mb-2">No pending name suggestions</p>
-            <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+            <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm mb-4`}>
               All devices have been reviewed or no suggestions are available yet.
             </p>
+            {!batchEnhancing && (
+              <div className="flex gap-3 justify-center mt-4">
+                <button
+                  onClick={() => handleBatchEnhance(false)}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    darkMode
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                  }`}
+                >
+                  Run Batch Enhance (Pattern)
+                </button>
+                <button
+                  onClick={() => handleBatchEnhance(true)}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    darkMode
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
+                      : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
+                  }`}
+                >
+                  Run Batch Enhance (AI)
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -153,4 +296,3 @@ export const NameEnhancementDashboard: React.FC = () => {
     </div>
   );
 };
-

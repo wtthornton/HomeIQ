@@ -437,6 +437,28 @@ export const Synergies: React.FC = () => {
   const filteredAndSortedSynergies = useMemo(() => {
     let filtered = [...synergies];
 
+    // Type filter - filter by synergy type
+    if (filterType !== null) {
+      filtered = filtered.filter(synergy => {
+        return synergy.synergy_type === filterType;
+      });
+    }
+
+    // Validated filter - filter by validation status
+    if (filterValidated !== null) {
+      filtered = filtered.filter(synergy => {
+        const isValidated = synergy.validated_by_patterns === true;
+        return filterValidated === isValidated;
+      });
+    }
+
+    // Confidence filter - filter by minimum confidence threshold
+    if (minConfidence > 0) {
+      filtered = filtered.filter(synergy => {
+        return (synergy.confidence || 0) >= minConfidence;
+      });
+    }
+
     // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -492,7 +514,7 @@ export const Synergies: React.FC = () => {
       case 'highest-impact':
         return filtered.sort((a, b) => b.impact_score - a.impact_score);
       case 'most-confident':
-        return filtered.sort((a, b) => b.confidence - a.confidence);
+        return filtered.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
       case 'by-area':
         return filtered.sort((a, b) => {
           const areaA = a.area || 'zzz';
@@ -502,7 +524,7 @@ export const Synergies: React.FC = () => {
       default:
         return filtered;
     }
-  }, [synergies, sortBy, searchQuery]);
+  }, [synergies, sortBy, searchQuery, minConfidence, filterType, filterValidated]);
 
   // Legacy sortedSynergies for backward compatibility
   const sortedSynergies = filteredAndSortedSynergies;

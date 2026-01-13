@@ -14,11 +14,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
 from ..crud.synergies import get_synergy_opportunities
 from ..database import get_db
+from ..database.models import SynergyOpportunity
 from ..services.device_activity import DeviceActivityService
 from ..services.automation_generator import AutomationGenerator
 from ..services.automation_tracker import AutomationTracker
@@ -95,44 +97,124 @@ async def get_synergy_stats(
     """
     logger.info("✅ /statistics route handler called")
     try:
-        # Get all synergies for stats
-        synergies = await get_synergy_opportunities(db, limit=10000)
+        # Use SQL aggregate queries for efficient statistics calculation
+        # This is more efficient than loading records into memory and provides accurate counts
+        # NOTE: Include ALL data (no filtering) - data cleanup happens on insert, not output
         
-        total_synergies = len(synergies)
-        by_type = {}
-        by_complexity = {}
-        total_confidence = 0.0
-        total_impact = 0.0
-        areas = set()
+        # Total synergies count (ALL data)
+        total_query = select(func.count()).select_from(SynergyOpportunity)
+        total_result = await db.execute(total_query)
+        total_synergies = total_result.scalar() or 0
         
-        for s in synergies:
-            # Handle both dict and SynergyOpportunity object
-            if isinstance(s, dict):
-                synergy_type = s.get("synergy_type", "unknown")
-                complexity = s.get("complexity", "medium")
-                confidence = s.get("confidence", 0.0)
-                impact = s.get("impact_score", 0.0)
-                area = s.get("area")
-            else:
-                synergy_type = s.synergy_type
-                complexity = s.complexity or "medium"
-                confidence = float(s.confidence) if s.confidence is not None else 0.0
-                impact = float(s.impact_score) if s.impact_score is not None else 0.0
-                area = s.area
-            
-            # Count by type
-            by_type[synergy_type] = by_type.get(synergy_type, 0) + 1
-            
-            # Count by complexity (low, medium, high)
-            by_complexity[complexity] = by_complexity.get(complexity, 0) + 1
-            
-            total_confidence += confidence
-            total_impact += impact
-            if area:
-                areas.add(area)
+        # Count by type
+        type_query = (
+            select(SynergyOpportunity.synergy_type, func.count())
+            .group_by(SynergyOpportunity.synergy_type)
+        )
+        type_result = await db.execute(type_query)
+        by_type = {row[0]: row[1] for row in type_result.all()}
         
-        avg_confidence = total_confidence / total_synergies if total_synergies > 0 else 0.0
-        avg_impact = total_impact / total_synergies if total_synergies > 0 else 0.0
+        # Count by complexity
+        complexity_query = (
+            select(SynergyOpportunity.complexity, func.count())
+            .group_by(SynergyOpportunity.complexity)
+        )
+        complexity_result = await db.execute(complexity_query)
+        by_complexity = {row[0]: row[1] for row in complexity_result.all()}
+        
+        # Count by synergy_depth (level)
+        depth_query = (
+            select(SynergyOpportunity.synergy_depth, func.count())
+            .group_by(SynergyOpportunity.synergy_depth)
+        )
+        depth_result = await db.execute(depth_query)
+        by_depth = {row[0]: row[1] for row in depth_result.all()}
+        
+        # Count by type and depth (detailed breakdown)
+        type_depth_query = (
+            select(
+                SynergyOpportunity.synergy_type,
+                SynergyOpportunity.synergy_depth,
+                func.count(),
+                func.avg(SynergyOpportunity.impact_score),
+                func.avg(SynergyOpportunity.confidence),
+                func.min(SynergyOpportunity.impact_score),
+                func.max(SynergyOpportunity.impact_score)
+            )
+            .group_by(SynergyOpportunity.synergy_type, SynergyOpportunity.synergy_depth)
+        )
+        type_depth_result = await db.execute(type_depth_query)
+        by_type_and_depth = {}
+        for row in type_depth_result.all():
+            synergy_type = row[0]
+            depth = row[1]
+            count = row[2]
+            avg_impact = float(row[3] or 0.0)
+            avg_conf = float(row[4] or 0.0)
+            min_impact = float(row[5] or 0.0)
+            max_impact = float(row[6] or 0.0)
+            
+            if synergy_type not in by_type_and_depth:
+                by_type_and_depth[synergy_type] = {}
+            by_type_and_depth[synergy_type][depth] = {
+                "count": count,
+                "avg_impact": round(avg_impact, 3),
+                "avg_confidence": round(avg_conf, 3),
+                "min_impact": round(min_impact, 3),
+                "max_impact": round(max_impact, 3)
+            }
+        
+        # Count by type and complexity (detailed breakdown)
+        type_complexity_query = (
+            select(
+                SynergyOpportunity.synergy_type,
+                SynergyOpportunity.complexity,
+                func.count(),
+                func.avg(SynergyOpportunity.impact_score),
+                func.avg(SynergyOpportunity.confidence)
+            )
+            .group_by(SynergyOpportunity.synergy_type, SynergyOpportunity.complexity)
+        )
+        type_complexity_result = await db.execute(type_complexity_query)
+        by_type_and_complexity = {}
+        for row in type_complexity_result.all():
+            synergy_type = row[0]
+            complexity = row[1]
+            count = row[2]
+            avg_impact = float(row[3] or 0.0)
+            avg_conf = float(row[4] or 0.0)
+            
+            if synergy_type not in by_type_and_complexity:
+                by_type_and_complexity[synergy_type] = {}
+            by_type_and_complexity[synergy_type][complexity] = {
+                "count": count,
+                "avg_impact": round(avg_impact, 3),
+                "avg_confidence": round(avg_conf, 3)
+            }
+        
+        # Average impact score
+        avg_impact_query = select(func.avg(SynergyOpportunity.impact_score))
+        avg_impact_result = await db.execute(avg_impact_query)
+        avg_impact = float(avg_impact_result.scalar() or 0.0)
+        
+        # Average confidence
+        avg_confidence_query = select(func.avg(SynergyOpportunity.confidence))
+        avg_confidence_result = await db.execute(avg_confidence_query)
+        avg_confidence = float(avg_confidence_result.scalar() or 0.0)
+        
+        # Min/Max impact scores
+        min_impact_query = select(func.min(SynergyOpportunity.impact_score))
+        min_impact_result = await db.execute(min_impact_query)
+        min_impact = float(min_impact_result.scalar() or 0.0)
+        
+        max_impact_query = select(func.max(SynergyOpportunity.impact_score))
+        max_impact_result = await db.execute(max_impact_query)
+        max_impact = float(max_impact_result.scalar() or 0.0)
+        
+        # Count unique areas
+        unique_areas_query = select(func.count(func.distinct(SynergyOpportunity.area)))
+        unique_areas_result = await db.execute(unique_areas_query)
+        unique_areas = unique_areas_result.scalar() or 0
         
         return {
             "success": True,
@@ -140,9 +222,14 @@ async def get_synergy_stats(
                 "total_synergies": total_synergies,
                 "by_type": by_type,
                 "by_complexity": by_complexity,
+                "by_depth": by_depth,
+                "by_type_and_depth": by_type_and_depth,
+                "by_type_and_complexity": by_type_and_complexity,
                 "avg_impact_score": round(avg_impact, 3),
                 "avg_confidence": round(avg_confidence, 3),
-                "unique_areas": len(areas)
+                "min_impact_score": round(min_impact, 3),
+                "max_impact_score": round(max_impact, 3),
+                "unique_areas": unique_areas
             },
             "message": "Synergy statistics retrieved successfully"
         }
