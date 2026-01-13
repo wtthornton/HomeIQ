@@ -68,6 +68,47 @@ try:
 except ImportError:
     BLUEPRINT_ENGINE_AVAILABLE = False
 
+# 2026 Enhancement: New synergy detection engines
+try:
+    from .capability_analyzer import DeviceCapabilityAnalyzer
+    CAPABILITY_ANALYZER_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"DeviceCapabilityAnalyzer not available: {e}")
+    CAPABILITY_ANALYZER_AVAILABLE = False
+    DeviceCapabilityAnalyzer = None
+
+try:
+    from .relationship_discovery import RelationshipDiscoveryEngine
+    RELATIONSHIP_DISCOVERY_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"RelationshipDiscoveryEngine not available: {e}")
+    RELATIONSHIP_DISCOVERY_AVAILABLE = False
+    RelationshipDiscoveryEngine = None
+
+try:
+    from .spatial_intelligence import SpatialIntelligenceService
+    SPATIAL_INTELLIGENCE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"SpatialIntelligenceService not available: {e}")
+    SPATIAL_INTELLIGENCE_AVAILABLE = False
+    SpatialIntelligenceService = None
+
+try:
+    from .temporal_detector import TemporalSynergyDetector
+    TEMPORAL_DETECTOR_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"TemporalSynergyDetector not available: {e}")
+    TEMPORAL_DETECTOR_AVAILABLE = False
+    TemporalSynergyDetector = None
+
+try:
+    from ..services.energy_savings_calculator import EnergySavingsCalculator
+    ENERGY_CALCULATOR_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"EnergySavingsCalculator not available: {e}")
+    ENERGY_CALCULATOR_AVAILABLE = False
+    EnergySavingsCalculator = None
+
 
 # Compatible device relationship mappings
 COMPATIBLE_RELATIONSHIPS = {
@@ -188,6 +229,49 @@ COMPATIBLE_RELATIONSHIPS = {
         'benefit_score': 0.6,
         'complexity': 'low',
         'description': 'Motion-activated switch'
+    },
+    # NEW: Convenience patterns (Phase 1.2)
+    'media_player_to_light': {
+        'trigger_domain': 'media_player',
+        'action_domain': 'light',
+        'benefit_score': 0.75,  # High convenience
+        'complexity': 'low',
+        'description': 'Media player + lights (dim lights when TV/movie starts)'
+    },
+    'light_to_media_player': {
+        'trigger_domain': 'light',
+        'action_domain': 'media_player',
+        'benefit_score': 0.5,
+        'complexity': 'low',
+        'description': 'Light triggers media player (reverse pattern)'
+    },
+    'climate_to_light': {
+        'trigger_domain': 'climate',
+        'action_domain': 'light',
+        'benefit_score': 0.65,  # Comfort/convenience
+        'complexity': 'low',
+        'description': 'Climate + lights (adjust lighting based on climate mode)'
+    },
+    'light_to_climate': {
+        'trigger_domain': 'light',
+        'action_domain': 'climate',
+        'benefit_score': 0.5,
+        'complexity': 'medium',
+        'description': 'Light triggers climate adjustment'
+    },
+    'vacuum_to_light': {
+        'trigger_domain': 'vacuum',
+        'action_domain': 'light',
+        'benefit_score': 0.70,  # Convenience
+        'complexity': 'low',
+        'description': 'Vacuum + lights (turn on lights when vacuum starts)'
+    },
+    'light_to_vacuum': {
+        'trigger_domain': 'light',
+        'action_domain': 'vacuum',
+        'benefit_score': 0.5,
+        'complexity': 'low',
+        'description': 'Light triggers vacuum (reverse pattern)'
     }
 }
 
@@ -270,6 +354,59 @@ class DeviceSynergyDetector:
                 self.gnn_detector = None
         else:
             self.gnn_detector = None
+
+        # 2026 Enhancement: Initialize new synergy detection engines
+        if CAPABILITY_ANALYZER_AVAILABLE and settings.device_intelligence_url:
+            try:
+                self.capability_analyzer = DeviceCapabilityAnalyzer(
+                    base_url=settings.device_intelligence_url
+                )
+                logger.info("DeviceCapabilityAnalyzer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize DeviceCapabilityAnalyzer: {e}")
+                self.capability_analyzer = None
+        else:
+            self.capability_analyzer = None
+
+        if RELATIONSHIP_DISCOVERY_AVAILABLE:
+            try:
+                self.relationship_discovery = RelationshipDiscoveryEngine()
+                logger.info("RelationshipDiscoveryEngine enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize RelationshipDiscoveryEngine: {e}")
+                self.relationship_discovery = None
+        else:
+            self.relationship_discovery = None
+
+        if SPATIAL_INTELLIGENCE_AVAILABLE:
+            try:
+                self.spatial_intelligence = SpatialIntelligenceService()
+                logger.info("SpatialIntelligenceService enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize SpatialIntelligenceService: {e}")
+                self.spatial_intelligence = None
+        else:
+            self.spatial_intelligence = None
+
+        if TEMPORAL_DETECTOR_AVAILABLE:
+            try:
+                self.temporal_detector = TemporalSynergyDetector()
+                logger.info("TemporalSynergyDetector enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize TemporalSynergyDetector: {e}")
+                self.temporal_detector = None
+        else:
+            self.temporal_detector = None
+
+        if ENERGY_CALCULATOR_AVAILABLE:
+            try:
+                self.energy_calculator = EnergySavingsCalculator()
+                logger.info("EnergySavingsCalculator enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize EnergySavingsCalculator: {e}")
+                self.energy_calculator = None
+        else:
+            self.energy_calculator = None
 
         # Cache for performance (with TTL)
         self._device_cache = None
@@ -1034,11 +1171,82 @@ class DeviceSynergyDetector:
             # Step 10: Detect context-aware synergies (weather + energy + carbon)
             context_synergies = await self._detect_context_aware_synergies(pairwise_synergies, entities)
 
+            # Step 11: Discover temporal synergies (2026 Enhancement)
+            # Note: Temporal detector requires time-of-day patterns from pattern analyzer
+            # This is handled separately in PatternAnalysisScheduler
+            temporal_synergies = []
+
             # Combine and sort all synergies
-            final_synergies = pairwise_synergies + chains_3 + chains_4 + scene_synergies + context_synergies
+            final_synergies = pairwise_synergies + chains_3 + chains_4 + scene_synergies + context_synergies + temporal_synergies
+            
+            # Step 12: Validate cross-area synergies with spatial intelligence (2026 Enhancement)
+            if self.spatial_intelligence and not self.same_area_required:
+                try:
+                    logger.info("   → Step 12: Validating cross-area synergies...")
+                    validated_synergies = []
+                    for synergy in final_synergies:
+                        # Validate cross-area synergies
+                        area = synergy.get('area')
+                        devices = synergy.get('devices', [])
+                        
+                        if area and len(devices) >= 2:
+                            is_valid = await self.spatial_intelligence.validate_cross_area_synergy(
+                                synergy, entities
+                            )
+                            if is_valid:
+                                validated_synergies.append(synergy)
+                            else:
+                                logger.debug(f"Filtered cross-area synergy {synergy.get('synergy_id')} (spatial validation failed)")
+                        else:
+                            validated_synergies.append(synergy)
+                    
+                    final_synergies = validated_synergies
+                    logger.info(f"   → Spatial validation: {len(final_synergies)} synergies validated")
+                except Exception as e:
+                    logger.warning(f"Failed to validate cross-area synergies: {e}")
+
+            # Step 13: Calculate energy savings (2026 Enhancement)
+            if self.energy_calculator:
+                try:
+                    logger.info("   → Step 13: Calculating energy savings...")
+                    for synergy in final_synergies:
+                        try:
+                            # EnergySavingsCalculator.calculate_energy_savings is not async
+                            energy_result = self.energy_calculator.calculate_energy_savings(synergy)
+                            if energy_result:
+                                synergy['energy_savings_score'] = energy_result.get('energy_savings_score', 0.0)
+                                synergy['estimated_kwh_savings'] = energy_result.get('estimated_kwh_savings', 0.0)
+                                synergy['estimated_cost_savings'] = energy_result.get('estimated_cost_savings', 0.0)
+                                
+                                # Add to context_metadata
+                                if 'context_metadata' not in synergy:
+                                    synergy['context_metadata'] = {}
+                                synergy['context_metadata']['energy'] = {
+                                    'savings_score': energy_result.get('energy_savings_score', 0.0),
+                                    'kwh_savings': energy_result.get('estimated_kwh_savings', 0.0),
+                                    'cost_savings': energy_result.get('estimated_cost_savings', 0.0)
+                                }
+                        except Exception as e:
+                            logger.debug(f"Failed to calculate energy savings for synergy {synergy.get('synergy_id')}: {e}")
+                except Exception as e:
+                    logger.warning(f"Failed to calculate energy savings: {e}")
+
+            # Step 14: Enhance with temporal context (2026 Enhancement)
+            if self.temporal_detector:
+                try:
+                    for synergy in final_synergies:
+                        try:
+                            enhanced = await self.temporal_detector.enhance_with_temporal_context(synergy)
+                            if enhanced:
+                                synergy.update(enhanced)
+                        except Exception as e:
+                            logger.debug(f"Failed to enhance synergy {synergy.get('synergy_id')} with temporal context: {e}")
+                except Exception as e:
+                    logger.warning(f"Failed to enhance synergies with temporal context: {e}")
+
             final_synergies.sort(key=lambda x: x.get('impact_score', 0), reverse=True)
             
-            # Step 9: Add XAI explanations (2025 Enhancement)
+            # Step 15: Add XAI explanations (2025 Enhancement)
             if self.explainer:
                 for synergy in final_synergies:
                     try:
