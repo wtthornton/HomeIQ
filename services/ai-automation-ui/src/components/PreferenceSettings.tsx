@@ -13,7 +13,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getPreferences, updatePreferences, type Preferences, type PreferenceUpdateRequest } from '../api/preferences';
+import { getPreferences, updatePreferences, defaultPreferences, type Preferences, type PreferenceUpdateRequest } from '../api/preferences';
 
 interface PreferenceSettingsProps {
   darkMode: boolean;
@@ -23,11 +23,7 @@ interface PreferenceSettingsProps {
 export const PreferenceSettings: React.FC<PreferenceSettingsProps> = ({ darkMode, userId = 'default' }) => {
   const queryClient = useQueryClient();
   
-  const [localPreferences, setLocalPreferences] = useState<Preferences>({
-    max_suggestions: 10,
-    creativity_level: 'balanced',
-    blueprint_preference: 'medium',
-  });
+  const [localPreferences, setLocalPreferences] = useState<Preferences>(defaultPreferences);
 
   const {
     data: preferences,
@@ -38,7 +34,19 @@ export const PreferenceSettings: React.FC<PreferenceSettingsProps> = ({ darkMode
     queryKey: ['preferences', userId],
     queryFn: () => getPreferences(userId),
     staleTime: 60 * 1000,
-    retry: 1,
+    retry: (failureCount, error) => {
+      // Don't retry on 404 errors (handled gracefully by getPreferences)
+      if (error instanceof Error && error.message.includes('404')) {
+        return false;
+      }
+      return failureCount < 1;
+    },
+    // Use default preferences as initial data and fallback
+    initialData: defaultPreferences,
+    placeholderData: defaultPreferences,
+    // Don't treat 404 as an error since we handle it gracefully
+    retryOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -96,7 +104,10 @@ export const PreferenceSettings: React.FC<PreferenceSettingsProps> = ({ darkMode
     mutation.mutate(updates);
   };
 
-  if (isLoading) {
+  // Only show error if we don't have data (actual failure, not 404 handled gracefully)
+  const hasActualError = isError && !preferences;
+
+  if (isLoading && !preferences) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -108,7 +119,7 @@ export const PreferenceSettings: React.FC<PreferenceSettingsProps> = ({ darkMode
     );
   }
 
-  if (isError) {
+  if (hasActualError) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -116,6 +127,9 @@ export const PreferenceSettings: React.FC<PreferenceSettingsProps> = ({ darkMode
         className={`rounded-xl p-6 border ${darkMode ? 'bg-red-900/30 border-red-700 text-red-300' : 'bg-red-50 border-red-200 text-red-700'} shadow-lg`}
       >
         <p>⚠️ Failed to load preferences: {error instanceof Error ? error.message : 'Unknown error'}</p>
+        <p className={`text-sm mt-2 ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
+          Using default preferences. Changes will be saved when you update them.
+        </p>
       </motion.div>
     );
   }

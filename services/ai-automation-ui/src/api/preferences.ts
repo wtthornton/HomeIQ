@@ -21,6 +21,12 @@ export interface PreferenceUpdateRequest {
   blueprint_preference?: 'low' | 'medium' | 'high';
 }
 
+export const defaultPreferences: Preferences = {
+  max_suggestions: 10,
+  creativity_level: 'balanced',
+  blueprint_preference: 'medium',
+};
+
 const API_BASE = '/api/v1';
 const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
 
@@ -64,19 +70,41 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 /**
  * Get current user preferences
+ * Returns default preferences if not found (404)
  */
 export async function getPreferences(userId: string = 'default'): Promise<Preferences> {
-  const headers = withAuthHeaders({
-    Accept: 'application/json',
-  });
+  try {
+    const headers = withAuthHeaders({
+      Accept: 'application/json',
+    });
 
-  const response = await fetch(`${API_BASE}/preferences?user_id=${encodeURIComponent(userId)}`, {
-    method: 'GET',
-    headers,
-    credentials: 'include',
-  });
+    const response = await fetch(`${API_BASE}/preferences?user_id=${encodeURIComponent(userId)}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
 
-  return handleResponse<Preferences>(response);
+    // Handle 404 gracefully - return default preferences if not found
+    if (response.status === 404) {
+      console.log('Preferences not found, using defaults');
+      return defaultPreferences;
+    }
+
+    // Check if response is OK before processing
+    if (!response.ok) {
+      // For non-404 errors, try to get error message but don't throw
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.warn(`Failed to load preferences (status ${response.status}):`, errorText);
+      // Return defaults for any error (network, 500, etc.)
+      return defaultPreferences;
+    }
+
+    return handleResponse<Preferences>(response);
+  } catch (error) {
+    // Network errors, fetch failures, etc. - return defaults
+    console.warn('Error loading preferences, using defaults:', error);
+    return defaultPreferences;
+  }
 }
 
 /**

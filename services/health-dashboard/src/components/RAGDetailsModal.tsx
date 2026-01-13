@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { RAGStatus, RAGState } from '../types/rag';
 import { Statistics } from '../types';
 import { ragApi } from '../services/api';
+import { LoadingSpinner } from './LoadingSpinner';
 
 export interface RAGDetailsModalProps {
   isOpen: boolean;
@@ -125,6 +126,7 @@ export const RAGDetailsModal: React.FC<RAGDetailsModalProps> = ({
   // RAG service metrics state
   const [ragMetrics, setRagMetrics] = useState<RAGServiceMetrics | null>(null);
   const [ragMetricsLoading, setRagMetricsLoading] = useState(false);
+  const [ragMetricsError, setRagMetricsError] = useState(false);
 
   // Focus management
   useEffect(() => {
@@ -140,11 +142,13 @@ export const RAGDetailsModal: React.FC<RAGDetailsModalProps> = ({
       
       try {
         setRagMetricsLoading(true);
+        setRagMetricsError(false);
         const metrics = await ragApi.getMetrics();
         setRagMetrics(metrics);
       } catch (error) {
         console.error('Failed to fetch RAG service metrics:', error);
-        // Don't set error state - just don't show the metrics
+        setRagMetricsError(true);
+        setRagMetrics(null);
       } finally {
         setRagMetricsLoading(false);
       }
@@ -272,6 +276,156 @@ export const RAGDetailsModal: React.FC<RAGDetailsModalProps> = ({
               Last updated: {ragStatus.lastUpdated.toLocaleString()}
             </p>
           </div>
+
+          {/* RAG Operations Metrics Section */}
+          {ragMetricsLoading && (
+            <div className={`
+              rounded-lg p-4 border-2
+              ${darkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}
+            `}>
+              <div className="flex items-center justify-center py-4">
+                <LoadingSpinner variant="dots" size="sm" color="default" />
+                <span className={`ml-3 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Loading RAG metrics...
+                </span>
+              </div>
+            </div>
+          )}
+
+          {ragMetricsError && !ragMetricsLoading && (
+            <div className={`
+              rounded-lg p-4 border-2
+              ${darkMode ? 'bg-yellow-900/30 border-yellow-600' : 'bg-yellow-50 border-yellow-200'}
+            `}>
+              <div className="flex items-start">
+                <span className="text-xl mr-2">⚠️</span>
+                <div>
+                  <h4 className={`text-sm font-semibold mb-1 ${darkMode ? 'text-yellow-200' : 'text-yellow-800'}`}>
+                    RAG Service Metrics Unavailable
+                  </h4>
+                  <p className={`text-xs ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
+                    The RAG service may not be running or configured. RAG Operations metrics cannot be displayed.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {ragMetrics && !ragMetricsLoading && !ragMetricsError && (
+            <div className={`
+              rounded-lg p-4 border-2
+              ${darkMode ? 'bg-blue-900/30 border-blue-600' : 'bg-blue-50 border-blue-200'}
+            `}>
+              <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                RAG Operations
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Total RAG Calls */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Total RAG Calls
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {formatNumber(ragMetrics.total_calls)}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Operations
+                  </div>
+                </div>
+
+                {/* Store Calls */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Store Operations
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {formatNumber(ragMetrics.store_calls)}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Knowledge stored
+                  </div>
+                </div>
+
+                {/* Retrieve Calls */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Retrieve Operations
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {formatNumber(ragMetrics.retrieve_calls)}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Knowledge retrieved
+                  </div>
+                </div>
+
+                {/* Search Calls */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Search Operations
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {formatNumber(ragMetrics.search_calls)}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Semantic searches
+                  </div>
+                </div>
+
+                {/* Cache Hit Rate */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Cache Hit Rate
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {(ragMetrics.cache_hit_rate * 100).toFixed(1)}%
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {formatNumber(ragMetrics.cache_hits)} hits / {formatNumber(ragMetrics.cache_misses)} misses
+                  </div>
+                </div>
+
+                {/* Avg Latency */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Avg Latency
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {ragMetrics.avg_latency_ms.toFixed(1)}ms
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {ragMetrics.min_latency_ms.toFixed(1)}-{ragMetrics.max_latency_ms.toFixed(1)}ms
+                  </div>
+                </div>
+
+                {/* Error Rate */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Error Rate
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {(ragMetrics.error_rate * 100).toFixed(2)}%
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {formatNumber(ragMetrics.errors)} errors
+                  </div>
+                </div>
+
+                {/* Success Score */}
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Avg Success Score
+                  </div>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {ragMetrics.avg_success_score.toFixed(2)}
+                  </div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Quality metric
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Data Metrics Section */}
           {statistics && (
