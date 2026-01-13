@@ -5,10 +5,11 @@
  * Option 1: Integrated RAG Status Card
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { RAGStatus, RAGState } from '../types/rag';
 import { Statistics } from '../types';
 import { LoadingSpinner } from './LoadingSpinner';
+import { ragApi } from '../services/api';
 
 export interface RAGStatusCardProps {
   ragStatus: RAGStatus | null;
@@ -206,8 +207,44 @@ export const RAGStatusCard: React.FC<RAGStatusCardProps> = ({
         })}
       </div>
 
-      {/* Data Metrics Section */}
-      {statistics && (
+      {/* RAG Operations Summary (when available) */}
+      {ragMetricsAvailable && ragMetrics && (
+        <div className={`mt-4 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h4 className={`text-xs font-semibold mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            RAG Operations
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Total RAG Calls */}
+            <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                RAG Calls
+              </div>
+              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {formatNumber(ragMetrics.total_calls)}
+              </div>
+              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Operations
+              </div>
+            </div>
+
+            {/* Cache Hit Rate */}
+            <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Cache Hit Rate
+              </div>
+              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {(ragMetrics.cache_hit_rate * 100).toFixed(1)}%
+              </div>
+              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Performance
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Data Metrics Section (fallback when RAG metrics not available) */}
+      {statistics && !ragMetricsAvailable && (
         <div className={`mt-4 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <h4 className={`text-xs font-semibold mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             Data Metrics
