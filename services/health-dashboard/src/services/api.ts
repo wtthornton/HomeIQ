@@ -830,6 +830,49 @@ class AIAutomationApiClient {
 }
 
 /**
+ * RAG Service Client - Retrieval-Augmented Generation Metrics
+ * Routes to rag-service (port 8027) via /rag-service proxy
+ */
+class RAGServiceClient extends BaseApiClient {
+  constructor() {
+    super('/rag-service');  // Proxied through nginx
+  }
+
+  /**
+   * Get RAG service metrics
+   * Returns operational metrics including call counts, latencies, and error rates
+   */
+  async getMetrics(): Promise<{
+    total_calls: number;
+    store_calls: number;
+    retrieve_calls: number;
+    search_calls: number;
+    cache_hits: number;
+    cache_misses: number;
+    cache_hit_rate: number;
+    avg_latency_ms: number;
+    min_latency_ms: number;
+    max_latency_ms: number;
+    errors: number;
+    embedding_errors: number;
+    storage_errors: number;
+    error_rate: number;
+    avg_success_score: number;
+  }> {
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/v1/metrics`);
+  }
+
+  /**
+   * Reset RAG service metrics
+   */
+  async resetMetrics(): Promise<{ message: string }> {
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/v1/metrics/reset`, {
+      method: 'POST',
+    });
+  }
+}
+
+/**
  * HA Setup Service Client - Validation & Configuration
  * Routes to ha-setup-service (port 8020) via /setup-service proxy
  */
@@ -915,6 +958,7 @@ class SetupServiceClient extends BaseApiClient {
 export const adminApi = new AdminApiClient();  // System monitoring
 export const dataApi = new DataApiClient();    // Feature data
 export const aiApi = new AIAutomationApiClient();  // AI Automation
+export const ragApi = new RAGServiceClient();  // RAG Service metrics
 export const setupApi = new SetupServiceClient();  // HA Setup & Validation
 
 // Legacy export for backward compatibility (uses admin API)
