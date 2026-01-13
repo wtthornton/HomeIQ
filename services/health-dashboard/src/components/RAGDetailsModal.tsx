@@ -4,9 +4,10 @@
  * Shows detailed RAG metrics and component breakdown
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { RAGStatus, RAGState } from '../types/rag';
 import { Statistics } from '../types';
+import { ragApi } from '../services/api';
 
 export interface RAGDetailsModalProps {
   isOpen: boolean;
@@ -15,6 +16,24 @@ export interface RAGDetailsModalProps {
   statistics?: Statistics | null;
   eventsStats?: any | null; // Events stats from /api/v1/events/stats (event_types, unique_entities, etc.)
   darkMode: boolean;
+}
+
+export interface RAGServiceMetrics {
+  total_calls: number;
+  store_calls: number;
+  retrieve_calls: number;
+  search_calls: number;
+  cache_hits: number;
+  cache_misses: number;
+  cache_hit_rate: number;
+  avg_latency_ms: number;
+  min_latency_ms: number;
+  max_latency_ms: number;
+  errors: number;
+  embedding_errors: number;
+  storage_errors: number;
+  error_rate: number;
+  avg_success_score: number;
 }
 
 const getRAGConfig = (state: RAGState, darkMode: boolean) => {
@@ -102,12 +121,36 @@ export const RAGDetailsModal: React.FC<RAGDetailsModalProps> = ({
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // RAG service metrics state
+  const [ragMetrics, setRagMetrics] = useState<RAGServiceMetrics | null>(null);
+  const [ragMetricsLoading, setRagMetricsLoading] = useState(false);
 
   // Focus management
   useEffect(() => {
     if (isOpen && closeButtonRef.current) {
       closeButtonRef.current.focus();
     }
+  }, [isOpen]);
+
+  // Fetch RAG service metrics when modal opens
+  useEffect(() => {
+    const fetchRAGMetrics = async () => {
+      if (!isOpen) return;
+      
+      try {
+        setRagMetricsLoading(true);
+        const metrics = await ragApi.getMetrics();
+        setRagMetrics(metrics);
+      } catch (error) {
+        console.error('Failed to fetch RAG service metrics:', error);
+        // Don't set error state - just don't show the metrics
+      } finally {
+        setRagMetricsLoading(false);
+      }
+    };
+
+    fetchRAGMetrics();
   }, [isOpen]);
 
   // Keyboard navigation
