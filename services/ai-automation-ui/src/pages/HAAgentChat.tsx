@@ -7,6 +7,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import {
@@ -44,12 +45,15 @@ interface ChatMessage extends Message {
 
 export const HAAgentChat: React.FC = () => {
   const { darkMode } = useAppStore();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [blueprintContext, setBlueprintContext] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true); // Open by default on desktop
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -145,10 +149,52 @@ export const HAAgentChat: React.FC = () => {
     }
   };
 
+  // Check for blueprint context from navigation state
+  useEffect(() => {
+    const context = (location.state as any)?.blueprintContext;
+    if (context) {
+      setBlueprintContext(context);
+      // Clear navigation state to prevent re-triggering on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
+
   // Load conversation on mount or when conversation ID changes
   useEffect(() => {
     loadConversation();
   }, [currentConversationId]);
+
+  // Send initial message with blueprint context if present
+  useEffect(() => {
+    if (blueprintContext && !currentConversationId && !isLoading && !isInitializing) {
+      const sendInitialBlueprintMessage = async () => {
+        const hiddenContext = {
+          blueprint_id: blueprintContext.blueprint_id,
+          blueprint_yaml: blueprintContext.blueprint_yaml,
+          blueprint_inputs: blueprintContext.blueprint_inputs,
+          matched_devices: blueprintContext.matched_devices,
+          constraint_mode: 'blueprint',
+        };
+
+        try {
+          const response = await sendChatMessage({
+            message: `I'd like to work with the "${blueprintContext.blueprint_name || 'Blueprint'}" blueprint.`,
+            hidden_context: hiddenContext,
+            title: `Blueprint: ${blueprintContext.blueprint_name || 'Blueprint'}`,
+            source: 'blueprint',
+          });
+          
+          setCurrentConversationId(response.conversation_id);
+          toast.success('Blueprint context loaded');
+        } catch (error) {
+          console.error('Failed to send initial blueprint message:', error);
+          toast.error('Failed to load blueprint context');
+        }
+      };
+      
+      sendInitialBlueprintMessage();
+    }
+  }, [blueprintContext, currentConversationId, isLoading, isInitializing]);
 
   // Focus input on mount
   useEffect(() => {

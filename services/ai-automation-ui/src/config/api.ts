@@ -22,6 +22,9 @@ export const API_CONFIG = {
 
   // HA AI Agent Service (Epic AI-20)
   HA_AI_AGENT: isProduction ? '/api/ha-ai-agent' : 'http://localhost:8030/api',
+
+  // Blueprint Suggestion Service
+  BLUEPRINT_SUGGESTIONS: isProduction ? '/api/blueprint-suggestions' : 'http://localhost:8039/api/blueprint-suggestions',
 };
 
 // Team Tracker specific endpoints
