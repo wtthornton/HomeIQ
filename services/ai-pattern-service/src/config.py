@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # Blueprint Index Service Configuration (Phase 2 - Blueprint-First Architecture)
     blueprint_index_url: str | None = "http://blueprint-index:8031"
     
+    # Device Intelligence Service Configuration (Phase 1.3 - Capability Integration)
+    device_intelligence_url: str = "http://device-intelligence-service:8028"
+    
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

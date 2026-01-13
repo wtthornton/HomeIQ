@@ -26,13 +26,17 @@ HIGH_POWER_DOMAINS = {'climate', 'water_heater', 'dryer', 'washer', 'dishwasher'
 
 class ContextAwareDetector:
     """
-    Detects context-aware synergies based on environmental and energy data.
+    Detects context-aware synergies based on environmental, energy, sports, calendar, and carbon data.
     
     Context types supported:
     - Weather + Climate: Pre-cool/heat based on forecast
     - Weather + Cover: Close blinds when sunny
-    - Energy + High-power devices: Schedule for off-peak hours
     - Weather + Light: Adjust lighting based on conditions
+    - Energy + High-power devices: Schedule for off-peak hours
+    - Carbon Intensity + High-power devices: Schedule for low-carbon hours
+    - Sports + Lighting: Set lighting for game time
+    - Sports + Media: Auto-play game on TV
+    - Calendar + Lighting: Adjust lighting for calendar events
     
     Attributes:
         max_synergies: Maximum number of synergies to generate
@@ -138,6 +142,93 @@ class ContextAwareDetector:
             if 'energy' in e.get('entity_id', '').lower() or
                'power' in e.get('entity_id', '').lower()
         ]
+    
+    def _find_sports_entities(
+        self,
+        entities: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """
+        Find sports-related entities (team tracker sensors).
+        
+        Args:
+            entities: List of entity dictionaries
+            
+        Returns:
+            List of sports entity dictionaries
+        """
+        return [
+            e for e in entities
+            if 'team_tracker' in e.get('entity_id', '').lower() or
+               any(league in e.get('entity_id', '').lower() 
+                   for league in ['nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_'])
+        ]
+    
+    def _find_calendar_entities(
+        self,
+        entities: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """
+        Find calendar entities.
+        
+        Args:
+            entities: List of entity dictionaries
+            
+        Returns:
+            List of calendar entity dictionaries
+        """
+        return [
+            e for e in entities
+            if e.get('entity_id', '').startswith('calendar.')
+        ]
+    
+    def _find_carbon_intensity_sensors(
+        self,
+        entities: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """
+        Find carbon intensity sensors.
+        
+        Args:
+            entities: List of entity dictionaries
+            
+        Returns:
+            List of carbon intensity sensor dictionaries
+        """
+        return [
+            e for e in entities
+            if 'carbon_intensity' in e.get('entity_id', '').lower() or
+               'carbon' in e.get('entity_id', '').lower()
+        ]
+    
+    def _find_media_player_devices(
+        self,
+        entities: list[dict[str, Any]]
+    ) -> list[str]:
+        """
+        Find media player devices.
+        
+        Args:
+            entities: List of entity dictionaries
+            
+        Returns:
+            List of media player entity IDs
+        """
+        return self._find_devices_by_prefix(entities, 'media_player.')
+    
+    def _find_notify_services(
+        self,
+        entities: list[dict[str, Any]]
+    ) -> list[str]:
+        """
+        Find notification services.
+        
+        Args:
+            entities: List of entity dictionaries
+            
+        Returns:
+            List of notify service entity IDs (typically notify.*)
+        """
+        return self._find_devices_by_prefix(entities, 'notify.')
     
     def _find_high_power_devices(
         self,
@@ -322,15 +413,177 @@ class ContextAwareDetector:
             }
         }
     
+    def _create_sports_lighting_synergy(
+        self,
+        sports_entity_id: str,
+        light_entity_id: str,
+        area: Optional[str]
+    ) -> dict[str, Any]:
+        """
+        Create a sports + lighting synergy.
+        
+        Args:
+            sports_entity_id: Sports/team tracker entity ID
+            light_entity_id: Light device entity ID
+            area: Area ID (optional)
+            
+        Returns:
+            Context-aware synergy dictionary
+        """
+        return {
+            'synergy_id': str(uuid.uuid4()),
+            'synergy_type': 'sports_context',
+            'devices': [sports_entity_id, light_entity_id],
+            'trigger_entity': sports_entity_id,
+            'action_entity': light_entity_id,
+            'area': area,
+            'impact_score': 0.70,
+            'confidence': 0.75,
+            'complexity': 'low',
+            'rationale': 'Sports context: Set lighting for game time viewing comfort',
+            'synergy_depth': 2,
+            'chain_devices': [sports_entity_id, light_entity_id],
+            'context_metadata': {
+                'context_type': 'sports_lighting',
+                'triggers': {
+                    'sports': {'game_start': True, 'game_live': True}
+                },
+                'benefits': ['convenience', 'entertainment', 'comfort'],
+                'estimated_savings': 'Enhanced viewing experience'
+            }
+        }
+    
+    def _create_sports_media_synergy(
+        self,
+        sports_entity_id: str,
+        media_entity_id: str,
+        area: Optional[str]
+    ) -> dict[str, Any]:
+        """
+        Create a sports + media player synergy.
+        
+        Args:
+            sports_entity_id: Sports/team tracker entity ID
+            media_entity_id: Media player entity ID
+            area: Area ID (optional)
+            
+        Returns:
+            Context-aware synergy dictionary
+        """
+        return {
+            'synergy_id': str(uuid.uuid4()),
+            'synergy_type': 'sports_context',
+            'devices': [sports_entity_id, media_entity_id],
+            'trigger_entity': sports_entity_id,
+            'action_entity': media_entity_id,
+            'area': area,
+            'impact_score': 0.75,
+            'confidence': 0.70,
+            'complexity': 'medium',
+            'rationale': 'Sports context: Auto-play game on TV when game starts',
+            'synergy_depth': 2,
+            'chain_devices': [sports_entity_id, media_entity_id],
+            'context_metadata': {
+                'context_type': 'sports_media',
+                'triggers': {
+                    'sports': {'game_start': True}
+                },
+                'benefits': ['convenience', 'entertainment'],
+                'estimated_savings': 'Automated game viewing'
+            }
+        }
+    
+    def _create_calendar_lighting_synergy(
+        self,
+        calendar_entity_id: str,
+        light_entity_id: str,
+        area: Optional[str]
+    ) -> dict[str, Any]:
+        """
+        Create a calendar + lighting synergy.
+        
+        Args:
+            calendar_entity_id: Calendar entity ID
+            light_entity_id: Light device entity ID
+            area: Area ID (optional)
+            
+        Returns:
+            Context-aware synergy dictionary
+        """
+        return {
+            'synergy_id': str(uuid.uuid4()),
+            'synergy_type': 'calendar_context',
+            'devices': [calendar_entity_id, light_entity_id],
+            'trigger_entity': calendar_entity_id,
+            'action_entity': light_entity_id,
+            'area': area,
+            'impact_score': 0.65,
+            'confidence': 0.70,
+            'complexity': 'low',
+            'rationale': 'Calendar context: Adjust lighting for calendar events',
+            'synergy_depth': 2,
+            'chain_devices': [calendar_entity_id, light_entity_id],
+            'context_metadata': {
+                'context_type': 'calendar_lighting',
+                'triggers': {
+                    'calendar': {'event_start': True}
+                },
+                'benefits': ['convenience', 'preparation'],
+                'estimated_savings': 'Enhanced event preparation'
+            }
+        }
+    
+    def _create_carbon_intensity_scheduling_synergy(
+        self,
+        carbon_entity_id: str,
+        device_entity_id: str,
+        area: Optional[str]
+    ) -> dict[str, Any]:
+        """
+        Create a carbon intensity + device scheduling synergy.
+        
+        Args:
+            carbon_entity_id: Carbon intensity sensor entity ID
+            device_entity_id: High-power device entity ID
+            area: Area ID (optional)
+            
+        Returns:
+            Context-aware synergy dictionary
+        """
+        device_domain = device_entity_id.split('.')[0]
+        
+        return {
+            'synergy_id': str(uuid.uuid4()),
+            'synergy_type': 'carbon_context',
+            'devices': [carbon_entity_id, device_entity_id],
+            'trigger_entity': carbon_entity_id,
+            'action_entity': device_entity_id,
+            'area': area,
+            'impact_score': 0.80,
+            'confidence': 0.75,
+            'complexity': 'medium',
+            'rationale': f'Carbon context: Schedule {device_domain} during low-carbon hours',
+            'synergy_depth': 2,
+            'chain_devices': [carbon_entity_id, device_entity_id],
+            'context_metadata': {
+                'context_type': 'carbon_scheduling',
+                'triggers': {
+                    'carbon': {'intensity_below': 200, 'unit': 'gCO2/kWh'}
+                },
+                'benefits': ['sustainability', 'carbon_reduction', 'environmental'],
+                'estimated_savings': 'Reduced carbon footprint'
+            }
+        }
+    
     async def detect_context_aware_synergies(
         self,
         entities: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """
-        Detect context-aware synergies based on weather, energy, and carbon data.
+        Detect context-aware synergies based on weather, energy, carbon, sports, and calendar data.
         
         These synergies combine multiple context factors to suggest automations
-        that optimize for comfort, cost, and sustainability.
+        that optimize for comfort, cost, sustainability, and convenience.
         
         Args:
             entities: List of entity dictionaries
@@ -345,13 +598,20 @@ class ContextAwareDetector:
         climate_devices = self._find_devices_by_prefix(entities, 'climate.')
         cover_devices = self._find_devices_by_prefix(entities, 'cover.')
         light_devices = self._find_devices_by_prefix(entities, 'light.')
+        media_devices = self._find_media_player_devices(entities)
+        notify_services = self._find_notify_services(entities)
         weather_entities = self._find_weather_entities(entities)
         energy_sensors = self._find_energy_sensors(entities)
+        carbon_sensors = self._find_carbon_intensity_sensors(entities)
+        sports_entities = self._find_sports_entities(entities)
+        calendar_entities = self._find_calendar_entities(entities)
         high_power_devices = self._find_high_power_devices(entities)
         
         logger.info(
             f"      Found {len(climate_devices)} climate, {len(cover_devices)} cover, "
-            f"{len(weather_entities)} weather, {len(energy_sensors)} energy entities"
+            f"{len(weather_entities)} weather, {len(energy_sensors)} energy, "
+            f"{len(carbon_sensors)} carbon, {len(sports_entities)} sports, "
+            f"{len(calendar_entities)} calendar entities"
         )
         
         # Weather + Climate synergies
@@ -392,6 +652,46 @@ class ContextAwareDetector:
                     break
                 area = self._get_area([light], entities)
                 synergy = self._create_weather_lighting_synergy(weather_id, light, area)
+                synergies.append(synergy)
+        
+        # Sports + Lighting synergies
+        if sports_entities and light_devices and len(synergies) < self.max_synergies:
+            sports_id = sports_entities[0].get('entity_id')
+            for light in light_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                if len(synergies) >= self.max_synergies:
+                    break
+                area = self._get_area([light], entities)
+                synergy = self._create_sports_lighting_synergy(sports_id, light, area)
+                synergies.append(synergy)
+        
+        # Sports + Media player synergies
+        if sports_entities and media_devices and len(synergies) < self.max_synergies:
+            sports_id = sports_entities[0].get('entity_id')
+            for media in media_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                if len(synergies) >= self.max_synergies:
+                    break
+                area = self._get_area([media], entities)
+                synergy = self._create_sports_media_synergy(sports_id, media, area)
+                synergies.append(synergy)
+        
+        # Calendar + Lighting synergies
+        if calendar_entities and light_devices and len(synergies) < self.max_synergies:
+            calendar_id = calendar_entities[0].get('entity_id')
+            for light in light_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                if len(synergies) >= self.max_synergies:
+                    break
+                area = self._get_area([light], entities)
+                synergy = self._create_calendar_lighting_synergy(calendar_id, light, area)
+                synergies.append(synergy)
+        
+        # Carbon Intensity + High-power device synergies
+        if carbon_sensors and high_power_devices and len(synergies) < self.max_synergies:
+            carbon_id = carbon_sensors[0].get('entity_id')
+            for device in high_power_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                if len(synergies) >= self.max_synergies:
+                    break
+                area = self._get_area([device], entities)
+                synergy = self._create_carbon_intensity_scheduling_synergy(carbon_id, device, area)
                 synergies.append(synergy)
         
         logger.info(f"      ✅ Generated {len(synergies)} context-aware synergies")
