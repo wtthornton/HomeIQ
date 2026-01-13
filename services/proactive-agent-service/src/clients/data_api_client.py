@@ -73,7 +73,7 @@ class DataAPIClient:
 
             logger.debug(f"Fetching events from Data API: {params}")
             response = await self.client.get(
-                f"{self.base_url}/events",
+                f"{self.base_url}/api/v1/events",
                 params=params
             )
             response.raise_for_status()

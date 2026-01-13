@@ -5,6 +5,7 @@ Epic AI-20 Story AI20.3: Prompt Assembly & Context Integration
 Assembles prompts with context injection, token counting, and budget enforcement.
 """
 
+import json
 import logging
 from typing import Any
 
@@ -724,10 +725,53 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
         if context_type := hidden_context.get("context_type"):
             lines.append(f"- **Context Type**: {context_type}")
         
+        # Blueprint constraint mode (Epic Blueprint Suggestions)
+        if hidden_context.get("constraint_mode") == "blueprint":
+            lines.append("")
+            lines.append("---")
+            lines.append("BLUEPRINT CONSTRAINT MODE:")
+            lines.append("---")
+            lines.append("You are working with a Home Assistant Blueprint.")
+            
+            blueprint_id = hidden_context.get("blueprint_id")
+            blueprint_yaml = hidden_context.get("blueprint_yaml")
+            blueprint_inputs = hidden_context.get("blueprint_inputs", {})
+            matched_devices = hidden_context.get("matched_devices", [])
+            
+            if blueprint_id:
+                lines.append(f"Blueprint ID: {blueprint_id}")
+            if blueprint_yaml:
+                lines.append("Blueprint YAML structure:")
+                lines.append("```yaml")
+                # Include first 500 chars of YAML to show structure
+                yaml_preview = blueprint_yaml[:500] + ("..." if len(blueprint_yaml) > 500 else "")
+                lines.append(yaml_preview)
+                lines.append("```")
+            if blueprint_inputs:
+                lines.append("Blueprint Input Schema:")
+                lines.append(json.dumps(blueprint_inputs, indent=2))
+            if matched_devices:
+                device_list = ", ".join([
+                    str(d.get("friendly_name") or d.get("entity_id", ""))
+                    for d in matched_devices
+                ])
+                lines.append(f"Matched Devices: {device_list}")
+            
+            lines.append("")
+            lines.append("CRITICAL CONSTRAINTS:")
+            lines.append("- You MUST stay within the blueprint's input schema")
+            lines.append("- Only modify input values, NOT the blueprint structure")
+            lines.append("- Suggest valid entity IDs that match the blueprint's domain/device_class requirements")
+            lines.append("- Do NOT create new automations outside the blueprint scope")
+            lines.append("- The blueprint is proven and tested - work within its constraints")
+            lines.append("---")
+            lines.append("")
+        
         # Any additional fields
         standard_fields = {
             "game_time", "kickoff_in", "team_colors", "trigger_type", 
-            "trigger_entity", "trigger_condition", "target_color", "context_type"
+            "trigger_entity", "trigger_condition", "target_color", "context_type",
+            "constraint_mode", "blueprint_id", "blueprint_yaml", "blueprint_inputs", "matched_devices"
         }
         for key, value in hidden_context.items():
             if key not in standard_fields and value:

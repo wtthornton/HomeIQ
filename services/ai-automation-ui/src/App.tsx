@@ -19,6 +19,7 @@ import { Admin } from './pages/Admin';
 import { NameEnhancementDashboard } from './components/name-enhancement';  // Device Name Enhancement
 import { HAAgentChat } from './pages/HAAgentChat';  // Epic AI-20, Story AI20.7
 import { ProactiveSuggestions } from './pages/ProactiveSuggestions';  // Epic AI-21: Context-aware suggestions
+import { BlueprintSuggestions } from './pages/BlueprintSuggestions';
 import { useAppStore } from './store';
 
 export const App: React.FC = () => {
@@ -49,6 +50,14 @@ export const App: React.FC = () => {
         
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Routes>
+            <Route 
+              path="/blueprint-suggestions" 
+              element={
+                <PageErrorBoundaryWrapper pageName="Blueprint Suggestions">
+                  <BlueprintSuggestions />
+                </PageErrorBoundaryWrapper>
+              } 
+            />
             <Route 
               path="/" 
               element={

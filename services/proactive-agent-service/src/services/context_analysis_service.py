@@ -15,8 +15,12 @@ from ..clients.carbon_intensity_client import CarbonIntensityClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.sports_data_client import SportsDataClient
 from ..clients.weather_api_client import WeatherAPIClient
+from ..config import Settings
 
 logger = logging.getLogger(__name__)
+
+# Global settings instance
+_settings = Settings()
 
 
 class ContextAnalysisService:
@@ -40,7 +44,9 @@ class ContextAnalysisService:
         """
         self.weather_client = weather_client or WeatherAPIClient()
         self.sports_client = sports_client or SportsDataClient()
-        self.carbon_client = carbon_client or CarbonIntensityClient()
+        self.carbon_client = carbon_client or CarbonIntensityClient(
+            data_api_url=_settings.data_api_url
+        )
         self.data_api_client = data_api_client or DataAPIClient()
         logger.info("Context Analysis Service initialized")
 
@@ -194,6 +200,11 @@ class ContextAnalysisService:
                     insights.append(
                         f"Upcoming game scheduled - consider pre-game automation (lights, temperature)"
                     )
+            else:
+                # Generate insights even when no games scheduled
+                if not live_games:
+                    insights.append("No games scheduled - sports automations can be set up for future games")
+                    insights.append("Team Tracker sensors detected - automations will trigger automatically when games start")
 
             return {
                 "available": True,
@@ -228,6 +239,7 @@ class ContextAnalysisService:
 
         try:
             current_intensity = await self.carbon_client.get_current_intensity()
+            trends_data = await self.carbon_client.get_trends()
 
             insights = []
             if current_intensity:
@@ -236,13 +248,29 @@ class ContextAnalysisService:
                     insights.append("Low carbon intensity - good time for energy-intensive tasks")
                 elif intensity_value and intensity_value > 400:
                     insights.append("High carbon intensity - consider delaying energy-intensive tasks")
+                
+                # Add trend-based insights
+                if trends_data:
+                    trend = trends_data.get("trend", "stable")
+                    if trend == "increasing":
+                        insights.append("Carbon intensity trending upward - schedule tasks soon")
+                    elif trend == "decreasing":
+                        insights.append("Carbon intensity trending downward - good time for energy tasks")
 
-            # Note: Carbon intensity data is primarily in InfluxDB
-            # This is a placeholder for future enhancement
+            # Format trends data
+            trends = None
+            if trends_data:
+                trends = {
+                    "average_24h": trends_data.get("average_24h"),
+                    "min_24h": trends_data.get("min_24h"),
+                    "max_24h": trends_data.get("max_24h"),
+                    "trend": trends_data.get("trend", "stable"),
+                }
+
             return {
                 "available": current_intensity is not None,
                 "current_intensity": current_intensity,
-                "trends": None,  # Future: analyze trends from InfluxDB
+                "trends": trends,
                 "insights": insights,
             }
 
@@ -251,6 +279,7 @@ class ContextAnalysisService:
             return {
                 "available": False,
                 "error": str(e),
+                "error_type": type(e).__name__,
                 "current_intensity": None,
                 "trends": None,
                 "insights": [],
@@ -289,12 +318,19 @@ class ContextAnalysisService:
             )
 
             if not events:
-                logger.debug("No historical events found")
+                logger.debug(f"No historical events found in last {days_back} days")
                 return {
-                    "available": False,
+                    "available": True,  # Data source is available, just no events
                     "events": [],
                     "patterns": [],
-                    "insights": [],
+                    "insights": [
+                        f"No events found in last {days_back} days - patterns will appear as usage increases"
+                    ],
+                    "query_info": {
+                        "days_back": days_back,
+                        "start_time": start_time.isoformat(),
+                        "end_time": end_time.isoformat(),
+                    },
                 }
 
             # Analyze patterns
@@ -307,6 +343,11 @@ class ContextAnalysisService:
                 "events": events[:20],  # Return sample of events
                 "patterns": patterns,
                 "insights": insights,
+                "query_info": {  # Include query info even when events found
+                    "days_back": days_back,
+                    "start_time": start_time.isoformat(),
+                    "end_time": end_time.isoformat(),
+                },
             }
 
         except Exception as e:
@@ -314,9 +355,10 @@ class ContextAnalysisService:
             return {
                 "available": False,
                 "error": str(e),
+                "error_type": type(e).__name__,
                 "events": [],
                 "patterns": [],
-                "insights": [],
+                "insights": [f"Unable to fetch historical data: {str(e)}"],
             }
 
     def _analyze_weather_trends(self, forecast: list[dict[str, Any]]) -> dict[str, Any] | None:

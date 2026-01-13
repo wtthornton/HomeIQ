@@ -26,6 +26,9 @@ export interface ChatRequest {
   message: string;
   conversation_id?: string;
   refresh_context?: boolean;
+  hidden_context?: Record<string, any>;
+  title?: string;
+  source?: string;
 }
 
 export interface ToolCall {

@@ -802,7 +802,7 @@ export const api = {
     return fetchJSON(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/devices/${deviceId}/suggestions`);
   },
 
-  async getPendingNameSuggestions(limit: number = 100, offset: number = 0): Promise<{
+  async getPendingNameSuggestions(limit: number = 100, _offset: number = 0): Promise<{
     devices: Array<{
       device_id: string;
       current_name: string;

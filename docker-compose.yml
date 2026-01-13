@@ -1585,6 +1585,51 @@ services:
         max-file: "3"
         labels: "service=blueprint-index,environment=production"
 
+  blueprint-suggestion-service:
+    build:
+      context: ./services/blueprint-suggestion-service
+      dockerfile: Dockerfile
+    container_name: homeiq-blueprint-suggestion
+    restart: unless-stopped
+    ports:
+      - "8039:8032"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///data/blueprint_suggestions.db
+      - BLUEPRINT_INDEX_URL=http://blueprint-index:8031
+      - DATA_API_URL=http://data-api:8006
+      - AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8029
+      - SERVICE_PORT=8032
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - blueprint_suggestions_data:/app/data
+    networks:
+      - homeiq-network
+    depends_on:
+      - blueprint-index
+      - data-api
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8032/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=blueprint-suggestion,environment=production"
+
   # Rule Recommendation ML Service - ML-powered automation recommendations
   rule-recommendation-ml:
     build:
@@ -2114,6 +2159,7 @@ volumes:
   ha_ai_agent_data:  # HA AI Agent Service context cache
   proactive_agent_data:  # Proactive Agent Service suggestions storage
   blueprint_index_data:  # Blueprint Index Service data
+  blueprint_suggestions_data:  # Blueprint Suggestion Service data
   rule_recommendation_models:  # Rule Recommendation ML Service models
 
 networks:

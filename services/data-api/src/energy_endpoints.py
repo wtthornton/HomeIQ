@@ -578,3 +578,220 @@ async def get_top_energy_consumers(
             except Exception as close_err:
                 logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
+
+# Carbon Intensity Endpoints
+class CarbonIntensityResponse(BaseModel):
+    """Carbon intensity data response"""
+    timestamp: datetime
+    intensity: float  # gCO2/kWh
+    renewable_percentage: float
+    fossil_percentage: float
+    forecast_1h: float
+    forecast_24h: float
+    region: str | None = None
+    grid_operator: str | None = None
+
+
+class CarbonIntensityTrendsResponse(BaseModel):
+    """Carbon intensity trends over time"""
+    current: CarbonIntensityResponse
+    average_24h: float
+    min_24h: float
+    max_24h: float
+    trend: str  # "increasing", "decreasing", "stable"
+    forecast: list[CarbonIntensityResponse]
+
+
+@router.get("/carbon-intensity/current", response_model=CarbonIntensityResponse)
+async def get_current_carbon_intensity():
+    """
+    Get current carbon intensity from InfluxDB
+    
+    Queries the carbon_data bucket for the most recent carbon intensity reading.
+    Data is written by carbon-intensity-service.
+    """
+    client = None
+    try:
+        client = get_influxdb_client()
+        query_api = client.query_api()
+
+        # Carbon intensity data is stored in carbon_data bucket
+        carbon_bucket = os.getenv("INFLUXDB_CARBON_BUCKET", "carbon_data")
+        
+        # Query for most recent carbon intensity data
+        flux_query = f'''
+        from(bucket: "{carbon_bucket}")
+          |> range(start: -1h)
+          |> filter(fn: (r) => r["_measurement"] == "carbon_intensity")
+          |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+          |> sort(columns: ["_time"], desc: true)
+          |> limit(n: 1)
+        '''
+
+        tables = query_api.query(flux_query, org=os.getenv("INFLUXDB_ORG", "homeiq"))
+
+        # Parse the most recent record
+        for table in tables:
+            for record in table.records:
+                return CarbonIntensityResponse(
+                    timestamp=record.get_time(),
+                    intensity=float(record.values.get("carbon_intensity_gco2_kwh", 0)),
+                    renewable_percentage=float(record.values.get("renewable_percentage", 0)),
+                    fossil_percentage=float(record.values.get("fossil_percentage", 0)),
+                    forecast_1h=float(record.values.get("forecast_1h", 0)),
+                    forecast_24h=float(record.values.get("forecast_24h", 0)),
+                    region=record.values.get("region"),
+                    grid_operator=record.values.get("grid_operator"),
+                )
+
+        # No data found
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No carbon intensity data found in InfluxDB"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting current carbon intensity: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to query carbon intensity: {str(e)}"
+        )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+
+
+@router.get("/carbon-intensity/trends", response_model=CarbonIntensityTrendsResponse)
+async def get_carbon_intensity_trends():
+    """
+    Get carbon intensity trends over the last 24 hours
+    
+    Returns current intensity, 24h average/min/max, trend direction, and forecast.
+    """
+    client = None
+    try:
+        client = get_influxdb_client()
+        query_api = client.query_api()
+
+        carbon_bucket = os.getenv("INFLUXDB_CARBON_BUCKET", "carbon_data")
+        start_time = datetime.utcnow() - timedelta(hours=24)
+
+        # Query for last 24 hours of data
+        flux_query = f'''
+        from(bucket: "{carbon_bucket}")
+          |> range(start: {start_time.isoformat()}Z)
+          |> filter(fn: (r) => r["_measurement"] == "carbon_intensity")
+          |> filter(fn: (r) => r["_field"] == "carbon_intensity_gco2_kwh")
+          |> sort(columns: ["_time"], desc: true)
+        '''
+
+        # Get current data first (most recent record with all fields)
+        current_flux = f'''
+        from(bucket: "{carbon_bucket}")
+          |> range(start: -1h)
+          |> filter(fn: (r) => r["_measurement"] == "carbon_intensity")
+          |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+          |> sort(columns: ["_time"], desc: true)
+          |> limit(n: 1)
+        '''
+        current_tables = query_api.query(current_flux, org=os.getenv("INFLUXDB_ORG", "homeiq"))
+        
+        current_data = None
+        for current_table in current_tables:
+            for current_record in current_table.records:
+                current_data = CarbonIntensityResponse(
+                    timestamp=current_record.get_time(),
+                    intensity=float(current_record.values.get("carbon_intensity_gco2_kwh", 0)),
+                    renewable_percentage=float(current_record.values.get("renewable_percentage", 0)),
+                    fossil_percentage=float(current_record.values.get("fossil_percentage", 0)),
+                    forecast_1h=float(current_record.values.get("forecast_1h", 0)),
+                    forecast_24h=float(current_record.values.get("forecast_24h", 0)),
+                    region=current_record.values.get("region"),
+                    grid_operator=current_record.values.get("grid_operator"),
+                )
+                break
+            if current_data:
+                break
+
+        if not current_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No carbon intensity data found"
+            )
+
+        # Query for last 24 hours of intensity values for trend analysis
+        tables = query_api.query(flux_query, org=os.getenv("INFLUXDB_ORG", "homeiq"))
+
+        intensities = []
+        for table in tables:
+            for record in table.records:
+                intensity = float(record.get_value())
+                intensities.append(intensity)
+
+        # Calculate trends
+        if intensities:
+            avg_24h = sum(intensities) / len(intensities)
+            min_24h = min(intensities)
+            max_24h = max(intensities)
+            
+            # Determine trend (compare first half to second half)
+            if len(intensities) >= 2:
+                first_half = intensities[:len(intensities)//2]
+                second_half = intensities[len(intensities)//2:]
+                first_avg = sum(first_half) / len(first_half)
+                second_avg = sum(second_half) / len(second_half)
+                
+                if second_avg > first_avg * 1.05:  # 5% threshold
+                    trend = "increasing"
+                elif second_avg < first_avg * 0.95:
+                    trend = "decreasing"
+                else:
+                    trend = "stable"
+            else:
+                trend = "stable"
+        else:
+            avg_24h = current_data.intensity
+            min_24h = current_data.intensity
+            max_24h = current_data.intensity
+            trend = "stable"
+
+        # Forecast (use current data's forecast fields)
+        forecast = [
+            CarbonIntensityResponse(
+                timestamp=datetime.utcnow() + timedelta(hours=1),
+                intensity=current_data.forecast_1h,
+                renewable_percentage=0,  # Not in forecast
+                fossil_percentage=0,
+                forecast_1h=0,
+                forecast_24h=0,
+            )
+        ]
+
+        return CarbonIntensityTrendsResponse(
+            current=current_data,
+            average_24h=round(avg_24h, 2),
+            min_24h=round(min_24h, 2),
+            max_24h=round(max_24h, 2),
+            trend=trend,
+            forecast=forecast,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting carbon intensity trends: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to query carbon intensity trends: {str(e)}"
+        )
+    finally:
+        if client:
+            try:
+                client.close()
+            except Exception as close_err:
+                logger.warning(f"Failed to close InfluxDB client: {close_err}")
