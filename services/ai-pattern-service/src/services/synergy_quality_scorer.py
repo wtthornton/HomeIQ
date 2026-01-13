@@ -157,19 +157,21 @@ class SynergyQualityScorer:
         - Missing required fields (device_ids, impact_score, confidence)
         - Invalid synergy_type
         - Invalid complexity value
-        - External data sources (sports, weather, calendar, energy APIs)
         
         Quality Filters (configurable):
-        - Minimum quality score (default: 0.30)
+        - Minimum quality score (default: 0.50)
         - Minimum confidence (default: 0.50)
         - Minimum impact score (default: 0.30)
         - Unvalidated high complexity (default: filter)
+        
+        Note: External data sources (sports, weather, calendar, energy APIs) are no longer
+        filtered. They are used for context-aware synergies and scored based on quality.
         
         Args:
             synergy: Synergy dictionary
             quality_score: Calculated quality score (0.0-1.0)
             config: Optional configuration dict with thresholds:
-                - min_quality_score (default: 0.30)
+                - min_quality_score (default: 0.50)
                 - min_confidence (default: 0.50)
                 - min_impact (default: 0.30)
                 - filter_unvalidated_high_complexity (default: True)
@@ -197,7 +199,12 @@ class SynergyQualityScorer:
         
         # Hard filters: Invalid values
         synergy_type = synergy.get('synergy_type', '')
-        valid_types = {'device_pair', 'device_chain', 'event_context'}
+        valid_types = {
+            'device_pair', 'device_chain', 'event_context',
+            'scene_based', 'schedule_based',
+            'weather_context', 'energy_context', 'sports_context',
+            'calendar_context', 'carbon_context'
+        }
         if synergy_type and synergy_type not in valid_types:
             return True, f"Invalid synergy_type: {synergy_type}"
         
@@ -205,27 +212,8 @@ class SynergyQualityScorer:
         if complexity not in {'low', 'medium', 'high'}:
             return True, f"Invalid complexity: {complexity}"
         
-        # Hard filters: External data sources
-        device_ids = synergy.get('devices', synergy.get('device_ids', []))
-        if isinstance(device_ids, str):
-            # Try to parse JSON if it's a string
-            try:
-                import json
-                device_ids = json.loads(device_ids)
-            except (json.JSONDecodeError, TypeError):
-                device_ids = []
-        
-        if device_ids:
-            external_patterns = [
-                'team_tracker', 'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',  # Sports
-                'weather', 'openweathermap',  # Weather
-                'carbon_intensity', 'electricity_pricing', 'national_grid',  # Energy
-                'calendar'  # Calendar
-            ]
-            
-            device_ids_str = ' '.join(str(d) for d in device_ids).lower()
-            if any(pattern in device_ids_str for pattern in external_patterns):
-                return True, "External data source (sports/weather/calendar/energy)"
+        # Note: External data sources (sports, weather, calendar, energy) are no longer filtered.
+        # They are used for context-aware synergies and evaluated based on quality metrics.
         
         # Quality filters: Minimum thresholds
         if quality_score < min_quality_score:

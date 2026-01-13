@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+<<<<<<< Updated upstream
 - **Fix services API 422 error - transform list format to dict format** (bf06b17) - wtthornton
 - **Fix Docker build warnings: Update build contexts and Dockerfile casing** (0aab07b) - wtthornton
 - **Fix weather-api status showing as inactive in dashboard** (f4ecda0) - wtthornton
@@ -48,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+=======
+>>>>>>> Stashed changes
 - **Fix services API 422 error: Transform list format to dict format in discovery service** (bf06b174) - wtthornton
 - **Fix rule-recommendation-ml healthcheck: Use Python instead of curl for Alpine-based container** (bf06b174) - wtthornton
 - **Fix Docker build warnings: Update build contexts and Dockerfile casing** (0aab07b) - wtthornton

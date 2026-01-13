@@ -18,6 +18,7 @@ MAX_SCENE_SYNERGIES = 50  # Maximum scene-based synergies to generate
 MIN_DEVICES_FOR_AREA_SCENE = 3  # Minimum devices to suggest area-based scene
 MIN_DEVICES_FOR_DOMAIN_SCENE = 5  # Minimum devices to suggest domain-based scene
 MAX_DEVICES_PER_SCENE = 10  # Maximum devices to include in a scene suggestion
+MAX_DEVICES_PER_CONTEXT_TYPE = 5  # Maximum devices per context type (for activity scenes)
 
 
 # Domains that can be controlled in scenes
@@ -291,3 +292,139 @@ class SceneDetector:
             f"(area: {len(area_devices)}, domain: {len(domain_devices)})"
         )
         return synergies
+    
+    def _detect_activity_based_scenes(
+        self,
+        entities: list[dict[str, Any]],
+        synergies: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """
+        Detect activity-based scene synergies (movie mode, sleep mode, etc.).
+        
+        Activity patterns detected:
+        - Movie mode: media_player + lights (dim lights when TV/movie starts)
+        - Sleep mode: lights + climate (dim lights + adjust climate for sleep)
+        - Morning routine: lights + climate (brighten lights + adjust climate)
+        - Evening routine: lights + climate (dim lights + adjust climate)
+        
+        Args:
+            entities: List of entity dictionaries
+            synergies: Existing synergies list (to append to)
+            
+        Returns:
+            List of activity-based scene synergies
+        """
+        activity_synergies: list[dict[str, Any]] = []
+        
+        # Find devices by domain
+        media_devices = [e.get('entity_id') for e in entities if e.get('entity_id', '').startswith('media_player.')]
+        light_devices = [e.get('entity_id') for e in entities if e.get('entity_id', '').startswith('light.')]
+        climate_devices = [e.get('entity_id') for e in entities if e.get('entity_id', '').startswith('climate.')]
+        
+        # Movie mode: media_player + lights (same area preferred)
+        if media_devices and light_devices and len(activity_synergies) < self.max_synergies:
+            for media in media_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                media_area = next((e.get('area_id') for e in entities if e.get('entity_id') == media), None)
+                
+                # Find lights in same area (or any light if no area match)
+                area_lights = [l for l in light_devices 
+                             if media_area and next((e.get('area_id') for e in entities if e.get('entity_id') == l), None) == media_area]
+                lights_to_use = area_lights[:3] if area_lights else light_devices[:3]
+                
+                if lights_to_use:
+                    synergy = {
+                        'synergy_id': str(uuid.uuid4()),
+                        'synergy_type': 'scene_based',
+                        'devices': [media] + lights_to_use,
+                        'trigger_entity': media,
+                        'action_entity': lights_to_use[0],
+                        'area': media_area,
+                        'impact_score': 0.80,
+                        'confidence': 0.75,
+                        'complexity': 'medium',
+                        'rationale': 'Movie mode: Dim lights when TV/movie starts for better viewing experience',
+                        'synergy_depth': len([media] + lights_to_use),
+                        'chain_devices': [media] + lights_to_use,
+                        'context_metadata': {
+                            'scene_type': 'activity_based',
+                            'activity_type': 'movie_mode',
+                            'suggested_scene_name': 'Movie Mode',
+                            'device_count': len([media] + lights_to_use),
+                            'description': 'Dim lights when media player starts'
+                        }
+                    }
+                    activity_synergies.append(synergy)
+                    if len(activity_synergies) >= self.max_synergies:
+                        break
+        
+        # Sleep mode: lights + climate (same area preferred)
+        if light_devices and climate_devices and len(activity_synergies) < self.max_synergies:
+            for climate in climate_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                climate_area = next((e.get('area_id') for e in entities if e.get('entity_id') == climate), None)
+                
+                # Find lights in same area (or any light if no area match)
+                area_lights = [l for l in light_devices 
+                             if climate_area and next((e.get('area_id') for e in entities if e.get('entity_id') == l), None) == climate_area]
+                lights_to_use = area_lights[:3] if area_lights else light_devices[:3]
+                
+                if lights_to_use:
+                    synergy = {
+                        'synergy_id': str(uuid.uuid4()),
+                        'synergy_type': 'scene_based',
+                        'devices': lights_to_use + [climate],
+                        'trigger_entity': lights_to_use[0],
+                        'action_entity': climate,
+                        'area': climate_area,
+                        'impact_score': 0.75,
+                        'confidence': 0.70,
+                        'complexity': 'medium',
+                        'rationale': 'Sleep mode: Dim lights and adjust climate for sleep comfort',
+                        'synergy_depth': len(lights_to_use) + 1,
+                        'chain_devices': lights_to_use + [climate],
+                        'context_metadata': {
+                            'scene_type': 'activity_based',
+                            'activity_type': 'sleep_mode',
+                            'suggested_scene_name': 'Sleep Mode',
+                            'device_count': len(lights_to_use) + 1,
+                            'description': 'Dim lights and adjust climate for sleep'
+                        }
+                    }
+                    activity_synergies.append(synergy)
+                    if len(activity_synergies) >= self.max_synergies:
+                        break
+        
+        if activity_synergies:
+            logger.info(f"      ✅ Generated {len(activity_synergies)} activity-based scene synergies")
+        
+        return activity_synergies
+    
+    async def detect_scene_based_synergies_with_activities(
+        self,
+        entities: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """
+        Detect scene-based synergies including activity-based scenes.
+        
+        This is an enhanced version that includes activity-based scene detection.
+        
+        Args:
+            entities: List of entity dictionaries
+            
+        Returns:
+            List of scene-based synergy opportunities (including activity-based)
+        """
+        # Get regular scene synergies
+        regular_synergies = await self.detect_scene_based_synergies(entities)
+        
+        # Detect activity-based scenes
+        activity_synergies = self._detect_activity_based_scenes(entities, regular_synergies)
+        
+        # Combine and return
+        all_synergies = regular_synergies + activity_synergies
+        
+        logger.info(
+            f"      ✅ Total scene synergies: {len(all_synergies)} "
+            f"(regular: {len(regular_synergies)}, activity: {len(activity_synergies)})"
+        )
+        
+        return all_synergies

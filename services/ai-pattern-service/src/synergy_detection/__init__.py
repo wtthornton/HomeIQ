@@ -19,11 +19,19 @@ from .synergy_detector import DeviceSynergyDetector
 from .chain_detection import ChainDetector
 from .scene_detection import SceneDetector
 from .context_detection import ContextAwareDetector
+from .relationship_discovery import RelationshipDiscoveryEngine
+from .capability_analyzer import DeviceCapabilityAnalyzer
+from .spatial_intelligence import SpatialIntelligenceService
+from .temporal_detector import TemporalSynergyDetector
 
 __all__ = [
     'DeviceSynergyDetector',
     'ChainDetector',
     'SceneDetector',
     'ContextAwareDetector',
+    'RelationshipDiscoveryEngine',
+    'DeviceCapabilityAnalyzer',
+    'SpatialIntelligenceService',
+    'TemporalSynergyDetector',
 ]
 

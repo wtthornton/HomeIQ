@@ -7,6 +7,7 @@ Simplified scheduler focused on pattern detection and synergy detection.
 
 import asyncio
 import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -23,6 +24,24 @@ from ..database import AsyncSessionLocal
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
 from ..pattern_analyzer.filters import EventFilter
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
+
+# 2026 Enhancement: Relationship discovery from events
+try:
+    from ..synergy_detection.relationship_discovery import RelationshipDiscoveryEngine
+    RELATIONSHIP_DISCOVERY_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"RelationshipDiscoveryEngine not available: {e}")
+    RELATIONSHIP_DISCOVERY_AVAILABLE = False
+    RelationshipDiscoveryEngine = None
+
+# 2026 Enhancement: Temporal synergy detector
+try:
+    from ..synergy_detection.temporal_detector import TemporalSynergyDetector
+    TEMPORAL_DETECTOR_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"TemporalSynergyDetector not available: {e}")
+    TEMPORAL_DETECTOR_AVAILABLE = False
+    TemporalSynergyDetector = None
 from ..synergy_detection.synergy_detector import DeviceSynergyDetector
 
 logger = logging.getLogger(__name__)
@@ -418,15 +437,65 @@ class PatternAnalysisScheduler:
             List of detected synergies
         """
         logger.info("Phase 3.2: Running regular synergy detection...")
+        all_synergies = []
+        
         try:
             # Initialize detector with data_api_client (REQUIRED parameter)
             # The detector will fetch devices/entities internally via data_api_client
             synergy_detector = DeviceSynergyDetector(data_api_client=data_client)
             
             # Pass database session for pattern validation during detection
-            synergies = await synergy_detector.detect_synergies(db=db)
-            logger.info(f"✅ Found {len(synergies)} regular synergy opportunities")
-            return synergies
+            regular_synergies = await synergy_detector.detect_synergies(db=db)
+            logger.info(f"✅ Found {len(regular_synergies)} regular synergy opportunities")
+            all_synergies.extend(regular_synergies)
+            
+            # 2026 Enhancement: Discover relationships from events
+            if RELATIONSHIP_DISCOVERY_AVAILABLE and not events_df.empty:
+                try:
+                    logger.info("Phase 3.3: Discovering relationships from events...")
+                    relationship_engine = RelationshipDiscoveryEngine()
+                    discovered_relationships = await relationship_engine.discover_from_events(events_df)
+                    
+                    if discovered_relationships:
+                        logger.info(f"✅ Discovered {len(discovered_relationships)} relationships from events")
+                        # Convert relationships to synergies
+                        relationship_synergies = []
+                        for relationship in discovered_relationships:
+                            if relationship.get('confidence', 0.0) >= 0.6:  # Filter by confidence
+                                synergy = {
+                                    'synergy_id': str(uuid.uuid4()),
+                                    'synergy_type': 'device_pair',
+                                    'devices': [relationship['device1'], relationship['device2']],
+                                    'trigger_entity': relationship['device1'],
+                                    'action_entity': relationship['device2'],
+                                    'impact_score': relationship.get('confidence', 0.7),
+                                    'confidence': relationship.get('confidence', 0.7),
+                                    'rationale': f"Discovered from event co-occurrence: {relationship.get('frequency', 0)} occurrences",
+                                    'synergy_depth': 2,
+                                    'chain_devices': [relationship['device1'], relationship['device2']],
+                                    'discovery_method': 'relationship_discovery'
+                                }
+                                relationship_synergies.append(synergy)
+                        
+                        if relationship_synergies:
+                            logger.info(f"✅ Converted {len(relationship_synergies)} relationships to synergies")
+                            all_synergies.extend(relationship_synergies)
+                except Exception as e:
+                    logger.warning(f"⚠️ Relationship discovery failed: {e}", exc_info=True)
+                    # Don't fail the entire process if relationship discovery fails
+                    job_result["errors"].append(f"Relationship discovery: {str(e)}")
+            
+            # 2026 Enhancement: Discover temporal synergies from time-of-day patterns
+            if TEMPORAL_DETECTOR_AVAILABLE:
+                try:
+                    # Get time-of-day patterns (already detected in _detect_patterns)
+                    # We'll discover temporal synergies in a separate pass
+                    # This can be enhanced to use the time-of-day patterns directly
+                    pass  # Placeholder for future enhancement
+                except Exception as e:
+                    logger.debug(f"Temporal discovery: {e}")
+            
+            return all_synergies
         except Exception as e:
             logger.error(f"❌ Synergy detection failed: {e}", exc_info=True)
             job_result["errors"].append(f"Synergy detection: {str(e)}")
