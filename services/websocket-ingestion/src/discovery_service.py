@@ -583,6 +583,36 @@ class DiscoveryService:
                 async with session.get(f"{ha_url}/api/services", headers=headers) as response:
                     if response.status == 200:
                         services_data = await response.json()
+                        
+                        # Handle list format: [{"domain": "light", "services": {...}}, ...]
+                        # Transform to dict format: {"light": {...}, "lock": {...}}
+                        if isinstance(services_data, list):
+                            logger.debug(f"Converting services from list format ({len(services_data)} items) to dict format")
+                            services_dict: dict[str, dict[str, Any]] = {}
+                            for item in services_data:
+                                if isinstance(item, dict) and "domain" in item and "services" in item:
+                                    domain = item["domain"]
+                                    services = item["services"]
+                                    if isinstance(services, dict):
+                                        services_dict[domain] = services
+                            services_data = services_dict
+                            logger.info(f"✅ Converted {len(services_dict)} service domains from list format")
+                        elif not isinstance(services_data, dict):
+                            logger.error(f"❌ Services data is neither dict nor list, got {type(services_data)}")
+                            return {}
+                        
+                        # Validate structure - ensure it's dict[str, dict[str, Any]]
+                        # Check that all values are dicts (domain services)
+                        invalid_domains = []
+                        for domain, domain_services in services_data.items():
+                            if not isinstance(domain_services, dict):
+                                invalid_domains.append(domain)
+                        
+                        if invalid_domains:
+                            logger.warning(f"⚠️  Found {len(invalid_domains)} domains with invalid service format: {invalid_domains[:5]}")
+                            # Filter out invalid domains
+                            services_data = {k: v for k, v in services_data.items() if isinstance(v, dict)}
+                        
                         logger.info(f"✅ Retrieved {len(services_data)} service domains from HA")
                         return services_data
                     else:
