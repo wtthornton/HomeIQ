@@ -14,6 +14,7 @@ export const Navigation: React.FC = memo(() => {
 
   // PERFORMANCE: Memoize nav items to prevent recreation on every render
   const navItems = useMemo(() => [
+    { path: '/blueprint-suggestions', label: 'Blueprint Suggestions', shortLabel: 'Blueprints', ariaLabel: 'Navigate to Blueprint Suggestions' },
     { path: '/', label: 'Suggestions', shortLabel: 'Suggest', ariaLabel: 'Navigate to Suggestions' },
     { path: '/proactive', label: 'Proactive', shortLabel: 'Proactive', ariaLabel: 'Navigate to Proactive Suggestions' },
     { path: '/ha-agent', label: 'Agent', shortLabel: 'Agent', ariaLabel: 'Navigate to HA Agent' },
