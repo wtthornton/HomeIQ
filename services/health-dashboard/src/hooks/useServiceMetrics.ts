@@ -32,7 +32,7 @@ export function useServiceMetrics(
   const { serviceId, autoRefresh = false, refreshInterval = 5000, enabled = true } = options;
 
   const [metrics, setMetrics] = useState<ServiceMetrics | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading true for initial fetch
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
