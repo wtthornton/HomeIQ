@@ -931,7 +931,7 @@ tapps-agents designer design-model "<description>" [--format json|text]
 **Available Commands:**
 
 #### `*enhance` / `enhance` (Dual-Mode)
-**Purpose:** Full prompt enhancement (7-stage pipeline)
+**Purpose:** Full prompt enhancement (7-stage pipeline) for code generation prompts
 
 **CLI Syntax:**
 ```bash
@@ -943,8 +943,20 @@ tapps-agents enhancer enhance "<prompt>" [--format json|markdown|yaml]
 @enhancer *enhance "<prompt>"
 ```
 
+**When to Use:**
+- ✅ **Enhancing prompts for code generation** - Transform simple prompts into detailed implementation specifications
+- ✅ **Preparing prompts for @implementer** - Create comprehensive specs before code generation
+- ✅ **Code generation workflows** - Part of Simple Mode build workflow
+
+**When NOT to Use:**
+- ❌ **Requirements gathering** → Use `@analyst *gather-requirements` instead
+- ❌ **Creating requirements documents** → Use `@analyst *gather-requirements` instead
+- ❌ **User story creation** → Use `@planner *plan` instead
+
 **Parameters:**
 - `--format`: Output format (default: `markdown`)
+
+**Note:** The enhancer is designed for **code generation prompts**, not requirements gathering. If you need to extract requirements from stakeholder descriptions, use `@analyst *gather-requirements` instead.
 
 #### `*enhance-quick` / `enhance-quick` (Dual-Mode)
 **Purpose:** Quick prompt enhancement (stages 1-3)
@@ -1142,6 +1154,31 @@ tapps-agents analyst gather-requirements "<description>" [--context "<context>"]
 **Cursor Syntax:**
 ```cursor
 @analyst *gather-requirements "<description>"
+```
+
+**When to Use:**
+- ✅ **Extracting requirements** from stakeholder descriptions or user stories
+- ✅ **Creating requirements documents** (functional, non-functional, constraints)
+- ✅ **Requirements analysis and documentation** for project planning
+- ✅ **Requirements gathering** before implementation planning
+
+**When NOT to Use:**
+- ❌ **Enhancing prompts for code generation** → Use `@enhancer *enhance` instead
+- ❌ **Creating implementation plans** → Use `@planner *plan` instead
+- ❌ **Generating code** → Use `@implementer *implement` instead
+
+**Output:**
+- Generates structured markdown requirements document
+- Includes functional requirements, non-functional requirements, constraints, assumptions, and open questions
+- Saves to specified output file (default: `requirements.md`)
+
+**Examples:**
+```bash
+# Gather requirements from description
+tapps-agents analyst gather-requirements "Enhance service details popup with health status" --output requirements.md
+
+# With context
+tapps-agents analyst gather-requirements "Add user authentication" --context "Existing FastAPI application" --output docs/requirements.md
 ```
 
 #### `*analyze-stakeholders` / `stakeholder-analysis` (Dual-Mode)
