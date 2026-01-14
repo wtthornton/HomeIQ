@@ -151,7 +151,7 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 export async function generateDeviceSuggestions(
   request: DeviceSuggestionsRequest
 ): Promise<DeviceSuggestionsResponse> {
-  return fetchJSON<DeviceSuggestionsResponse>(`${BASE_URL}/api/v1/chat/device-suggestions`, {
+  return fetchJSON<DeviceSuggestionsResponse>(`${BASE_URL}/v1/chat/device-suggestions`, {
     method: 'POST',
     body: JSON.stringify(request),
   });
