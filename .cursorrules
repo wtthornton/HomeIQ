@@ -1,0 +1,13 @@
+# HomeIQ Project Rules (Legacy Format)
+# 
+# NOTE: This file is maintained for legacy compatibility only.
+# The modern rules system uses .cursor/rules/ directory with .mdc files.
+# See .cursor/rules/README.mdc for complete documentation.
+#
+# This project uses TappsCodingAgents for AI-assisted development.
+# Primary interface: @simple-mode commands
+#
+# For full project rules and guidelines, see:
+# - .cursor/rules/README.mdc - Rules overview
+# - .cursor/rules/simple-mode.mdc - Simple Mode guide
+# - .cursor/rules/tapps-agents-command-guide.mdc - Command reference
