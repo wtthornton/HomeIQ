@@ -183,9 +183,16 @@ async def get_environment_health(
                 "Environment health requested before monitor initialized",
                 extra={"event": "environment_health", "status": "uninitialized"}
             )
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Health monitoring service not initialized"
+            # Return minimal response instead of 503 to prevent frontend showing 0/100
+            from .schemas import HealthStatus, PerformanceMetrics
+            return EnvironmentHealthResponse(
+                health_score=0,
+                ha_status=HealthStatus.UNKNOWN,
+                ha_version=None,
+                integrations=[],
+                performance=PerformanceMetrics(response_time_ms=0.0),
+                issues_detected=["Health monitoring service not initialized. Service may still be starting up."],
+                timestamp=datetime.now()
             )
 
         response = await health_service.check_environment_health(db)

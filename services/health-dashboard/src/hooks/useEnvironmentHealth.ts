@@ -109,7 +109,11 @@ export function useEnvironmentHealth(): UseEnvironmentHealthReturn {
       }
       
       setError(errorMessage);
-      setHealth(null);
+      // Don't clear health data on error - keep showing last known state
+      // This prevents the UI from showing 0/100 when there's a temporary network issue
+      if (!health) {
+        setHealth(null);
+      }
       setLoading(false);
       console.error('Error fetching environment health:', err);
     }
