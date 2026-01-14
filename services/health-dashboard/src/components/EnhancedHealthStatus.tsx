@@ -64,16 +64,6 @@ export const EnhancedHealthStatus: React.FC<EnhancedHealthStatusProps> = ({ heal
               </div>
             </div>
           )}
-          {health.version && (
-            <div>
-              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Version
-              </div>
-              <div className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {health.version}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -88,13 +78,6 @@ export const EnhancedHealthStatus: React.FC<EnhancedHealthStatusProps> = ({ heal
               <DependencyCard key={index} dependency={dep} darkMode={darkMode} />
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Message */}
-      {health.message && (
-        <div className={`mt-4 p-3 rounded text-sm ${darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
-          {health.message}
         </div>
       )}
 
@@ -146,9 +129,9 @@ const DependencyCard: React.FC<DependencyCardProps> = ({ dependency, darkMode })
         )}
       </div>
 
-      {dependency.message && (
-        <div className={`mt-2 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          {dependency.message}
+      {dependency.error_message && (
+        <div className={`mt-2 text-xs ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
+          {dependency.error_message}
         </div>
       )}
     </div>
