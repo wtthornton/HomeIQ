@@ -720,19 +720,6 @@ tapps-agents reviewer report <target> <formats>... [--output-dir <dir>]
 tapps-agents reviewer duplication <target> [--format json|text]
 ```
 
-#### `*security-scan` / `security-scan` (Dual-Mode)
-**Purpose:** Security vulnerability scanning
-
-**CLI Syntax:**
-```bash
-tapps-agents reviewer security-scan [<files>...] [--format json|text]
-```
-
-**Cursor Syntax:**
-```cursor
-@reviewer *security-scan <file>
-```
-
 #### `*docs` / `docs` (Dual-Mode)
 **Purpose:** Get library documentation from Context7
 
