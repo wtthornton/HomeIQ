@@ -175,21 +175,39 @@ class HomeAssistantClient:
         """
         List all automations from Home Assistant.
         
+        Uses /api/states endpoint and filters for automation.* entities.
+        This is the correct Home Assistant API endpoint (not /api/config/automation/config).
+        
         Returns:
             List of automation dictionaries
         """
         if not self.ha_url or not self.access_token:
+            logger.warning("Home Assistant URL or token not configured - cannot list automations")
             return []
         
-        url = f"{self.ha_url}/api/config/automation/config"
+        url = f"{self.ha_url}/api/states"
         
         try:
             response = await self.client.get(url)
             response.raise_for_status()
-            data = response.json()
-            return data if isinstance(data, list) else []
+            all_states = response.json()
+            
+            # Filter for automation entities
+            if isinstance(all_states, list):
+                automations = [
+                    state for state in all_states
+                    if state.get('entity_id', '').startswith('automation.')
+                ]
+                logger.info(f"✅ Found {len(automations)} automations in Home Assistant")
+                return automations
+            else:
+                logger.warning(f"Unexpected response format from /api/states: {type(all_states)}")
+                return []
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Home Assistant API error listing automations: {e.response.status_code} - {e.response.text}")
+            return []
         except httpx.HTTPError as e:
-            logger.error(f"Failed to list automations: {e}")
+            logger.error(f"Failed to connect to Home Assistant: {e}")
             return []
 
     async def enable_automation(self, automation_id: str) -> bool:

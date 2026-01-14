@@ -12,7 +12,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +54,7 @@ class PreferenceUpdateRequest(BaseModel):
 
 @router.get("", response_model=PreferenceResponse)
 async def get_preferences(
-    user_id: str = Query("default", description="User ID"),
-    db: AsyncSession | None = None
+    user_id: str = Query("default", description="User ID")
 ) -> PreferenceResponse:
     """
     Get current user preferences.
@@ -77,8 +75,7 @@ async def get_preferences(
 @router.put("", response_model=PreferenceResponse)
 async def update_preferences(
     request: PreferenceUpdateRequest,
-    user_id: str = Query("default", description="User ID"),
-    db: AsyncSession | None = None
+    user_id: str = Query("default", description="User ID")
 ) -> PreferenceResponse:
     """
     Update user preferences.
