@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
@@ -14,6 +14,8 @@ from .schemas import (
     BlueprintSuggestionListResponse,
     BlueprintSuggestionResponse,
     DeviceMatch,
+    GenerateSuggestionsRequest,
+    GenerateSuggestionsResponse,
     SuggestionStatsResponse,
 )
 
@@ -48,6 +50,31 @@ def _suggestion_to_response(suggestion: BlueprintSuggestion) -> BlueprintSuggest
         declined_at=suggestion.declined_at,
         conversation_id=suggestion.conversation_id,
     )
+
+
+@router.delete("/delete-all", name="delete_all_suggestions")
+async def delete_all_suggestions(db: AsyncSession = Depends(get_db)):
+    """
+    Delete all blueprint suggestions from the database.
+    
+    This endpoint removes all suggestions regardless of status.
+    Use with caution - this action cannot be undone.
+    """
+    try:
+        from sqlalchemy import delete
+        
+        delete_stmt = delete(BlueprintSuggestion)
+        result = await db.execute(delete_stmt)
+        await db.commit()
+        
+        deleted_count = result.rowcount
+        logger.info(f"Deleted {deleted_count} suggestions")
+        
+        return {"deleted": deleted_count, "status": "success"}
+    except Exception as e:
+        logger.error(f"Delete all suggestions failed: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Delete all suggestions failed: {str(e)}")
 
 
 @router.get("/suggestions", response_model=BlueprintSuggestionListResponse)
@@ -213,25 +240,39 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Get stats failed: {str(e)}")
 
 
-@router.post("/generate")
+@router.post("/generate", response_model=GenerateSuggestionsResponse)
 async def generate_suggestions(
-    min_score: float = Query(default=0.6, ge=0.0, le=1.0),
-    max_per_blueprint: int = Query(default=5, ge=1, le=10),
+    request: GenerateSuggestionsRequest = Body(...),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generate suggestions for all blueprints.
+    Generate blueprint suggestions with user-defined parameters.
     
-    This endpoint triggers the suggestion generation process.
-    Note: This may take a while depending on the number of blueprints.
+    This endpoint generates suggestions based on:
+    - Device selection (specific devices or all)
+    - Complexity filter (simple, medium, high, or all)
+    - Use case filter (convenience, security, energy, comfort, or all)
+    - Quality threshold
+    - Number of suggestions to generate
+    
+    Note: This may take a while depending on the parameters.
     """
     try:
-        count = await service.generate_all_suggestions(
+        count = await service.generate_suggestions_with_params(
             db=db,
-            min_score=min_score,
-            max_per_blueprint=max_per_blueprint,
+            device_ids=request.device_ids,
+            complexity=request.complexity,
+            use_case=request.use_case,
+            min_score=request.min_score,
+            max_suggestions=request.max_suggestions,
+            min_quality_score=request.min_quality_score,
+            domain=request.domain,
         )
-        return {"generated": count, "status": "success"}
+        return GenerateSuggestionsResponse(
+            generated=count,
+            status="success",
+            message=f"Generated {count} suggestions based on your parameters",
+        )
     except Exception as e:
         logger.error(f"Generate suggestions failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Generate suggestions failed: {str(e)}")

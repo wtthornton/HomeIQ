@@ -32,6 +32,9 @@ import { CTAActionButtons } from '../components/ha-agent/CTAActionButtons';
 import { EnhancementButton } from '../components/ha-agent/EnhancementButton';
 import { SendButton } from '../components/ha-agent/SendButton';
 import { DebugTab } from '../components/ha-agent/DebugTab';
+import { DevicePicker } from '../components/ha-agent/DevicePicker';
+import { DeviceContextDisplay } from '../components/ha-agent/DeviceContextDisplay';
+import { DeviceSuggestions, type DeviceSuggestion } from '../components/ha-agent/DeviceSuggestions';
 import { startTracking, endTracking, createReport } from '../utils/performanceTracker';
 import { parseProposal } from '../utils/proposalParser';
 import { sanitizeMessageInput } from '../utils/inputSanitizer';
@@ -65,6 +68,9 @@ export const HAAgentChat: React.FC = () => {
   const [originalPrompt, setOriginalPrompt] = useState<string>('');
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState<'chat' | 'debug'>('chat');
+  // Phase 1: Device-Based Automation Suggestions
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [devicePickerOpen, setDevicePickerOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -551,6 +557,15 @@ export const HAAgentChat: React.FC = () => {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
+        {/* Device Picker */}
+        <DevicePicker
+          darkMode={darkMode}
+          selectedDeviceId={selectedDeviceId}
+          onSelectDevice={setSelectedDeviceId}
+          isOpen={devicePickerOpen}
+          onToggle={() => setDevicePickerOpen(!devicePickerOpen)}
+        />
+        
         {/* Header */}
         <div
           className={`border-b px-6 py-4 flex items-center justify-between ${
@@ -579,6 +594,22 @@ export const HAAgentChat: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Device Picker Toggle Button */}
+            <button
+              onClick={() => setDevicePickerOpen(!devicePickerOpen)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedDeviceId
+                  ? darkMode
+                    ? 'bg-blue-600 text-white hover:bg-blue-500'
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                  : darkMode
+                  ? 'bg-gray-700 text-white hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+              }`}
+              title={selectedDeviceId ? 'Change Device' : 'Select Device'}
+            >
+              {selectedDeviceId ? '🔌 Device Selected' : '🔌 Select Device'}
+            </button>
             {/* Tab Switcher */}
             <div className={`flex rounded-lg p-1 ${
               darkMode ? 'bg-gray-700' : 'bg-gray-200'
@@ -628,6 +659,28 @@ export const HAAgentChat: React.FC = () => {
         {/* Tab Content */}
         {activeTab === 'chat' ? (
           <>
+            {/* Device Context Display */}
+            <DeviceContextDisplay
+              darkMode={darkMode}
+              deviceId={selectedDeviceId}
+              onClearSelection={() => setSelectedDeviceId(null)}
+            />
+            
+            {/* Device Suggestions */}
+            <DeviceSuggestions
+              darkMode={darkMode}
+              deviceId={selectedDeviceId}
+              onEnhanceSuggestion={(suggestion: DeviceSuggestion) => {
+                // Pre-populate input with suggestion context
+                const prompt = `Enhance this automation: ${suggestion.title}\n\n${suggestion.description}`;
+                setInputValue(prompt);
+                // Focus input
+                setTimeout(() => {
+                  inputRef.current?.focus();
+                }, 100);
+              }}
+            />
+            
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
           {isInitializing ? (

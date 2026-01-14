@@ -183,6 +183,53 @@ class DataAPIClient:
             logger.error(f"❌ {error_msg}")
             raise Exception(error_msg) from e
 
+    async def fetch_device(self, device_id: str) -> dict[str, Any]:
+        """
+        Fetch a single device by ID from Data API.
+        
+        Args:
+            device_id: Device ID to fetch
+            
+        Returns:
+            Device dictionary with keys: device_id, name, manufacturer, model, area_id, etc.
+            
+        Raises:
+            Exception: If API request fails
+        """
+        try:
+            logger.debug(f"Fetching device {device_id} from Data API")
+            
+            response = await self.client.get(
+                f"{self.base_url}/api/devices/{device_id}"
+            )
+            response.raise_for_status()
+            
+            device = response.json()
+            
+            logger.info(f"✅ Fetched device {device_id} from Data API")
+            return device
+            
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                error_msg = f"Device {device_id} not found in Data API"
+                logger.warning(f"⚠️ {error_msg}")
+                raise ValueError(error_msg) from e
+            error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
+            logger.error(f"❌ HTTP error fetching device from Data API: {error_msg}")
+            raise Exception(error_msg) from e
+        except httpx.ConnectError as e:
+            error_msg = f"Could not connect to Data API at {self.base_url}. Is the service running?"
+            logger.error(f"❌ Connection error: {error_msg}")
+            raise Exception(error_msg) from e
+        except httpx.TimeoutException as e:
+            error_msg = "Data API request timed out after 30 seconds"
+            logger.error(f"❌ Timeout error: {error_msg}")
+            raise Exception(error_msg) from e
+        except httpx.HTTPError as e:
+            error_msg = f"HTTP error fetching device: {str(e)}"
+            logger.error(f"❌ {error_msg}")
+            raise Exception(error_msg) from e
+    
     async def get_areas(self) -> list[dict[str, Any]]:
         """
         Extract areas from devices and entities (local/cached).
