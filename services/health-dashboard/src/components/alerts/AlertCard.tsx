@@ -5,17 +5,8 @@
  */
 
 import React from 'react';
+import { Alert } from '../../types/alerts';
 import { getSeverityColor, getSeverityIcon, formatTimestamp } from '../../utils/alertHelpers';
-
-interface Alert {
-  id: string;
-  severity: string;
-  service: string;
-  message: string;
-  timestamp: string;
-  status: string;
-  details?: string;
-}
 
 interface AlertCardProps {
   alert: Alert;
@@ -46,8 +37,8 @@ export const AlertCard: React.FC<AlertCardProps> = ({
           
           <div className={`text-sm mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             <p>Service: {alert.service}</p>
-            <p>Time: {formatTimestamp(alert.timestamp)}</p>
-            {alert.details && <p className="mt-1">Details: {alert.details}</p>}
+            <p>Time: {alert.created_at ? formatTimestamp(alert.created_at) : 'Unknown'}</p>
+            {alert.metadata && <p className="mt-1">Details: {JSON.stringify(alert.metadata)}</p>}
           </div>
         </div>
 

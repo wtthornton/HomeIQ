@@ -94,7 +94,7 @@ export const AlertsPanel: React.FC<AlertsPanelProps> = ({ darkMode }): JSX.Eleme
               🚨 Alert Management
             </h2>
             <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Last updated: {lastUpdate.toLocaleTimeString()}
+              Last updated: {lastUpdate ? lastUpdate.toLocaleTimeString() : 'Never'}
             </p>
           </div>
           <button
