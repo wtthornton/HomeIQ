@@ -45,6 +45,12 @@ export const SportsTab: React.FC<SportsTabProps> = ({ darkMode = false }) => {
   const [availableNHLTeams, setAvailableNHLTeams] = useState<Team[]>([]);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Filter and sort state
+  const [leagueFilter, setLeagueFilter] = useState<'all' | 'NFL' | 'NHL'>('all');
+  const [teamFilter, setTeamFilter] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'date' | 'team'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const bgPrimary = darkMode ? 'bg-gray-900' : 'bg-gray-50';
   const textPrimary = darkMode ? 'text-white' : 'text-gray-900';
@@ -67,12 +73,67 @@ export const SportsTab: React.FC<SportsTabProps> = ({ darkMode = false }) => {
     pollInterval: 30000
   });
 
-  // Memoize game summary for header display
+  // Get all available teams for filter dropdown
+  const allAvailableTeams = useMemo(() => {
+    return [...availableNFLTeams, ...availableNHLTeams];
+  }, [availableNFLTeams, availableNHLTeams]);
+
+  // Filter and sort function for games
+  const filterAndSortGames = useCallback((games: Game[]) => {
+    // Apply filters
+    let filtered = games.filter(game => {
+      // League filter
+      if (leagueFilter !== 'all' && game.league !== leagueFilter) {
+        return false;
+      }
+      
+      // Team filter
+      if (teamFilter && game.homeTeam.id !== teamFilter && game.awayTeam.id !== teamFilter) {
+        return false;
+      }
+      
+      return true;
+    });
+
+    // Apply sorting
+    filtered = [...filtered].sort((a, b) => {
+      if (sortBy === 'date') {
+        const dateA = new Date(a.startTime).getTime();
+        const dateB = new Date(b.startTime).getTime();
+        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      } else if (sortBy === 'team') {
+        const nameA = `${a.awayTeam.name} vs ${a.homeTeam.name}`.toLowerCase();
+        const nameB = `${b.awayTeam.name} vs ${b.homeTeam.name}`.toLowerCase();
+        return sortOrder === 'asc' 
+          ? nameA.localeCompare(nameB)
+          : nameB.localeCompare(nameA);
+      }
+      return 0;
+    });
+
+    return filtered;
+  }, [leagueFilter, teamFilter, sortBy, sortOrder]);
+
+  // Memoize filtered and sorted games
+  const filteredLiveGames = useMemo(
+    () => filterAndSortGames(liveGames),
+    [liveGames, filterAndSortGames]
+  );
+  const filteredUpcomingGames = useMemo(
+    () => filterAndSortGames(upcomingGames),
+    [upcomingGames, filterAndSortGames]
+  );
+  const filteredCompletedGames = useMemo(
+    () => filterAndSortGames(completedGames),
+    [completedGames, filterAndSortGames]
+  );
+
+  // Memoize game summary for header display (using filtered games)
   const gameSummary = useMemo(() => ({
-    live: liveGames.length,
-    upcoming: upcomingGames.length,
+    live: filteredLiveGames.length,
+    upcoming: filteredUpcomingGames.length,
     teams: allTeamIds.length
-  }), [liveGames.length, upcomingGames.length, allTeamIds.length]);
+  }), [filteredLiveGames.length, filteredUpcomingGames.length, allTeamIds.length]);
 
   // Check if setup is needed on mount
   useEffect(() => {
@@ -310,13 +371,13 @@ export const SportsTab: React.FC<SportsTabProps> = ({ darkMode = false }) => {
         )}
 
         {/* Completed Games Section */}
-        {!gamesLoading && completedGames.length > 0 && (
+        {!gamesLoading && filteredCompletedGames.length > 0 && (
           <section className="mb-8" aria-labelledby="completed-games-heading">
             <h2 id="completed-games-heading" className={`text-2xl font-bold ${textPrimary} mb-4`}>
-              <span aria-hidden="true">📜</span> COMPLETED ({completedGames.length})
+              <span aria-hidden="true">📜</span> COMPLETED ({filteredCompletedGames.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" role="list" aria-label="Completed games">
-              {completedGames.map(game => (
+              {filteredCompletedGames.map(game => (
                 <div key={game.id} role="listitem">
                   <CompletedGameCard game={game} darkMode={darkMode} onViewDetails={handleViewGameDetails} />
                 </div>
@@ -326,6 +387,41 @@ export const SportsTab: React.FC<SportsTabProps> = ({ darkMode = false }) => {
         )}
 
         {/* No Games State */}
+        {!gamesLoading && !gamesError && 
+         filteredLiveGames.length === 0 && filteredUpcomingGames.length === 0 && filteredCompletedGames.length === 0 && 
+         (liveGames.length > 0 || upcomingGames.length > 0 || completedGames.length > 0) && (
+          <div 
+            className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl p-12 shadow-md text-center`}
+            role="status"
+            aria-live="polite"
+          >
+            <div className="text-6xl mb-4" aria-hidden="true">🔍</div>
+            <h2 className={`text-2xl font-bold ${textPrimary} mb-2`}>
+              No Games Match Your Filters
+            </h2>
+            <p className={textSecondary}>
+              Try adjusting your filters to see more games.
+            </p>
+            <button
+              onClick={() => {
+                setLeagueFilter('all');
+                setTeamFilter('');
+                setSortBy('date');
+                setSortOrder('asc');
+              }}
+              className={`mt-4 px-4 py-2 rounded-lg font-medium transition-colors ${
+                darkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+              } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+              aria-label="Clear all filters"
+            >
+              Clear Filters
+            </button>
+          </div>
+        )}
+
+        {/* No Games State (no filters applied) */}
         {!gamesLoading && !gamesError && 
          liveGames.length === 0 && upcomingGames.length === 0 && completedGames.length === 0 && (
           <div 
