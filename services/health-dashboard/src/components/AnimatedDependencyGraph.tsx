@@ -600,131 +600,6 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
         </div>
       </div>
 
-      {/* Two Column Layout: Architecture Flow + Metrics Table */}
-      <div className="flex gap-6">
-        {/* Left Column: Compact Architecture Flow */}
-        <div className={`w-1/3 p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
-          <h4 className={`text-sm font-medium mb-3 tracking-wide ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-            Data Flow
-          </h4>
-          
-          {/* Compact Architecture Diagram */}
-          <div className={`p-3 rounded-lg border ${darkMode ? 'bg-gray-750 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-            <div className="space-y-3">
-              {/* External Sources */}
-              <div className="text-center">
-                <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-blue-900/30 text-blue-300 border border-blue-700/50' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5"></span>
-                  External APIs
-                </div>
-              </div>
-              
-              {/* Arrow */}
-              <div className="flex justify-center">
-                <div className={`w-0.5 h-4 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
-              </div>
-              
-              {/* Ingestion Layer (Epic 31: Direct write, no enrichment-pipeline, weather is standalone service) */}
-              <div className="flex justify-center">
-                <div className={`px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-green-900/30 text-green-300 border border-green-700/50' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5"></span>
-                  WS Ingestion
-                </div>
-              </div>
-              
-              {/* Arrow */}
-              <div className="flex justify-center">
-                <div className={`w-0.5 h-4 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
-              </div>
-              
-              {/* Storage Layer */}
-              <div className="flex justify-center space-x-2">
-                <div className={`px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-purple-900/30 text-purple-300 border border-purple-700/50' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 mr-1.5"></span>
-                  Influx
-                </div>
-                <div className={`px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-purple-900/30 text-purple-300 border border-purple-700/50' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 mr-1.5"></span>
-                  SQLite
-                </div>
-              </div>
-              
-              {/* Arrow */}
-              <div className="flex justify-center">
-                <div className={`w-0.5 h-4 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
-              </div>
-              
-              {/* Output Layer */}
-              <div className="text-center">
-                <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-gray-900/30 text-gray-300 border border-gray-700/50' : 'bg-gray-50 text-gray-700 border border-gray-200'}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5"></span>
-                  Dashboard
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Per-API Metrics Table */}
-        <div className={`flex-1 p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
-          <h4 className={`text-sm font-medium mb-3 tracking-wide ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-            Per-API Metrics
-          </h4>
-          <div className="overflow-x-auto">
-            <table className={`w-full text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              <thead>
-                <tr className={`border-b ${darkMode ? 'border-gray-600 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
-                  <th className="text-left py-2 px-1 font-medium text-xs tracking-wide">Service</th>
-                  <th className="text-right py-2 px-1 font-medium text-xs tracking-wide">Events/hour</th>
-                  <th className="text-right py-2 px-1 font-medium text-xs tracking-wide">Uptime</th>
-                  <th className="text-center py-2 px-1 font-medium text-xs tracking-wide">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {realTimeData && realTimeData.apiMetrics && realTimeData.apiMetrics.map((metric, index) => (
-                  <tr key={index} className={`border-b hover:${darkMode ? 'bg-gray-750' : 'bg-gray-50'} transition-colors ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
-                    <td className="py-2 px-1 font-mono text-xs">
-                      <span className="inline-flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full ${getServiceIcon(metric.service)}`}></span>
-                        {metric.service}
-                      </span>
-                    </td>
-                    <td className="text-right py-2 px-1 text-xs font-mono">{(metric.events_per_hour || 0).toFixed(0)}</td>
-                    <td className="text-right py-2 px-1 text-xs font-mono text-gray-500">{formatUptime(metric.uptime_seconds)}</td>
-                    <td className="text-center py-2 px-1">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        metric.status === 'active' 
-                          ? (darkMode ? 'bg-green-900/30 text-green-300 border border-green-700/50' : 'bg-green-50 text-green-700 border border-green-200')
-                          : metric.status === 'inactive'
-                            ? (darkMode ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700/50' : 'bg-yellow-50 text-yellow-700 border border-yellow-200')
-                            : metric.status === 'timeout'
-                              ? (darkMode ? 'bg-orange-900/30 text-orange-300 border border-orange-700/50' : 'bg-orange-50 text-orange-700 border border-orange-200')
-                              : metric.status === 'not_configured'
-                                ? (darkMode ? 'bg-gray-900/30 text-gray-300 border border-gray-700/50' : 'bg-gray-50 text-gray-700 border border-gray-200')
-                                : (darkMode ? 'bg-red-900/30 text-red-300 border border-red-700/50' : 'bg-red-50 text-red-700 border border-red-200')
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                          metric.status === 'active' ? 'bg-green-400' : 
-                            metric.status === 'inactive' ? 'bg-yellow-400' :
-                              metric.status === 'timeout' ? 'bg-orange-400' :
-                                metric.status === 'not_configured' ? 'bg-gray-400' : 'bg-red-400'
-                        }`}></span>
-                        {metric.status}
-                      </span>
-                      {metric.error_message && (
-                        <div className={`text-xs mt-1 ${darkMode ? 'text-red-300' : 'text-red-600'}`}>
-                          {metric.error_message}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
       {/* Clean Slim Legend */}
       <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -900,6 +775,131 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
           </div>
         </div>
       )}
+
+      {/* Two Column Layout: Architecture Flow + Metrics Table */}
+      <div className="flex gap-6">
+        {/* Left Column: Compact Architecture Flow */}
+        <div className={`w-1/3 p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+          <h4 className={`text-sm font-medium mb-3 tracking-wide ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+            Data Flow
+          </h4>
+          
+          {/* Compact Architecture Diagram */}
+          <div className={`p-3 rounded-lg border ${darkMode ? 'bg-gray-750 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+            <div className="space-y-3">
+              {/* External Sources */}
+              <div className="text-center">
+                <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-blue-900/30 text-blue-300 border border-blue-700/50' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5"></span>
+                  External APIs
+                </div>
+              </div>
+              
+              {/* Arrow */}
+              <div className="flex justify-center">
+                <div className={`w-0.5 h-4 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
+              </div>
+              
+              {/* Ingestion Layer (Epic 31: Direct write, no enrichment-pipeline, weather is standalone service) */}
+              <div className="flex justify-center">
+                <div className={`px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-green-900/30 text-green-300 border border-green-700/50' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5"></span>
+                  WS Ingestion
+                </div>
+              </div>
+              
+              {/* Arrow */}
+              <div className="flex justify-center">
+                <div className={`w-0.5 h-4 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
+              </div>
+              
+              {/* Storage Layer */}
+              <div className="flex justify-center space-x-2">
+                <div className={`px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-purple-900/30 text-purple-300 border border-purple-700/50' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 mr-1.5"></span>
+                  Influx
+                </div>
+                <div className={`px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-purple-900/30 text-purple-300 border border-purple-700/50' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 mr-1.5"></span>
+                  SQLite
+                </div>
+              </div>
+              
+              {/* Arrow */}
+              <div className="flex justify-center">
+                <div className={`w-0.5 h-4 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
+              </div>
+              
+              {/* Output Layer */}
+              <div className="text-center">
+                <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${darkMode ? 'bg-gray-900/30 text-gray-300 border border-gray-700/50' : 'bg-gray-50 text-gray-700 border border-gray-200'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5"></span>
+                  Dashboard
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Per-API Metrics Table */}
+        <div className={`flex-1 p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+          <h4 className={`text-sm font-medium mb-3 tracking-wide ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+            Per-API Metrics
+          </h4>
+          <div className="overflow-x-auto">
+            <table className={`w-full text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <thead>
+                <tr className={`border-b ${darkMode ? 'border-gray-600 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
+                  <th className="text-left py-2 px-1 font-medium text-xs tracking-wide">Service</th>
+                  <th className="text-right py-2 px-1 font-medium text-xs tracking-wide">Events/hour</th>
+                  <th className="text-right py-2 px-1 font-medium text-xs tracking-wide">Uptime</th>
+                  <th className="text-center py-2 px-1 font-medium text-xs tracking-wide">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {realTimeData && realTimeData.apiMetrics && realTimeData.apiMetrics.map((metric, index) => (
+                  <tr key={index} className={`border-b hover:${darkMode ? 'bg-gray-750' : 'bg-gray-50'} transition-colors ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+                    <td className="py-2 px-1 font-mono text-xs">
+                      <span className="inline-flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full ${getServiceIcon(metric.service)}`}></span>
+                        {metric.service}
+                      </span>
+                    </td>
+                    <td className="text-right py-2 px-1 text-xs font-mono">{(metric.events_per_hour || 0).toFixed(0)}</td>
+                    <td className="text-right py-2 px-1 text-xs font-mono text-gray-500">{formatUptime(metric.uptime_seconds)}</td>
+                    <td className="text-center py-2 px-1">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        metric.status === 'active' 
+                          ? (darkMode ? 'bg-green-900/30 text-green-300 border border-green-700/50' : 'bg-green-50 text-green-700 border border-green-200')
+                          : metric.status === 'inactive'
+                            ? (darkMode ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700/50' : 'bg-yellow-50 text-yellow-700 border border-yellow-200')
+                            : metric.status === 'timeout'
+                              ? (darkMode ? 'bg-orange-900/30 text-orange-300 border border-orange-700/50' : 'bg-orange-50 text-orange-700 border border-orange-200')
+                              : metric.status === 'not_configured'
+                                ? (darkMode ? 'bg-gray-900/30 text-gray-300 border border-gray-700/50' : 'bg-gray-50 text-gray-700 border border-gray-200')
+                                : (darkMode ? 'bg-red-900/30 text-red-300 border border-red-700/50' : 'bg-red-50 text-red-700 border border-red-200')
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                          metric.status === 'active' ? 'bg-green-400' : 
+                            metric.status === 'inactive' ? 'bg-yellow-400' :
+                              metric.status === 'timeout' ? 'bg-orange-400' :
+                                metric.status === 'not_configured' ? 'bg-gray-400' : 'bg-red-400'
+                        }`}></span>
+                        {metric.status}
+                      </span>
+                      {metric.error_message && (
+                        <div className={`text-xs mt-1 ${darkMode ? 'text-red-300' : 'text-red-600'}`}>
+                          {metric.error_message}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

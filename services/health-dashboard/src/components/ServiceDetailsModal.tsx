@@ -7,6 +7,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { AIStatsData } from './AIStats';
+import { ServiceMetrics } from './ServiceMetrics';
+import { getServiceMetricsConfig } from '../config/serviceMetricsConfig';
 
 export interface ServiceDetail {
   label: string;
@@ -179,33 +181,52 @@ export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
 
           {/* Body */}
           <div className="px-6 py-5">
-            <h4 className={`text-sm font-semibold mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Detailed Metrics
-            </h4>
-            <div className="space-y-3" role="list">
-              {details.map((detail, index) => (
-                <div 
-                  key={index} 
-                  className={'flex justify-between items-center stagger-item'}
-                  role="listitem"
-                >
-                  <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {detail.label}
-                  </span>
-                  <span className={`text-base font-semibold ${
-                    detail.status === 'good'
-                      ? 'text-green-600 dark:text-green-400'
-                      : detail.status === 'warning'
-                        ? 'text-yellow-600 dark:text-yellow-400'
-                        : detail.status === 'error'
-                          ? 'text-red-600 dark:text-red-400'
-                          : darkMode ? 'text-white' : 'text-gray-900'
-                  }`}>
-                    {detail.value} {detail.unit && <span className="text-sm font-normal">{detail.unit}</span>}
-                  </span>
+            {/* Debug: Show service ID */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-2 text-xs text-gray-500">
+                DEBUG: Service ID = "{service}"
+              </div>
+            )}
+            {/* Service-Specific Metrics (if configured) */}
+            {(service === 'websocket-ingestion' || service?.includes('websocket') || getServiceMetricsConfig(service)) ? (
+              <ServiceMetrics
+                serviceId={service}
+                darkMode={darkMode}
+                autoRefresh={true}
+                refreshInterval={10000}
+              />
+            ) : (
+              /* Fallback to Generic Metrics */
+              <>
+                <h4 className={`text-sm font-semibold mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Detailed Metrics
+                </h4>
+                <div className="space-y-3" role="list">
+                  {details.map((detail, index) => (
+                    <div
+                      key={index}
+                      className={'flex justify-between items-center stagger-item'}
+                      role="listitem"
+                    >
+                      <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {detail.label}
+                      </span>
+                      <span className={`text-base font-semibold ${
+                        detail.status === 'good'
+                          ? 'text-green-600 dark:text-green-400'
+                          : detail.status === 'warning'
+                            ? 'text-yellow-600 dark:text-yellow-400'
+                              : detail.status === 'error'
+                                ? 'text-red-600 dark:text-red-400'
+                                : darkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {detail.value} {detail.unit && <span className="text-sm font-normal">{detail.unit}</span>}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
 
             {/* AI Service Telemetry Section */}
             {aiStats && (
