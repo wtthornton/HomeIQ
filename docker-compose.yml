@@ -1711,7 +1711,7 @@ services:
     container_name: homeiq-setup-service
     restart: unless-stopped
     ports:
-      - "8027:8020"
+      - "8024:8020"  # Fixed port conflict with rag-service (8027)
     env_file:
       - .env
       - infrastructure/.env.websocket
