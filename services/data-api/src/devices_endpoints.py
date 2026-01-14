@@ -6,7 +6,7 @@ Story 22.2: Updated to use SQLite storage
 
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +72,8 @@ class DeviceResponse(BaseModel):
     # Phase 3: Device Registry 2025 Attributes (Nice to Have)
     serial_number: str | None = Field(default=None, description="Optional serial number (if available from integration)")
     model_id: str | None = Field(default=None, description="Optional model ID (manufacturer identifier, may differ from model)")
+    # Device status (computed based on last_seen)
+    status: str = Field(default="active", description="Device status: 'active' if seen within 30 days, 'inactive' otherwise")
 
 
 class EntityResponse(BaseModel):
@@ -142,6 +144,27 @@ router = APIRouter(tags=["Devices & Entities"])
 
 # InfluxDB client (initialized on first use to avoid circular imports)
 influxdb_client = InfluxDBQueryClient()
+
+
+def compute_device_status(last_seen: datetime | None, inactive_days: int = 30) -> str:
+    """
+    Compute device status based on last_seen timestamp.
+    
+    Args:
+        last_seen: Last time device was seen (datetime or None)
+        inactive_days: Number of days after which device is considered inactive (default: 30)
+    
+    Returns:
+        "active" if device was seen within inactive_days, "inactive" otherwise
+    """
+    if last_seen is None:
+        return "inactive"
+    
+    # Calculate days since last seen
+    days_ago = (datetime.utcnow() - last_seen.replace(tzinfo=None)).days
+    
+    # Device is active if seen within inactive_days
+    return "active" if days_ago <= inactive_days else "inactive"
 
 
 @router.get("/api/devices", response_model=DevicesListResponse)
@@ -248,6 +271,9 @@ async def list_devices(
                 model_id = row[12] if row_len > 12 and hasattr(Device, 'model_id') else None
                 entity_count = row[-1]  # Last column is always entity_count
                 
+                # Compute device status based on last_seen
+                device_status = compute_device_status(last_seen)
+                
                 device_responses.append(DeviceResponse(
                     device_id=device_id,
                     name=name,
@@ -272,6 +298,7 @@ async def list_devices(
                     labels=labels if isinstance(labels, list) else None,
                     serial_number=serial_number,
                     model_id=model_id,
+                    status=device_status,
                     entity_count=entity_count,
                     timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat()
                 ))
@@ -279,6 +306,9 @@ async def list_devices(
                 # Handle case where new columns don't exist yet (before migration)
                 logger.debug(f"Row unpacking error (may be pre-migration schema): {e}")
                 # Fallback to basic fields only
+                last_seen_fallback = row[9] if len(row) > 9 and row[9] else None
+                device_status_fallback = compute_device_status(last_seen_fallback)
+                
                 device_responses.append(DeviceResponse(
                     device_id=row[0],
                     name=row[1],
@@ -302,8 +332,9 @@ async def list_devices(
                     labels=None,  # Will be populated after migration
                     serial_number=None,  # Will be populated after migration
                     model_id=None,  # Will be populated after migration
+                    status=device_status_fallback,
                     entity_count=row[-1],
-                    timestamp=row[9].isoformat() if len(row) > 9 and row[9] else datetime.now().isoformat()
+                    timestamp=last_seen_fallback.isoformat() if last_seen_fallback else datetime.now().isoformat()
                 ))
 
         result = DevicesListResponse(
@@ -379,6 +410,9 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
          community_rating, last_capability_sync, last_seen,
          labels, serial_number, model_id, entity_count) = row
 
+        # Compute device status based on last_seen
+        device_status = compute_device_status(last_seen)
+
         return DeviceResponse(
             device_id=device_id_col,
             name=name,
@@ -403,6 +437,7 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             labels=labels if isinstance(labels, list) else None,
             serial_number=serial_number,
             model_id=model_id,
+            status=device_status,
             entity_count=entity_count,
             timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat()
         )

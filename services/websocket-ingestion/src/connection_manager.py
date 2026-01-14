@@ -470,16 +470,14 @@ class ConnectionManager:
                     continue
 
                 # Run discovery refresh
-                # 2025 Best Practice: Use HTTP API for discovery to avoid concurrent receive() errors
-                # Don't pass websocket - discovery will use HTTP API instead
+                # CRITICAL: Pass WebSocket for device discovery (required for device registry and Zigbee identification)
                 logger.info("=" * 80)
                 logger.info("🔄 PERIODIC DISCOVERY REFRESH")
                 logger.info("=" * 80)
 
                 try:
-                    # 2025 Best Practice: Pass None for websocket to force HTTP API usage
-                    # This avoids "Concurrent call to receive() is not allowed" errors
-                    await self.discovery_service.discover_all(websocket=None, store=True)
+                    # Pass WebSocket for device discovery (required for device registry and Zigbee identification)
+                    await self.discovery_service.discover_all(websocket=self.client.websocket, store=True)
                     logger.info("✅ Periodic discovery refresh completed successfully")
                 except Exception as discovery_error:
                     logger.error(f"❌ Periodic discovery refresh failed: {discovery_error}")
@@ -511,14 +509,21 @@ class ConnectionManager:
         await self._subscribe_to_events()
 
         # Discover devices and entities
-        # 2025 Best Practice: Use HTTP API for discovery to avoid concurrent receive() errors
-        # Discovery can run independently of WebSocket connection
+        # CRITICAL: Device discovery requires WebSocket (HA has no HTTP API for device registry)
+        # We need to pass WebSocket for device discovery to work, including Zigbee identification
         logger.info("🔍 Starting device and entity discovery...")
         try:
-            # 2025 Best Practice: Pass None for websocket to force HTTP API usage
-            # This avoids "Concurrent call to receive() is not allowed" errors
-            # Discovery will use HTTP API endpoints instead of WebSocket
-            await self.discovery_service.discover_all(websocket=None)
+            # Pass WebSocket if available (required for device discovery and Zigbee identification)
+            # Note: This may cause concurrency issues with event listening, but device discovery
+            # completes quickly and is necessary for proper device identification
+            websocket_for_discovery = None
+            if self.client and self.client.websocket:
+                websocket_for_discovery = self.client.websocket
+                logger.info("📡 Using WebSocket for device discovery (required for device registry)")
+            else:
+                logger.warning("⚠️  WebSocket not available - device discovery will be limited")
+            
+            await self.discovery_service.discover_all(websocket=websocket_for_discovery)
 
             # Subscribe to registry update events (still requires WebSocket for real-time updates)
             if self.client and self.client.websocket:

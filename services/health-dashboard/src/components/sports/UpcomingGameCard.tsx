@@ -10,11 +10,13 @@ import type { Game } from '../../types/sports';
 interface UpcomingGameCardProps {
   game: Game;
   darkMode?: boolean;
+  onViewDetails?: (game: Game) => void;
 }
 
 export const UpcomingGameCard: React.FC<UpcomingGameCardProps> = ({
   game,
-  darkMode = false
+  darkMode = false,
+  onViewDetails
 }) => {
   const [timeUntil, setTimeUntil] = useState('');
 
@@ -53,18 +55,24 @@ export const UpcomingGameCard: React.FC<UpcomingGameCardProps> = ({
   }, [game.startTime]);
 
   return (
-    <div className={`card-base card-hover content-fade-in ${cardBg} border ${borderColor} p-4`}>
+    <article 
+      className={`card-base card-hover content-fade-in ${cardBg} border ${borderColor} p-4`}
+      aria-label={`Upcoming game: ${game.awayTeam.name} at ${game.homeTeam.name}, ${timeUntil}`}
+    >
       
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <span className={`text-sm font-semibold ${textSecondary}`}>
+        <time 
+          className={`text-sm font-semibold ${textSecondary}`}
+          dateTime={game.startTime}
+        >
           {new Date(game.startTime).toLocaleTimeString([], { 
             hour: '2-digit', 
             minute: '2-digit' 
           })}
-        </span>
-        <span className="text-sm font-semibold text-amber-500">
-          ⏰ {timeUntil}
+        </time>
+        <span className="text-sm font-semibold text-amber-500" aria-label={`Game starts ${timeUntil}`}>
+          <span aria-hidden="true">⏰</span> {timeUntil}
         </span>
       </div>
 
@@ -85,12 +93,13 @@ export const UpcomingGameCard: React.FC<UpcomingGameCardProps> = ({
         <button 
           className={`ml-3 px-3 py-1 rounded ${
             darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-          } text-white text-sm transition-colors flex-shrink-0`}
+          } text-white text-sm transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+          aria-label={`Set notification for ${game.awayTeam.name} at ${game.homeTeam.name}`}
         >
-          🔔 Notify
+          <span aria-hidden="true">🔔</span> Notify
         </button>
       </div>
-    </div>
+    </article>
   );
 };
 

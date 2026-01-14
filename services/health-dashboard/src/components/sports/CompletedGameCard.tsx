@@ -10,11 +10,13 @@ import type { Game } from '../../types/sports';
 interface CompletedGameCardProps {
   game: Game;
   darkMode?: boolean;
+  onViewDetails?: (game: Game) => void;
 }
 
 export const CompletedGameCard: React.FC<CompletedGameCardProps> = ({
   game,
-  darkMode = false
+  darkMode = false,
+  onViewDetails
 }) => {
   const cardBg = darkMode ? 'bg-gray-800' : 'bg-white';
   const textPrimary = darkMode ? 'text-white' : 'text-gray-900';
@@ -84,11 +86,13 @@ export const CompletedGameCard: React.FC<CompletedGameCardProps> = ({
 
       {/* Action Button */}
       <button 
+        onClick={() => onViewDetails?.(game)}
         className={`w-full mt-3 py-2 px-4 rounded-lg ${
           darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'
-        } ${textPrimary} text-sm font-medium transition-colors`}
+        } ${textPrimary} text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+        aria-label={`View details for ${game.awayTeam.name} vs ${game.homeTeam.name}`}
       >
-        📊 View Summary
+        <span aria-hidden="true">📊</span> View Details
       </button>
     </div>
   );

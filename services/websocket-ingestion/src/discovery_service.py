@@ -689,6 +689,73 @@ class DiscoveryService:
                                     device["integration"] = integration
                                     logger.debug(f"Resolved integration '{integration}' for device {device.get('name', 'unknown')} from config_entry {first_entry_id}")
                 
+                # Identify Zigbee devices within MQTT integration
+                # Zigbee2MQTT devices use 'mqtt' integration but need to be identified as Zigbee
+                if devices_data:
+                    # Find Zigbee2MQTT Bridge device (to get its config_entry)
+                    zigbee_bridge_config_entry = None
+                    for device in devices_data:
+                        manufacturer = str(device.get("manufacturer", "")).lower()
+                        model = str(device.get("model", "")).lower()
+                        name = str(device.get("name", "")).lower()
+                        if "zigbee2mqtt" in manufacturer or ("bridge" in model and "zigbee" in name):
+                            config_entries = device.get("config_entries", [])
+                            if config_entries:
+                                zigbee_bridge_config_entry = config_entries[0] if isinstance(config_entries, list) else config_entries
+                                logger.info(f"🔍 Found Zigbee2MQTT Bridge with config_entry: {zigbee_bridge_config_entry}")
+                                break
+                    
+                    # Identify Zigbee devices
+                    zigbee_devices_found = 0
+                    for device in devices_data:
+                        integration = str(device.get("integration", "")).lower()
+                        
+                        # Only process MQTT integration devices
+                        if integration != "mqtt":
+                            continue
+                        
+                        is_zigbee = False
+                        
+                        # Method 1: Check if device shares config_entry with Zigbee2MQTT Bridge
+                        if zigbee_bridge_config_entry:
+                            config_entries = device.get("config_entries", [])
+                            if config_entries:
+                                device_entry = config_entries[0] if isinstance(config_entries, list) else config_entries
+                                if device_entry == zigbee_bridge_config_entry:
+                                    is_zigbee = True
+                                    logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (shares bridge config_entry)")
+                        
+                        # Method 2: Check device identifiers for Zigbee patterns
+                        if not is_zigbee:
+                            identifiers = device.get("identifiers", [])
+                            for identifier in identifiers:
+                                identifier_str = str(identifier).lower()
+                                # Check for 'zigbee' or 'ieee' in identifier
+                                if 'zigbee' in identifier_str or 'ieee' in identifier_str:
+                                    is_zigbee = True
+                                    logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (identifier pattern: {identifier_str})")
+                                    break
+                                # Check for IEEE address pattern (0x followed by 8+ hex digits)
+                                if identifier_str.startswith('0x') and len(identifier_str) >= 10:
+                                    # Check if it looks like an IEEE address (hexadecimal)
+                                    try:
+                                        int(identifier_str[2:], 16)
+                                        is_zigbee = True
+                                        logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (IEEE address pattern: {identifier_str})")
+                                        break
+                                    except ValueError:
+                                        pass
+                        
+                        if is_zigbee:
+                            # Mark as Zigbee device
+                            device["integration"] = "zigbee2mqtt"  # Update integration field
+                            device["source"] = "zigbee2mqtt"  # Add source field for tracking
+                            zigbee_devices_found += 1
+                            logger.info(f"✅ Identified Zigbee device: {device.get('name', 'unknown')} (manufacturer: {device.get('manufacturer', 'unknown')})")
+                    
+                    if zigbee_devices_found > 0:
+                        logger.info(f"🔍 Identified {zigbee_devices_found} Zigbee devices within MQTT integration")
+                
                 # Store devices to SQLite
                 if devices_data:
                     try:

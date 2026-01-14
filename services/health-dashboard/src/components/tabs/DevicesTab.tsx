@@ -12,6 +12,7 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [deviceEntities, setDeviceEntities] = useState<Entity[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
+  const [expandedEntity, setExpandedEntity] = useState<string | null>(null);
 
   // Check for integration context from URL (Phase 1.3)
   React.useEffect(() => {
@@ -98,230 +99,155 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
         .then(response => {
           console.log('[DeviceEntities] API response:', response);
           const apiEntities = response?.entities || [];
+          console.log(`[DeviceEntities] Received ${apiEntities.length} entities (expected ${expectedEntityCount})`);
           
-          console.log('[DeviceEntities] Raw entities from API:', apiEntities.length, apiEntities);
-          
-          // The API should already filter by device_id, but add defensive check for data integrity
-          // Use case-insensitive comparison and trim whitespace to handle potential formatting issues
-          const validEntities = apiEntities.filter(e => {
-            if (!e || !e.device_id) {
-              console.warn('[DeviceEntities] Entity missing device_id:', e);
-              return false;
-            }
-            const entityDeviceId = String(e.device_id).trim().toLowerCase();
-            const expectedDeviceId = String(selectedDevice.device_id).trim().toLowerCase();
-            const matches = entityDeviceId === expectedDeviceId;
-            if (!matches) {
-              console.warn(
-                `[DeviceEntities] Device ID mismatch - Expected: "${expectedDeviceId}", Got: "${entityDeviceId}"`
-              );
-            }
-            return matches;
-          });
-          
-          console.log(`[DeviceEntities] Loaded ${validEntities.length} valid entities (out of ${apiEntities.length} total) for device ${selectedDevice.device_id}`);
-          
-          // Diagnostic: Check if device_count suggests entities should exist
-          if (validEntities.length === 0 && expectedEntityCount > 0) {
-            console.warn(
-              `[DeviceEntities] Device shows entity_count=${expectedEntityCount} but API returned ${apiEntities.length} entities. ` +
-              'This suggests a data mismatch between device registry and entity registry.'
-            );
+          if (expectedEntityCount > 0 && apiEntities.length === 0) {
+            console.warn(`[DeviceEntities] ⚠️ Data mismatch: Device shows ${expectedEntityCount} entities but API returned none.`);
           }
           
-          if (validEntities.length === 0 && apiEntities.length > 0) {
-            console.error(
-              `[DeviceEntities] All ${apiEntities.length} entities filtered out due to device_id mismatch. ` +
-              `Expected: "${selectedDevice.device_id}", Got: ${apiEntities.map(e => `"${e.device_id}"`).join(', ')}`
-            );
-          }
-          
-          if (validEntities.length === 0 && apiEntities.length === 0 && expectedEntityCount > 0) {
-            console.error(
-              `[DeviceEntities] No entities found for device ${selectedDevice.device_id} but device.entity_count=${expectedEntityCount}. ` +
-              'Possible issues: 1) Entities not synced to database, 2) device_id mismatch, 3) Entities deleted but count not updated.'
-            );
-          }
-          
-          // If API filtering worked correctly, use all entities; otherwise use filtered
-          setDeviceEntities(validEntities);
-          setLoadingEntities(false);
+          setDeviceEntities(apiEntities);
         })
         .catch(err => {
-          console.error('[DeviceEntities] Failed to fetch device entities:', err);
-          console.error('[DeviceEntities] Error details:', {
-            message: err.message,
-            stack: err.stack,
-            device_id: selectedDevice.device_id
-          });
-          // Don't use fallback - show empty state instead of wrong data
+          console.error('[DeviceEntities] Error fetching entities:', err);
           setDeviceEntities([]);
+        })
+        .finally(() => {
           setLoadingEntities(false);
         });
     } else {
       setDeviceEntities([]);
     }
-  }, [selectedDevice]); // CRITICAL: Only depend on selectedDevice, not entities
-
-  // Loading state
-  if (loading && devices.length === 0) {
-    return (
-      <div className={`p-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          <span className="ml-4">Loading devices...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className={`p-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-        <div className={`p-6 rounded-lg ${darkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'} border`}>
-          <p className="text-red-600 dark:text-red-400 font-medium">⚠️ Error loading devices</p>
-          <p className="text-sm mt-2">{error}</p>
-          <button
-            onClick={refresh}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  }, [selectedDevice]);
 
   return (
-    <div className={`p-4 sm:p-6 ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Devices</p>
-              <p className="text-3xl font-bold mt-1">{devices.length}</p>
-            </div>
-            <div className="text-4xl">📱</div>
-          </div>
-        </div>
-
-        <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Entities</p>
-              <p className="text-3xl font-bold mt-1">{entities.length}</p>
-            </div>
-            <div className="text-4xl">🔌</div>
-          </div>
-        </div>
-
-        <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Integrations</p>
-              <p className="text-3xl font-bold mt-1">{integrations.length}</p>
-            </div>
-            <div className="text-4xl">🔧</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border mb-6`}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Search */}
-          <input
-            type="text"
-            placeholder="🔍 Search devices..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={`px-4 py-2 rounded-lg border ${
-              darkMode 
-                ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400' 
-                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-            } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-          />
-
-          {/* Manufacturer Filter */}
-          <select
-            value={selectedManufacturer}
-            onChange={(e) => setSelectedManufacturer(e.target.value)}
-            className={`px-4 py-2 rounded-lg border ${
-              darkMode 
-                ? 'bg-gray-700 border-gray-600 text-gray-100' 
-                : 'bg-white border-gray-300 text-gray-900'
-            } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-          >
-            <option value="">All Manufacturers</option>
-            {manufacturers.map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-
-          {/* Area Filter */}
-          <select
-            value={selectedArea}
-            onChange={(e) => setSelectedArea(e.target.value)}
-            className={`px-4 py-2 rounded-lg border ${
-              darkMode 
-                ? 'bg-gray-700 border-gray-600 text-gray-100' 
-                : 'bg-white border-gray-300 text-gray-900'
-            } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-          >
-            <option value="">All Areas</option>
-            {areas.map(a => (
-              <option key={a} value={a}>{a}</option>
-            ))}
-          </select>
-
-          {/* Platform Filter - NEW */}
-          <select
-            value={selectedPlatform}
-            onChange={(e) => setSelectedPlatform(e.target.value)}
-            className={`px-4 py-2 rounded-lg border ${
-              darkMode 
-                ? 'bg-gray-700 border-gray-600 text-gray-100' 
-                : 'bg-white border-gray-300 text-gray-900'
-            } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-            aria-label="Filter devices by integration platform"
-          >
-            <option value="">All Integrations</option>
-            {platforms.map(platform => (
-              <option key={platform} value={platform}>
-                {platform.charAt(0).toUpperCase() + platform.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Results count with platform context */}
-        <div className="mt-3 text-sm text-gray-500 flex items-center gap-2">
-          <span>Showing {filteredDevices.length} of {devices.length} devices</span>
-          {selectedPlatform && (
-            <span className={`px-2 py-1 rounded text-xs font-medium ${
-              darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-800'
-            }`}>
-              {selectedPlatform} integration
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Device Grid */}
-      {filteredDevices.length === 0 ? (
-        <div className={`p-8 text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          <div className="text-6xl mb-4">📦</div>
-          <p className="text-lg">No devices found</p>
-          <p className="text-sm mt-2">
-            {searchTerm || selectedManufacturer || selectedArea 
-              ? 'Try adjusting your filters' 
-              : 'Waiting for device discovery...'}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Devices
+          </h1>
+          <p className={`mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Manage and monitor your Home Assistant devices
           </p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <button
+          onClick={refresh}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            darkMode
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
+          }`}
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search */}
+          <div>
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Search
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search devices..."
+              className={`w-full px-3 py-2 rounded border ${
+                darkMode
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+              }`}
+            />
+          </div>
+
+          {/* Manufacturer Filter */}
+          <div>
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Manufacturer
+            </label>
+            <select
+              value={selectedManufacturer}
+              onChange={(e) => setSelectedManufacturer(e.target.value)}
+              className={`w-full px-3 py-2 rounded border ${
+                darkMode
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+            >
+              <option value="">All Manufacturers</option>
+              {manufacturers.map(manufacturer => (
+                <option key={manufacturer} value={manufacturer}>{manufacturer}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Area Filter */}
+          <div>
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Area
+            </label>
+            <select
+              value={selectedArea}
+              onChange={(e) => setSelectedArea(e.target.value)}
+              className={`w-full px-3 py-2 rounded border ${
+                darkMode
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+            >
+              <option value="">All Areas</option>
+              {areas.map(area => (
+                <option key={area} value={area}>{area}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Platform Filter */}
+          <div>
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Platform
+            </label>
+            <select
+              value={selectedPlatform}
+              onChange={(e) => setSelectedPlatform(e.target.value)}
+              className={`w-full px-3 py-2 rounded border ${
+                darkMode
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+            >
+              <option value="">All Platforms</option>
+              {platforms.map(platform => (
+                <option key={platform} value={platform}>{platform}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4">Loading devices...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-red-900/20 border-red-700 text-red-400' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          <p className="font-medium">Error loading devices</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      )}
+
+      {/* Devices Grid */}
+      {!loading && !error && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredDevices.map(device => (
             <button
               key={device.device_id}
@@ -334,10 +260,26 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="text-4xl">{getDeviceIcon(device)}</div>
-                <div className={`text-xs px-2 py-1 rounded ${
-                  darkMode ? 'bg-gray-700' : 'bg-gray-100'
-                }`}>
-                  {device.entity_count} {device.entity_count === 1 ? 'entity' : 'entities'}
+                <div className="flex flex-col items-end gap-1">
+                  <div className={`text-xs px-2 py-1 rounded ${
+                    darkMode ? 'bg-gray-700' : 'bg-gray-100'
+                  }`}>
+                    {device.entity_count} {device.entity_count === 1 ? 'entity' : 'entities'}
+                  </div>
+                  {/* Device Status Badge */}
+                  {device.status && (
+                    <div className={`text-xs px-2 py-1 rounded font-medium ${
+                      device.status === 'active'
+                        ? darkMode 
+                          ? 'bg-green-900/50 text-green-300 border border-green-700/50' 
+                          : 'bg-green-100 text-green-700 border border-green-300'
+                        : darkMode
+                          ? 'bg-gray-700/50 text-gray-400 border border-gray-600/50'
+                          : 'bg-gray-200 text-gray-600 border border-gray-300'
+                    }`}>
+                      {device.status === 'active' ? '● Active' : '○ Inactive'}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -350,6 +292,45 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                 <div>📦 {device.model || 'Unknown'}</div>
                 {device.sw_version && <div>💾 {device.sw_version}</div>}
                 {device.area_id && <div>📍 {device.area_id}</div>}
+                {/* Priority 1.3: Device Integration */}
+                {device.integration && (
+                  <div className={`text-xs px-2 py-0.5 rounded inline-block mt-1 ${
+                    darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    🔌 {device.integration}
+                  </div>
+                )}
+                {/* Priority 2.1: Device Type & Category */}
+                {(device.device_type || device.device_category) && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {device.device_type && (
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        darkMode ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-700'
+                      }`}>
+                        {device.device_type}
+                      </span>
+                    )}
+                    {device.device_category && (
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        darkMode ? 'bg-indigo-900/30 text-indigo-300' : 'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {device.device_category}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {/* Priority 2.3: Device Labels */}
+                {device.labels && device.labels.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {device.labels.map((label, idx) => (
+                      <span key={idx} className={`text-xs px-2 py-0.5 rounded ${
+                        darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                      }`}>
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </button>
           ))}
@@ -360,7 +341,10 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
       {selectedDevice && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          onClick={() => setSelectedDevice(null)}
+          onClick={() => {
+            setSelectedDevice(null);
+            setExpandedEntity(null);
+          }}
         >
           <div 
             className={`max-w-4xl w-full max-h-[90vh] overflow-auto rounded-lg ${
@@ -369,11 +353,9 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className={`sticky top-0 p-6 border-b ${
-              darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-            }`}>
+            <div className={`sticky top-0 p-6 border-b ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-4xl">{getDeviceIcon(selectedDevice)}</span>
                     <h2 className="text-2xl font-bold">{selectedDevice.name}</h2>
@@ -383,10 +365,58 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                     <div>📦 {selectedDevice.model}</div>
                     {selectedDevice.sw_version && <div>💾 {selectedDevice.sw_version}</div>}
                     {selectedDevice.area_id && <div>📍 {selectedDevice.area_id}</div>}
+                    {/* Priority 1.3: Device Integration */}
+                    {selectedDevice.integration && (
+                      <div>🔌 Integration: <span className="font-medium">{selectedDevice.integration}</span></div>
+                    )}
+                    {/* Priority 1.5: Last Seen Timestamp */}
+                    {selectedDevice.timestamp && (
+                      <div>⏰ Last seen: <span className="font-medium">{formatTimeAgo(selectedDevice.timestamp)}</span></div>
+                    )}
+                    {/* Priority 2.1: Device Type & Category */}
+                    {(selectedDevice.device_type || selectedDevice.device_category) && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedDevice.device_type && (
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            darkMode ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-700'
+                          }`}>
+                            Type: {selectedDevice.device_type}
+                          </span>
+                        )}
+                        {selectedDevice.device_category && (
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            darkMode ? 'bg-indigo-900/30 text-indigo-300' : 'bg-indigo-100 text-indigo-700'
+                          }`}>
+                            Category: {selectedDevice.device_category}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {/* Priority 2.4: Via Device (Parent Device) */}
+                    {selectedDevice.via_device && (
+                      <div className="mt-2">
+                        🔗 Connected via: <span className="font-medium">{selectedDevice.via_device}</span>
+                      </div>
+                    )}
+                    {/* Priority 2.3: Device Labels */}
+                    {selectedDevice.labels && selectedDevice.labels.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {selectedDevice.labels.map((label, idx) => (
+                          <span key={idx} className={`text-xs px-2 py-1 rounded ${
+                            darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                          }`}>
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <button
-                  onClick={() => setSelectedDevice(null)}
+                  onClick={() => {
+                    setSelectedDevice(null);
+                    setExpandedEntity(null);
+                  }}
                   className={`text-2xl ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
                 >
                   ×
@@ -428,22 +458,86 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                         {domainEntities.map((entity: Entity) => (
                           <div
                             key={entity.entity_id}
-                            className={`p-3 rounded ${
-                              darkMode ? 'bg-gray-750 border-gray-600' : 'bg-gray-50 border-gray-200'
-                            } border`}
+                            className={`p-3 rounded ${darkMode ? 'bg-gray-750 border-gray-600' : 'bg-gray-50 border-gray-200'} border`}
                           >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <code className={`text-sm font-mono ${
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                {/* Priority 1.1: Entity Friendly Name (Primary) */}
+                                <div className="flex items-center gap-2">
+                                  {/* Priority 1.2: Entity Icon */}
+                                  <span className="text-lg">{getEntityIcon(entity)}</span>
+                                  <div className="font-medium">
+                                    {entity.friendly_name || entity.name || entity.entity_id}
+                                  </div>
+                                </div>
+                                {/* Entity ID (Secondary - smaller text) */}
+                                <code className={`text-xs font-mono block mt-1 ${
                                   entity.disabled 
                                     ? (darkMode ? 'text-gray-600' : 'text-gray-400')
-                                    : (darkMode ? 'text-blue-400' : 'text-blue-600')
+                                    : (darkMode ? 'text-gray-500' : 'text-gray-500')
                                 }`}>
                                   {entity.entity_id}
                                 </code>
+                                {/* Platform */}
                                 <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                                   Platform: {entity.platform}
                                 </div>
+                                {/* Priority 1.4: Device Class & Unit */}
+                                {(entity.device_class || entity.unit_of_measurement) && (
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {entity.device_class && (
+                                      <span className={`text-xs px-2 py-0.5 rounded ${
+                                        darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'
+                                      }`}>
+                                        {entity.device_class}
+                                      </span>
+                                    )}
+                                    {entity.unit_of_measurement && (
+                                      <span className={`text-xs px-2 py-0.5 rounded ${
+                                        darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-700'
+                                      }`}>
+                                        {entity.unit_of_measurement}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {/* Priority 2.2: Entity Capabilities (Expandable) */}
+                                {entity.capabilities && entity.capabilities.length > 0 && (
+                                  <div className="mt-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedEntity(expandedEntity === entity.entity_id ? null : entity.entity_id);
+                                      }}
+                                      className={`text-xs font-medium ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+                                    >
+                                      {expandedEntity === entity.entity_id ? '▼' : '▶'} Capabilities ({entity.capabilities.length})
+                                    </button>
+                                    {expandedEntity === entity.entity_id && (
+                                      <div className="flex flex-wrap gap-1 mt-1 ml-4">
+                                        {entity.capabilities.map((capability, idx) => (
+                                          <span key={idx} className={`text-xs px-2 py-0.5 rounded ${
+                                            darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                                          }`}>
+                                            {capability}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {/* Priority 2.3: Entity Labels */}
+                                {entity.labels && entity.labels.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {entity.labels.map((label, idx) => (
+                                      <span key={idx} className={`text-xs px-2 py-0.5 rounded ${
+                                        darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                                      }`}>
+                                        {label}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               {entity.disabled && (
                                 <span className={`text-xs px-2 py-1 rounded ${
@@ -503,3 +597,31 @@ function getDomainIcon(domain: string): string {
   return icons[domain] || '🔌';
 }
 
+// Priority 1.2: Get Entity Icon (use entity.icon if available, fallback to domain icon)
+function getEntityIcon(entity: Entity): string {
+  // If entity has an icon, use it (Home Assistant uses mdi: format, but we use emojis as fallback)
+  // For now, fallback to domain icon since we're using emojis
+  // Future: Could map mdi: icons to emojis or use an icon library
+  return getDomainIcon(entity.domain);
+}
+
+// Priority 1.5: Format relative time (e.g., "2 hours ago")
+function formatTimeAgo(timestamp: string): string {
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffSecs < 60) return `${diffSecs}s ago`;
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 30) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return 'N/A';
+  }
+}
