@@ -1,16 +1,15 @@
 // Service Worker for HomeIQ Dashboard PWA
-// Version 1.0.0
+// Version 1.1.0 - Updated to use dynamic asset discovery
 
-const CACHE_NAME = 'homeiq-dashboard-v1';
-const RUNTIME_CACHE = 'homeiq-runtime-v1';
+const CACHE_NAME = 'homeiq-dashboard-v2'; // Bump version to force cache refresh
+const RUNTIME_CACHE = 'homeiq-runtime-v2';
 
-// Assets to cache on install
+// Assets to cache on install - will be populated dynamically
+// Note: Hardcoded filenames removed - service worker will cache assets on first load
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
-  '/assets/css/main-CLhILyMm.css',
-  '/assets/js/main-Bbf3qtrH.js',
-  '/assets/js/vendor-cxkclgJA.js',
+  // Asset filenames are now dynamic - cache will be populated on first fetch
 ];
 
 // Install event - cache assets
@@ -66,7 +65,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache first strategy for static assets
+  // Network first strategy for JavaScript/CSS to ensure fresh code
+  if (event.request.url.match(/\.(js|css)$/)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache only if network fails
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Cache first strategy for other static assets (images, fonts, etc.)
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
