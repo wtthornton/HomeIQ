@@ -68,3 +68,23 @@ class SuggestionStatsResponse(BaseModel):
     average_score: float
     min_score: float
     max_score: float
+
+
+class GenerateSuggestionsRequest(BaseModel):
+    """Request schema for generating suggestions with parameters."""
+    
+    device_ids: Optional[list[str]] = Field(default=None, description="Specific device entity IDs to use, or None for all devices")
+    complexity: Optional[str] = Field(default=None, description="Filter by complexity: 'simple', 'medium', 'high', or None for all")
+    use_case: Optional[str] = Field(default=None, description="Filter by use case: 'convenience', 'security', 'energy', 'comfort', or None for all")
+    min_score: float = Field(default=0.6, ge=0.0, le=1.0, description="Minimum suggestion score threshold")
+    max_suggestions: int = Field(default=10, ge=1, le=100, description="Maximum number of suggestions to generate")
+    min_quality_score: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Minimum blueprint quality score filter")
+    domain: Optional[str] = Field(default=None, description="Filter by device domain (e.g., 'light', 'switch', 'sensor')")
+
+
+class GenerateSuggestionsResponse(BaseModel):
+    """Response schema for suggestion generation."""
+    
+    generated: int
+    status: str
+    message: Optional[str] = None

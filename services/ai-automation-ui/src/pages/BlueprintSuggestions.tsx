@@ -12,8 +12,11 @@ import {
   acceptSuggestion,
   declineSuggestion,
   getStats,
+  deleteAllSuggestions,
+  generateSuggestions,
   type BlueprintSuggestion,
   type SuggestionStats,
+  type GenerateSuggestionsRequest,
   BlueprintSuggestionsAPIError,
 } from '../services/blueprintSuggestionsApi';
 
@@ -23,6 +26,8 @@ export const BlueprintSuggestions: React.FC = () => {
   const [suggestions, setSuggestions] = useState<BlueprintSuggestion[]>([]);
   const [stats, setStats] = useState<SuggestionStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
   const [filters, setFilters] = useState({
     min_score: 0.6,
     use_case: '',
@@ -30,6 +35,15 @@ export const BlueprintSuggestions: React.FC = () => {
     blueprint_id: '',
   });
   const [page, setPage] = useState({ limit: 50, offset: 0, total: 0 });
+  const [generateParams, setGenerateParams] = useState<GenerateSuggestionsRequest>({
+    min_score: 0.6,
+    max_suggestions: 10,
+    complexity: undefined,
+    use_case: undefined,
+    domain: undefined,
+    device_ids: undefined,
+    min_quality_score: undefined,
+  });
 
   const loadSuggestions = useCallback(async () => {
     setLoading(true);
@@ -110,6 +124,42 @@ export const BlueprintSuggestions: React.FC = () => {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (!confirm('Are you sure you want to delete all blueprint suggestions? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      await deleteAllSuggestions();
+      toast.success('All suggestions deleted');
+      await loadSuggestions();
+      await loadStats();
+    } catch (error) {
+      console.error('Failed to delete all suggestions:', error);
+      toast.error('Failed to delete all suggestions');
+    }
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const response = await generateSuggestions(generateParams);
+      toast.success(`Generated ${response.generated} suggestions`);
+      setShowGenerateForm(false);
+      await loadSuggestions();
+      await loadStats();
+    } catch (error) {
+      console.error('Failed to generate suggestions:', error);
+      if (error instanceof BlueprintSuggestionsAPIError) {
+        toast.error(`Failed to generate: ${error.message}`);
+      } else {
+        toast.error('Failed to generate suggestions');
+      }
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const formatScore = (score: number) => {
     return (score * 100).toFixed(0);
   };
@@ -118,14 +168,153 @@ export const BlueprintSuggestions: React.FC = () => {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
-            Blueprint Suggestions
-          </h1>
-          <p className="text-sm text-[var(--text-secondary)]">
-            Discover proven automations matched to your devices
-          </p>
+        <div className="mb-6 flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
+              Blueprint Suggestions
+            </h1>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Discover proven automations matched to your devices
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowGenerateForm(!showGenerateForm)}
+              className="px-4 py-2 bg-[var(--accent-primary)] text-white rounded hover:opacity-90"
+            >
+              Generate Suggestions
+            </button>
+            <button
+              onClick={handleDeleteAll}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:opacity-90"
+            >
+              Delete All
+            </button>
+          </div>
         </div>
+
+        {/* Generation Form */}
+        {showGenerateForm && (
+          <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+              Generate Blueprint Suggestions
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  Max Suggestions
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={generateParams.max_suggestions || 10}
+                  onChange={(e) => setGenerateParams(prev => ({ ...prev, max_suggestions: parseInt(e.target.value) || 10 }))}
+                  className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--card-border)] rounded text-[var(--text-primary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  Min Score ({(generateParams.min_score || 0.6) * 100}%)
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={generateParams.min_score || 0.6}
+                  onChange={(e) => setGenerateParams(prev => ({ ...prev, min_score: parseFloat(e.target.value) }))}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  Complexity
+                </label>
+                <select
+                  value={generateParams.complexity || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setGenerateParams(prev => ({ 
+                      ...prev, 
+                      complexity: value === '' ? undefined : (value as 'simple' | 'medium' | 'high')
+                    }));
+                  }}
+                  className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--card-border)] rounded text-[var(--text-primary)]"
+                >
+                  <option value="">All</option>
+                  <option value="simple">Simple</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  Use Case
+                </label>
+                <select
+                  value={generateParams.use_case || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setGenerateParams(prev => ({ 
+                      ...prev, 
+                      use_case: value === '' ? undefined : (value as 'convenience' | 'security' | 'energy' | 'comfort')
+                    }));
+                  }}
+                  className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--card-border)] rounded text-[var(--text-primary)]"
+                >
+                  <option value="">All</option>
+                  <option value="convenience">Convenience</option>
+                  <option value="security">Security</option>
+                  <option value="energy">Energy</option>
+                  <option value="comfort">Comfort</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  Domain (e.g., light, switch, sensor)
+                </label>
+                <input
+                  type="text"
+                  value={generateParams.domain || ''}
+                  onChange={(e) => setGenerateParams(prev => ({ ...prev, domain: e.target.value || undefined }))}
+                  placeholder="Leave empty for all"
+                  className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--card-border)] rounded text-[var(--text-primary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  Min Quality Score
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={generateParams.min_quality_score || ''}
+                  onChange={(e) => setGenerateParams(prev => ({ ...prev, min_quality_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                  placeholder="Optional"
+                  className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--card-border)] rounded text-[var(--text-primary)]"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="px-4 py-2 bg-[var(--accent-primary)] text-white rounded hover:opacity-90 disabled:opacity-50"
+              >
+                {generating ? 'Generating...' : 'Generate'}
+              </button>
+              <button
+                onClick={() => setShowGenerateForm(false)}
+                className="px-4 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--text-primary)] rounded hover:bg-[var(--hover-bg)]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         {stats && (

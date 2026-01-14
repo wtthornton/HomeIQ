@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from .api.chat_endpoints import router as chat_router
 from .api.conversation_endpoints import router as conversation_router
+from .api.device_suggestions_endpoints import router as device_suggestions_router
 from .api.dependencies import set_services
 from .clients.data_api_client import DataAPIClient
 from .clients.ha_client import HomeAssistantClient
@@ -227,6 +228,9 @@ app.include_router(chat_router)
 
 # Register conversation management router (Epic AI-20 Story AI20.5)
 app.include_router(conversation_router)
+
+# Register device suggestions router (Phase 2: Device-Based Automation Suggestions)
+app.include_router(device_suggestions_router)
 
 
 # API Endpoints

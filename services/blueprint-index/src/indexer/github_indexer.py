@@ -26,6 +26,9 @@ BLUEPRINT_REPOSITORIES = [
     # Popular community repositories
     ("home-assistant", "example-custom-config"),
     
+    # Community blueprint repositories
+    ("jay-kub", "inovelli-matter-switch-tap-sequences"),  # Inovelli Matter Switch Tap Sequences
+    
     # Searched via GitHub API for blueprint repositories
 ]
 

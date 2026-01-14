@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 from itertools import combinations
-from typing import Any
+from typing import Any, Optional
 
 from ..clients.blueprint_client import BlueprintClient
 from ..clients.data_api_client import DataApiClient
@@ -59,6 +59,95 @@ class BlueprintMatcher:
         
         # Sort by score (highest first)
         all_suggestions.sort(key=lambda x: x["suggestion_score"], reverse=True)
+        
+        logger.info(f"Generated {len(all_suggestions)} total suggestions")
+        return all_suggestions
+    
+    async def generate_suggestions_with_params(
+        self,
+        device_ids: Optional[list[str]] = None,
+        complexity: Optional[str] = None,
+        use_case: Optional[str] = None,
+        min_score: float = 0.6,
+        max_suggestions: int = 10,
+        min_quality_score: Optional[float] = None,
+        domain: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Generate suggestions with user-defined parameters.
+        
+        Args:
+            device_ids: Specific device entity IDs to use, or None for all
+            complexity: Filter by complexity (simple/medium/high), or None for all
+            use_case: Filter by use case (convenience/security/energy/comfort), or None for all
+            min_score: Minimum score threshold
+            max_suggestions: Maximum number of suggestions to generate
+            min_quality_score: Minimum blueprint quality score
+            domain: Filter by device domain
+            
+        Returns:
+            List of suggestion dictionaries
+        """
+        all_suggestions = []
+        
+        # Fetch blueprints and devices
+        async with BlueprintClient() as blueprint_client, DataApiClient() as data_client:
+            # Fetch blueprints with quality filter
+            blueprints = await blueprint_client.get_all_blueprints(
+                limit=200,
+                min_quality_score=min_quality_score or 0.5,
+            )
+            
+            # Fetch entities
+            entities = await data_client.get_all_entities(limit=1000)
+            
+            # Filter entities by device_ids if specified
+            if device_ids:
+                device_id_set = set(device_ids)
+                entities = [
+                    e for e in entities
+                    if (e.get("entity_id") or e.get("id")) in device_id_set
+                ]
+            
+            # Filter entities by domain if specified
+            if domain:
+                entities = [e for e in entities if e.get("domain") == domain]
+            
+            # Filter blueprints by complexity and use_case
+            filtered_blueprints = []
+            for blueprint in blueprints:
+                # Filter by complexity
+                if complexity:
+                    blueprint_complexity = str(blueprint.get("complexity", "medium")).lower()
+                    if blueprint_complexity != complexity.lower():
+                        continue
+                
+                # Filter by use_case
+                if use_case:
+                    blueprint_use_case = blueprint.get("use_case")
+                    if blueprint_use_case != use_case:
+                        continue
+                
+                filtered_blueprints.append(blueprint)
+            
+            logger.info(
+                f"Processing {len(filtered_blueprints)} blueprints against {len(entities)} entities "
+                f"with filters: complexity={complexity}, use_case={use_case}, domain={domain}"
+            )
+            
+            # Generate suggestions for each blueprint
+            for blueprint in filtered_blueprints:
+                suggestions = await self._generate_blueprint_suggestions(
+                    blueprint=blueprint,
+                    entities=entities,
+                    min_score=min_score,
+                    max_suggestions=5,  # Max per blueprint (will limit total later)
+                )
+                all_suggestions.extend(suggestions)
+        
+        # Sort by score (highest first) and limit to max_suggestions
+        all_suggestions.sort(key=lambda x: x["suggestion_score"], reverse=True)
+        all_suggestions = all_suggestions[:max_suggestions]
         
         logger.info(f"Generated {len(all_suggestions)} total suggestions")
         return all_suggestions
