@@ -204,19 +204,39 @@ export async function getStats(): Promise<SuggestionStats> {
   return fetchJSON<SuggestionStats>(`${BASE_URL}/stats`);
 }
 
-/**
- * Generate suggestions (admin/trigger endpoint)
- */
-export async function generateSuggestions(params?: {
+export interface GenerateSuggestionsRequest {
+  device_ids?: string[];
+  complexity?: 'simple' | 'medium' | 'high';
+  use_case?: 'convenience' | 'security' | 'energy' | 'comfort';
   min_score?: number;
-  max_per_blueprint?: number;
-}): Promise<{ generated: number; status: string }> {
-  const queryParams = new URLSearchParams();
-  if (params?.min_score !== undefined) queryParams.append('min_score', params.min_score.toString());
-  if (params?.max_per_blueprint) queryParams.append('max_per_blueprint', params.max_per_blueprint.toString());
+  max_suggestions?: number;
+  min_quality_score?: number;
+  domain?: string;
+}
 
-  const url = `${BASE_URL}/generate${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-  return fetchJSON<{ generated: number; status: string }>(url, {
+export interface GenerateSuggestionsResponse {
+  generated: number;
+  status: string;
+  message?: string;
+}
+
+/**
+ * Delete all blueprint suggestions
+ */
+export async function deleteAllSuggestions(): Promise<{ deleted: number; status: string }> {
+  return fetchJSON<{ deleted: number; status: string }>(`${BASE_URL}/delete-all`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Generate suggestions with user-defined parameters
+ */
+export async function generateSuggestions(
+  request: GenerateSuggestionsRequest
+): Promise<GenerateSuggestionsResponse> {
+  return fetchJSON<GenerateSuggestionsResponse>(`${BASE_URL}/generate`, {
     method: 'POST',
+    body: JSON.stringify(request),
   });
 }

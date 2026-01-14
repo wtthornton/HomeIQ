@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.suggestion import BlueprintSuggestion
@@ -236,3 +236,68 @@ class SuggestionService:
             "min_score": min_score,
             "max_score": max_score,
         }
+    
+    async def generate_suggestions_with_params(
+        self,
+        db: AsyncSession,
+        device_ids: Optional[list[str]] = None,
+        complexity: Optional[str] = None,
+        use_case: Optional[str] = None,
+        min_score: float = 0.6,
+        max_suggestions: int = 10,
+        min_quality_score: Optional[float] = None,
+        domain: Optional[str] = None,
+    ) -> int:
+        """
+        Generate suggestions with user-defined parameters.
+        
+        Args:
+            db: Database session
+            device_ids: Specific device entity IDs to use, or None for all
+            complexity: Filter by complexity (simple/medium/high), or None for all
+            use_case: Filter by use case (convenience/security/energy/comfort), or None for all
+            min_score: Minimum score threshold
+            max_suggestions: Maximum number of suggestions to generate
+            min_quality_score: Minimum blueprint quality score
+            domain: Filter by device domain
+            
+        Returns:
+            Number of suggestions generated
+        """
+        logger.info(
+            f"Generating suggestions with params: "
+            f"device_ids={len(device_ids) if device_ids else 'all'}, "
+            f"complexity={complexity}, use_case={use_case}, "
+            f"min_score={min_score}, max_suggestions={max_suggestions}"
+        )
+        
+        # Generate suggestions using matcher with filters
+        suggestions_data = await self.matcher.generate_suggestions_with_params(
+            device_ids=device_ids,
+            complexity=complexity,
+            use_case=use_case,
+            min_score=min_score,
+            max_suggestions=max_suggestions,
+            min_quality_score=min_quality_score,
+            domain=domain,
+        )
+        
+        # Save to database
+        count = 0
+        for suggestion_data in suggestions_data[:max_suggestions]:  # Limit to max_suggestions
+            suggestion = BlueprintSuggestion(
+                id=str(uuid.uuid4()),
+                blueprint_id=suggestion_data["blueprint_id"],
+                blueprint_name=suggestion_data.get("blueprint_name"),
+                blueprint_description=suggestion_data.get("blueprint_description"),
+                suggestion_score=suggestion_data["suggestion_score"],
+                matched_devices=suggestion_data["matched_devices"],
+                use_case=suggestion_data.get("use_case"),
+                status="pending",
+            )
+            db.add(suggestion)
+            count += 1
+        
+        await db.commit()
+        logger.info(f"Generated and saved {count} suggestions")
+        return count
