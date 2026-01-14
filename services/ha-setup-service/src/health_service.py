@@ -93,11 +93,35 @@ class HealthMonitoringService:
             performance
         )
 
+        # Log health score calculation breakdown for debugging
+        logger.info(
+            "Health check completed",
+            extra={
+                "health_score": health_score,
+                "component_scores": component_scores,
+                "ha_status": ha_status.get("status"),
+                "ha_version": ha_status.get("version"),
+                "ha_error": ha_status.get("error"),
+                "integration_count": len(integrations),
+                "performance": performance,
+            }
+        )
+
         # Detect issues
         issues = self._detect_issues(ha_status, integrations, performance)
 
         # Determine overall status
         overall_status = self._determine_overall_status(health_score, issues)
+        
+        logger.info(
+            "Health status determined",
+            extra={
+                "overall_status": overall_status,
+                "health_score": health_score,
+                "issues_count": len(issues),
+                "issues": issues
+            }
+        )
 
         # Store health metric in database
         await self._store_health_metric(
@@ -187,7 +211,11 @@ class HealthMonitoringService:
 
             if not ha_token:
                 logger.warning("HA core check: No token available")
-                return {"status": "warning", "version": "unknown", "error": "No token configured"}
+                return {
+                    "status": "warning",
+                    "version": "unknown",
+                    "error": "HA_TOKEN not configured. Set HA_TOKEN or HOME_ASSISTANT_TOKEN environment variable."
+                }
 
             async with aiohttp.ClientSession() as session:
                 headers = {
@@ -217,13 +245,37 @@ class HealthMonitoringService:
                         }
                     elif response.status == 401:
                         logger.warning("HA core check: Authentication failed (401)")
+                        # Try to extract version from error response if available
+                        try:
+                            error_data = await response.json()
+                            version = error_data.get("version")
+                            if version:
+                                return {
+                                    "status": "warning",
+                                    "version": version,
+                                    "error": "Authentication failed - invalid token"
+                                }
+                        except:
+                            pass
                         return {
                             "status": "warning",
                             "version": "unknown",
-                            "error": "Authentication failed"
+                            "error": "Authentication failed - check HA_TOKEN configuration"
                         }
                     else:
                         logger.warning(f"HA core check: Unexpected status {response.status}")
+                        # Try to extract version from error response if available
+                        try:
+                            error_data = await response.json()
+                            version = error_data.get("version")
+                            if version:
+                                return {
+                                    "status": "warning",
+                                    "version": version,
+                                    "error": f"HTTP {response.status}"
+                                }
+                        except:
+                            pass
                         text = await response.text()
                         logger.debug(f"Response: {text[:200]}")
                         return {
@@ -239,18 +291,45 @@ class HealthMonitoringService:
             return {"status": "warning", "version": "unknown", "error": str(e)}
 
     async def _check_integrations(self) -> list[dict]:
-        """Check all integrations status"""
+        """
+        Check all integrations status - always returns at least MQTT and Data API
+        
+        Note: Zigbee2MQTT uses the same MQTT broker, so if MQTT is healthy,
+        Zigbee2MQTT can work (it's just a different topic prefix)
+        """
         integrations = []
 
-        # Check MQTT integration
-        # Note: Zigbee2MQTT uses the same MQTT broker, so if MQTT is healthy,
-        # Zigbee2MQTT can work (it's just a different topic prefix)
-        mqtt_status = await self._check_mqtt_integration()
-        integrations.append(mqtt_status)
+        # Check MQTT integration (always include, even if check fails)
+        try:
+            mqtt_status = await self._check_mqtt_integration()
+            integrations.append(mqtt_status)
+        except Exception as e:
+            logger.error(f"MQTT check failed: {e}", exc_info=True)
+            integrations.append({
+                "name": "MQTT",
+                "type": "mqtt",
+                "status": IntegrationStatus.ERROR.value,
+                "is_configured": False,
+                "is_connected": False,
+                "error_message": str(e),
+                "last_check": datetime.now()
+            })
 
-        # Check HA Ingestor services
-        data_api_status = await self._check_data_api()
-        integrations.append(data_api_status)
+        # Check HA Ingestor services (always include, even if check fails)
+        try:
+            data_api_status = await self._check_data_api()
+            integrations.append(data_api_status)
+        except Exception as e:
+            logger.error(f"Data API check failed: {e}", exc_info=True)
+            integrations.append({
+                "name": "Data API",
+                "type": "homeiq",
+                "status": IntegrationStatus.ERROR.value,
+                "is_configured": True,  # Service exists, just not reachable
+                "is_connected": False,
+                "error_message": str(e),
+                "last_check": datetime.now()
+            })
 
         return integrations
 
@@ -391,13 +470,25 @@ class HealthMonitoringService:
 
     async def _check_performance(self) -> dict:
         """Check system performance metrics"""
-        # Placeholder - will be enhanced in Epic 30
-        return {
-            "response_time_ms": 45.2,
-            "cpu_usage_percent": 12.5,
-            "memory_usage_mb": 256.0,
-            "uptime_seconds": 86400
-        }
+        try:
+            # For now, return hardcoded values (will be enhanced in Epic 30)
+            performance = {
+                "response_time_ms": 45.2,
+                "cpu_usage_percent": 12.5,
+                "memory_usage_mb": 256.0,
+                "uptime_seconds": 86400
+            }
+            logger.debug(f"Performance metrics: {performance}")
+            return performance
+        except Exception as e:
+            logger.error(f"Performance check failed: {e}", exc_info=True)
+            # Return minimal valid performance data
+            return {
+                "response_time_ms": 0.0,
+                "cpu_usage_percent": None,
+                "memory_usage_mb": None,
+                "uptime_seconds": None
+            }
 
     def _calculate_health_score(
         self,

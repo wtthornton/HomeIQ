@@ -135,33 +135,42 @@ export const mockSynergies = [
   },
 ];
 
+// Mock deployed automations in Home Assistant format
 export const mockDeployedAutomations = [
   {
-    id: 'automation-1',
-    alias: 'Porch Light at Sunset',
-    status: 'active',
-    yaml: `alias: Porch Light at Sunset
-trigger:
-  - platform: sun
-    event: sunset
-action:
-  - service: light.turn_on
-    target:
-      entity_id: light.porch`,
-    created_at: new Date().toISOString(),
+    entity_id: 'automation.porch_light_at_sunset',
+    state: 'on',
+    attributes: {
+      friendly_name: 'Porch Light at Sunset',
+      last_triggered: null,
+      mode: 'single',
+    },
   },
   {
-    id: 'automation-2',
-    alias: 'Morning Lights',
-    status: 'active',
-    yaml: `alias: Morning Lights
-trigger:
-  - platform: time
-    at: '07:00:00'
-action:
-  - service: light.turn_on
-    target:
-      entity_id: light.living_room`,
-    created_at: new Date().toISOString(),
+    entity_id: 'automation.morning_lights',
+    state: 'on',
+    attributes: {
+      friendly_name: 'Morning Lights',
+      last_triggered: '2026-01-14T07:00:00.000Z',
+      mode: 'single',
+    },
+  },
+  {
+    entity_id: 'automation.office_motion_lights',
+    state: 'on',
+    attributes: {
+      friendly_name: 'Office motion lights on, off after 5 minutes no motion',
+      last_triggered: null,
+      mode: 'single',
+    },
+  },
+  {
+    entity_id: 'automation.turn_on_office_lights_on_presence',
+    state: 'on',
+    attributes: {
+      friendly_name: 'Turn on Office Lights on Presence',
+      last_triggered: '2026-01-14T12:30:00.000Z',
+      mode: 'single',
+    },
   },
 ];

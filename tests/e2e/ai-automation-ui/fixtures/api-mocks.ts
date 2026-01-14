@@ -84,6 +84,12 @@ export const automationMocks: Record<string, MockResponse> = {
       total: mockDeployedAutomations.length,
     },
   },
+  '/api/deploy/automations': {
+    status: 200,
+    body: {
+      automations: mockDeployedAutomations,
+    },
+  },
   '/api/chat': {
     status: 200,
     body: {
