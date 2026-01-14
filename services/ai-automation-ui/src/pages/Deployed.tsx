@@ -36,9 +36,11 @@ export const Deployed: React.FC = () => {
     try {
       setLoading(true);
       const result = await api.listDeployedAutomations();
-      setAutomations(result.data || []);
+      // Backend returns {automations: [...]}, not {data: [...]}
+      setAutomations(result.automations || result.data || []);
     } catch (error) {
       console.error('Failed to load automations:', error);
+      toast.error('Failed to load deployed automations');
     } finally {
       setLoading(false);
     }
