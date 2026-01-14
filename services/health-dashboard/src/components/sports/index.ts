@@ -18,5 +18,6 @@ export { CompletedGameCard } from './CompletedGameCard';
 export { TeamStatisticsCard } from './TeamStatisticsCard';
 export { RecentGamesList } from './RecentGamesList';
 export { GameTimelineModal } from './GameTimelineModal';
+export { GameDetailModal } from './GameDetailModal';
 export { TeamScheduleView } from './TeamScheduleView';
 

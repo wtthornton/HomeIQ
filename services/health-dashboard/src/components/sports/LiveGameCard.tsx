@@ -10,11 +10,13 @@ import type { Game } from '../../types/sports';
 interface LiveGameCardProps {
   game: Game;
   darkMode?: boolean;
+  onViewDetails?: (game: Game) => void;
 }
 
 export const LiveGameCard: React.FC<LiveGameCardProps> = ({
   game,
-  darkMode = false
+  darkMode = false,
+  onViewDetails
 }) => {
   const [scoreChanged, setScoreChanged] = useState(false);
   const [pulse, setPulse] = useState(false);
@@ -47,20 +49,27 @@ export const LiveGameCard: React.FC<LiveGameCardProps> = ({
   }, [game.status]);
 
   return (
-    <div className={`card-base card-hover content-fade-in ${cardBg} border ${borderColor} overflow-hidden`}>
+    <article 
+      className={`card-base card-hover content-fade-in ${cardBg} border ${borderColor} overflow-hidden`}
+      aria-label={`Live game: ${game.awayTeam.name} vs ${game.homeTeam.name}, Score: ${game.score.away} to ${game.score.home}`}
+    >
       
       {/* Header - Live Status */}
-      <div className="bg-green-500 px-4 py-2 flex items-center justify-between">
+      <div className="bg-green-500 px-4 py-2 flex items-center justify-between" role="banner">
         <div className="flex items-center space-x-2">
-          <div className={`w-3 h-3 bg-white rounded-full ${pulse ? 'animate-pulse' : ''}`} />
+          <div 
+            className={`w-3 h-3 bg-white rounded-full ${pulse ? 'animate-pulse' : ''}`}
+            aria-hidden="true"
+            role="presentation"
+          />
           <span className="text-white font-bold uppercase text-sm">
-            🟢 LIVE
+            <span aria-hidden="true">🟢</span> LIVE
           </span>
         </div>
-        <div className="flex items-center space-x-3 text-white text-sm">
+        <div className="flex items-center space-x-3 text-white text-sm" aria-label={`Period ${game.period.current}, Time remaining: ${game.period.timeRemaining || '--:--'}`}>
           <span>{game.league === 'NFL' ? `Q${game.period.current}` : `P${game.period.current}`}</span>
           <span className="font-mono">{game.period.timeRemaining || '--:--'}</span>
-          {game.isFavorite && <span className="text-yellow-300">⭐</span>}
+          {game.isFavorite && <span className="text-yellow-300" aria-label="Favorite team" title="Favorite team"><span aria-hidden="true">⭐</span></span>}
         </div>
       </div>
 
@@ -125,31 +134,37 @@ export const LiveGameCard: React.FC<LiveGameCardProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-3" role="group" aria-label="Game actions">
           <button 
+            onClick={() => onViewDetails?.(game)}
             className={`flex-1 py-2 px-4 rounded-lg ${
               darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
-            } text-white font-medium transition-colors`}
+            } text-white font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+            aria-label={`View full statistics for ${game.awayTeam.name} vs ${game.homeTeam.name}`}
           >
-            📊 Full Stats
+            <span aria-hidden="true">📊</span> Full Stats
           </button>
           <button 
             className={`flex-1 py-2 px-4 rounded-lg ${
               darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
-            } ${textPrimary} font-medium transition-colors`}
+            } ${textPrimary} font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+            aria-label={`Watch ${game.awayTeam.name} vs ${game.homeTeam.name}`}
           >
-            📺 Watch
+            <span aria-hidden="true">📺</span> Watch
           </button>
           <button 
             className={`py-2 px-4 rounded-lg ${
               darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
-            } ${textPrimary} transition-colors`}
+            } ${textPrimary} transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+            aria-label={`Set notification for ${game.awayTeam.name} vs ${game.homeTeam.name}`}
+            title="Set notification"
           >
-            🔔
+            <span aria-hidden="true">🔔</span>
+            <span className="sr-only">Notify</span>
           </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 };
 

@@ -9,6 +9,8 @@ from .suggestion_router import router as suggestion_router
 from .deployment_router import router as deployment_router
 from . import pattern_router
 from . import synergy_router
+from . import analysis_router
+from . import preference_router
 
 __all__ = [
     "health_router",
@@ -16,5 +18,7 @@ __all__ = [
     "deployment_router",
     "pattern_router",
     "synergy_router",
+    "analysis_router",
+    "preference_router",
 ]
 
