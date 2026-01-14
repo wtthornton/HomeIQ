@@ -179,14 +179,46 @@ jobs:
           # Start services
           docker compose up -d
 
-          # Wait for services to be healthy
-          # E2E global setup can take up to 30s per service to verify health
-          # Allowing 90s for multiple services to start and become healthy
-          echo "⏳ Waiting for services to start..."
-          sleep 90
-
-          # Check service health
+      - name: Wait for services to be healthy
+        if: steps.check-e2e.outputs.has_tests == 'true'
+        run: |
+          echo "⏳ Waiting for services to become healthy..."
+          MAX_WAIT=180  # 3 minutes
+          ELAPSED=0
+          INTERVAL=5
+          
+          # Install jq if not available (should be available on ubuntu-latest)
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+          
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            # Count healthy services
+            HEALTHY_COUNT=$(docker compose ps --format json 2>/dev/null | jq -r '[.[] | select(.Health == "healthy")] | length' || echo "0")
+            TOTAL_COUNT=$(docker compose ps --format json 2>/dev/null | jq -r 'length' || echo "0")
+            RUNNING_COUNT=$(docker compose ps --format json 2>/dev/null | jq -r '[.[] | select(.State == "running")] | length' || echo "0")
+            
+            if [ "$TOTAL_COUNT" -gt "0" ] && [ "$RUNNING_COUNT" -eq "$TOTAL_COUNT" ]; then
+              # All services are running, check if they have health checks
+              if [ "$HEALTHY_COUNT" -eq "$TOTAL_COUNT" ] || [ "$HEALTHY_COUNT" -gt "0" ]; then
+                echo "✅ Services ready: $RUNNING_COUNT running, $HEALTHY_COUNT healthy"
+                docker compose ps
+                exit 0
+              fi
+            fi
+            
+            echo "⏳ Services: $RUNNING_COUNT/$TOTAL_COUNT running, $HEALTHY_COUNT healthy (waiting ${ELAPSED}s/${MAX_WAIT}s)..."
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+          
+          echo "❌ Timeout waiting for services to become healthy"
+          echo "Service status:"
           docker compose ps
+          echo ""
+          echo "Recent logs:"
+          docker compose logs --tail=50
+          exit 1
 
       - name: Install Playwright dependencies
         if: steps.check-e2e.outputs.has_tests == 'true'
