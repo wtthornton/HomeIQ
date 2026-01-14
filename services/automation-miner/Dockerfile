@@ -21,8 +21,8 @@ FROM python:3.12-alpine AS production
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache curl ca-certificates
+# Install runtime dependencies (including su-exec for user switching)
+RUN apk add --no-cache curl ca-certificates su-exec
 
 # Create non-root user (consistent UID/GID with other services)
 RUN addgroup -g 1001 -S appgroup && \
@@ -37,6 +37,11 @@ COPY services/automation-miner/alembic/ ./alembic/
 COPY services/automation-miner/alembic.ini .
 COPY shared/ ./shared/
 
+# Copy entrypoint script and fix line endings (Windows CRLF -> Unix LF)
+COPY services/automation-miner/docker-entrypoint.sh /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && \
+    chmod +x /docker-entrypoint.sh
+
 # Create data directory and set ownership
 RUN mkdir -p /app/data && \
     chown -R appuser:appgroup /app /home/appuser/.local
@@ -45,8 +50,8 @@ RUN mkdir -p /app/data && \
 ENV PYTHONPATH=/app:/app/src
 ENV PATH=/home/appuser/.local/bin:$PATH
 
-# Switch to non-root user
-USER appuser
+# Use entrypoint script (runs as root to fix permissions, then switches to appuser)
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Expose port
 EXPOSE 8019
@@ -55,5 +60,5 @@ EXPOSE 8019
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8019/health || exit 1
 
-# Run application
+# Run application (entrypoint will switch to appuser before executing)
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8019"]
