@@ -32,7 +32,6 @@ class DeployRequest(BaseModel):
 async def deploy_suggestion(
     suggestion_id: int,
     request: DeployRequest = DeployRequest(),
-    db: DatabaseSession = None,
     service: Annotated[DeploymentService, Depends(get_deployment_service)] = None
 ) -> dict[str, Any]:
     """

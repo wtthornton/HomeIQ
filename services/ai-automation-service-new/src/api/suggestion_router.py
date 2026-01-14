@@ -68,7 +68,6 @@ async def list_suggestions(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     status: str | None = Query(None),
-    db: DatabaseSession = None,
     service: Annotated[SuggestionService, Depends(get_suggestion_service)] = None
 ) -> dict[str, Any]:
     """
