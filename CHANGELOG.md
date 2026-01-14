@@ -16,6 +16,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Add RAG service integration with metrics UI** (eb41bb4) - wtthornton
 - **Implement 2025 Synergy Quality Scoring and Filtering System** (0b58b52) - wtthornton
 - **Add created date to proactive suggestion cards and improve security/type-safety** (5d1f560) - wtthornton
+
+### Fixed
+
+- **Fix Setup & Health page: Display meaningful health data even with errors** (fde9199) - wtthornton
+- **Fix health-dashboard deployment: rebuild container with updated assets** (11f300a) - wtthornton
+- **Resolve port conflict - ha-setup-service uses 8024 instead of 8027** (0f665ae) - wtthornton
+- **Fix dashboard runtime errors: Remove undefined variables and fix type mismatches** (38cd14e) - wtthornton
+- **Fix Zigbee2MQTT device identification and discovery** (0304752) - wtthornton
+- **Fix RAG metrics display: Add RAG Operations metrics section to dashboard** (fbe7ac6) - wtthornton
+- **Fix blueprint suggestion names and descriptions + proactive context data fixes** (09243db) - wtthornton
+- **Fix services API 422 error - transform list format to dict format** (bf06b17) - wtthornton
+- **Fix Docker build warnings: Update build contexts and Dockerfile casing** (0aab07b) - wtthornton
+- **Fix weather-api status showing as inactive in dashboard** (f4ecda0) - wtthornton
+- **Fix websocket reconnection: cancel listen_task on disconnect and reconnection** (05b3699) - wtthornton
+- **Add integration field to DeviceResponse API model and rebuild container** (731e105) - wtthornton
+- **Fix automation suggestions service: status mapping, refresh endpoint, and automatic generation** (f8b85d4) - wtthornton
+
+
+### Added
+
+- **Device-Based Automation Suggestions implementation and improvements** (1b8371f) - wtthornton
+- **Add parameterized blueprint suggestion generation and delete all functionality** (e7776a1) - wtthornton
+- **feat(sports): Phase 2 enhancements - Game detail modal, filtering, sorting, and notifications** (8f0eec9) - wtthornton
+- **Complete synergies enhancements implementation - 10 phases** (67cb495) - wtthornton
+- **Add RAG service integration with metrics UI** (eb41bb4) - wtthornton
+- **Implement 2025 Synergy Quality Scoring and Filtering System** (0b58b52) - wtthornton
+- **Add created date to proactive suggestion cards and improve security/type-safety** (5d1f560) - wtthornton
 - **feat(proactive-agent): Enhance sports suggestions with generic timing and Team Tracker sensor patterns** (e60b8b4) - wtthornton
 
 ### Fixed
