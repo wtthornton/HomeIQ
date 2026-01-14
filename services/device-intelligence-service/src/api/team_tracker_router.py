@@ -518,6 +518,131 @@ async def sync_teams_from_ha(
     }
 
 
+@router.get("/debug/diagnostics", response_model=dict[str, Any])
+async def get_diagnostics(
+    session: AsyncSession = Depends(get_db_session)
+) -> dict[str, Any]:
+    """
+    Comprehensive diagnostic endpoint for Team Tracker integration.
+    
+    Provides detailed information about:
+    - Integration status
+    - Entity detection status
+    - Database state
+    - Data API connectivity
+    - Platform distribution
+    - Team Tracker candidates
+    """
+    logger.info("🔍 Generating Team Tracker diagnostics")
+    
+    diagnostics: dict[str, Any] = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "integration_status": None,
+        "entity_detection": {
+            "candidates_found": 0,
+            "candidates": [],
+            "platform_distribution": {},
+            "data_api_accessible": False
+        },
+        "database_state": {
+            "configured_teams": 0,
+            "active_teams": 0,
+            "integration_records": 0
+        },
+        "connectivity": {
+            "data_api": False,
+            "error": None
+        }
+    }
+    
+    try:
+        # Get integration status
+        result = await session.execute(
+            select(TeamTrackerIntegration).limit(1)
+        )
+        integration = result.scalar_one_or_none()
+        
+        if integration:
+            diagnostics["integration_status"] = {
+                "is_installed": integration.is_installed,
+                "installation_status": integration.installation_status,
+                "version": integration.version,
+                "last_checked": integration.last_checked.isoformat() if integration.last_checked else None
+            }
+            diagnostics["database_state"]["integration_records"] = 1
+        
+        # Get team counts
+        teams_result = await session.execute(select(TeamTrackerTeam))
+        all_teams = teams_result.scalars().all()
+        diagnostics["database_state"]["configured_teams"] = len(all_teams)
+        diagnostics["database_state"]["active_teams"] = len([t for t in all_teams if t.is_active])
+        
+        # Check data-api connectivity and get entity info
+        data_api_client = DataAPIClient()
+        try:
+            all_sensor_entities = await data_api_client.fetch_entities(
+                domain="sensor",
+                limit=10000
+            )
+            diagnostics["connectivity"]["data_api"] = True
+            
+            # Platform distribution
+            platform_counts: dict[str, int] = {}
+            team_tracker_candidates = []
+            platform_variations = ["teamtracker", "team_tracker", "TeamTracker", "TEAMTRACKER", "team-tracker"]
+            
+            for entity in all_sensor_entities:
+                platform = entity.get("platform", "unknown")
+                platform_counts[platform] = platform_counts.get(platform, 0) + 1
+                
+                entity_id = entity.get("entity_id", "").lower()
+                platform_lower = platform.lower() if platform else ""
+                
+                # Check if this is a Team Tracker candidate
+                platform_match = (
+                    platform_lower in [p.lower() for p in platform_variations] or
+                    ("team" in platform_lower and "tracker" in platform_lower)
+                )
+                entity_id_match = (
+                    "team_tracker" in entity_id or
+                    "teamtracker" in entity_id or
+                    entity_id.endswith("_team_tracker") or
+                    entity_id.startswith("sensor.team_tracker") or
+                    entity_id.startswith("sensor.teamtracker")
+                )
+                
+                if platform_match or entity_id_match:
+                    team_tracker_candidates.append({
+                        "entity_id": entity.get("entity_id"),
+                        "platform": platform,
+                        "name": entity.get("name") or entity.get("friendly_name"),
+                        "domain": entity.get("domain"),
+                        "matched_by": "platform" if platform_match else "entity_id"
+                    })
+            
+            diagnostics["entity_detection"]["candidates_found"] = len(team_tracker_candidates)
+            diagnostics["entity_detection"]["candidates"] = team_tracker_candidates
+            diagnostics["entity_detection"]["platform_distribution"] = dict(sorted(
+                platform_counts.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:20])  # Top 20 platforms
+            
+        except Exception as e:
+            diagnostics["connectivity"]["data_api"] = False
+            diagnostics["connectivity"]["error"] = str(e)
+            logger.warning(f"Data API connectivity check failed: {e}")
+        finally:
+            await data_api_client.close()
+        
+        return diagnostics
+        
+    except Exception as e:
+        logger.error(f"Error generating diagnostics: {e}", exc_info=True)
+        diagnostics["error"] = str(e)
+        return diagnostics
+
+
 @router.get("/debug/platforms")
 async def debug_platform_values(
     session: AsyncSession = Depends(get_db_session)

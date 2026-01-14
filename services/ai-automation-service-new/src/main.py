@@ -291,7 +291,7 @@ app.add_middleware(AuthenticationMiddleware)
 app.add_middleware(RateLimitMiddleware)
 
 # Include routers
-from .api import analysis_router
+from .api import analysis_router, preference_router
 
 app.include_router(health_router, tags=["health"])
 app.include_router(suggestion_router, tags=["suggestions"])
@@ -299,6 +299,7 @@ app.include_router(deployment_router, tags=["deployment"])
 app.include_router(pattern_router.router, tags=["patterns"])
 app.include_router(synergy_router.router, tags=["synergies"])
 app.include_router(analysis_router.router, tags=["analysis"])
+app.include_router(preference_router.router, tags=["preferences"])
 
 @app.get("/")
 async def root() -> dict[str, str]:

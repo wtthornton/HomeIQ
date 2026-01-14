@@ -11,6 +11,13 @@ export interface Device {
   integration?: string;  // HA integration/platform name
   entity_count: number;
   timestamp: string;
+  status?: string;  // Device status: 'active' or 'inactive'
+  // Priority 1 & 2: Additional device attributes
+  device_type?: string;  // Device classification: 'light', 'sensor', 'thermostat', etc.
+  device_category?: string;  // Category: 'lighting', 'security', 'climate', etc.
+  labels?: string[];  // Device labels for organization
+  via_device?: string;  // Parent device ID
+  configuration_url?: string;  // Device configuration URL
 }
 
 export interface Entity {
@@ -22,6 +29,15 @@ export interface Entity {
   area_id?: string;
   disabled: boolean;
   timestamp: string;
+  // Priority 1 & 2: Additional entity attributes
+  friendly_name?: string;  // User-friendly entity name
+  name?: string;  // Entity Registry name
+  name_by_user?: string;  // User-customized name
+  icon?: string;  // Entity icon
+  device_class?: string;  // Device class: 'temperature', 'motion', 'door', etc.
+  unit_of_measurement?: string;  // Unit for sensors: '°C', '%', 'W', etc.
+  capabilities?: string[];  // Entity capabilities: ['brightness', 'color', etc.]
+  labels?: string[];  // Entity labels for organization
 }
 
 export interface Integration {
