@@ -35,14 +35,50 @@ export const Deployed: React.FC = () => {
   const loadAutomations = async () => {
     try {
       setLoading(true);
+      console.log('[Deployed] Loading automations...');
       const result = await api.listDeployedAutomations();
+      console.log('[Deployed] API result:', result);
+      console.log('[Deployed] Result type:', typeof result);
+      console.log('[Deployed] Has automations key:', 'automations' in result);
+      console.log('[Deployed] Automations value:', result.automations);
+      console.log('[Deployed] Automations type:', typeof result.automations);
+      console.log('[Deployed] Is array:', Array.isArray(result.automations));
+      
+      // Validate response structure
+      if (!result) {
+        console.warn('[Deployed] API returned null/undefined');
+        setAutomations([]);
+        return;
+      }
+      
       // Backend returns {automations: [...]}, not {data: [...]}
-      setAutomations(result.automations || result.data || []);
+      const automations = result.automations || result.data || [];
+      console.log('[Deployed] Processed automations:', automations);
+      console.log('[Deployed] Processed count:', automations.length);
+      console.log('[Deployed] Is array:', Array.isArray(automations));
+      
+      // Ensure we have an array
+      if (!Array.isArray(automations)) {
+        console.error('[Deployed] Automations is not an array:', typeof automations, automations);
+        setAutomations([]);
+        return;
+      }
+      
+      console.log('[Deployed] Setting automations state with', automations.length, 'items...');
+      setAutomations(automations);
+      console.log('[Deployed] State updated successfully');
     } catch (error) {
-      console.error('Failed to load automations:', error);
-      toast.error('Failed to load deployed automations');
+      console.error('[Deployed] Failed to load automations:', error);
+      console.error('[Deployed] Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined
+      });
+      toast.error(`Failed to load deployed automations: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setAutomations([]); // Clear state on error
     } finally {
       setLoading(false);
+      console.log('[Deployed] Loading complete');
     }
   };
 
