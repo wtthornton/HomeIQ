@@ -31,6 +31,13 @@ test.describe('System Health Tests', () => {
     // Test Data retention service
     const retentionResponse = await page.request.get('http://localhost:8080/health');
     expect(retentionResponse.status()).toBe(200);
+    
+    // Test API Automation Edge service (Epic C1)
+    const apiAutomationResponse = await page.request.get('http://localhost:8041/health');
+    expect(apiAutomationResponse.status()).toBe(200);
+    const apiAutomationData = await apiAutomationResponse.json();
+    expect(apiAutomationData.status).toBe('healthy');
+    expect(apiAutomationData.service).toBe('api-automation-edge');
   });
 
   test('Health dashboard displays system status correctly', async ({ page }) => {

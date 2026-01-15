@@ -9,6 +9,16 @@ from typing import Any, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
 
+# Huey task queue (optional, imported if available)
+try:
+    from ..queue.huey_config import huey
+    from ..queue.scheduler import get_scheduler
+    HUEY_AVAILABLE = True
+except ImportError:
+    HUEY_AVAILABLE = False
+    huey = None
+    get_scheduler = None
+
 
 class KillSwitch:
     """
@@ -18,6 +28,7 @@ class KillSwitch:
     - Global pause for non-safety automations
     - Per-home pause
     - Emergency stop mechanism
+    - Task queue integration (revoke queued tasks)
     """
     
     def __init__(self):
@@ -30,6 +41,29 @@ class KillSwitch:
         """Pause all non-safety automations globally"""
         self.global_paused = True
         logger.warning("Global kill switch activated - all non-safety automations paused")
+        
+        # Revoke queued tasks if Huey is available
+        if HUEY_AVAILABLE and huey:
+            try:
+                # Revoke all pending tasks (except high-risk ones)
+                pending_tasks = huey.pending()
+                revoked_count = 0
+                
+                for task_id in pending_tasks:
+                    try:
+                        # Note: We can't check spec from task_id directly
+                        # For now, revoke all pending tasks
+                        # In production, we'd need to store task metadata
+                        huey.revoke(task_id, revoke_once=False)
+                        revoked_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to revoke task {task_id}: {e}")
+                
+                if revoked_count > 0:
+                    logger.info(f"Revoked {revoked_count} queued tasks due to kill switch")
+                    
+            except Exception as e:
+                logger.error(f"Error revoking tasks on kill switch activation: {e}", exc_info=True)
     
     def resume_global(self):
         """Resume all automations globally"""
@@ -50,6 +84,16 @@ class KillSwitch:
         """Pause a specific spec"""
         self.paused_specs.add(spec_id)
         logger.warning(f"Kill switch activated for spec {spec_id}")
+        
+        # Revoke scheduled tasks for this spec if Huey is available
+        if HUEY_AVAILABLE:
+            try:
+                scheduler = get_scheduler()
+                if scheduler:
+                    scheduler.unregister_scheduled_automation(spec_id)
+                    logger.info(f"Unregistered scheduled automation for spec {spec_id}")
+            except Exception as e:
+                logger.warning(f"Failed to unregister schedule for {spec_id}: {e}")
     
     def resume_spec(self, spec_id: str):
         """Resume a specific spec"""

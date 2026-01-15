@@ -12,7 +12,8 @@ test.describe('Cross-Service Integration Tests', () => {
       'http://localhost:8086/health',  // InfluxDB
       'http://localhost:8001/health',  // WebSocket Ingestion (direct InfluxDB writes)
       'http://localhost:8003/api/v1/health',  // Admin API
-      'http://localhost:8080/health'   // Data Retention
+      'http://localhost:8080/health',   // Data Retention
+      'http://localhost:8041/health'    // API Automation Edge (Epic C1)
     ];
     
     for (const serviceUrl of services) {
@@ -159,6 +160,51 @@ test.describe('Cross-Service Integration Tests', () => {
       expect(adminData.ingestion_service.weather_enrichment.api_calls).toBeDefined();
     });
 
+    test('API Automation Edge to Home Assistant communication', async ({ page }) => {
+      // Step 1: Verify API Automation Edge is healthy
+      const apiAutomationResponse = await page.request.get('http://localhost:8041/health');
+      expect(apiAutomationResponse.status()).toBe(200);
+      const apiAutomationData = await apiAutomationResponse.json();
+      expect(apiAutomationData.status).toBe('healthy');
+      
+      // Step 2: Verify API Automation Edge can create specs
+      const validSpec = {
+        id: 'test_integration_spec',
+        version: '1.0.0',
+        name: 'Test Integration Spec',
+        enabled: true,
+        triggers: [
+          {
+            type: 'ha_event',
+            event_type: 'state_changed'
+          }
+        ],
+        actions: [
+          {
+            id: 'act1',
+            capability: 'light.turn_on',
+            target: { entity_id: 'light.test' },
+            data: {}
+          }
+        ],
+        policy: { risk: 'low' }
+      };
+      
+      const createResponse = await page.request.post('http://localhost:8041/api/specs', {
+        data: validSpec
+      });
+      
+      // Should succeed (200) or fail gracefully (400) if HA unavailable
+      expect([200, 400]).toContain(createResponse.status());
+      
+      // Step 3: Verify kill switch status endpoint works
+      const killSwitchResponse = await page.request.get('http://localhost:8041/api/observability/kill-switch/status');
+      expect(killSwitchResponse.status()).toBe(200);
+      const killSwitchData = await killSwitchResponse.json();
+      expect(killSwitchData.success).toBe(true);
+      expect(killSwitchData.status).toHaveProperty('global_paused');
+    });
+
     test('InfluxDB to all services communication', async ({ page }) => {
       // Step 1: Verify InfluxDB is healthy
       const influxResponse = await page.request.get('http://localhost:8086/health');
@@ -240,7 +286,8 @@ test.describe('Cross-Service Integration Tests', () => {
         { name: 'WebSocket Ingestion', url: 'http://localhost:8001/health' },
         { name: 'Enrichment Pipeline', url: 'http://localhost:8002/health' },
         { name: 'Admin API', url: 'http://localhost:8003/api/v1/health' },
-        { name: 'Data Retention', url: 'http://localhost:8080/health' }
+        { name: 'Data Retention', url: 'http://localhost:8080/health' },
+        { name: 'API Automation Edge', url: 'http://localhost:8041/health' }
       ];
       
       const healthStatuses = [];
