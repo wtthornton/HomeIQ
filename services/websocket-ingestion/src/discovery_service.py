@@ -153,7 +153,7 @@ class DiscoveryService:
             logger.error(traceback.format_exc())
             return []
 
-    async def discover_devices(self, websocket: ClientWebSocketResponse | None = None) -> list[dict[str, Any]]:
+    async def discover_devices(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None) -> list[dict[str, Any]]:
         """
         Discover all devices from Home Assistant device registry
         
@@ -171,9 +171,15 @@ class DiscoveryService:
             logger.info("=" * 80)
 
             # Try WebSocket first (preferred method) - use message routing to avoid listen loop conflicts
-            if connection_manager or websocket:
+            if connection_manager:
                 logger.info("Using WebSocket for device discovery (with message routing)")
                 devices = await self._discover_devices_websocket(websocket, connection_manager)
+                if devices:
+                    return devices
+                logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
+            elif websocket:
+                logger.info("Using WebSocket for device discovery (legacy mode)")
+                devices = await self._discover_devices_websocket(websocket, None)
                 if devices:
                     return devices
                 logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
