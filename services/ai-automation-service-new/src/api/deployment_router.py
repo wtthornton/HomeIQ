@@ -32,7 +32,7 @@ class DeployRequest(BaseModel):
 async def deploy_suggestion(
     suggestion_id: int,
     request: DeployRequest = DeployRequest(),
-    service: Annotated[DeploymentService, Depends(get_deployment_service)] = None
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
 ) -> dict[str, Any]:
     """
     Deploy an approved automation suggestion to Home Assistant.

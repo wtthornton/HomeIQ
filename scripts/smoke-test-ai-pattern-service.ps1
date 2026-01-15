@@ -105,7 +105,7 @@ try {
 # Test 9: Docker Container Health
 Write-Host "`n9. Testing Docker container health..." -ForegroundColor Yellow
 try {
-    $container = docker ps --filter "name=ai-pattern-service" --format "{{.Status}}" 2>&1
+    $container = docker ps --filter "name=homeiq-ai-pattern-service" --format "{{.Status}}" 2>&1
     if ($LASTEXITCODE -eq 0 -and $container -match "healthy|Up") {
         $results += [PSCustomObject]@{Test="Docker Container"; Status="PASS"; Details=$container.Trim()}
         Write-Host "   ✓ Docker Container: $($container.Trim())" -ForegroundColor Green

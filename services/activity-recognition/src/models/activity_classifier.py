@@ -375,10 +375,10 @@ def export_to_onnx(
     # Create dummy input
     dummy_input = torch.randn(1, sequence_length, model.input_size)
     
-    # Export (pass input as tuple for correct type signature)
+    # Export model to ONNX
     torch.onnx.export(
         model,
-        (dummy_input,),
+        dummy_input,  # Single input tensor (not a tuple)
         str(output_path),
         input_names=["sensor_sequence"],
         output_names=["activity_logits"],

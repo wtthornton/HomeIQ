@@ -1222,7 +1222,7 @@ services:
     build:
       context: .
       dockerfile: services/ai-code-executor/Dockerfile
-    container_name: ai-code-executor
+    container_name: homeiq-ai-code-executor
     restart: unless-stopped
     # Internal service - no external port mapping needed
     # Port 8030 is used by ha-ai-agent-service
@@ -1267,7 +1267,7 @@ services:
     build:
       context: .
       dockerfile: services/ai-training-service/Dockerfile
-    container_name: ai-training-service
+    container_name: homeiq-ai-training-service
     restart: unless-stopped
     ports:
       - "8033:8022"
@@ -1353,7 +1353,7 @@ services:
     build:
       context: .
       dockerfile: services/ai-query-service/Dockerfile
-    container_name: ai-query-service
+    container_name: homeiq-ai-query-service
     restart: unless-stopped
     ports:
       - "8035:8018"  # Changed external port to avoid conflict with ai-core-service
@@ -1449,7 +1449,7 @@ services:
     build:
       context: .
       dockerfile: services/yaml-validation-service/Dockerfile
-    container_name: yaml-validation-service
+    container_name: homeiq-yaml-validation-service
     restart: unless-stopped
     ports:
       - "8037:8037"
@@ -1495,7 +1495,7 @@ services:
     build:
       context: .
       dockerfile: services/ai-automation-service-new/Dockerfile
-    container_name: ai-automation-service-new
+    container_name: homeiq-ai-automation-service-new
     restart: unless-stopped
     ports:
       - "8036:8025"  # External port 8036, internal port 8025 (8025 external already used by ml-service)
@@ -1666,7 +1666,7 @@ services:
     build:
       context: .
       dockerfile: services/automation-miner/Dockerfile
-    container_name: automation-miner
+    container_name: homeiq-automation-miner
     restart: unless-stopped
     ports:
       - "8029:8019"  # Fixed port conflict with ner-service

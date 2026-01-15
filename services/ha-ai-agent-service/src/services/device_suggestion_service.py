@@ -237,15 +237,53 @@ class DeviceSuggestionService:
         """
         suggestions: list[DeviceSuggestion] = []
         
+        # Fetch device data to get friendly name
+        device_data = await self._fetch_device_data(device_id)
+        device_name = device_data.get("name") or device_data.get("friendly_name") or f"Device {device_id[:8]}"
+        
+        # Build entity ID to friendly name mapping
+        entity_map: dict[str, str] = {}
+        primary_entity_name = device_name  # Default to device name
+        for entity in device_context.home_assistant_entities:
+            entity_id = entity.get("entity_id")
+            if entity_id:
+                friendly_name = (
+                    entity.get("friendly_name") or 
+                    entity.get("name") or 
+                    entity.get("name_by_user") or 
+                    entity_id
+                )
+                entity_map[entity_id] = friendly_name
+                # Use first entity's friendly name as primary if available
+                if not primary_entity_name or primary_entity_name == f"Device {device_id[:8]}":
+                    primary_entity_name = friendly_name
+        
+        # Helper function to replace entity IDs with friendly names
+        def replace_entity_ids(text: str) -> str:
+            """Replace entity IDs in text with friendly names"""
+            result = text
+            # Replace device_id hash with friendly name
+            if device_id in result:
+                result = result.replace(device_id, device_name)
+            # Replace any entity IDs with friendly names
+            for entity_id, friendly_name in entity_map.items():
+                if entity_id in result:
+                    result = result.replace(entity_id, friendly_name)
+            return result
+        
         # Generate suggestion from device capabilities
         if device_context.capabilities:
+            # Get capability names for better description
+            capability_names = [cap.get("capability_name", "") for cap in device_context.capabilities if cap.get("capability_name")]
+            capability_text = ", ".join(capability_names[:3]) if capability_names else "device capabilities"
+            
             suggestion = DeviceSuggestion(
                 suggestion_id=str(uuid.uuid4()),
-                title="Device Capability Automation",
-                description=f"Automation based on device capabilities for {device_id}",
+                title=f"Automation for {device_name}",
+                description=f"Automation based on {device_name} capabilities ({capability_text})",
                 automation_preview=AutomationPreview(
-                    trigger="Device state change",
-                    action=f"Control {device_id}",
+                    trigger="Device state change detected",
+                    action=f"Control {device_name}",
                 ),
                 data_sources=DataSources(
                     device_capabilities=True,
@@ -254,11 +292,11 @@ class DeviceSuggestionService:
                     action_entities=[entity.get("entity_id") for entity in device_context.home_assistant_entities if entity.get("entity_id")],
                 ),
                 home_assistant_services=HomeAssistantServices(
-                    actions=["switch.turn_on"],
+                    actions=["switch.turn_on", "switch.turn_off"],
                     validated=False,
                 ),
-                confidence_score=0.7,
-                quality_score=0.65,
+                confidence_score=0.75,
+                quality_score=0.70,
                 enhanceable=True,
                 home_assistant_compatible=True,
             )
@@ -266,20 +304,21 @@ class DeviceSuggestionService:
         
         # Generate suggestion from synergies
         if device_context.related_synergies:
+            synergy_count = len(device_context.related_synergies)
             suggestion = DeviceSuggestion(
                 suggestion_id=str(uuid.uuid4()),
-                title="Synergy-Based Automation",
-                description=f"Automation based on device interaction patterns",
+                title=f"Synergy-Based Automation for {device_name}",
+                description=f"Automation based on {device_name} interaction patterns with {synergy_count} related device(s)",
                 automation_preview=AutomationPreview(
                     trigger="Related device state change",
-                    action=f"Control {device_id}",
+                    action=f"Control {device_name} based on related device activity",
                 ),
                 data_sources=DataSources(
                     synergies=[s.get("id", "") for s in device_context.related_synergies if s.get("id")],
                     device_capabilities=True,
                 ),
-                confidence_score=0.8,
-                quality_score=0.75,
+                confidence_score=0.85,
+                quality_score=0.80,
                 enhanceable=True,
                 home_assistant_compatible=True,
             )
@@ -287,43 +326,95 @@ class DeviceSuggestionService:
         
         # Generate suggestion from blueprints
         if device_context.compatible_blueprints:
+            blueprint_count = len(device_context.compatible_blueprints)
             suggestion = DeviceSuggestion(
                 suggestion_id=str(uuid.uuid4()),
-                title="Blueprint-Based Automation",
-                description=f"Automation based on Home Assistant blueprint",
+                title=f"Blueprint-Based Automation for {device_name}",
+                description=f"Automation based on Home Assistant blueprint pattern (matched {blueprint_count} blueprint(s))",
                 automation_preview=AutomationPreview(
-                    trigger="Blueprint trigger",
-                    action=f"Blueprint action for {device_id}",
+                    trigger="Blueprint trigger pattern",
+                    action=f"Execute blueprint action for {device_name}",
                 ),
                 data_sources=DataSources(
                     blueprints=[b.get("id", "") for b in device_context.compatible_blueprints if b.get("id")],
                 ),
-                confidence_score=0.85,
-                quality_score=0.8,
+                confidence_score=0.90,
+                quality_score=0.85,
                 enhanceable=True,
                 home_assistant_compatible=True,
             )
             suggestions.append(suggestion)
         
-        # If no suggestions generated, create a basic one
-        if not suggestions:
+        # Generate time-based suggestion if we have entities
+        if device_context.home_assistant_entities:
+            # Find primary entity (prefer switch/light domains)
+            primary_entity = None
+            for entity in device_context.home_assistant_entities:
+                domain = entity.get("domain", "")
+                if domain in ["light", "switch", "fan"]:
+                    primary_entity = entity
+                    break
+            if not primary_entity:
+                primary_entity = device_context.home_assistant_entities[0]
+            
+            entity_name = (
+                primary_entity.get("friendly_name") or 
+                primary_entity.get("name") or 
+                primary_entity.get("entity_id", "")
+            )
+            
             suggestion = DeviceSuggestion(
                 suggestion_id=str(uuid.uuid4()),
-                title="Basic Device Automation",
-                description=f"Basic automation for {device_id}",
+                title=f"Time-Based Automation for {entity_name}",
+                description=f"Automation to control {entity_name} based on time of day or schedule",
                 automation_preview=AutomationPreview(
-                    trigger="Time-based trigger",
-                    action=f"Control {device_id}",
+                    trigger="Time-based trigger (sunset, sunrise, or specific time)",
+                    action=f"Control {entity_name}",
                 ),
                 data_sources=DataSources(
                     device_capabilities=True,
+                    weather=True,  # Time-based often uses sun position
                 ),
-                confidence_score=0.6,
-                quality_score=0.6,
+                home_assistant_entities=HomeAssistantEntities(
+                    action_entities=[primary_entity.get("entity_id")] if primary_entity.get("entity_id") else [],
+                ),
+                home_assistant_services=HomeAssistantServices(
+                    actions=[f"{primary_entity.get('domain', 'switch')}.turn_on", f"{primary_entity.get('domain', 'switch')}.turn_off"],
+                    validated=False,
+                ),
+                confidence_score=0.70,
+                quality_score=0.75,
                 enhanceable=True,
                 home_assistant_compatible=True,
             )
             suggestions.append(suggestion)
+        
+        # If no suggestions generated, create a basic one with friendly name
+        if not suggestions:
+            suggestion = DeviceSuggestion(
+                suggestion_id=str(uuid.uuid4()),
+                title=f"Basic Automation for {device_name}",
+                description=f"Basic automation to control {device_name}",
+                automation_preview=AutomationPreview(
+                    trigger="Time-based trigger",
+                    action=f"Control {device_name}",
+                ),
+                data_sources=DataSources(
+                    device_capabilities=True,
+                ),
+                confidence_score=0.65,
+                quality_score=0.65,
+                enhanceable=True,
+                home_assistant_compatible=True,
+            )
+            suggestions.append(suggestion)
+        
+        # Apply friendly name replacements to all suggestions
+        for suggestion in suggestions:
+            suggestion.title = replace_entity_ids(suggestion.title)
+            suggestion.description = replace_entity_ids(suggestion.description)
+            suggestion.automation_preview.trigger = replace_entity_ids(suggestion.automation_preview.trigger)
+            suggestion.automation_preview.action = replace_entity_ids(suggestion.automation_preview.action)
         
         return suggestions
     
@@ -352,11 +443,32 @@ class DeviceSuggestionService:
             reverse=True,
         )
         
-        # Filter by minimum thresholds
+        # Filter by minimum thresholds (raise to 0.65 for better quality)
         filtered = [
             s for s in ranked
-            if s.confidence_score >= 0.6 and s.quality_score >= 0.6
+            if s.confidence_score >= 0.65 and s.quality_score >= 0.65
         ]
+        
+        # Calculate improved scores based on data sources
+        for suggestion in filtered:
+            # Boost confidence for multiple data sources
+            source_count = sum([
+                1 if suggestion.data_sources.blueprints else 0,
+                1 if suggestion.data_sources.synergies else 0,
+                1 if suggestion.data_sources.device_capabilities else 0,
+                1 if suggestion.data_sources.weather else 0,
+                1 if suggestion.data_sources.sports else 0,
+            ])
+            if source_count > 1:
+                suggestion.confidence_score = min(suggestion.confidence_score + 0.05, 1.0)
+            
+            # Boost quality for specific triggers (not generic)
+            if "Time-based" not in suggestion.automation_preview.trigger:
+                suggestion.quality_score = min(suggestion.quality_score + 0.05, 1.0)
+            
+            # Boost quality for detailed descriptions
+            if len(suggestion.description) > 60:
+                suggestion.quality_score = min(suggestion.quality_score + 0.05, 1.0)
         
         return filtered
     

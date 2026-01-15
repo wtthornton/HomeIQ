@@ -33,7 +33,7 @@ def main():
     copy_cmd = [
         "docker", "cp",
         str(script_path),
-        "ai-pattern-service:/tmp/backfill_quality_scores.py"
+        "homeiq-ai-pattern-service:/tmp/backfill_quality_scores.py"
     ]
     result = subprocess.run(copy_cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -43,7 +43,7 @@ def main():
     # Run script in container
     print("\nRunning backfill script...")
     run_cmd = [
-        "docker", "exec", "ai-pattern-service",
+        "docker", "exec", "homeiq-ai-pattern-service",
         "python", "/tmp/backfill_quality_scores.py",
         "--db-path", "/app/data/ai_automation.db"
     ]

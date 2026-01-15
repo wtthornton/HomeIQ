@@ -68,6 +68,39 @@ export const HAAgentChat: React.FC = () => {
   const [originalPrompt, setOriginalPrompt] = useState<string>('');
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState<'chat' | 'debug'>('chat');
+  
+  // State persistence: Store originalPrompt in localStorage with conversation ID
+  useEffect(() => {
+    if (originalPrompt && currentConversationId) {
+      try {
+        localStorage.setItem(`originalPrompt:${currentConversationId}`, originalPrompt);
+        console.log('[HAAgentChat] Stored originalPrompt in localStorage:', {
+          conversationId: currentConversationId,
+          promptLength: originalPrompt.length,
+        });
+      } catch (error) {
+        console.warn('[HAAgentChat] Failed to store originalPrompt in localStorage:', error);
+      }
+    }
+  }, [originalPrompt, currentConversationId]);
+
+  // Restore originalPrompt from localStorage on conversation load
+  useEffect(() => {
+    if (currentConversationId && !originalPrompt) {
+      try {
+        const stored = localStorage.getItem(`originalPrompt:${currentConversationId}`);
+        if (stored) {
+          setOriginalPrompt(stored);
+          console.log('[HAAgentChat] Restored originalPrompt from localStorage:', {
+            conversationId: currentConversationId,
+            promptLength: stored.length,
+          });
+        }
+      } catch (error) {
+        console.warn('[HAAgentChat] Failed to restore originalPrompt from localStorage:', error);
+      }
+    }
+  }, [currentConversationId]);
   // Phase 1: Device-Based Automation Suggestions
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [devicePickerOpen, setDevicePickerOpen] = useState(false);
@@ -143,6 +176,28 @@ export const HAAgentChat: React.FC = () => {
         const deduplicated = deduplicateMessages(loadedMessages);
         console.log(`[HAAgentChat] Loaded ${loadedMessages.length} messages, deduplicated to ${deduplicated.length}`);
         setMessages(deduplicated);
+        
+        // Fix for EnhancementButton: Ensure originalPrompt is set after reload
+        // Set originalPrompt from latest user message if not already set
+        // This ensures EnhancementButton works after automation creation + reload
+        if (!originalPrompt) {
+          const latestUserMsg = deduplicated.slice().reverse().find(m => m.role === 'user');
+          if (latestUserMsg) {
+            setOriginalPrompt(latestUserMsg.content);
+            console.log('[HAAgentChat] Set originalPrompt from latest user message after reload', {
+              conversationId: currentConversationId,
+              messageId: latestUserMsg.message_id,
+              promptLength: latestUserMsg.content.length,
+            });
+          } else {
+            // Debug logging: Structured logging for diagnostics
+            console.warn('[HAAgentChat] No user message found after reload:', {
+              conversationId: currentConversationId,
+              messageCount: deduplicated.length,
+              messages: deduplicated.map(m => ({ role: m.role, id: m.message_id })),
+            });
+          }
+        }
       } catch (error) {
         console.error('Failed to load conversation:', error);
         toast.error('Failed to load conversation');
@@ -169,6 +224,46 @@ export const HAAgentChat: React.FC = () => {
   useEffect(() => {
     loadConversation();
   }, [currentConversationId]);
+
+  // Fix for EnhancementButton: Set originalPrompt when automation is detected
+  // This ensures originalPrompt is available even if user didn't preview automation first
+  useEffect(() => {
+    // Only set if not already set
+    if (!originalPrompt && messages.length > 0) {
+      // Check if any message contains automation (detectAutomation is defined in component scope)
+      const hasAutomation = messages.some(m => {
+        // Check tool calls for automation-related tools
+        if (m.toolCalls) {
+          return m.toolCalls.some(tc => 
+            tc.name === 'preview_automation_from_prompt' || 
+            tc.name === 'create_automation_from_prompt' ||
+            tc.name === 'test_automation_yaml'
+          );
+        }
+        // Check message content for YAML code blocks
+        return /```yaml\n([\s\S]*?)```/.test(m.content);
+      });
+      
+      if (hasAutomation) {
+        const userMsg = messages.slice().reverse().find(m => m.role === 'user');
+        if (userMsg) {
+          setOriginalPrompt(userMsg.content);
+          console.log('[HAAgentChat] Set originalPrompt from latest user message when automation detected', {
+            conversationId: currentConversationId,
+            messageId: userMsg.message_id,
+            promptLength: userMsg.content.length,
+          });
+        } else {
+          // Debug logging: Structured logging for diagnostics
+          console.warn('[HAAgentChat] Automation detected but no user message found:', {
+            conversationId: currentConversationId,
+            messageCount: messages.length,
+            messages: messages.map(m => ({ role: m.role, id: m.message_id })),
+          });
+        }
+      }
+    }
+  }, [messages, originalPrompt]);
 
   // Send initial message with blueprint context if present
   useEffect(() => {
@@ -489,6 +584,12 @@ export const HAAgentChat: React.FC = () => {
     return undefined;
   }, [messages]);
 
+  // Memoization optimization: Reuse memoized latestUserMessage for EnhancementButton
+  const userMsgForEnhance = useMemo(() => {
+    if (originalPrompt) return null; // Don't calculate if already set
+    return latestUserMessage;
+  }, [originalPrompt, latestUserMessage]);
+
   const handlePreviewAutomation = (message: ChatMessage) => {
     const automation = detectAutomation(message);
     if (automation) {
@@ -670,14 +771,48 @@ export const HAAgentChat: React.FC = () => {
             <DeviceSuggestions
               darkMode={darkMode}
               deviceId={selectedDeviceId}
-              onEnhanceSuggestion={(suggestion: DeviceSuggestion) => {
-                // Pre-populate input with suggestion context
-                const prompt = `Enhance this automation: ${suggestion.title}\n\n${suggestion.description}`;
-                setInputValue(prompt);
-                // Focus input
-                setTimeout(() => {
-                  inputRef.current?.focus();
-                }, 100);
+              onEnhanceSuggestion={async (suggestion: DeviceSuggestion) => {
+                try {
+                  // Ensure we have a conversation
+                  if (!currentConversationId) {
+                    // Start new conversation
+                    const response = await sendChatMessage({
+                      message: `I'd like to enhance this automation suggestion: ${suggestion.title}`,
+                      title: `Enhance: ${suggestion.title.substring(0, 50)}`,
+                    });
+                    setCurrentConversationId(response.conversation_id);
+                    // Reload to get full conversation
+                    await loadConversation();
+                  }
+                  
+                  // Send enhancement request
+                  const enhancementPrompt = `Enhance this automation suggestion:
+
+Title: ${suggestion.title}
+Description: ${suggestion.description}
+Trigger: ${suggestion.automation_preview.trigger}
+Action: ${suggestion.automation_preview.action}
+
+Please provide an improved version with more details, better automation logic, and specific Home Assistant configuration.`;
+                  
+                  // Pre-populate input with enhancement prompt
+                  setInputValue(enhancementPrompt);
+                  
+                  // Focus input so user can review/edit before sending
+                  setTimeout(() => {
+                    inputRef.current?.focus();
+                    // Scroll input into view
+                    inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }, 100);
+                  
+                  toast.success('Enhancement prompt ready - review and send to enhance', { 
+                    icon: '✨',
+                    duration: 3000,
+                  });
+                } catch (error) {
+                  console.error('Failed to prepare enhancement:', error);
+                  toast.error('Failed to prepare enhancement. Please try again.');
+                }
               }}
             />
             
@@ -932,7 +1067,7 @@ export const HAAgentChat: React.FC = () => {
               return (
                 <EnhancementButton
                   automationYaml={automationYaml || undefined}  // Optional - pass only if available
-                  originalPrompt={originalPrompt || userMsg?.content || ''}
+                  originalPrompt={originalPrompt || userMsgForEnhance?.content || userMsg?.content || ''}
                   conversationId={currentConversationId}
                   darkMode={darkMode}
                   onEnhancementSelected={handleEnhancementSelected}

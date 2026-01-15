@@ -68,7 +68,7 @@ async def list_suggestions(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     status: str | None = Query(None),
-    service: Annotated[SuggestionService, Depends(get_suggestion_service)] = None
+    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
 ) -> dict[str, Any]:
     """
     List automation suggestions with filtering and pagination.

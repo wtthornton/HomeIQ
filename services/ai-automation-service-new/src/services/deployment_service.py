@@ -124,10 +124,12 @@ class DeploymentService:
                 suggestion.automation_yaml
             )
             
-            if not deployment_result.get("status") == "deployed":
+            if deployment_result.get("status") != "deployed":
                 raise DeploymentError(f"Deployment failed: {deployment_result}")
             
             automation_id = deployment_result.get("automation_id")
+            if not automation_id:
+                raise DeploymentError("Deployment result missing automation_id")
             
             # Get previous version number for this automation
             prev_version_query = select(AutomationVersion).where(

@@ -267,9 +267,12 @@ class EnhancedContextBuilder:
     async def build_existing_automations_context(self) -> str:
         """
         Build context for existing automations (for duplicate detection).
+        
+        Only includes active automations (state == "on") to avoid confusion
+        from disabled or unavailable automations.
         """
         try:
-            # Fetch automation entities
+            # Fetch automation entities from Data API (for metadata like friendly_name)
             entities = await self.data_api_client.fetch_entities(limit=10000)
             automations = [
                 e for e in entities
@@ -279,19 +282,52 @@ class EnhancedContextBuilder:
             if not automations:
                 return "EXISTING_AUTOMATIONS: None found"
             
+            # Fetch actual states from Home Assistant
+            try:
+                states = await self.ha_client.get_states()
+                # Create state map: entity_id -> state dict
+                state_map = {
+                    state.get("entity_id"): state.get("state", "unknown")
+                    for state in states
+                    if state.get("entity_id", "").startswith("automation.")
+                }
+            except Exception as e:
+                logger.warning(f"Could not fetch states from Home Assistant: {e}")
+                state_map = {}
+            
+            # Filter to only active automations and get actual state
+            active_automations = []
+            for auto in automations:
+                entity_id = auto.get("entity_id", "")
+                # Get actual state from Home Assistant (not from entity data)
+                actual_state = state_map.get(entity_id, "unknown")
+                
+                # Only include automations that are active (state == "on")
+                if actual_state == "on":
+                    friendly_name = auto.get("friendly_name") or auto.get("name") or entity_id
+                    active_automations.append({
+                        "entity_id": entity_id,
+                        "friendly_name": friendly_name,
+                        "state": actual_state
+                    })
+            
+            if not active_automations:
+                return "EXISTING_AUTOMATIONS: No active automations found"
+            
             parts = ["EXISTING_AUTOMATIONS:"]
             parts.append("(Check before creating to avoid duplicates)")
+            parts.append("(Only active automations are shown)")
             parts.append("")
             
-            for auto in automations[:30]:  # Limit to 30
-                entity_id = auto.get("entity_id", "")
-                friendly_name = auto.get("friendly_name") or auto.get("name") or entity_id
-                state = auto.get("state", "unknown")
+            for auto in active_automations[:30]:  # Limit to 30
+                entity_id = auto["entity_id"]
+                friendly_name = auto["friendly_name"]
+                state = auto["state"]
                 
                 parts.append(f"  - {entity_id}: \"{friendly_name}\" (state: {state})")
             
-            if len(automations) > 30:
-                parts.append(f"  ... and {len(automations) - 30} more")
+            if len(active_automations) > 30:
+                parts.append(f"  ... and {len(active_automations) - 30} more active automations")
             
             return "\n".join(parts)
             

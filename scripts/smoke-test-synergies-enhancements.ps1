@@ -102,7 +102,7 @@ try {
 # Test 6: Container Logs - Check Engine Initialization
 Write-Host "`n6. Testing engine initialization in logs..." -ForegroundColor Yellow
 try {
-    $logs = docker compose logs ai-pattern-service --tail 100 2>&1
+    $logs = docker compose logs ai-pattern-service --tail 100 2>&1  # Service name, not container name
     $engines = @("EnergySavingsCalculator", "SpatialIntelligence", "TemporalSynergy", "RelationshipDiscovery", "CapabilityAnalyzer")
     $found = @()
     
@@ -127,7 +127,7 @@ try {
 # Test 7: Container Health
 Write-Host "`n7. Testing container health..." -ForegroundColor Yellow
 try {
-    $container = docker ps --filter "name=ai-pattern-service" --format "{{.Status}}" 2>&1
+    $container = docker ps --filter "name=homeiq-ai-pattern-service" --format "{{.Status}}" 2>&1
     if ($LASTEXITCODE -eq 0 -and $container) {
         if ($container -match "healthy|Up") {
             $results += [PSCustomObject]@{Test="Container Health"; Status="PASS"; Details=$container.Trim()}

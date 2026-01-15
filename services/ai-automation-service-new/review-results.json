@@ -169,7 +169,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\main.py",
@@ -411,7 +412,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\__init__.py",
@@ -564,7 +566,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\api\\analysis_router.py",
@@ -754,7 +757,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\api\\dependencies.py",
@@ -949,7 +953,8 @@
         }
       },
       "passed": true,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\api\\deployment_router.py",
@@ -961,7 +966,49 @@
         "method": "extension"
       },
       "context7_verification": {
-        "api": {
+        "APIRouter": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "Any": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "BaseModel": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "DatabaseSession": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "DeploymentService": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "ai": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "archived": {
           "api_docs_available": false,
           "best_practices_available": false,
           "api_mentioned": true,
@@ -975,14 +1022,14 @@
           "docs_source": null,
           "best_practices_source": null
         },
-        "pydantic": {
+        "handle_route_errors": {
           "api_docs_available": false,
           "best_practices_available": false,
           "api_mentioned": true,
           "docs_source": null,
           "best_practices_source": null
         },
-        "services": {
+        "pydantic": {
           "api_docs_available": false,
           "best_practices_available": false,
           "api_mentioned": true,
@@ -991,10 +1038,16 @@
         }
       },
       "libraries_detected": [
-        "api",
+        "APIRouter",
+        "Any",
+        "BaseModel",
+        "DatabaseSession",
+        "DeploymentService",
+        "ai",
+        "archived",
         "fastapi",
-        "pydantic",
-        "services"
+        "handle_route_errors",
+        "pydantic"
       ],
       "context7_debug": {
         "helper_enabled": true,
@@ -1002,27 +1055,21 @@
         "mcp_gateway_available": true
       },
       "scoring": {
-        "complexity_score": 0.4,
+        "complexity_score": 10.0,
         "security_score": 10.0,
         "maintainability_score": 9.2,
         "test_coverage_score": 0.0,
-        "performance_score": 10.0,
-        "linting_score": 10.0,
+        "performance_score": 0.0,
+        "linting_score": 5.0,
         "type_checking_score": 5.0,
         "duplication_score": 10.0,
-        "linting_issue_count": 0.0,
+        "linting_issue_count": 1.0,
         "type_issue_count": 0.0,
-        "overall_score": 82.19999999999999,
+        "overall_score": 53.0,
         "_explanations": {
           "complexity_score": {
-            "explanation": "Areas for improvement: complexity needs significant improvement (0.4/10)",
-            "suggestions": [
-              "Break down complex functions into smaller, focused functions",
-              "Reduce nesting depth (aim for < 4 levels)",
-              "Extract complex logic into separate functions or modules",
-              "Use early returns to reduce nesting",
-              "Consider using list comprehensions or generator expressions"
-            ]
+            "explanation": "Strengths: complexity is excellent (10.0/10), Code demonstrates best practices",
+            "suggestions": []
           },
           "security_score": {
             "explanation": "Strengths: security is excellent (10.0/10), Code demonstrates best practices",
@@ -1042,12 +1089,29 @@
             ]
           },
           "performance_score": {
-            "explanation": "Strengths: performance is excellent (10.0/10), Code demonstrates best practices",
-            "suggestions": []
+            "explanation": "Areas for improvement: performance needs significant improvement (0.0/10)",
+            "suggestions": [
+              "Profile code to identify bottlenecks",
+              "Optimize hot paths and frequently called functions",
+              "Consider caching results of expensive operations",
+              "Use appropriate data structures for the use case",
+              "Use async/await for I/O-bound operations",
+              "Consider using functools.lru_cache for expensive computations"
+            ]
           },
           "linting_score": {
-            "explanation": "Strengths: linting is excellent (10.0/10), Code demonstrates best practices",
-            "suggestions": []
+            "explanation": "Areas for improvement: linting is acceptable but could be improved (5.0/10)",
+            "suggestions": [
+              "Run linting tool to identify specific code style issues",
+              "Fix code style violations (PEP 8 for Python, ESLint rules for JS/TS)",
+              "Address all errors (E) and fatal issues (F) first, then warnings (W)",
+              "Review and fix warnings for better code quality",
+              "Run 'ruff check' to identify specific linting issues",
+              "Run 'ruff check --fix' to auto-fix many issues automatically",
+              "Configure ruff in pyproject.toml for project-specific rules",
+              "Ensure consistent import ordering and formatting",
+              "Fix line length violations (aim for 88-100 characters per line)"
+            ]
           },
           "type_checking_score": {
             "explanation": "Areas for improvement: type_checking is acceptable but could be improved (5.0/10)",
@@ -1069,7 +1133,7 @@
             "suggestions": []
           },
           "linting_issue_count": {
-            "explanation": "Areas for improvement: linting_issue_count needs significant improvement (0.0/10)",
+            "explanation": "Areas for improvement: linting_issue_count needs significant improvement (1.0/10)",
             "suggestions": []
           },
           "type_issue_count": {
@@ -1077,9 +1141,14 @@
             "suggestions": []
           },
           "overall_score": {
-            "explanation": "Strengths: overall is good (82.2/10)",
+            "explanation": "Areas for improvement: overall is acceptable but could be improved (53.0/10)",
             "suggestions": [
-              "Consider minor improvements to reach excellent level (>8.5)"
+              "Review individual quality metrics (complexity, security, maintainability, test coverage, performance)",
+              "Address the lowest-scoring areas first for maximum impact",
+              "Set specific improvement goals for each quality dimension",
+              "Run code quality tools regularly to track progress",
+              "Run ruff and mypy to identify code style and type issues",
+              "Use pytest with coverage to improve test coverage"
             ]
           }
         },
@@ -1089,7 +1158,7 @@
         "instruction": {
           "agent_name": "reviewer",
           "command": "generate-feedback",
-          "prompt": "Review this code and provide detailed feedback:\n\nCode:\n```python\n\"\"\"\nDeployment Router\n\nEpic 39, Story 39.10: Automation Service Foundation\nExtracted from ai-automation-service for independent scaling.\nHandles deployment of automations to Home Assistant.\n\"\"\"\n\nimport logging\nfrom typing import Any, Annotated\n\nfrom fastapi import APIRouter, Depends, HTTPException\nfrom pydantic import BaseModel\n\nfrom ..api.dependencies import DatabaseSession, get_deployment_service\nfrom ..api.error_handlers import handle_route_errors\nfrom ..services.deployment_service import DeploymentService\n\nlogger = logging.getLogger(__name__)\n\nrouter = APIRouter(prefix=\"/api/deploy\", tags=[\"deployment\"])\n\n\nclass DeployRequest(BaseModel):\n    \"\"\"Request to deploy an automation\"\"\"\n    skip_validation: bool = False\n    force_deploy: bool = False\n\n\n@router.post(\"/{suggestion_id}\")\n@handle_route_errors(\"deploy suggestion\")\nasync def deploy_suggestion(\n    suggestion_id: int,\n    request: DeployRequest = DeployRequest(),\n    service: Annotated[DeploymentService, Depends(get_deployment_service)] = None\n) -> dict[str, Any]:\n    \"\"\"\n    Deploy an approved automation suggestion to Home Assistant.\n    \"\"\"\n    result = await service.deploy_suggestion(\n        suggestion_id=suggestion_id,\n        skip_validation=request.skip_validation,\n        force_deploy=request.force_deploy\n    )\n    return result\n\n\n@router.post(\"/batch\")\n@handle_route_errors(\"batch deploy\")\nasync def batch_deploy(\n    suggestion_ids: list[int],\n    service: Annotated[DeploymentService, Depends(get_deployment_service)]\n) -> dict[str, Any]:\n    \"\"\"\n    Deploy multiple automations in batch.\n    \"\"\"\n    result = await service.batch_deploy(suggestion_ids)\n    return result\n\n\n@router.get(\"/automations\")\n@handle_route_errors(\"list automations\")\nasync def list_deployed_automations(\n    service: Annotated[DeploymentService, Depends(get_deployment_service)]\n) -> dict[str, Any]:\n    \"\"\"\n    List all deployed automations.\n    \"\"\"\n    automations = await service.list_deployed_automations()\n    return {\"automations\":\n```\n\nFocus on Python best practices:\n- PEP 8 style compliance\n- Type hints (Python 3.9+)\n- Error handling patterns\n- Docstring quality\n- Import organization\n\nCode Quality Scores:\n- Complexity: 0.4/10\n- Security: 10.0/10\n- Maintainability: 9.2/10\n- Test Coverage: 0.0/10\n- Performance: 10.0/10\n- Overall Score: 82.2/100\n\nProvide detailed feedback:\n\n1. What the code does (brief summary)\n2. Potential issues or improvements\n3. Security concerns (if any)\n4. Style/best practices recommendations\n5. Type hint usage and improvements\n6. Error handling improvements\n7. Documentation quality (docstrings)",
+          "prompt": "Review this code and provide detailed feedback:\n\nCode:\n```python\n\"\"\"\nDeployment Router\n\nEpic 39, Story 39.10: Automation Service Foundation\nExtracted from ai-automation-service for independent scaling.\nHandles deployment of automations to Home Assistant.\n\"\"\"\n\nimport logging\nfrom typing import Any, Annotated\n\nfrom fastapi import APIRouter, Depends, HTTPException\nfrom pydantic import BaseModel\n\nfrom ..api.dependencies import DatabaseSession, get_deployment_service\nfrom ..api.error_handlers import handle_route_errors\nfrom ..services.deployment_service import DeploymentService\n\nlogger = logging.getLogger(__name__)\n\nrouter = APIRouter(prefix=\"/api/deploy\", tags=[\"deployment\"])\n\n\nclass DeployRequest(BaseModel):\n    \"\"\"Request to deploy an automation\"\"\"\n    skip_validation: bool = False\n    force_deploy: bool = False\n\n\n@router.post(\"/{suggestion_id}\")\n@handle_route_errors(\"deploy suggestion\")\nasync def deploy_suggestion(\n    suggestion_id: int,\n    request: DeployRequest = DeployRequest(),\n    service: Annotated[DeploymentService, Depends(get_deployment_service)]\n) -> dict[str, Any]:\n    \"\"\"\n    Deploy an approved automation suggestion to Home Assistant.\n    \"\"\"\n    result = await service.deploy_suggestion(\n        suggestion_id=suggestion_id,\n        skip_validation=request.skip_validation,\n        force_deploy=request.force_deploy\n    )\n    return result\n\n\n@router.post(\"/batch\")\n@handle_route_errors(\"batch deploy\")\nasync def batch_deploy(\n    suggestion_ids: list[int],\n    service: Annotated[DeploymentService, Depends(get_deployment_service)]\n) -> dict[str, Any]:\n    \"\"\"\n    Deploy multiple automations in batch.\n    \"\"\"\n    result = await service.batch_deploy(suggestion_ids)\n    return result\n\n\n@router.get(\"/automations\")\n@handle_route_errors(\"list automations\")\nasync def list_deployed_automations(\n    service: Annotated[DeploymentService, Depends(get_deployment_service)]\n) -> dict[str, Any]:\n    \"\"\"\n    List all deployed automations.\n    \"\"\"\n    automations = await service.list_deployed_automations()\n    return {\"automations\": automa\n```\n\nFocus on Python best practices:\n- PEP 8 style compliance\n- Type hints (Python 3.9+)\n- Error handling patterns\n- Docstring quality\n- Import organization\n\nCode Quality Scores:\n- Complexity: 10.0/10\n- Security: 10.0/10\n- Maintainability: 9.2/10\n- Test Coverage: 0.0/10\n- Performance: 0.0/10\n- Overall Score: 53.0/100\n\nProvide detailed feedback:\n\n1. What the code does (brief summary)\n2. Potential issues or improvements\n3. Security concerns (if any)\n4. Style/best practices recommendations\n5. Type hint usage and improvements\n6. Error handling improvements\n7. Documentation quality (docstrings)",
           "parameters": {
             "model": "reviewer-agent"
           }
@@ -1097,24 +1166,28 @@
         "skill_command": "@reviewer generate-feedback --model \"reviewer-agent\""
       },
       "quality_gate": {
-        "passed": true,
-        "overall_passed": true,
+        "passed": false,
+        "overall_passed": false,
         "security_passed": true,
         "maintainability_passed": true,
-        "complexity_passed": true,
+        "complexity_passed": false,
         "test_coverage_passed": false,
-        "performance_passed": true,
-        "failures": [],
+        "performance_passed": false,
+        "failures": [
+          "Overall score 5.30 below threshold 8.0"
+        ],
         "warnings": [
-          "Test coverage 0.00% below threshold 80.0%"
+          "Complexity score 10.00 above threshold 5.0",
+          "Test coverage 0.00% below threshold 80.0%",
+          "Performance score 0.00 below threshold 7.0"
         ],
         "scores": {
-          "overall_score": 8.219999999999999,
+          "overall_score": 5.3,
           "security_score": 10.0,
           "maintainability_score": 9.2,
-          "complexity_score": 0.4,
+          "complexity_score": 10.0,
           "test_coverage_score": 0.0,
-          "performance_score": 10.0
+          "performance_score": 0.0
         },
         "thresholds": {
           "overall_min": 8.0,
@@ -1125,7 +1198,8 @@
           "performance_min": 7.0
         }
       },
-      "passed": true,
+      "quality_gate_blocked": true,
+      "passed": false,
       "threshold": 70.0
     },
     {
@@ -1279,7 +1353,8 @@
         }
       },
       "passed": true,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\api\\health_router.py",
@@ -1476,7 +1551,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\api\\middlewares.py",
@@ -1665,7 +1741,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\api\\pattern_router.py",
@@ -1855,7 +1932,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\api\\preference_router.py",
@@ -2026,7 +2104,8 @@
         }
       },
       "passed": true,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\api\\suggestion_router.py",
@@ -2038,14 +2117,98 @@
         "method": "extension"
       },
       "context7_verification": {
-        "api": {
+        "APIRouter": {
           "api_docs_available": false,
           "best_practices_available": false,
           "api_mentioned": true,
           "docs_source": null,
           "best_practices_source": null
         },
-        "database": {
+        "Any": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "AutomationCombiner": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "BaseModel": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "JSONQueryService": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "JSONRebuilder": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "JSONVerificationService": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "Suggestion": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "SuggestionService": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "YAML": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "ai": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "analysis": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "archived": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "description": {
           "api_docs_available": false,
           "best_practices_available": false,
           "api_mentioned": true,
@@ -2059,6 +2222,27 @@
           "docs_source": null,
           "best_practices_source": null
         },
+        "get_db": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "handle_route_errors": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
+        "patterns": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
+        },
         "pydantic": {
           "api_docs_available": false,
           "best_practices_available": false,
@@ -2066,7 +2250,7 @@
           "docs_source": null,
           "best_practices_source": null
         },
-        "services": {
+        "select": {
           "api_docs_available": false,
           "best_practices_available": false,
           "api_mentioned": true,
@@ -2079,15 +2263,38 @@
           "api_mentioned": true,
           "docs_source": null,
           "best_practices_source": null
+        },
+        "suggestions": {
+          "api_docs_available": false,
+          "best_practices_available": false,
+          "api_mentioned": true,
+          "docs_source": null,
+          "best_practices_source": null
         }
       },
       "libraries_detected": [
-        "api",
-        "database",
+        "APIRouter",
+        "Any",
+        "AutomationCombiner",
+        "BaseModel",
+        "JSONQueryService",
+        "JSONRebuilder",
+        "JSONVerificationService",
+        "Suggestion",
+        "SuggestionService",
+        "YAML",
+        "ai",
+        "analysis",
+        "archived",
+        "description",
         "fastapi",
+        "get_db",
+        "handle_route_errors",
+        "patterns",
         "pydantic",
-        "services",
-        "sqlalchemy"
+        "select",
+        "sqlalchemy",
+        "suggestions"
       ],
       "context7_debug": {
         "helper_enabled": true,
@@ -2095,27 +2302,21 @@
         "mcp_gateway_available": true
       },
       "scoring": {
-        "complexity_score": 1.4,
+        "complexity_score": 10.0,
         "security_score": 10.0,
         "maintainability_score": 9.7,
         "test_coverage_score": 0.0,
-        "performance_score": 10.0,
+        "performance_score": 0.0,
         "linting_score": 5.0,
         "type_checking_score": 5.0,
         "duplication_score": 10.0,
-        "linting_issue_count": 5.0,
+        "linting_issue_count": 1.0,
         "type_issue_count": 0.0,
-        "overall_score": 81.44999999999999,
+        "overall_score": 54.25,
         "_explanations": {
           "complexity_score": {
-            "explanation": "Areas for improvement: complexity needs significant improvement (1.4/10)",
-            "suggestions": [
-              "Break down complex functions into smaller, focused functions",
-              "Reduce nesting depth (aim for < 4 levels)",
-              "Extract complex logic into separate functions or modules",
-              "Use early returns to reduce nesting",
-              "Consider using list comprehensions or generator expressions"
-            ]
+            "explanation": "Strengths: complexity is excellent (10.0/10), Code demonstrates best practices",
+            "suggestions": []
           },
           "security_score": {
             "explanation": "Strengths: security is excellent (10.0/10), Code demonstrates best practices",
@@ -2135,8 +2336,15 @@
             ]
           },
           "performance_score": {
-            "explanation": "Strengths: performance is excellent (10.0/10), Code demonstrates best practices",
-            "suggestions": []
+            "explanation": "Areas for improvement: performance needs significant improvement (0.0/10)",
+            "suggestions": [
+              "Profile code to identify bottlenecks",
+              "Optimize hot paths and frequently called functions",
+              "Consider caching results of expensive operations",
+              "Use appropriate data structures for the use case",
+              "Use async/await for I/O-bound operations",
+              "Consider using functools.lru_cache for expensive computations"
+            ]
           },
           "linting_score": {
             "explanation": "Areas for improvement: linting is acceptable but could be improved (5.0/10)",
@@ -2172,7 +2380,7 @@
             "suggestions": []
           },
           "linting_issue_count": {
-            "explanation": "Areas for improvement: linting_issue_count is acceptable but could be improved (5.0/10)",
+            "explanation": "Areas for improvement: linting_issue_count needs significant improvement (1.0/10)",
             "suggestions": []
           },
           "type_issue_count": {
@@ -2180,9 +2388,14 @@
             "suggestions": []
           },
           "overall_score": {
-            "explanation": "Strengths: overall is good (81.4/10)",
+            "explanation": "Areas for improvement: overall is acceptable but could be improved (54.2/10)",
             "suggestions": [
-              "Consider minor improvements to reach excellent level (>8.5)"
+              "Review individual quality metrics (complexity, security, maintainability, test coverage, performance)",
+              "Address the lowest-scoring areas first for maximum impact",
+              "Set specific improvement goals for each quality dimension",
+              "Run code quality tools regularly to track progress",
+              "Run ruff and mypy to identify code style and type issues",
+              "Use pytest with coverage to improve test coverage"
             ]
           }
         },
@@ -2192,7 +2405,7 @@
         "instruction": {
           "agent_name": "reviewer",
           "command": "generate-feedback",
-          "prompt": "Review this code and provide detailed feedback:\n\nCode:\n```python\n\"\"\"\nSuggestion Generation Router\n\nEpic 39, Story 39.10: Automation Service Foundation\nExtracted from ai-automation-service for independent scaling.\n\"\"\"\n\nimport logging\nfrom typing import Any, Annotated\n\nfrom fastapi import APIRouter, Depends, HTTPException, Query\nfrom pydantic import BaseModel\n\nfrom ..api.dependencies import (\n    DatabaseSession,\n    get_automation_combiner,\n    get_json_query_service,\n    get_json_rebuilder,\n    get_json_verification_service,\n    get_suggestion_service,\n)\nfrom ..api.error_handlers import handle_route_errors\nfrom ..database import get_db\nfrom ..database.models import Suggestion\nfrom ..services.automation_combiner import AutomationCombiner\nfrom ..services.json_query_service import JSONQueryService\nfrom ..services.json_rebuilder import JSONRebuilder\nfrom ..services.json_verification_service import JSONVerificationService\nfrom ..services.suggestion_service import SuggestionService\n\nlogger = logging.getLogger(__name__)\n\nrouter = APIRouter(prefix=\"/api/suggestions\", tags=[\"suggestions\"])\n\n\nclass GenerateRequest(BaseModel):\n    \"\"\"Request to generate suggestions.\"\"\"\n    pattern_ids: list[str] | None = None\n    days: int = 30\n    limit: int = 10\n\n\n@router.post(\"/generate\")\n@handle_route_errors(\"generate suggestions\")\nasync def generate_suggestions(\n    request: GenerateRequest,\n    db: DatabaseSession,\n    service: Annotated[SuggestionService, Depends(get_suggestion_service)]\n) -> dict[str, Any]:\n    \"\"\"\n    Generate automation suggestions from patterns.\n    \"\"\"\n    suggestions = await service.generate_suggestions(\n        pattern_ids=request.pattern_ids,\n        days=request.days,\n        limit=request.limit\n    )\n    return {\n        \"success\": True,\n        \"suggestions\": suggestions,\n        \"count\": len(suggestions)\n    }\n\n\n@router.get(\"/list\")\n@handle_route_errors(\"list suggestions\")\nasync def list_suggestions(\n    limit: int = Query(50, ge=1, le=100),\n    offset: int = Query(0, ge=0),\n    status: str | None = Query(None),\n    servi\n```\n\nFocus on Python best practices:\n- PEP 8 style compliance\n- Type hints (Python 3.9+)\n- Error handling patterns\n- Docstring quality\n- Import organization\n\nCode Quality Scores:\n- Complexity: 1.4/10\n- Security: 10.0/10\n- Maintainability: 9.7/10\n- Test Coverage: 0.0/10\n- Performance: 10.0/10\n- Overall Score: 81.4/100\n\nProvide detailed feedback:\n\n1. What the code does (brief summary)\n2. Potential issues or improvements\n3. Security concerns (if any)\n4. Style/best practices recommendations\n5. Type hint usage and improvements\n6. Error handling improvements\n7. Documentation quality (docstrings)",
+          "prompt": "Review this code and provide detailed feedback:\n\nCode:\n```python\n\"\"\"\nSuggestion Generation Router\n\nEpic 39, Story 39.10: Automation Service Foundation\nExtracted from ai-automation-service for independent scaling.\n\"\"\"\n\nimport logging\nfrom typing import Any, Annotated\n\nfrom fastapi import APIRouter, Depends, HTTPException, Query\nfrom pydantic import BaseModel\n\nfrom ..api.dependencies import (\n    DatabaseSession,\n    get_automation_combiner,\n    get_json_query_service,\n    get_json_rebuilder,\n    get_json_verification_service,\n    get_suggestion_service,\n)\nfrom ..api.error_handlers import handle_route_errors\nfrom ..database import get_db\nfrom ..database.models import Suggestion\nfrom ..services.automation_combiner import AutomationCombiner\nfrom ..services.json_query_service import JSONQueryService\nfrom ..services.json_rebuilder import JSONRebuilder\nfrom ..services.json_verification_service import JSONVerificationService\nfrom ..services.suggestion_service import SuggestionService\n\nlogger = logging.getLogger(__name__)\n\nrouter = APIRouter(prefix=\"/api/suggestions\", tags=[\"suggestions\"])\n\n\nclass GenerateRequest(BaseModel):\n    \"\"\"Request to generate suggestions.\"\"\"\n    pattern_ids: list[str] | None = None\n    days: int = 30\n    limit: int = 10\n\n\n@router.post(\"/generate\")\n@handle_route_errors(\"generate suggestions\")\nasync def generate_suggestions(\n    request: GenerateRequest,\n    db: DatabaseSession,\n    service: Annotated[SuggestionService, Depends(get_suggestion_service)]\n) -> dict[str, Any]:\n    \"\"\"\n    Generate automation suggestions from patterns.\n    \"\"\"\n    suggestions = await service.generate_suggestions(\n        pattern_ids=request.pattern_ids,\n        days=request.days,\n        limit=request.limit\n    )\n    return {\n        \"success\": True,\n        \"suggestions\": suggestions,\n        \"count\": len(suggestions)\n    }\n\n\n@router.get(\"/list\")\n@handle_route_errors(\"list suggestions\")\nasync def list_suggestions(\n    limit: int = Query(50, ge=1, le=100),\n    offset: int = Query(0, ge=0),\n    status: str | None = Query(None),\n    servi\n```\n\nFocus on Python best practices:\n- PEP 8 style compliance\n- Type hints (Python 3.9+)\n- Error handling patterns\n- Docstring quality\n- Import organization\n\nCode Quality Scores:\n- Complexity: 10.0/10\n- Security: 10.0/10\n- Maintainability: 9.7/10\n- Test Coverage: 0.0/10\n- Performance: 0.0/10\n- Overall Score: 54.2/100\n\nProvide detailed feedback:\n\n1. What the code does (brief summary)\n2. Potential issues or improvements\n3. Security concerns (if any)\n4. Style/best practices recommendations\n5. Type hint usage and improvements\n6. Error handling improvements\n7. Documentation quality (docstrings)",
           "parameters": {
             "model": "reviewer-agent"
           }
@@ -2200,24 +2413,28 @@
         "skill_command": "@reviewer generate-feedback --model \"reviewer-agent\""
       },
       "quality_gate": {
-        "passed": true,
-        "overall_passed": true,
+        "passed": false,
+        "overall_passed": false,
         "security_passed": true,
         "maintainability_passed": true,
-        "complexity_passed": true,
+        "complexity_passed": false,
         "test_coverage_passed": false,
-        "performance_passed": true,
-        "failures": [],
+        "performance_passed": false,
+        "failures": [
+          "Overall score 5.42 below threshold 8.0"
+        ],
         "warnings": [
-          "Test coverage 0.00% below threshold 80.0%"
+          "Complexity score 10.00 above threshold 5.0",
+          "Test coverage 0.00% below threshold 80.0%",
+          "Performance score 0.00 below threshold 7.0"
         ],
         "scores": {
-          "overall_score": 8.145,
+          "overall_score": 5.425,
           "security_score": 10.0,
           "maintainability_score": 9.7,
-          "complexity_score": 1.4,
+          "complexity_score": 10.0,
           "test_coverage_score": 0.0,
-          "performance_score": 10.0
+          "performance_score": 0.0
         },
         "thresholds": {
           "overall_min": 8.0,
@@ -2228,7 +2445,8 @@
           "performance_min": 7.0
         }
       },
-      "passed": true,
+      "quality_gate_blocked": true,
+      "passed": false,
       "threshold": 70.0
     },
     {
@@ -2421,7 +2639,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\api\\__init__.py",
@@ -2600,7 +2819,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\clients\\data_api_client.py",
@@ -2778,7 +2998,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\clients\\ha_client.py",
@@ -2831,9 +3052,9 @@
         "mcp_gateway_available": true
       },
       "scoring": {
-        "complexity_score": 1.6,
+        "complexity_score": 1.8,
         "security_score": 10.0,
-        "maintainability_score": 8.890683229813664,
+        "maintainability_score": 8.890769230769232,
         "test_coverage_score": 0.0,
         "performance_score": 10.0,
         "linting_score": 10.0,
@@ -2841,10 +3062,10 @@
         "duplication_score": 10.0,
         "linting_issue_count": 0.0,
         "type_issue_count": 0.0,
-        "overall_score": 79.02670807453416,
+        "overall_score": 78.62692307692308,
         "_explanations": {
           "complexity_score": {
-            "explanation": "Areas for improvement: complexity needs significant improvement (1.6/10)",
+            "explanation": "Areas for improvement: complexity needs significant improvement (1.8/10)",
             "suggestions": [
               "Break down complex functions into smaller, focused functions",
               "Reduce nesting depth (aim for < 4 levels)",
@@ -2906,7 +3127,7 @@
             "suggestions": []
           },
           "overall_score": {
-            "explanation": "Strengths: overall is good (79.0/10)",
+            "explanation": "Strengths: overall is good (78.6/10)",
             "suggestions": [
               "Consider minor improvements to reach excellent level (>8.5)"
             ]
@@ -2918,7 +3139,7 @@
         "instruction": {
           "agent_name": "reviewer",
           "command": "generate-feedback",
-          "prompt": "Review this code and provide detailed feedback:\n\nCode:\n```python\n\"\"\"\nHome Assistant API Client (2025 Patterns)\n\nEpic 39, Story 39.10: Automation Service Foundation\nAsync client for deploying and managing automations in Home Assistant.\n\"\"\"\n\nimport logging\nimport uuid\nfrom typing import Any\n\nimport httpx\nimport yaml\nfrom tenacity import (\n    retry,\n    retry_if_exception_type,\n    stop_after_attempt,\n    wait_exponential,\n)\n\nfrom ..config import settings\n\nlogger = logging.getLogger(__name__)\n\n\nclass HomeAssistantClient:\n    \"\"\"\n    Async client for interacting with Home Assistant REST API.\n    \n    Features:\n    - Async HTTP requests with httpx\n    - Automatic retry logic\n    - Connection pooling\n    - Proper error handling\n    \"\"\"\n\n    def __init__(\n        self,\n        ha_url: str | None = None,\n        access_token: str | None = None,\n        max_retries: int = 3,\n        timeout: float = 10.0\n    ):\n        \"\"\"\n        Initialize HA client.\n        \n        Args:\n            ha_url: Home Assistant URL (defaults to settings.ha_url)\n            access_token: Long-lived access token (defaults to settings.ha_token)\n            max_retries: Maximum retry attempts\n            timeout: Request timeout in seconds\n        \"\"\"\n        self.ha_url = (ha_url or settings.ha_url or \"\").rstrip('/')\n        self.access_token = access_token or settings.ha_token or \"\"\n        self.max_retries = max_retries\n        self.timeout = timeout\n        \n        if not self.ha_url or not self.access_token:\n            logger.warning(\"Home Assistant URL or token not configured\")\n        \n        # Create async HTTP client with connection pooling\n        self.client = httpx.AsyncClient(\n            timeout=self.timeout,\n            follow_redirects=True,\n            limits=httpx.Limits(\n                max_keepalive_connections=5,\n                max_connections=10\n            ),\n            headers={\n                \"Authorization\": f\"Bearer {self.access_token}\",\n                \"Content-Type\": \"application/json\"\n            }\n        )\n        \n       \n```\n\nFocus on Python best practices:\n- PEP 8 style compliance\n- Type hints (Python 3.9+)\n- Error handling patterns\n- Docstring quality\n- Import organization\n\nCode Quality Scores:\n- Complexity: 1.6/10\n- Security: 10.0/10\n- Maintainability: 8.9/10\n- Test Coverage: 0.0/10\n- Performance: 10.0/10\n- Overall Score: 79.0/100\n\nProvide detailed feedback:\n\n1. What the code does (brief summary)\n2. Potential issues or improvements\n3. Security concerns (if any)\n4. Style/best practices recommendations\n5. Type hint usage and improvements\n6. Error handling improvements\n7. Documentation quality (docstrings)",
+          "prompt": "Review this code and provide detailed feedback:\n\nCode:\n```python\n\"\"\"\nHome Assistant API Client (2025 Patterns)\n\nEpic 39, Story 39.10: Automation Service Foundation\nAsync client for deploying and managing automations in Home Assistant.\n\"\"\"\n\nimport logging\nimport uuid\nfrom typing import Any\n\nimport httpx\nimport yaml\nfrom tenacity import (\n    retry,\n    retry_if_exception_type,\n    stop_after_attempt,\n    wait_exponential,\n)\n\nfrom ..config import settings\n\nlogger = logging.getLogger(__name__)\n\n\nclass HomeAssistantClient:\n    \"\"\"\n    Async client for interacting with Home Assistant REST API.\n    \n    Features:\n    - Async HTTP requests with httpx\n    - Automatic retry logic\n    - Connection pooling\n    - Proper error handling\n    \"\"\"\n\n    def __init__(\n        self,\n        ha_url: str | None = None,\n        access_token: str | None = None,\n        max_retries: int = 3,\n        timeout: float = 10.0\n    ):\n        \"\"\"\n        Initialize HA client.\n        \n        Args:\n            ha_url: Home Assistant URL (defaults to settings.ha_url)\n            access_token: Long-lived access token (defaults to settings.ha_token)\n            max_retries: Maximum retry attempts\n            timeout: Request timeout in seconds\n        \"\"\"\n        self.ha_url = (ha_url or settings.ha_url or \"\").rstrip('/')\n        self.access_token = access_token or settings.ha_token or \"\"\n        self.max_retries = max_retries\n        self.timeout = timeout\n        \n        if not self.ha_url or not self.access_token:\n            logger.warning(\"Home Assistant URL or token not configured\")\n        \n        # Create async HTTP client with connection pooling\n        self.client = httpx.AsyncClient(\n            timeout=self.timeout,\n            follow_redirects=True,\n            limits=httpx.Limits(\n                max_keepalive_connections=5,\n                max_connections=10\n            ),\n            headers={\n                \"Authorization\": f\"Bearer {self.access_token}\",\n                \"Content-Type\": \"application/json\"\n            }\n        )\n        \n       \n```\n\nFocus on Python best practices:\n- PEP 8 style compliance\n- Type hints (Python 3.9+)\n- Error handling patterns\n- Docstring quality\n- Import organization\n\nCode Quality Scores:\n- Complexity: 1.8/10\n- Security: 10.0/10\n- Maintainability: 8.9/10\n- Test Coverage: 0.0/10\n- Performance: 10.0/10\n- Overall Score: 78.6/100\n\nProvide detailed feedback:\n\n1. What the code does (brief summary)\n2. Potential issues or improvements\n3. Security concerns (if any)\n4. Style/best practices recommendations\n5. Type hint usage and improvements\n6. Error handling improvements\n7. Documentation quality (docstrings)",
           "parameters": {
             "model": "reviewer-agent"
           }
@@ -2934,16 +3155,16 @@
         "test_coverage_passed": false,
         "performance_passed": true,
         "failures": [
-          "Overall score 7.90 below threshold 8.0"
+          "Overall score 7.86 below threshold 8.0"
         ],
         "warnings": [
           "Test coverage 0.00% below threshold 80.0%"
         ],
         "scores": {
-          "overall_score": 7.902670807453416,
+          "overall_score": 7.862692307692308,
           "security_score": 10.0,
-          "maintainability_score": 8.890683229813664,
-          "complexity_score": 1.6,
+          "maintainability_score": 8.890769230769232,
+          "complexity_score": 1.8,
           "test_coverage_score": 0.0,
           "performance_score": 10.0
         },
@@ -3150,7 +3371,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\clients\\yaml_validation_client.py",
@@ -3314,7 +3536,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\clients\\__init__.py",
@@ -3493,7 +3716,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\database\\models.py",
@@ -3656,7 +3880,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\database\\__init__.py",
@@ -3853,7 +4078,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\automation_combiner.py",
@@ -4022,7 +4248,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\deployment_service.py",
@@ -4075,9 +4302,9 @@
         "mcp_gateway_available": true
       },
       "scoring": {
-        "complexity_score": 2.4,
+        "complexity_score": 2.6,
         "security_score": 10.0,
-        "maintainability_score": 8.896192893401016,
+        "maintainability_score": 8.896212121212121,
         "test_coverage_score": 0.0,
         "performance_score": 10.0,
         "linting_score": 5.0,
@@ -4085,10 +4312,10 @@
         "duplication_score": 10.0,
         "linting_issue_count": 1.0,
         "type_issue_count": 0.0,
-        "overall_score": 77.44048223350254,
+        "overall_score": 77.04053030303031,
         "_explanations": {
           "complexity_score": {
-            "explanation": "Areas for improvement: complexity needs significant improvement (2.4/10)",
+            "explanation": "Areas for improvement: complexity needs significant improvement (2.6/10)",
             "suggestions": [
               "Break down complex functions into smaller, focused functions",
               "Reduce nesting depth (aim for < 4 levels)",
@@ -4160,7 +4387,7 @@
             "suggestions": []
           },
           "overall_score": {
-            "explanation": "Strengths: overall is good (77.4/10)",
+            "explanation": "Strengths: overall is good (77.0/10)",
             "suggestions": [
               "Consider minor improvements to reach excellent level (>8.5)"
             ]
@@ -4172,7 +4399,7 @@
         "instruction": {
           "agent_name": "reviewer",
           "command": "generate-feedback",
-          "prompt": "Review this code and provide detailed feedback:\n\nCode:\n```python\n\"\"\"\nDeployment Service\n\nEpic 39, Story 39.10: Automation Service Foundation\nCore service for deploying automations to Home Assistant.\n\"\"\"\n\nimport logging\nfrom datetime import datetime, timezone\nfrom typing import Any\n\nfrom sqlalchemy import select\nfrom sqlalchemy.ext.asyncio import AsyncSession\n\nfrom ..clients.ha_client import HomeAssistantClient\nfrom ..database.models import AutomationVersion, Suggestion\nfrom .yaml_generation_service import YAMLGenerationService\n\nlogger = logging.getLogger(__name__)\n\n\nclass DeploymentError(Exception):\n    \"\"\"Base exception for deployment errors.\"\"\"\n    pass\n\n\nclass SafetyValidationError(DeploymentError):\n    \"\"\"Raised when safety validation fails.\"\"\"\n    pass\n\n\nclass DeploymentService:\n    \"\"\"\n    Service for deploying automations to Home Assistant.\n    \n    Features:\n    - Deploy automations to Home Assistant\n    - Safety validation before deployment\n    - Version tracking for rollback\n    - Batch deployment support\n    \"\"\"\n\n    def __init__(\n        self,\n        db: AsyncSession,\n        ha_client: HomeAssistantClient,\n        yaml_service: YAMLGenerationService\n    ):\n        \"\"\"\n        Initialize deployment service.\n        \n        Args:\n            db: Database session\n            ha_client: Home Assistant client\n            yaml_service: YAML generation service\n        \"\"\"\n        self.db = db\n        self.ha_client = ha_client\n        self.yaml_service = yaml_service\n\n    async def deploy_suggestion(\n        self,\n        suggestion_id: int,\n        skip_validation: bool = False,\n        force_deploy: bool = False\n    ) -> dict[str, Any]:\n        \"\"\"\n        Deploy an automation suggestion to Home Assistant.\n        \n        Args:\n            suggestion_id: Suggestion ID to deploy\n            skip_validation: Skip status validation (admin only)\n            force_deploy: Override safety checks (admin only)\n        \n        Returns:\n            Deployment result dictionary\n        \n        Raises:\n            DeploymentErro\n```\n\nFocus on Python best practices:\n- PEP 8 style compliance\n- Type hints (Python 3.9+)\n- Error handling patterns\n- Docstring quality\n- Import organization\n\nCode Quality Scores:\n- Complexity: 2.4/10\n- Security: 10.0/10\n- Maintainability: 8.9/10\n- Test Coverage: 0.0/10\n- Performance: 10.0/10\n- Overall Score: 77.4/100\n\nProvide detailed feedback:\n\n1. What the code does (brief summary)\n2. Potential issues or improvements\n3. Security concerns (if any)\n4. Style/best practices recommendations\n5. Type hint usage and improvements\n6. Error handling improvements\n7. Documentation quality (docstrings)",
+          "prompt": "Review this code and provide detailed feedback:\n\nCode:\n```python\n\"\"\"\nDeployment Service\n\nEpic 39, Story 39.10: Automation Service Foundation\nCore service for deploying automations to Home Assistant.\n\"\"\"\n\nimport logging\nfrom datetime import datetime, timezone\nfrom typing import Any\n\nfrom sqlalchemy import select\nfrom sqlalchemy.ext.asyncio import AsyncSession\n\nfrom ..clients.ha_client import HomeAssistantClient\nfrom ..database.models import AutomationVersion, Suggestion\nfrom .yaml_generation_service import YAMLGenerationService\n\nlogger = logging.getLogger(__name__)\n\n\nclass DeploymentError(Exception):\n    \"\"\"Base exception for deployment errors.\"\"\"\n    pass\n\n\nclass SafetyValidationError(DeploymentError):\n    \"\"\"Raised when safety validation fails.\"\"\"\n    pass\n\n\nclass DeploymentService:\n    \"\"\"\n    Service for deploying automations to Home Assistant.\n    \n    Features:\n    - Deploy automations to Home Assistant\n    - Safety validation before deployment\n    - Version tracking for rollback\n    - Batch deployment support\n    \"\"\"\n\n    def __init__(\n        self,\n        db: AsyncSession,\n        ha_client: HomeAssistantClient,\n        yaml_service: YAMLGenerationService\n    ):\n        \"\"\"\n        Initialize deployment service.\n        \n        Args:\n            db: Database session\n            ha_client: Home Assistant client\n            yaml_service: YAML generation service\n        \"\"\"\n        self.db = db\n        self.ha_client = ha_client\n        self.yaml_service = yaml_service\n\n    async def deploy_suggestion(\n        self,\n        suggestion_id: int,\n        skip_validation: bool = False,\n        force_deploy: bool = False\n    ) -> dict[str, Any]:\n        \"\"\"\n        Deploy an automation suggestion to Home Assistant.\n        \n        Args:\n            suggestion_id: Suggestion ID to deploy\n            skip_validation: Skip status validation (admin only)\n            force_deploy: Override safety checks (admin only)\n        \n        Returns:\n            Deployment result dictionary\n        \n        Raises:\n            DeploymentErro\n```\n\nFocus on Python best practices:\n- PEP 8 style compliance\n- Type hints (Python 3.9+)\n- Error handling patterns\n- Docstring quality\n- Import organization\n\nCode Quality Scores:\n- Complexity: 2.6/10\n- Security: 10.0/10\n- Maintainability: 8.9/10\n- Test Coverage: 0.0/10\n- Performance: 10.0/10\n- Overall Score: 77.0/100\n\nProvide detailed feedback:\n\n1. What the code does (brief summary)\n2. Potential issues or improvements\n3. Security concerns (if any)\n4. Style/best practices recommendations\n5. Type hint usage and improvements\n6. Error handling improvements\n7. Documentation quality (docstrings)",
           "parameters": {
             "model": "reviewer-agent"
           }
@@ -4188,16 +4415,16 @@
         "test_coverage_passed": false,
         "performance_passed": true,
         "failures": [
-          "Overall score 7.74 below threshold 8.0"
+          "Overall score 7.70 below threshold 8.0"
         ],
         "warnings": [
           "Test coverage 0.00% below threshold 80.0%"
         ],
         "scores": {
-          "overall_score": 7.744048223350253,
+          "overall_score": 7.704053030303031,
           "security_score": 10.0,
-          "maintainability_score": 8.896192893401016,
-          "complexity_score": 2.4,
+          "maintainability_score": 8.896212121212121,
+          "complexity_score": 2.6,
           "test_coverage_score": 0.0,
           "performance_score": 10.0
         },
@@ -4384,7 +4611,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\json_query_service.py",
@@ -4548,7 +4776,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\json_rebuilder.py",
@@ -4709,7 +4938,8 @@
         }
       },
       "passed": true,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\json_verification_service.py",
@@ -4888,7 +5118,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\plan_parser.py",
@@ -5054,7 +5285,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\suggestion_service.py",
@@ -5226,7 +5458,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\versioning_service.py",
@@ -5418,7 +5651,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\yaml_generation_service.py",
@@ -5626,7 +5860,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     },
     {
       "file": "C:\\cursor\\HomeIQ\\services\\ai-automation-service-new\\src\\services\\__init__.py",
@@ -5805,7 +6040,8 @@
       },
       "quality_gate_blocked": true,
       "passed": false,
-      "threshold": 70.0
+      "threshold": 70.0,
+      "_from_cache": true
     }
   ],
   "successful": 32,
@@ -5813,8 +6049,8 @@
   "errors": [],
   "total": 32,
   "_cache_stats": {
-    "hits": 0,
-    "misses": 32,
-    "hit_rate": "0.0%"
+    "hits": 28,
+    "misses": 4,
+    "hit_rate": "87.5%"
   }
 }

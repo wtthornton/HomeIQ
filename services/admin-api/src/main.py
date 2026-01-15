@@ -22,6 +22,14 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 from shared.correlation_middleware import FastAPICorrelationMiddleware
 from shared.logging_config import setup_logging
 
+# Load environment variables
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configure enhanced logging (must be done before any logger usage)
+logger = setup_logging("admin-api")
+
 # Import shared error handler
 try:
     from shared.error_handler import register_error_handlers
@@ -37,9 +45,6 @@ try:
 except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
-
-# Load environment variables
-from dotenv import load_dotenv
 
 from shared.auth import AuthManager  # Moved to shared
 
@@ -60,11 +65,6 @@ from .docker_endpoints import DockerEndpoints
 from .ha_proxy_endpoints import router as ha_proxy_router
 from .health_endpoints import HealthEndpoints
 from .mqtt_config_endpoints import router as mqtt_config_router, public_router as mqtt_config_public_router
-
-load_dotenv()
-
-# Configure enhanced logging
-logger = setup_logging("admin-api")
 
 
 class APIResponse(BaseModel):
@@ -147,6 +147,17 @@ class AdminAPIService:
             logger.warning("Admin API service is already running")
             return
 
+        # Create FastAPI app if it doesn't exist
+        if self.app is None:
+            self.app = FastAPI(
+                title=self.api_title,
+                version=self.api_version,
+                description=self.api_description,
+                docs_url="/docs" if self.docs_enabled else None,
+                redoc_url="/redoc" if self.docs_enabled else None,
+                openapi_url="/openapi.json" if (self.docs_enabled or self.openapi_enabled) else None,
+            )
+
         # Start monitoring services
         await logging_service.start()
         await metrics_service.start()
@@ -214,6 +225,10 @@ class AdminAPIService:
 
     def _add_middleware(self):
         """Add middleware to FastAPI app"""
+        if self.app is None:
+            logger.error("Cannot add middleware: FastAPI app is not initialized")
+            return
+
         # Observability setup (tracing and correlation ID)
         if OBSERVABILITY_AVAILABLE:
             # Set up OpenTelemetry tracing
@@ -266,6 +281,10 @@ class AdminAPIService:
 
     def _add_routes(self):
         """Add routes to FastAPI app"""
+        if self.app is None:
+            logger.error("Cannot add routes: FastAPI app is not initialized")
+            return
+
         # Simple health endpoint that always works
         @self.app.get("/api/health")
         async def simple_health():
@@ -468,6 +487,13 @@ class AdminAPIService:
         @self.app.get("/health")
         async def root_health():
             """Simple health check endpoint for Docker and monitoring"""
+            if self.health_endpoints is None:
+                return {
+                    "status": "healthy",
+                    "timestamp": datetime.now().isoformat(),
+                    "service": "admin-api",
+                    "uptime_seconds": 0
+                }
             uptime = (datetime.now() - self.health_endpoints.start_time).total_seconds()
             return {
                 "status": "healthy",
@@ -522,6 +548,10 @@ class AdminAPIService:
 
     def _add_exception_handlers(self):
         """Add exception handlers to FastAPI app"""
+        if self.app is None:
+            logger.error("Cannot add exception handlers: FastAPI app is not initialized")
+            return
+
         # Register shared error handlers if available
         if register_error_handlers:
             register_error_handlers(self.app)

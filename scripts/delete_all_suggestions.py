@@ -11,7 +11,7 @@ This script:
 Usage:
     python scripts/delete_all_suggestions.py
     OR
-    docker exec ai-automation-service-new python /app/scripts/delete_all_suggestions.py
+    docker exec homeiq-ai-automation-service-new python /app/scripts/delete_all_suggestions.py
 """
 import asyncio
 import sys
