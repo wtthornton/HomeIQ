@@ -35,6 +35,9 @@ COPY --from=builder /root/.local /home/appuser/.local
 COPY services/api-automation-edge/src/ ./src/
 COPY shared/ ./shared/
 
+# Create data directory for database
+RUN mkdir -p /app/data
+
 # Set ownership
 RUN chown -R appuser:appgroup /app /home/appuser/.local
 

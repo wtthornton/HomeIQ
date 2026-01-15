@@ -54,19 +54,43 @@ class ServiceInventory:
         
         try:
             # Get services
-            services = await self.rest_client.get_services()
+            services_data = await self.rest_client.get_services()
             
             # Clear existing data
             self.services.clear()
             self.service_schemas.clear()
             self.capability_to_service.clear()
             
-            # Process services
-            for domain, domain_services in services.items():
+            # Handle different response formats from Home Assistant API
+            # Format 1: Dict format {"light": {"turn_on": {...}, "turn_off": {...}}, ...}
+            # Format 2: List format [{"domain": "light", "services": {...}}, ...]
+            if isinstance(services_data, list):
+                # Convert list format to dict format
+                logger.debug(f"Converting services from list format ({len(services_data)} items) to dict format")
+                services_dict: Dict[str, Dict[str, Any]] = {}
+                for item in services_data:
+                    if isinstance(item, dict) and "domain" in item and "services" in item:
+                        domain = item["domain"]
+                        services = item["services"]
+                        if isinstance(services, dict):
+                            services_dict[domain] = services
+                services_data = services_dict
+                logger.info(f"Converted {len(services_dict)} service domains from list format")
+            elif not isinstance(services_data, dict):
+                logger.error(f"Services data is neither dict nor list, got {type(services_data)}")
+                raise ValueError(f"Unexpected services data format: {type(services_data)}")
+            
+            # Process services (now guaranteed to be dict format)
+            for domain, domain_services in services_data.items():
                 if not isinstance(domain_services, dict):
+                    logger.warning(f"Skipping domain '{domain}' - services is not a dict")
                     continue
                 
                 for service_name, service_data in domain_services.items():
+                    if not isinstance(service_data, dict):
+                        logger.warning(f"Skipping service '{domain}.{service_name}' - service_data is not a dict")
+                        continue
+                    
                     service_key = f"{domain}.{service_name}"
                     
                     # Normalize service data
