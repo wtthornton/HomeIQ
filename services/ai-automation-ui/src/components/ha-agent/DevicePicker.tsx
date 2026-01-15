@@ -126,21 +126,57 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
     }
   }, [selectedDeviceId, loadDeviceDetails]);
 
-  // Filter devices by search query
+  // Filter devices by search query and validate API filters
+  // Note: API filters should already be applied, but we do client-side validation
+  // as a safety check and to support search query filtering
   const filteredDevices = useMemo(() => {
-    if (!searchQuery) return devices;
-    const query = searchQuery.toLowerCase();
-    return devices.filter((device) => {
-      const name = device.name.toLowerCase();
-      const manufacturer = device.manufacturer.toLowerCase();
-      const model = device.model.toLowerCase();
-      const area = device.area_id?.toLowerCase() || '';
-      return name.includes(query) || 
-             manufacturer.includes(query) || 
-             model.includes(query) ||
-             area.includes(query);
-    });
-  }, [devices, searchQuery]);
+    let result = devices;
+    
+    // Apply search query filter (client-side)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((device) => {
+        const name = device.name?.toLowerCase() || '';
+        const manufacturer = device.manufacturer?.toLowerCase() || '';
+        const model = device.model?.toLowerCase() || '';
+        const area = device.area_id?.toLowerCase() || '';
+        return name.includes(query) || 
+               manufacturer.includes(query) || 
+               model.includes(query) ||
+               area.includes(query);
+      });
+    }
+    
+    // Client-side validation of API filters (safety check)
+    // This ensures devices match the filters even if API doesn't apply them correctly
+    // Note: API uses exact match for these filters, but we'll use case-insensitive matching
+    if (filters.device_type && filters.device_type.trim()) {
+      result = result.filter((device) => 
+        device.device_type?.toLowerCase() === filters.device_type.toLowerCase().trim()
+      );
+    }
+    if (filters.area_id && filters.area_id.trim()) {
+      result = result.filter((device) => 
+        device.area_id?.toLowerCase() === filters.area_id.toLowerCase().trim()
+      );
+    }
+    if (filters.manufacturer && filters.manufacturer.trim()) {
+      // API uses exact match, but we'll allow partial match for better UX
+      const manufacturerFilter = filters.manufacturer.toLowerCase().trim();
+      result = result.filter((device) => 
+        device.manufacturer?.toLowerCase().includes(manufacturerFilter)
+      );
+    }
+    if (filters.model && filters.model.trim()) {
+      // API uses exact match, but we'll allow partial match for better UX
+      const modelFilter = filters.model.toLowerCase().trim();
+      result = result.filter((device) => 
+        device.model?.toLowerCase().includes(modelFilter)
+      );
+    }
+    
+    return result;
+  }, [devices, searchQuery, filters]);
 
   // Handle device selection
   const handleSelectDevice = (deviceId: string) => {

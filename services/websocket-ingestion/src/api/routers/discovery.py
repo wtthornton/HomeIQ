@@ -30,19 +30,21 @@ async def trigger_discovery(request: Request):
             )
 
         logger.info("Manual discovery trigger requested")
-        # Device discovery requires WebSocket (HA doesn't have HTTP API for device registry)
-        # Entity discovery uses HTTP API (no WebSocket needed)
+        # Use connection manager for device discovery (enables message routing)
+        # This allows discovery to work even when listen loop is active
+        connection_manager = service.connection_manager
         websocket = None
-        if service.connection_manager.client and hasattr(service.connection_manager.client, 'websocket'):
-            websocket = service.connection_manager.client.websocket
-            logger.info("Using WebSocket connection for device discovery")
+        if connection_manager and connection_manager.client and hasattr(connection_manager.client, 'websocket'):
+            websocket = connection_manager.client.websocket
+            logger.info("Using connection manager with message routing for device discovery")
         else:
-            logger.warning("⚠️  WebSocket not available - device discovery will be skipped (entities will still be discovered)")
+            logger.warning("⚠️  Connection manager not available - device discovery will try HTTP API fallback")
 
         try:
             logger.info("Calling discover_all()...")
             discovery_result = await service.connection_manager.discovery_service.discover_all(
                 websocket=websocket,
+                connection_manager=connection_manager,
                 store=True
             )
             logger.info(f"Discovery completed: {len(discovery_result.get('devices', []))} devices, {len(discovery_result.get('entities', []))} entities")
