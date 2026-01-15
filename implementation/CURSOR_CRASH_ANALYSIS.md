@@ -96,6 +96,45 @@ ParserError: InvalidEndOfLine
 - Minor delay, but resolved quickly
 - Indicates need for better PowerShell compatibility in documentation
 
+## Technical Context
+
+### tapps-agents Architecture
+
+**Project Root Detection:**
+- tapps-agents uses `.tapps-agents/` directory as project root marker
+- `PathValidator._detect_project_root()` (code: `tapps_agents/core/path_validator.py:43-54`) walks up directory tree to find marker
+- Current working directory (`Path.cwd()`) may not be project root
+- When running from subdirectories, `Path.cwd()` returns subdirectory, not project root
+
+**Debug Logging Pattern:**
+- Multiple agents use `Path.cwd() / ".cursor" / "debug.log"` pattern
+- **Affected Files:**
+  - `tapps_agents/agents/reviewer/agent.py:733`
+  - `tapps_agents/context7/backup_client.py:64`
+  - `tapps_agents/context7/agent_integration.py:50`
+  - `tapps_agents/continuous_bug_fix/bug_fix_coordinator.py:59`
+- This is inconsistent with project root detection used elsewhere
+- Should be centralized in a logging utility using project root detection
+
+**Reviewer Agent Execution:**
+- `reviewer score` analyzes multiple files sequentially or in parallel
+- Each file requires: complexity, security, maintainability, type checking, linting
+- Default `--max-workers` is 4, but can be configured
+- No progress reporting for long operations
+- **Code Reference:** `tapps_agents/agents/reviewer/agent.py:_review_file_internal`
+
+### Cursor IDE Integration
+
+**Connection Timeout:**
+- Cursor IDE backend has timeout limits (exact duration unknown)
+- Long-running operations (>30s) may trigger timeouts
+- Connection failures are transient but can interrupt operations
+
+**Worktree Management:**
+- Cursor uses worktrees for isolated execution
+- Debug logs should be written to worktree-specific locations or project root
+- **Code Reference:** `tapps_agents/workflow/cursor_skill_helper.py:135`
+
 ## Technical Details
 
 ### Command Execution Sequence
@@ -239,12 +278,48 @@ python -m tapps_agents.cli reviewer score src/main.py --format json
 
 ## Conclusion
 
-The crash was primarily caused by a connection failure during a long-running operation. Contributing factors included:
-- Debug log write failures (non-fatal but indicative of path issues)
-- Long execution time (30+ seconds)
-- Potential backend timeout limits
+### Summary
+
+The crash was primarily caused by a connection failure during a long-running operation (30+ seconds). Contributing factors included:
+
+1. **Debug log write failures** (non-fatal but indicative of path resolution issues)
+   - **Fix Status:** ⚠️ Needs implementation
+   - **Priority:** Critical
+   - **Code Location:** `tapps_agents/agents/reviewer/agent.py:733`
+   - **Estimated Effort:** 1-2 hours
+
+2. **Long execution time** (30+ seconds for directory review)
+   - **Fix Status:** ⚠️ Needs optimization
+   - **Priority:** High
+   - **Code Location:** `tapps_agents/cli/commands/reviewer.py:146-340`
+   - **Estimated Effort:** 4-6 hours (progress indicators)
+
+3. **Potential backend timeout limits** (exact duration unknown)
+   - **Fix Status:** ℹ️ Requires investigation
+   - **Priority:** Medium
+   - **Estimated Effort:** TBD
+
+### Action Items
+
+**For tapps-agents Maintainers:**
+1. ✅ Fix debug log path resolution (use project root detection) - **Code:** `reviewer/agent.py:733`
+2. ✅ Add non-blocking error handling for debug logs - **Code:** `reviewer/agent.py:733-748`
+3. ⏳ Add progress indicators for long operations - **Code:** `cli/commands/reviewer.py:146-340`
+4. ⏳ Implement connection retry logic
+
+**For Users:**
+1. ✅ Use workarounds provided above
+2. ✅ Consider using Cursor Skills instead of CLI for better integration
+3. ✅ Review specific files instead of entire directories when possible
+
+**Status:** 
+- Connection error: ✅ Resolved (likely transient network issue)
+- Debug log issue: ⚠️ Needs fix in tapps-agents (Critical priority)
+- Performance optimization: ⏳ In progress (High priority)
+
+**Next Steps:**
+1. Report debug log path issue to tapps-agents repository with code references
+2. Implement immediate workarounds
+3. Monitor for similar issues
 
 The review operation itself was successful (completed 14.8s for the first command), but the scoring operation failed due to connection loss. The underlying code review data is available in `review-results.json` for analysis.
-
-**Status:** Connection error resolved (likely transient network issue)  
-**Action Required:** Optimize review commands and report debug log path issue to tapps-agents

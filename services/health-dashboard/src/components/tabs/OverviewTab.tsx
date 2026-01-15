@@ -934,9 +934,6 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
       <RAGDetailsModal
         isOpen={showRAGDetails}
         onClose={() => setShowRAGDetails(false)}
-        ragStatus={ragStatus}
-        statistics={statistics}
-        eventsStats={eventsStats}
         darkMode={darkMode}
       />
     </>
