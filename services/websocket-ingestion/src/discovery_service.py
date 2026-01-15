@@ -80,16 +80,68 @@ class DiscoveryService:
             logger.error(f"❌ Error discovering devices via WebSocket: {e}")
             return []
 
+    async def _discover_devices_http(self) -> list[dict[str, Any]]:
+        """
+        Discover devices via HTTP API (fallback when WebSocket not available)
+        
+        Uses Home Assistant's HTTP API endpoint: /api/config/device_registry/list
+        
+        Returns:
+            List of device dictionaries
+        """
+        try:
+            import os
+            import aiohttp
+
+            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
+            ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+
+            if not ha_token:
+                logger.warning("⚠️  No HA token available for HTTP device discovery")
+                return []
+
+            # Normalize URL (ensure http:// not ws://)
+            ha_url = ha_url.replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
+
+            headers = {
+                "Authorization": f"Bearer {ha_token}",
+                "Content-Type": "application/json"
+            }
+
+            logger.info(f"🔗 Fetching devices from HTTP API: {ha_url}/api/config/device_registry/list")
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{ha_url}/api/config/device_registry/list",
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        devices = data.get("devices", [])
+                        logger.info(f"✅ Retrieved {len(devices)} devices via HTTP API")
+                        return devices
+                    elif response.status == 404:
+                        logger.warning("⚠️  Device Registry HTTP API not available (404) - endpoint may not exist in this HA version")
+                        return []
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"❌ HTTP Device Registry API failed: HTTP {response.status} - {error_text[:200]}")
+                        return []
+        except Exception as e:
+            logger.error(f"❌ Error discovering devices via HTTP API: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
+
     async def discover_devices(self, websocket: ClientWebSocketResponse | None = None) -> list[dict[str, Any]]:
         """
         Discover all devices from Home Assistant device registry
         
-        Note: Home Assistant doesn't have HTTP API for device registry.
-        Uses WebSocket if provided, otherwise returns empty list.
-        Device info can be extracted from entities instead.
+        Tries WebSocket first, then falls back to HTTP API if available.
         
         Args:
-            websocket: Optional WebSocket client (required for device discovery)
+            websocket: Optional WebSocket client (preferred method)
             
         Returns:
             List of device dictionaries
@@ -99,15 +151,24 @@ class DiscoveryService:
             logger.info("📱 DISCOVERING DEVICES")
             logger.info("=" * 80)
 
-            # Home Assistant doesn't have HTTP API for device registry
-            # Use WebSocket if available, otherwise skip (devices can be inferred from entities)
+            # Try WebSocket first (preferred method)
             if websocket:
-                logger.info("Using WebSocket for device discovery (HTTP API not available)")
+                logger.info("Using WebSocket for device discovery")
                 devices = await self._discover_devices_websocket(websocket)
-            else:
-                logger.warning("⚠️  No WebSocket provided - skipping device discovery")
-                logger.info("💡 Device info will be available from entity registry (device_id references)")
-                return []
+                if devices:
+                    return devices
+                logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
+            
+            # Fallback to HTTP API if WebSocket not available or failed
+            logger.info("Attempting HTTP API for device discovery (fallback)")
+            devices = await self._discover_devices_http()
+            if devices:
+                logger.info(f"✅ Discovered {len(devices)} devices via HTTP API")
+                return devices
+            
+            logger.warning("⚠️  Both WebSocket and HTTP API failed - no devices discovered")
+            logger.info("💡 Device info will be available from entity registry (device_id references)")
+            return []
 
             device_count = len(devices)
             logger.info(f"✅ Discovered {device_count} devices")
@@ -706,18 +767,36 @@ class DiscoveryService:
                                 break
                     
                     # Identify Zigbee devices
+                    # FIX: Check identifiers FIRST, even if integration is null
+                    # This allows Zigbee devices to be identified even when config entries weren't discovered
                     zigbee_devices_found = 0
                     for device in devices_data:
                         integration = str(device.get("integration", "")).lower()
                         
-                        # Only process MQTT integration devices
-                        if integration != "mqtt":
-                            continue
-                        
                         is_zigbee = False
                         
-                        # Method 1: Check if device shares config_entry with Zigbee2MQTT Bridge
-                        if zigbee_bridge_config_entry:
+                        # Method 1: Check device identifiers for Zigbee patterns (works even if integration is null)
+                        identifiers = device.get("identifiers", [])
+                        for identifier in identifiers:
+                            identifier_str = str(identifier).lower()
+                            # Check for 'zigbee' or 'ieee' in identifier
+                            if 'zigbee' in identifier_str or 'ieee' in identifier_str:
+                                is_zigbee = True
+                                logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (identifier pattern: {identifier_str})")
+                                break
+                            # Check for IEEE address pattern (0x followed by 8+ hex digits)
+                            if identifier_str.startswith('0x') and len(identifier_str) >= 10:
+                                # Check if it looks like an IEEE address (hexadecimal)
+                                try:
+                                    int(identifier_str[2:], 16)
+                                    is_zigbee = True
+                                    logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (IEEE address pattern: {identifier_str})")
+                                    break
+                                except ValueError:
+                                    pass
+                        
+                        # Method 2: Check if device shares config_entry with Zigbee2MQTT Bridge
+                        if not is_zigbee and zigbee_bridge_config_entry:
                             config_entries = device.get("config_entries", [])
                             if config_entries:
                                 device_entry = config_entries[0] if isinstance(config_entries, list) else config_entries
@@ -725,26 +804,21 @@ class DiscoveryService:
                                     is_zigbee = True
                                     logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (shares bridge config_entry)")
                         
-                        # Method 2: Check device identifiers for Zigbee patterns
-                        if not is_zigbee:
-                            identifiers = device.get("identifiers", [])
-                            for identifier in identifiers:
-                                identifier_str = str(identifier).lower()
-                                # Check for 'zigbee' or 'ieee' in identifier
-                                if 'zigbee' in identifier_str or 'ieee' in identifier_str:
-                                    is_zigbee = True
-                                    logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (identifier pattern: {identifier_str})")
-                                    break
-                                # Check for IEEE address pattern (0x followed by 8+ hex digits)
-                                if identifier_str.startswith('0x') and len(identifier_str) >= 10:
-                                    # Check if it looks like an IEEE address (hexadecimal)
-                                    try:
-                                        int(identifier_str[2:], 16)
-                                        is_zigbee = True
-                                        logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (IEEE address pattern: {identifier_str})")
-                                        break
-                                    except ValueError:
-                                        pass
+                        # Method 3: If integration is already "mqtt", check if it's a Zigbee device
+                        # (This is a fallback for devices that already have integration="mqtt" resolved)
+                        if not is_zigbee and integration == "mqtt":
+                            # Additional check: if device has via_device pointing to Zigbee bridge
+                            via_device = device.get("via_device_id")
+                            if via_device:
+                                # Check if via_device is the Zigbee bridge
+                                for bridge_device in devices_data:
+                                    if bridge_device.get("id") == via_device:
+                                        bridge_manufacturer = str(bridge_device.get("manufacturer", "")).lower()
+                                        bridge_name = str(bridge_device.get("name", "")).lower()
+                                        if "zigbee2mqtt" in bridge_manufacturer or "zigbee" in bridge_name:
+                                            is_zigbee = True
+                                            logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (via Zigbee bridge device)")
+                                            break
                         
                         if is_zigbee:
                             # Mark as Zigbee device

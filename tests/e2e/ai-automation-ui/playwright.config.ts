@@ -28,7 +28,8 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:3001',
+    /* Supports Docker testing via TEST_BASE_URL environment variable */
+    baseURL: process.env.TEST_BASE_URL || 'http://localhost:3001',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     /* Take screenshot on failure */
@@ -58,13 +59,16 @@ export default defineConfig({
   ],
   
   /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'npm run dev',
-    cwd: '../../../services/ai-automation-ui',
-    url: 'http://localhost:3001',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  /* Disabled when TEST_BASE_URL is set (Docker testing) */
+  ...(process.env.TEST_BASE_URL ? {} : {
+    webServer: {
+      command: 'npm run dev',
+      cwd: '../../../services/ai-automation-ui',
+      url: 'http://localhost:3001',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+    },
+  }),
   
   /* Test timeout */
   timeout: 30 * 1000,
