@@ -343,3 +343,51 @@ class DeploymentService:
             logger.error(f"Failed to get automation versions: {e}")
             return []
 
+    async def enable_automation(self, automation_id: str) -> bool:
+        """
+        Enable a deployed automation.
+        
+        Args:
+            automation_id: Home Assistant automation ID
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            return await self.ha_client.enable_automation(automation_id)
+        except Exception as e:
+            logger.error(f"Failed to enable automation {automation_id}: {e}")
+            return False
+
+    async def disable_automation(self, automation_id: str) -> bool:
+        """
+        Disable a deployed automation.
+        
+        Args:
+            automation_id: Home Assistant automation ID
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            return await self.ha_client.disable_automation(automation_id)
+        except Exception as e:
+            logger.error(f"Failed to disable automation {automation_id}: {e}")
+            return False
+
+    async def trigger_automation(self, automation_id: str) -> bool:
+        """
+        Trigger a deployed automation.
+        
+        Args:
+            automation_id: Home Assistant automation ID
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            return await self.ha_client.trigger_automation(automation_id)
+        except Exception as e:
+            logger.error(f"Failed to trigger automation {automation_id}: {e}")
+            return False
+

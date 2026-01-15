@@ -86,34 +86,53 @@ async def get_automation_status(
 
 
 @router.post("/automations/{automation_id}/enable")
+@handle_route_errors("enable automation")
 async def enable_automation(
     automation_id: str,
-    db: DatabaseSession
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
 ) -> dict[str, Any]:
     """Enable a deployed automation."""
-    # TODO: Epic 39, Story 39.10 - Migrate enable/disable functionality from archived service
-    # Current: Placeholder endpoint
-    # Future: Full implementation with HA API integration
+    success = await service.enable_automation(automation_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to enable automation")
     return {
         "automation_id": automation_id,
         "status": "enabled",
-        "message": "Enable automation endpoint - implementation in progress"
+        "success": True
     }
 
 
 @router.post("/automations/{automation_id}/disable")
+@handle_route_errors("disable automation")
 async def disable_automation(
     automation_id: str,
-    db: DatabaseSession
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
 ) -> dict[str, Any]:
     """Disable a deployed automation."""
-    # TODO: Epic 39, Story 39.10 - Migrate enable/disable functionality from archived service
-    # Current: Placeholder endpoint
-    # Future: Full implementation with HA API integration
+    success = await service.disable_automation(automation_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to disable automation")
     return {
         "automation_id": automation_id,
         "status": "disabled",
-        "message": "Disable automation endpoint - implementation in progress"
+        "success": True
+    }
+
+
+@router.post("/automations/{automation_id}/trigger")
+@handle_route_errors("trigger automation")
+async def trigger_automation(
+    automation_id: str,
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+) -> dict[str, Any]:
+    """Trigger a deployed automation."""
+    success = await service.trigger_automation(automation_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to trigger automation")
+    return {
+        "automation_id": automation_id,
+        "status": "triggered",
+        "success": True
     }
 
 
