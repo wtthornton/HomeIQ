@@ -103,6 +103,9 @@ class HomeAssistantClient:
         except yaml.YAMLError as e:
             raise ValueError(f"Invalid YAML: {e}")
         
+        if not automation_data or not isinstance(automation_data, dict):
+            raise ValueError("YAML must contain a valid automation dictionary")
+        
         # Generate unique automation ID if not present
         if "id" not in automation_data:
             automation_data["id"] = f"automation.{uuid.uuid4().hex[:8]}"

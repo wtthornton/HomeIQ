@@ -33,15 +33,15 @@ Write-Host ""
 
 # Check if service is running
 Write-Host "📦 Checking service status..." -ForegroundColor Cyan
-$serviceRunning = docker ps --filter "name=ai-automation-service-new" --format "{{.Names}}" | Select-String "ai-automation-service-new"
+$serviceRunning = docker ps --filter "name=homeiq-ai-automation-service-new" --format "{{.Names}}" | Select-String "homeiq-ai-automation-service-new"
 
 if ($serviceRunning) {
-    Write-Host "✅ ai-automation-service-new is running" -ForegroundColor Green
+    Write-Host "✅ homeiq-ai-automation-service-new is running" -ForegroundColor Green
     
     # Check environment variables in container
     Write-Host ""
     Write-Host "🔧 Checking container environment variables..." -ForegroundColor Cyan
-    $containerEnv = docker exec ai-automation-service-new env 2>$null | Select-String "HA_"
+    $containerEnv = docker exec homeiq-ai-automation-service-new env 2>$null | Select-String "HA_"
     
     if ($containerEnv) {
         Write-Host "✅ Environment variables found in container:" -ForegroundColor Green
@@ -53,7 +53,7 @@ if ($serviceRunning) {
     # Check service logs for errors
     Write-Host ""
     Write-Host "📋 Checking recent service logs..." -ForegroundColor Cyan
-    $logs = docker logs ai-automation-service-new --tail 20 2>&1
+    $logs = docker logs homeiq-ai-automation-service-new --tail 20 2>&1
     
     if ($logs -match "Home Assistant.*not configured") {
         Write-Host "❌ Service logs show: Home Assistant not configured" -ForegroundColor Red
@@ -66,7 +66,7 @@ if ($serviceRunning) {
         Write-Host "⚠️  No clear status in logs" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "❌ ai-automation-service-new is NOT running" -ForegroundColor Red
+    Write-Host "❌ homeiq-ai-automation-service-new is NOT running" -ForegroundColor Red
     Write-Host "   Start with: docker-compose up -d ai-automation-service-new" -ForegroundColor Yellow
 }
 
@@ -153,6 +153,6 @@ Write-Host ""
 Write-Host "📝 Summary:" -ForegroundColor Cyan
 Write-Host "   1. Check .env file has HOME_ASSISTANT_TOKEN configured" -ForegroundColor White
 Write-Host "   2. Restart service: docker-compose restart ai-automation-service-new" -ForegroundColor White
-Write-Host "   3. Check service logs: docker logs ai-automation-service-new --tail 50" -ForegroundColor White
+Write-Host "   3. Check service logs: docker logs homeiq-ai-automation-service-new --tail 50" -ForegroundColor White
 Write-Host ""
 Write-Host "📄 See implementation/AUTOMATION_MISMATCH_DIAGNOSIS.md for detailed fix steps" -ForegroundColor Cyan

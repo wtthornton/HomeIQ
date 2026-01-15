@@ -4,11 +4,18 @@
  * Button that appears next to Send button when automation preview is shown.
  * Generates 5 enhancement suggestions (small, medium, large, advanced, fun).
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { executeToolCall, type Enhancement } from '../../services/haAiAgentApi';
 import { getPreferences } from '../../api/preferences';
 import toast from 'react-hot-toast';
+
+// Type safety: Add TypeScript types for better type safety
+interface EnhancementButtonState {
+  originalPrompt: string | null;
+  automationYaml: string | null;
+  conversationId: string | null;
+}
 
 interface EnhancementButtonProps {
   automationYaml?: string;  // Optional - only needed for YAML enhancement mode
@@ -17,6 +24,30 @@ interface EnhancementButtonProps {
   darkMode: boolean;
   onEnhancementSelected: (enhancement: Enhancement) => void;
 }
+
+// Type guard for valid enhancement state
+const hasValidEnhancementState = (state: EnhancementButtonState): boolean => {
+  return !!(state.conversationId && state.originalPrompt);
+};
+
+// Type guard for API response validation
+interface ValidEnhancementResponse {
+  success: true;
+  enhancements: Enhancement[];
+  mode?: 'prompt' | 'yaml';
+}
+
+const isValidEnhancementResponse = (result: any): result is ValidEnhancementResponse => {
+  return (
+    result &&
+    result.success === true &&
+    Array.isArray(result.enhancements) &&
+    result.enhancements.length > 0 &&
+    result.enhancements.every((e: any) => 
+      e.level && e.title && e.description && e.enhanced_yaml && Array.isArray(e.changes)
+    )
+  );
+};
 
 export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
   automationYaml,
@@ -30,6 +61,8 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [enhancementMode, setEnhancementMode] = useState<'prompt' | 'yaml' | null>(null);
   const [creativityLevel, setCreativityLevel] = useState<'conservative' | 'balanced' | 'creative'>('balanced');
+  const [errorState, setErrorState] = useState<string | null>(null);
+  const [enhancementHistory, setEnhancementHistory] = useState<Enhancement[]>([]);
   
   // Fetch user preferences on mount
   useEffect(() => {
@@ -47,17 +80,29 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
     fetchPreferences();
   }, []);
 
-  const handleEnhance = async () => {
-    if (!conversationId) {
-      toast.error('No conversation active. Please start a conversation first.', { icon: '❌' });
-      return;
-    }
-    
+  const handleEnhance = useCallback(async () => {
+    // Debug logging: Structured logging for diagnostics
     if (!originalPrompt) {
-      toast.error('Original prompt is required for enhancements.', { icon: '❌' });
+      console.warn('[EnhancementButton] originalPrompt missing:', {
+        conversationId,
+        messagesCount: 0, // We don't have messages here, but log what we can
+        hasAutomationYaml: !!automationYaml,
+      });
+      const errorMsg = 'Original prompt is required for enhancements. Please send a message first.';
+      setErrorState(errorMsg);
+      toast.error(errorMsg, { icon: '❌', duration: 5000 });
+      return;
+    }
+
+    if (!conversationId) {
+      const errorMsg = 'No conversation active. Please start a conversation first.';
+      setErrorState(errorMsg);
+      toast.error(errorMsg, { icon: '❌' });
       return;
     }
     
+    // Clear previous error state
+    setErrorState(null);
     setIsLoading(true);
     setShowModal(true);
     
@@ -80,26 +125,47 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
         timeoutPromise
       ]) as any;
 
-      if (result.success && result.enhancements && Array.isArray(result.enhancements) && result.enhancements.length > 0) {
-        setEnhancements(result.enhancements);
-        setEnhancementMode(result.mode || (automationYaml ? 'yaml' : 'prompt'));
-        toast.success('Enhancements generated!', { icon: '✨' });
-      } else {
-        console.error('Enhancement API response:', result);
-        toast.error(result.error || 'Failed to generate enhancements', { icon: '❌' });
+      // API validation: Validate enhancement API responses
+      if (!isValidEnhancementResponse(result)) {
+        console.error('[EnhancementButton] Invalid API response:', {
+          result,
+          hasSuccess: !!result?.success,
+          hasEnhancements: !!result?.enhancements,
+          enhancementsIsArray: Array.isArray(result?.enhancements),
+          enhancementsLength: result?.enhancements?.length || 0,
+          error: result?.error,
+        });
+        const errorMsg = result?.error || 'Failed to generate enhancements. Invalid response from server.';
+        setErrorState(errorMsg);
+        toast.error(errorMsg, { icon: '❌', duration: 5000 });
         setShowModal(false);
+        return;
       }
+
+      // Response is valid, set enhancements
+      setEnhancements(result.enhancements);
+      setEnhancementMode(result.mode || (automationYaml ? 'yaml' : 'prompt'));
+      // UX improvements: Store enhancement history
+      setEnhancementHistory(prev => [...prev, ...result.enhancements].slice(-20)); // Keep last 20
+      toast.success('Enhancements generated!', { icon: '✨' });
     } catch (error: any) {
-      console.error('Error generating enhancements:', error);
+      console.error('[EnhancementButton] Error generating enhancements:', {
+        error,
+        message: error?.message,
+        conversationId,
+        hasOriginalPrompt: !!originalPrompt,
+        hasAutomationYaml: !!automationYaml,
+      });
       const errorMessage = error.message?.includes('timed out') 
         ? 'Enhancement generation timed out. Please try again.'
-        : 'Failed to generate enhancements';
+        : 'Failed to generate enhancements. Please check your connection and try again.';
+      setErrorState(errorMessage);
       toast.error(errorMessage, { icon: '❌', duration: 5000 });
       setShowModal(false);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [conversationId, originalPrompt, automationYaml, creativityLevel]);
 
   const handleSelectEnhancement = (enhancement: Enhancement) => {
     onEnhancementSelected(enhancement);
@@ -159,12 +225,30 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
     return null;
   };
 
-  // Check prerequisites
-  const hasPrerequisites = !!(originalPrompt && conversationId);
+  // Check prerequisites with type safety
+  const enhancementState: EnhancementButtonState = {
+    originalPrompt: originalPrompt || null,
+    automationYaml: automationYaml || null,
+    conversationId: conversationId || null,
+  };
+  const hasPrerequisites = hasValidEnhancementState(enhancementState);
   const missingPrerequisites: string[] = [];
   if (!conversationId) missingPrerequisites.push('active conversation');
   if (!originalPrompt) missingPrerequisites.push('original prompt');
   // Note: automationYaml is optional - enhancement works with or without it
+
+  // UX improvements: Keyboard shortcut for Enhance (Ctrl+E or Cmd+E)
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e' && hasPrerequisites && !isLoading) {
+        e.preventDefault();
+        handleEnhance();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [hasPrerequisites, isLoading, handleEnhance]);
 
   return (
     <>
@@ -187,15 +271,15 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
           }`}
           aria-label={
             hasPrerequisites
-              ? 'Generate enhancement suggestions'
+              ? 'Generate enhancement suggestions (Ctrl+E or Cmd+E)'
               : `Enhancement button disabled. Missing: ${missingPrerequisites.join(', ')}`
           }
           aria-busy={isLoading}
           aria-disabled={isLoading || !hasPrerequisites}
           title={
             hasPrerequisites
-              ? 'Generate enhancement suggestions'
-              : `Missing: ${missingPrerequisites.join(', ')}`
+              ? 'Generate enhancement suggestions (Ctrl+E or Cmd+E)'
+              : `Missing: ${missingPrerequisites.join(', ')}. Please send a message first.`
           }
         >
           {isLoading ? (
@@ -216,8 +300,33 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
           )}
         </button>
         
+        {/* Error handling: Persistent error states and tooltips */}
+        {errorState && (
+          <div
+            className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-xs max-w-xs z-50 ${
+              darkMode
+                ? 'bg-red-900 border border-red-700 text-red-200'
+                : 'bg-red-50 border border-red-300 text-red-800'
+            } shadow-lg`}
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+          >
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true">❌</span>
+              <span>{errorState}</span>
+            </div>
+            <div
+              className={`absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 ${
+                darkMode ? 'border-t-red-900' : 'border-t-red-50'
+              }`}
+              aria-hidden="true"
+            />
+          </div>
+        )}
+        
         {/* Persistent warning tooltip when prerequisites missing */}
-        {!hasPrerequisites && !isLoading && (
+        {!hasPrerequisites && !isLoading && !errorState && (
           <div
             className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-xs whitespace-nowrap z-50 ${
               darkMode
@@ -231,6 +340,9 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
             <div className="flex items-center gap-2">
               <span aria-hidden="true">⚠️</span>
               <span>Missing: {missingPrerequisites.join(', ')}</span>
+            </div>
+            <div className="text-xs mt-1 opacity-75">
+              Please send a message to start a conversation before using Enhance.
             </div>
             <div
               className={`absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 ${
@@ -280,6 +392,11 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
                     ? 'Choose an enhanced prompt to use for generating your automation'
                     : 'Choose an enhancement to apply to your automation'}
                 </p>
+                {enhancementHistory.length > 0 && (
+                  <p className={`mt-1 text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                    {enhancementHistory.length} enhancement(s) generated in this session
+                  </p>
+                )}
               </div>
 
               <div className="p-6">

@@ -57,9 +57,9 @@ HomeIQ/
 
 ## 🏗️ System Architecture
 
-### 24 Active Microservices Overview
+### 38 Active Microservices Overview
 
-**Note:** Plus InfluxDB infrastructure = 25 total containers in production
+**Note:** Plus InfluxDB and Jaeger infrastructure = 40 total containers in production
 
 **Web Layer (2 services):**
 - Health Dashboard (React) - Port 3000

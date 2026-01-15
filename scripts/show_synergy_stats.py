@@ -47,7 +47,7 @@ def main():
     parser = argparse.ArgumentParser(description='Show synergy statistics by type and level')
     parser.add_argument('--db-path', default=None, help='Database path (overrides auto-detection)')
     parser.add_argument('--use-docker-db', action='store_true', help='Copy database from Docker container')
-    parser.add_argument('--docker-container', default='ai-pattern-service', help='Docker container name')
+    parser.add_argument('--docker-container', default='homeiq-ai-pattern-service', help='Docker container name')
     args = parser.parse_args()
     
     db_path = args.db_path or find_database()

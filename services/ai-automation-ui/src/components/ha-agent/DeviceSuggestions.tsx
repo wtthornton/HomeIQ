@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { generateDeviceSuggestions, DeviceSuggestionsAPIError, type DeviceSuggestionsRequest } from '../../services/deviceSuggestionsApi';
+import { getDeviceCapabilities, type DeviceCapabilitiesResponse, DeviceAPIError } from '../../services/deviceApi';
 
 /** Suggestion data structure matching backend API */
 export interface DeviceSuggestion {
@@ -67,10 +68,49 @@ export const DeviceSuggestions: React.FC<DeviceSuggestionsProps> = ({
 }) => {
   const [suggestions, setSuggestions] = useState<DeviceSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showCapabilities, setShowCapabilities] = useState<boolean>(false);
+  const [capabilities, setCapabilities] = useState<DeviceCapabilitiesResponse | null>(null);
+  const [capabilitiesLoading, setCapabilitiesLoading] = useState<boolean>(false);
 
   // Format score as percentage
   const formatScore = (score: number): string => {
     return `${Math.round(score * 100)}%`;
+  };
+
+  // Handle capabilities button click
+  const handleShowCapabilities = async () => {
+    if (!deviceId) return;
+    
+    if (capabilities) {
+      // Already loaded, just toggle display
+      setShowCapabilities(!showCapabilities);
+      return;
+    }
+
+    setCapabilitiesLoading(true);
+    try {
+      const caps = await getDeviceCapabilities(deviceId);
+      setCapabilities(caps);
+      setShowCapabilities(true);
+    } catch (error) {
+      console.error('Failed to load capabilities:', error);
+      if (error instanceof DeviceAPIError) {
+        toast.error(`Failed to load capabilities: ${error.message}`);
+      } else {
+        toast.error('Failed to load capabilities');
+      }
+    } finally {
+      setCapabilitiesLoading(false);
+    }
+  };
+
+  // Transform suggestion text to replace any remaining entity IDs with friendly names
+  const transformSuggestionText = (text: string): string => {
+    // Replace hash-like entity IDs (32 char hex strings) with generic device reference
+    // This is a fallback - backend should handle most of this
+    return text.replace(/[a-f0-9]{32}/gi, (match) => {
+      return `Device ${match.substring(0, 8)}`;
+    });
   };
 
   // Load suggestions when device is selected
@@ -157,10 +197,10 @@ export const DeviceSuggestions: React.FC<DeviceSuggestionsProps> = ({
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <h4 className={`text-base font-semibold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {suggestion.title}
+                      {transformSuggestionText(suggestion.title)}
                     </h4>
                     <p className={`text-sm mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {suggestion.description}
+                      {transformSuggestionText(suggestion.description)}
                     </p>
                     
                     {/* Scores */}
@@ -183,10 +223,10 @@ export const DeviceSuggestions: React.FC<DeviceSuggestionsProps> = ({
                 <div className={`mb-3 p-3 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
                   <div className="text-sm">
                     <div className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
-                      <span className="font-medium">Trigger:</span> {suggestion.automation_preview.trigger}
+                      <span className="font-medium">Trigger:</span> {transformSuggestionText(suggestion.automation_preview.trigger)}
                     </div>
                     <div className={`mt-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      <span className="font-medium">Action:</span> {suggestion.automation_preview.action}
+                      <span className="font-medium">Action:</span> {transformSuggestionText(suggestion.automation_preview.action)}
                     </div>
                   </div>
                 </div>
@@ -247,6 +287,44 @@ export const DeviceSuggestions: React.FC<DeviceSuggestionsProps> = ({
                   </div>
                 )}
 
+                {/* Capabilities Section */}
+                {showCapabilities && capabilities && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className={`mb-3 p-3 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}
+                  >
+                    <h5 className={`text-sm font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Device Capabilities
+                    </h5>
+                    {capabilities.capabilities.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {capabilities.capabilities.map((cap, idx) => (
+                          <span
+                            key={idx}
+                            className={`px-2 py-1 rounded text-xs ${
+                              darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                            }`}
+                            title={cap.capability_type}
+                          >
+                            {cap.capability_name}
+                            {cap.exposed && (
+                              <span className="ml-1" title="Exposed to Home Assistant">
+                                ✓
+                              </span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        No capabilities found for this device
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex gap-2">
                   <button
@@ -258,6 +336,29 @@ export const DeviceSuggestions: React.FC<DeviceSuggestionsProps> = ({
                     }`}
                   >
                     💬 Enhance
+                  </button>
+                  <button
+                    onClick={handleShowCapabilities}
+                    disabled={capabilitiesLoading}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      capabilitiesLoading
+                        ? darkMode
+                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                          : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : darkMode
+                        ? 'bg-gray-600 text-white hover:bg-gray-500'
+                        : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                    }`}
+                    title="Show device capabilities"
+                  >
+                    {capabilitiesLoading ? (
+                      <span className="flex items-center gap-1">
+                        <span className="animate-spin">⏳</span>
+                        Loading...
+                      </span>
+                    ) : (
+                      '💡 Capabilities'
+                    )}
                   </button>
                   {onCreateSuggestion && (
                     <button
