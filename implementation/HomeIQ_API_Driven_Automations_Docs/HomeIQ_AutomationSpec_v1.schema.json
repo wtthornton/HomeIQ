@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HomeIQ Automation Spec v1",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "name",
+    "enabled",
+    "triggers",
+    "actions",
+    "policy"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z\\.-]+)?$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 3
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/trigger"
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/condition"
+      }
+    },
+    "policy": {
+      "$ref": "#/$defs/policy"
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/action"
+      }
+    },
+    "rollback": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/action"
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "log_level": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ]
+        },
+        "explain": {
+          "type": "boolean"
+        },
+        "sample_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "trigger": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ha_event",
+            "schedule",
+            "webhook",
+            "manual"
+          ]
+        },
+        "event_type": {
+          "type": "string"
+        },
+        "match": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "cron": {
+          "type": "string"
+        },
+        "webhook_id": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ha_event"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "event_type"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "schedule"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "cron"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "webhook"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "webhook_id"
+            ]
+          }
+        }
+      ]
+    },
+    "condition": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "after_sunset",
+            "before_sunrise",
+            "in_time_range",
+            "not_in_time_range",
+            "state_equals",
+            "not_manual_override"
+          ]
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "required": [
+        "risk"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "risk": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "allow_when_ha_unstable": {
+          "type": "boolean",
+          "default": false
+        },
+        "require_confirmations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/confirmation"
+          }
+        },
+        "fallback_on_timeout": {
+          "type": "string",
+          "enum": [
+            "abort",
+            "proceed"
+          ],
+          "default": "abort"
+        }
+      }
+    },
+    "confirmation": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "human_ack"
+          ]
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "mobile_push",
+            "sms",
+            "email"
+          ]
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 5
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "id",
+        "capability",
+        "target",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capability": {
+          "type": "string",
+          "minLength": 3
+        },
+        "target": {
+          "$ref": "#/$defs/target"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "retry_class": {
+          "type": "string",
+          "enum": [
+            "default",
+            "aggressive",
+            "none"
+          ],
+          "default": "default"
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "area": {
+          "type": "string"
+        },
+        "device_class": {
+          "type": "string"
+        },
+        "user": {
+          "type": "string"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "entity_id"
+          ]
+        },
+        {
+          "required": [
+            "area"
+          ]
+        },
+        {
+          "required": [
+            "device_class"
+          ]
+        },
+        {
+          "required": [
+            "user"
+          ]
+        }
+      ]
+    }
+  }
+}
