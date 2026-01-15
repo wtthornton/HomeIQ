@@ -49,8 +49,8 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
     manufacturer: '',
     model: '',
   });
-  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
-  const [deviceCapabilities, setDeviceCapabilities] = useState<DeviceCapabilitiesResponse | null>(null);
+  const [_selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [_deviceCapabilities, setDeviceCapabilities] = useState<DeviceCapabilitiesResponse | null>(null);
 
   // Load devices with filters
   const loadDevices = useCallback(async () => {
@@ -240,6 +240,10 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
                     <option value="thermostat">Thermostat</option>
                     <option value="fan">Fan</option>
                     <option value="lock">Lock</option>
+                    <option value="camera">Camera</option>
+                    <option value="cover">Cover</option>
+                    <option value="media_player">Media Player</option>
+                    <option value="vacuum">Vacuum</option>
                   </select>
 
                   <input
@@ -290,9 +294,18 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
                   </div>
                 ) : filteredDevices.length === 0 ? (
                   <div className={`p-4 text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {searchQuery || Object.values(filters).some(f => f) 
-                      ? 'No devices found matching filters' 
-                      : 'No devices available'}
+                    {filters.device_type ? (
+                      <div>
+                        <p className="mb-2">No devices found with type "{filters.device_type}"</p>
+                        <p className="text-xs opacity-75">
+                          Devices may not be classified yet. Try selecting "All Device Types" to see all devices.
+                        </p>
+                      </div>
+                    ) : searchQuery || Object.values(filters).some(f => f) ? (
+                      'No devices found matching filters'
+                    ) : (
+                      'No devices available'
+                    )}
                   </div>
                 ) : (
                   <div className="p-2" role="listbox" aria-label="Devices">

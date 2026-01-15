@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent / '../../shared'))
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
@@ -209,6 +209,9 @@ async def list_devices(
             Device.config_entry_id,
             Device.via_device,
             Device.last_seen,
+            # Phase 1.1: Device intelligence fields (for filtering and response)
+            Device.device_type,
+            Device.device_category,
             # Phase 2-3: Device Registry 2025 Attributes (may not exist before migration)
             Device.labels,
             Device.serial_number,
@@ -235,10 +238,24 @@ async def list_devices(
         if area_id:
             query = query.where(Device.area_id == area_id)
         # Phase 1.1: Device intelligence filters
+        # Only filter if value is provided and not empty string
+        # Exclude NULL and empty string values when filtering
         if device_type:
-            query = query.where(Device.device_type == device_type)
+            query = query.where(
+                and_(
+                    Device.device_type.isnot(None),
+                    Device.device_type != '',
+                    Device.device_type == device_type
+                )
+            )
         if device_category:
-            query = query.where(Device.device_category == device_category)
+            query = query.where(
+                and_(
+                    Device.device_category.isnot(None),
+                    Device.device_category != '',
+                    Device.device_category == device_category
+                )
+            )
 
         # Apply limit
         query = query.limit(limit)
@@ -265,10 +282,13 @@ async def list_devices(
                 config_entry_id = row[7]
                 via_device = row[8]
                 last_seen = row[9] if row_len > 9 else None
+                # Phase 1.1: Device intelligence fields
+                device_type = row[10] if row_len > 10 else None
+                device_category = row[11] if row_len > 11 else None
                 # Phase 2-3: New fields (may not exist before migration)
-                labels = row[10] if row_len > 10 and hasattr(Device, 'labels') else None
-                serial_number = row[11] if row_len > 11 and hasattr(Device, 'serial_number') else None
-                model_id = row[12] if row_len > 12 and hasattr(Device, 'model_id') else None
+                labels = row[12] if row_len > 12 and hasattr(Device, 'labels') else None
+                serial_number = row[13] if row_len > 13 and hasattr(Device, 'serial_number') else None
+                model_id = row[14] if row_len > 14 and hasattr(Device, 'model_id') else None
                 entity_count = row[-1]  # Last column is always entity_count
                 
                 # Compute device status based on last_seen
@@ -284,8 +304,8 @@ async def list_devices(
                     area_id=area_id,
                     config_entry_id=config_entry_id,
                     via_device=via_device,
-                    device_type=None,  # Phase 1.1: not in current schema
-                    device_category=None,  # Phase 1.1: not in current schema
+                    device_type=device_type,  # Phase 1.1: from database
+                    device_category=device_category,  # Phase 1.1: from database
                     power_consumption_idle_w=None,  # Phase 1.1: not in current schema
                     power_consumption_active_w=None,  # Phase 1.1: not in current schema
                     power_consumption_max_w=None,  # Phase 1.1: not in current schema
@@ -309,6 +329,10 @@ async def list_devices(
                 last_seen_fallback = row[9] if len(row) > 9 and row[9] else None
                 device_status_fallback = compute_device_status(last_seen_fallback)
                 
+                # Fallback: try to extract device_type and device_category if available
+                fallback_device_type = row[10] if len(row) > 10 else None
+                fallback_device_category = row[11] if len(row) > 11 else None
+                
                 device_responses.append(DeviceResponse(
                     device_id=row[0],
                     name=row[1],
@@ -319,8 +343,8 @@ async def list_devices(
                     area_id=row[6],
                     config_entry_id=row[7],
                     via_device=row[8],
-                    device_type=None,
-                    device_category=None,
+                    device_type=fallback_device_type,
+                    device_category=fallback_device_category,
                     power_consumption_idle_w=None,
                     power_consumption_active_w=None,
                     power_consumption_max_w=None,
@@ -1848,24 +1872,41 @@ async def classify_device(
         entities_query = select(Entity).where(Entity.device_id == device_id)
         entities_result = await db.execute(entities_query)
         entities = entities_result.scalars().all()
+        
+        # Extract entity domains directly from database
+        entity_domains = [e.domain for e in entities if e.domain]
         entity_ids = [e.entity_id for e in entities]
         
-        if not entity_ids:
-            return {
-                "device_id": device_id,
-                "message": "No entities found for device",
-                "device_type": None,
-                "device_category": None
-            }
-        
-        # Classify device
+        # Classify device - use domains if available, otherwise use metadata
         classifier_service = get_classifier_service()
-        classification = await classifier_service.classify_device(device_id, entity_ids)
+        if entity_domains:
+            classification = await classifier_service.classify_device_from_domains(
+                device_id, 
+                entity_domains, 
+                entity_ids
+            )
+        else:
+            # Fallback: Classify by device name/manufacturer/model (no entities needed)
+            classification = classifier_service.classify_device_by_metadata(
+                device_id,
+                device.name or "",
+                device.manufacturer,
+                device.model
+            )
         
         # Update device with classification
-        device.device_type = classification.get("device_type")
-        device.device_category = classification.get("device_category")
-        await db.commit()
+        if classification.get("device_type"):
+            device.device_type = classification.get("device_type")
+            device.device_category = classification.get("device_category")
+            await db.commit()
+        
+        return {
+            "device_id": device_id,
+            "device_name": device.name,
+            "device_type": device.device_type,
+            "device_category": device.device_category,
+            "timestamp": datetime.now().isoformat()
+        }
         
         return {
             "device_id": device_id,
@@ -1877,6 +1918,244 @@ async def classify_device(
         
     except HTTPException:
         raise
+    except Exception as e:
+        logger.error(f"Error classifying device {device_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to classify device: {str(e)}"
+        ) from e
+
+
+@router.post("/api/devices/link-entities")
+async def link_entities_to_devices(
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=1000, ge=1, le=10000, description="Maximum number of entities to link")
+):
+    """
+    Re-link entities to devices using Home Assistant API.
+    
+    Queries HA entity registry to get device_id for each entity, then updates the database.
+    """
+    try:
+        import os
+        import aiohttp
+        
+        ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
+        ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
+        
+        if not ha_url or not ha_token:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Home Assistant URL or token not configured"
+            )
+        
+        # Get all entities without device_id (NULL or empty)
+        unlinked_query = select(Entity).where(
+            or_(
+                Entity.device_id.is_(None),
+                Entity.device_id == ''
+            )
+        ).limit(limit)
+        
+        result = await db.execute(unlinked_query)
+        entities = result.scalars().all()
+        
+        if not entities:
+            return {
+                "message": "All entities are already linked to devices",
+                "linked": 0,
+                "total": 0
+            }
+        
+        linked_count = 0
+        headers = {
+            "Authorization": f"Bearer {ha_token}",
+            "Content-Type": "application/json"
+        }
+        
+        async with aiohttp.ClientSession(headers=headers) as session:
+            # Get entity registry from Home Assistant
+            # HA REST API endpoint: /api/config/entity_registry/list (returns list of entities)
+            registry_url = f"{ha_url.rstrip('/')}/api/config/entity_registry/list"
+            async with session.get(registry_url) as response:
+                if response.status == 404:
+                    # HA REST API might not support this endpoint - use database matching instead
+                    logger.warning("Entity registry API endpoint not available (404), using database matching")
+                    ha_entities = {}
+                elif response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"Failed to fetch entity registry: {response.status} - {error_text}")
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"Failed to fetch entity registry from Home Assistant: {response.status}"
+                    )
+                else:
+                        registry_data = await response.json()
+                        # HA returns list directly, not wrapped in {"entities": [...]}
+                        ha_entities_list = registry_data if isinstance(registry_data, list) else registry_data.get("entities", [])
+                        ha_entities = {e.get("entity_id"): e for e in ha_entities_list}
+                        logger.info(f"Fetched {len(ha_entities)} entities from Home Assistant entity registry")
+        
+        # Link entities to devices
+        if not ha_entities:
+            # Fallback: Match by config_entry_id and area_id if HA API not available
+            logger.info("Using fallback matching by config_entry_id and area_id")
+            for entity in entities:
+                try:
+                    if not entity.config_entry_id:
+                        continue
+                    
+                    # Find devices with same config_entry_id
+                    device_query = select(Device).where(Device.config_entry_id == entity.config_entry_id)
+                    device_result = await db.execute(device_query)
+                    device = device_result.scalar_one_or_none()
+                    
+                    if device:
+                        entity.device_id = device.device_id
+                        linked_count += 1
+                        logger.debug(f"Linked entity {entity.entity_id} to device {device.device_id} via config_entry_id")
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to link entity {entity.entity_id}: {e}")
+                    continue
+        else:
+            # Primary: Use HA entity registry data
+            for entity in entities:
+                try:
+                    ha_entity = ha_entities.get(entity.entity_id)
+                    if ha_entity:
+                        device_id = ha_entity.get("device_id")
+                        if device_id:
+                            # Verify device exists
+                            device_check = await db.execute(
+                                select(Device).where(Device.device_id == device_id)
+                            )
+                            device = device_check.scalar_one_or_none()
+                            
+                            if device:
+                                entity.device_id = device_id
+                                linked_count += 1
+                            else:
+                                logger.debug(f"Device {device_id} not found for entity {entity.entity_id}")
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to link entity {entity.entity_id}: {e}")
+                    continue
+        
+        # Commit all changes
+        await db.commit()
+        
+        return {
+            "message": f"Linked {linked_count} entities to devices",
+            "linked": linked_count,
+            "total": len(entities),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error linking entities to devices: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to link entities: {str(e)}"
+        ) from e
+
+
+@router.post("/api/devices/classify-all")
+async def classify_all_devices(
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=1000, ge=1, le=10000, description="Maximum number of devices to classify")
+):
+    """
+    Classify all devices that don't have a device_type assigned.
+    
+    Uses domain-based classification from entity domains (no HA API calls needed).
+    """
+    try:
+        # Get all devices without device_type (NULL or empty)
+        unclassified_query = select(Device).where(
+            or_(
+                Device.device_type.is_(None),
+                Device.device_type == ''
+            )
+        ).limit(limit)
+        
+        result = await db.execute(unclassified_query)
+        devices = result.scalars().all()
+        
+        if not devices:
+            return {
+                "message": "All devices are already classified",
+                "classified": 0,
+                "total": 0
+            }
+        
+        classifier_service = get_classifier_service()
+        classified_count = 0
+        
+        for device in devices:
+            try:
+                # Get entities for this device
+                entities_query = select(Entity).where(Entity.device_id == device.device_id)
+                entities_result = await db.execute(entities_query)
+                entities = entities_result.scalars().all()
+                
+                # Extract entity domains directly from database
+                entity_domains = [e.domain for e in entities if e.domain]
+                entity_ids = [e.entity_id for e in entities]
+                
+                # Classify device - use domains if available, otherwise use metadata
+                if entity_domains:
+                    classification = await classifier_service.classify_device_from_domains(
+                        device.device_id, 
+                        entity_domains, 
+                        entity_ids
+                    )
+                else:
+                    # Fallback: Classify by device name/manufacturer/model (no entities needed)
+                    logger.debug(f"Classifying device {device.device_id} by metadata (no entities found)")
+                    classification = classifier_service.classify_device_by_metadata(
+                        device.device_id,
+                        device.name or "",
+                        device.manufacturer,
+                        device.model
+                    )
+                
+                # Update device
+                if classification.get("device_type"):
+                    device.device_type = classification.get("device_type")
+                    device.device_category = classification.get("device_category")
+                    classified_count += 1
+                    logger.debug(f"Classified device {device.device_id} ({device.name}) as {classification.get('device_type')}")
+                else:
+                    logger.debug(f"Could not classify device {device.device_id} ({device.name})")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to classify device {device.device_id}: {e}", exc_info=True)
+                continue
+        
+        # Commit all changes
+        await db.commit()
+        
+        # Note: Cache will expire naturally (5 minute TTL)
+        # Devices list queries will get fresh data after cache expires
+        
+        return {
+            "message": f"Classified {classified_count} devices",
+            "classified": classified_count,
+            "total": len(devices),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error classifying all devices: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to classify devices: {str(e)}"
+        ) from e
     except Exception as e:
         await db.rollback()
         logger.error(f"Error classifying device {device_id}: {e}")

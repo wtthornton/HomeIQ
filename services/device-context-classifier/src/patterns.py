@@ -61,9 +61,55 @@ DEVICE_PATTERNS: dict[str, dict[str, Any]] = {
 }
 
 
+# Domain-to-device-type mapping (primary classification method)
+DOMAIN_TO_DEVICE_TYPE: dict[str, str] = {
+    # Lighting
+    "light": "light",
+    
+    # Switches and outlets
+    "switch": "switch",
+    
+    # Sensors
+    "sensor": "sensor",
+    "binary_sensor": "sensor",
+    
+    # Climate
+    "climate": "thermostat",
+    "fan": "fan",
+    
+    # Security
+    "lock": "lock",
+    "camera": "camera",
+    "alarm_control_panel": "alarm",
+    
+    # Covers
+    "cover": "cover",
+    "garage_door": "cover",
+    
+    # Media
+    "media_player": "media_player",
+    
+    # Vacuum
+    "vacuum": "vacuum",
+    
+    # Other
+    "valve": "valve",
+    "button": "button",
+    "remote": "remote",
+}
+
+# Priority order for domain-based classification (most specific first)
+DOMAIN_PRIORITY = [
+    "light", "switch", "climate", "fan", "lock", "camera",
+    "sensor", "binary_sensor", "cover", "media_player", "vacuum"
+]
+
+
 def match_device_pattern(entity_domains: list[str], entity_attributes: dict[str, Any]) -> str | None:
     """
     Match entities to device patterns.
+    
+    Uses domain-based classification as primary method, with pattern matching as fallback.
     
     Args:
         entity_domains: List of entity domains (sensor, light, etc.)
@@ -72,6 +118,24 @@ def match_device_pattern(entity_domains: list[str], entity_attributes: dict[str,
     Returns:
         Matched device type or None
     """
+    if not entity_domains:
+        return None
+    
+    # PRIMARY: Domain-based classification (most reliable)
+    # Check domains in priority order
+    for domain in DOMAIN_PRIORITY:
+        if domain in entity_domains:
+            device_type = DOMAIN_TO_DEVICE_TYPE.get(domain)
+            if device_type:
+                return device_type
+    
+    # FALLBACK: Try any domain in mapping
+    for domain in entity_domains:
+        device_type = DOMAIN_TO_DEVICE_TYPE.get(domain)
+        if device_type:
+            return device_type
+    
+    # SECONDARY: Pattern-based matching (for complex devices)
     # Build feature set from entities
     features = set()
     for domain in entity_domains:
