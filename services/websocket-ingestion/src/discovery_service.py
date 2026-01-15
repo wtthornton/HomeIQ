@@ -547,19 +547,37 @@ class DiscoveryService:
             
             try:
                 # Wait for response via Future (will be set by handle_message_result)
-                response = await asyncio.wait_for(future, timeout=timeout)
+                # Device registry queries can be slow, use extended timeout
+                extended_timeout = timeout * 1.5  # 15 seconds for device registry
+                response = await asyncio.wait_for(future, timeout=extended_timeout)
+                # Clean up Future only on success
+                self.pending_responses.pop(message_id, None)
+                logger.debug(f"✅ Received response for message {message_id}")
                 return response
             except asyncio.TimeoutError:
-                logger.error(f"Timeout waiting for message {message_id} (waited {timeout}s)")
+                logger.warning(f"⚠️  Timeout waiting for message {message_id} (waited {extended_timeout}s) - message may arrive late")
+                # Don't remove Future immediately - message might arrive late
+                # Clean up after a delay to allow late messages (but don't block)
+                if message_id in self.pending_responses:
+                    # Schedule cleanup in background
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            asyncio.create_task(self._cleanup_pending_response(message_id, delay=2.0))
+                    except RuntimeError:
+                        # Event loop not available, clean up immediately
+                        self.pending_responses.pop(message_id, None)
                 return None
-            finally:
-                # Clean up Future
-                self.pending_responses.pop(message_id, None)
                 
         except Exception as e:
             logger.error(f"Error waiting for response: {e}")
             self.pending_responses.pop(message_id, None)
             return None
+    
+    async def _cleanup_pending_response(self, message_id: int, delay: float = 2.0):
+        """Clean up pending response Future after a delay (for late-arriving messages)"""
+        await asyncio.sleep(delay)
+        self.pending_responses.pop(message_id, None)
     
     def handle_message_result(self, message: dict[str, Any]) -> bool:
         """
@@ -574,14 +592,21 @@ class DiscoveryService:
         Returns:
             True if message was routed to a pending request, False otherwise
         """
-        if message.get("type") == "result":
-            message_id = message.get("id")
+        # Handle both "result" type messages and successful responses
+        message_type = message.get("type")
+        message_id = message.get("id")
+        
+        # Route result messages to pending discovery requests
+        if message_type == "result" and message_id is not None:
             if message_id in self.pending_responses:
                 future = self.pending_responses[message_id]
                 if not future.done():
                     future.set_result(message)
-                    logger.debug(f"Routed result message {message_id} to pending discovery request")
+                    logger.debug(f"✅ Routed result message {message_id} to pending discovery request")
                     return True
+                else:
+                    # Future already done (probably timed out), but message arrived
+                    logger.debug(f"⚠️  Result message {message_id} arrived but Future already done (likely timeout)")
         
         return False
 
