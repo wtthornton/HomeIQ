@@ -590,6 +590,10 @@ class ConnectionManager:
     async def _on_message(self, message: dict[str, Any]):
         """Handle incoming message"""
         try:
+            # Route result messages to discovery service first (for message routing)
+            # This allows discovery to work even when listen loop is active
+            routed = self.discovery_service.handle_message_result(message)
+            
             # Handle subscription results
             await self.event_subscription.handle_subscription_result(message)
 
