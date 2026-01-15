@@ -262,6 +262,32 @@ class HomeAssistantClient:
             logger.error(f"Failed to disable automation {automation_id}: {e}")
             return False
 
+    async def trigger_automation(self, automation_id: str) -> bool:
+        """
+        Trigger an automation.
+        
+        Args:
+            automation_id: Automation entity ID
+        
+        Returns:
+            True if successful
+        """
+        if not self.ha_url or not self.access_token:
+            return False
+        
+        url = f"{self.ha_url}/api/services/automation/trigger"
+        
+        try:
+            response = await self.client.post(
+                url,
+                json={"entity_id": automation_id}
+            )
+            response.raise_for_status()
+            return True
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to trigger automation {automation_id}: {e}")
+            return False
+
     async def health_check(self) -> bool:
         """
         Check if Home Assistant is accessible.
