@@ -4,7 +4,9 @@ Observability Router
 Endpoints for metrics and explainability
 """
 
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Body
 
 from ..observability.explainer import Explainer
 from ..rollout.kill_switch import KillSwitch
@@ -31,8 +33,12 @@ async def get_kill_switch_status():
 
 
 @router.post("/kill-switch/pause")
-async def pause_kill_switch(global_pause: bool = False, home_id: str = None, spec_id: str = None):
+async def pause_kill_switch(request_data: dict = Body(default={})):
     """Pause automations via kill switch"""
+    global_pause = request_data.get("global_pause", False)
+    home_id = request_data.get("home_id")
+    spec_id = request_data.get("spec_id")
+    
     if global_pause:
         kill_switch.pause_global()
     elif home_id:
@@ -45,8 +51,12 @@ async def pause_kill_switch(global_pause: bool = False, home_id: str = None, spe
 
 
 @router.post("/kill-switch/resume")
-async def resume_kill_switch(global_resume: bool = False, home_id: str = None, spec_id: str = None):
+async def resume_kill_switch(request_data: dict = Body(default={})):
     """Resume automations via kill switch"""
+    global_resume = request_data.get("global_resume", False)
+    home_id = request_data.get("home_id")
+    spec_id = request_data.get("spec_id")
+    
     if global_resume:
         kill_switch.resume_global()
     elif home_id:

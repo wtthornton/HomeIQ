@@ -32,6 +32,8 @@ RUN addgroup -g 1001 -S appgroup && \
 COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code
+# Note: schema.json is included in shared/ directory (copied with shared/)
+# Tests are excluded - they are in tests/ directory, not in shared/
 COPY services/api-automation-edge/src/ ./src/
 COPY shared/ ./shared/
 

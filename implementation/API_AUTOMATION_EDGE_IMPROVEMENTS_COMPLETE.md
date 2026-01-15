@@ -12,7 +12,7 @@ All three improvement tasks have been completed:
 
 ## Task 1: Unit Tests Added
 
-### `shared/homeiq_automation/tests/test_spec_validator.py`
+### `tests/shared/homeiq_automation/test_spec_validator.py`
 - ✅ Comprehensive test coverage for SpecValidator class
 - ✅ Tests for semver validation
 - ✅ Tests for JSON Schema validation
@@ -130,7 +130,7 @@ To fully pass quality gates:
 
 1. **Run test suite** to measure actual test coverage:
    ```bash
-   pytest shared/homeiq_automation/tests/ -v --cov=shared/homeiq_automation/spec_validator
+   pytest tests/shared/homeiq_automation/ -v --cov=shared/homeiq_automation/spec_validator
    pytest services/api-automation-edge/tests/validation/ -v --cov=services/api-automation-edge/src/validation
    ```
 
@@ -141,9 +141,9 @@ To fully pass quality gates:
 ## Files Created/Modified
 
 ### New Test Files
-- `shared/homeiq_automation/tests/__init__.py`
-- `shared/homeiq_automation/tests/conftest.py`
-- `shared/homeiq_automation/tests/test_spec_validator.py`
+- `tests/shared/homeiq_automation/__init__.py`
+- `tests/shared/homeiq_automation/conftest.py`
+- `tests/shared/homeiq_automation/test_spec_validator.py`
 - `services/api-automation-edge/tests/validation/__init__.py`
 - `services/api-automation-edge/tests/validation/test_target_resolver.py`
 - `services/api-automation-edge/tests/validation/test_policy_validator.py`

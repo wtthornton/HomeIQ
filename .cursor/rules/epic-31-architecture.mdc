@@ -138,6 +138,81 @@ Events flow: HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 - ~~HTTP POST to enrichment~~ (removed)
 - ~~Enrichment processing time~~ (service deprecated)
 
+## Automation Execution Architecture (January 2026)
+
+**Service:** api-automation-edge (Port 8025)
+
+**Task Queue Pattern:**
+```
+HTTP Request → Validate → Queue Task (Huey SQLite) → Return Task ID (fast)
+                     ↓
+              Huey Queue (SQLite)
+                     ↓
+              Worker Process → Execute → Store Result
+                     ↓
+              Result Queryable via API
+```
+
+**Key Components:**
+- **Huey SQLite Backend**: Task queue with persistence (survives restarts)
+- **Asynchronous Execution**: Non-blocking HTTP responses, tasks execute in background
+- **Task Prioritization**: Based on automation risk level (high=10, medium=5, low=1)
+- **Persistent Retry**: Retries survive service restarts (high: 10 retries/60s, medium: 5/30s, low: 3/15s)
+- **Delayed Execution**: Support for `delay` (seconds) and `eta` (ISO datetime) parameters
+- **Cron Scheduling**: Periodic task scheduling for automation specs with `trigger.type: "schedule"`
+
+**Execution Modes:**
+1. **Synchronous** (`USE_TASK_QUEUE=false`): Original blocking execution (backward compatible)
+2. **Asynchronous** (`USE_TASK_QUEUE=true`, default): Tasks queued, execution in background
+
+**New API Endpoints:**
+- `POST /api/execute/{spec_id}?delay=300` - Queue task with delay
+- `POST /api/execute/{spec_id}?eta=2026-01-20T14:30:00Z` - Queue task for specific time
+- `GET /api/tasks/{task_id}` - Get task status and result
+- `GET /api/tasks` - List tasks (with filters)
+- `POST /api/tasks/{task_id}/cancel` - Cancel pending task
+- `GET /api/schedules` - List scheduled automations
+- `POST /api/schedules/{spec_id}/enable` - Enable cron schedule
+- `POST /api/schedules/{spec_id}/disable` - Disable cron schedule
+
+**Integration Points:**
+- **Kill Switch**: Revokes queued tasks when kill switch activated (global/home/spec level)
+- **Metrics**: Queue metrics (depth, execution time, success rate) sent to InfluxDB
+- **Health Check**: `/health` endpoint includes queue status (pending, scheduled, consumer status)
+
+**Configuration:**
+- `USE_TASK_QUEUE`: Enable task queue (default: "true")
+- `HUEY_DATABASE_PATH`: SQLite database path (default: "./data/automation_queue.db")
+- `HUEY_WORKERS`: Number of worker threads (default: 4)
+- `HUEY_RESULT_TTL`: Result storage TTL in seconds (default: 604800 = 7 days)
+
+**Code Pattern:**
+```python
+# ✅ CORRECT (Task Queue - Asynchronous)
+@router.post("/{spec_id}")
+async def execute_spec(spec_id: str, delay: Optional[int] = None):
+    # Validate and check kill switch (before queuing)
+    spec = spec_registry.get_spec(spec_id, home_id)
+    is_allowed, reason = kill_switch.is_allowed(spec, home_id)
+    
+    # Queue task instead of executing directly
+    task = queue_automation_task(
+        spec_id=spec_id,
+        trigger_data=trigger_data,
+        home_id=home_id,
+        delay=delay
+    )
+    
+    return {"task_id": task.id, "status": "queued"}
+
+# ❌ INCORRECT (Blocking - Pre-Task Queue)
+@router.post("/{spec_id}")
+async def execute_spec(spec_id: str):
+    # Execute synchronously (blocks HTTP request)
+    execution_result = await executor.execute(...)
+    return execution_result
+```
+
 ## Epic Timeline Reference
 
 **Epic 22** (January 2025):
@@ -156,12 +231,19 @@ Events flow: HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 - Standalone external services
 - Simplified architecture
 
+**Epic 31+** (January 2026):
+- Asynchronous automation execution with Huey SQLite task queue
+- Task prioritization and persistent retry
+- Delayed execution and cron-based scheduling
+- Non-blocking HTTP responses for automation execution
+
 ## When to Update This Rule
 
 Update when:
 - Major architecture changes
 - Services deprecated/added
 - Data flow patterns change
+- Execution patterns change (e.g., task queue, scheduling)
 - Epic milestones reached
 
 **Current as of:** Epic 31+ (January 2026)

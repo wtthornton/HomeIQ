@@ -23,7 +23,24 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # Load schema from file
-SCHEMA_PATH = Path(__file__).parent.parent.parent / "implementation" / "HomeIQ_API_Driven_Automations_Docs" / "HomeIQ_AutomationSpec_v1.schema.json"
+# Try multiple possible paths (works in both local dev and Docker)
+# Primary: same directory as validator (copied to shared/ in Docker builds)
+# Fallback: original implementation directory (for local development)
+SCHEMA_PATHS = [
+    Path(__file__).parent / "HomeIQ_AutomationSpec_v1.schema.json",  # Primary: same directory as validator
+    Path(__file__).parent.parent.parent / "implementation" / "HomeIQ_API_Driven_Automations_Docs" / "HomeIQ_AutomationSpec_v1.schema.json",  # Fallback: original location
+    Path("/app/implementation/HomeIQ_API_Driven_Automations_Docs/HomeIQ_AutomationSpec_v1.schema.json"),  # Docker fallback (unlikely needed now)
+]
+
+SCHEMA_PATH = None
+for path in SCHEMA_PATHS:
+    if path.exists():
+        SCHEMA_PATH = path
+        break
+
+if SCHEMA_PATH is None:
+    # Use first path as default (will fail with clear error if file doesn't exist)
+    SCHEMA_PATH = SCHEMA_PATHS[0]
 
 # Cache for schema
 _schema_cache: Optional[Dict[str, Any]] = None
@@ -49,27 +66,31 @@ def load_schema() -> Dict[str, Any]:
     if _schema_cache is not None:
         return _schema_cache
     
-    try:
-        with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
-            _schema_cache = json.load(f)
-        logger.info(f"Loaded Automation Spec schema from {SCHEMA_PATH}")
-        return _schema_cache
-    except FileNotFoundError as e:
-        logger.error(f"Schema file not found: {SCHEMA_PATH}")
-        raise FileNotFoundError(
-            f"Automation Spec schema file not found at {SCHEMA_PATH}. "
-            "Please ensure the schema file exists."
-        ) from e
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in schema file: {e}")
-        raise json.JSONDecodeError(
-            f"Schema file contains invalid JSON: {e.msg}",
-            e.doc,
-            e.pos
-        ) from e
-    except OSError as e:
-        logger.error(f"Failed to read schema file: {e}")
-        raise OSError(f"Cannot read schema file {SCHEMA_PATH}: {e}") from e
+    # Try each possible path
+    for schema_path in SCHEMA_PATHS:
+        if schema_path.exists():
+            try:
+                with open(schema_path, 'r', encoding='utf-8') as f:
+                    _schema_cache = json.load(f)
+                logger.info(f"Loaded Automation Spec schema from {schema_path}")
+                return _schema_cache
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in schema file {schema_path}: {e}")
+                raise json.JSONDecodeError(
+                    f"Schema file contains invalid JSON: {e.msg}",
+                    e.doc,
+                    e.pos
+                ) from e
+            except OSError as e:
+                logger.warning(f"Failed to read schema file {schema_path}: {e}")
+                continue  # Try next path
+    
+    # If all paths failed, raise error with all attempted paths
+    paths_tried = [str(p) for p in SCHEMA_PATHS]
+    raise FileNotFoundError(
+        f"Automation Spec schema file not found. Tried: {', '.join(paths_tried)}. "
+        "Please ensure the schema file exists at one of these locations."
+    )
 
 
 def validate_semver(version: str) -> bool:
