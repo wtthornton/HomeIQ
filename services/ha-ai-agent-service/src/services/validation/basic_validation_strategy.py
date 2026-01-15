@@ -126,6 +126,10 @@ class BasicValidationStrategy(ValidationStrategy):
             dimming_warnings = self._detect_dimming_pattern_issues(automation_dict)
             warnings.extend(dimming_warnings)
 
+            # Detect dynamic scene creation pattern
+            scene_warnings = self._detect_scene_creation_pattern(automation_dict)
+            warnings.extend(scene_warnings)
+
             valid = len(errors) == 0
 
             return ValidationResult(
@@ -357,5 +361,87 @@ class BasicValidationStrategy(ValidationStrategy):
                                 "independently, not together. Use trigger 'for:' option instead, then check "
                                 "current state in conditions."
                             )
+
+        return warnings
+
+    def _detect_scene_creation_pattern(
+        self, automation_dict: dict[str, Any]
+    ) -> list[str]:
+        """
+        Detect dynamic scene creation pattern and validate scene ID matching.
+
+        Args:
+            automation_dict: Parsed automation dictionary
+
+        Returns:
+            List of warning messages for scene creation patterns
+        """
+        warnings: list[str] = []
+
+        # Extract scenes created and activated
+        scenes_created: list[str] = []  # scene_id values from scene.create
+        scenes_activated: list[str] = []  # scene entity IDs from scene.turn_on
+
+        def extract_scenes_from_actions(actions: Any) -> None:
+            """Recursively extract scene.create and scene.turn_on actions."""
+            if isinstance(actions, list):
+                for action in actions:
+                    if isinstance(action, dict):
+                        # Check for scene.create action
+                        action_type = action.get("action") or action.get("service")
+                        if action_type == "scene.create":
+                            data = action.get("data", {})
+                            scene_id = data.get("scene_id")
+                            if scene_id:
+                                scenes_created.append(scene_id)
+                        
+                        # Check for scene.turn_on action
+                        if action_type == "scene.turn_on":
+                            target = action.get("target", {})
+                            entity_id = target.get("entity_id") or action.get("entity_id")
+                            if isinstance(entity_id, str) and entity_id.startswith("scene."):
+                                scenes_activated.append(entity_id)
+
+                        # Check nested actions
+                        if "sequence" in action:
+                            extract_scenes_from_actions(action["sequence"])
+                        if "choose" in action:
+                            for choice in action.get("choose", []):
+                                if isinstance(choice, dict) and "sequence" in choice:
+                                    extract_scenes_from_actions(choice["sequence"])
+                        if "repeat" in action:
+                            repeat = action.get("repeat", {})
+                            if isinstance(repeat, dict) and "sequence" in repeat:
+                                extract_scenes_from_actions(repeat["sequence"])
+
+        # Extract from action section
+        if "action" in automation_dict:
+            extract_scenes_from_actions(automation_dict["action"])
+
+        # Check for scene ID mismatches
+        if scenes_created or scenes_activated:
+            created_scene_ids = set(scenes_created)
+            activated_scene_ids = set(
+                [s.replace("scene.", "") for s in scenes_activated]
+            )
+
+            # Check for scenes activated but not created
+            missing_scenes = activated_scene_ids - created_scene_ids
+            if missing_scenes:
+                warnings.append(
+                    f"Scene entities activated but not created: {', '.join(f'scene.{s}' for s in missing_scenes)}. "
+                    "These scenes will be created dynamically at runtime. "
+                    "The system will pre-create them before automation deployment to prevent UI warnings."
+                )
+
+            # Inform about scene pre-creation
+            if scenes_created:
+                scene_entity_ids = [f"scene.{s}" for s in created_scene_ids]
+                warnings.append(
+                    f"Dynamic scene creation detected: {', '.join(scene_entity_ids)}. "
+                    "These scenes will be pre-created before automation deployment using current entity states "
+                    "to prevent 'Unknown entity' warnings in Home Assistant UI. "
+                    "The scenes will be updated at runtime when the automation executes."
+                )
 
         return warnings

@@ -620,6 +620,163 @@ class HAToolHandler:
             automation_dict["alias"] = alias
         return automation_dict
 
+    def _extract_scene_create_actions(
+        self, automation_dict: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """
+        Extract scene.create actions from automation YAML.
+        
+        Returns list of scene definitions with:
+        - scene_id: Scene ID (without 'scene.' prefix)
+        - snapshot_entities: List of entity IDs to snapshot
+        - scene_entity_id: Full scene entity ID (scene.{scene_id})
+        
+        Args:
+            automation_dict: Parsed automation dictionary
+            
+        Returns:
+            List of scene definitions
+        """
+        scenes = []
+        
+        def extract_from_actions(actions: Any) -> None:
+            """Recursively extract scene.create actions from action list."""
+            if isinstance(actions, list):
+                for action in actions:
+                    if isinstance(action, dict):
+                        # Check for scene.create action
+                        # Automation format uses "action" field (not "service")
+                        action_type = action.get("action") or action.get("service")
+                        if action_type == "scene.create":
+                            # Get scene_id and snapshot_entities from data field
+                            data = action.get("data", {})
+                            scene_id = data.get("scene_id")
+                            snapshot_entities = data.get("snapshot_entities", [])
+                            
+                            if scene_id:
+                                scenes.append({
+                                    "scene_id": scene_id,
+                                    "snapshot_entities": snapshot_entities if isinstance(snapshot_entities, list) else [],
+                                    "scene_entity_id": f"scene.{scene_id}",
+                                })
+                        
+                        # Check for nested actions (choose, repeat, etc.)
+                        if "sequence" in action:
+                            extract_from_actions(action["sequence"])
+                        if "choose" in action:
+                            for choice in action["choose"]:
+                                if isinstance(choice, dict) and "sequence" in choice:
+                                    extract_from_actions(choice["sequence"])
+                        if "repeat" in action:
+                            repeat = action["repeat"]
+                            if isinstance(repeat, dict) and "sequence" in repeat:
+                                extract_from_actions(repeat["sequence"])
+        
+        # Extract from action section
+        if "action" in automation_dict:
+            extract_from_actions(automation_dict["action"])
+        
+        return scenes
+
+    async def _pre_create_scenes(
+        self,
+        scenes: list[dict[str, Any]],
+        conversation_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Pre-create scenes in Home Assistant before automation deployment.
+        
+        This prevents "Unknown entity" warnings in Home Assistant UI
+        by creating scenes that will be referenced by scene.turn_on actions.
+        
+        Args:
+            scenes: List of scene definitions from _extract_scene_create_actions
+            conversation_id: Optional conversation ID for traceability
+            
+        Returns:
+            List of creation results with scene_id and success status
+        """
+        if not scenes:
+            return []
+        
+        session = await self.ha_client._get_session()
+        results = []
+        
+        for scene_def in scenes:
+            scene_id = scene_def["scene_id"]
+            scene_entity_id = scene_def["scene_entity_id"]
+            snapshot_entities = scene_def["snapshot_entities"]
+            
+            try:
+                # Create scene using Home Assistant scene.create service
+                # POST /api/services/scene/create
+                # This creates a scene with a snapshot of current entity states
+                # This pre-creates the scene entity so it exists when the automation is deployed
+                url = f"{self.ha_client.ha_url}/api/services/scene/create"
+                
+                # Prepare scene data for service call
+                # scene.create service accepts scene_id and snapshot_entities
+                # This captures the current state of entities and creates the scene
+                scene_data = {
+                    "scene_id": scene_id,
+                    "snapshot_entities": snapshot_entities,
+                }
+                
+                async with session.post(url, json=scene_data) as response:
+                    if response.status in (200, 201):
+                        logger.info(
+                            f"[Create] ✅ Pre-created scene: {scene_entity_id} "
+                            f"with {len(snapshot_entities)} entities "
+                            f"(conversation_id={conversation_id or 'N/A'})"
+                        )
+                        results.append({
+                            "scene_id": scene_id,
+                            "scene_entity_id": scene_entity_id,
+                            "success": True,
+                            "message": "Scene pre-created successfully",
+                        })
+                    elif response.status == 409:
+                        # Scene already exists - this is OK
+                        logger.debug(
+                            f"[Create] ℹ️  Scene already exists: {scene_entity_id} "
+                            f"(conversation_id={conversation_id or 'N/A'})"
+                        )
+                        results.append({
+                            "scene_id": scene_id,
+                            "scene_entity_id": scene_entity_id,
+                            "success": True,
+                            "message": "Scene already exists",
+                            "already_exists": True,
+                        })
+                    else:
+                        error_text = await response.text()
+                        logger.warning(
+                            f"[Create] ⚠️  Failed to pre-create scene {scene_entity_id}: "
+                            f"{response.status} - {error_text} "
+                            f"(conversation_id={conversation_id or 'N/A'}). "
+                            f"Scene will be created dynamically at runtime."
+                        )
+                        results.append({
+                            "scene_id": scene_id,
+                            "scene_entity_id": scene_entity_id,
+                            "success": False,
+                            "error": f"Failed to pre-create: {response.status} - {error_text}",
+                        })
+            except Exception as e:
+                logger.warning(
+                    f"[Create] ⚠️  Error pre-creating scene {scene_entity_id}: {e} "
+                    f"(conversation_id={conversation_id or 'N/A'}). "
+                    f"Scene will be created dynamically at runtime."
+                )
+                results.append({
+                    "scene_id": scene_id,
+                    "scene_entity_id": scene_entity_id,
+                    "success": False,
+                    "error": str(e),
+                })
+        
+        return results
+
     async def _create_automation_in_ha(
         self,
         automation_dict: dict[str, Any],
@@ -636,10 +793,29 @@ class HAToolHandler:
             alias: Automation alias
             user_prompt: Original user prompt
             validation_result: YAML validation result
+            conversation_id: Optional conversation ID for traceability
 
         Returns:
             Success or error response dictionary
         """
+        # Extract scenes that will be created dynamically
+        scenes_to_precreate = self._extract_scene_create_actions(automation_dict)
+        
+        # Pre-create scenes before deploying automation
+        # This prevents "Unknown entity" warnings in Home Assistant UI
+        scene_results = []
+        if scenes_to_precreate:
+            logger.info(
+                f"[Create] Pre-creating {len(scenes_to_precreate)} scenes before automation deployment "
+                f"(conversation_id={conversation_id or 'N/A'})"
+            )
+            scene_results = await self._pre_create_scenes(
+                scenes_to_precreate, conversation_id
+            )
+            logger.info(
+                f"[Create] Pre-created {sum(1 for r in scene_results if r['success'])}/{len(scene_results)} scenes"
+            )
+        
         session = await self.ha_client._get_session()
 
         # Generate a safe config ID from alias
@@ -658,7 +834,8 @@ class HAToolHandler:
                     f"[Create] ✅ Automation created successfully: {automation_id} "
                     f"for prompt: '{user_prompt[:100]}...' "
                     f"(conversation_id={conversation_id or 'N/A'}, "
-                    f"validation_warnings: {len(validation_result.warnings or [])})"
+                    f"validation_warnings: {len(validation_result.warnings or [])}, "
+                    f"scenes_precreated: {sum(1 for r in scene_results if r['success'])})"
                 )
 
                 return {
@@ -668,6 +845,14 @@ class HAToolHandler:
                     "user_prompt": user_prompt,
                     "message": "Automation created successfully",
                     "validation_warnings": validation_result.warnings,
+                    "scenes_precreated": [
+                        {
+                            "scene_entity_id": r["scene_entity_id"],
+                            "success": r["success"],
+                            "message": r.get("message", ""),
+                        }
+                        for r in scene_results
+                    ],
                 }
             else:
                 error_text = await response.text()
@@ -683,6 +868,7 @@ class HAToolHandler:
                     "user_prompt": user_prompt,
                     "alias": alias,
                     "http_status": response.status,
+                    "scenes_precreated": scene_results,  # Return scene results even if automation creation failed
                 }
     
     def _extract_from_yaml(

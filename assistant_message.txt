@@ -1,0 +1,27 @@
+﻿Here's what I'll create for you:
+
+**â¨ What it does:**  
+When you enter the office, your main office lights run a 10âsecond âwelcomeâ fade (10% â 70% brightness with warmâcoolâwarm white). On Monday mornings it also plays a short chime on the office speaker; on Fridays after 16:00 it shifts into a âfocusâ look (desk lamp warm amber at 40%, main lights at 50%). At most once per day, your desk LED strip briefly shows a 2âsecond âsparkleâ effect when you enter, then everything returns to your normal working scene.
+
+**ð When it runs:**  
+â¢ Triggered whenever either the Office Motion Area sensor or the Office FP300 Presence sensor turns âonâ.
+
+**ð¯ Whatâs affected:**  
+â¢ Office main lights (Office room light group)  
+â¢ Office desk lamp  
+â¢ Office WLED strip behind the desk  
+â¢ Office speaker (for the Monday chime)  
+
+**âï¸ How it works (logic summary):**  
+1) Snapshots the current state of the office lights and desk strip into a temporary scene.  
+2) Runs a 10âsecond welcome sequence on the main office lights (warm â cooler â warm, 10% â 70%).  
+3) If itâs Monday between 06:00 and 12:00, plays a brief chime on the office speaker.  
+4) If itâs Friday after 16:00, sets the desk lamp to warm amber at 40% and main lights to 50%.  
+5) With a low random chance and no more than once per day, runs a 2âsecond âSparkleâ effect on the desk WLED strip and updates a âlast runâ timestamp helper.  
+6) Restores your original office lighting scene from the snapshot so youâre back to normal working settings.
+
+Note: This design assumes:
+- There is a grouped âOfficeâ light entity, a âdesk lampâ light, an âoffice WLEDâ light, an âoffice speakerâ media_player, and an `input_datetime.office_sparkle_last_run` helper already defined.
+- Your WLED strip supports an effect named exactly âSparkleâ.
+
+Ready to create this? Say âapproveâ, âcreateâ, âyesâ, or âgo aheadâ! ð

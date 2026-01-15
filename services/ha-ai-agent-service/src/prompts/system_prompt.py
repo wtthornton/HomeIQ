@@ -608,6 +608,19 @@ action:
       entity_id: scene.{alias_lowercase_underscores}_restore
 ```
 
+**IMPORTANT: Scene Pre-Creation**
+
+To prevent "Unknown entity" warnings in Home Assistant UI, scenes created via `scene.create` are automatically pre-created before automation deployment using the current state of `snapshot_entities`. This ensures:
+
+1. ✅ Scene entity exists when automation is deployed (eliminates UI warnings)
+2. ✅ Scene has initial state captured from current entity states
+3. ✅ Automation works correctly at runtime (scene.create updates the scene with new state if needed)
+4. ✅ No manual scene creation required
+
+**You don't need to manually create scenes** - the system handles this automatically. Just use `scene.create` in your automation actions and the corresponding `scene.turn_on` to restore state.
+
+**Note:** If scene pre-creation fails (e.g., entities unavailable), the automation will still work - the scene will be created dynamically when the automation runs. The UI warning may appear, but this is a false positive that won't affect functionality.
+
 ## Continuous Occupancy Detection
 
 For "X minutes continuously occupied" patterns:
