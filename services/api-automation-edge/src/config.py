@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Home ID
     home_id: str = os.getenv("HOME_ID", "default")
     
-    # Database configuration
+    # Database configuration (synchronous SQLite for SQLAlchemy)
     database_url: str = os.getenv(
         "DATABASE_URL",
         "sqlite:///./api-automation-edge.db"

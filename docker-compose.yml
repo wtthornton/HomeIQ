@@ -1490,6 +1490,78 @@ services:
         max-file: "3"
         labels: "service=yaml-validation-service,environment=production"
 
+  # API Automation Edge Service - Epic C1: API-Driven Automations
+  api-automation-edge:
+    build:
+      context: .
+      dockerfile: services/api-automation-edge/Dockerfile
+    container_name: homeiq-api-automation-edge
+    restart: unless-stopped
+    ports:
+      - "8041:8025"  # External port 8041, internal port 8025
+    env_file:
+      - .env
+    environment:
+      - SERVICE_PORT=8025
+      - SERVICE_NAME=api-automation-edge
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Home Assistant Configuration
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
+      - HA_HTTP_URL=${HA_HTTP_URL:-}
+      - HA_WS_URL=${HA_WS_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
+      - HOME_ID=${HOME_ID:-default}
+      # Database Configuration (using regular sqlite for synchronous SQLAlchemy)
+      - DATABASE_URL=sqlite:////app/data/api-automation-edge.db
+      # InfluxDB Configuration (for metrics)
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-homeiq_metrics}
+      # Retry and Circuit Breaker Configuration
+      - MAX_RETRIES=${MAX_RETRIES:-3}
+      - RETRY_DELAY=${RETRY_DELAY:-1.0}
+      - TIMEOUT=${TIMEOUT:-10.0}
+      - CIRCUIT_BREAKER_FAILURE_THRESHOLD=${CIRCUIT_BREAKER_FAILURE_THRESHOLD:-5}
+      - CIRCUIT_BREAKER_TIMEOUT=${CIRCUIT_BREAKER_TIMEOUT:-60.0}
+      # WebSocket Configuration
+      - WS_PING_INTERVAL=${WS_PING_INTERVAL:-20}
+      - WS_RECONNECT_DELAY=${WS_RECONNECT_DELAY:-5.0}
+      # Capability Graph Configuration
+      - CAPABILITY_GRAPH_REFRESH_INTERVAL=${CAPABILITY_GRAPH_REFRESH_INTERVAL:-300}
+      - CAPABILITY_GRAPH_CACHE_TTL=${CAPABILITY_GRAPH_CACHE_TTL:-600}
+      # OpenTelemetry Configuration
+      - OTLP_ENDPOINT=http://jaeger:4317
+    volumes:
+      - api_automation_edge_data:/app/data
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      data-api:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8025/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=api-automation-edge,environment=production"
+
   # AI Automation Service (New) - Epic 39, Story 39.10: Automation Service Foundation
   ai-automation-service-new:
     build:
@@ -2161,6 +2233,7 @@ volumes:
   blueprint_index_data:  # Blueprint Index Service data
   blueprint_suggestions_data:  # Blueprint Suggestion Service data
   rule_recommendation_models:  # Rule Recommendation ML Service models
+  api_automation_edge_data:  # API Automation Edge Service data
 
 networks:
   homeiq-network:
