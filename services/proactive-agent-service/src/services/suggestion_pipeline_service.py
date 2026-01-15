@@ -122,15 +122,16 @@ class SuggestionPipelineService:
         Full pipeline:
         1. Analyze context (weather, sports, energy, patterns)
         2. Generate context-aware prompts
-        3. Send prompts to HA AI Agent Service
-        4. Store suggestions in database
+        3. Store suggestions in database (status: pending)
+
+        Suggestions are stored with status "pending" and can be manually sent to
+        the HA AI Agent Service via the API endpoint POST /api/v1/suggestions/{id}/send.
 
         Returns:
             Dictionary with pipeline results:
             {
                 "success": bool,
                 "suggestions_created": int,
-                "suggestions_sent": int,
                 "suggestions_failed": int,
                 "details": [...]
             }
@@ -140,7 +141,6 @@ class SuggestionPipelineService:
         results = {
             "success": True,
             "suggestions_created": 0,
-            "suggestions_sent": 0,
             "suggestions_failed": 0,
             "details": [],
         }
@@ -253,84 +253,7 @@ class SuggestionPipelineService:
                         continue
 
                     results["suggestions_created"] += 1
-                    logger.debug(f"Created suggestion {suggestion.id}")
-
-                    # Send to HA AI Agent Service
-                    try:
-                        # Epic AI-20.9: Generate title from context type for conversation
-                        context_type = prompt_data.get("context_type", "general")
-                        title = f"💡 {context_type.title()} suggestion"
-                        
-                        # Build hidden context from automation_hints (if AI-generated)
-                        # This passes structured data to HA Agent for better automation generation
-                        hidden_context = None
-                        automation_hints = prompt_data.get("metadata", {}).get("automation_hints") or \
-                                          prompt_data.get("automation_hints")
-                        if automation_hints:
-                            hidden_context = {
-                                "context_type": context_type,
-                                **automation_hints
-                            }
-                            logger.debug(f"Passing hidden context to HA Agent: {hidden_context}")
-                        
-                        agent_response = await self.agent_client.send_message(
-                            prompt_data["prompt"],
-                            title=title,
-                            source="proactive",
-                            hidden_context=hidden_context,
-                        )
-
-                        if agent_response:
-                            # Update suggestion with agent response and mark as sent
-                            await self.storage_service.update_suggestion_status(
-                                suggestion.id,
-                                status="sent",
-                                agent_response={
-                                    "message": agent_response.get("message", ""),
-                                    "conversation_id": agent_response.get("conversation_id"),
-                                    "tool_calls": agent_response.get("tool_calls", []),
-                                    "metadata": agent_response.get("metadata", {}),
-                                },
-                            )
-
-                            results["suggestions_sent"] += 1
-                            results["details"].append(
-                                {
-                                    "step": "agent_communication",
-                                    "suggestion_id": suggestion.id,
-                                    "status": "sent",
-                                    "conversation_id": agent_response.get("conversation_id"),
-                                }
-                            )
-                            logger.info(f"Successfully sent suggestion {suggestion.id} to HA AI Agent")
-                        else:
-                            # Agent communication failed, but suggestion is stored
-                            logger.warning(f"Agent communication failed for suggestion {suggestion.id}")
-                            results["suggestions_failed"] += 1
-                            results["details"].append(
-                                {
-                                    "step": "agent_communication",
-                                    "suggestion_id": suggestion.id,
-                                    "status": "pending",
-                                    "error": "Agent communication failed",
-                                }
-                            )
-
-                    except Exception as agent_error:
-                        # Agent error - suggestion stored but not sent
-                        logger.error(
-                            f"Error sending suggestion {suggestion.id} to agent: {agent_error}",
-                            exc_info=True,
-                        )
-                        results["suggestions_failed"] += 1
-                        results["details"].append(
-                            {
-                                "step": "agent_communication",
-                                "suggestion_id": suggestion.id,
-                                "status": "pending",
-                                "error": str(agent_error),
-                            }
-                        )
+                    logger.debug(f"Created suggestion {suggestion.id} (status: pending - ready for user to send)")
 
                 except Exception as prompt_error:
                     # Error processing individual prompt - continue with next
@@ -347,7 +270,7 @@ class SuggestionPipelineService:
 
             logger.info(
                 f"Pipeline complete: {results['suggestions_created']} created, "
-                f"{results['suggestions_sent']} sent, {results['suggestions_failed']} failed"
+                f"{results['suggestions_failed']} failed"
             )
 
             return results

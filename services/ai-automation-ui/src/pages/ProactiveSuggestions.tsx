@@ -106,6 +106,25 @@ export const ProactiveSuggestions: React.FC = () => {
     await loadStats(); // Refresh stats
   };
 
+  // Handle send to agent
+  const handleSendToAgent = async (id: string) => {
+    try {
+      const updated = await proactiveApi.sendToAgent(id);
+      setSuggestions(prev => 
+        prev.map(s => s.id === id ? updated : s)
+      );
+      toast.success('Suggestion sent to agent!');
+      await loadStats(); // Refresh stats
+      return updated;
+    } catch (err) {
+      const message = err instanceof ProactiveAPIError 
+        ? err.message 
+        : 'Failed to send suggestion to agent';
+      toast.error(message);
+      throw err;
+    }
+  };
+
   // Handle manual trigger
   const handleTrigger = async () => {
     setTriggerLoading(true);
@@ -273,6 +292,7 @@ export const ProactiveSuggestions: React.FC = () => {
                 onApprove={handleApprove}
                 onReject={handleReject}
                 onDelete={handleDelete}
+                onSendToAgent={handleSendToAgent}
                 darkMode={darkMode}
               />
             ))}

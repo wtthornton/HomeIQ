@@ -174,6 +174,15 @@ export const proactiveApi = {
   },
 
   /**
+   * Send a suggestion to the HA AI Agent Service
+   */
+  async sendToAgent(id: string): Promise<ProactiveSuggestion> {
+    return fetchJSON<ProactiveSuggestion>(`${PROACTIVE_API_BASE}/${id}/send`, {
+      method: 'POST',
+    });
+  },
+
+  /**
    * Health check for proactive-agent-service
    */
   async healthCheck(): Promise<{ status: string }> {

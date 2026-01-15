@@ -436,9 +436,18 @@ def predict_with_onnx(
     
     logits = session.run([output_name], {input_name: sensor_sequence})[0]
     
-    # Convert to predictions
-    probs = np.exp(logits) / np.sum(np.exp(logits), axis=1, keepdims=True)
-    predictions = np.argmax(logits, axis=1)
+    # Convert to predictions using numerically stable softmax
+    # Subtract max for numerical stability (prevents overflow)
+    if logits.ndim == 1:
+        logits_stable = logits - np.max(logits)
+        exp_logits = np.exp(logits_stable)
+        probs = exp_logits / np.sum(exp_logits)
+        predictions = np.array([np.argmax(logits)])
+    else:
+        logits_stable = logits - np.max(logits, axis=1, keepdims=True)
+        exp_logits = np.exp(logits_stable)
+        probs = exp_logits / np.sum(exp_logits, axis=1, keepdims=True)
+        predictions = np.argmax(logits, axis=1)
     
     return predictions, probs
 

@@ -506,7 +506,9 @@ class SensorDataLoader:
             ])
             .sort("activity_label")
             .with_columns([
-                pl.col("activity_label").replace(ACTIVITY_LABELS).alias("activity_name")
+                pl.col("activity_label")
+                .map_elements(lambda x: ACTIVITY_LABELS.get(x, "unknown"), return_dtype=pl.String)
+                .alias("activity_name")
             ])
         )
     

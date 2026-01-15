@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import type { ProactiveSuggestion } from '../../types/proactive';
 import { CONTEXT_TYPE_CONFIG, STATUS_CONFIG } from '../../types/proactive';
@@ -14,6 +15,7 @@ interface ProactiveSuggestionCardProps {
   onApprove: (id: string) => Promise<void>;
   onReject: (id: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onSendToAgent?: (id: string) => Promise<ProactiveSuggestion>;
   darkMode: boolean;
 }
 
@@ -22,11 +24,14 @@ export const ProactiveSuggestionCard: React.FC<ProactiveSuggestionCardProps> = (
   onApprove,
   onReject,
   onDelete,
+  onSendToAgent,
   darkMode,
 }) => {
+  const navigate = useNavigate();
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Safe access with fallback for unknown context types
@@ -94,6 +99,29 @@ export const ProactiveSuggestionCard: React.FC<ProactiveSuggestionCardProps> = (
     }
   };
 
+  const handleSendToAgent = async () => {
+    if (!onSendToAgent) return;
+    
+    setIsSending(true);
+    try {
+      const updated = await onSendToAgent(suggestion.id);
+      
+      // Navigate to agent screen with conversation_id if available
+      const conversationId = (updated.agent_response as any)?.conversation_id;
+      if (conversationId) {
+        navigate(`/ha-agent?conversation=${conversationId}`);
+      } else {
+        navigate('/ha-agent');
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Failed to send suggestion to agent:', errorMessage, error);
+      // Error toast is handled by parent component
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   /**
    * Format relative time with validation
    * @param dateString - ISO 8601 date string
@@ -148,7 +176,14 @@ export const ProactiveSuggestionCard: React.FC<ProactiveSuggestionCardProps> = (
   };
 
   const isActionable = suggestion.status === 'pending';
-  const isProcessing = isApproving || isRejecting || isDeleting;
+  const isProcessing = isApproving || isRejecting || isDeleting || isSending;
+  
+  // Get conversation ID from agent_response for link
+  const conversationId = suggestion.agent_response && 
+    typeof suggestion.agent_response === 'object' && 
+    'conversation_id' in suggestion.agent_response
+    ? (suggestion.agent_response as any).conversation_id
+    : null;
 
   return (
     <motion.div
@@ -229,14 +264,47 @@ export const ProactiveSuggestionCard: React.FC<ProactiveSuggestionCardProps> = (
             Created {formatRelativeTime(suggestion.created_at)} ({formatDate(suggestion.created_at)})
           </span>
           {suggestion.sent_at && (
-            <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
-              · Sent {formatRelativeTime(suggestion.sent_at)}
-            </span>
+            <>
+              <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
+                · Sent {formatRelativeTime(suggestion.sent_at)}
+              </span>
+              {conversationId && (
+                <a
+                  href={`/ha-agent?conversation=${conversationId}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(`/ha-agent?conversation=${conversationId}`);
+                  }}
+                  className={`
+                    text-xs underline hover:no-underline transition-all
+                    ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}
+                  `}
+                >
+                  View in Agent →
+                </a>
+              )}
+            </>
           )}
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          {isActionable && onSendToAgent && (
+            <button
+              onClick={handleSendToAgent}
+              disabled={isProcessing}
+              className={`
+                px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${isSending 
+                  ? 'bg-blue-600 text-white cursor-wait' 
+                  : 'bg-blue-500 text-white hover:bg-blue-600'
+                }
+                disabled:opacity-50 disabled:cursor-not-allowed
+              `}
+            >
+              {isSending ? 'Sending...' : '📤 Send to Agent'}
+            </button>
+          )}
           {isActionable && (
             <>
               <button
