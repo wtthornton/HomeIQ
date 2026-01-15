@@ -26,5 +26,8 @@ cryptography>=41.0.0,<42.0.0
 # InfluxDB
 influxdb-client>=1.49.0,<2.0.0
 
+# Task Queue
+huey>=2.6.0,<3.0.0
+
 # Utilities
 python-dotenv>=1.2.1,<2.0.0

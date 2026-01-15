@@ -46,6 +46,18 @@ app.include_router(spec_router)
 app.include_router(execution_router)
 app.include_router(observability_router)
 
+# Include task and schedule routers if Huey is available
+try:
+    from .queue.huey_config import huey
+    from .api.task_router import router as task_router
+    from .api.schedule_router import router as schedule_router
+    app.include_router(task_router)
+    app.include_router(schedule_router)
+    HUEY_AVAILABLE = True
+except ImportError:
+    HUEY_AVAILABLE = False
+    huey = None
+
 # Global components
 rest_client: HARestClient = None
 websocket_client: HAWebSocketClient = None
@@ -71,6 +83,41 @@ async def startup():
     await capability_graph.initialize()
     await capability_graph.start(websocket_client)
     
+    # Start Huey consumer if enabled
+    if settings.use_task_queue:
+        try:
+            from .queue.huey_config import huey
+            import threading
+            
+            # Create consumer thread for Huey
+            def start_consumer():
+                """Start Huey consumer in background thread"""
+                try:
+                    # Huey consumer runs in its own thread
+                    # Note: Huey.start() is synchronous and blocks
+                    # We'll run it in a separate thread
+                    logger.info("Starting Huey consumer...")
+                    huey.start()
+                    logger.info("Huey consumer started")
+                except Exception as e:
+                    logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
+            
+            # Start consumer in background thread
+            consumer_thread = threading.Thread(target=start_consumer, daemon=True)
+            consumer_thread.start()
+            
+            # Give thread a moment to start
+            import time
+            time.sleep(0.1)
+            
+            logger.info("Huey task queue consumer thread started")
+            
+        except ImportError:
+            logger.warning("Huey not available - task queue disabled")
+        except Exception as e:
+            logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
+            logger.warning("Service will continue without task queue")
+    
     logger.info("API Automation Edge Service started")
 
 
@@ -80,6 +127,15 @@ async def shutdown():
     global websocket_client, capability_graph
     
     logger.info("Shutting down API Automation Edge Service")
+    
+    # Stop Huey consumer if running
+    if settings.use_task_queue:
+        try:
+            from .queue.huey_config import huey
+            huey.stop()
+            logger.info("Huey consumer stopped")
+        except Exception as e:
+            logger.warning(f"Error stopping Huey consumer: {e}")
     
     if capability_graph:
         await capability_graph.stop()

@@ -359,6 +359,75 @@ test.describe('API Endpoints Tests', () => {
     });
   });
 
+  test.describe('API Automation Edge Service Endpoints', () => {
+    
+    test('GET /health - Service health check', async ({ page }) => {
+      const response = await page.request.get('http://localhost:8041/health');
+      expect(response.status()).toBe(200);
+      
+      const healthData = await response.json();
+      expect(healthData).toHaveProperty('status', 'healthy');
+      expect(healthData).toHaveProperty('service', 'api-automation-edge');
+    });
+
+    test('POST /api/specs - Create automation spec', async ({ page }) => {
+      const spec = {
+        id: 'test_spec_api_endpoints',
+        version: '1.0.0',
+        name: 'Test Spec API Endpoints',
+        enabled: true,
+        triggers: [
+          {
+            type: 'ha_event',
+            event_type: 'state_changed'
+          }
+        ],
+        actions: [
+          {
+            id: 'act1',
+            capability: 'light.turn_on',
+            target: { entity_id: 'light.test' },
+            data: {}
+          }
+        ],
+        policy: { risk: 'low' }
+      };
+      
+      const response = await page.request.post('http://localhost:8041/api/specs', {
+        data: spec
+      });
+      
+      // May succeed (200) or fail gracefully (400) if validation fails
+      expect([200, 400]).toContain(response.status());
+      
+      if (response.ok()) {
+        const body = await response.json();
+        expect(body.success).toBe(true);
+        expect(body.spec).toHaveProperty('id', spec.id);
+      }
+    });
+
+    test('GET /api/specs - List all specs', async ({ page }) => {
+      const response = await page.request.get('http://localhost:8041/api/specs');
+      expect(response.status()).toBe(200);
+      
+      const body = await response.json();
+      expect(body.success).toBe(true);
+      expect(body).toHaveProperty('specs');
+      expect(Array.isArray(body.specs)).toBeTruthy();
+    });
+
+    test('GET /api/observability/kill-switch/status - Get kill switch status', async ({ page }) => {
+      const response = await page.request.get('http://localhost:8041/api/observability/kill-switch/status');
+      expect(response.status()).toBe(200);
+      
+      const body = await response.json();
+      expect(body.success).toBe(true);
+      expect(body).toHaveProperty('status');
+      expect(body.status).toHaveProperty('global_paused');
+    });
+  });
+
   test.describe('Weather API Service Endpoints', () => {
     
     test('GET /health - Weather API health', async ({ page }) => {

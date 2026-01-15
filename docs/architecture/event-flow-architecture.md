@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated November 2025**: State machine pattern implemented for robust connection and processing state management.
+This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated January 2026**: State machine pattern implemented for robust connection and processing state management. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
 
 ## Event Flow Diagram
 
@@ -491,6 +491,87 @@ Blueprint Deployer (Home Assistant automation creation)
 - Community blueprints are matched to user device inventory
 - Automations are deployed with auto-filled entity IDs
 - Higher success rate than manual automation creation
+
+## Automation Execution Architecture (January 2026)
+
+The `api-automation-edge` service (Port 8025) handles automation execution with an asynchronous task queue pattern using Huey with SQLite backend.
+
+### Execution Flow
+
+**Synchronous Mode (`USE_TASK_QUEUE=false`):**
+```
+HTTP Request → Validate → Execute → Return Result (blocks)
+```
+
+**Asynchronous Mode (`USE_TASK_QUEUE=true`, default):**
+```
+HTTP Request → Validate → Queue Task → Return Task ID (fast)
+                     ↓
+              Huey Queue (SQLite)
+                     ↓
+              Worker Process → Execute → Store Result
+                     ↓
+              Result Queryable via API
+```
+
+### Task Queue Components
+
+1. **Huey SQLite Backend**: Persistent task queue (survives restarts)
+   - Database: `./data/automation_queue.db` (persisted in Docker volume)
+   - Workers: 4 threads (configurable via `HUEY_WORKERS`)
+   - Result Storage: 7 days TTL (configurable via `HUEY_RESULT_TTL`)
+
+2. **Task Prioritization**: Based on automation risk level
+   - High risk (security/safety): Priority 10, 10 retries, 60s delay
+   - Medium risk (normal): Priority 5, 5 retries, 30s delay
+   - Low risk (background): Priority 1, 3 retries, 15s delay
+
+3. **Execution Features**:
+   - **Delayed Execution**: `?delay=300` (seconds)
+   - **Scheduled Execution**: `?eta=2026-01-20T14:30:00Z` (ISO datetime)
+   - **Cron Scheduling**: Periodic tasks for automations with `trigger.type: "schedule"`
+   - **Persistent Retry**: Retries survive service restarts
+
+### API Endpoints
+
+**Execution:**
+- `POST /api/execute/{spec_id}` - Queue automation (or execute synchronously)
+- `GET /api/tasks/{task_id}` - Get task status and result
+- `GET /api/tasks` - List tasks (with filters)
+- `POST /api/tasks/{task_id}/cancel` - Cancel pending task
+
+**Scheduling:**
+- `GET /api/schedules` - List all scheduled automations
+- `POST /api/schedules/{spec_id}/enable` - Enable cron schedule
+- `POST /api/schedules/{spec_id}/disable` - Disable cron schedule
+- `GET /api/schedules/{spec_id}/next-run` - Get next run time
+
+**Health:**
+- `GET /health` - Health check with queue status (pending, scheduled, consumer status)
+
+### Integration Points
+
+- **Kill Switch**: Revokes queued tasks when kill switch activated (global/home/spec level)
+- **Metrics**: Queue metrics (depth, execution time, success rate) sent to InfluxDB
+- **Observability**: Task execution history, retry counts, failure analysis
+
+### Configuration
+
+Environment variables:
+- `USE_TASK_QUEUE`: Enable task queue (default: "true")
+- `HUEY_DATABASE_PATH`: SQLite database path (default: "./data/automation_queue.db")
+- `HUEY_WORKERS`: Number of worker threads (default: 4)
+- `HUEY_RESULT_TTL`: Result storage TTL in seconds (default: 604800 = 7 days)
+- `HUEY_SCHEDULER_INTERVAL`: Periodic task check interval in seconds (default: 1.0)
+
+### Benefits
+
+- **Non-blocking HTTP**: Fast API responses (tasks execute in background)
+- **Persistent Retry**: Tasks retry automatically across service restarts
+- **Priority-based Execution**: High-risk automations execute first
+- **Scheduled Execution**: Cron-based periodic tasks for time-based automations
+- **Task Control**: Cancel pending tasks, query execution history
+- **Backward Compatible**: Falls back to synchronous execution if task queue disabled
 
 ## References
 

@@ -198,6 +198,84 @@ class MetricsCollector:
         except Exception as e:
             logger.error(f"Failed to record circuit breaker trip: {e}")
     
+    def record_queue_metric(
+        self,
+        home_id: str,
+        metric_type: str,
+        value: float,
+        **tags
+    ):
+        """
+        Record task queue metric.
+        
+        Args:
+            home_id: Home ID
+            metric_type: Metric type (queue_depth, execution_time, success_rate, retry_count)
+            value: Metric value
+            **tags: Additional tags (spec_id, task_id, etc.)
+        """
+        if not self.write_api:
+            return
+        
+        try:
+            point = Point("automation_queue_metrics") \
+                .tag("home_id", home_id) \
+                .tag("metric_type", metric_type) \
+                .field("value", value) \
+                .time(datetime.now(timezone.utc))
+            
+            for key, val in tags.items():
+                point = point.tag(key, str(val))
+            
+            self.write_api.write(bucket=self.influxdb_bucket, record=point)
+            
+        except Exception as e:
+            logger.error(f"Failed to record queue metric: {e}")
+    
+    def record_task_execution_metric(
+        self,
+        home_id: str,
+        spec_id: str,
+        task_id: str,
+        success: bool,
+        execution_time: float,
+        retry_count: int = 0,
+        correlation_id: Optional[str] = None
+    ):
+        """
+        Record task execution metric.
+        
+        Args:
+            home_id: Home ID
+            spec_id: Automation spec ID
+            task_id: Task ID
+            success: Whether task succeeded
+            execution_time: Execution time in seconds
+            retry_count: Number of retries
+            correlation_id: Optional correlation ID
+        """
+        if not self.write_api:
+            return
+        
+        try:
+            point = Point("automation_task_execution") \
+                .tag("home_id", home_id) \
+                .tag("spec_id", spec_id) \
+                .tag("task_id", task_id) \
+                .tag("success", str(success).lower()) \
+                .field("execution_time", execution_time) \
+                .field("success", 1 if success else 0) \
+                .field("retry_count", retry_count) \
+                .time(datetime.now(timezone.utc))
+            
+            if correlation_id:
+                point = point.tag("correlation_id", correlation_id)
+            
+            self.write_api.write(bucket=self.influxdb_bucket, record=point)
+            
+        except Exception as e:
+            logger.error(f"Failed to record task execution metric: {e}")
+    
     def close(self):
         """Close InfluxDB client"""
         if self.client:

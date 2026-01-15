@@ -59,6 +59,16 @@ class Settings(BaseSettings):
     # Idempotency configuration
     idempotency_ttl: int = int(os.getenv("IDEMPOTENCY_TTL", "3600"))
     
+    # Huey Task Queue configuration
+    huey_database_path: str = os.getenv(
+        "HUEY_DATABASE_PATH",
+        "./data/automation_queue.db"
+    )
+    huey_workers: int = int(os.getenv("HUEY_WORKERS", "4"))
+    huey_result_ttl: int = int(os.getenv("HUEY_RESULT_TTL", "604800"))  # 7 days
+    huey_scheduler_interval: float = float(os.getenv("HUEY_SCHEDULER_INTERVAL", "1.0"))
+    use_task_queue: bool = os.getenv("USE_TASK_QUEUE", "true").lower() == "true"
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
