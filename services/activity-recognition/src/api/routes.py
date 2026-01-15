@@ -176,9 +176,19 @@ def predict_activity(sensor_array: np.ndarray) -> tuple[int, np.ndarray]:
     
     logits = session.run([output_name], {input_name: input_array})[0]
     
-    # Convert to probabilities
-    probs = np.exp(logits) / np.sum(np.exp(logits), axis=1, keepdims=True)
-    predicted_class = int(np.argmax(logits, axis=1)[0])
+    # Convert to probabilities using numerically stable softmax
+    # Subtract max for numerical stability (prevents overflow)
+    if logits.ndim == 1:
+        logits_stable = logits - np.max(logits)
+        exp_logits = np.exp(logits_stable)
+        probs = exp_logits / np.sum(exp_logits)
+        predicted_class = int(np.argmax(logits))
+    else:
+        logits_stable = logits - np.max(logits, axis=1, keepdims=True)
+        exp_logits = np.exp(logits_stable)
+        probs = exp_logits / np.sum(exp_logits, axis=1, keepdims=True)
+        predicted_class = int(np.argmax(logits, axis=1)[0])
+        probs = probs[0]
     
     return predicted_class, probs[0]
 

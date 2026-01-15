@@ -51,12 +51,24 @@ async def run_alembic_migrations():
     This should be called on service startup to ensure all migrations are applied.
     """
     try:
-        # Get the service directory (parent of src/)
-        service_dir = Path(__file__).parent.parent.parent
-        alembic_ini_path = service_dir / "alembic.ini"
+        # Try multiple paths for alembic.ini
+        # In container: /app/src/database.py -> service_dir would be /app
+        # Path resolution: /app/src/database.py -> parent: /app/src -> parent: /app -> parent: /
+        # So we check both /app/alembic.ini (direct) and calculated path
         
-        if not alembic_ini_path.exists():
-            logger.warning(f"Alembic config not found at {alembic_ini_path}, skipping migrations")
+        # First, try direct container path (most reliable)
+        container_path = Path("/app/alembic.ini")
+        calculated_path = Path(__file__).parent.parent.parent / "alembic.ini"
+        
+        alembic_ini_path = None
+        if container_path.exists():
+            alembic_ini_path = container_path
+            logger.info(f"Found Alembic config at container path: {alembic_ini_path}")
+        elif calculated_path.exists():
+            alembic_ini_path = calculated_path
+            logger.info(f"Found Alembic config at calculated path: {alembic_ini_path}")
+        else:
+            logger.warning(f"Alembic config not found at {container_path} or {calculated_path}, skipping migrations")
             return False
         
         # Configure Alembic

@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..services.suggestion_storage_service import SuggestionStorageService
+from ..clients.ha_agent_client import HAAgentClient
 from ..models import Suggestion, InvalidSuggestionReport, InvalidReportReason
 
 logger = logging.getLogger(__name__)
@@ -286,6 +287,93 @@ async def delete_suggestion(
     except Exception as e:
         logger.error(f"Failed to delete suggestion {suggestion_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete suggestion") from e
+
+
+@router.post("/{suggestion_id}/send", response_model=SuggestionResponse)
+async def send_suggestion_to_agent(
+    suggestion_id: str,
+    db: AsyncSession = Depends(get_db),
+    storage_service: SuggestionStorageService = Depends(get_storage_service),
+):
+    """
+    Send a suggestion to the HA AI Agent Service.
+
+    Args:
+        suggestion_id: Suggestion ID
+        db: Database session
+        storage_service: Storage service instance
+
+    Returns:
+        Updated suggestion with agent response
+    """
+    try:
+        # Get the suggestion
+        suggestion = await storage_service.get_suggestion(suggestion_id, db=db)
+        if not suggestion:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+
+        # Only send if status is pending
+        if suggestion.status != "pending":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot send suggestion with status '{suggestion.status}'. Only pending suggestions can be sent."
+            )
+
+        # Initialize HA Agent client
+        agent_client = HAAgentClient()
+        
+        try:
+            # Generate title from context type for conversation
+            title = f"💡 {suggestion.context_type.title()} suggestion"
+            
+            # Build hidden context from automation_hints (if available)
+            hidden_context = None
+            automation_hints = suggestion.prompt_metadata.get("automation_hints") or \
+                             suggestion.context_metadata.get("automation_hints")
+            if automation_hints:
+                hidden_context = {
+                    "context_type": suggestion.context_type,
+                    **automation_hints
+                }
+                logger.debug(f"Passing hidden context to HA Agent: {hidden_context}")
+            
+            # Send message to HA AI Agent Service
+            agent_response = await agent_client.send_message(
+                suggestion.prompt,
+                title=title,
+                source="proactive",
+                hidden_context=hidden_context,
+            )
+
+            if agent_response:
+                # Update suggestion with agent response and mark as sent
+                updated_suggestion = await storage_service.update_suggestion_status(
+                    suggestion_id,
+                    status="sent",
+                    agent_response={
+                        "message": agent_response.get("message", ""),
+                        "conversation_id": agent_response.get("conversation_id"),
+                        "tool_calls": agent_response.get("tool_calls", []),
+                        "metadata": agent_response.get("metadata", {}),
+                    },
+                    db=db,
+                )
+                logger.info(f"Successfully sent suggestion {suggestion_id} to HA AI Agent")
+                return SuggestionResponse.model_validate(updated_suggestion)
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to send suggestion to HA AI Agent Service"
+                )
+        finally:
+            # Close the agent client
+            await agent_client.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to send suggestion {suggestion_id} to agent: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to send suggestion: {str(e)}") from e
 
 
 @router.get("/stats/summary", response_model=SuggestionStatsResponse)

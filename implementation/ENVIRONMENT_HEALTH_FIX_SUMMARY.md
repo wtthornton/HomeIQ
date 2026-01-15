@@ -68,11 +68,26 @@
    - API endpoint returns correct health data with `health_score: 100`
    - Dashboard should now display health score correctly
 
-**Note:** For permanent fix, rebuild the health-dashboard container:
+## Permanent Fix Applied ✅
+
+**Rebuild and Redeploy Completed:**
+
 ```bash
 docker compose build health-dashboard
 docker compose up -d health-dashboard
 ```
+
+**Status:** ✅ Container rebuilt successfully with updated nginx.conf baked into the image
+- Nginx configuration now permanently includes direct proxy_pass fix
+- No need to manually copy config file on container restart
+- Health dashboard service running and healthy
+
+**Verification:**
+- ✅ API endpoint `/setup-service/api/health/environment` returns correct health data
+- ✅ Health score: 100/100
+- ✅ HA Status: healthy
+- ✅ HA Version: 2026.1.1
+- ✅ Integrations: 2 (MQTT and Data API)
 
 ## Files Modified
 

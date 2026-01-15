@@ -11,17 +11,28 @@ This script:
 Usage:
     python scripts/delete_all_suggestions.py
     OR
-    docker exec ai-automation-service python /app/delete_all_suggestions.py
+    docker exec ai-automation-service-new python /app/scripts/delete_all_suggestions.py
 """
 import asyncio
 import sys
+import os
 from pathlib import Path
+
+# Set UTF-8 encoding for Windows console
+if sys.platform == "win32":
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except AttributeError:
+        # Python < 3.7 - use environment variable only
+        pass
 
 # Add /app/src to path for imports (works both locally and in Docker)
 script_dir = Path(__file__).parent
-if (script_dir.parent / "services" / "ai-automation-service" / "src").exists():
+if (script_dir.parent / "services" / "ai-automation-service-new" / "src").exists():
     # Running locally
-    sys.path.insert(0, str(script_dir.parent / "services" / "ai-automation-service" / "src"))
+    sys.path.insert(0, str(script_dir.parent / "services" / "ai-automation-service-new" / "src"))
 else:
     # Running in Docker container
     sys.path.insert(0, "/app/src")
@@ -40,10 +51,13 @@ async def delete_all_suggestions():
     # Database path - works in both local and Docker
     if Path("/app/data/ai_automation.db").exists():
         db_path = "/app/data/ai_automation.db"
-    elif (script_dir.parent / "services" / "ai-automation-service" / "data" / "ai_automation.db").exists():
-        db_path = str(script_dir.parent / "services" / "ai-automation-service" / "data" / "ai_automation.db")
+    elif (script_dir.parent / "services" / "ai-automation-service-new" / "data" / "ai_automation.db").exists():
+        db_path = str(script_dir.parent / "services" / "ai-automation-service-new" / "data" / "ai_automation.db")
     else:
-        print("❌ ERROR: Database not found")
+        print("[ERROR] Database not found")
+        print("   Checked paths:")
+        print(f"   - /app/data/ai_automation.db")
+        print(f"   - {script_dir.parent / 'services' / 'ai-automation-service-new' / 'data' / 'ai_automation.db'}")
         return -1
     
     # Create async engine
@@ -57,7 +71,7 @@ async def delete_all_suggestions():
         count = result.scalar()
         
         if count == 0:
-            print("✅ No suggestions found in database. Nothing to delete.")
+            print("[OK] No suggestions found in database. Nothing to delete.")
             await engine.dispose()
             return 0
         
@@ -75,11 +89,11 @@ async def delete_all_suggestions():
         print()
         
         # Delete all suggestions
-        print(f"🗑️  Deleting {count} suggestions...")
+        print(f"[DELETE] Deleting {count} suggestions...")
         await db.execute(text("DELETE FROM suggestions"))
         await db.commit()
         
-        print(f"✅ Successfully deleted {count} suggestions")
+        print(f"[OK] Successfully deleted {count} suggestions")
         print()
         
         # Verify deletion
@@ -109,7 +123,7 @@ async def main():
         count = await delete_all_suggestions()
         sys.exit(0 if count >= 0 else 1)
     except Exception as e:
-        print(f"❌ ERROR: Failed to delete suggestions: {e}", file=sys.stderr)
+        print(f"[ERROR] Failed to delete suggestions: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         sys.exit(1)
