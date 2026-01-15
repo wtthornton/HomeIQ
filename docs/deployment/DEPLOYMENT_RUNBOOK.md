@@ -68,7 +68,7 @@ HomeIQ is an AI-powered Home Assistant intelligence platform that captures, enri
 
 ### Services Deployed
 
-HomeIQ deploys **30+ microservices** organized into the following categories:
+HomeIQ deploys **38 microservices** (plus InfluxDB and Jaeger infrastructure) organized into the following categories:
 
 #### 🗄️ Infrastructure Services
 
