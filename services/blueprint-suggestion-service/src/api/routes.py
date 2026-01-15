@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import get_db
+from ..database import check_schema_version, get_db
 from ..models.suggestion import BlueprintSuggestion
 from ..services.suggestion_service import SuggestionService
 from .schemas import (
@@ -77,6 +77,34 @@ async def delete_all_suggestions(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Delete all suggestions failed: {str(e)}")
 
 
+@router.get("/health/schema")
+async def check_schema_health(db: AsyncSession = Depends(get_db)):
+    """
+    Check if database schema is up to date.
+    
+    Returns schema health status including:
+    - schema_version: Current schema version
+    - schema_ok: Whether schema matches model
+    - status: Overall health status
+    """
+    try:
+        schema_ok = await check_schema_version(db)
+        return {
+            "schema_version": "1.0.0",
+            "schema_ok": schema_ok,
+            "status": "healthy" if schema_ok else "schema_mismatch",
+            "message": "Schema is up to date" if schema_ok else "Schema mismatch detected - migrations may be required"
+        }
+    except Exception as e:
+        logger.error(f"Schema health check failed: {e}", exc_info=True)
+        return {
+            "schema_version": "unknown",
+            "schema_ok": False,
+            "status": "error",
+            "message": f"Failed to check schema: {str(e)}"
+        }
+
+
 @router.get("/suggestions", response_model=BlueprintSuggestionListResponse)
 async def get_suggestions(
     min_score: Optional[float] = Query(default=None, ge=0.0, le=1.0),
@@ -99,6 +127,15 @@ async def get_suggestions(
     - offset: Pagination offset
     """
     try:
+        # Check schema before querying
+        schema_ok = await check_schema_version(db)
+        if not schema_ok:
+            logger.error("Schema mismatch detected - required columns may be missing")
+            raise HTTPException(
+                status_code=503,
+                detail="Database schema mismatch. Please restart the service to run migrations or contact support."
+            )
+        
         suggestions, total = await service.get_suggestions(
             db=db,
             min_score=min_score,
