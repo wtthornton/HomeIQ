@@ -1,0 +1,125 @@
+---
+description: Critical guidance on using CLI commands vs Cursor Skills in Cursor IDE. Prevents common mistakes when running tapps-agents commands.
+globs: []
+alwaysApply: true
+---
+
+# Cursor Mode Usage Guide - CLI vs Cursor Skills
+
+## ⚠️ CRITICAL: CLI Workflow Commands Not Recommended in Cursor Mode
+
+**If you see this warning:**
+```
+⚠️  CLI Workflow Commands Not Recommended in Cursor Mode
+```
+
+**This means:** You're trying to run a CLI workflow command (`tapps-agents workflow ...`) inside Cursor IDE, which is not recommended.
+
+## Quick Fix
+
+### ✅ Use Cursor Skills Instead (Recommended)
+
+**In Cursor IDE chat, use:**
+```cursor
+@simple-mode *fix <file> "description"
+@simple-mode *build "description"
+@simple-mode *review <file>
+@simple-mode *test <file>
+```
+
+**NOT:**
+```bash
+# ❌ Don't use CLI workflow commands in Cursor IDE
+tapps-agents workflow fix --file <file> --auto
+```
+
+### ✅ Use CLI Commands in Terminal/CI (Outside Cursor)
+
+**CLI commands work perfectly in:**
+- ✅ Standalone terminal (outside Cursor IDE)
+- ✅ CI/CD pipelines
+- ✅ Shell scripts
+- ✅ Automated workflows
+
+```bash
+# ✅ This works in terminal/CI
+tapps-agents workflow fix --file <file> --auto
+tapps-agents workflow rapid --prompt "description" --auto
+```
+
+## Why This Matters
+
+### Cursor Mode vs CLI Mode
+
+**Cursor Mode** (when running in Cursor IDE):
+- Uses Cursor Skills (`@agent-name *command`)
+- Leverages Cursor's native integration
+- Better context awareness
+- Skill-based execution
+- **Recommended for interactive development**
+
+**CLI Mode** (when running in terminal/CI):
+- Uses direct CLI commands (`tapps-agents <agent> <command>`)
+- Designed for automation and scripting
+- Structured output (JSON, text)
+- **Recommended for batch processing and CI/CD**
+
+### The Problem
+
+When you run CLI workflow commands in Cursor IDE:
+- ❌ May fail due to dependency issues
+- ❌ Bypasses Cursor's skill orchestration
+- ❌ Doesn't leverage workspace context
+- ❌ Poorer integration experience
+
+## Command Mapping
+
+| What You Want | In Cursor IDE | In Terminal/CI |
+|--------------|---------------|----------------|
+| Fix a bug | `@simple-mode *fix <file> "desc"` | `tapps-agents workflow fix --file <file> --auto` |
+| Build feature | `@simple-mode *build "desc"` | `tapps-agents workflow rapid --prompt "desc" --auto` |
+| Review code | `@simple-mode *review <file>` | `tapps-agents reviewer review <file>` |
+| Generate tests | `@simple-mode *test <file>` | `tapps-agents tester test <file>` |
+| Full SDLC | `@simple-mode *full "desc"` | `tapps-agents workflow full --prompt "desc" --auto` |
+
+## How to Verify Your Setup
+
+### Check if Simple Mode is Ready
+
+```bash
+tapps-agents simple-mode status
+tapps-agents cursor verify
+```
+
+### If Not Set Up, Run Init
+
+```bash
+tapps-agents init
+```
+
+This installs:
+- ✅ Cursor Rules (`.cursor/rules/`)
+- ✅ Cursor Skills (`.claude/skills/`) - **Required for `@simple-mode`**
+- ✅ Configuration (`.tapps-agents/config.yaml`)
+- ✅ Workflow presets
+
+## Override (Not Recommended)
+
+If you absolutely must use CLI commands in Cursor mode:
+
+```bash
+tapps-agents workflow fix --file <file> --auto --cli-mode
+```
+
+**Why this is not recommended:**
+- May fail due to dependency issues
+- Doesn't leverage Cursor's native capabilities
+- Poorer integration with workspace context
+- Better to use `@simple-mode` commands instead
+
+## Related Documentation
+
+- `.cursor/rules/simple-mode.mdc` - Simple Mode usage guide
+- `.cursor/rules/quick-reference.mdc` - Quick command reference
+- `.cursor/rules/command-reference.mdc` - Complete command reference
+- `docs/CURSOR_MODE_CLI_WORKFLOW_WARNING_ANALYSIS.md` - Detailed analysis

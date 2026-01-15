@@ -1,0 +1,180 @@
+﻿{
+    "id":  "office_welcome_effect_with_weekly_variations",
+    "alias":  "Office Welcome Effect with Weekly Variations",
+    "description":  "On office entry, run a 10s welcome light effect, with special Monday/Friday behaviors and a once-per-day random sparkle on the desk LED strip, then restore normal working scene.",
+    "triggers":  [
+                     {
+                         "platform":  "state",
+                         "entity_id":  [
+                                           "binary_sensor.office_motion_area",
+                                           "binary_sensor.office_fp300_sensor_presence"
+                                       ],
+                         "to":  "on"
+                     }
+                 ],
+    "conditions":  [
+
+                   ],
+    "actions":  [
+                    {
+                        "data":  {
+                                     "scene_id":  "office_welcome_effect_with_weekly_variations_restore",
+                                     "snapshot_entities":  [
+                                                               "light.office",
+                                                               "light.office_desk",
+                                                               "light.office_wled"
+                                                           ]
+                                 },
+                        "action":  "scene.create"
+                    },
+                    {
+                        "target":  {
+                                       "entity_id":  "light.office"
+                                   },
+                        "data":  {
+                                     "brightness_pct":  10,
+                                     "color_temp":  370
+                                 },
+                        "action":  "light.turn_on"
+                    },
+                    {
+                        "delay":  "00:00:03"
+                    },
+                    {
+                        "target":  {
+                                       "entity_id":  "light.office"
+                                   },
+                        "data":  {
+                                     "brightness_pct":  40,
+                                     "color_temp":  250,
+                                     "transition":  3
+                                 },
+                        "action":  "light.turn_on"
+                    },
+                    {
+                        "delay":  "00:00:03"
+                    },
+                    {
+                        "target":  {
+                                       "entity_id":  "light.office"
+                                   },
+                        "data":  {
+                                     "brightness_pct":  70,
+                                     "color_temp":  370,
+                                     "transition":  4
+                                 },
+                        "action":  "light.turn_on"
+                    },
+                    {
+                        "choose":  [
+                                       {
+                                           "conditions":  [
+                                                              {
+                                                                  "condition":  "time",
+                                                                  "weekday":  [
+                                                                                  "mon"
+                                                                              ],
+                                                                  "after":  "06:00:00",
+                                                                  "before":  "12:00:00"
+                                                              }
+                                                          ],
+                                           "sequence":  [
+                                                            {
+                                                                "target":  {
+                                                                               "entity_id":  "media_player.office_speaker"
+                                                                           },
+                                                                "data":  {
+                                                                             "media_content_id":  "https://example.com/chime.mp3",
+                                                                             "media_content_type":  "music"
+                                                                         },
+                                                                "action":  "media_player.play_media"
+                                                            }
+                                                        ]
+                                       },
+                                       {
+                                           "conditions":  [
+                                                              {
+                                                                  "condition":  "time",
+                                                                  "weekday":  [
+                                                                                  "fri"
+                                                                              ],
+                                                                  "after":  "16:00:00"
+                                                              }
+                                                          ],
+                                           "sequence":  [
+                                                            {
+                                                                "target":  {
+                                                                               "entity_id":  "light.office_desk"
+                                                                           },
+                                                                "data":  {
+                                                                             "brightness_pct":  40,
+                                                                             "rgb_color":  [
+                                                                                               255,
+                                                                                               191,
+                                                                                               102
+                                                                                           ]
+                                                                         },
+                                                                "action":  "light.turn_on"
+                                                            },
+                                                            {
+                                                                "target":  {
+                                                                               "entity_id":  "light.office"
+                                                                           },
+                                                                "data":  {
+                                                                             "brightness_pct":  50
+                                                                         },
+                                                                "action":  "light.turn_on"
+                                                            }
+                                                        ]
+                                       }
+                                   ]
+                    },
+                    {
+                        "choose":  [
+                                       {
+                                           "conditions":  [
+                                                              {
+                                                                  "condition":  "template",
+                                                                  "value_template":  "{{ (states(\u0027input_datetime.office_sparkle_last_run\u0027) == \u0027unknown\u0027) or\n   (now().date() \u003e (states(\u0027input_datetime.office_sparkle_last_run\u0027) | as_datetime).date()) and\n   (range(0, 100) | random) \u003c 20 }}\n"
+                                                              }
+                                                          ],
+                                           "sequence":  [
+                                                            {
+                                                                "target":  {
+                                                                               "entity_id":  "light.office_wled"
+                                                                           },
+                                                                "data":  {
+                                                                             "effect":  "Sparkle",
+                                                                             "brightness":  255
+                                                                         },
+                                                                "action":  "light.turn_on"
+                                                            },
+                                                            {
+                                                                "delay":  "00:00:02"
+                                                            },
+                                                            {
+                                                                "target":  {
+                                                                               "entity_id":  "input_datetime.office_sparkle_last_run"
+                                                                           },
+                                                                "data":  {
+                                                                             "datetime":  "{{ now().isoformat() }}"
+                                                                         },
+                                                                "action":  "input_datetime.set_datetime"
+                                                            }
+                                                        ]
+                                       }
+                                   ]
+                    },
+                    {
+                        "delay":  "00:00:01"
+                    },
+                    {
+                        "target":  {
+                                       "entity_id":  "scene.office_welcome_effect_with_weekly_variations_restore"
+                                   },
+                        "action":  "scene.turn_on"
+                    }
+                ],
+    "initial_state":  true,
+    "mode":  "restart"
+}

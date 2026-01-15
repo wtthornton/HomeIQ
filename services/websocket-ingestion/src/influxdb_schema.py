@@ -209,6 +209,34 @@ class InfluxDBSchema:
             logger.error(f"Error creating weather point: {e}")
             return None
 
+    def _extract_attributes(self, event_data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Extract attributes from event data.
+        
+        Attributes are nested inside new_state.attributes (or old_state.attributes as fallback).
+        This is the correct Home Assistant event structure.
+        
+        Args:
+            event_data: Processed event data dictionary
+            
+        Returns:
+            Dictionary of attributes (empty dict if not found)
+        """
+        # First try to get attributes from top level (for backwards compatibility)
+        attributes = event_data.get("attributes", {})
+        
+        # If not at top level, extract from new_state.attributes (preferred)
+        new_state = event_data.get("new_state")
+        if isinstance(new_state, dict) and "attributes" in new_state:
+            attributes = new_state.get("attributes", {})
+        # Fallback to old_state.attributes if new_state doesn't have attributes
+        elif not attributes:
+            old_state = event_data.get("old_state")
+            if isinstance(old_state, dict) and "attributes" in old_state:
+                attributes = old_state.get("attributes", {})
+        
+        return attributes if isinstance(attributes, dict) else {}
+
     def _add_event_tags(self, point: Point, event_data: dict[str, Any]) -> Point:
         """Add tags to event point"""
         # Entity ID tag
@@ -235,7 +263,8 @@ class InfluxDBSchema:
             point = point.tag(self.TAG_AREA_ID, area_id)
 
         # Device class tag (from attributes)
-        attributes = event_data.get("attributes", {})
+        # FIX: Extract attributes from nested state structure
+        attributes = self._extract_attributes(event_data)
         device_class = attributes.get("device_class")
         if device_class:
             point = point.tag(self.TAG_DEVICE_CLASS, device_class)
@@ -268,7 +297,8 @@ class InfluxDBSchema:
         try:
             entity_id = event_data.get("entity_id", "")
             domain = entity_id.split('.')[0] if '.' in entity_id else ""
-            attributes = event_data.get("attributes", {})
+            # FIX: Extract attributes from nested state structure
+            attributes = self._extract_attributes(event_data)
             device_class = attributes.get("device_class", "")
             
             # Security category
@@ -310,7 +340,8 @@ class InfluxDBSchema:
             point = point.field(self.FIELD_OLD_STATE, str(old_state))
 
         # Attributes field (as JSON string)
-        attributes = event_data.get("attributes", {})
+        # FIX: Extract attributes from nested state structure (new_state.attributes)
+        attributes = self._extract_attributes(event_data)
         if attributes:
             point = point.field(self.FIELD_ATTRIBUTES, json.dumps(attributes))
 
@@ -504,7 +535,3 @@ class InfluxDBSchema:
         except Exception as e:
             errors.append(f"Validation error: {e}")
             return False, errors
-
-
-# Import json for attributes serialization
-import json

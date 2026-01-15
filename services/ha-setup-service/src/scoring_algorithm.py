@@ -141,7 +141,9 @@ class HealthScoringAlgorithm:
         ]
 
         if not relevant_integrations:
-            return 0
+            # If all integrations were filtered out (only Zigbee2MQTT), give partial credit
+            # This prevents health score from being 0 when system is in setup or only has Zigbee2MQTT
+            return 30
 
         total_score = 0
         for integration in relevant_integrations:
