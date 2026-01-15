@@ -24,7 +24,7 @@ class DiscoveryService:
 
     def __init__(self, influxdb_manager=None):
         self.message_id_manager = get_message_id_manager()  # Use centralized manager
-        self.pending_responses: dict[int, asyncio.Future] = {}
+        self.pending_responses: dict[int, asyncio.Future] = {}  # Message routing: message_id -> Future
         self.influxdb_manager = influxdb_manager
 
         # Epic 23.2: Device and area mapping caches for event enrichment
@@ -45,27 +45,43 @@ class DiscoveryService:
         """Get next message ID from centralized manager"""
         return await self.message_id_manager.get_next_id()
 
-    async def _discover_devices_websocket(self, websocket: ClientWebSocketResponse) -> list[dict[str, Any]]:
+    async def _discover_devices_websocket(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None) -> list[dict[str, Any]]:
         """
-        Discover devices via WebSocket (original implementation)
+        Discover devices via WebSocket using message routing
+        
+        Uses message routing through connection manager to avoid listen loop conflicts.
         
         Args:
-            websocket: Connected WebSocket client
+            websocket: Connected WebSocket client (optional, for backward compatibility)
+            connection_manager: Connection manager for sending messages (preferred)
             
         Returns:
             List of device dictionaries
         """
         try:
             message_id = await self._get_next_id()
-            logger.info("📱 Discovering devices via WebSocket...")
+            logger.info("📱 Discovering devices via WebSocket (using message routing)...")
 
-            # Send device registry list command
-            await websocket.send_json({
-                "id": message_id,
-                "type": "config/device_registry/list"
-            })
+            # Use connection manager if available (preferred method)
+            if connection_manager:
+                message = {
+                    "id": message_id,
+                    "type": "config/device_registry/list"
+                }
+                if not await connection_manager.send_message(message):
+                    logger.error("❌ Failed to send device registry command via connection manager")
+                    return []
+            elif websocket:
+                # Fallback to direct websocket send (for backward compatibility)
+                await websocket.send_json({
+                    "id": message_id,
+                    "type": "config/device_registry/list"
+                })
+            else:
+                logger.error("❌ No websocket or connection manager provided")
+                return []
 
-            # Wait for response
+            # Wait for response using message routing (works with listen loop)
             response = await self._wait_for_response(websocket, message_id, timeout=10.0)
 
             if not response or not response.get("success"):
@@ -74,10 +90,13 @@ class DiscoveryService:
                 return []
 
             devices = response.get("result", [])
+            logger.info(f"✅ Discovered {len(devices)} devices via WebSocket")
             return devices
 
         except Exception as e:
             logger.error(f"❌ Error discovering devices via WebSocket: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
 
     async def _discover_devices_http(self) -> list[dict[str, Any]]:
@@ -151,10 +170,10 @@ class DiscoveryService:
             logger.info("📱 DISCOVERING DEVICES")
             logger.info("=" * 80)
 
-            # Try WebSocket first (preferred method)
-            if websocket:
-                logger.info("Using WebSocket for device discovery")
-                devices = await self._discover_devices_websocket(websocket)
+            # Try WebSocket first (preferred method) - use message routing to avoid listen loop conflicts
+            if connection_manager or websocket:
+                logger.info("Using WebSocket for device discovery (with message routing)")
+                devices = await self._discover_devices_websocket(websocket, connection_manager)
                 if devices:
                     return devices
                 logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
@@ -421,7 +440,7 @@ class DiscoveryService:
             logger.error(traceback.format_exc())
             return []
 
-    async def discover_config_entries(self, websocket: ClientWebSocketResponse) -> list[dict[str, Any]]:
+    async def discover_config_entries(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None) -> list[dict[str, Any]]:
         """
         Discover all config entries (integrations) from Home Assistant
         
@@ -440,15 +459,27 @@ class DiscoveryService:
             logger.info(f"🔧 DISCOVERING CONFIG ENTRIES (message_id: {message_id})")
             logger.info("=" * 80)
 
-            # Send config entries list command
-            await websocket.send_json({
-                "id": message_id,
-                "type": "config_entries/list"
-            })
+            # Send config entries list command (use connection_manager if available)
+            if connection_manager:
+                message = {
+                    "id": message_id,
+                    "type": "config_entries/list"
+                }
+                if not await connection_manager.send_message(message):
+                    logger.error("❌ Failed to send config entries command via connection manager")
+                    return []
+            elif websocket:
+                await websocket.send_json({
+                    "id": message_id,
+                    "type": "config_entries/list"
+                })
+            else:
+                logger.error("❌ No websocket or connection manager provided")
+                return []
 
             logger.info("✅ Config entries command sent, waiting for response...")
 
-            # Wait for response
+            # Wait for response using message routing
             response = await self._wait_for_response(websocket, message_id, timeout=10.0)
 
             if not response:
@@ -485,20 +516,18 @@ class DiscoveryService:
 
     async def _wait_for_response(
         self,
-        websocket: ClientWebSocketResponse,
+        websocket: ClientWebSocketResponse | None,
         message_id: int,
         timeout: float = 10.0
     ) -> dict[str, Any] | None:
         """
-        Wait for response with specific message ID
+        Wait for response with specific message ID using message routing
         
-        IMPORTANT: This method should NOT be called while the listen() loop is running,
-        as it will cause "Concurrent call to receive() is not allowed" errors.
-        
-        For discovery during active connection, use message routing through the connection manager.
+        Uses pending_responses dict to route messages from connection manager's listen loop.
+        This allows discovery to work even when listen loop is active.
         
         Args:
-            websocket: WebSocket connection
+            websocket: WebSocket connection (optional - kept for compatibility)
             message_id: Message ID to wait for
             timeout: Timeout in seconds
             
@@ -506,59 +535,51 @@ class DiscoveryService:
             Response dictionary or None if timeout/error
         """
         try:
-            start_time = asyncio.get_event_loop().time()
+            # Create Future for this message ID (message routing pattern)
+            future = asyncio.Future()
+            self.pending_responses[message_id] = future
             
-            # Check if websocket is being consumed by another task (listen loop)
-            # If so, we cannot call receive() directly - this will cause concurrent receive error
-            # Instead, we should use message routing through the connection manager
-            # For now, we'll use a try-except to catch the error and provide better messaging
-            
-            while True:
-                # Check timeout
-                elapsed = asyncio.get_event_loop().time() - start_time
-                if elapsed > timeout:
-                    raise asyncio.TimeoutError(f"Timeout waiting for message {message_id}")
-
-                # Wait for message with remaining timeout
-                remaining_timeout = timeout - elapsed
-                try:
-                    msg = await asyncio.wait_for(
-                        websocket.receive(),
-                        timeout=remaining_timeout
-                    )
-                except RuntimeError as e:
-                    if "Concurrent call to receive()" in str(e) or "concurrent" in str(e).lower():
-                        logger.error(
-                            f"❌ Cannot call receive() while listen() loop is running. "
-                            f"Discovery should use message routing instead. Error: {e}"
-                        )
-                        raise RuntimeError(
-                            "Discovery cannot use direct receive() while listen loop is active. "
-                            "Use message routing through connection manager instead."
-                        ) from e
-                    raise
-
-                if msg.type == 1:  # TEXT message
-                    data = msg.json()
-
-                    # Check if this is our response
-                    if data.get("id") == message_id:
-                        return data
-                    else:
-                        # Log and continue waiting for our message
-                        logger.debug(f"Received message for different ID: {data.get('id')}, waiting for {message_id}")
-                        continue
-                else:
-                    logger.warning(f"Received non-text message type: {msg.type}")
-                    continue
-
-        except asyncio.TimeoutError:
-            raise
+            try:
+                # Wait for response via Future (will be set by handle_message_result)
+                response = await asyncio.wait_for(future, timeout=timeout)
+                return response
+            except asyncio.TimeoutError:
+                logger.error(f"Timeout waiting for message {message_id} (waited {timeout}s)")
+                return None
+            finally:
+                # Clean up Future
+                self.pending_responses.pop(message_id, None)
+                
         except Exception as e:
             logger.error(f"Error waiting for response: {e}")
+            self.pending_responses.pop(message_id, None)
             return None
+    
+    def handle_message_result(self, message: dict[str, Any]) -> bool:
+        """
+        Handle result message from connection manager's message routing
+        
+        This method is called by connection manager's _on_message handler
+        to route result messages to pending discovery requests.
+        
+        Args:
+            message: Message dictionary from WebSocket
+            
+        Returns:
+            True if message was routed to a pending request, False otherwise
+        """
+        if message.get("type") == "result":
+            message_id = message.get("id")
+            if message_id in self.pending_responses:
+                future = self.pending_responses[message_id]
+                if not future.done():
+                    future.set_result(message)
+                    logger.debug(f"Routed result message {message_id} to pending discovery request")
+                    return True
+        
+        return False
 
-    async def discover_all(self, websocket: ClientWebSocketResponse | None = None, store: bool = True) -> dict[str, Any]:
+    async def discover_all(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None, store: bool = True) -> dict[str, Any]:
         """
         Discover all devices, entities, config entries, and services
         

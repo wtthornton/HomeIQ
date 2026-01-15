@@ -77,24 +77,33 @@ test.describe('DevicePicker Filters', () => {
     const deviceTypeSelect = page.locator('select').filter({ hasText: /All Device Types/i });
     const deviceListbox = page.locator('[role="listbox"][aria-label="Devices"]');
     
-    // Get initial device count
+    // Wait for initial devices to load
+    await page.waitForTimeout(1000);
     const initialDevices = await deviceListbox.locator('[role="option"]').count();
+    expect(initialDevices).toBeGreaterThan(0); // Ensure we have devices to filter
     
-    // Select "Fan" device type
+    // Select "Fan" device type and wait for API call to complete
     await deviceTypeSelect.selectOption('fan');
-    await page.waitForTimeout(2000); // Wait for API call
+    
+    // Wait for loading to complete
+    await page.waitForSelector('[role="listbox"][aria-label="Devices"]', { state: 'visible' });
+    await page.waitForTimeout(2000); // Wait for API call and filtering
     
     // Verify devices are filtered
     const filteredDevices = await deviceListbox.locator('[role="option"]').count();
     
-    // Filtered count should be less than or equal to initial count
-    expect(filteredDevices).toBeLessThanOrEqual(initialDevices);
-    
-    // Verify all visible devices show "fan" in device type
-    const deviceTexts = await deviceListbox.locator('[role="option"]').allTextContents();
-    for (const text of deviceTexts) {
-      // Device type should be visible in the device card
-      expect(text.toLowerCase()).toContain('fan');
+    // If no devices match, that's OK - just verify empty state or no devices
+    if (filteredDevices === 0) {
+      // Check for empty state
+      const emptyState = page.locator('text=/No devices found/i');
+      await expect(emptyState).toBeVisible({ timeout: 5000 });
+    } else {
+      // Verify all visible devices show "fan" in device type
+      const deviceTexts = await deviceListbox.locator('[role="option"]').allTextContents();
+      for (const text of deviceTexts) {
+        // Device type should be visible in the device card
+        expect(text.toLowerCase()).toContain('fan');
+      }
     }
   });
 
