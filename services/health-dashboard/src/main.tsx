@@ -7,20 +7,30 @@ import { ensureCsrfToken } from './utils/security';
 
 ensureCsrfToken();
 
-// Register Service Worker for PWA support
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+/**
+ * Registers the service worker for PWA support in production.
+ * Handles service worker registration, update detection, and automatic reload.
+ */
+function registerServiceWorker(): void {
+  if (!('serviceWorker' in navigator) || !import.meta.env.PROD) {
+    return;
+  }
+
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js')
-      .then((registration) => {
+      .then((registration: ServiceWorkerRegistration) => {
         console.log('Service Worker registered:', registration.scope);
         
         // Check for updates
         registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
+          const newWorker: ServiceWorker | null = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              if (
+                newWorker.state === 'installed' &&
+                navigator.serviceWorker.controller
+              ) {
                 // New service worker available
                 console.log('New service worker available');
               }
@@ -28,7 +38,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
           }
         });
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         console.error('Service Worker registration failed:', error);
       });
   });
@@ -42,6 +52,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     }
   });
 }
+
+registerServiceWorker();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

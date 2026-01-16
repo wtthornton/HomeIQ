@@ -11,12 +11,18 @@ from .api.routes import router
 from .config import settings
 from .database import close_db, init_db
 
+
+def _configure_logging() -> None:
+    """Configure logging for the service."""
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper()),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+
+
 # Configure logging
-logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+_configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -44,10 +50,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+def _get_cors_origins() -> list[str]:
+    """Get list of allowed CORS origins."""
+    # CRITICAL: In production, replace ["*"] with specific origins
+    # Using ["*"] with allow_credentials=True is a security vulnerability
+    cors_origins_env = settings.cors_origins if hasattr(settings, "cors_origins") else None
+    if cors_origins_env:
+        return [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+    return ["*"]  # Development default
+
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
