@@ -96,7 +96,7 @@ def _validate_contamination(contamination: float) -> None:
         raise ValueError("Contamination must be between 0 and 0.5 (exclusive).")
 
 
-async def _run_cpu_bound(func, *args, **kwargs):
+async def _run_cpu_bound(func: Any, *args: Any, **kwargs: Any) -> Any:
     loop = asyncio.get_running_loop()
     partial = functools.partial(func, *args, **kwargs)
     try:
@@ -189,7 +189,7 @@ class BatchProcessResponse(BaseModel):
 
 # API Endpoints
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, Any]:
     """Health check endpoint"""
     return {
         "status": "healthy",
@@ -201,7 +201,7 @@ async def health_check():
     }
 
 @app.get("/algorithms/status")
-async def get_algorithm_status():
+async def get_algorithm_status() -> dict[str, dict[str, str]]:
     """Get detailed algorithm status"""
     return {
         "clustering": {
@@ -214,7 +214,7 @@ async def get_algorithm_status():
     }
 
 @app.post("/cluster", response_model=ClusteringResponse)
-async def cluster_data(request: ClusteringRequest):
+async def cluster_data(request: ClusteringRequest) -> ClusteringResponse:
     """Cluster data using specified algorithm"""
     if not clustering_manager:
         raise HTTPException(status_code=503, detail="Service not ready")
@@ -279,7 +279,7 @@ async def cluster_data(request: ClusteringRequest):
         )
 
 @app.post("/anomaly", response_model=AnomalyResponse)
-async def detect_anomalies(request: AnomalyRequest):
+async def detect_anomalies(request: AnomalyRequest) -> AnomalyResponse:
     """Detect anomalies in data using Isolation Forest"""
     if not anomaly_manager:
         raise HTTPException(status_code=503, detail="Service not ready")
@@ -318,7 +318,7 @@ async def detect_anomalies(request: AnomalyRequest):
         )
 
 @app.post("/batch/process", response_model=BatchProcessResponse)
-async def batch_process(request: BatchProcessRequest):
+async def batch_process(request: BatchProcessRequest) -> BatchProcessResponse:
     """Process multiple operations in batch"""
     if len(request.operations) > MAX_BATCH_SIZE:
         raise HTTPException(

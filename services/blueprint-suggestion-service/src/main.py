@@ -58,7 +58,7 @@ app.include_router(router)
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint."""
     return {
         "service": settings.service_name,
@@ -68,7 +68,7 @@ async def root():
 
 
 @app.get("/health")
-async def health():
+async def health() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "healthy", "service": settings.service_name}
 

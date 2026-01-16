@@ -63,6 +63,27 @@ from .api import health_router, query_router
 from .config import settings
 from .database import init_db
 
+
+async def _initialize_database() -> None:
+    """Initialize database connection."""
+    try:
+        await init_db()
+        logger.info("✅ Database initialized")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
+        raise
+
+
+async def _setup_observability() -> None:
+    """Setup observability if available."""
+    if OBSERVABILITY_AVAILABLE:
+        try:
+            setup_tracing("ai-query-service")
+            logger.info("✅ Observability initialized")
+        except Exception as e:
+            logger.warning(f"Observability setup failed: {e}")
+
+
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -93,20 +114,10 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     
     # Initialize database
-    try:
-        await init_db()
-        logger.info("✅ Database initialized")
-    except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
-        raise
+    await _initialize_database()
     
     # Setup observability if available
-    if OBSERVABILITY_AVAILABLE:
-        try:
-            setup_tracing("ai-query-service")
-            logger.info("✅ Observability initialized")
-        except Exception as e:
-            logger.warning(f"Observability setup failed: {e}")
+    await _setup_observability()
     
     logger.info("✅ AI Query Service startup complete")
     logger.info("=" * 60)

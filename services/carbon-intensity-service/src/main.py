@@ -72,6 +72,13 @@ class CarbonIntensityService:
         self.credentials_configured = False
 
         # Validate configuration
+        self._validate_credentials()
+
+        if not self.influxdb_token:
+            raise ValueError("INFLUXDB_TOKEN environment variable is required")
+    
+    def _validate_credentials(self) -> None:
+        """Validate WattTime credentials and configure service accordingly."""
         # Check if credentials are placeholder values
         is_placeholder_username = self.username and self.username.lower() in ['your_watttime_username', 'your-username', '']
         is_placeholder_password = self.password and self.password.lower() in ['your_watttime_password', 'your-password', '']
@@ -100,9 +107,6 @@ class CarbonIntensityService:
         else:
             self.credentials_configured = True
             self.health_handler.credentials_missing = False
-
-        if not self.influxdb_token:
-            raise ValueError("INFLUXDB_TOKEN environment variable is required")
 
     async def startup(self):
         """Initialize service components"""
