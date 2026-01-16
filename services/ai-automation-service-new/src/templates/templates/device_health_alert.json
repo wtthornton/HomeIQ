@@ -1,0 +1,60 @@
+{
+  "template_id": "device_health_alert",
+  "version": 1,
+  "description": "Send alert when device health drops below threshold",
+  "required_capabilities": {
+    "sensors": ["health"],
+    "services": ["notify.mobile_app", "notify.persistent_notification"]
+  },
+  "parameter_schema": {
+    "device_entity": {
+      "type": "string",
+      "required": true,
+      "description": "Device entity ID or pattern"
+    },
+    "health_threshold": {
+      "type": "float",
+      "min": 0.0,
+      "max": 100.0,
+      "default": 70.0,
+      "description": "Health score threshold (alert if below)"
+    },
+    "notification_target": {
+      "type": "string",
+      "enum": ["mobile_app", "persistent"],
+      "default": "mobile_app",
+      "description": "Notification target type"
+    },
+    "alert_message": {
+      "type": "string",
+      "required": false,
+      "description": "Custom alert message (optional)"
+    }
+  },
+  "safety_class": "low",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": {
+      "platform": "numeric_state",
+      "entity_id": "{{device_entity}}",
+      "below": "{{health_threshold}}"
+    },
+    "condition": null,
+    "action": {
+      "service": "notify.{{notification_target}}",
+      "data": {
+        "title": "Device Health Alert",
+        "message": "{{alert_message}}Device {{device_entity}} health is below {{health_threshold}}%"
+      }
+    },
+    "alias_template": "{{device_entity}} Health Alert",
+    "description_template": "Alert when {{device_entity}} health drops below {{health_threshold}}%"
+  },
+  "examples": [
+    {
+      "device_entity": "sensor.office_light_health",
+      "health_threshold": 70.0,
+      "notification_target": "mobile_app"
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "template_id": "time_window_automation",
+  "version": 1,
+  "description": "Automation that only runs within a time window",
+  "required_capabilities": {
+    "sensors": [],
+    "devices": [],
+    "services": []
+  },
+  "parameter_schema": {
+    "trigger_type": {
+      "type": "string",
+      "enum": ["state", "numeric_state", "time"],
+      "required": true,
+      "description": "Type of trigger"
+    },
+    "trigger_entity": {
+      "type": "string",
+      "required": false,
+      "description": "Entity ID for state/numeric_state triggers"
+    },
+    "trigger_state": {
+      "type": "string",
+      "required": false,
+      "description": "State value for state triggers"
+    },
+    "time_window_after": {
+      "type": "string",
+      "format": "HH:MM",
+      "required": true,
+      "description": "Earliest time (e.g., '08:00')"
+    },
+    "time_window_before": {
+      "type": "string",
+      "format": "HH:MM",
+      "required": true,
+      "description": "Latest time (e.g., '18:00')"
+    },
+    "action_service": {
+      "type": "string",
+      "required": true,
+      "description": "Service to call"
+    },
+    "target_entity": {
+      "type": "string",
+      "required": false,
+      "description": "Target entity ID"
+    },
+    "target_area": {
+      "type": "string",
+      "required": false,
+      "description": "Target area ID"
+    },
+    "action_data": {
+      "type": "object",
+      "required": false,
+      "description": "Action data"
+    }
+  },
+  "safety_class": "low",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": {
+      "platform": "{{trigger_type}}",
+      "entity_id": "{{trigger_entity}}",
+      "to": "{{trigger_state}}"
+    },
+    "condition": {
+      "condition": "time",
+      "after": "{{time_window_after}}",
+      "before": "{{time_window_before}}"
+    },
+    "action": {
+      "service": "{{action_service}}",
+      "target": {
+        "entity_id": "{{target_entity}}",
+        "area_id": "{{target_area}}"
+      },
+      "data": "{{action_data}}"
+    },
+    "alias_template": "Time Window: {{time_window_after}}-{{time_window_before}}",
+    "description_template": "{{action_service}} when triggered, only between {{time_window_after}} and {{time_window_before}}"
+  },
+  "examples": [
+    {
+      "trigger_type": "state",
+      "trigger_entity": "binary_sensor.motion",
+      "trigger_state": "on",
+      "time_window_after": "08:00",
+      "time_window_before": "18:00",
+      "action_service": "light.turn_on",
+      "target_area": "office",
+      "action_data": {
+        "brightness_pct": 100
+      }
+    }
+  ]
+}

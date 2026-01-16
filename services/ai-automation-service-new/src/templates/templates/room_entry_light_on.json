@@ -1,0 +1,76 @@
+{
+  "template_id": "room_entry_light_on",
+  "version": 1,
+  "description": "Turn on lights when entering a room (presence/motion detected)",
+  "required_capabilities": {
+    "sensors": ["presence", "motion"],
+    "devices": ["light"],
+    "services": ["light.turn_on"]
+  },
+  "parameter_schema": {
+    "room_type": {
+      "type": "string",
+      "required": true,
+      "description": "Room name or area (e.g., 'office', 'bedroom', 'kitchen')"
+    },
+    "brightness_pct": {
+      "type": "integer",
+      "min": 1,
+      "max": 100,
+      "default": 100,
+      "description": "Light brightness percentage (1-100)"
+    },
+    "time_window": {
+      "type": "object",
+      "required": false,
+      "properties": {
+        "after": {
+          "type": "string",
+          "format": "HH:MM",
+          "description": "Earliest time (e.g., '08:00')"
+        },
+        "before": {
+          "type": "string",
+          "format": "HH:MM",
+          "description": "Latest time (e.g., '18:00')"
+        }
+      },
+      "description": "Optional time window restriction"
+    }
+  },
+  "safety_class": "low",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": {
+      "platform": "state",
+      "entity_id": "{{presence_sensor_entity}}",
+      "to": "on"
+    },
+    "condition": {
+      "condition": "time",
+      "after": "{{time_window.after}}",
+      "before": "{{time_window.before}}"
+    },
+    "action": {
+      "service": "light.turn_on",
+      "target": {
+        "area_id": "{{matched_room_id}}"
+      },
+      "data": {
+        "brightness_pct": "{{brightness_pct}}"
+      }
+    },
+    "alias_template": "{{room_type}} Entry Lights",
+    "description_template": "Turn on {{room_type}} lights when presence is detected"
+  },
+  "examples": [
+    {
+      "room_type": "office",
+      "brightness_pct": 100,
+      "time_window": {
+        "after": "08:00",
+        "before": "18:00"
+      }
+    }
+  ]
+}
