@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Add future annotations import to fix type union syntax** (a1e8a49) - wtthornton
+- **Add hybrid flow implementation confirmation - all requirements verified** (8632c54) - wtthornton
+- **Add deployment script and update documentation** (dc35d68) - wtthornton
+- **Implement Huey SQLite task queue for asynchronous automation execution** (86c34d7) - wtthornton
+- **Add API automation edge service with comprehensive improvements** (ea5eb74) - wtthornton
+- **feat(deployed-automations): add comprehensive button tests and fix trigger/enable/disable endpoints** (7b5db39) - wtthornton
+- **Add entity attributes UI review and device picker filter fixes** (90e4f27) - wtthornton
+- **Service-specific metrics prototype implementation** (5c25f48) - wtthornton
+
+### Fixed
+
+- **Fix type union syntax in template_schema.py - add future annotations** (ffff1e5) - wtthornton
+- **Fix parameter ordering in deploy_suggestion function** (e3510e8) - wtthornton
+- **Fix FastAPI dependency injection syntax errors** (5589b38) - wtthornton
+- **Fix hybrid flow implementation: code review and fixes** (d1887f5) - wtthornton
+- **Fix API automation edge service deployment issues** (8f15923) - wtthornton
+- **fix(blueprint-suggestion-service): resolve database schema mismatch and add Alembic migrations** (7e7103b) - wtthornton
+- **fix(websocket-ingestion): extract entity attributes from nested state structure** (9ec4857) - wtthornton
+- **fix(ha-ai-agent-service): pre-create scenes before automation deployment to prevent UI warnings** (e114ee4) - wtthornton
+- **Fix Zigbee2MQTT device discovery and identification** (d0807fc) - wtthornton
+- **Fix DevicePicker filters: Add client-side validation and improve filter handling** (76e47c4) - wtthornton
+- **Fix device type filtering and implement classification system** (907bb56) - wtthornton
+- **Fix automation mismatch: Use correct HA API endpoint and fix FastAPI dependency errors** (f745b00) - wtthornton
+- **Fix automation-miner database permission issue** (227daec) - wtthornton
+- **Fix Docker health checks and GitHub Actions workflows** (ae9e300) - wtthornton
+- **Fix Setup & Health page: Display meaningful health data even with errors** (fde9199) - wtthornton
+- **Fix health-dashboard deployment: rebuild container with updated assets** (11f300a) - wtthornton
+
+
+### Added
+
 - **Add hybrid flow implementation confirmation - all requirements verified** (8632c54) - wtthornton
 - **Add deployment script and update documentation** (dc35d68) - wtthornton
 - **Implement Huey SQLite task queue for asynchronous automation execution** (86c34d7) - wtthornton
