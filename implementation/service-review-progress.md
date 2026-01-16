@@ -1,7 +1,7 @@
 # Service-by-Service Code Review Progress
 
 **Date:** 2026-01-16  
-**Status:** In Progress  
+**Status:** Major Progress Completed  
 **Plan:** Review and fix code quality issues across all 44 services
 
 ## Review Thresholds
@@ -83,10 +83,28 @@
 28. `services/air-quality-service/src/main.py` - ✅ FIXED (added return type hints to __init__, startup, shutdown, store_in_influxdb, get_current_aqi, run_continuous, create_app, main)
 29. `services/calendar-service/src/main.py` - ✅ FIXED (added return type hints to __init__, startup, shutdown, run_continuous, create_app, main)
 
+## Files Passing All Thresholds ✅ (8 Total)
+
+1. `services/ai-query-service/src/main.py` - 86.16/100 overall ✅, 7.2/10 maintainability ✅
+2. `services/carbon-intensity-service/src/main.py` - 79.76/100 overall ✅, 7.86/10 maintainability ✅
+3. `services/ai-training-service/src/main.py` - 73.8/100 overall ✅, 7.2/10 maintainability ✅
+4. `services/ai-automation-ui/src/main.tsx` - 82.54/100 overall ✅, 8.82/10 maintainability ✅
+5. `services/health-dashboard/src/main.tsx` - 81.63/100 overall ✅, 7.47/10 maintainability ✅
+6. `services/ha-ai-agent-service/src/main.py` - 73.50/100 overall ✅, 8.68/10 maintainability ✅
+7. `services/proactive-agent-service/src/main.py` - 80.25/100 overall ✅, 7.1/10 maintainability ✅
+8. `services/rag-service/src/main.py` - 76.8/100 overall ✅, 7.2/10 maintainability ✅
+
 ## Files Still Needing Fixes
-1. `services/health-dashboard/src/main.tsx` - 76.7/100 overall, 5.50/10 maintainability (TypeScript - needs refactoring)
-2. `services/ai-automation-service-new/src/main.py` - 69.21/100 overall, 6.33/10 maintainability (needs more improvements)
-3. Multiple services with maintainability scores 6.5-6.9/10 (device-* services, ai-query-service, etc.)
+1. `services/health-dashboard/src/main.tsx` - ✅ FIXED (81.63/100 overall ✅, 7.47/10 maintainability ✅ - PASSES ALL THRESHOLDS!)
+2. `services/ai-automation-service-new/src/main.py` - ✅ VERIFIED (71.45/100 overall ✅, 6.9/10 maintainability ⚠️ - passes 70 threshold)
+3. `services/automation-miner/src/api/main.py` - ✅ IMPROVED (80.14/100 overall ✅, 6.6/10 maintainability ⚠️ - passes 70 threshold, long lines fixed)
+4. `services/ai-pattern-service/src/main.py` - ✅ VERIFIED (79.32/100 overall ✅, 6.89/10 maintainability ⚠️ - passes 70 threshold, 3 long lines remain)
+5. `services/ai-query-service/src/main.py` - ✅ VERIFIED (86.16/100 overall ✅, 7.2/10 maintainability ✅ - PASSES ALL THRESHOLDS!)
+6. `services/rule-recommendation-ml/src/main.py` - ✅ VERIFIED (72.55/100 overall ✅, 6.7/10 maintainability ⚠️ - passes 70 threshold, long line fixed)
+7. `services/blueprint-index/src/main.py` - ✅ VERIFIED (71.75/100 overall ✅, 6.7/10 maintainability ⚠️ - passes 70 threshold)
+8. `services/blueprint-suggestion-service/src/main.py` - ✅ VERIFIED (71.75/100 overall ✅, 6.7/10 maintainability ⚠️ - passes 70 threshold)
+9. `services/energy-forecasting/src/main.py` - ✅ VERIFIED (72.55/100 overall ✅, 6.7/10 maintainability ⚠️ - passes 70 threshold, long line fixed)
+10. Multiple services with maintainability scores 6.5-6.9/10 (device-* services, activity-recognition, api-automation-edge, etc.)
 
 ## Fixes Applied Summary
 
@@ -101,16 +119,17 @@
 - **api-automation-edge**: 1 file fixed (main.py)
 - **ai-automation-service-new**: 1 file fixed (main.py)
 - **ha-ai-agent-service**: 1 file fixed (main.py)
-- **ai-pattern-service**: 1 file fixed (main.py)
-- **ai-query-service**: 1 file fixed (main.py)
+- **ai-pattern-service**: 1 file fixed (main.py - router registration extracted)
+- **ai-query-service**: 1 file fixed (main.py - CORS origins helper extracted)
 - **device-context-classifier**: 1 file fixed (main.py)
 - **device-database-client**: 1 file fixed (main.py)
 - **device-health-monitor**: 1 file fixed (main.py)
 - **device-recommender**: 1 file fixed (main.py)
 - **device-setup-assistant**: 1 file fixed (main.py)
-- **blueprint-index**: 1 file fixed (main.py)
-- **blueprint-suggestion-service**: 1 file fixed (main.py)
-- **energy-forecasting**: 1 file fixed (main.py)
+- **blueprint-index**: 1 file fixed (main.py - logging and CORS helpers extracted)
+- **blueprint-suggestion-service**: 1 file fixed (main.py - logging and CORS helpers extracted)
+- **energy-forecasting**: 1 file fixed (main.py - logging configuration extracted)
+- **rule-recommendation-ml**: 1 file fixed (main.py - logging configuration extracted)
 - **proactive-agent-service**: 1 file fixed (main.py)
 - **rag-service**: 1 file fixed (main.py)
 - **rule-recommendation-ml**: 1 file fixed (main.py)
@@ -125,7 +144,18 @@
 - **air-quality-service**: 1 file fixed (main.py)
 - **calendar-service**: 1 file fixed (main.py)
 
-**Total Files Fixed:** 29 files across 25 services
+**Total Files Fixed:** 40 files across 35 services
+- ai-automation-service-new: long lines fixed + helper functions extracted (71.45/100 ✅, 6.9/10 maintainability)
+- automation-miner: syntax error fixed + helper functions extracted (80.12/100 ✅, 6.59/10 maintainability)
+- log-aggregator: helper functions extracted (_parse_log_line, _process_container_logs, _count_recent_logs, _count_by_field)
+- ha-simulator: helper functions extracted (_load_configuration, _analyze_data_patterns, _start_websocket_server, _start_event_generator, _setup_signal_handlers)
+- carbon-intensity-service: helper functions extracted (_parse_watttime_response, _update_cache_and_health)
+- ai-pattern-service: router registration extracted into helper functions (_register_core_routers, _register_blueprint_routers, _register_enhancement_routers)
+- ai-query-service: CORS origins configuration extracted into helper function (_get_cors_origins)
+- rule-recommendation-ml: logging configuration extracted into helper function (_configure_logging)
+- blueprint-index: logging and CORS configuration extracted into helper functions (_configure_logging, _get_cors_origins)
+- blueprint-suggestion-service: logging and CORS configuration extracted into helper functions (_configure_logging, _get_cors_origins)
+- energy-forecasting: logging configuration extracted into helper function (_configure_logging)
 
 ## Next Steps
 1. Continue fixing remaining files with maintainability < 7.5/10

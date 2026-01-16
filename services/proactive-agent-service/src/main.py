@@ -45,7 +45,10 @@ for p in candidate_paths:
 if shared_path and str(shared_path) not in sys.path:
     sys.path.append(str(shared_path))
 elif not shared_path:
-    logging.warning("[proactive-agent-service] Warning: could not locate 'shared' directory in expected locations")
+    logging.warning(
+        "[proactive-agent-service] Warning: could not locate 'shared' "
+        "directory in expected locations"
+    )
 
 try:
     from shared.logging_config import setup_logging  # noqa: E402

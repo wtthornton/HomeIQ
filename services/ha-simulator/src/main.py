@@ -35,34 +35,57 @@ class HASimulatorService:
         self.event_generator = None
         self.running = False
 
+    async def _load_configuration(self) -> dict:
+        """Load and return service configuration."""
+        config = self.config_manager.config
+        logger.info(f"📋 Configuration loaded: {config['simulator']['name']}")
+        return config
+
+    async def _analyze_data_patterns(self, log_file: str) -> dict:
+        """Analyze Home Assistant data patterns from log file."""
+        pattern_analyzer = HADataPatternAnalyzer(log_file)
+        patterns = pattern_analyzer.analyze_log_file()
+        logger.info(f"📊 Analyzed {len(patterns['entities'])} entity patterns")
+        return patterns
+
+    async def _start_websocket_server(self, config: dict) -> None:
+        """Start the WebSocket server."""
+        self.websocket_server = HASimulatorWebSocketServer(config)
+        await self.websocket_server.start_server()
+
+    async def _start_event_generator(self, config: dict, patterns: dict) -> None:
+        """Start the event generator."""
+        self.event_generator = EventGenerator(config, patterns)
+        if self.websocket_server:
+            await self.event_generator.start_generation(self.websocket_server.clients)
+
+    def _setup_signal_handlers(self) -> None:
+        """Setup signal handlers for graceful shutdown."""
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
     async def start(self) -> None:
         """Start the HA Simulator service"""
         try:
             logger.info("🚀 Starting HA Simulator Service")
 
             # Load configuration
-            config = self.config_manager.config
-            logger.info(f"📋 Configuration loaded: {config['simulator']['name']}")
+            config = await self._load_configuration()
 
             # Analyze data patterns
-            pattern_analyzer = HADataPatternAnalyzer("data/ha_events.log")
-            patterns = pattern_analyzer.analyze_log_file()
-            logger.info(f"📊 Analyzed {len(patterns['entities'])} entity patterns")
+            patterns = await self._analyze_data_patterns("data/ha_events.log")
 
             # Start WebSocket server
-            self.websocket_server = HASimulatorWebSocketServer(config)
-            await self.websocket_server.start_server()
+            await self._start_websocket_server(config)
 
             # Start event generator
-            self.event_generator = EventGenerator(config, patterns)
-            await self.event_generator.start_generation(self.websocket_server.clients)
+            await self._start_event_generator(config, patterns)
 
             self.running = True
             logger.info("✅ HA Simulator Service started successfully")
 
             # Setup signal handlers
-            signal.signal(signal.SIGINT, self._signal_handler)
-            signal.signal(signal.SIGTERM, self._signal_handler)
+            self._setup_signal_handlers()
 
             # Keep service running
             while self.running:

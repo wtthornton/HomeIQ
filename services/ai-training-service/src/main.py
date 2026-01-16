@@ -100,7 +100,10 @@ app = FastAPI(
 
 # CORS middleware
 # CRITICAL: Restrict origins in production - allow_origins=["*"] is a security risk
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+cors_origins_env = os.getenv(
+    "CORS_ORIGINS", "http://localhost:3000,http://localhost:3001"
+)
+allowed_origins = cors_origins_env.split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,  # Restrict to known origins

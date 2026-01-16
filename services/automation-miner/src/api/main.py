@@ -20,6 +20,7 @@ Key Features:
 """
 import logging
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -105,7 +106,10 @@ async def _check_and_initialize_corpus(db) -> None:
                 logger.info("✅ Corpus initialization started in background")
             else:
                 _initialization_complete = True
-                logger.info(f"✅ Corpus is fresh ({stats['total']} automations, last crawl: {last_crawl})")
+                logger.info(
+                    f"✅ Corpus is fresh ({stats['total']} automations, "
+                    f"last crawl: {last_crawl})"
+                )
 
     except Exception as e:
         logger.warning(f"⚠️ Startup initialization check failed: {e}")
@@ -131,6 +135,21 @@ async def _start_scheduler() -> object | None:
         return None
 
 
+async def _initialize_database() -> Any:
+    """Initialize database connection and create tables."""
+    db = get_database()
+    await db.create_tables()
+    logger.info("Database initialized")
+    return db
+
+
+async def _shutdown_scheduler(scheduler: Any | None) -> None:
+    """Shutdown scheduler gracefully if running."""
+    if scheduler and scheduler.running:
+        scheduler.shutdown(wait=False)
+        logger.info("✅ Weekly refresh scheduler stopped")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -154,9 +173,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Automation Miner API...")
 
     # Initialize database
-    db = get_database()
-    await db.create_tables()
-    logger.info("Database initialized")
+    db = await _initialize_database()
 
     # Initialize corpus on startup (Story AI4.4 enhancement)
     if settings.enable_automation_miner:
@@ -169,11 +186,7 @@ async def lifespan(app: FastAPI):
 
     # Cleanup
     logger.info("Shutting down Automation Miner API...")
-
-    if scheduler and scheduler.running:
-        scheduler.shutdown(wait=False)
-        logger.info("✅ Weekly refresh scheduler stopped")
-
+    await _shutdown_scheduler(scheduler)
     await db.close()
 
 
@@ -210,7 +223,7 @@ app.include_router(device_router, prefix="/api/automation-miner")  # Story AI4.3
 
 
 @app.get("/health")
-async def health_check() -> dict[str, str | dict[str, str | int | float | None | bool]]]:
+async def health_check() -> dict[str, Any]:
     """
     Health check endpoint
     
@@ -226,7 +239,12 @@ async def health_check() -> dict[str, str | dict[str, str | int | float | None |
             last_crawl = await repo.get_last_crawl_timestamp()
 
             # Check initialization status
-            init_status = "complete" if _initialization_complete else ("in_progress" if _initialization_in_progress else "not_started")
+            if _initialization_complete:
+                init_status = "complete"
+            elif _initialization_in_progress:
+                init_status = "in_progress"
+            else:
+                init_status = "not_started"
 
             return {
                 "status": "healthy",
