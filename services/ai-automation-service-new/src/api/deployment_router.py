@@ -33,8 +33,8 @@ class DeployRequest(BaseModel):
 @handle_route_errors("deploy suggestion")
 async def deploy_suggestion(
     suggestion_id: int,
-    request: DeployRequest = DeployRequest(),
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    service: Annotated[DeploymentService, Depends(get_deployment_service)],
+    request: DeployRequest = DeployRequest()
 ) -> dict[str, Any]:
     """
     Deploy an approved automation suggestion to Home Assistant.
@@ -197,7 +197,7 @@ class DeployCompiledRequest(BaseModel):
 async def deploy_compiled_automation(
     request: DeployCompiledRequest,
     db: DatabaseSession,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)] = Depends(get_deployment_service)
+    service: Annotated[DeploymentService, Depends(get_deployment_service)]
 ) -> dict[str, Any]:
     """
     Deploy a compiled automation artifact to Home Assistant.
