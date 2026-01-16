@@ -73,6 +73,55 @@ services:
           memory: 256M
           cpus: '0.5'
 
+  observability-dashboard:
+    build:
+      context: .
+      dockerfile: services/observability-dashboard/Dockerfile
+    container_name: homeiq-observability-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      - JAEGER_URL=http://jaeger:16686
+      - JAEGER_API_URL=http://jaeger:16686/api
+      - OTLP_ENDPOINT=http://jaeger:4317
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - DATA_API_URL=http://data-api:8006
+      - ADMIN_API_URL=http://admin-api:8004
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - jaeger
+      - influxdb
+      - data-api
+      - admin-api
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=observability-dashboard,environment=production"
+
   websocket-ingestion:
     build:
       context: .
