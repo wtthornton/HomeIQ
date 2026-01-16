@@ -137,12 +137,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
-# CRITICAL: Cannot use allow_origins=["*"] with allow_credentials=True (security vulnerability)
-# Use specific origins when credentials are needed, or remove allow_credentials if using wildcard
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+def _get_cors_origins() -> list[str]:
+    """Get list of allowed CORS origins."""
+    return [
         "http://localhost:3000",  # Health dashboard
         "http://127.0.0.1:3000",
         "http://localhost:3001",  # AI Automation standalone UI
@@ -151,7 +148,15 @@ app.add_middleware(
         "http://ai-automation-ui:80",
         "http://homeiq-dashboard",  # Health dashboard container
         "http://homeiq-dashboard:80"
-    ],
+    ]
+
+
+# CORS middleware
+# CRITICAL: Cannot use allow_origins=["*"] with allow_credentials=True (security vulnerability)
+# Use specific origins when credentials are needed, or remove allow_credentials if using wildcard
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

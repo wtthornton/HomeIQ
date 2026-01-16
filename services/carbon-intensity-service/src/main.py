@@ -286,6 +286,33 @@ class CarbonIntensityService:
 
         return True  # Token still valid
 
+    def _parse_watttime_response(self, raw_data: dict[str, Any]) -> dict[str, Any]:
+        """Parse WattTime API response into standardized format."""
+        data = {
+            'carbon_intensity': raw_data.get('moer', 0),  # Marginal emissions rate
+            'renewable_percentage': raw_data.get('renewable_pct', 0),
+            'fossil_percentage': 100 - raw_data.get('renewable_pct', 0),
+            'timestamp': datetime.now()
+        }
+
+        # Extract forecasts if available
+        forecast = raw_data.get('forecast', [])
+        if forecast:
+            data['forecast_1h'] = forecast[0].get('value', 0) if len(forecast) > 0 else 0
+            data['forecast_24h'] = forecast[23].get('value', 0) if len(forecast) > 23 else 0
+        else:
+            data['forecast_1h'] = 0
+            data['forecast_24h'] = 0
+
+        return data
+
+    def _update_cache_and_health(self, data: dict[str, Any]) -> None:
+        """Update cache and health check metrics."""
+        self.cached_data = data
+        self.last_fetch_time = datetime.now()
+        self.health_handler.last_successful_fetch = datetime.now()
+        self.health_handler.total_fetches += 1
+
     async def fetch_carbon_intensity(self) -> dict[str, Any] | None:
         """Fetch carbon intensity from WattTime API"""
 
@@ -322,29 +349,10 @@ class CarbonIntensityService:
                     raw_data = await response.json()
 
                     # Parse WattTime response
-                    data = {
-                        'carbon_intensity': raw_data.get('moer', 0),  # Marginal emissions rate
-                        'renewable_percentage': raw_data.get('renewable_pct', 0),
-                        'fossil_percentage': 100 - raw_data.get('renewable_pct', 0),
-                        'timestamp': datetime.now()
-                    }
+                    data = self._parse_watttime_response(raw_data)
 
-                    # Extract forecasts if available
-                    forecast = raw_data.get('forecast', [])
-                    if forecast:
-                        data['forecast_1h'] = forecast[0].get('value', 0) if len(forecast) > 0 else 0
-                        data['forecast_24h'] = forecast[23].get('value', 0) if len(forecast) > 23 else 0
-                    else:
-                        data['forecast_1h'] = 0
-                        data['forecast_24h'] = 0
-
-                    # Update cache
-                    self.cached_data = data
-                    self.last_fetch_time = datetime.now()
-
-                    # Update health check
-                    self.health_handler.last_successful_fetch = datetime.now()
-                    self.health_handler.total_fetches += 1
+                    # Update cache and health
+                    self._update_cache_and_health(data)
 
                     logger.info(f"Carbon intensity: {data['carbon_intensity']:.1f} gCO2/kWh, Renewable: {data['renewable_percentage']:.1f}%")
 
@@ -373,27 +381,10 @@ class CarbonIntensityService:
                                 raw_data = await retry_response.json()
 
                                 # Parse WattTime response
-                                data = {
-                                    'carbon_intensity': raw_data.get('moer', 0),
-                                    'renewable_percentage': raw_data.get('renewable_pct', 0),
-                                    'fossil_percentage': 100 - raw_data.get('renewable_pct', 0),
-                                    'timestamp': datetime.now()
-                                }
-
-                                # Extract forecasts
-                                forecast = raw_data.get('forecast', [])
-                                if forecast:
-                                    data['forecast_1h'] = forecast[0].get('value', 0) if len(forecast) > 0 else 0
-                                    data['forecast_24h'] = forecast[23].get('value', 0) if len(forecast) > 23 else 0
-                                else:
-                                    data['forecast_1h'] = 0
-                                    data['forecast_24h'] = 0
+                                data = self._parse_watttime_response(raw_data)
 
                                 # Update cache and health
-                                self.cached_data = data
-                                self.last_fetch_time = datetime.now()
-                                self.health_handler.last_successful_fetch = datetime.now()
-                                self.health_handler.total_fetches += 1
+                                self._update_cache_and_health(data)
 
                                 logger.info(f"Carbon intensity (retry): {data['carbon_intensity']:.1f} gCO2/kWh")
                                 return data

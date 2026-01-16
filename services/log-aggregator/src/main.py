@@ -39,10 +39,54 @@ class LogAggregator:
             logger.debug("Check that /var/run/docker.sock is mounted and accessible")
             self.docker_client = None
 
+    def _parse_log_line(self, line: str, container_name: str, container_id: str) -> dict | None:
+        """Parse a single log line into a log entry."""
+        if not line.strip():
+            return None
+
+        try:
+            # Try to parse as JSON log
+            log_entry = json.loads(line.strip())
+            log_entry['container_name'] = container_name
+            log_entry['container_id'] = container_id
+            return log_entry
+        except json.JSONDecodeError:
+            # Handle non-JSON logs
+            # Docker logs format: "timestamp log_message"
+            parts = line.strip().split(' ', 1)
+            if len(parts) == 2:
+                return {
+                    'timestamp': parts[0],
+                    'message': parts[1],
+                    'container_name': container_name,
+                    'container_id': container_id,
+                    'level': 'INFO'
+                }
+        return None
+
+    def _process_container_logs(self, container) -> list[dict]:
+        """Process logs from a single container."""
+        logs = []
+        try:
+            # Get container logs (last 100 lines)
+            container_logs = container.logs(
+                tail=100,
+                timestamps=True,
+                stream=False
+            ).decode('utf-8', errors='ignore')
+
+            # Parse log lines
+            for line in container_logs.split('\n'):
+                log_entry = self._parse_log_line(line, container.name, container.short_id)
+                if log_entry:
+                    logs.append(log_entry)
+
+        except Exception as e:
+            logger.debug(f"Error reading logs from container {container.name}: {e}")
+        return logs
+
     async def collect_logs(self) -> list[dict]:
         """Collect logs from Docker containers using Docker API"""
-        logs = []
-
         if not self.docker_client:
             logger.warning("Docker client not available, skipping log collection")
             return []
@@ -50,44 +94,11 @@ class LogAggregator:
         try:
             # Get all containers
             containers = self.docker_client.containers.list(all=False)
+            logs = []
 
             for container in containers:
-                try:
-                    # Get container logs (last 100 lines)
-                    container_logs = container.logs(
-                        tail=100,
-                        timestamps=True,
-                        stream=False
-                    ).decode('utf-8', errors='ignore')
-
-                    # Parse log lines
-                    for line in container_logs.split('\n'):
-                        if not line.strip():
-                            continue
-
-                        try:
-                            # Try to parse as JSON log
-                            log_entry = json.loads(line.strip())
-                            log_entry['container_name'] = container.name
-                            log_entry['container_id'] = container.short_id
-                            logs.append(log_entry)
-                        except json.JSONDecodeError:
-                            # Handle non-JSON logs
-                            # Docker logs format: "timestamp log_message"
-                            parts = line.strip().split(' ', 1)
-                            if len(parts) == 2:
-                                log_entry = {
-                                    'timestamp': parts[0],
-                                    'message': parts[1],
-                                    'container_name': container.name,
-                                    'container_id': container.short_id,
-                                    'level': 'INFO'
-                                }
-                                logs.append(log_entry)
-
-                except Exception as e:
-                    logger.debug(f"Error reading logs from container {container.name}: {e}")
-                    continue
+                container_logs = self._process_container_logs(container)
+                logs.extend(container_logs)
 
             # Store in aggregated logs
             self.aggregated_logs.extend(logs)
@@ -195,23 +206,39 @@ async def collect_logs(request: web.Request) -> web.Response:
         "total_logs": len(log_aggregator.aggregated_logs)
     })
 
+def _count_recent_logs(logs: list[dict], hours: int = 1) -> int:
+    """Count logs from the last N hours."""
+    cutoff = datetime.utcnow().timestamp() - (hours * 3600)
+    count = 0
+    for log in logs:
+        try:
+            timestamp_str = log.get('timestamp', '1970-01-01T00:00:00Z').replace('Z', '+00:00')
+            log_time = datetime.fromisoformat(timestamp_str).timestamp()
+            if log_time > cutoff:
+                count += 1
+        except (ValueError, AttributeError):
+            continue
+    return count
+
+
+def _count_by_field(logs: list[dict], field: str) -> dict[str, int]:
+    """Count logs by a specific field (e.g., service, level)."""
+    counts: dict[str, int] = {}
+    for log in logs:
+        value = log.get(field, 'unknown')
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
 async def get_log_stats(request: web.Request) -> web.Response:
     """Get log statistics"""
+    logs = log_aggregator.aggregated_logs
     stats = {
-        "total_logs": len(log_aggregator.aggregated_logs),
-        "services": {},
-        "levels": {},
-        "recent_logs": len([log for log in log_aggregator.aggregated_logs
-                           if (datetime.utcnow() - datetime.fromisoformat(log.get('timestamp', '1970-01-01T00:00:00Z').replace('Z', '+00:00'))).total_seconds() < 3600])
+        "total_logs": len(logs),
+        "services": _count_by_field(logs, 'service'),
+        "levels": _count_by_field(logs, 'level'),
+        "recent_logs": _count_recent_logs(logs, hours=1)
     }
-
-    # Count by service and level
-    for log in log_aggregator.aggregated_logs:
-        service = log.get('service', 'unknown')
-        level = log.get('level', 'unknown')
-
-        stats['services'][service] = stats['services'].get(service, 0) + 1
-        stats['levels'][level] = stats['levels'].get(level, 0) + 1
 
     return web.json_response(stats)
 

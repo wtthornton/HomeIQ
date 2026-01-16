@@ -236,56 +236,69 @@ if OBSERVABILITY_AVAILABLE:
     except Exception as e:
         logger.warning(f"Failed to instrument FastAPI: {e}")
 
+def _register_core_routers(app: FastAPI) -> None:
+    """Register core routers for the application."""
+    from .api import analysis_router
+    
+    app.include_router(health_router.router, tags=["health"])
+    app.include_router(pattern_router.router, tags=["patterns"])
+    # CRITICAL: Include specific_router FIRST to ensure /stats and /list are matched before /{synergy_id}
+    # FastAPI matches routes in the order they're registered, so specific routes must come first
+    try:
+        if hasattr(synergy_router, 'specific_router'):
+            app.include_router(synergy_router.specific_router, tags=["synergies"])
+            logger.info("✅ Included specific_router with /stats and /list routes")
+        else:
+            logger.error("❌ specific_router not found in synergy_router module!")
+    except Exception as e:
+        logger.error(f"❌ Failed to include specific_router: {e}", exc_info=True)
+    app.include_router(synergy_router.router, tags=["synergies"])
+    app.include_router(community_pattern_router.router, tags=["community-patterns"])
+    app.include_router(analysis_router.router, tags=["analysis"])
+
+
+def _register_blueprint_routers(app: FastAPI) -> None:
+    """Register blueprint-related routers."""
+    # Include Blueprint Opportunity Router (Phase 2 - Blueprint-First Architecture)
+    try:
+        if hasattr(synergy_router, 'blueprint_router'):
+            app.include_router(synergy_router.blueprint_router, tags=["blueprint-opportunities"])
+            logger.info("✅ Included blueprint_router for Blueprint Opportunity Engine")
+        else:
+            logger.warning("⚠️ blueprint_router not found in synergy_router module")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to include blueprint_router: {e}")
+
+
+def _register_enhancement_routers(app: FastAPI) -> None:
+    """Register analytics, rating, and tracking routers."""
+    # Include Analytics, Rating, and Tracking Routers (Patterns & Synergies Enhancement)
+    try:
+        from .analytics.routes import router as analytics_router
+        app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
+        logger.info("✅ Included analytics_router for Blueprint Analytics")
+    except ImportError as e:
+        logger.warning(f"⚠️ Analytics router not available: {e}")
+
+    try:
+        from .rating.routes import router as rating_router
+        app.include_router(rating_router, prefix="/api/v1", tags=["ratings"])
+        logger.info("✅ Included rating_router for Blueprint Rating System")
+    except ImportError as e:
+        logger.warning(f"⚠️ Rating router not available: {e}")
+
+    try:
+        from .tracking.routes import router as tracking_router
+        app.include_router(tracking_router, prefix="/api/v1", tags=["tracking"])
+        logger.info("✅ Included tracking_router for Execution Tracking")
+    except ImportError as e:
+        logger.warning(f"⚠️ Tracking router not available: {e}")
+
+
 # Include routers
-from .api import analysis_router
-
-app.include_router(health_router.router, tags=["health"])
-app.include_router(pattern_router.router, tags=["patterns"])
-# CRITICAL: Include specific_router FIRST to ensure /stats and /list are matched before /{synergy_id}
-# FastAPI matches routes in the order they're registered, so specific routes must come first
-try:
-    if hasattr(synergy_router, 'specific_router'):
-        app.include_router(synergy_router.specific_router, tags=["synergies"])
-        logger.info("✅ Included specific_router with /stats and /list routes")
-    else:
-        logger.error("❌ specific_router not found in synergy_router module!")
-except Exception as e:
-    logger.error(f"❌ Failed to include specific_router: {e}", exc_info=True)
-app.include_router(synergy_router.router, tags=["synergies"])
-app.include_router(community_pattern_router.router, tags=["community-patterns"])
-app.include_router(analysis_router.router, tags=["analysis"])
-
-# Include Blueprint Opportunity Router (Phase 2 - Blueprint-First Architecture)
-try:
-    if hasattr(synergy_router, 'blueprint_router'):
-        app.include_router(synergy_router.blueprint_router, tags=["blueprint-opportunities"])
-        logger.info("✅ Included blueprint_router for Blueprint Opportunity Engine")
-    else:
-        logger.warning("⚠️ blueprint_router not found in synergy_router module")
-except Exception as e:
-    logger.warning(f"⚠️ Failed to include blueprint_router: {e}")
-
-# Include Analytics, Rating, and Tracking Routers (Patterns & Synergies Enhancement)
-try:
-    from .analytics.routes import router as analytics_router
-    app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
-    logger.info("✅ Included analytics_router for Blueprint Analytics")
-except ImportError as e:
-    logger.warning(f"⚠️ Analytics router not available: {e}")
-
-try:
-    from .rating.routes import router as rating_router
-    app.include_router(rating_router, prefix="/api/v1", tags=["ratings"])
-    logger.info("✅ Included rating_router for Blueprint Rating System")
-except ImportError as e:
-    logger.warning(f"⚠️ Rating router not available: {e}")
-
-try:
-    from .tracking.routes import router as tracking_router
-    app.include_router(tracking_router, prefix="/api/v1", tags=["tracking"])
-    logger.info("✅ Included tracking_router for Execution Tracking")
-except ImportError as e:
-    logger.warning(f"⚠️ Tracking router not available: {e}")
+_register_core_routers(app)
+_register_blueprint_routers(app)
+_register_enhancement_routers(app)
 
 @app.get("/")
 async def root() -> dict[str, str]:

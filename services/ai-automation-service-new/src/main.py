@@ -205,6 +205,46 @@ async def generate_daily_suggestions() -> None:
             exc_info=True
         )
 
+
+async def _initialize_database() -> None:
+    """Initialize database connection and tables."""
+    try:
+        await init_db()
+        logger.info("✅ Database initialized")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
+        raise
+
+
+async def _setup_observability() -> None:
+    """Setup observability if available."""
+    if OBSERVABILITY_AVAILABLE:
+        try:
+            setup_tracing("ai-automation-service")
+            logger.info("✅ Observability initialized")
+        except Exception as e:
+            logger.warning(f"Observability setup failed: {e}")
+
+
+async def _setup_rate_limiting() -> None:
+    """Setup rate limiting cleanup task."""
+    try:
+        await start_rate_limit_cleanup()
+        logger.info("✅ Rate limiting initialized")
+    except Exception as e:
+        logger.warning(f"Rate limit cleanup setup failed: {e}")
+
+
+def _log_startup_info() -> None:
+    """Log service startup information."""
+    logger.info("=" * 60)
+    logger.info("AI Automation Service Starting Up")
+    logger.info("=" * 60)
+    logger.info(f"Service Port: {settings.service_port}")
+    logger.info(f"Database: {settings.database_path}")
+    logger.info(f"Data API: {settings.data_api_url}")
+    logger.info("=" * 60)
+
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> None:
@@ -226,36 +266,16 @@ async def lifespan(app: FastAPI) -> None:
     Raises:
         Exception: If database initialization fails (prevents service startup)
     """
-    logger.info("=" * 60)
-    logger.info("AI Automation Service Starting Up")
-    logger.info("=" * 60)
-    logger.info(f"Service Port: {settings.service_port}")
-    logger.info(f"Database: {settings.database_path}")
-    logger.info(f"Data API: {settings.data_api_url}")
-    logger.info("=" * 60)
+    _log_startup_info()
     
     # Initialize database
-    try:
-        await init_db()
-        logger.info("✅ Database initialized")
-    except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
-        raise
+    await _initialize_database()
     
     # Setup observability if available
-    if OBSERVABILITY_AVAILABLE:
-        try:
-            setup_tracing("ai-automation-service")
-            logger.info("✅ Observability initialized")
-        except Exception as e:
-            logger.warning(f"Observability setup failed: {e}")
+    await _setup_observability()
     
     # Start rate limit cleanup task
-    try:
-        await start_rate_limit_cleanup()
-        logger.info("✅ Rate limiting initialized")
-    except Exception as e:
-        logger.warning(f"Rate limit cleanup setup failed: {e}")
+    await _setup_rate_limiting()
     
     # Start scheduler for automatic suggestion generation (if enabled)
     if settings.scheduler_enabled and APSCHEDULER_AVAILABLE:
@@ -285,14 +305,18 @@ async def lifespan(app: FastAPI) -> None:
 # Create FastAPI app
 app = FastAPI(
     title="AI Automation Service",
-    description="Automation service for suggestion generation, YAML generation, and deployment to Home Assistant",
+    description=(
+        "Automation service for suggestion generation, YAML generation, "
+        "and deployment to Home Assistant"
+    ),
     version="1.0.0",
     lifespan=lifespan
 )
 
 # CORS middleware
 # CRITICAL: Restrict origins in production
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+default_origins = "http://localhost:3000,http://localhost:3001"
+allowed_origins = os.getenv("CORS_ORIGINS", default_origins).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -327,10 +351,11 @@ app.include_router(pattern_router.router, tags=["patterns"])
 app.include_router(synergy_router.router, tags=["synergies"])
 app.include_router(analysis_router.router, tags=["analysis"])
 app.include_router(preference_router.router, tags=["preferences"])
-app.include_router(automation_plan_router.router, tags=["automation"])  # Hybrid Flow: Intent → Plan
-app.include_router(automation_validate_router.router, tags=["automation"])  # Hybrid Flow: Validate Plan
-app.include_router(automation_compile_router.router, tags=["automation"])  # Hybrid Flow: Compile Plan → YAML
-app.include_router(automation_lifecycle_router.router, tags=["automation"])  # Hybrid Flow: Lifecycle Tracking
+# Hybrid Flow routers: Intent → Plan → Validate → Compile → Lifecycle
+app.include_router(automation_plan_router.router, tags=["automation"])
+app.include_router(automation_validate_router.router, tags=["automation"])
+app.include_router(automation_compile_router.router, tags=["automation"])
+app.include_router(automation_lifecycle_router.router, tags=["automation"])
 
 @app.get("/")
 async def root() -> dict[str, str]:
