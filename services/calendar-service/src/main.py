@@ -28,7 +28,7 @@ logger = setup_logging("calendar-service")
 class CalendarService:
     """Home Assistant Calendar integration for occupancy prediction"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # CRITICAL FIX: Use config object instead of direct os.getenv (coding standards compliance)
         # Calendar configuration
         self.calendar_entities = settings.calendar_entities.split(',')
@@ -56,7 +56,7 @@ class CalendarService:
         self.calendar_entities = [cal.strip() for cal in self.calendar_entities]
         logger.info(f"Configured for {len(self.calendar_entities)} calendar(s): {self.calendar_entities}")
 
-    async def startup(self):
+    async def startup(self) -> None:
         """Initialize service"""
         logger.info("Initializing Calendar Service (Home Assistant Integration)...")
 
@@ -113,7 +113,7 @@ class CalendarService:
 
         logger.info("Calendar Service initialized successfully")
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Cleanup"""
         logger.info("Shutting down Calendar Service...")
 
@@ -302,7 +302,7 @@ class CalendarService:
             # Re-raise to allow caller to handle, preserving exception chain
             raise RuntimeError(f"Failed to write occupancy prediction to InfluxDB: {e}") from e
 
-    async def run_continuous(self):
+    async def run_continuous(self) -> None:
         """Run continuous prediction loop"""
 
         logger.info(f"Starting continuous occupancy prediction (every {self.fetch_interval}s)")
@@ -347,14 +347,14 @@ class CalendarService:
                 await asyncio.sleep(300)
 
 
-async def create_app(service: CalendarService):
+async def create_app(service: CalendarService) -> web.Application:
     """Create web application"""
     app = web.Application()
     app.router.add_get('/health', service.health_handler.handle)
     return app
 
 
-async def main():
+async def main() -> None:
     """Main entry point"""
     logger.info("Starting Calendar Service...")
 

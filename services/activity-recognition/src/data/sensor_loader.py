@@ -67,7 +67,7 @@ class SensorDataLoader:
         data_dir: Path | None = None,
         sequence_length: int = 30,  # 30 time steps
         step_size: int = 1,  # Sliding window step
-    ):
+    ) -> None:
         """
         Initialize the sensor data loader.
         
@@ -107,16 +107,12 @@ class SensorDataLoader:
         # Smart* data is typically in CSV format
         # Structure varies by home, so we handle multiple formats
         all_data = []
+        csv_files = list(data_path.glob("*.csv"))
         
-        for csv_file in data_path.glob("*.csv"):
-            try:
-                df = pl.read_csv(csv_file)
-                df = df.with_columns([
-                    pl.lit(csv_file.stem).alias("source_file")
-                ])
+        for csv_file in csv_files:
+            df = self._load_csv_file(csv_file, source_file=csv_file.stem)
+            if df is not None:
                 all_data.append(df)
-            except Exception as e:
-                logger.warning(f"Failed to load {csv_file}: {e}")
         
         if not all_data:
             logger.warning("No CSV files found, using synthetic data")
@@ -131,6 +127,37 @@ class SensorDataLoader:
         logger.info(f"Loaded {len(combined):,} rows from Smart* dataset")
         
         return combined
+    
+    def _load_csv_file(self, csv_file: Path, house_id: str | None = None, source_file: str | None = None) -> pl.DataFrame | None:
+        """
+        Load a CSV file and add metadata columns.
+        
+        Args:
+            csv_file: Path to CSV file
+            house_id: Optional house ID to add as column
+            source_file: Optional source file name to add as column
+            
+        Returns:
+            DataFrame if loaded successfully, None otherwise
+        """
+        try:
+            df = pl.read_csv(csv_file)
+            columns_to_add = []
+            
+            if house_id:
+                columns_to_add.append(pl.lit(house_id).alias("house_id"))
+            if source_file:
+                columns_to_add.append(pl.lit(source_file).alias("source_file"))
+            elif not house_id:
+                columns_to_add.append(pl.lit(csv_file.stem).alias("source_file"))
+            
+            if columns_to_add:
+                df = df.with_columns(columns_to_add)
+            
+            return df
+        except Exception as e:
+            logger.warning(f"Failed to load {csv_file}: {e}")
+            return None
     
     def load_refit(self, path: Path | None = None) -> pl.DataFrame:
         """
@@ -158,18 +185,14 @@ class SensorDataLoader:
         all_data = []
         
         # REFIT has data per house (House_1, House_2, etc.)
-        for house_dir in sorted(data_path.glob("House_*")):
-            if house_dir.is_dir():
-                for csv_file in house_dir.glob("*.csv"):
-                    try:
-                        df = pl.read_csv(csv_file)
-                        df = df.with_columns([
-                            pl.lit(house_dir.name).alias("house_id"),
-                            pl.lit(csv_file.stem).alias("appliance"),
-                        ])
-                        all_data.append(df)
-                    except Exception as e:
-                        logger.warning(f"Failed to load {csv_file}: {e}")
+        house_dirs = [d for d in sorted(data_path.glob("House_*")) if d.is_dir()]
+        
+        for house_dir in house_dirs:
+            csv_files = list(house_dir.glob("*.csv"))
+            for csv_file in csv_files:
+                df = self._load_csv_file(csv_file, house_id=house_dir.name)
+                if df is not None:
+                    all_data.append(df)
         
         if not all_data:
             logger.warning("No REFIT data found, using synthetic data")
@@ -206,6 +229,32 @@ class SensorDataLoader:
         
         return df
     
+    def _map_column_name(self, col_name: str) -> str | None:
+        """
+        Map a column name to a standard name.
+        
+        Args:
+            col_name: Original column name
+            
+        Returns:
+            Standard column name if mapping exists, None otherwise
+        """
+        col_lower = col_name.lower()
+        
+        # Column name mappings
+        column_mappings: dict[str, str] = {
+            **{col: "timestamp" for col in ["timestamp", "time", "datetime", "date_time", "ts"]},
+            **{col: "motion" for col in ["motion", "pir", "motion_sensor", "movement"]},
+            **{col: "door" for col in ["door", "door_sensor", "contact", "entry"]},
+            **{col: "temperature" for col in ["temperature", "temp", "ambient_temp"]},
+            **{col: "humidity" for col in ["humidity", "rh", "relative_humidity"]},
+            **{col: "power" for col in ["power", "watts", "active_power", "aggregate"]},
+            **{col: "energy" for col in ["energy", "kwh", "consumption"]},
+            **{col: "activity_label" for col in ["activity", "activity_label", "label", "state"]},
+        }
+        
+        return column_mappings.get(col_lower)
+    
     def _standardize_columns(self, df: pl.DataFrame) -> pl.DataFrame:
         """
         Standardize column names and types.
@@ -213,38 +262,12 @@ class SensorDataLoader:
         Maps various column naming conventions to standard names.
         """
         columns = df.columns
-        
-        # Column name mappings
-        timestamp_cols = ["timestamp", "time", "datetime", "date_time", "ts"]
-        motion_cols = ["motion", "pir", "motion_sensor", "movement"]
-        door_cols = ["door", "door_sensor", "contact", "entry"]
-        temp_cols = ["temperature", "temp", "ambient_temp"]
-        humidity_cols = ["humidity", "rh", "relative_humidity"]
-        power_cols = ["power", "watts", "active_power", "aggregate"]
-        energy_cols = ["energy", "kwh", "consumption"]
-        activity_cols = ["activity", "activity_label", "label", "state"]
-        
-        rename_map = {}
+        rename_map: dict[str, str] = {}
         
         for col in columns:
-            col_lower = col.lower()
-            
-            if col_lower in timestamp_cols:
-                rename_map[col] = "timestamp"
-            elif col_lower in motion_cols:
-                rename_map[col] = "motion"
-            elif col_lower in door_cols:
-                rename_map[col] = "door"
-            elif col_lower in temp_cols:
-                rename_map[col] = "temperature"
-            elif col_lower in humidity_cols:
-                rename_map[col] = "humidity"
-            elif col_lower in power_cols:
-                rename_map[col] = "power"
-            elif col_lower in energy_cols:
-                rename_map[col] = "energy"
-            elif col_lower in activity_cols:
-                rename_map[col] = "activity_label"
+            standard_name = self._map_column_name(col)
+            if standard_name:
+                rename_map[col] = standard_name
         
         if rename_map:
             df = df.rename(rename_map)
@@ -259,6 +282,45 @@ class SensorDataLoader:
                 pass  # Already datetime or unparseable
         
         return df
+    
+    def _generate_activity_labels(self, hour_of_day: np.ndarray, n_samples: int) -> np.ndarray:
+        """
+        Generate activity labels based on hour of day.
+        
+        Args:
+            hour_of_day: Array of hours (0-23) for each sample
+            n_samples: Total number of samples
+            
+        Returns:
+            Array of activity labels (0-9)
+        """
+        activity_label = np.zeros(n_samples, dtype=int)
+        
+        for i, h in enumerate(hour_of_day):
+            if 0 <= h < 6:
+                activity_label[i] = 0  # sleeping
+            elif 6 <= h < 8:
+                activity_label[i] = 1  # waking
+            elif h == 8:
+                activity_label[i] = 2  # leaving
+            elif 8 < h < 17:
+                activity_label[i] = 6  # working (away)
+            elif h == 17:
+                activity_label[i] = 3  # arriving
+            elif 17 < h < 19:
+                activity_label[i] = 4  # cooking
+            elif 19 <= h < 21:
+                activity_label[i] = 5  # eating
+            elif 21 <= h < 23:
+                activity_label[i] = 7  # watching_tv
+            else:
+                activity_label[i] = 8  # relaxing
+        
+        # Add some noise to activity labels
+        noise_mask = np.random.random(n_samples) < 0.1
+        activity_label[noise_mask] = np.random.randint(0, 10, noise_mask.sum())
+        
+        return activity_label
     
     def _create_synthetic_data(self, n_samples: int = 10000) -> pl.DataFrame:
         """
@@ -309,30 +371,7 @@ class SensorDataLoader:
         power = power_base + np.random.exponential(100, n_samples)
         
         # Activity labels based on time of day
-        activity_label = np.zeros(n_samples, dtype=int)
-        for i, h in enumerate(hour_of_day):
-            if 0 <= h < 6:
-                activity_label[i] = 0  # sleeping
-            elif 6 <= h < 8:
-                activity_label[i] = 1  # waking
-            elif h == 8:
-                activity_label[i] = 2  # leaving
-            elif 8 < h < 17:
-                activity_label[i] = 6  # working (away)
-            elif h == 17:
-                activity_label[i] = 3  # arriving
-            elif 17 < h < 19:
-                activity_label[i] = 4  # cooking
-            elif 19 <= h < 21:
-                activity_label[i] = 5  # eating
-            elif 21 <= h < 23:
-                activity_label[i] = 7  # watching_tv
-            else:
-                activity_label[i] = 8  # relaxing
-        
-        # Add some noise to activity labels
-        noise_mask = np.random.random(n_samples) < 0.1
-        activity_label[noise_mask] = np.random.randint(0, 10, noise_mask.sum())
+        activity_label = self._generate_activity_labels(hour_of_day, n_samples)
         
         df = pl.DataFrame({
             "timestamp": timestamps,
@@ -525,7 +564,7 @@ class SensorDataLoader:
         return pl.read_parquet(input_path)
 
 
-def main():
+def main() -> None:
     """Example usage of SensorDataLoader."""
     logging.basicConfig(level=logging.INFO)
     

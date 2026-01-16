@@ -40,13 +40,8 @@ structlog.configure(
 logger = structlog.get_logger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan handler."""
-    # Startup
-    logger.info("Starting Rule Recommendation ML Service...")
-    
-    # Load model if it exists
+def _load_recommendation_model() -> None:
+    """Load rule recommendation model if available."""
     model_path = Path(os.getenv("MODEL_PATH", "./models/rule_recommender.pkl"))
     if model_path.exists():
         success = load_model(model_path)
@@ -59,6 +54,16 @@ async def lifespan(app: FastAPI):
             "No pre-trained model found. Train a model and save to the configured path.",
             path=str(model_path)
         )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler."""
+    # Startup
+    logger.info("Starting Rule Recommendation ML Service...")
+    
+    # Load model if it exists
+    _load_recommendation_model()
     
     yield
     
@@ -90,7 +95,7 @@ app.include_router(router)
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint."""
     return {
         "service": "rule-recommendation-ml",

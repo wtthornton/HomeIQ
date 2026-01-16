@@ -39,13 +39,8 @@ structlog.configure(
 logger = structlog.get_logger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan handler."""
-    # Startup
-    logger.info("Starting Energy Forecasting Service...")
-    
-    # Load model
+def _load_forecasting_model() -> None:
+    """Load energy forecasting model if available."""
     model_path = Path(os.getenv("MODEL_PATH", "./models/energy_forecaster"))
     config_path = model_path.with_suffix(".config.pkl")
     
@@ -60,6 +55,16 @@ async def lifespan(app: FastAPI):
             "No model found. Train a model and save to the configured path.",
             path=str(model_path)
         )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler."""
+    # Startup
+    logger.info("Starting Energy Forecasting Service...")
+    
+    # Load model
+    _load_forecasting_model()
     
     yield
     
@@ -91,7 +96,7 @@ app.include_router(router)
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint."""
     return {
         "service": "energy-forecasting",

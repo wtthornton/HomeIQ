@@ -43,6 +43,94 @@ _initialization_in_progress = False
 _initialization_complete = False
 
 
+async def _check_and_initialize_corpus(db) -> None:
+    """Check corpus status and initialize if needed."""
+    global _initialization_in_progress, _initialization_complete
+    
+    try:
+        from ..jobs.weekly_refresh import WeeklyRefreshJob
+        from ..miner.repository import CorpusRepository
+        import asyncio
+        from datetime import datetime, timezone
+
+        async with db.get_session() as session:
+            repo = CorpusRepository(session)
+            stats = await repo.get_stats()
+            last_crawl = await repo.get_last_crawl_timestamp()
+
+            # Check if initialization needed
+            should_initialize = False
+            reason = ""
+
+            if stats['total'] == 0:
+                should_initialize = True
+                reason = "empty corpus"
+                logger.info("🔍 Corpus is empty - will run initial population on startup")
+            elif last_crawl:
+                # Ensure timezone-aware comparison
+                if last_crawl.tzinfo is None:
+                    last_crawl = last_crawl.replace(tzinfo=timezone.utc)
+                days_since = (datetime.now(timezone.utc) - last_crawl).days
+                if days_since > 7:
+                    should_initialize = True
+                    reason = f"stale corpus ({days_since} days old)"
+                    logger.info(f"🔍 Corpus is stale ({days_since} days) - will refresh on startup")
+            else:
+                should_initialize = True
+                reason = "no last_crawl timestamp"
+                logger.info("🔍 No last crawl timestamp - will initialize on startup")
+
+            # Run initialization if needed
+            if should_initialize:
+                _initialization_in_progress = True
+
+                logger.info(f"🚀 Starting corpus initialization ({reason})...")
+                logger.info("   This will run in background during API startup")
+
+                # Run refresh job (will populate or update corpus)
+                job = WeeklyRefreshJob()
+
+                async def run_init_and_track():
+                    global _initialization_in_progress, _initialization_complete
+                    try:
+                        await job.run()
+                        _initialization_complete = True
+                    except Exception as e:
+                        logger.error(f"Initialization failed: {e}", exc_info=True)
+                    finally:
+                        _initialization_in_progress = False
+
+                asyncio.create_task(run_init_and_track())
+
+                logger.info("✅ Corpus initialization started in background")
+            else:
+                _initialization_complete = True
+                logger.info(f"✅ Corpus is fresh ({stats['total']} automations, last crawl: {last_crawl})")
+
+    except Exception as e:
+        logger.warning(f"⚠️ Startup initialization check failed: {e}")
+
+
+async def _start_scheduler() -> object | None:
+    """Start weekly refresh scheduler if enabled."""
+    if not settings.enable_automation_miner:
+        logger.info("ℹ️  Weekly refresh scheduler disabled (ENABLE_AUTOMATION_MINER=false)")
+        return None
+    
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from ..jobs.weekly_refresh import setup_weekly_refresh_job
+
+        scheduler = AsyncIOScheduler()
+        await setup_weekly_refresh_job(scheduler)
+        scheduler.start()
+        logger.info("✅ Weekly refresh scheduler started (every Sunday 2 AM)")
+        return scheduler
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to start weekly refresh scheduler: {e}")
+        return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -72,90 +160,10 @@ async def lifespan(app: FastAPI):
 
     # Initialize corpus on startup (Story AI4.4 enhancement)
     if settings.enable_automation_miner:
-        try:
-            from ..jobs.weekly_refresh import WeeklyRefreshJob
-            from ..miner.repository import CorpusRepository
-
-            async with db.get_session() as session:
-                repo = CorpusRepository(session)
-                stats = await repo.get_stats()
-                last_crawl = await repo.get_last_crawl_timestamp()
-
-                # Check if initialization needed
-                should_initialize = False
-                reason = ""
-
-                if stats['total'] == 0:
-                    should_initialize = True
-                    reason = "empty corpus"
-                    logger.info("🔍 Corpus is empty - will run initial population on startup")
-                elif last_crawl:
-                    from datetime import datetime, timezone
-                    # Ensure timezone-aware comparison
-                    if last_crawl.tzinfo is None:
-                        last_crawl = last_crawl.replace(tzinfo=timezone.utc)
-                    days_since = (datetime.now(timezone.utc) - last_crawl).days
-                    if days_since > 7:
-                        should_initialize = True
-                        reason = f"stale corpus ({days_since} days old)"
-                        logger.info(f"🔍 Corpus is stale ({days_since} days) - will refresh on startup")
-                else:
-                    should_initialize = True
-                    reason = "no last_crawl timestamp"
-                    logger.info("🔍 No last crawl timestamp - will initialize on startup")
-
-                # Run initialization if needed
-                if should_initialize:
-                    global _initialization_in_progress
-                    _initialization_in_progress = True
-
-                    logger.info(f"🚀 Starting corpus initialization ({reason})...")
-                    logger.info("   This will run in background during API startup")
-
-                    # Run refresh job (will populate or update corpus)
-                    job = WeeklyRefreshJob()
-
-                    # Import asyncio to run in background
-                    import asyncio
-
-                    async def run_init_and_track():
-                        global _initialization_in_progress, _initialization_complete
-                        try:
-                            await job.run()
-                            _initialization_complete = True
-                        except Exception as e:
-                            logger.error(f"Initialization failed: {e}", exc_info=True)
-                        finally:
-                            _initialization_in_progress = False
-
-                    asyncio.create_task(run_init_and_track())
-
-                    logger.info("✅ Corpus initialization started in background")
-                else:
-                    global _initialization_complete
-                    _initialization_complete = True
-                    logger.info(f"✅ Corpus is fresh ({stats['total']} automations, last crawl: {last_crawl})")
-
-        except Exception as e:
-            logger.warning(f"⚠️ Startup initialization check failed: {e}")
+        await _check_and_initialize_corpus(db)
 
     # Start weekly refresh scheduler (Story AI4.4)
-    scheduler = None
-    if settings.enable_automation_miner:
-        try:
-            from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-            from ..jobs.weekly_refresh import setup_weekly_refresh_job
-
-            scheduler = AsyncIOScheduler()
-            await setup_weekly_refresh_job(scheduler)
-            scheduler.start()
-            logger.info("✅ Weekly refresh scheduler started (every Sunday 2 AM)")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to start weekly refresh scheduler: {e}")
-            scheduler = None
-    else:
-        logger.info("ℹ️  Weekly refresh scheduler disabled (ENABLE_AUTOMATION_MINER=false)")
+    scheduler = await _start_scheduler()
 
     yield
 
@@ -202,7 +210,7 @@ app.include_router(device_router, prefix="/api/automation-miner")  # Story AI4.3
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str | dict[str, str | int | float | None | bool]]]:
     """
     Health check endpoint
     

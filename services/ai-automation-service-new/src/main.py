@@ -98,7 +98,70 @@ except ImportError:
 scheduler: AsyncIOScheduler | None = None
 
 
-async def generate_daily_suggestions():
+def _start_scheduler() -> None:
+    """
+    Start the scheduler for automatic suggestion generation.
+    
+    Parses schedule time and configures daily job execution.
+    """
+    global scheduler
+    if scheduler is None:
+        scheduler = AsyncIOScheduler()
+    
+    if scheduler:
+        try:
+            # Parse schedule time (format: "HH:MM")
+            schedule_time = settings.scheduler_time.split(":")
+            hour = int(schedule_time[0])
+            minute = int(schedule_time[1]) if len(schedule_time) > 1 else 0
+            
+            # Add daily suggestion generation job
+            scheduler.add_job(
+                generate_daily_suggestions,
+                CronTrigger(
+                    hour=hour,
+                    minute=minute,
+                    timezone=settings.scheduler_timezone
+                ),
+                id="daily_suggestion_generation",
+                name="Daily Automation Suggestion Generation",
+                replace_existing=True,
+                max_instances=1,  # Prevent overlap
+                coalesce=True,  # Skip if previous run still active
+                misfire_grace_time=3600,  # Allow 1 hour delay if server was down
+            )
+            
+            scheduler.start()
+            
+            job = scheduler.get_job("daily_suggestion_generation")
+            next_run = job.next_run_time if job else None
+            
+            logger.info(
+                f"✅ Scheduler started: daily suggestions at {settings.scheduler_time} "
+                f"({settings.scheduler_timezone})"
+            )
+            if next_run:
+                logger.info(f"Next scheduled run: {next_run}")
+        except Exception as e:
+            logger.error(f"Failed to start scheduler: {e}", exc_info=True)
+            # Don't raise - scheduler failure shouldn't prevent service startup
+            logger.warning("Service will continue without automatic suggestion generation")
+
+
+def _stop_scheduler() -> None:
+    """
+    Stop the scheduler gracefully.
+    """
+    global scheduler
+    if scheduler and scheduler.running:
+        try:
+            scheduler.shutdown(wait=True)
+            logger.info("✅ Scheduler stopped")
+        except Exception as e:
+            logger.warning(f"Scheduler shutdown failed: {e}")
+
+
+async def generate_daily_suggestions() -> None:
     """
     Scheduled job to generate automation suggestions daily.
     
@@ -144,7 +207,7 @@ async def generate_daily_suggestions():
 
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> None:
     """
     Initialize service on startup and cleanup on shutdown.
     
@@ -195,49 +258,8 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Rate limit cleanup setup failed: {e}")
     
     # Start scheduler for automatic suggestion generation (if enabled)
-    global scheduler
     if settings.scheduler_enabled and APSCHEDULER_AVAILABLE:
-        if scheduler is None:
-            scheduler = AsyncIOScheduler()
-        
-        if scheduler:
-            try:
-                # Parse schedule time (format: "HH:MM")
-                schedule_time = settings.scheduler_time.split(":")
-                hour = int(schedule_time[0])
-                minute = int(schedule_time[1]) if len(schedule_time) > 1 else 0
-                
-                # Add daily suggestion generation job
-                scheduler.add_job(
-                    generate_daily_suggestions,
-                    CronTrigger(
-                        hour=hour,
-                        minute=minute,
-                        timezone=settings.scheduler_timezone
-                    ),
-                    id="daily_suggestion_generation",
-                    name="Daily Automation Suggestion Generation",
-                    replace_existing=True,
-                    max_instances=1,  # Prevent overlap
-                    coalesce=True,  # Skip if previous run still active
-                    misfire_grace_time=3600,  # Allow 1 hour delay if server was down
-                )
-                
-                scheduler.start()
-                
-                job = scheduler.get_job("daily_suggestion_generation")
-                next_run = job.next_run_time if job else None
-                
-                logger.info(
-                    f"✅ Scheduler started: daily suggestions at {settings.scheduler_time} "
-                    f"({settings.scheduler_timezone})"
-                )
-                if next_run:
-                    logger.info(f"Next scheduled run: {next_run}")
-            except Exception as e:
-                logger.error(f"Failed to start scheduler: {e}", exc_info=True)
-                # Don't raise - scheduler failure shouldn't prevent service startup
-                logger.warning("Service will continue without automatic suggestion generation")
+        _start_scheduler()
     elif not settings.scheduler_enabled:
         logger.info("Scheduler is disabled in settings")
     
@@ -252,12 +274,7 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     
     # Stop scheduler
-    if scheduler and scheduler.running:
-        try:
-            scheduler.shutdown(wait=True)
-            logger.info("✅ Scheduler stopped")
-        except Exception as e:
-            logger.warning(f"Scheduler shutdown failed: {e}")
+    _stop_scheduler()
     
     # Stop rate limit cleanup
     try:

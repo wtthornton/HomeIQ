@@ -56,7 +56,7 @@ class ActivityLSTM(nn.Module):
         num_classes: int = 10,
         dropout: float = 0.2,
         bidirectional: bool = False,
-    ):
+    ) -> None:
         """
         Initialize the LSTM classifier.
         
@@ -393,7 +393,7 @@ def export_to_onnx(
     logger.info(f"Exported ONNX model to {output_path}")
 
 
-def load_onnx_model(model_path: Path | str):
+def load_onnx_model(model_path: Path | str) -> Any:
     """
     Load ONNX model for inference.
     
@@ -452,7 +452,7 @@ def predict_with_onnx(
     return predictions, probs
 
 
-def main():
+def main() -> None:
     """Example usage of ActivityLSTM."""
     logging.basicConfig(level=logging.INFO)
     

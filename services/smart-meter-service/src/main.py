@@ -61,7 +61,7 @@ class SmartMeterService:
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN required")
 
-    async def startup(self):
+    async def startup(self) -> None:
         """Initialize service"""
         logger.info(f"Initializing Smart Meter Service (Type: {self.meter_type})...")
 
@@ -87,7 +87,7 @@ class SmartMeterService:
 
         logger.info("Smart Meter Service initialized")
 
-    def _create_adapter(self):
+    def _create_adapter(self) -> Any:
         """Create adapter based on meter type"""
         if self.meter_type == 'home_assistant':
             if not self.ha_url or not self.ha_token:
@@ -106,7 +106,7 @@ class SmartMeterService:
             logger.warning(f"Unknown meter type: {self.meter_type} - using mock data")
             return None
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Cleanup"""
         if self.session:
             await self.session.close()
@@ -209,7 +209,7 @@ class SmartMeterService:
 
         return data
 
-    async def store_in_influxdb(self, data: dict[str, Any]):
+    async def store_in_influxdb(self, data: dict[str, Any]) -> None:
         """Store consumption data in InfluxDB"""
 
         if not data:
@@ -245,7 +245,7 @@ class SmartMeterService:
                 error=str(e)
             )
 
-    async def run_continuous(self):
+    async def run_continuous(self) -> None:
         """Run continuous data collection loop"""
 
         logger.info(f"Starting continuous power monitoring (every {self.fetch_interval}s)")
@@ -269,14 +269,14 @@ class SmartMeterService:
                 await asyncio.sleep(60)
 
 
-async def create_app(service: SmartMeterService):
+async def create_app(service: SmartMeterService) -> web.Application:
     """Create web application"""
     app = web.Application()
     app.router.add_get('/health', service.health_handler.handle)
     return app
 
 
-async def main():
+async def main() -> None:
     """Main entry point"""
     logger.info("Starting Smart Meter Service...")
 

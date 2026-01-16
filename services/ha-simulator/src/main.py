@@ -29,13 +29,13 @@ logger = logging.getLogger(__name__)
 class HASimulatorService:
     """Main HA Simulator service"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config_manager = ConfigManager()
         self.websocket_server = None
         self.event_generator = None
         self.running = False
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the HA Simulator service"""
         try:
             logger.info("🚀 Starting HA Simulator Service")
@@ -72,7 +72,7 @@ class HASimulatorService:
             logger.error(f"❌ Failed to start HA Simulator Service: {e}")
             raise
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the HA Simulator service"""
         logger.info("🛑 Stopping HA Simulator Service")
         self.running = False
@@ -85,12 +85,12 @@ class HASimulatorService:
 
         logger.info("✅ HA Simulator Service stopped")
 
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self, signum: int, frame: object) -> None:
         """Handle shutdown signals"""
         logger.info(f"📡 Received signal {signum}")
         asyncio.create_task(self.stop())
 
-async def main():
+async def main() -> None:
     """Main function"""
     service = HASimulatorService()
 
