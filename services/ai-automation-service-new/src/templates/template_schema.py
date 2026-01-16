@@ -4,6 +4,8 @@ Template Schema Definitions
 Pydantic models for template structure, parameter schemas, and compilation mappings.
 """
 
+from __future__ import annotations
+
 from enum import Enum
 from typing import Any, Literal
 
