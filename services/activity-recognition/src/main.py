@@ -39,7 +39,7 @@ logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> None:
     """Application lifespan handler."""
     # Startup
     logger.info("Starting Activity Recognition Service...")
@@ -88,7 +88,7 @@ app.include_router(router)
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint."""
     return {
         "service": "activity-recognition",

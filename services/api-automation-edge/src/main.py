@@ -3,6 +3,8 @@ Main FastAPI Application Entry Point
 """
 
 import logging
+import threading
+import time
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -64,8 +66,19 @@ websocket_client: HAWebSocketClient = None
 capability_graph: CapabilityGraph = None
 
 
+def _start_huey_consumer() -> None:
+    """Start Huey consumer in background thread."""
+    try:
+        from .queue.huey_config import huey
+        logger.info("Starting Huey consumer...")
+        huey.start()
+        logger.info("Huey consumer started")
+    except Exception as e:
+        logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
+
+
 @app.on_event("startup")
-async def startup():
+async def startup() -> None:
     """Initialize services on startup"""
     global rest_client, websocket_client, capability_graph
     
@@ -86,28 +99,11 @@ async def startup():
     # Start Huey consumer if enabled
     if settings.use_task_queue:
         try:
-            from .queue.huey_config import huey
-            import threading
-            
-            # Create consumer thread for Huey
-            def start_consumer():
-                """Start Huey consumer in background thread"""
-                try:
-                    # Huey consumer runs in its own thread
-                    # Note: Huey.start() is synchronous and blocks
-                    # We'll run it in a separate thread
-                    logger.info("Starting Huey consumer...")
-                    huey.start()
-                    logger.info("Huey consumer started")
-                except Exception as e:
-                    logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
-            
             # Start consumer in background thread
-            consumer_thread = threading.Thread(target=start_consumer, daemon=True)
+            consumer_thread = threading.Thread(target=_start_huey_consumer, daemon=True)
             consumer_thread.start()
             
             # Give thread a moment to start
-            import time
             time.sleep(0.1)
             
             logger.info("Huey task queue consumer thread started")
@@ -122,7 +118,7 @@ async def startup():
 
 
 @app.on_event("shutdown")
-async def shutdown():
+async def shutdown() -> None:
     """Cleanup on shutdown"""
     global websocket_client, capability_graph
     

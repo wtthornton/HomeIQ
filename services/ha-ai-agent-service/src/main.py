@@ -60,8 +60,56 @@ def _parse_allowed_origins() -> list[str]:
 ALLOWED_ORIGINS = _parse_allowed_origins()
 
 
+def _fix_database_permissions(settings: Settings) -> None:
+    """
+    Fix database directory permissions before initialization (Docker volume fix).
+    
+    Args:
+        settings: Application settings containing database URL
+    """
+    if not settings.database_url.startswith("sqlite"):
+        return
+    
+    from pathlib import Path
+    import os
+    import stat
+    
+    path_str = settings.database_url.split("///")[-1]
+    db_path = Path(path_str)
+    data_dir = db_path.parent
+    
+    # Fix permissions if directory exists (Docker volume might be root-owned)
+    if not data_dir.exists():
+        return
+    
+    try:
+        current_uid = os.getuid() if hasattr(os, 'getuid') else None
+        current_gid = os.getgid() if hasattr(os, 'getgid') else None
+        
+        # Try to fix directory permissions
+        os.chmod(data_dir, stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
+        if current_uid is not None and current_uid != 0:
+            try:
+                os.chown(data_dir, current_uid, current_gid)
+            except (PermissionError, OSError):
+                pass  # Can't change ownership, but chmod should help
+        
+        # Fix database file if it exists
+        if db_path.exists():
+            os.chmod(db_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
+            if current_uid is not None and current_uid != 0:
+                try:
+                    os.chown(db_path, current_uid, current_gid)
+                except (PermissionError, OSError):
+                    pass
+        
+        logger.info(f"✅ Fixed permissions for {data_dir}")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not fix permissions (non-fatal): {e}")
+
+
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> None:
     """Initialize services on startup, cleanup on shutdown"""
     global context_builder, tool_service, conversation_service, prompt_assembly_service, openai_client, settings
 
@@ -72,40 +120,7 @@ async def lifespan(_app: FastAPI):
         logger.info(f"✅ Settings loaded (HA URL: {settings.ha_url})")
 
         # Fix database directory permissions before initialization (Docker volume fix)
-        if settings.database_url.startswith("sqlite"):
-            from pathlib import Path
-            import os
-            import stat
-            path_str = settings.database_url.split("///")[-1]
-            db_path = Path(path_str)
-            data_dir = db_path.parent
-            
-            # Fix permissions if directory exists (Docker volume might be root-owned)
-            if data_dir.exists():
-                try:
-                    current_uid = os.getuid() if hasattr(os, 'getuid') else None
-                    current_gid = os.getgid() if hasattr(os, 'getgid') else None
-                    
-                    # Try to fix directory permissions
-                    os.chmod(data_dir, stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
-                    if current_uid is not None and current_uid != 0:
-                        try:
-                            os.chown(data_dir, current_uid, current_gid)
-                        except (PermissionError, OSError):
-                            pass  # Can't change ownership, but chmod should help
-                    
-                    # Fix database file if it exists
-                    if db_path.exists():
-                        os.chmod(db_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
-                        if current_uid is not None and current_uid != 0:
-                            try:
-                                os.chown(db_path, current_uid, current_gid)
-                            except (PermissionError, OSError):
-                                pass
-                    
-                    logger.info(f"✅ Fixed permissions for {data_dir}")
-                except Exception as e:
-                    logger.warning(f"⚠️  Could not fix permissions (non-fatal): {e}")
+        _fix_database_permissions(settings)
         
         # Initialize database
         await init_database(settings.database_url)
@@ -254,7 +269,7 @@ app.include_router(device_suggestions_router)
 
 # API Endpoints
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict:
     """
     Comprehensive health check endpoint.
     
@@ -293,7 +308,7 @@ async def health_check():
 
 
 @app.get("/api/v1/context")
-async def get_context():
+async def get_context() -> dict:
     """Get Tier 1 context for OpenAI agent"""
     if not context_builder:
         raise HTTPException(status_code=503, detail="Service not ready")
@@ -310,7 +325,7 @@ async def get_context():
 
 
 @app.get("/api/v1/system-prompt")
-async def get_system_prompt():
+async def get_system_prompt() -> dict:
     """Get the system prompt for the OpenAI agent"""
     if not context_builder:
         raise HTTPException(status_code=503, detail="Service not ready")
@@ -327,7 +342,7 @@ async def get_system_prompt():
 
 
 @app.get("/api/v1/complete-prompt")
-async def get_complete_prompt():
+async def get_complete_prompt() -> dict:
     """Get complete system prompt with context injection"""
     if not context_builder:
         raise HTTPException(status_code=503, detail="Service not ready")
@@ -352,7 +367,7 @@ class ValidationRequest(BaseModel):
 
 
 @app.post("/api/v1/validation/validate")
-async def validate_yaml(request: ValidationRequest):
+async def validate_yaml(request: ValidationRequest) -> dict:
     """
     Validate automation YAML using validation chain.
     
@@ -397,7 +412,7 @@ async def validate_yaml(request: ValidationRequest):
 
 
 @app.get("/api/v1/tools")
-async def get_tools():
+async def get_tools() -> dict:
     """Get available tool schemas for OpenAI function calling"""
     if not tool_service:
         raise HTTPException(status_code=503, detail="Service not ready")
@@ -415,7 +430,7 @@ async def get_tools():
 
 
 @app.post("/api/v1/tools/execute")
-async def execute_tool(request: dict):
+async def execute_tool(request: dict) -> dict:
     """
     Execute a tool call.
 
@@ -447,7 +462,7 @@ async def execute_tool(request: dict):
 
 
 @app.post("/api/v1/tools/execute-openai")
-async def execute_tool_openai(request: dict):
+async def execute_tool_openai(request: dict) -> dict:
     """
     Execute a tool call in OpenAI format.
 

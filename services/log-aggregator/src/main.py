@@ -22,7 +22,7 @@ logger = setup_logging("log-aggregator")
 class LogAggregator:
     """Simple log aggregation service for collecting logs from all services"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Use app directory for local log storage
         self.log_directory = Path("/app/logs")
         self.log_directory.mkdir(exist_ok=True)
@@ -215,7 +215,7 @@ async def get_log_stats(request: web.Request) -> web.Response:
 
     return web.json_response(stats)
 
-async def background_log_collection():
+async def background_log_collection() -> None:
     """Background task to collect logs periodically"""
     while True:
         try:
@@ -225,7 +225,7 @@ async def background_log_collection():
             logger.error(f"Error in background log collection: {e}")
             await asyncio.sleep(60)  # Wait longer on error
 
-async def main():
+async def main() -> None:
     """Main application entry point"""
     logger.info("Starting log aggregation service...")
 

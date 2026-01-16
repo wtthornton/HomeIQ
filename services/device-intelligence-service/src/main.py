@@ -105,7 +105,7 @@ app.add_middleware(
 
 # Add request/response logging middleware
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
+async def add_process_time_header(request: Request, call_next) -> Any:
     """Add processing time header and log requests/responses."""
     start_time = time.perf_counter()
 
@@ -125,7 +125,7 @@ async def add_process_time_header(request: Request, call_next):
 
 # Add error handling middleware
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle request validation errors."""
     logger.error(f"❌ Validation error: {exc}")
     return JSONResponse(
@@ -138,7 +138,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 @app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle general exceptions."""
     logger.error(f"❌ Unhandled error: {exc}", exc_info=True)
     return JSONResponse(

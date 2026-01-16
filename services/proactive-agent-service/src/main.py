@@ -83,10 +83,27 @@ def _parse_allowed_origins() -> list[str]:
 ALLOWED_ORIGINS = _parse_allowed_origins()
 
 
+async def _initialize_database(settings_instance: Settings) -> None:
+    """Initialize database connection."""
+    await init_database(settings_instance)
+    logger.info("Database initialized")
+
+
+def _initialize_scheduler(settings_instance: Settings) -> SchedulerService:
+    """Initialize and start scheduler service."""
+    pipeline_service = SuggestionPipelineService()
+    scheduler = SchedulerService(settings_instance, pipeline_service=pipeline_service)
+    scheduler.start()
+    set_scheduler_service(scheduler)  # Set for suggestions API endpoints
+    set_scheduler_service_for_health(scheduler)  # Set for health endpoint
+    logger.info("Scheduler initialized")
+    return scheduler
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Initialize services on startup, cleanup on shutdown"""
-    global settings
+    global settings, scheduler_service
 
     logger.info("Starting Proactive Agent Service...")
     try:
@@ -95,17 +112,10 @@ async def lifespan(_app: FastAPI):
         logger.info(f"Settings loaded (Port: {settings.service_port})")
 
         # Initialize database (Story AI21.8)
-        await init_database(settings)
-        logger.info("Database initialized")
+        await _initialize_database(settings)
 
         # Initialize scheduler (Story AI21.7)
-        global scheduler_service
-        pipeline_service = SuggestionPipelineService()
-        scheduler_service = SchedulerService(settings, pipeline_service=pipeline_service)
-        scheduler_service.start()
-        set_scheduler_service(scheduler_service)  # Set for suggestions API endpoints
-        set_scheduler_service_for_health(scheduler_service)  # Set for health endpoint
-        logger.info("Scheduler initialized")
+        scheduler_service = _initialize_scheduler(settings)
 
         logger.info("Proactive Agent Service started successfully")
     except Exception as e:

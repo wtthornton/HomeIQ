@@ -28,7 +28,7 @@ logger = setup_logging("air-quality-service")
 class AirQualityService:
     """Fetch and store air quality data from OpenWeather API"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_key = os.getenv('WEATHER_API_KEY')
         self.latitude = os.getenv('LATITUDE', '36.1699')  # Las Vegas default
         self.longitude = os.getenv('LONGITUDE', '-115.1398')
@@ -93,7 +93,7 @@ class AirQualityService:
             logger.warning(f"Could not fetch location from Home Assistant: {e}")
             return None
 
-    async def startup(self):
+    async def startup(self) -> None:
         """Initialize service"""
         logger.info("Initializing Air Quality Service...")
 
@@ -119,7 +119,7 @@ class AirQualityService:
 
         logger.info("Air Quality Service initialized")
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Cleanup"""
         logger.info("Shutting down Air Quality Service...")
 
@@ -224,7 +224,7 @@ class AirQualityService:
             self.health_handler.failed_fetches += 1
             return self.cached_data
 
-    async def store_in_influxdb(self, data: dict[str, Any]):
+    async def store_in_influxdb(self, data: dict[str, Any]) -> None:
         """Store AQI data in InfluxDB"""
 
         if not data:
@@ -263,7 +263,7 @@ class AirQualityService:
             )
             self.health_handler.failed_fetches += 1
 
-    async def get_current_aqi(self, request):
+    async def get_current_aqi(self, request: web.Request) -> web.Response:
         """API endpoint for current AQI"""
 
         if self.cached_data:
@@ -281,7 +281,7 @@ class AirQualityService:
         else:
             return web.json_response({'error': 'No data available'}, status=503)
 
-    async def run_continuous(self):
+    async def run_continuous(self) -> None:
         """Run continuous data collection loop"""
 
         logger.info(f"Starting continuous AQI monitoring (every {self.fetch_interval}s)")
@@ -305,7 +305,7 @@ class AirQualityService:
                 await asyncio.sleep(300)
 
 
-async def create_app(service: AirQualityService):
+async def create_app(service: AirQualityService) -> web.Application:
     """Create web application"""
     app = web.Application()
 
@@ -315,7 +315,7 @@ async def create_app(service: AirQualityService):
     return app
 
 
-async def main():
+async def main() -> None:
     """Main entry point"""
     logger.info("Starting Air Quality Service...")
 

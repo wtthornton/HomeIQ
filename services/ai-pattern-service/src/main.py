@@ -70,6 +70,74 @@ from .scheduler import PatternAnalysisScheduler
 pattern_scheduler: PatternAnalysisScheduler | None = None
 mqtt_client: MQTTNotificationClient | None = None
 
+
+async def _initialize_mqtt_client() -> MQTTNotificationClient | None:
+    """Initialize and connect MQTT client for notifications."""
+    if not settings.mqtt_broker:
+        logger.info("ℹ️ MQTT broker not configured, notifications disabled")
+        return None
+    
+    try:
+        client = MQTTNotificationClient(
+            broker=settings.mqtt_broker,
+            port=settings.mqtt_port,
+            username=settings.mqtt_username,
+            password=settings.mqtt_password,
+            enabled=True
+        )
+        if client.connect():
+            logger.info(f"✅ MQTT client connected to {client.broker}:{client.port}")
+            return client
+        else:
+            logger.warning(f"⚠️ MQTT client connection failed to {client.broker}:{client.port}")
+            return None
+    except Exception as e:
+        logger.warning(f"⚠️ MQTT client initialization failed: {e}")
+        return None
+
+
+async def _initialize_scheduler(client: MQTTNotificationClient | None) -> PatternAnalysisScheduler | None:
+    """Initialize and start pattern analysis scheduler."""
+    try:
+        scheduler = PatternAnalysisScheduler(
+            cron_schedule=settings.analysis_schedule,
+            enable_incremental=settings.enable_incremental
+        )
+        
+        if client:
+            scheduler.set_mqtt_client(client)
+        
+        scheduler.start()
+        logger.info(f"✅ Pattern analysis scheduler started (schedule: {settings.analysis_schedule})")
+        return scheduler
+    except Exception as e:
+        logger.error(f"❌ Scheduler initialization failed: {e}", exc_info=True)
+        # Don't fail startup if scheduler fails - service can still handle API requests
+        return None
+
+
+async def _shutdown_scheduler() -> None:
+    """Stop pattern analysis scheduler."""
+    global pattern_scheduler
+    if pattern_scheduler:
+        try:
+            pattern_scheduler.stop()
+            logger.info("✅ Pattern analysis scheduler stopped")
+        except Exception as e:
+            logger.warning(f"⚠️ Error stopping scheduler: {e}")
+
+
+async def _shutdown_mqtt_client() -> None:
+    """Disconnect MQTT client."""
+    global mqtt_client
+    if mqtt_client:
+        try:
+            mqtt_client.disconnect()
+            logger.info("✅ MQTT client disconnected")
+        except Exception as e:
+            logger.warning(f"⚠️ Error disconnecting MQTT client: {e}")
+
+
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -115,41 +183,10 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Observability setup failed: {e}")
     
     # Initialize MQTT client (Epic 39, Story 39.6)
-    if settings.mqtt_broker:
-        try:
-            mqtt_client = MQTTNotificationClient(
-                broker=settings.mqtt_broker,
-                port=settings.mqtt_port,
-                username=settings.mqtt_username,
-                password=settings.mqtt_password,
-                enabled=True
-            )
-            if mqtt_client.connect():
-                logger.info(f"✅ MQTT client connected to {mqtt_client.broker}:{mqtt_client.port}")
-            else:
-                logger.warning(f"⚠️ MQTT client connection failed to {mqtt_client.broker}:{mqtt_client.port}")
-        except Exception as e:
-            logger.warning(f"⚠️ MQTT client initialization failed: {e}")
-            mqtt_client = None
-    else:
-        logger.info("ℹ️ MQTT broker not configured, notifications disabled")
+    mqtt_client = await _initialize_mqtt_client()
     
     # Initialize and start scheduler (Epic 39, Story 39.6)
-    try:
-        pattern_scheduler = PatternAnalysisScheduler(
-            cron_schedule=settings.analysis_schedule,
-            enable_incremental=settings.enable_incremental
-        )
-        
-        if mqtt_client:
-            pattern_scheduler.set_mqtt_client(mqtt_client)
-        
-        pattern_scheduler.start()
-        logger.info(f"✅ Pattern analysis scheduler started (schedule: {settings.analysis_schedule})")
-    except Exception as e:
-        logger.error(f"❌ Scheduler initialization failed: {e}", exc_info=True)
-        # Don't fail startup if scheduler fails - service can still handle API requests
-        pattern_scheduler = None
+    pattern_scheduler = await _initialize_scheduler(mqtt_client)
     
     logger.info("✅ AI Pattern Service startup complete")
     logger.info("=" * 60)
@@ -162,20 +199,10 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     
     # Stop scheduler (Epic 39, Story 39.6)
-    if pattern_scheduler:
-        try:
-            pattern_scheduler.stop()
-            logger.info("✅ Pattern analysis scheduler stopped")
-        except Exception as e:
-            logger.warning(f"⚠️ Error stopping scheduler: {e}")
+    await _shutdown_scheduler()
     
     # Disconnect MQTT client
-    if mqtt_client:
-        try:
-            mqtt_client.disconnect()
-            logger.info("✅ MQTT client disconnected")
-        except Exception as e:
-            logger.warning(f"⚠️ Error disconnecting MQTT client: {e}")
+    await _shutdown_mqtt_client()
 
 # Create FastAPI app
 app = FastAPI(
