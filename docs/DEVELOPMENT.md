@@ -191,6 +191,44 @@ cd services/health-dashboard
 npm run dev
 ```
 
+### Deploying Services to Docker
+
+**Recommended:** Use the deployment script for all service deployments:
+
+```powershell
+# Deploy a single service (recommended)
+.\scripts\deploy-service.ps1 -ServiceName "ai-pattern-service" -WaitForHealthy
+
+# Deploy multiple services
+.\scripts\deploy-service.ps1 -ServiceName @("ai-pattern-service", "ha-ai-agent-service") -WaitForHealthy
+
+# Quick restart (no rebuild)
+.\scripts\deploy-service.ps1 -ServiceName "data-api" -Action restart
+
+# Clean rebuild (no cache)
+.\scripts\deploy-service.ps1 -ServiceName "ai-pattern-service" -NoCache -WaitForHealthy
+```
+
+**Deployment Actions:**
+- `redeploy` (default) - Stop, rebuild, start (best for code changes)
+- `rebuild` - Rebuild image only (keeps service running)
+- `restart` - Restart only (no rebuild, fastest)
+
+**Manual Deployment (if script unavailable):**
+```powershell
+# Rebuild and restart
+docker-compose build service-name
+docker-compose up -d service-name
+
+# Check status
+docker-compose ps service-name
+
+# View logs
+docker-compose logs -f service-name
+```
+
+**See:** `scripts/README_DEPLOYMENT.md` for complete deployment documentation.
+
 ---
 
 ## 🧪 Testing
