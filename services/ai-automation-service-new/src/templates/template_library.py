@@ -4,10 +4,12 @@ Template Library
 Loads and manages versioned automation templates from JSON files.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from .template_schema import Template
 
@@ -73,7 +75,7 @@ class TemplateLibrary:
         
         logger.info(f"Loaded {sum(len(versions) for versions in self.templates.values())} template versions")
     
-    def get_template(self, template_id: str, version: int | None = None) -> Template | None:
+    def get_template(self, template_id: str, version: Optional[int] = None) -> Optional[Template]:
         """
         Get a template by ID and optional version.
         
@@ -115,7 +117,7 @@ class TemplateLibrary:
             })
         return result
     
-    def get_latest_version(self, template_id: str) -> int | None:
+    def get_latest_version(self, template_id: str) -> Optional[int]:
         """
         Get the latest version number for a template.
         
@@ -130,7 +132,7 @@ class TemplateLibrary:
         
         return max(self.templates[template_id].keys())
     
-    def template_exists(self, template_id: str, version: int | None = None) -> bool:
+    def template_exists(self, template_id: str, version: Optional[int] = None) -> bool:
         """
         Check if a template exists.
         
