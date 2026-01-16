@@ -37,6 +37,11 @@ class Suggestion(Base):
     # User feedback
     user_feedback = Column(String, nullable=True)  # approve, reject, modify
     feedback_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Hybrid Flow Integration (optional foreign keys)
+    plan_id = Column(String, nullable=True, index=True)  # Link to plans table
+    compiled_id = Column(String, nullable=True, index=True)  # Link to compiled_artifacts table
+    deployment_id = Column(String, nullable=True, index=True)  # Link to deployments table
 
 
 class AutomationVersion(Base):
@@ -66,4 +71,60 @@ class AutomationVersion(Base):
     is_active = Column(Boolean, default=True)  # Current active version
     rollback_reason = Column(Text, nullable=True)  # If rolled back, reason
     snapshot_entities = Column(Text, nullable=True)  # JSON array of entity states for restoration (Epic 51.11)
+
+
+class Plan(Base):
+    """
+    Automation plan - structured intent from LLM (template_id + parameters)
+    
+    Hybrid Flow Implementation: LLM outputs structured plan, not YAML
+    """
+    __tablename__ = "plans"
+    
+    plan_id = Column(String, primary_key=True, index=True)
+    conversation_id = Column(String, nullable=True, index=True)  # Optional link to conversation
+    template_id = Column(String, nullable=False, index=True)
+    template_version = Column(Integer, nullable=False)
+    parameters = Column(JSON, nullable=False)  # Template parameters
+    confidence = Column(Float, nullable=False)  # LLM confidence score (0.0-1.0)
+    clarifications_needed = Column(JSON, nullable=True)  # Array of clarification questions
+    safety_class = Column(String, nullable=False)  # low, medium, high, critical
+    explanation = Column(Text, nullable=True)  # LLM explanation of plan
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class CompiledArtifact(Base):
+    """
+    Compiled YAML artifact - deterministic compilation from template + plan
+    
+    Hybrid Flow Implementation: YAML is compiled, not LLM-generated
+    """
+    __tablename__ = "compiled_artifacts"
+    
+    compiled_id = Column(String, primary_key=True, index=True)
+    plan_id = Column(String, ForeignKey("plans.plan_id"), nullable=False, index=True)
+    yaml = Column(Text, nullable=False)  # Generated HA automation YAML
+    human_summary = Column(Text, nullable=False)  # Human-readable summary
+    diff_summary = Column(JSON, nullable=True)  # Array of change descriptions
+    risk_notes = Column(JSON, nullable=True)  # Array of risk warnings
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class Deployment(Base):
+    """
+    Deployment record - tracks automation deployment to Home Assistant
+    
+    Hybrid Flow Implementation: Full audit trail for deployments
+    """
+    __tablename__ = "deployments"
+    
+    deployment_id = Column(String, primary_key=True, index=True)
+    compiled_id = Column(String, ForeignKey("compiled_artifacts.compiled_id"), nullable=False, index=True)
+    ha_automation_id = Column(String, nullable=False, index=True)  # HA automation entity ID
+    status = Column(String, nullable=False, index=True)  # deployed, failed, rolled_back
+    version = Column(Integer, nullable=False, default=1)  # Deployment version
+    approved_by = Column(String, nullable=True)  # User/API key who approved
+    ui_source = Column(String, nullable=True)  # UI source (ha-agent, automation-ui, etc.)
+    deployed_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    audit_data = Column(JSON, nullable=True)  # who/when/why/template/version metadata
 

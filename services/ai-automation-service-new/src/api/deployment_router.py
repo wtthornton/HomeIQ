@@ -10,11 +10,13 @@ import logging
 from typing import Any, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..api.dependencies import DatabaseSession, get_deployment_service
 from ..api.error_handlers import handle_route_errors
+from ..database.models import CompiledArtifact, Deployment
 from ..services.deployment_service import DeploymentService
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -179,4 +181,88 @@ async def get_automation_versions(
     """
     versions = await service.get_automation_versions(automation_id)
     return {"automation_id": automation_id, "versions": versions}
+
+
+# Hybrid Flow: Deploy compiled artifact
+class DeployCompiledRequest(BaseModel):
+    """Request to deploy a compiled automation artifact."""
+    compiled_id: str = Field(..., description="Compiled artifact identifier")
+    approved_by: str | None = None
+    ui_source: str | None = None
+    audit_data: dict[str, Any] | None = None
+
+
+@router.post("/automation/deploy")
+@handle_route_errors("deploy compiled automation")
+async def deploy_compiled_automation(
+    request: DeployCompiledRequest,
+    service: Annotated[DeploymentService, Depends(get_deployment_service)] = None,
+    db: DatabaseSession = Depends()
+) -> dict[str, Any]:
+    """
+    Deploy a compiled automation artifact to Home Assistant.
+    
+    Hybrid Flow Implementation: Deploys from compiled_id (template-based flow).
+    """
+    import uuid
+    from datetime import datetime, timezone
+    
+    compiled_id = request.compiled_id
+    
+    # Get compiled artifact
+    query = select(CompiledArtifact).where(CompiledArtifact.compiled_id == compiled_id)
+    result = await db.execute(query)
+    compiled_artifact = result.scalar_one_or_none()
+    
+    if not compiled_artifact:
+        raise HTTPException(status_code=404, detail=f"Compiled artifact '{compiled_id}' not found")
+    
+    # Deploy to HA using existing deployment service
+    from ..api.dependencies import get_ha_client
+    ha_client = get_ha_client()
+    
+    try:
+        # Deploy YAML to HA
+        deployment_result = await ha_client.deploy_automation(compiled_artifact.yaml)
+        
+        # Extract automation ID from deployment result
+        ha_automation_id = deployment_result.get("automation_id") or deployment_result.get("entity_id")
+        if not ha_automation_id:
+            raise HTTPException(status_code=500, detail="Failed to extract automation ID from deployment")
+        
+        # Create deployment record
+        deployment_id = f"d_{uuid.uuid4().hex[:8]}"
+        deployment = Deployment(
+            deployment_id=deployment_id,
+            compiled_id=compiled_id,
+            ha_automation_id=ha_automation_id,
+            status="deployed",
+            version=1,
+            approved_by=request.approved_by,
+            ui_source=request.ui_source or "api",
+            deployed_at=datetime.now(timezone.utc),
+            audit_data=request.audit_data or {
+                "compiled_id": compiled_id,
+                "plan_id": compiled_artifact.plan_id,
+                "deployed_at": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        db.add(deployment)
+        await db.commit()
+        await db.refresh(deployment)
+        
+        logger.info(f"Deployed automation {ha_automation_id} from compiled artifact {compiled_id}")
+        
+        return {
+            "deployment_id": deployment_id,
+            "compiled_id": compiled_id,
+            "ha_automation_id": ha_automation_id,
+            "status": "deployed",
+            "version": 1
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to deploy compiled automation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to deploy automation: {str(e)}")
 

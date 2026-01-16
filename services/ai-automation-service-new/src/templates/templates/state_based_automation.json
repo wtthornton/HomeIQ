@@ -1,0 +1,73 @@
+{
+  "template_id": "state_based_automation",
+  "version": 1,
+  "description": "Generic state-based automation (state change triggers action)",
+  "required_capabilities": {
+    "sensors": [],
+    "devices": [],
+    "services": []
+  },
+  "parameter_schema": {
+    "trigger_entity": {
+      "type": "string",
+      "required": true,
+      "description": "Entity ID that triggers the automation"
+    },
+    "trigger_state": {
+      "type": "string",
+      "required": true,
+      "description": "State value that triggers (e.g., 'on', 'off', 'open', 'closed')"
+    },
+    "action_service": {
+      "type": "string",
+      "required": true,
+      "description": "Service to call (e.g., 'light.turn_on')"
+    },
+    "target_entity": {
+      "type": "string",
+      "required": false,
+      "description": "Target entity ID"
+    },
+    "target_area": {
+      "type": "string",
+      "required": false,
+      "description": "Target area ID"
+    },
+    "action_data": {
+      "type": "object",
+      "required": false,
+      "description": "Additional action data"
+    }
+  },
+  "safety_class": "low",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": {
+      "platform": "state",
+      "entity_id": "{{trigger_entity}}",
+      "to": "{{trigger_state}}"
+    },
+    "condition": null,
+    "action": {
+      "service": "{{action_service}}",
+      "target": {
+        "entity_id": "{{target_entity}}",
+        "area_id": "{{target_area}}"
+      },
+      "data": "{{action_data}}"
+    },
+    "alias_template": "{{trigger_entity}} → {{action_service}}",
+    "description_template": "When {{trigger_entity}} changes to {{trigger_state}}, call {{action_service}}"
+  },
+  "examples": [
+    {
+      "trigger_entity": "binary_sensor.door_sensor",
+      "trigger_state": "on",
+      "action_service": "light.turn_on",
+      "target_area": "entryway",
+      "action_data": {
+        "brightness_pct": 100
+      }
+    }
+  ]
+}

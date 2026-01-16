@@ -15,6 +15,7 @@ import yaml
 from ..clients.ai_automation_client import AIAutomationClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
+from ..clients.hybrid_flow_client import HybridFlowClient
 from ..clients.yaml_validation_client import YAMLValidationClient
 from ..models.automation_models import (
     AutomationPreview,
@@ -59,6 +60,8 @@ class HAToolHandler:
         entity_resolution_service: Optional[EntityResolutionService] = None,
         business_rule_validator: Optional[BusinessRuleValidator] = None,
         validation_chain: Optional[ValidationChain] = None,
+        hybrid_flow_client: HybridFlowClient | None = None,
+        use_hybrid_flow: bool = True,
     ):
         """
         Initialize tool handler.
@@ -78,6 +81,8 @@ class HAToolHandler:
         self.ai_automation_client = ai_automation_client
         self.yaml_validation_client = yaml_validation_client
         self.openai_client = openai_client
+        self.hybrid_flow_client = hybrid_flow_client
+        self.use_hybrid_flow = use_hybrid_flow
         self._enhancement_service = None
 
         # Initialize services (create if not provided)
@@ -104,10 +109,154 @@ class HAToolHandler:
             strategies.append(BasicValidationStrategy(self))
             validation_chain = ValidationChain(strategies)
         self.validation_chain = validation_chain
+    
+    async def _preview_with_hybrid_flow(
+        self,
+        user_prompt: str,
+        conversation_id: str | None,
+        arguments: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Preview automation using Hybrid Flow (template-based).
+        
+        Flow: plan → validate → compile → preview
+        
+        Args:
+            user_prompt: User's natural language request
+            conversation_id: Optional conversation ID
+            arguments: Additional tool arguments
+        
+        Returns:
+            Preview response dictionary
+        """
+        if not self.hybrid_flow_client:
+            raise ValueError("Hybrid Flow client not initialized")
+        
+        # Step 1: Create plan (LLM selects template + parameters)
+        try:
+            context = arguments.get("context", {})
+            plan_response = await self.hybrid_flow_client.create_plan(
+                user_text=user_prompt,
+                conversation_id=conversation_id,
+                context=context
+            )
+            
+            plan_id = plan_response["plan_id"]
+            template_id = plan_response["template_id"]
+            template_version = plan_response["template_version"]
+            parameters = plan_response["parameters"]
+            confidence = plan_response.get("confidence", 0.0)
+            clarifications_needed = plan_response.get("clarifications_needed", [])
+            
+            logger.info(
+                f"[Preview-Hybrid] Plan created: {plan_id}, template={template_id}, "
+                f"confidence={confidence:.2f} (conversation_id={conversation_id or 'N/A'})"
+            )
+            
+            # Step 2: Check if clarifications needed
+            if clarifications_needed:
+                return {
+                    "success": False,
+                    "requires_clarification": True,
+                    "clarifications_needed": clarifications_needed,
+                    "plan_id": plan_id,
+                    "template_id": template_id,
+                    "confidence": confidence,
+                    "message": "I need more information to create this automation. Please answer the following questions:",
+                    "conversation_id": conversation_id
+                }
+            
+            # Step 3: Validate plan
+            validate_response = await self.hybrid_flow_client.validate_plan(
+                plan_id=plan_id,
+                template_id=template_id,
+                template_version=template_version,
+                parameters=parameters
+            )
+            
+            if not validate_response["valid"]:
+                return {
+                    "success": False,
+                    "validation_errors": validate_response["validation_errors"],
+                    "plan_id": plan_id,
+                    "message": "The automation plan has validation errors. Please review and correct them.",
+                    "conversation_id": conversation_id
+                }
+            
+            resolved_context = validate_response["resolved_context"]
+            safety_info = validate_response["safety"]
+            
+            # Step 4: Compile to YAML
+            compile_response = await self.hybrid_flow_client.compile_plan(
+                plan_id=plan_id,
+                template_id=template_id,
+                template_version=template_version,
+                parameters=parameters,
+                resolved_context=resolved_context
+            )
+            
+            compiled_id = compile_response["compiled_id"]
+            yaml_content = compile_response["yaml"]
+            human_summary = compile_response["human_summary"]
+            risk_notes = compile_response.get("risk_notes", [])
+            
+            logger.info(
+                f"[Preview-Hybrid] Compiled: {compiled_id}, "
+                f"plan={plan_id} (conversation_id={conversation_id or 'N/A'})"
+            )
+            
+            # Step 5: Validate compiled YAML
+            validation_result = await self.validation_chain.validate(yaml_content)
+            
+            # Step 6: Extract automation details for preview
+            automation_dict = yaml.safe_load(yaml_content)
+            extraction_result = self._extract_automation_details(automation_dict)
+            
+            # Build preview response using existing helper
+            request = AutomationPreviewRequest(
+                user_prompt=user_prompt,
+                automation_yaml=yaml_content,
+                alias=automation_dict.get("alias", human_summary.split("|")[0] if human_summary else "Automation"),
+                conversation_id=conversation_id
+            )
+            
+            safety_warnings = []
+            if risk_notes:
+                safety_warnings = [note.get("message", "") for note in risk_notes if note.get("message")]
+            
+            if safety_info.get("requires_confirmation"):
+                safety_warnings.append("This automation requires confirmation due to safety classification")
+            
+            return self._build_preview_response(
+                request=request,
+                automation_dict=automation_dict,
+                validation_result=validation_result,
+                extraction_result=extraction_result,
+                safety_warnings=safety_warnings,
+                conversation_id=conversation_id,
+                hybrid_flow_data={
+                    "plan_id": plan_id,
+                    "compiled_id": compiled_id,
+                    "template_id": template_id,
+                    "confidence": confidence,
+                    "human_summary": human_summary
+                }
+            )
+            
+        except Exception as e:
+            logger.error(
+                f"[Preview-Hybrid] Error in hybrid flow: {e}",
+                exc_info=True
+            )
+            raise
 
     async def preview_automation_from_prompt(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """
         Generate a detailed preview of a Home Assistant automation.
+
+        Hybrid Flow Implementation: If use_hybrid_flow=True and automation_yaml is not provided,
+        uses template-based flow (plan → validate → compile → preview).
+        Otherwise, uses legacy direct YAML flow for backward compatibility.
 
         This tool ONLY generates a preview - it does NOT create the automation.
         The preview includes automation details, YAML validation, entities affected,
@@ -115,9 +264,9 @@ class HAToolHandler:
 
         Args:
             arguments: Tool arguments containing:
-                - user_prompt: The user's natural language request
-                - automation_yaml: The complete automation YAML
-                - alias: Automation alias/name
+                - user_prompt: The user's natural language request (required)
+                - automation_yaml: The complete automation YAML (optional if using hybrid flow)
+                - alias: Automation alias/name (optional if using hybrid flow)
                 - conversation_id: Optional conversation ID for traceability
 
         Returns:
@@ -125,7 +274,24 @@ class HAToolHandler:
         """
         # Extract conversation_id for traceability
         conversation_id = arguments.get("conversation_id")
+        user_prompt = arguments.get("user_prompt", "")
         
+        # Hybrid Flow: If enabled and no YAML provided, use template-based flow
+        if self.use_hybrid_flow and self.hybrid_flow_client and not arguments.get("automation_yaml"):
+            try:
+                logger.info(
+                    f"[Preview-Hybrid] Using Hybrid Flow for: '{user_prompt[:100]}...' "
+                    f"(conversation_id={conversation_id or 'N/A'})"
+                )
+                return await self._preview_with_hybrid_flow(user_prompt, conversation_id, arguments)
+            except Exception as e:
+                logger.warning(
+                    f"[Preview-Hybrid] Hybrid flow failed, falling back to legacy: {e}",
+                    exc_info=True
+                )
+                # Fall through to legacy flow
+        
+        # Legacy Flow: Direct YAML preview (backward compatibility)
         # Create and validate request
         request = AutomationPreviewRequest.from_dict(arguments)
         validation_error = self._validate_preview_request(request)
@@ -219,16 +385,16 @@ class HAToolHandler:
         """
         Create a Home Assistant automation from a user prompt.
 
-        This is the ONLY tool available. It handles:
-        - YAML validation
-        - Automation creation in Home Assistant
-        - Error handling and reporting
+        Hybrid Flow Implementation: If use_hybrid_flow=True and compiled_id is provided,
+        uses template-based deployment (deploy compiled artifact).
+        Otherwise, uses legacy direct YAML deployment for backward compatibility.
 
         Args:
             arguments: Tool arguments containing:
-                - user_prompt: The user's natural language request
-                - automation_yaml: The complete automation YAML
-                - alias: Automation alias/name
+                - user_prompt: The user's natural language request (required)
+                - automation_yaml: The complete automation YAML (optional if using hybrid flow)
+                - alias: Automation alias/name (optional if using hybrid flow)
+                - compiled_id: Compiled artifact ID (optional, for hybrid flow)
                 - conversation_id: Optional conversation ID for traceability
 
         Returns:
@@ -236,7 +402,24 @@ class HAToolHandler:
         """
         # Extract conversation_id for traceability
         conversation_id = arguments.get("conversation_id")
+        compiled_id = arguments.get("compiled_id")
         
+        # Hybrid Flow: If enabled and compiled_id provided, deploy compiled artifact
+        if self.use_hybrid_flow and self.hybrid_flow_client and compiled_id:
+            try:
+                logger.info(
+                    f"[Create-Hybrid] Deploying compiled artifact: {compiled_id} "
+                    f"(conversation_id={conversation_id or 'N/A'})"
+                )
+                return await self._create_with_hybrid_flow(compiled_id, conversation_id, arguments)
+            except Exception as e:
+                logger.warning(
+                    f"[Create-Hybrid] Hybrid flow failed, falling back to legacy: {e}",
+                    exc_info=True
+                )
+                # Fall through to legacy flow
+        
+        # Legacy Flow: Direct YAML deployment (backward compatibility)
         # Validate required arguments
         validation_error = self._validate_create_arguments(arguments)
         if validation_error:
@@ -298,6 +481,59 @@ class HAToolHandler:
             return self._build_error_response(
                 f"Unexpected error: {str(e)}", user_prompt, alias
             )
+    
+    async def _create_with_hybrid_flow(
+        self,
+        compiled_id: str,
+        conversation_id: str | None,
+        arguments: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Create automation using Hybrid Flow (deploy compiled artifact).
+        
+        Args:
+            compiled_id: Compiled artifact identifier
+            conversation_id: Optional conversation ID
+            arguments: Additional tool arguments
+        
+        Returns:
+            Creation result dictionary
+        """
+        if not self.hybrid_flow_client:
+            raise ValueError("Hybrid Flow client not initialized")
+        
+        try:
+            # Deploy compiled artifact
+            deployment_response = await self.hybrid_flow_client.deploy_compiled(
+                compiled_id=compiled_id,
+                approved_by=arguments.get("approved_by"),
+                ui_source="ha-ai-agent"
+            )
+            
+            deployment_id = deployment_response["deployment_id"]
+            ha_automation_id = deployment_response["ha_automation_id"]
+            
+            logger.info(
+                f"[Create-Hybrid] Deployed: {ha_automation_id}, "
+                f"deployment={deployment_id} (conversation_id={conversation_id or 'N/A'})"
+            )
+            
+            return {
+                "success": True,
+                "automation_id": ha_automation_id,
+                "deployment_id": deployment_id,
+                "compiled_id": compiled_id,
+                "message": f"Automation '{ha_automation_id}' created successfully using Hybrid Flow",
+                "conversation_id": conversation_id,
+                "hybrid_flow": True
+            }
+            
+        except Exception as e:
+            logger.error(
+                f"[Create-Hybrid] Error deploying compiled artifact: {e}",
+                exc_info=True
+            )
+            raise
 
 
     def _is_group_entity(self, entity_id: str) -> bool:
@@ -396,6 +632,7 @@ class HAToolHandler:
         extraction_result: dict[str, list[str]],
         safety_warnings: list[str],
         conversation_id: str | None = None,
+        hybrid_flow_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Build preview response DTO.
@@ -443,6 +680,14 @@ class HAToolHandler:
             message="Preview generated successfully. Review the details above and approve to create the automation.",
         )
         
+        # Add hybrid flow metadata if available
+        response_dict = response.to_dict()
+        if hybrid_flow_data:
+            response_dict["hybrid_flow"] = hybrid_flow_data
+            # Include compiled_id for deployment
+            if "compiled_id" in hybrid_flow_data:
+                response_dict["compiled_id"] = hybrid_flow_data["compiled_id"]
+        
         # Add safety score to response metadata if available (enhanced validation)
         # Note: This may require updating AutomationPreviewResponse model to include safety_score
 
@@ -454,7 +699,7 @@ class HAToolHandler:
             f"Safety warnings: {len(safety_warnings)}"
         )
 
-        return response.to_dict()
+        return response_dict
 
     def _handle_yaml_error(
         self, error: Exception, request: AutomationPreviewRequest, conversation_id: str | None = None
