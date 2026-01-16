@@ -65,10 +65,10 @@ async def generate_suggestions(
 @router.get("/list")
 @handle_route_errors("list suggestions")
 async def list_suggestions(
+    service: Annotated[SuggestionService, Depends(get_suggestion_service)],
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    status: str | None = Query(None),
-    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
+    status: str | None = Query(None)
 ) -> dict[str, Any]:
     """
     List automation suggestions with filtering and pagination.
