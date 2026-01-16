@@ -196,8 +196,8 @@ class DeployCompiledRequest(BaseModel):
 @handle_route_errors("deploy compiled automation")
 async def deploy_compiled_automation(
     request: DeployCompiledRequest,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)] = None,
-    db: DatabaseSession = Depends()
+    db: DatabaseSession,
+    service: Annotated[DeploymentService, Depends(get_deployment_service)] = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """
     Deploy a compiled automation artifact to Home Assistant.
