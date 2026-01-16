@@ -108,6 +108,48 @@ description: Development environment setup and configuration
 - Use containerization for deployment
 - Use infrastructure as code where possible
 
+### Docker Service Deployment
+
+**Recommended:** Use the deployment script for all service deployments:
+
+```powershell
+# Deploy a single service (recommended)
+.\scripts\deploy-service.ps1 -ServiceName "ai-pattern-service" -WaitForHealthy
+
+# Deploy multiple services
+.\scripts\deploy-service.ps1 -ServiceName @("ai-pattern-service", "ha-ai-agent-service") -WaitForHealthy
+
+# Quick restart (no rebuild)
+.\scripts\deploy-service.ps1 -ServiceName "data-api" -Action restart
+
+# Clean rebuild (no cache)
+.\scripts\deploy-service.ps1 -ServiceName "ai-pattern-service" -NoCache -WaitForHealthy
+```
+
+**Deployment Actions:**
+- `redeploy` (default) - Stop, rebuild, start (best for code changes)
+- `rebuild` - Rebuild image only (keeps service running)
+- `restart` - Restart only (no rebuild, fastest)
+
+**Best Practices:**
+- Always use `-WaitForHealthy` for production deployments
+- Use `-CheckLogs` to verify deployment success
+- Deploy services in dependency order (infrastructure → core → application → UI)
+- See `scripts/README_DEPLOYMENT.md` for complete documentation
+
+**Manual Deployment (if script unavailable):**
+```powershell
+# Rebuild and restart
+docker-compose build service-name
+docker-compose up -d service-name
+
+# Check status
+docker-compose ps service-name
+
+# View logs
+docker-compose logs -f service-name
+```
+
 ## PowerShell Commands (Windows)
 
 ### ⚠️ CRITICAL: Never Use Unix-Style curl Commands

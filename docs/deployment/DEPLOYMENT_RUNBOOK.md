@@ -547,6 +547,23 @@ influxdb (direct writes)
 
 **Use this method for local deployments or when automation is unavailable:**
 
+**⚠️ RECOMMENDED: Use the deployment script for easier deployments:**
+
+```powershell
+# Deploy single service with health check (recommended)
+.\scripts\deploy-service.ps1 -ServiceName "ai-pattern-service" -WaitForHealthy
+
+# Deploy multiple services
+.\scripts\deploy-service.ps1 -ServiceName @("ai-pattern-service", "ha-ai-agent-service") -WaitForHealthy
+
+# Quick restart (no rebuild)
+.\scripts\deploy-service.ps1 -ServiceName "data-api" -Action restart
+```
+
+**See:** `scripts/README_DEPLOYMENT.md` for complete deployment script documentation.
+
+**Manual Steps (if script unavailable):**
+
 #### Step 1: Pre-Deployment Validation
 
 ```bash

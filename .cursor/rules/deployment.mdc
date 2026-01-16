@@ -1,0 +1,211 @@
+---
+alwaysApply: false
+description: Docker service deployment guidelines and best practices
+---
+
+# Docker Service Deployment Guide
+
+## Quick Reference
+
+**Recommended:** Use the deployment script for all service deployments:
+
+```powershell
+# Deploy single service (recommended)
+.\scripts\deploy-service.ps1 -ServiceName "ai-pattern-service" -WaitForHealthy
+
+# Deploy multiple services
+.\scripts\deploy-service.ps1 -ServiceName @("ai-pattern-service", "ha-ai-agent-service") -WaitForHealthy
+
+# Quick restart (no rebuild)
+.\scripts\deploy-service.ps1 -ServiceName "data-api" -Action restart
+
+# Clean rebuild (no cache)
+.\scripts\deploy-service.ps1 -ServiceName "ai-pattern-service" -NoCache -WaitForHealthy
+```
+
+## Deployment Script: deploy-service.ps1
+
+### Purpose
+
+General-purpose deployment script that can rebuild, restart, or redeploy any service or set of services with proper error handling and health checks.
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `ServiceName` | `string[]` | Yes | Service name(s) to deploy (can be multiple) |
+| `Action` | `string` | No | Action: `rebuild`, `restart`, or `redeploy` (default: `redeploy`) |
+| `WaitForHealthy` | `switch` | No | Wait for service health check to pass |
+| `CheckLogs` | `switch` | No | Show service logs after deployment |
+| `NoCache` | `switch` | No | Build without using Docker cache |
+| `Verbose` | `switch` | No | Show detailed output |
+
+### Actions
+
+1. **redeploy** (default)
+   - Stops the service
+   - Rebuilds the Docker image
+   - Starts the service
+   - **Best for:** Deploying code changes
+
+2. **rebuild**
+   - Rebuilds the Docker image
+   - Service keeps running (uses existing container)
+   - **Best for:** Testing builds without downtime
+
+3. **restart**
+   - Restarts the service without rebuilding
+   - **Best for:** Configuration changes or quick restarts
+
+## Deployment Workflows
+
+### Workflow 1: Deploy Code Changes
+
+```powershell
+# 1. Make code changes
+# 2. Deploy with health check
+.\scripts\deploy-service.ps1 -ServiceName "ai-pattern-service" -WaitForHealthy
+
+# 3. Verify
+Invoke-RestMethod -Uri "http://localhost:8020/health"
+```
+
+### Workflow 2: Update Multiple Related Services
+
+```powershell
+# Deploy all related services at once
+.\scripts\deploy-service.ps1 -ServiceName @(
+    "ai-pattern-service",
+    "ha-ai-agent-service"
+) -WaitForHealthy
+```
+
+### Workflow 3: Emergency Restart
+
+```powershell
+# Quick restart without rebuild (fastest)
+.\scripts\deploy-service.ps1 -ServiceName "data-api" -Action restart
+```
+
+### Workflow 4: Clean Rebuild
+
+```powershell
+# Clean rebuild (no cache)
+.\scripts\deploy-service.ps1 -ServiceName "ai-pattern-service" -NoCache -WaitForHealthy
+```
+
+## Service Dependencies
+
+Deploy services in dependency order:
+
+1. **Infrastructure services first:**
+   - `influxdb`
+   - `jaeger`
+
+2. **Core services:**
+   - `data-api`
+   - `websocket-ingestion`
+
+3. **Application services:**
+   - `ai-pattern-service`
+   - `ha-ai-agent-service`
+   - `api-automation-edge`
+
+4. **UI services:**
+   - `health-dashboard`
+   - `ai-automation-ui`
+
+## Best Practices
+
+1. **Always use `-WaitForHealthy`** for production deployments
+2. **Use `-CheckLogs`** to verify deployment success
+3. **Use `-NoCache`** if you suspect build cache issues
+4. **Deploy services in dependency order** (services that depend on others should be deployed after their dependencies)
+5. **Test in development** before deploying to production
+
+## Manual Deployment (Fallback)
+
+If the deployment script is unavailable:
+
+```powershell
+# Rebuild and restart
+docker-compose build service-name
+docker-compose up -d service-name
+
+# Check status
+docker-compose ps service-name
+
+# View logs
+docker-compose logs -f service-name
+
+# Health check
+Invoke-RestMethod -Uri "http://localhost:<port>/health"
+```
+
+## Troubleshooting
+
+### Service Not Found
+
+**Error:** `❌ The following services were not found in docker-compose.yml`
+
+**Solution:**
+```powershell
+# List available services
+docker-compose config --services
+```
+
+### Build Fails
+
+**Error:** `❌ Failed to build <service>`
+
+**Solution:**
+```powershell
+# Check build logs
+docker-compose build <service> --no-cache
+
+# Check for syntax errors
+docker-compose config
+```
+
+### Service Not Healthy
+
+**Error:** `⚠ Service did not become healthy within 120 seconds`
+
+**Solution:**
+```powershell
+# Check service logs
+docker-compose logs <service>
+
+# Check service status
+docker-compose ps <service>
+
+# Check health endpoint manually
+Invoke-RestMethod -Uri "http://localhost:<port>/health"
+```
+
+## Service Status Commands
+
+```powershell
+# Check all services
+docker-compose ps
+
+# Check specific service
+docker-compose ps service-name
+
+# View logs
+docker-compose logs -f service-name
+
+# Health check
+Invoke-RestMethod -Uri "http://localhost:<port>/health"
+```
+
+## Related Documentation
+
+- **Deployment Script Guide:** `scripts/README_DEPLOYMENT.md`
+- **Code and Docker Review:** `implementation/CODE_AND_DOCKER_REVIEW_20260116.md`
+- **Deployment Runbook:** `docs/deployment/DEPLOYMENT_RUNBOOK.md`
+- **Development Environment:** `.cursor/rules/development-environment.mdc`
+
+---
+
+**Last Updated:** January 16, 2026

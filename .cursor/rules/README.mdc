@@ -35,6 +35,7 @@ This project uses **TappsCodingAgents** for AI-assisted development with compreh
 - **documentation-standards.mdc** - Documentation standards and formatting
 - **security-best-practices.mdc** - Security best practices and guidelines
 - **epic-31-architecture.mdc** - Current architecture patterns (Epic 31)
+- **deployment.mdc** - Docker service deployment guidelines and best practices
 
 ### Support Rules
 - **simple-mode-tool-invocation.mdc** - Tool invocation helper
