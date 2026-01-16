@@ -1,0 +1,28 @@
+# Observability Dashboard Service Dependencies
+# Python 3.11+
+
+# Streamlit Framework
+streamlit>=1.28.0,<2.0.0
+
+# OpenTelemetry
+opentelemetry-api>=1.21.0,<2.0.0
+opentelemetry-sdk>=1.21.0,<2.0.0
+opentelemetry-exporter-otlp-proto-grpc>=1.21.0,<2.0.0
+
+# Data & Visualization
+pandas>=2.0.0,<3.0.0
+plotly>=5.17.0,<6.0.0
+networkx>=3.2.0,<4.0.0
+
+# InfluxDB Client
+influxdb-client>=1.38.0,<2.0.0
+
+# HTTP Clients
+httpx>=0.25.0,<1.0.0
+aiohttp>=3.9.0,<4.0.0
+websockets>=12.0,<13.0.0
+
+# Utilities
+python-dotenv>=1.0.0,<2.0.0
+pydantic>=2.5.0,<3.0.0
+nest-asyncio>=1.5.0,<2.0.0
