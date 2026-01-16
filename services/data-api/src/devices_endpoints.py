@@ -1428,6 +1428,69 @@ async def bulk_upsert_entities(
         await db.commit()
 
         logger.info(f"Bulk upserted {upserted_count} entities from HA discovery")
+        
+        # After entity sync, trigger classification for devices with newly linked entities
+        # This ensures devices get classified when entities are synced
+        try:
+            classifier_service = get_classifier_service()
+            # Get devices that have entities but are unclassified
+            unclassified_devices_query = select(Device).join(Entity, Device.device_id == Entity.device_id).where(
+                or_(
+                    Device.device_type.is_(None),
+                    Device.device_type == ''
+                )
+            ).distinct().limit(100)  # Limit to avoid long operations
+            
+            unclassified_result = await db.execute(unclassified_devices_query)
+            unclassified_devices = unclassified_result.scalars().all()
+            
+            if unclassified_devices:
+                logger.info(f"Triggering automatic classification for {len(unclassified_devices)} devices with newly synced entities")
+                classified_count = 0
+                
+                for device in unclassified_devices:
+                    try:
+                        # Get entities for this device
+                        entities_query = select(Entity).where(Entity.device_id == device.device_id)
+                        entities_result = await db.execute(entities_query)
+                        entities = entities_result.scalars().all()
+                        
+                        # Extract entity domains
+                        entity_domains = [e.domain for e in entities if e.domain]
+                        entity_ids = [e.entity_id for e in entities]
+                        
+                        # Classify device
+                        if entity_domains:
+                            classification = await classifier_service.classify_device_from_domains(
+                                device.device_id,
+                                entity_domains,
+                                entity_ids
+                            )
+                        else:
+                            # Fallback to metadata classification
+                            classification = classifier_service.classify_device_by_metadata(
+                                device.device_id,
+                                device.name or "",
+                                device.manufacturer,
+                                device.model
+                            )
+                        
+                        # Update device if classification succeeded
+                        if classification.get("device_type"):
+                            device.device_type = classification.get("device_type")
+                            device.device_category = classification.get("device_category")
+                            classified_count += 1
+                            
+                    except Exception as e:
+                        logger.warning(f"Failed to auto-classify device {device.device_id}: {e}")
+                        continue
+                
+                if classified_count > 0:
+                    await db.commit()
+                    logger.info(f"Auto-classified {classified_count} devices after entity sync")
+        except Exception as e:
+            # Don't fail entity sync if classification fails
+            logger.warning(f"Automatic classification after entity sync failed: {e}")
 
         return {
             "success": True,
@@ -2044,6 +2107,55 @@ async def link_entities_to_devices(
         
         # Commit all changes
         await db.commit()
+        
+        # After linking entities, trigger classification for affected devices
+        if linked_count > 0:
+            try:
+                logger.info(f"Triggering automatic classification for devices with newly linked entities")
+                classifier_service = get_classifier_service()
+                
+                # Get devices that had entities linked
+                device_ids_with_linked_entities = {entity.device_id for entity in entities if entity.device_id}
+                
+                classified_count = 0
+                for device_id in device_ids_with_linked_entities:
+                    try:
+                        device = await db.get(Device, device_id)
+                        if not device or (device.device_type and device.device_type != ''):
+                            continue  # Skip if already classified
+                        
+                        # Get entities for this device
+                        entities_query = select(Entity).where(Entity.device_id == device_id)
+                        entities_result = await db.execute(entities_query)
+                        device_entities = entities_result.scalars().all()
+                        
+                        # Extract entity domains
+                        entity_domains = [e.domain for e in device_entities if e.domain]
+                        entity_ids = [e.entity_id for e in device_entities]
+                        
+                        # Classify device using domains (now that entities are linked)
+                        if entity_domains:
+                            classification = await classifier_service.classify_device_from_domains(
+                                device_id,
+                                entity_domains,
+                                entity_ids
+                            )
+                            
+                            if classification.get("device_type"):
+                                device.device_type = classification.get("device_type")
+                                device.device_category = classification.get("device_category")
+                                classified_count += 1
+                                logger.debug(f"Classified device {device_id} ({device.name}) as {classification.get('device_type')} after entity linking")
+                    except Exception as e:
+                        logger.warning(f"Failed to classify device {device_id} after linking: {e}")
+                        continue
+                
+                if classified_count > 0:
+                    await db.commit()
+                    logger.info(f"Auto-classified {classified_count} devices after entity linking")
+            except Exception as e:
+                # Don't fail entity linking if classification fails
+                logger.warning(f"Automatic classification after entity linking failed: {e}")
         
         return {
             "message": f"Linked {linked_count} entities to devices",

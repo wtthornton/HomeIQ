@@ -1,0 +1,76 @@
+{
+  "template_id": "temperature_control",
+  "version": 1,
+  "description": "Control HVAC based on temperature threshold",
+  "required_capabilities": {
+    "sensors": ["temperature"],
+    "devices": ["climate"],
+    "services": ["climate.set_temperature"]
+  },
+  "parameter_schema": {
+    "sensor_entity": {
+      "type": "string",
+      "required": true,
+      "description": "Temperature sensor entity ID"
+    },
+    "target_temperature": {
+      "type": "float",
+      "required": true,
+      "description": "Target temperature in Celsius"
+    },
+    "threshold_above": {
+      "type": "float",
+      "required": false,
+      "description": "Trigger when temperature is above this value"
+    },
+    "threshold_below": {
+      "type": "float",
+      "required": false,
+      "description": "Trigger when temperature is below this value"
+    },
+    "hvac_entity": {
+      "type": "string",
+      "required": true,
+      "description": "Climate/HVAC entity ID"
+    },
+    "hvac_mode": {
+      "type": "string",
+      "enum": ["heat", "cool", "auto"],
+      "default": "auto",
+      "description": "HVAC mode"
+    }
+  },
+  "safety_class": "medium",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": {
+      "platform": "numeric_state",
+      "entity_id": "{{sensor_entity}}",
+      "above": "{{threshold_above}}",
+      "below": "{{threshold_below}}"
+    },
+    "condition": null,
+    "action": {
+      "service": "climate.set_temperature",
+      "target": {
+        "entity_id": "{{hvac_entity}}"
+      },
+      "data": {
+        "temperature": "{{target_temperature}}",
+        "hvac_mode": "{{hvac_mode}}"
+      }
+    },
+    "alias_template": "Temperature Control: {{target_temperature}}°C",
+    "description_template": "Maintain {{target_temperature}}°C using {{hvac_entity}}"
+  },
+  "examples": [
+    {
+      "sensor_entity": "sensor.office_temperature",
+      "target_temperature": 22.0,
+      "threshold_above": 23.0,
+      "threshold_below": 21.0,
+      "hvac_entity": "climate.office",
+      "hvac_mode": "auto"
+    }
+  ]
+}

@@ -60,7 +60,19 @@ except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
-from .api import health_router, suggestion_router, deployment_router, pattern_router, synergy_router
+from .api import (
+    analysis_router,
+    automation_compile_router,
+    automation_lifecycle_router,
+    automation_plan_router,
+    automation_validate_router,
+    health_router,
+    pattern_router,
+    preference_router,
+    suggestion_router,
+    deployment_router,
+    synergy_router,
+)
 from .api.middlewares import (
     AuthenticationMiddleware,
     RateLimitMiddleware,
@@ -291,8 +303,6 @@ app.add_middleware(AuthenticationMiddleware)
 app.add_middleware(RateLimitMiddleware)
 
 # Include routers
-from .api import analysis_router, preference_router
-
 app.include_router(health_router, tags=["health"])
 app.include_router(suggestion_router, tags=["suggestions"])
 app.include_router(deployment_router, tags=["deployment"])
@@ -300,6 +310,10 @@ app.include_router(pattern_router.router, tags=["patterns"])
 app.include_router(synergy_router.router, tags=["synergies"])
 app.include_router(analysis_router.router, tags=["analysis"])
 app.include_router(preference_router.router, tags=["preferences"])
+app.include_router(automation_plan_router.router, tags=["automation"])  # Hybrid Flow: Intent → Plan
+app.include_router(automation_validate_router.router, tags=["automation"])  # Hybrid Flow: Validate Plan
+app.include_router(automation_compile_router.router, tags=["automation"])  # Hybrid Flow: Compile Plan → YAML
+app.include_router(automation_lifecycle_router.router, tags=["automation"])  # Hybrid Flow: Lifecycle Tracking
 
 @app.get("/")
 async def root() -> dict[str, str]:

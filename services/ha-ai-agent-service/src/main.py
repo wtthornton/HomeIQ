@@ -132,6 +132,14 @@ async def lifespan(_app: FastAPI):
         )
         logger.info(f"✅ AI Automation Service client initialized ({settings.ai_automation_service_url})")
         
+        # Initialize Hybrid Flow Client (Hybrid Flow Implementation)
+        from .clients.hybrid_flow_client import HybridFlowClient
+        hybrid_flow_client = HybridFlowClient(
+            base_url=settings.ai_automation_service_url,
+            api_key=settings.ai_automation_api_key
+        )
+        logger.info(f"✅ Hybrid Flow client initialized ({settings.ai_automation_service_url})")
+        
         # Initialize YAML Validation Service client (Epic 51, Story 51.5)
         from .clients.yaml_validation_client import YAMLValidationClient
         yaml_validation_client = YAMLValidationClient(
@@ -144,7 +152,18 @@ async def lifespan(_app: FastAPI):
         openai_client = OpenAIClient(settings)
         logger.info("✅ OpenAI client initialized")
         
-        tool_service = ToolService(ha_client, data_api_client, ai_automation_client, yaml_validation_client, openai_client.client if openai_client else None)
+        tool_service = ToolService(
+            ha_client, 
+            data_api_client, 
+            ai_automation_client, 
+            yaml_validation_client, 
+            openai_client.client if openai_client else None
+        )
+        # Update tool handler with hybrid flow client and settings
+        if hasattr(tool_service, 'tool_handler'):
+            tool_service.tool_handler.hybrid_flow_client = hybrid_flow_client
+            tool_service.tool_handler.use_hybrid_flow = settings.use_hybrid_flow
+            logger.info(f"✅ Hybrid Flow enabled: {settings.use_hybrid_flow}")
         logger.info("✅ Tool service initialized")
 
         # Initialize conversation service (Epic AI-20)

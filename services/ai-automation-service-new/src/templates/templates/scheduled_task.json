@@ -1,0 +1,64 @@
+{
+  "template_id": "scheduled_task",
+  "version": 1,
+  "description": "Execute action on a schedule (cron pattern)",
+  "required_capabilities": {
+    "services": []
+  },
+  "parameter_schema": {
+    "schedule_pattern": {
+      "type": "string",
+      "required": true,
+      "description": "Cron pattern or time pattern (e.g., '/15' for every 15 minutes, '07:00:00' for specific time)"
+    },
+    "action_service": {
+      "type": "string",
+      "required": true,
+      "description": "Service to call (e.g., 'light.turn_on')"
+    },
+    "target_entity": {
+      "type": "string",
+      "required": false,
+      "description": "Target entity ID"
+    },
+    "target_area": {
+      "type": "string",
+      "required": false,
+      "description": "Target area ID"
+    },
+    "action_data": {
+      "type": "object",
+      "required": false,
+      "description": "Additional action data"
+    }
+  },
+  "safety_class": "low",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": {
+      "platform": "time_pattern",
+      "minutes": "{{schedule_pattern}}"
+    },
+    "condition": null,
+    "action": {
+      "service": "{{action_service}}",
+      "target": {
+        "entity_id": "{{target_entity}}",
+        "area_id": "{{target_area}}"
+      },
+      "data": "{{action_data}}"
+    },
+    "alias_template": "Scheduled: {{action_service}}",
+    "description_template": "Execute {{action_service}} on schedule {{schedule_pattern}}"
+  },
+  "examples": [
+    {
+      "schedule_pattern": "/15",
+      "action_service": "light.turn_on",
+      "target_area": "office",
+      "action_data": {
+        "brightness_pct": 100
+      }
+    }
+  ]
+}

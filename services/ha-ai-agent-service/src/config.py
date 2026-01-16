@@ -33,12 +33,18 @@ class Settings(BaseSettings):
 
     # AI Automation Service Configuration
     ai_automation_service_url: str = Field(
-        default="http://ai-automation-service:8018",
-        description="AI Automation Service URL for YAML validation"
+        default="http://ai-automation-service-new:8036",
+        description="AI Automation Service URL (Hybrid Flow endpoints)"
     )
     ai_automation_api_key: str | None = Field(
         default=None,
         description="API key for AI Automation Service (required for patterns/synergies endpoints)"
+    )
+    
+    # Hybrid Flow Configuration
+    use_hybrid_flow: bool = Field(
+        default=True,
+        description="Use Hybrid Flow (template-based) for automation generation (preferred)"
     )
 
     # YAML Validation Service Configuration (Epic 51)

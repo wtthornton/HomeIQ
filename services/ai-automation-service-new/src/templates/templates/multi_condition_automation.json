@@ -1,0 +1,140 @@
+{
+  "template_id": "multi_condition_automation",
+  "version": 1,
+  "description": "Automation with multiple conditions (AND/OR logic)",
+  "required_capabilities": {
+    "sensors": [],
+    "devices": [],
+    "services": []
+  },
+  "parameter_schema": {
+    "trigger_type": {
+      "type": "string",
+      "enum": ["time", "state", "numeric_state"],
+      "required": true,
+      "description": "Type of trigger"
+    },
+    "trigger_entity": {
+      "type": "string",
+      "required": false,
+      "description": "Entity ID for state/numeric_state triggers"
+    },
+    "trigger_time": {
+      "type": "string",
+      "format": "HH:MM:SS",
+      "required": false,
+      "description": "Time for time-based triggers"
+    },
+    "trigger_state": {
+      "type": "string",
+      "required": false,
+      "description": "State value for state triggers"
+    },
+    "condition_logic": {
+      "type": "string",
+      "enum": ["and", "or"],
+      "default": "and",
+      "description": "Condition logic operator"
+    },
+    "conditions": {
+      "type": "array",
+      "required": true,
+      "description": "Array of condition objects",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["state", "numeric_state", "time"],
+            "required": true
+          },
+          "entity_id": {
+            "type": "string",
+            "required": false
+          },
+          "state": {
+            "type": "string",
+            "required": false
+          },
+          "above": {
+            "type": "float",
+            "required": false
+          },
+          "below": {
+            "type": "float",
+            "required": false
+          }
+        }
+      }
+    },
+    "action_service": {
+      "type": "string",
+      "required": true,
+      "description": "Service to call"
+    },
+    "target_entity": {
+      "type": "string",
+      "required": false,
+      "description": "Target entity ID"
+    },
+    "target_area": {
+      "type": "string",
+      "required": false,
+      "description": "Target area ID"
+    },
+    "action_data": {
+      "type": "object",
+      "required": false,
+      "description": "Action data"
+    }
+  },
+  "safety_class": "medium",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": {
+      "platform": "{{trigger_type}}",
+      "entity_id": "{{trigger_entity}}",
+      "at": "{{trigger_time}}",
+      "to": "{{trigger_state}}"
+    },
+    "condition": {
+      "condition": "{{condition_logic}}",
+      "conditions": "{{conditions}}"
+    },
+    "action": {
+      "service": "{{action_service}}",
+      "target": {
+        "entity_id": "{{target_entity}}",
+        "area_id": "{{target_area}}"
+      },
+      "data": "{{action_data}}"
+    },
+    "alias_template": "Multi-Condition Automation",
+    "description_template": "Automation with {{condition_logic}} conditions"
+  },
+  "examples": [
+    {
+      "trigger_type": "state",
+      "trigger_entity": "binary_sensor.motion",
+      "trigger_state": "on",
+      "condition_logic": "and",
+      "conditions": [
+        {
+          "type": "state",
+          "entity_id": "input_boolean.home_mode",
+          "state": "on"
+        },
+        {
+          "type": "time",
+          "after": "18:00",
+          "before": "22:00"
+        }
+      ],
+      "action_service": "light.turn_on",
+      "target_area": "living_room",
+      "action_data": {
+        "brightness_pct": 50
+      }
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "template_id": "motion_dim_off",
+  "version": 1,
+  "description": "Turn lights on with motion, dim off after no motion",
+  "required_capabilities": {
+    "sensors": ["motion"],
+    "devices": ["light"],
+    "services": ["light.turn_on", "light.turn_off"]
+  },
+  "parameter_schema": {
+    "target_area": {
+      "type": "string",
+      "required": true,
+      "description": "Area name (e.g., 'office', 'bedroom')"
+    },
+    "motion_timeout_seconds": {
+      "type": "integer",
+      "min": 30,
+      "max": 3600,
+      "default": 300,
+      "description": "Seconds of no motion before dimming off"
+    },
+    "brightness_on": {
+      "type": "integer",
+      "min": 1,
+      "max": 255,
+      "default": 255,
+      "description": "Brightness when motion detected"
+    },
+    "dim_step": {
+      "type": "integer",
+      "min": 1,
+      "max": 50,
+      "default": 40,
+      "description": "Brightness step for dimming"
+    }
+  },
+  "safety_class": "low",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": [
+      {
+        "platform": "state",
+        "entity_id": "{{motion_sensor_entities}}",
+        "to": "on"
+      },
+      {
+        "platform": "state",
+        "entity_id": "{{motion_sensor_entities}}",
+        "to": "off",
+        "for": "00:{{motion_timeout_seconds // 60}}:{{motion_timeout_seconds % 60}}"
+      }
+    ],
+    "condition": null,
+    "action": {
+      "choose": [
+        {
+          "conditions": [
+            {
+              "condition": "or",
+              "conditions": [
+                {
+                  "condition": "state",
+                  "entity_id": "{{motion_sensor_entities[0]}}",
+                  "state": "on"
+                }
+              ]
+            }
+          ],
+          "sequence": [
+            {
+              "service": "light.turn_on",
+              "target": {
+                "area_id": "{{matched_area_id}}"
+              },
+              "data": {
+                "brightness": "{{brightness_on}}"
+              }
+            }
+          ]
+        },
+        {
+          "conditions": [
+            {
+              "condition": "and",
+              "conditions": [
+                {
+                  "condition": "state",
+                  "entity_id": "{{motion_sensor_entities[0]}}",
+                  "state": "off"
+                }
+              ]
+            }
+          ],
+          "sequence": [
+            {
+              "repeat": {
+                "count": "{{ceil(255 / dim_step)}}",
+                "sequence": [
+                  {
+                    "service": "light.turn_on",
+                    "target": {
+                      "area_id": "{{matched_area_id}}"
+                    },
+                    "data": {
+                      "brightness_step": "-{{dim_step}}",
+                      "transition": 2
+                    }
+                  },
+                  {
+                    "delay": "00:00:03"
+                  }
+                ]
+              }
+            },
+            {
+              "service": "light.turn_off",
+              "target": {
+                "area_id": "{{matched_area_id}}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "alias_template": "{{target_area}} Motion Dimming",
+    "description_template": "Motion-activated lights in {{target_area}} with auto-dim off"
+  },
+  "examples": [
+    {
+      "target_area": "office",
+      "motion_timeout_seconds": 300,
+      "brightness_on": 255,
+      "dim_step": 40
+    }
+  ]
+}

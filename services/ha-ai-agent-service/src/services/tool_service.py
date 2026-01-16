@@ -8,12 +8,14 @@ Implements tool call routing, result formatting, and error handling.
 import logging
 from typing import Any
 
+from typing import Any
+
 from ..clients.ai_automation_client import AIAutomationClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
+from ..clients.hybrid_flow_client import HybridFlowClient
 from ..clients.yaml_validation_client import YAMLValidationClient
 from ..tools.ha_tools import HAToolHandler
-from typing import Any
 
 logger = logging.getLogger(__name__)
 

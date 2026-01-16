@@ -1,0 +1,64 @@
+{
+  "template_id": "notification_on_event",
+  "version": 1,
+  "description": "Send notification when an event occurs",
+  "required_capabilities": {
+    "services": ["notify.mobile_app", "notify.persistent_notification"]
+  },
+  "parameter_schema": {
+    "trigger_entity": {
+      "type": "string",
+      "required": true,
+      "description": "Entity ID that triggers the notification"
+    },
+    "trigger_state": {
+      "type": "string",
+      "required": true,
+      "description": "State value that triggers notification"
+    },
+    "notification_title": {
+      "type": "string",
+      "required": true,
+      "description": "Notification title"
+    },
+    "notification_message": {
+      "type": "string",
+      "required": true,
+      "description": "Notification message"
+    },
+    "notification_target": {
+      "type": "string",
+      "enum": ["mobile_app", "persistent"],
+      "default": "mobile_app",
+      "description": "Notification target type"
+    }
+  },
+  "safety_class": "low",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": {
+      "platform": "state",
+      "entity_id": "{{trigger_entity}}",
+      "to": "{{trigger_state}}"
+    },
+    "condition": null,
+    "action": {
+      "service": "notify.{{notification_target}}",
+      "data": {
+        "title": "{{notification_title}}",
+        "message": "{{notification_message}}"
+      }
+    },
+    "alias_template": "Notify: {{notification_title}}",
+    "description_template": "Send notification when {{trigger_entity}} changes to {{trigger_state}}"
+  },
+  "examples": [
+    {
+      "trigger_entity": "binary_sensor.door_sensor",
+      "trigger_state": "on",
+      "notification_title": "Door Opened",
+      "notification_message": "The door has been opened",
+      "notification_target": "mobile_app"
+    }
+  ]
+}

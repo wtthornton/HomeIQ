@@ -1,0 +1,64 @@
+{
+  "template_id": "time_based_light_on",
+  "version": 1,
+  "description": "Turn on lights at a specific time",
+  "required_capabilities": {
+    "devices": ["light"],
+    "services": ["light.turn_on"]
+  },
+  "parameter_schema": {
+    "target_area": {
+      "type": "string",
+      "required": true,
+      "description": "Area name (e.g., 'office', 'bedroom')"
+    },
+    "time": {
+      "type": "string",
+      "format": "HH:MM:SS",
+      "required": true,
+      "description": "Time to trigger (e.g., '07:00:00')"
+    },
+    "brightness_pct": {
+      "type": "integer",
+      "min": 1,
+      "max": 100,
+      "default": 100,
+      "description": "Light brightness percentage"
+    },
+    "color_temp": {
+      "type": "integer",
+      "min": 153,
+      "max": 500,
+      "required": false,
+      "description": "Color temperature in mireds (optional)"
+    }
+  },
+  "safety_class": "low",
+  "forbidden_targets": [],
+  "compilation_mapping": {
+    "trigger": {
+      "platform": "time",
+      "at": "{{time}}"
+    },
+    "condition": null,
+    "action": {
+      "service": "light.turn_on",
+      "target": {
+        "area_id": "{{matched_area_id}}"
+      },
+      "data": {
+        "brightness_pct": "{{brightness_pct}}",
+        "color_temp": "{{color_temp}}"
+      }
+    },
+    "alias_template": "{{target_area}} Lights On at {{time}}",
+    "description_template": "Turn on {{target_area}} lights at {{time}}"
+  },
+  "examples": [
+    {
+      "target_area": "office",
+      "time": "07:00:00",
+      "brightness_pct": 100
+    }
+  ]
+}
