@@ -112,6 +112,9 @@ docker compose up -d
 
 # 5. Verify deployment
 ./scripts/verify-deployment.sh
+
+# Or deploy individual services using the deployment script:
+.\scripts\deploy-service.ps1 -ServiceName "service-name" -WaitForHealthy
 ```
 
 ### First Steps
