@@ -167,7 +167,7 @@ describe('HAAgentChat originalPrompt State Management', () => {
 
       const { result } = renderHook(() => {
         const [originalPrompt, setOriginalPrompt] = useState<string>('');
-        const [messages, setMessages] = useState(mockMessages);
+        const [messages] = useState(mockMessages);
 
         // Simulate loadConversation logic
         const loadConversation = () => {
