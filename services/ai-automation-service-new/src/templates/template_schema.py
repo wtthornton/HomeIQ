@@ -7,7 +7,7 @@ Pydantic models for template structure, parameter schemas, and compilation mappi
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -37,15 +37,15 @@ class TemplateParameter(BaseModel):
     type: ParameterType
     required: bool = Field(default=False, description="Whether parameter is required")
     default: Any = Field(default=None, description="Default value if not provided")
-    enum: list[Any] | None = Field(default=None, description="Allowed enum values")
-    min: int | float | None = Field(default=None, description="Minimum value (for numeric types)")
-    max: int | float | None = Field(default=None, description="Maximum value (for numeric types)")
-    description: str | None = Field(default=None, description="Parameter description")
-    format: str | None = Field(default=None, description="Format hint (e.g., 'HH:MM' for time)")
-    properties: dict[str, "TemplateParameter"] | None = Field(
+    enum: Optional[list[Any]] = Field(default=None, description="Allowed enum values")
+    min: Optional[Union[int, float]] = Field(default=None, description="Minimum value (for numeric types)")
+    max: Optional[Union[int, float]] = Field(default=None, description="Maximum value (for numeric types)")
+    description: Optional[str] = Field(default=None, description="Parameter description")
+    format: Optional[str] = Field(default=None, description="Format hint (e.g., 'HH:MM' for time)")
+    properties: Optional[dict[str, "TemplateParameter"]] = Field(
         default=None, description="Nested properties for object type"
     )
-    items: "TemplateParameter" | None = Field(
+    items: Optional["TemplateParameter"] = Field(
         default=None, description="Item schema for array type"
     )
 
@@ -62,8 +62,8 @@ class TemplateCompilationMapping(BaseModel):
     trigger: dict[str, Any] = Field(description="Trigger configuration with parameter placeholders")
     condition: dict[str, Any] | None = Field(default=None, description="Condition configuration")
     action: dict[str, Any] = Field(description="Action configuration with parameter placeholders")
-    alias_template: str | None = Field(default=None, description="Alias template with placeholders")
-    description_template: str | None = Field(default=None, description="Description template")
+    alias_template: Optional[str] = Field(default=None, description="Alias template with placeholders")
+    description_template: Optional[str] = Field(default=None, description="Description template")
 
 
 class Template(BaseModel):
