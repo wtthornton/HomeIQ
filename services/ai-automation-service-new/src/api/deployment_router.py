@@ -6,6 +6,8 @@ Extracted from ai-automation-service for independent scaling.
 Handles deployment of automations to Home Assistant.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any, Annotated
 
