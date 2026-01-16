@@ -65,8 +65,8 @@ def get_template_library() -> TemplateLibrary:
 
 
 def get_intent_planner(
-    template_library: TemplateLibrary = Depends(get_template_library),
-    db: DatabaseSession = Depends()
+    db: DatabaseSession,
+    template_library: TemplateLibrary = Depends(get_template_library)
 ) -> IntentPlanner:
     """Get intent planner instance."""
     openai_client = OpenAIClient(
@@ -86,8 +86,8 @@ def get_intent_planner(
 @handle_route_errors("create automation plan")
 async def create_plan(
     request: PlanRequest,
-    planner: IntentPlanner = Depends(get_intent_planner),
-    db: DatabaseSession = Depends()
+    db: DatabaseSession,
+    planner: IntentPlanner = Depends(get_intent_planner)
 ) -> PlanResponse:
     """
     Create automation plan from user intent.

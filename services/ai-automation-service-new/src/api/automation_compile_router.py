@@ -52,8 +52,8 @@ def get_template_library() -> TemplateLibrary:
 
 
 def get_yaml_compiler(
-    template_library: TemplateLibrary = Depends(get_template_library),
-    db: DatabaseSession = Depends()
+    db: DatabaseSession,
+    template_library: TemplateLibrary = Depends(get_template_library)
 ) -> YAMLCompiler:
     """Get YAML compiler instance."""
     data_api_client = DataAPIClient(base_url=settings.data_api_url)
@@ -67,8 +67,8 @@ def get_yaml_compiler(
 @handle_route_errors("compile automation plan")
 async def compile_plan(
     request: CompileRequest,
-    compiler: YAMLCompiler = Depends(get_yaml_compiler),
-    db: DatabaseSession = Depends()
+    db: DatabaseSession,
+    compiler: YAMLCompiler = Depends(get_yaml_compiler)
 ) -> CompileResponse:
     """
     Compile automation plan to YAML.

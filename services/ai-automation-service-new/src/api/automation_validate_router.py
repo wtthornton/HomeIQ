@@ -48,8 +48,8 @@ def get_template_library() -> TemplateLibrary:
 
 
 def get_template_validator(
-    template_library: TemplateLibrary = Depends(get_template_library),
-    db: DatabaseSession = Depends()
+    db: DatabaseSession,
+    template_library: TemplateLibrary = Depends(get_template_library)
 ) -> TemplateValidator:
     """Get template validator instance."""
     data_api_client = DataAPIClient(base_url=settings.data_api_url)

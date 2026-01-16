@@ -33,7 +33,7 @@ class LifecycleResponse(BaseModel):
 @handle_route_errors("get plan")
 async def get_plan(
     plan_id: str,
-    db: DatabaseSession = Depends()
+    db: DatabaseSession
 ) -> dict[str, Any]:
     """
     Get plan details by plan_id.
@@ -63,7 +63,7 @@ async def get_plan(
 @handle_route_errors("get compiled artifact")
 async def get_compiled(
     compiled_id: str,
-    db: DatabaseSession = Depends()
+    db: DatabaseSession
 ) -> dict[str, Any]:
     """
     Get compiled artifact details by compiled_id.
@@ -90,7 +90,7 @@ async def get_compiled(
 @handle_route_errors("get deployment")
 async def get_deployment(
     deployment_id: str,
-    db: DatabaseSession = Depends()
+    db: DatabaseSession
 ) -> dict[str, Any]:
     """
     Get deployment details by deployment_id.
@@ -119,7 +119,7 @@ async def get_deployment(
 @handle_route_errors("get lifecycle")
 async def get_lifecycle(
     conversation_id: str,
-    db: DatabaseSession = Depends()
+    db: DatabaseSession
 ) -> LifecycleResponse:
     """
     Get full automation lifecycle for a conversation.
