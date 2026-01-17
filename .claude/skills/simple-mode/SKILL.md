@@ -27,36 +27,6 @@ When a user invokes `@simple-mode` with a command:
 - Run CLI commands (`tapps-agents ...`) unless the user explicitly asks
 - Implement code directly without using the appropriate skill
 - Skip skills in the workflow
-- Say "I can't invoke @skill-name commands" - YOU ARE the orchestrator and MUST invoke skills directly
-- Tell the user to type commands - YOU execute the workflow by invoking skills
-
-## ⚠️ CRITICAL: You MUST Invoke Skills Directly
-
-**When you are running as the simple-mode skill, you ARE the orchestrator. You MUST directly invoke other skills using `@skill-name *command` syntax.**
-
-**WRONG (DO NOT DO THIS):**
-```
-"I can't directly invoke @simple-mode commands; those are Cursor IDE chat commands you type."
-"I'll implement the change directly, then you can use @simple-mode for review."
-```
-
-**CORRECT (DO THIS):**
-```
-✅ Starting Build Workflow...
-
-📝 Step 1/7: Enhancing prompt...
-@enhancer *enhance "Create a user authentication API with JWT tokens"
-
-[Then actually invoke the enhancer skill and wait for its output]
-```
-
-**You are an active orchestrator, not a passive coordinator. When the user invokes `@simple-mode *build`, you execute the workflow by:**
-1. **Directly invoking** `@enhancer *enhance` and using its output
-2. **Directly invoking** `@planner *plan` with the enhanced output
-3. **Directly invoking** each subsequent skill in the workflow
-4. **Continuing until all steps are complete**
-
-**If you cannot invoke skills directly, you are not operating correctly as simple-mode.**
 
 ## Intent Detection
 
@@ -105,6 +75,39 @@ Detect intent from keywords:
 2. Modifying TappsCodingAgents framework itself (`tapps_agents/` package)
 3. User explicitly requests "full SDLC" or "complete lifecycle"
 
+## Workflow Suggestion System
+
+**New Feature:** Workflow suggester automatically detects when workflows would be beneficial and suggests appropriate Simple Mode workflows before direct edits.
+
+**How It Works:**
+- Analyzes user input to detect intent (build, fix, review, test, refactor)
+- Suggests appropriate `@simple-mode` workflow with benefits
+- Only suggests when confidence is high (≥60%)
+- Integrated into `SimpleModeHandler` for automatic suggestions
+
+**Example:**
+```
+User: "Add user authentication"
+
+🤖 Workflow Suggestion:
+"For new feature implementation, consider using:
+@simple-mode *build 'Add user authentication'
+
+Benefits:
+✅ Automatic test generation (80%+ coverage)
+✅ Quality gate enforcement (75+ score required)
+✅ Comprehensive documentation
+✅ Early bug detection
+✅ Full traceability
+
+Would you like me to proceed with the workflow?"
+```
+
+**Implementation:**
+- `tapps_agents/simple_mode/workflow_suggester.py` - Suggestion engine
+- Integrated into `SimpleModeHandler.handle()` for automatic suggestions
+- See `docs/WORKFLOW_ENFORCEMENT_GUIDE.md` for complete guide
+
 ## Skill Orchestration Workflows
 
 ### Build Intent
@@ -141,10 +144,12 @@ When user wants to **build** something new:
 @reviewer *review {target_file}
 ```
 
-**Step 7: Generate tests**
+**Step 7: Generate tests (MANDATORY - 70%+ coverage required)**
 ```
 @tester *test {target_file}
 ```
+
+**Note:** Testing step is mandatory in build workflows. If test coverage is below 70%, the workflow loops back to testing step.
 
 ### Review Intent
 

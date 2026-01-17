@@ -9,16 +9,30 @@ alwaysApply: false
 
 **For ALL development tasks, you should DEFAULT to using `@simple-mode` commands.**
 
+**New Feature:** Simple Mode now proactively suggests workflows when you request feature implementation, bug fixes, or code reviews. These suggestions help ensure you get automatic test generation, quality gates, and comprehensive documentation.
+
 ### Quick Decision Guide
 
 | User Wants To... | Use This Command |
 |------------------|------------------|
-| Build a new feature | `@simple-mode *build "description"` |
+| Build a new feature | `@simple-mode *build "description"` (includes mandatory tests, 80%+ coverage) |
 | Fix a bug/error | `@simple-mode *fix <file> "description"` |
 | Review code quality | `@simple-mode *review <file>` |
 | Add tests | `@simple-mode *test <file>` |
 | Refactor code | `@simple-mode *refactor <file>` |
 | Quick score only | `@reviewer *score <file>` (exception) |
+
+---
+
+## ⚠️ IMPORTANT: CLI Workflow Commands Not Recommended in Cursor Mode
+
+**If you see a warning about CLI workflow commands in Cursor mode:**
+
+- ✅ **Use `@simple-mode` commands in Cursor chat instead**
+- ✅ **Use CLI commands in terminal/CI (outside Cursor IDE)**
+- ✅ **Run `tapps-agents init` if Simple Mode isn't working**
+
+See `.cursor/rules/cursor-mode-usage.mdc` for complete guidance.
 
 ---
 
@@ -284,6 +298,24 @@ python -m tapps_agents.cli enhancer enhance "Add user authentication"
 python -m tapps_agents.cli enhancer enhance-quick "Add user authentication"
 ```
 
+### Evaluator Agent
+**Best for:** Framework effectiveness evaluation and continuous improvement
+```bash
+# Evaluate framework effectiveness
+@evaluator *evaluate
+@evaluator *evaluate --workflow-id workflow-123
+
+# Evaluate specific workflow
+@evaluator *evaluate-workflow workflow-123
+
+# CLI equivalent
+tapps-agents evaluator evaluate
+tapps-agents evaluator evaluate --workflow-id workflow-123
+tapps-agents evaluator evaluate-workflow workflow-123
+```
+
+**Output:** Structured markdown reports saved to `.tapps-agents/evaluations/`
+
 ## Development Workflows
 
 ### Adding a New Feature
@@ -409,6 +441,15 @@ python -m tapps_agents.cli tester test tapps_agents/core/config.py
 python -m tapps_agents.cli reviewer report . json markdown html
 ```
 
+### Example 6: Evaluate Framework Effectiveness
+```bash
+# Evaluate overall framework effectiveness
+@evaluator *evaluate
+
+# Evaluate specific workflow execution
+@evaluator *evaluate-workflow workflow-123
+```
+
 ## Simple Mode (New Users)
 
 **Simple Mode** provides a simplified, task-first interface that hides complexity while showcasing the power of TappsCodingAgents. Use natural language commands instead of agent-specific syntax.
@@ -467,6 +508,8 @@ You can use these phrases in Cursor AI conversations:
 - "Type check this file"
 - "Create a plan for [feature]"
 - "Debug this error"
+- "Evaluate framework effectiveness"
+- "How well is TappsCodingAgents working?"
 
 **Or use Simple Mode** (recommended for new users): `@simple-mode Build a feature`
 
