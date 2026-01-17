@@ -70,6 +70,11 @@ workflow:
         - src/
       creates:
         - tests/
+      condition: mandatory
+      gate:
+        condition: "test_coverage >= 70"
+        on_pass: complete
+        on_fail: testing
       next: complete
       
     - id: complete

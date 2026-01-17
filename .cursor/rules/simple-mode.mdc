@@ -10,6 +10,52 @@ alwaysApply: true
 
 **When a user asks you to implement features, fix bugs, review code, or write tests, you MUST DEFAULT to using `@simple-mode` commands.**
 
+### ⚠️ MANDATORY: Workflow Interceptor Pattern
+
+**BEFORE making any code edits for feature implementation, bug fixes, or new functionality, you MUST:**
+
+1. **Suggest Simple Mode workflow FIRST** - Do not proceed with direct edits
+2. **Explain workflow benefits** - Tests, quality gates, documentation
+3. **Only proceed with direct edits if user explicitly overrides** - Get confirmation first
+
+**Pre-Edit Checklist (MUST follow before making edits):**
+- [ ] Is this a new feature/component? → Use `@simple-mode *build`
+- [ ] Is this a bug fix? → Use `@simple-mode *fix`
+- [ ] Is this code review? → Use `@simple-mode *review`
+- [ ] Is this test generation? → Use `@simple-mode *test`
+- [ ] **Only skip if:** Simple one-off operation OR user explicitly requests direct edit
+
+**Example Interceptor Pattern:**
+```
+User: "Add user authentication to my app"
+
+✅ CORRECT (Interceptor Pattern):
+🤖 Workflow Suggestion:
+
+"For new feature implementation, I recommend using:
+@simple-mode *build 'Add user authentication with login, logout, and session management'
+
+This workflow will:
+✅ Generate comprehensive tests automatically (80%+ coverage)
+✅ Enforce quality gates (75+ score required)
+✅ Create documentation artifacts
+✅ Catch bugs early with systematic review
+✅ Provide full traceability (requirements → implementation)
+
+Would you like me to proceed with the workflow?
+[Yes, use workflow] [No, direct edit]"
+
+[If user says Yes or doesn't respond]:
+✅ Starting Build Workflow...
+@simple-mode *build "Add user authentication..."
+
+[If user explicitly says No]:
+⚠️ Proceeding with direct edit (workflow benefits will be missed)
+
+❌ WRONG (No Interceptor):
+"I'll implement this directly..." [edits files immediately without suggesting workflow]
+```
+
 ### Automatic Routing Rules
 
 | User Request | You MUST Use |
@@ -27,6 +73,7 @@ Only skip @simple-mode when:
 1. User **explicitly** asks for a specific agent (e.g., "use @reviewer to score this")
 2. Task is a **simple one-off operation** (e.g., "just lint this file")
 3. User is doing **quick exploration** (e.g., "what's the score of this file?")
+4. User **explicitly requests direct edit** after workflow suggestion
 
 ### Example: Correct Behavior
 
@@ -44,7 +91,7 @@ This will run the 7-step workflow:
 4. @designer → Component specs
 5. @implementer → Code implementation
 6. @reviewer → Quality review (loops if < 70)
-7. @tester → Test generation"
+7. @tester → Test generation (MANDATORY - 80%+ coverage)"
 
 ❌ WRONG:
 "I'll implement this directly..." [edits files without workflow]
@@ -404,10 +451,43 @@ If user explicitly mentions "Simple Mode workflow", "follow the workflow", "use 
 4. **Report progress** step-by-step
 5. **Do NOT shortcut** - complete workflow provides value
 
+## Workflow Suggestion System
+
+**New Feature:** Workflow suggester automatically detects when workflows would be beneficial.
+
+**How It Works:**
+- Analyzes user input to detect intent (build, fix, review, test, refactor)
+- Suggests appropriate `@simple-mode` workflow with benefits
+- Only suggests when confidence is high (≥60%)
+
+**Example:**
+```
+User: "Add user authentication"
+
+🤖 Workflow Suggestion:
+"For new feature implementation, consider using:
+@simple-mode *build 'Add user authentication'
+
+Benefits:
+✅ Automatic test generation (80%+ coverage)
+✅ Quality gate enforcement (75+ score required)
+✅ Comprehensive documentation
+✅ Early bug detection
+✅ Full traceability
+
+Would you like me to proceed with the workflow?"
+```
+
+**Implementation:**
+- `tapps_agents/simple_mode/workflow_suggester.py` - Suggestion engine
+- Integrated into `SimpleModeHandler` for automatic suggestions
+- See `docs/WORKFLOW_ENFORCEMENT_GUIDE.md` for complete guide
+
 ## Related Documentation
 
 - See `docs/SIMPLE_MODE_USER_GUIDE.md` for user guide with invocation options
 - See `.claude/skills/simple-mode/SKILL.md` for full skill definition
 - See `docs/SIMPLE_MODE_GUIDE.md` for complete documentation
 - See `docs/SIMPLE_MODE_WORKFLOW_COMPARISON.md` for workflow vs direct comparison
+- See `docs/WORKFLOW_ENFORCEMENT_GUIDE.md` for workflow enforcement guide
 - See `.cursor/rules/agent-capabilities.mdc` for all agent capabilities
