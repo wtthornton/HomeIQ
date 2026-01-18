@@ -1,9 +1,9 @@
-# Modern 2025 Testing Dependencies for HomeIQ
-# Last Updated: November 15, 2025
+# Modern 2026 Testing Dependencies for HomeIQ
+# Last Updated: January 2026
 
 # Core Testing Framework
 pytest>=8.0.0
-pytest-asyncio>=1.0.0          # Modern async testing (removed event_loop fixture)
+pytest-asyncio>=1.3.0,<2.0.0   # Latest stable 1.3.0 (January 2026) - Modern async testing
 pytest-xdist>=3.5.0            # Parallel test execution
 pytest-cov>=5.0.0              # Coverage with branch tracking
 pytest-timeout>=2.5.0          # Test timeout protection
@@ -47,13 +47,13 @@ websockets>=12.0               # WebSocket client for testing
 pytest-websocket>=0.0.1        # WebSocket testing utilities
 
 # Database Testing
-sqlalchemy>=2.0.0              # For SQLite test fixtures
+sqlalchemy>=2.0.45,<3.0.0      # Latest stable 2.0.45 (January 2026) - For SQLite test fixtures
 
 # Application Dependencies (for testing)
-aiohttp>=3.9.0
-influxdb-client>=1.40.0
-psutil>=5.9.0
-pydantic>=2.5.0
+aiohttp>=3.13.3,<4.0.0         # Latest stable 3.13.3 (January 2026) - Align with base
+influxdb-client>=1.49.0,<2.0.0 # Latest stable - Align with base
+psutil>=7.2.1,<8.0.0           # Latest stable 7.2.1 (January 2026) - Align with base
+pydantic>=2.12.5,<3.0.0        # Latest stable 2.12.5 (January 2026) - Align with base
 
 # Coverage Visualization
 coverage-badge>=1.1.0          # Generate coverage badges

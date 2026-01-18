@@ -258,15 +258,56 @@ export const ConversationalDashboard: React.FC = () => {
     try {
       setRefreshLoading(true);
       const response = await api.refreshSuggestions();
-      toast.success(response.message || 'Manual refresh queued');
-      await loadRefreshStatus();
+      
+      // Handle improved error response from API
+      if (!response.success && response.error_code) {
+        // Extract detailed error message
+        let errorMessage = response.message || 'Failed to generate suggestions';
+        
+        // Provide specific guidance based on error code
+        if (response.error_code === 'NO_SUGGESTIONS_GENERATED') {
+          errorMessage = 'No suggestions generated. Possible reasons: No events available (need at least 100 events from Home Assistant), Data API not responding, or OpenAI API key not configured. Check service logs for details.';
+        } else if (response.error_code === 'VALIDATION_ERROR') {
+          errorMessage = `Configuration error: ${errorMessage}. Check service configuration and dependencies.`;
+        } else if (response.error_code === 'GENERATION_ERROR') {
+          errorMessage = `Generation error: ${errorMessage}. Check service logs for details.`;
+        }
+        
+        toast.error(errorMessage);
+        setError({
+          message: errorMessage,
+          code: response.error_code,
+          retryable: response.error_code !== 'VALIDATION_ERROR'
+        });
+      } else if (response.success) {
+        toast.success(response.message || `Successfully generated ${response.count || 0} suggestions`);
+        // Reload suggestions to show new ones
+        await loadSuggestions();
+        await loadRefreshStatus();
+      } else {
+        // Fallback for unexpected response format
+        toast.info(response.message || 'Refresh completed');
+        await loadRefreshStatus();
+      }
     } catch (error) {
       if (error instanceof APIError) {
         toast.error(error.message);
+        setError({
+          message: error.message,
+          retryable: true
+        });
       } else if (error instanceof Error) {
         toast.error(error.message);
+        setError({
+          message: error.message,
+          retryable: true
+        });
       } else {
-        toast.error('Failed to queue manual refresh');
+        toast.error('Failed to generate suggestions. Check service health and logs.');
+        setError({
+          message: 'Failed to generate suggestions. Check service health and logs.',
+          retryable: true
+        });
       }
     } finally {
       setRefreshLoading(false);
@@ -651,11 +692,25 @@ export const ConversationalDashboard: React.FC = () => {
                 <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} max-w-md mx-auto mb-6`}>
                   {selectedStatus === 'draft' && totalSuggestions === 0 ? (
                     <>
-                      Generate a sample suggestion to try the conversational automation flow.
-                      <br />
-                      <span className="text-xs opacity-70 mt-2 block">
-                        AI will analyze your Home Assistant usage patterns and suggest automations in plain English.
-                      </span>
+                      {error ? (
+                        <>
+                          <span className="text-red-500 dark:text-red-400 font-medium">⚠️ {error.message}</span>
+                          <br />
+                          <span className="text-xs opacity-70 mt-2 block">
+                            Suggestions require at least 100 events from Home Assistant. Check that websocket-ingestion is running and writing events to InfluxDB.
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          Generate a sample suggestion to try the conversational automation flow.
+                          <br />
+                          <span className="text-xs opacity-70 mt-2 block">
+                            AI will analyze your Home Assistant usage patterns and suggest automations in plain English.
+                            <br />
+                            <strong className="font-medium">Note:</strong> Requires at least 100 events from Home Assistant to generate suggestions.
+                          </span>
+                        </>
+                      )}
                     </>
                   ) : hasOtherStatuses ? (
                     <>

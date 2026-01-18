@@ -923,6 +923,91 @@ class HAToolHandler:
         
         return scenes
 
+    async def _validate_entity_availability(
+        self,
+        entity_ids: list[str],
+        conversation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Validate that entities exist and are available in Home Assistant.
+        
+        Args:
+            entity_ids: List of entity IDs to validate
+            conversation_id: Optional conversation ID for traceability
+            
+        Returns:
+            Dictionary with:
+            - available: List of available entity IDs
+            - unavailable: List of unavailable entity IDs (state: unavailable/unknown)
+            - not_found: List of entity IDs that don't exist
+            - all_available: Boolean indicating if all entities are available
+        """
+        if not entity_ids:
+            return {
+                "available": [],
+                "unavailable": [],
+                "not_found": [],
+                "all_available": True,
+            }
+        
+        available = []
+        unavailable = []
+        not_found = []
+        
+        session = await self.ha_client._get_session()
+        
+        for entity_id in entity_ids:
+            try:
+                # Check entity state via Home Assistant API
+                url = f"{self.ha_client.ha_url}/api/states/{entity_id}"
+                async with session.get(url) as response:
+                    if response.status == 404:
+                        not_found.append(entity_id)
+                        logger.debug(
+                            f"[Create] Entity not found: {entity_id} "
+                            f"(conversation_id={conversation_id or 'N/A'})"
+                        )
+                    elif response.status == 200:
+                        state_data = await response.json()
+                        state = state_data.get("state", "").lower()
+                        if state in ("unavailable", "unknown"):
+                            unavailable.append(entity_id)
+                            logger.debug(
+                                f"[Create] Entity unavailable: {entity_id} (state: {state}) "
+                                f"(conversation_id={conversation_id or 'N/A'})"
+                            )
+                        else:
+                            available.append(entity_id)
+                    else:
+                        # If we can't check, assume available (may be transient error)
+                        logger.debug(
+                            f"[Create] Could not check entity {entity_id}: {response.status}, assuming available"
+                        )
+                        available.append(entity_id)
+            except Exception as e:
+                logger.debug(
+                    f"[Create] Error checking entity {entity_id}: {e}, assuming available"
+                )
+                # On error, assume available (may be transient)
+                available.append(entity_id)
+        
+        all_available = len(unavailable) == 0 and len(not_found) == 0
+        
+        if unavailable or not_found:
+            logger.warning(
+                f"[Create] Entity availability check: "
+                f"available={len(available)}, unavailable={len(unavailable)}, "
+                f"not_found={len(not_found)} "
+                f"(conversation_id={conversation_id or 'N/A'})"
+            )
+        
+        return {
+            "available": available,
+            "unavailable": unavailable,
+            "not_found": not_found,
+            "all_available": all_available,
+        }
+
     async def _pre_create_scenes(
         self,
         scenes: list[dict[str, Any]],
@@ -933,6 +1018,8 @@ class HAToolHandler:
         
         This prevents "Unknown entity" warnings in Home Assistant UI
         by creating scenes that will be referenced by scene.turn_on actions.
+        
+        Entities are validated for availability before scene creation.
         
         Args:
             scenes: List of scene definitions from _extract_scene_create_actions
@@ -951,6 +1038,24 @@ class HAToolHandler:
             scene_id = scene_def["scene_id"]
             scene_entity_id = scene_def["scene_entity_id"]
             snapshot_entities = scene_def["snapshot_entities"]
+            
+            # Validate entity availability before scene creation
+            entity_validation = await self._validate_entity_availability(
+                snapshot_entities, conversation_id
+            )
+            
+            # Store validation result for use after scene creation attempt
+            has_unavailable_entities = not entity_validation["all_available"]
+            unavailable_entities = entity_validation["unavailable"] + entity_validation["not_found"]
+            
+            if has_unavailable_entities:
+                logger.warning(
+                    f"[Create] ⚠️  Scene pre-creation: {len(unavailable_entities)} entities unavailable "
+                    f"for scene {scene_entity_id}: {unavailable_entities} "
+                    f"(conversation_id={conversation_id or 'N/A'}). "
+                    f"Scene will still be created, but may show warnings in UI. "
+                    f"Scene will work correctly at runtime when entities become available."
+                )
             
             try:
                 # Create scene using Home Assistant scene.create service
@@ -972,14 +1077,24 @@ class HAToolHandler:
                         logger.info(
                             f"[Create] ✅ Pre-created scene: {scene_entity_id} "
                             f"with {len(snapshot_entities)} entities "
+                            f"(available: {len(entity_validation['available'])}, "
+                            f"unavailable: {len(entity_validation['unavailable'])}) "
                             f"(conversation_id={conversation_id or 'N/A'})"
                         )
-                        results.append({
+                        result = {
                             "scene_id": scene_id,
                             "scene_entity_id": scene_entity_id,
                             "success": True,
                             "message": "Scene pre-created successfully",
-                        })
+                        }
+                        # Include entity validation info in result
+                        if not entity_validation["all_available"]:
+                            result["warning"] = (
+                                f"Some entities were unavailable during pre-creation: "
+                                f"{', '.join(entity_validation['unavailable'] + entity_validation['not_found'])}. "
+                                f"Scene will work correctly at runtime when entities become available."
+                            )
+                        results.append(result)
                     elif response.status == 409:
                         # Scene already exists - this is OK
                         logger.debug(

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent / '../../shared'))
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
@@ -36,6 +36,7 @@ from .services.setup_assistant import get_setup_assistant
 from .services.device_database import get_device_database_service
 from .services.capability_discovery import get_capability_service
 from .services.device_recommender import get_recommender_service
+from .services.entity_enrichment import get_entity_enrichment_service
 
 logger = logging.getLogger(__name__)
 
@@ -1384,11 +1385,19 @@ async def bulk_upsert_entities(
                 # Fallback: derive from entity_id
                 friendly_name = entity_id.split('.')[-1].replace('_', ' ').title()
 
-            # Capabilities will be enriched separately from State API
-            # For now, set to None - will be populated by entity_capability_enrichment service
+            # Enrich entity with capabilities and available services
+            # First, get available services from Service table (fast DB query)
+            enrichment_service = get_entity_enrichment_service()
+            available_services = None
+            try:
+                available_services = await enrichment_service.get_available_services_for_domain(domain, db)
+            except Exception as e:
+                logger.debug(f"Failed to fetch available services for {entity_id}: {e}")
+            
+            # Try to enrich capabilities from HA state API (may be slow, so we do it after commit)
+            # For now, set to None - will be populated by background enrichment
             supported_features = None
             capabilities = None
-            available_services = None
 
             # Create entity instance
             entity = Entity(
@@ -1491,6 +1500,52 @@ async def bulk_upsert_entities(
         except Exception as e:
             # Don't fail entity sync if classification fails
             logger.warning(f"Automatic classification after entity sync failed: {e}")
+
+        # Background enrichment: Populate capabilities for entities that don't have them
+        # This runs after commit to avoid blocking bulk upsert
+        # Note: This is non-blocking - if it fails, entities are still saved
+        try:
+            enrichment_service = get_entity_enrichment_service()
+            # Collect entity IDs that were just upserted (limit to avoid timeout)
+            entity_ids_to_enrich = []
+            for entity_data in entities[:50]:  # Limit to first 50 to avoid timeout
+                entity_id = entity_data.get('entity_id')
+                if entity_id:
+                    entity_ids_to_enrich.append(entity_id)
+            
+            # Enrich capabilities in background (non-blocking)
+            if entity_ids_to_enrich:
+                # Query entities that need enrichment (capabilities is None)
+                entities_result = await db.execute(
+                    select(Entity).where(
+                        Entity.entity_id.in_(entity_ids_to_enrich),
+                        Entity.capabilities.is_(None)
+                    )
+                )
+                entities_to_enrich = entities_result.scalars().all()
+                
+                enriched_count = 0
+                for entity in entities_to_enrich:
+                    try:
+                        enrichment_data = await enrichment_service.enrich_entity_capabilities(
+                            entity.entity_id,
+                            entity.domain
+                        )
+                        if enrichment_data.get("capabilities") or enrichment_data.get("supported_features") is not None:
+                            entity.supported_features = enrichment_data.get("supported_features")
+                            entity.capabilities = enrichment_data.get("capabilities")
+                            entity.updated_at = datetime.now()
+                            enriched_count += 1
+                    except Exception as e:
+                        logger.debug(f"Failed to enrich capabilities for {entity.entity_id}: {e}")
+                        continue
+                
+                if enriched_count > 0:
+                    await db.commit()
+                    logger.info(f"Enriched capabilities for {enriched_count} entities in background")
+        except Exception as e:
+            # Don't fail bulk upsert if enrichment fails - just log warning
+            logger.warning(f"Background capability enrichment failed: {e}")
 
         return {
             "success": True,
@@ -2447,6 +2502,98 @@ async def discover_device_capabilities(
 
 
 # Phase 3.3: Device Recommendation Endpoints
+@router.post("/api/entities/enrich")
+async def enrich_entities(
+    request: Request,
+    limit: int = Query(default=100, ge=1, le=1000),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Enrich entities with capabilities and available services from HA API.
+    
+    Args:
+        request: FastAPI request (may contain entity_ids in body)
+        limit: Maximum number of entities to enrich (default: 100)
+        
+    Returns:
+        Dictionary with enrichment results
+    """
+    try:
+        # Parse optional entity_ids from request body
+        entity_ids = None
+        try:
+            body = await request.json()
+            entity_ids = body.get("entity_ids") if isinstance(body, dict) else None
+        except Exception:
+            pass  # No body or invalid JSON - will enrich all entities without capabilities
+        
+        enrichment_service = get_entity_enrichment_service()
+        enriched_count = 0
+        failed_count = 0
+        
+        if entity_ids:
+            # Enrich specific entities
+            entities_query = select(Entity).where(Entity.entity_id.in_(entity_ids))
+        else:
+            # Enrich entities that don't have capabilities
+            entities_query = select(Entity).where(
+                or_(
+                    Entity.capabilities.is_(None),
+                    Entity.available_services.is_(None)
+                )
+            ).limit(limit)
+        
+        result = await db.execute(entities_query)
+        entities_to_enrich = result.scalars().all()
+        
+        for entity in entities_to_enrich:
+            try:
+                # Enrich capabilities from HA state API
+                capabilities_data = await enrichment_service.enrich_entity_capabilities(
+                    entity.entity_id,
+                    entity.domain
+                )
+                
+                # Get available services from Service table
+                available_services = await enrichment_service.get_available_services_for_domain(
+                    entity.domain,
+                    db
+                )
+                
+                # Update entity
+                if capabilities_data.get("supported_features") is not None:
+                    entity.supported_features = capabilities_data.get("supported_features")
+                if capabilities_data.get("capabilities"):
+                    entity.capabilities = capabilities_data.get("capabilities")
+                if available_services:
+                    entity.available_services = available_services
+                
+                entity.updated_at = datetime.now()
+                enriched_count += 1
+                
+            except Exception as e:
+                logger.warning(f"Failed to enrich entity {entity.entity_id}: {e}")
+                failed_count += 1
+                continue
+        
+        await db.commit()
+        
+        return {
+            "success": True,
+            "enriched": enriched_count,
+            "failed": failed_count,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error enriching entities: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to enrich entities: {str(e)}"
+        ) from e
+
+
 @router.get("/api/devices/recommendations")
 async def get_device_recommendations(
     device_type: str = Query(..., description="Device type to recommend"),
