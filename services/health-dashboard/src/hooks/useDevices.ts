@@ -18,6 +18,19 @@ export interface Device {
   labels?: string[];  // Device labels for organization
   via_device?: string;  // Parent device ID
   configuration_url?: string;  // Device configuration URL
+  // Additional device attributes from API
+  config_entry_id?: string;  // Config entry ID (source tracking)
+  serial_number?: string;  // Optional serial number
+  model_id?: string;  // Optional model ID (manufacturer identifier)
+  // Device intelligence fields (Phase 1.1)
+  power_consumption_idle_w?: number;  // Standby power consumption (W)
+  power_consumption_active_w?: number;  // Active power consumption (W)
+  power_consumption_max_w?: number;  // Peak power consumption (W)
+  setup_instructions_url?: string;  // Link to setup guide
+  troubleshooting_notes?: string;  // Common issues and solutions
+  device_features_json?: string;  // Structured capabilities (JSON string)
+  community_rating?: number;  // Rating from Device Database
+  last_capability_sync?: string;  // When capabilities were last updated
 }
 
 export interface Entity {
@@ -28,16 +41,26 @@ export interface Entity {
   unique_id?: string;
   area_id?: string;
   disabled: boolean;
+  config_entry_id?: string;
   timestamp: string;
-  // Priority 1 & 2: Additional entity attributes
-  friendly_name?: string;  // User-friendly entity name
-  name?: string;  // Entity Registry name
-  name_by_user?: string;  // User-customized name
-  icon?: string;  // Entity icon
+  // Entity Registry Name Fields (2025 HA API)
+  friendly_name?: string;  // User-friendly entity name (computed: name_by_user > name > original_name)
+  name?: string;  // Entity Registry name (source of truth)
+  name_by_user?: string;  // User-customized name (highest priority)
+  original_name?: string;  // Original name from integration
+  // Entity Capabilities
+  supported_features?: number;  // Bitmask of supported features
+  capabilities?: string[];  // Parsed capabilities list: ['brightness', 'color', 'effect', etc.]
+  available_services?: string[];  // List of available service calls: ['light.turn_on', 'light.turn_off', 'light.toggle']
+  // Entity Attributes
+  icon?: string;  // Current icon (may be user-customized)
+  original_icon?: string;  // Original icon from integration/platform
   device_class?: string;  // Device class: 'temperature', 'motion', 'door', etc.
   unit_of_measurement?: string;  // Unit for sensors: '°C', '%', 'W', etc.
-  capabilities?: string[];  // Entity capabilities: ['brightness', 'color', etc.]
+  // Entity Registry 2025 Attributes
+  aliases?: string[];  // Array of alternative names for entity resolution
   labels?: string[];  // Entity labels for organization
+  options?: Record<string, any>;  // Entity-specific options/config (e.g., default brightness)
 }
 
 export interface Integration {

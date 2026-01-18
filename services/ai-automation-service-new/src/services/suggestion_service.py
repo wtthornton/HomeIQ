@@ -66,14 +66,31 @@ class SuggestionService:
             List of suggestion dictionaries
         """
         try:
+            # Validate OpenAI client
+            if not self.openai_client or not self.openai_client.client:
+                error_msg = "OpenAI API key not configured. Cannot generate suggestions."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
             # Fetch events from Data API
             logger.info(f"Fetching events for suggestion generation (days={days}, limit=10000)")
-            events = await self.data_api_client.fetch_events(days=days, limit=10000)
+            try:
+                events = await self.data_api_client.fetch_events(days=days, limit=10000)
+            except Exception as e:
+                error_msg = f"Failed to fetch events from Data API: {e}. Check Data API service and websocket-ingestion."
+                logger.error(error_msg)
+                raise ValueError(error_msg) from e
             
             logger.info(f"Received {len(events) if events else 0} events from Data API")
             
             if not events:
-                logger.warning("No events found for suggestion generation")
+                warning_msg = f"No events found for suggestion generation (days={days}, limit={limit}). Suggestions require events from Home Assistant. Check Data API and websocket-ingestion service."
+                logger.warning(warning_msg)
+                return []
+            
+            # Validate event count for suggestion generation
+            if len(events) < 100:
+                logger.warning(f"Only {len(events)} events available. Need at least 100 events to generate suggestions (have {len(events)}, need 100). Check websocket-ingestion service to ensure events are being written to InfluxDB.")
                 return []
             
             # TODO: Epic 39, Story 39.13 - Integrate with pattern detection service
@@ -86,6 +103,10 @@ class SuggestionService:
             max_suggestions = len(events) // 100
             actual_limit = min(limit, max_suggestions)
             logger.info(f"Can generate up to {max_suggestions} suggestions, requested {limit}, will generate {actual_limit}")
+            
+            if actual_limit == 0:
+                logger.warning(f"Insufficient events for suggestion generation: {len(events)} events available, need at least 100 (can generate {max_suggestions} suggestions)")
+                return []
             
             # Generate suggestions using OpenAI
             for i in range(actual_limit):

@@ -93,10 +93,9 @@ async def store_knowledge(
     """
     start_time = time.time()
     metrics = get_metrics()
-    cache_hit = False  # Store operations don't use cache for embeddings
     
     try:
-        entry_id = await service.store(
+        entry_id, cache_hit = await service.store(
             text=request.text,
             knowledge_type=request.knowledge_type,
             metadata=request.metadata,
@@ -140,10 +139,9 @@ async def retrieve_knowledge(
     """
     start_time = time.time()
     metrics = get_metrics()
-    cache_hit = False  # Will be determined by service
     
     try:
-        results = await service.retrieve(
+        results, cache_hit = await service.retrieve(
             query=request.query,
             knowledge_type=request.knowledge_type,
             top_k=request.top_k,
@@ -186,10 +184,9 @@ async def search_knowledge(
     """
     start_time = time.time()
     metrics = get_metrics()
-    cache_hit = False
     
     try:
-        results = await service.search(
+        results, cache_hit = await service.search(
             query=request.query,
             filters=request.filters,
             top_k=request.top_k,

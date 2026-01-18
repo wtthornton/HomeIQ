@@ -41,7 +41,7 @@ services:
         labels: "service=influxdb,environment=production"
 
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/all-in-one:1.75.0
     container_name: homeiq-jaeger
     restart: unless-stopped
     ports:

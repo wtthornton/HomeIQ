@@ -61,3 +61,17 @@ async def get_stats() -> dict[str, Any]:
     """
     metrics = get_metrics()
     return metrics.get_metrics()
+
+
+@router.post("/reset")
+async def reset_metrics() -> dict[str, str]:
+    """
+    Reset all metrics (useful for testing and debugging).
+    
+    Returns:
+        Success message
+    """
+    metrics = get_metrics()
+    metrics.reset()
+    logger.info("RAG metrics reset via API endpoint")
+    return {"message": "Metrics reset successfully"}

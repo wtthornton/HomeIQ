@@ -207,70 +207,8 @@ export const RAGStatusCard: React.FC<RAGStatusCardProps> = ({
         })}
       </div>
 
-      {/* Data Metrics Section */}
-      {statistics && (
-        <div className={`mt-4 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <h4 className={`text-xs font-semibold mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Data Metrics
-          </h4>
-          <div className="grid grid-cols-2 gap-3">
-            {/* Total Events */}
-            <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Total Events
-              </div>
-              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {formatNumber(statistics.metrics?.['websocket-ingestion']?.total_events_received)}
-              </div>
-              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                {statistics.period || '1h'}
-              </div>
-            </div>
-
-            {/* Events per Minute */}
-            <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Throughput
-              </div>
-              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statistics.metrics?.['websocket-ingestion']?.events_per_minute?.toFixed(1) || 'N/A'} <span className="text-xs font-normal">evt/min</span>
-              </div>
-              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                Current rate
-              </div>
-            </div>
-
-            {/* Connection Attempts (Read Count) */}
-            <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Connections
-              </div>
-              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statistics.metrics?.['websocket-ingestion']?.connection_attempts || 'N/A'}
-              </div>
-              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                Total attempts
-              </div>
-            </div>
-
-            {/* Last Refresh */}
-            <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Last Refresh
-              </div>
-              <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statistics.timestamp ? formatTimeAgo(statistics.timestamp) : 'N/A'}
-              </div>
-              <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                {statistics.timestamp ? new Date(statistics.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Footer */}
-      <div className={`flex items-center justify-between text-xs pt-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${!statistics ? 'mt-4' : ''}`}>
+      <div className={`flex items-center justify-between text-xs pt-3 mt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
         <span className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           Last updated
         </span>

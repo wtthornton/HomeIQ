@@ -4,7 +4,7 @@ import { dataApi } from '../../services/api';
 import type { TabProps } from './types';
 
 export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
-  const { devices, entities, integrations, loading, error, refresh } = useDevices();
+  const { devices, entities, loading, error, refresh } = useDevices();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedManufacturer, setSelectedManufacturer] = useState('');
   const [selectedArea, setSelectedArea] = useState('');
@@ -290,8 +290,15 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
               <div className={`text-xs space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <div>🏭 {device.manufacturer || 'Unknown'}</div>
                 <div>📦 {device.model || 'Unknown'}</div>
+                {device.model_id && device.model_id !== device.model && (
+                  <div className="text-xs opacity-70">🆔 Model ID: {device.model_id}</div>
+                )}
                 {device.sw_version && <div>💾 {device.sw_version}</div>}
+                {device.serial_number && <div>🔢 Serial: {device.serial_number}</div>}
                 {device.area_id && <div>📍 {device.area_id}</div>}
+                {device.timestamp && (
+                  <div className="text-xs opacity-70">⏰ {formatTimeAgo(device.timestamp)}</div>
+                )}
                 {/* Priority 1.3: Device Integration */}
                 {device.integration && (
                   <div className={`text-xs px-2 py-0.5 rounded inline-block mt-1 ${
@@ -299,6 +306,12 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                   }`}>
                     🔌 {device.integration}
                   </div>
+                )}
+                {device.config_entry_id && (
+                  <div className="text-xs opacity-70">⚙️ Config: {device.config_entry_id.substring(0, 8)}...</div>
+                )}
+                {device.via_device && (
+                  <div className="text-xs opacity-70">🔗 Via: {device.via_device}</div>
                 )}
                 {/* Priority 2.1: Device Type & Category */}
                 {(device.device_type || device.device_category) && (
@@ -319,6 +332,19 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                     )}
                   </div>
                 )}
+                {/* Power Consumption (if available) */}
+                {(device.power_consumption_idle_w || device.power_consumption_active_w || device.power_consumption_max_w) && (
+                  <div className="flex flex-wrap gap-1 mt-1 text-xs opacity-70">
+                    ⚡
+                    {device.power_consumption_idle_w && <span>Idle: {device.power_consumption_idle_w}W</span>}
+                    {device.power_consumption_active_w && <span>Active: {device.power_consumption_active_w}W</span>}
+                    {device.power_consumption_max_w && <span>Max: {device.power_consumption_max_w}W</span>}
+                  </div>
+                )}
+                {/* Community Rating (if available) */}
+                {device.community_rating && (
+                  <div className="text-xs opacity-70">⭐ Rating: {device.community_rating}/10</div>
+                )}
                 {/* Priority 2.3: Device Labels */}
                 {device.labels && device.labels.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
@@ -331,6 +357,89 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                     ))}
                   </div>
                 )}
+                {/* Entities Section - Show all entities with capabilities and services */}
+                {(() => {
+                  const deviceEntitiesList = entities.filter(e => e.device_id === device.device_id);
+                  if (deviceEntitiesList.length > 0) {
+                    return (
+                      <div className="mt-3 pt-2 border-t border-gray-600 dark:border-gray-600">
+                        <div className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          🔌 Entities ({deviceEntitiesList.length})
+                        </div>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {deviceEntitiesList.slice(0, 5).map((entity: Entity) => (
+                            <div
+                              key={entity.entity_id}
+                              className={`p-2 rounded text-xs ${
+                                darkMode ? 'bg-gray-750 border border-gray-600' : 'bg-gray-50 border border-gray-200'
+                              }`}
+                            >
+                              {/* Entity Name */}
+                              <div className="flex items-center gap-1 mb-1">
+                                <span>{getDomainIcon(entity.domain)}</span>
+                                <span className="font-medium">
+                                  {entity.friendly_name || entity.name || entity.entity_id.split('.')[1]}
+                                </span>
+                                <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                  ({entity.domain})
+                                </span>
+                              </div>
+                              {/* Entity Capabilities */}
+                              {entity.capabilities && entity.capabilities.length > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {entity.capabilities.slice(0, 3).map((cap, idx) => (
+                                    <span key={idx} className={`text-xs px-1.5 py-0.5 rounded ${
+                                      darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'
+                                    }`}>
+                                      {cap}
+                                    </span>
+                                  ))}
+                                  {entity.capabilities.length > 3 && (
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                      darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
+                                    }`}>
+                                      +{entity.capabilities.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {/* Available Services (Actions) */}
+                              {entity.available_services && entity.available_services.length > 0 && (
+                                <div className="mt-1">
+                                  <div className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    Actions:
+                                  </div>
+                                  <div className="flex flex-wrap gap-1 mt-0.5">
+                                    {entity.available_services.slice(0, 2).map((service, idx) => (
+                                      <span key={idx} className={`text-xs px-1.5 py-0.5 rounded font-mono ${
+                                        darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-700'
+                                      }`}>
+                                        {service.split('.')[1]}
+                                      </span>
+                                    ))}
+                                    {entity.available_services.length > 2 && (
+                                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                        darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
+                                      }`}>
+                                        +{entity.available_services.length - 2}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {deviceEntitiesList.length > 5 && (
+                            <div className={`text-xs text-center italic ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                              ... and {deviceEntitiesList.length - 5} more (click to view all)
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </button>
           ))}
@@ -363,11 +472,20 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                   <div className={`text-sm space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     <div>🏭 {selectedDevice.manufacturer}</div>
                     <div>📦 {selectedDevice.model}</div>
+                    {selectedDevice.model_id && selectedDevice.model_id !== selectedDevice.model && (
+                      <div>🆔 Model ID: <span className="font-medium">{selectedDevice.model_id}</span></div>
+                    )}
                     {selectedDevice.sw_version && <div>💾 {selectedDevice.sw_version}</div>}
+                    {selectedDevice.serial_number && (
+                      <div>🔢 Serial Number: <span className="font-medium">{selectedDevice.serial_number}</span></div>
+                    )}
                     {selectedDevice.area_id && <div>📍 {selectedDevice.area_id}</div>}
                     {/* Priority 1.3: Device Integration */}
                     {selectedDevice.integration && (
                       <div>🔌 Integration: <span className="font-medium">{selectedDevice.integration}</span></div>
+                    )}
+                    {selectedDevice.config_entry_id && (
+                      <div>⚙️ Config Entry: <span className="font-mono text-xs">{selectedDevice.config_entry_id.substring(0, 16)}...</span></div>
                     )}
                     {/* Priority 1.5: Last Seen Timestamp */}
                     {selectedDevice.timestamp && (
@@ -392,6 +510,38 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                         )}
                       </div>
                     )}
+                    {/* Power Consumption (if available) */}
+                    {(selectedDevice.power_consumption_idle_w || selectedDevice.power_consumption_active_w || selectedDevice.power_consumption_max_w) && (
+                      <div className="mt-2 space-y-1">
+                        <div className="font-medium">⚡ Power Consumption:</div>
+                        {selectedDevice.power_consumption_idle_w && (
+                          <div className="ml-4 text-xs">Idle: {selectedDevice.power_consumption_idle_w}W</div>
+                        )}
+                        {selectedDevice.power_consumption_active_w && (
+                          <div className="ml-4 text-xs">Active: {selectedDevice.power_consumption_active_w}W</div>
+                        )}
+                        {selectedDevice.power_consumption_max_w && (
+                          <div className="ml-4 text-xs">Max: {selectedDevice.power_consumption_max_w}W</div>
+                        )}
+                      </div>
+                    )}
+                    {/* Community Rating (if available) */}
+                    {selectedDevice.community_rating && (
+                      <div>⭐ Community Rating: <span className="font-medium">{selectedDevice.community_rating}/10</span></div>
+                    )}
+                    {/* Setup Instructions (if available) */}
+                    {selectedDevice.setup_instructions_url && (
+                      <div>📖 Setup Guide: <a href={selectedDevice.setup_instructions_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">View Instructions</a></div>
+                    )}
+                    {/* Last Capability Sync (if available) */}
+                    {selectedDevice.last_capability_sync && (
+                      <div>
+                        🔄 Capabilities synced:{' '}
+                        <span className="font-medium">
+                          {formatTimeAgo(selectedDevice.last_capability_sync)}
+                        </span>
+                      </div>
+                    )}
                     {/* Priority 2.4: Via Device (Parent Device) */}
                     {selectedDevice.via_device && (
                       <div className="mt-2">
@@ -408,6 +558,13 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                             {label}
                           </span>
                         ))}
+                      </div>
+                    )}
+                    {/* Troubleshooting Notes (if available) */}
+                    {selectedDevice.troubleshooting_notes && (
+                      <div className="mt-3 p-2 rounded bg-yellow-900/20 border border-yellow-700/50 text-xs">
+                        <div className="font-medium mb-1">⚠️ Troubleshooting:</div>
+                        <div>{selectedDevice.troubleshooting_notes}</div>
                       </div>
                     )}
                   </div>
@@ -514,16 +671,107 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
                                       {expandedEntity === entity.entity_id ? '▼' : '▶'} Capabilities ({entity.capabilities.length})
                                     </button>
                                     {expandedEntity === entity.entity_id && (
-                                      <div className="flex flex-wrap gap-1 mt-1 ml-4">
-                                        {entity.capabilities.map((capability, idx) => (
-                                          <span key={idx} className={`text-xs px-2 py-0.5 rounded ${
-                                            darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                                          }`}>
-                                            {capability}
-                                          </span>
-                                        ))}
+                                      <div className="mt-1 ml-4 space-y-2">
+                                        <div className="flex flex-wrap gap-1">
+                                          {entity.capabilities.map((capability, idx) => (
+                                            <span key={idx} className={`text-xs px-2 py-0.5 rounded ${
+                                              darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'
+                                            }`}>
+                                              {capability}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        {/* Available Services (Actions for AI/Automation) */}
+                                        {entity.available_services && entity.available_services.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-gray-600 dark:border-gray-600">
+                                            <div className={`text-xs font-medium mb-1 ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
+                                              🤖 Available Actions ({entity.available_services.length}):
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                              {entity.available_services.map((service, idx) => (
+                                                <span key={idx} className={`text-xs px-2 py-0.5 rounded font-mono ${
+                                                  darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-700'
+                                                }`}>
+                                                  {service}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Entity Options/Settings */}
+                                        {entity.options && Object.keys(entity.options).length > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-gray-600 dark:border-gray-600">
+                                            <div className={`text-xs font-medium mb-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                                              ⚙️ Configurable Settings:
+                                            </div>
+                                            <div className="space-y-1">
+                                              {Object.entries(entity.options).map(([key, value]) => (
+                                                <div key={key} className={`text-xs px-2 py-0.5 rounded ${
+                                                  darkMode ? 'bg-yellow-900/20 text-yellow-300' : 'bg-yellow-50 text-yellow-800'
+                                                }`}>
+                                                  <span className="font-medium">{key}:</span> {String(value)}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Aliases (for entity resolution) */}
+                                        {entity.aliases && entity.aliases.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-gray-600 dark:border-gray-600">
+                                            <div className={`text-xs font-medium mb-1 ${darkMode ? 'text-purple-400' : 'text-purple-700'}`}>
+                                              🏷️ Aliases ({entity.aliases.length}):
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                              {entity.aliases.map((alias, idx) => (
+                                                <span key={idx} className={`text-xs px-2 py-0.5 rounded ${
+                                                  darkMode ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-700'
+                                                }`}>
+                                                  {alias}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Supported Features (bitmask) */}
+                                        {entity.supported_features !== undefined && entity.supported_features !== null && (
+                                          <div className="mt-2 pt-2 border-t border-gray-600 dark:border-gray-600">
+                                            <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                              🔧 Supported Features: <span className="font-mono">{entity.supported_features}</span>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
+                                  </div>
+                                )}
+                                {/* Show available services even when not expanded (if no capabilities) */}
+                                {(!entity.capabilities || entity.capabilities.length === 0) && entity.available_services && entity.available_services.length > 0 && (
+                                  <div className="mt-2">
+                                    <div className={`text-xs font-medium mb-1 ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
+                                      🤖 Actions ({entity.available_services.length}):
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {entity.available_services.slice(0, 3).map((service, idx) => (
+                                        <span key={idx} className={`text-xs px-2 py-0.5 rounded font-mono ${
+                                          darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-700'
+                                        }`}>
+                                          {service.split('.')[1]}
+                                        </span>
+                                      ))}
+                                      {entity.available_services.length > 3 && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setExpandedEntity(expandedEntity === entity.entity_id ? null : entity.entity_id);
+                                          }}
+                                          className={`text-xs px-2 py-0.5 rounded ${
+                                            darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                                          }`}
+                                        >
+                                          +{entity.available_services.length - 3} more
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                                 {/* Priority 2.3: Entity Labels */}
@@ -606,7 +854,8 @@ function getEntityIcon(entity: Entity): string {
 }
 
 // Priority 1.5: Format relative time (e.g., "2 hours ago")
-function formatTimeAgo(timestamp: string): string {
+function formatTimeAgo(timestamp: string | undefined): string {
+  if (!timestamp) return 'N/A';
   try {
     const date = new Date(timestamp);
     const now = new Date();

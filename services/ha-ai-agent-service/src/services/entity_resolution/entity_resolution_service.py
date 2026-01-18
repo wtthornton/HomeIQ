@@ -45,6 +45,20 @@ class EntityResolutionService:
         "bulb": ["bulb", "light", "lamp"],
     }
 
+    # Pattern keywords for combined device descriptions
+    # (e.g., "switch LED" = LED indicator on switch)
+    # These patterns are checked BEFORE device type keywords to prevent false matches
+    PATTERN_KEYWORDS = {
+        "switch_led": [
+            "switch led",
+            "switch's led",
+            "switch indicator",
+            "led on switch",
+            "switch led indicator",
+        ],
+        "switch_button": ["switch button", "button on switch"],
+    }
+
     def __init__(self, data_api_client: Optional[DataAPIClient] = None):
         """
         Initialize entity resolution service.
@@ -102,8 +116,16 @@ class EntityResolutionService:
                 entities = self._filter_by_domain(entities, target_domain)
 
             # Step 5: Extract keywords from prompt
+            # Check patterns FIRST (before device type keywords) to prevent false matches
+            pattern_keywords = self._extract_pattern_keywords(user_prompt)
             positional_keywords = self._extract_positional_keywords(user_prompt)
-            device_type_keywords = self._extract_device_type_keywords(user_prompt)
+            # Only extract device type keywords if no pattern matched
+            # (prevents "switch LED" matching LED devices)
+            device_type_keywords = (
+                set()
+                if pattern_keywords
+                else self._extract_device_type_keywords(user_prompt)
+            )
 
             # Step 6: Score and match entities
             scored_entities = self._score_entities(
@@ -111,6 +133,7 @@ class EntityResolutionService:
                 user_prompt,
                 positional_keywords,
                 device_type_keywords,
+                pattern_keywords,
             )
 
             # Step 7: Select best matches
@@ -251,12 +274,39 @@ class EntityResolutionService:
 
         return found_keywords
 
+    def _extract_pattern_keywords(self, user_prompt: str) -> set[str]:
+        """
+        Extract pattern keywords from user prompt.
+
+        Example: "switch LED" = LED indicator on switch.
+        
+        Pattern keywords are checked BEFORE device type keywords to prevent false matches.
+        For example, "office switch led" should match switch LED attributes, not LED devices.
+
+        Args:
+            user_prompt: User's natural language request
+
+        Returns:
+            Set of pattern keywords found
+        """
+        prompt_lower = user_prompt.lower()
+        found_patterns = set()
+
+        for pattern_name, patterns in self.PATTERN_KEYWORDS.items():
+            for pattern in patterns:
+                if pattern in prompt_lower:
+                    found_patterns.add(pattern_name)
+                    break
+
+        return found_patterns
+
     def _score_entities(
         self,
         entities: list[dict[str, Any]],
         user_prompt: str,
         positional_keywords: set[str],
         device_type_keywords: set[str],
+        pattern_keywords: set[str],
     ) -> list[dict[str, Any]]:
         """
         Score entities based on keyword matches.
@@ -266,6 +316,7 @@ class EntityResolutionService:
             user_prompt: User's natural language request
             positional_keywords: Set of positional keywords found
             device_type_keywords: Set of device type keywords found
+            pattern_keywords: Set of pattern keywords found (e.g., "switch_led")
 
         Returns:
             List of entities with scores
@@ -282,12 +333,24 @@ class EntityResolutionService:
             # Search text combines entity_id, friendly_name, and aliases
             search_text = f"{entity_id} {friendly_name} {' '.join(aliases)}"
 
+            # Score pattern keyword matches FIRST (highest priority)
+            # Pattern: "switch_led" → boost entities with both "switch" and "led" in name
+            if "switch_led" in pattern_keywords:
+                # Boost entities with both "switch" and "led" in name (LED indicator on switch)
+                if "switch" in search_text and "led" in search_text:
+                    score += 3.0  # High boost for pattern match
+                    # Extra boost for LED effect sensors (sensor.*_led_effect)
+                    if "sensor" in entity_id and "_led_effect" in entity_id:
+                        score += 2.0  # Perfect match for LED effect sensor
+                elif "led_effect" in search_text or "led effect" in friendly_name:
+                    score += 2.0  # Good match for LED effect entities
+
             # Score positional keyword matches
             for keyword in positional_keywords:
                 if keyword in search_text:
                     score += 1.0
 
-            # Score device type keyword matches
+            # Score device type keyword matches (only if no pattern matched)
             for device_type in device_type_keywords:
                 for keyword in self.DEVICE_TYPE_KEYWORDS.get(device_type, []):
                     if keyword in search_text:

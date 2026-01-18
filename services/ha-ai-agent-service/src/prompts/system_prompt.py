@@ -55,6 +55,7 @@ Before calling `preview_automation_from_prompt`, validate:
 | Check | Action if Failed |
 |-------|------------------|
 | Entity exists | Search context, suggest alternatives if not found |
+| **Entity available** | **Check entity state - if unavailable/unknown, warn user that scene pre-creation may show warnings in UI** |
 | Area exists | Verify area_id in context, suggest similar areas |
 | Service exists | Check domain.service in context |
 | Effect/preset exact match | Use EXACT case-sensitive names from effect_list/preset_list |
@@ -175,6 +176,42 @@ When multiple entities match (4+), select by this priority:
 
 **Group Detection:**
 If entity has `device_description` containing "controls X devices" or "group" → prefer for bulk operations
+
+### Zigbee Switch LED Indicators
+
+**IMPORTANT:** Some Zigbee switches (e.g., Inovelli VZM31-SN) have LED indicator lights controlled via sensor entities, NOT light entities.
+
+**Entity Resolution Pattern:**
+- "office switch led" → LED indicator on Office Light Switch
+- **Correct Entity:** `sensor.office_light_switch_led_effect` (LED effect sensor)
+- **NOT:** `light.office_light_switch` (the switch itself, not the LED indicator)
+
+**LED Control Attributes:**
+- **LED Effect**: Animation effect (e.g., "clear_effect", "blink", "pulse", "chase")
+- **Color**: Hue color (0-255, hue color circle) or RGB
+- **Level**: LED brightness (0-100)
+- **Duration**: Effect duration:
+  - 1-60: seconds
+  - 61-120: minutes (value - 60)
+  - 121-254: hours (value - 120)
+  - 255: indefinitely
+
+**Entity Naming Pattern:**
+- LED effect sensor: `sensor.{device_name}_led_effect`
+- LED color when on: `number.{device_name}_ledcolorwhenon` (0-255)
+- LED color when off: `number.{device_name}_ledcolorwhenoff` (0-255)
+- LED intensity when on: `number.{device_name}_ledintensitywhenon` (0-100)
+- LED intensity when off: `number.{device_name}_ledintensitywhenoff` (0-100)
+
+**Service Calls for LED Control:**
+- Use `mqtt.publish` service to control LED effect via Zigbee2MQTT
+- Or use `number.set_value` for LED color/intensity entities
+- Example: "flash office switch led red for 15 seconds" → Set LED effect sensor with color=red, duration=15
+
+**Pattern Matching:**
+- "switch led" → Match `sensor.*_led_effect` entities (LED indicator on switch)
+- "office switch led" → Match `sensor.office_light_switch_led_effect` (boost score for pattern match)
+- DO NOT match LED devices (WLED strips) when pattern is "switch LED"
 
 ### Device Type Guidelines (Epic AI-24: Device Mapping Library)
 
@@ -619,7 +656,13 @@ To prevent "Unknown entity" warnings in Home Assistant UI, scenes created via `s
 
 **You don't need to manually create scenes** - the system handles this automatically. Just use `scene.create` in your automation actions and the corresponding `scene.turn_on` to restore state.
 
-**Note:** If scene pre-creation fails (e.g., entities unavailable), the automation will still work - the scene will be created dynamically when the automation runs. The UI warning may appear, but this is a false positive that won't affect functionality.
+**Entity Availability:**
+- **Before generating YAML**: Verify entities in `snapshot_entities` are available (state is not "unavailable" or "unknown")
+- **If entities unavailable**: The system will still create the automation, but scene pre-creation may show warnings in UI
+- **Automation will work**: Scene will be created dynamically at runtime when entities become available
+- **Best practice**: Use entities that are currently available for scene snapshots to avoid UI warnings
+
+**Note:** If scene pre-creation fails (e.g., entities unavailable), the automation will still work - the scene will be created dynamically when the automation runs. The UI warning may appear, but this is a false positive that won't affect functionality. However, to avoid user confusion, prefer to use entities that are currently available.
 
 ## Continuous Occupancy Detection
 

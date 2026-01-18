@@ -1,6 +1,6 @@
 # HomeIQ Shared Base Requirements
 # Common dependencies used across multiple services
-# Last Updated: January 2025
+# Last Updated: January 2026
 #
 # Usage in service requirements.txt:
 #   -r ../requirements-base.txt
@@ -16,21 +16,21 @@
 # ============================================
 # Web Framework (Most Services)
 # ============================================
-fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
-uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
+fastapi>=0.128.0,<0.129.0  # Latest stable 0.128.x series (January 2026)
+uvicorn[standard]>=0.40.0,<0.41.0  # Latest stable 0.40.x series with standard extras
 python-multipart>=0.0.20,<0.1.0  # FastAPI file uploads support
 
 # ============================================
 # Data Validation (Most Services)
 # ============================================
-pydantic>=2.12.4,<3.0.0  # Stable Pydantic v2 - unpinned for patch updates
+pydantic>=2.12.5,<3.0.0  # Latest stable Pydantic v2.12.5 (January 2026)
 pydantic-settings>=2.12.0,<3.0.0  # Pydantic settings management
 
 # ============================================
 # HTTP Clients (Most Services)
 # ============================================
-httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41) - async HTTP client
-aiohttp>=3.13.2,<4.0.0  # Latest stable (2025) - async HTTP client/server
+httpx>=0.28.1,<0.29.0  # Latest stable 0.28.1 (January 2026) - async HTTP client
+aiohttp>=3.13.3,<4.0.0  # Latest stable 3.13.3 (January 2026) - async HTTP client/server
 tenacity>=8.0.0,<9.0.0  # Retry logic for API calls
 
 # ============================================
@@ -41,7 +41,7 @@ python-dotenv>=1.2.1,<2.0.0  # Environment variable loading
 # ============================================
 # System Monitoring (Most Services)
 # ============================================
-psutil>=7.1.3,<8.0.0  # System and process utilities
+psutil>=7.2.1,<8.0.0  # Latest stable 7.2.1 (January 2026) - System and process utilities
 
 # ============================================
 # Observability (OpenTelemetry)
@@ -56,7 +56,7 @@ opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0  # For database queries
 # ============================================
 # Database (Services with Database)
 # ============================================
-sqlalchemy>=2.0.44,<3.0.0  # SQL toolkit and ORM - unpinned for patch updates
+sqlalchemy>=2.0.45,<3.0.0  # Latest stable 2.0.45 (January 2026) - SQL toolkit and ORM
 aiosqlite>=0.21.0,<0.22.0  # Async SQLite driver - unpinned for patch updates
 alembic>=1.17.2,<2.0.0  # Database migration tool - unpinned for patch updates
 
@@ -79,7 +79,7 @@ paho-mqtt>=1.6.1,<2.0.0  # MQTT client - unpinned for patch updates
 # Testing (All Services - Dev Dependencies)
 # ============================================
 pytest>=8.3.3,<9.0.0  # Testing framework - unpinned for patch updates
-pytest-asyncio>=0.23.0,<1.0.0  # Async pytest support - unpinned for patch updates
+pytest-asyncio>=1.3.0,<2.0.0  # Latest stable 1.3.0 (January 2026) - Async pytest support
 pytest-cov>=5.0.0,<6.0.0  # Coverage plugin - unpinned for patch updates
 
 # ============================================
