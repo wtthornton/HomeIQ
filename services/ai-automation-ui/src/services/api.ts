@@ -154,7 +154,14 @@ export const api = {
     return fetchJSON(`${API_BASE_URL}/suggestions/refresh/status`);
   },
 
-  async refreshSuggestions(): Promise<{ success: boolean; message: string; next_allowed_at: string | null }> {
+  async refreshSuggestions(): Promise<{ 
+    success: boolean; 
+    message: string; 
+    count?: number;
+    suggestions?: any[];
+    error_code?: string;
+    next_allowed_at?: string | null;
+  }> {
     return fetchJSON(`${API_BASE_URL}/suggestions/refresh`, {
       method: 'POST',
     });

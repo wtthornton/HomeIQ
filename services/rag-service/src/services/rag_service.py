@@ -67,7 +67,7 @@ class RAGService:
         
         logger.info(f"RAGService initialized (cache_size={embedding_cache_size})")
 
-    async def _get_embedding(self, text: str) -> np.ndarray:
+    async def _get_embedding(self, text: str) -> tuple[np.ndarray, bool]:
         """
         Get embedding for text (with cache).
         
@@ -75,7 +75,9 @@ class RAGService:
             text: Text to embed
         
         Returns:
-            Embedding vector (1024-dim numpy array)
+            Tuple of (embedding vector, cache_hit bool)
+            - embedding: 1024-dim numpy array
+            - cache_hit: True if embedding was from cache, False if newly generated
         
         Raises:
             EmbeddingGenerationError: If embedding generation fails
@@ -83,7 +85,7 @@ class RAGService:
         # Check cache first
         if text in self._embedding_cache:
             logger.debug(f"Cache hit for embedding: {text[:50]}...")
-            return self._embedding_cache[text]
+            return self._embedding_cache[text], True
 
         try:
             # Get embedding from OpenVINO service
@@ -101,7 +103,7 @@ class RAGService:
 
             self._embedding_cache[text] = embedding
             logger.debug(f"Generated and cached embedding for: {text[:50]}...")
-            return embedding
+            return embedding, False
 
         except EmbeddingGenerationError:
             raise
@@ -115,7 +117,7 @@ class RAGService:
         knowledge_type: str,
         metadata: dict[str, Any] | None = None,
         success_score: float = 0.5
-    ) -> int:
+    ) -> tuple[int, bool]:
         """
         Store text with semantic embedding.
         
@@ -126,14 +128,16 @@ class RAGService:
             success_score: Success score (0.0-1.0, default: 0.5)
         
         Returns:
-            ID of stored entry
+            Tuple of (entry ID, cache_hit bool)
+            - entry ID: ID of stored entry
+            - cache_hit: True if embedding was from cache, False if newly generated
         
         Raises:
             EmbeddingGenerationError: If embedding generation fails
         """
         try:
             # Generate embedding
-            embedding = await self._get_embedding(text)
+            embedding, cache_hit = await self._get_embedding(text)
 
             # Store in database
             entry = RAGKnowledge(
@@ -149,7 +153,7 @@ class RAGService:
             await self.db.refresh(entry)
 
             logger.info(f"Stored RAG knowledge: type={knowledge_type}, id={entry.id}, text='{text[:50]}...'")
-            return entry.id
+            return entry.id, cache_hit
 
         except EmbeddingGenerationError:
             raise
@@ -164,7 +168,7 @@ class RAGService:
         knowledge_type: str | None = None,
         top_k: int = 5,
         min_similarity: float = 0.7
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], bool]:
         """
         Retrieve similar entries using semantic similarity.
         
@@ -175,15 +179,17 @@ class RAGService:
             min_similarity: Minimum similarity threshold (0.0-1.0)
         
         Returns:
-            List of similar entries with similarity scores, sorted by similarity (descending)
-            Each entry contains: id, text, similarity, knowledge_type, metadata, success_score
+            Tuple of (results list, cache_hit bool)
+            - results: List of similar entries with similarity scores, sorted by similarity (descending)
+              Each entry contains: id, text, similarity, knowledge_type, metadata, success_score
+            - cache_hit: True if query embedding was from cache, False if newly generated
         
         Raises:
             EmbeddingGenerationError: If embedding generation fails
         """
         try:
             # Generate query embedding
-            query_embedding = await self._get_embedding(query)
+            query_embedding, cache_hit = await self._get_embedding(query)
 
             # Query database
             stmt = select(RAGKnowledge)
@@ -215,7 +221,7 @@ class RAGService:
             results = results[:top_k]
 
             logger.debug(f"Retrieved {len(results)} similar entries for query: {query[:50]}...")
-            return results
+            return results, cache_hit
 
         except EmbeddingGenerationError:
             raise
@@ -229,7 +235,7 @@ class RAGService:
         filters: dict[str, Any] | None = None,
         top_k: int = 5,
         min_similarity: float = 0.7
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], bool]:
         """
         Search with optional filters (alias for retrieve with filters).
         
@@ -240,7 +246,9 @@ class RAGService:
             min_similarity: Minimum similarity threshold (0.0-1.0)
         
         Returns:
-            List of similar entries with similarity scores
+            Tuple of (results list, cache_hit bool)
+            - results: List of similar entries with similarity scores
+            - cache_hit: True if query embedding was from cache, False if newly generated
         """
         knowledge_type = filters.get('knowledge_type') if filters else None
         return await self.retrieve(query, knowledge_type, top_k, min_similarity)

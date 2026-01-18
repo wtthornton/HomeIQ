@@ -107,22 +107,55 @@ async def refresh_suggestions(
     
     Returns:
         {
-            "success": True,
-            "message": "Suggestion generation completed",
+            "success": True/False,
+            "message": "Status message",
             "count": <number_of_suggestions_generated>,
-            "suggestions": [<suggestion_dicts>]
+            "suggestions": [<suggestion_dicts>],
+            "error_code": "<error_code>" (if failed)
         }
     """
-    # Generate suggestions synchronously (Option 1 from analysis)
-    # Default: 10 suggestions, 30 days of data
-    suggestions = await service.generate_suggestions(limit=10, days=30)
-    
-    return {
-        "success": True,
-        "message": f"Suggestion generation completed. Generated {len(suggestions)} suggestions.",
-        "count": len(suggestions),
-        "suggestions": suggestions
-    }
+    try:
+        # Generate suggestions synchronously (Option 1 from analysis)
+        # Default: 10 suggestions, 30 days of data
+        suggestions = await service.generate_suggestions(limit=10, days=30)
+        
+        if len(suggestions) == 0:
+            return {
+                "success": False,
+                "message": "No suggestions generated. Possible reasons: No events available (need at least 100 events), Data API not responding, or OpenAI API key not configured. Check service logs for details.",
+                "count": 0,
+                "suggestions": [],
+                "error_code": "NO_SUGGESTIONS_GENERATED"
+            }
+        
+        return {
+            "success": True,
+            "message": f"Suggestion generation completed. Generated {len(suggestions)} suggestions.",
+            "count": len(suggestions),
+            "suggestions": suggestions
+        }
+    except ValueError as e:
+        # Handle validation errors (e.g., OpenAI not configured, Data API errors)
+        error_msg = str(e)
+        logger.error(f"Suggestion generation failed: {error_msg}")
+        return {
+            "success": False,
+            "message": error_msg,
+            "count": 0,
+            "suggestions": [],
+            "error_code": "VALIDATION_ERROR"
+        }
+    except Exception as e:
+        # Handle unexpected errors
+        error_msg = f"Unexpected error during suggestion generation: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return {
+            "success": False,
+            "message": error_msg,
+            "count": 0,
+            "suggestions": [],
+            "error_code": "GENERATION_ERROR"
+        }
 
 
 @router.get("/refresh/status")
@@ -141,6 +174,100 @@ async def get_refresh_status(
     return {
         "status": "idle",
         "message": "Refresh status endpoint - implementation in progress"
+    }
+
+
+@router.get("/health")
+@handle_route_errors("health check")
+async def get_suggestions_health(
+    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
+) -> dict[str, Any]:
+    """
+    Health check endpoint for suggestion generation prerequisites.
+    
+    Checks:
+    - Database connectivity
+    - Data API connectivity
+    - Event count availability
+    - OpenAI API key configuration
+    
+    Returns:
+        {
+            "healthy": True/False,
+            "checks": {
+                "database": True/False,
+                "data_api": True/False,
+                "openai": True/False,
+                "events_available": True/False
+            },
+            "details": {
+                "event_count": <number>,
+                "can_generate": <number_of_suggestions>,
+                "openai_configured": True/False
+            },
+            "issues": ["<issue1>", "<issue2>"]
+        }
+    """
+    issues = []
+    checks = {
+        "database": False,
+        "data_api": False,
+        "openai": False,
+        "events_available": False
+    }
+    details = {
+        "event_count": 0,
+        "can_generate": 0,
+        "openai_configured": False
+    }
+    
+    # Check database connectivity
+    try:
+        from sqlalchemy import select, func
+        count_query = select(func.count()).select_from(Suggestion)
+        result = await service.db.execute(count_query)
+        total_suggestions = result.scalar() or 0
+        checks["database"] = True
+    except Exception as e:
+        issues.append(f"Database connection failed: {str(e)}")
+    
+    # Check OpenAI configuration
+    if service.openai_client and service.openai_client.client:
+        checks["openai"] = True
+        details["openai_configured"] = True
+    else:
+        issues.append("OpenAI API key not configured")
+    
+    # Check Data API connectivity and event count
+    try:
+        if await service.data_api_client.health_check():
+            checks["data_api"] = True
+            # Try to fetch events (with small limit for health check)
+            try:
+                events = await service.data_api_client.fetch_events(limit=100)
+                event_count = len(events) if events else 0
+                details["event_count"] = event_count
+                details["can_generate"] = event_count // 100
+                
+                if event_count >= 100:
+                    checks["events_available"] = True
+                else:
+                    issues.append(f"Insufficient events: {event_count} available, need at least 100 (can generate {details['can_generate']} suggestions)")
+            except Exception as e:
+                issues.append(f"Failed to fetch events from Data API: {str(e)}")
+        else:
+            issues.append("Data API service not responding")
+    except Exception as e:
+        issues.append(f"Data API health check failed: {str(e)}")
+    
+    healthy = all(checks.values())
+    
+    return {
+        "healthy": healthy,
+        "checks": checks,
+        "details": details,
+        "issues": issues,
+        "message": "All checks passed" if healthy else f"Found {len(issues)} issue(s). See 'issues' array for details."
     }
 
 

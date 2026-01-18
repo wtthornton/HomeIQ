@@ -167,7 +167,11 @@ async def init_db():
                     'confidence_score': 'REAL',
                     'safety_score': 'REAL',
                     'user_feedback': 'TEXT',  # VARCHAR in SQLite is same as TEXT
-                    'feedback_at': 'TEXT'  # SQLite stores datetime as TEXT
+                    'feedback_at': 'TEXT',  # SQLite stores datetime as TEXT
+                    # Hybrid Flow Integration columns (Epic 39 - Hybrid Flow)
+                    'plan_id': 'TEXT',  # Link to plans table
+                    'compiled_id': 'TEXT',  # Link to compiled_artifacts table
+                    'deployment_id': 'TEXT'  # Link to deployments table
                 }
                 
                 # Add missing columns

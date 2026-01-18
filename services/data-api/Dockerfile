@@ -5,8 +5,8 @@ FROM python:3.12-alpine AS builder
 
 WORKDIR /app
 
-# Upgrade pip to latest version
-RUN pip install --upgrade pip==25.2
+# Upgrade pip to latest version (allow automatic updates)
+RUN pip install --upgrade pip
 
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev python3-dev libffi-dev openssl-dev cargo
