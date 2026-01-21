@@ -134,7 +134,7 @@ TappsCodingAgents/
 │
 ├── docs/                  # User-facing documentation (how to use)
 ├── requirements/          # Framework specifications (developing)
-└── implementation/        # Development notes (developing)
+└── docs/implementation/   # Implementation notes and EPIC/PHASE docs
 ```
 
 ## Examples
@@ -153,7 +153,7 @@ TappsCodingAgents/
 
 ## References
 
-- **Self-Hosting Setup**: `implementation/SELF_HOSTING_SETUP_COMPLETE.md`
+- **Self-Hosting Setup**: `docs/implementation/SELF_HOSTING_SETUP_COMPLETE.md`
 - **User Guide**: `QUICK_START.md`, `docs/DEVELOPER_GUIDE.md`
 - **Framework Architecture**: `docs/ARCHITECTURE.md`
 - **Configuration**: `.tapps-agents/` directory

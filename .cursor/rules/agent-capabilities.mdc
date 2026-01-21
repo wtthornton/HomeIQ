@@ -20,6 +20,8 @@ TappsCodingAgents provides **14 specialized workflow agents** covering the compl
 - **Orchestration**: orchestrator
 - **Enhancement**: enhancer
 
+**Model selection:** Each skill specifies a `model_profile` (e.g. `reviewer_profile`). Override in `requirements/model_profiles.yaml` or project config; when a profile is missing, Cursor uses the project/user default. See `docs/MODEL_SELECTION.md` for resolution and overrides. Prefer higher-accuracy models for reviewer and security-review; lighter models for lint/score.
+
 ---
 
 ## Planning Agents
@@ -300,7 +302,7 @@ python -m tapps_agents.cli tester generate-tests-batch src/clients/*.py --output
 - Security analysis
 
 **Capabilities**:
-- Code scoring (5 metrics: complexity, security, maintainability, test coverage, performance)
+- Code scoring (7 categories: complexity, security, maintainability, test coverage, performance, structure, devex)
 - LLM-based code review
 - Linting (Ruff)
 - Type checking (mypy)
@@ -410,6 +412,7 @@ python -m tapps_agents.cli evaluator evaluate-workflow workflow-123
 - Compliance checking (HIPAA, GDPR, PCI DSS)
 - Deployment strategies
 - Dependency vulnerability scanning
+- Bundle analysis (Node/React/Vue; opt-in, best-effort)
 - Infrastructure planning
 
 **Common Commands**:
@@ -417,6 +420,7 @@ python -m tapps_agents.cli evaluator evaluate-workflow workflow-123
 python -m tapps_agents.cli ops audit-security .
 python -m tapps_agents.cli ops check-compliance --standard GDPR
 python -m tapps_agents.cli ops audit-dependencies
+python -m tapps_agents.cli ops audit-bundle
 python -m tapps_agents.cli ops plan-deployment "Kubernetes deployment"
 ```
 
@@ -497,12 +501,14 @@ python -m tapps_agents.cli enhancer enhance-quick "Add user authentication"
 
 # Stage-by-stage
 python -m tapps_agents.cli enhancer enhance-stage analysis "Create payment system"
-python -m tapps_agents.cli enhancer enhance-resume <session-id>
+python -m tapps_agents.cli enhancer enhance-stage requirements --session-id <session-id>
 ```
 
 **Expert Integration**: Automatically detects domains and consults relevant Industry Experts with weighted decision-making (Primary 51%, Others 49%).
 
 **Output Formats**: Markdown (default), JSON, YAML
+
+**Workflow integration:** full-sdlc (optional enhance before requirements), rapid-dev, and Epic run enhance steps via EnhancerHandler. **CLI auto-enhancement:** `auto_enhancement` and `PROMPT_ARGUMENT_MAP` in docs/CONFIGURATION.md.
 
 ---
 
@@ -671,6 +677,7 @@ agents:
 
 ## Related Documentation
 
+- [When to Use](when-to-use.mdc) - ⭐ **Importance and when to use** each capability (workflows, agents, commands)
 - [Command Reference](command-reference.mdc) - ⭐ **Complete command reference** - All commands and parameters
 - [Simple Mode](simple-mode.mdc) - ⭐ **Recommended orchestration method** - Complete workflow execution
 - [Quick Reference](quick-reference.mdc) - Quick command reference

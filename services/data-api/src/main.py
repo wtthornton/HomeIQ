@@ -455,7 +455,7 @@ async def api_info():
                 "sports": "/api/v1/sports (Coming in Story 13.4)",
                 "ha_automation": "/api/v1/ha (Coming in Story 13.4)"
             },
-            "authentication": data_api_service.enable_auth
+            "authentication": {"api_key_required": not data_api_service.allow_anonymous}
         },
         message="Data API information retrieved successfully"
     )

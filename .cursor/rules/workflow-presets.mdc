@@ -29,6 +29,71 @@ TappsCodingAgents provides preset workflows that can be executed with simple one
 - Security: ≥7.0
 - Maintainability: ≥7.0
 
+### 2. Maintenance & Bug Fixing
+
+**Command:** `python -m tapps_agents.cli workflow maintenance`
+
+**Best for:** Debug, improve, and refactor existing code
+
+**Agent Sequence:**
+1. Debugger - Analyze Error
+2. Improver - Refactor
+3. Reviewer - Review Code
+4. Tester - Write Tests
+5. Documenter - Update Docstrings
+6. Orchestrator - Finalize
+
+**Quality Gates:**
+- Overall score: ≥70
+- Maintainability: ≥7.5
+
+### 3. Quick Fix
+
+**Command:** `python -m tapps_agents.cli workflow quick-fix`
+
+**Best for:** Fast bug fix with minimal overhead
+
+**Agent Sequence:**
+1. Debugger - Analyze Error
+2. Implementer - Write Code
+3. Reviewer - Review Code
+4. Tester - Write Tests
+5. Orchestrator - Finalize
+
+**Quality Gates:**
+- Overall score: ≥60
+- Security: ≥7.0
+
+### 4. Simple Fix Issues
+
+**Command:** `python -m tapps_agents.cli workflow simple-fix-issues`
+
+**Best for:** Debug and fix issues in existing code
+
+**Agent Sequence:**
+1. Reviewer - Review Code
+2. Debugger - Analyze Error
+3. Implementer - Write Code
+4. Tester - Write Tests
+5. Orchestrator - Finalize
+
+### 5. Simple Improve Quality
+
+**Command:** `python -m tapps_agents.cli workflow simple-improve-quality`
+
+**Best for:** Improve code quality through review and refactoring
+
+**Agent Sequence:**
+1. Reviewer - Review Code
+2. Improver - Refactor
+3. Reviewer - Review Code
+4. Tester - Write Tests
+5. Orchestrator - Finalize
+
+**Quality Gates:**
+- Overall score: ≥75
+- Maintainability: ≥8.0
+
 ## Usage in Cursor AI
 
 When working in Cursor AI, you can:
@@ -51,6 +116,10 @@ When working in Cursor AI, you can:
 ## When to Use Each Workflow
 
 - **Complete enterprise software development lifecycle with all quality gates, compliance checks, and comprehensive documentation** → `workflow enterprise-development`
+- **Debug, improve, and refactor existing code** → `workflow maintenance`
+- **Fast bug fix with minimal overhead** → `workflow quick-fix`
+- **Debug and fix issues in existing code** → `workflow simple-fix-issues`
+- **Improve code quality through review and refactoring** → `workflow simple-improve-quality`
 
 ## Integration
 
@@ -71,5 +140,9 @@ python -m tapps_agents.cli workflow list
 
 Workflow presets are defined in `workflows/presets/`:
 - `enterprise-development.yaml`
+- `maintenance.yaml`
+- `quick-fix.yaml`
+- `simple-fix-issues.yaml`
+- `simple-improve-quality.yaml`
 
 You can modify these files or create your own presets.

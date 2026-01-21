@@ -2,7 +2,8 @@
 Discovery Service Integration Tests
 Epic 50 Story 50.3: Integration Test Suite
 
-Tests for discovery service integration with data-api.
+Tests for DiscoveryService (HA device/entity registry and HTTP APIs).
+DiscoveryService uses HA HTTP/WebSocket, not data-api, for discover_devices/entities.
 """
 
 import os
@@ -10,194 +11,179 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import aiohttp
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from src.discovery_service import DiscoveryService
 
 
 @pytest.fixture
-def mock_data_api_response():
-    """Mock data-api response"""
-    return {
-        'devices': [
-            {
-                'device_id': 'device_123',
-                'name': 'Living Room Lamp',
-                'manufacturer': 'Philips',
-                'model': 'Hue'
-            }
-        ],
-        'entities': [
-            {
-                'entity_id': 'switch.living_room_lamp',
-                'device_id': 'device_123',
-                'area_id': 'area_living_room'
-            }
-        ],
-        'areas': [
-            {
-                'area_id': 'area_living_room',
-                'name': 'Living Room'
-            }
-        ]
-    }
+def mock_ha_device_list():
+    """Mock HA device registry list response."""
+    return [
+        {"id": "device_123", "name": "Living Room Lamp", "manufacturer": "Philips", "model": "Hue"}
+    ]
+
+
+@pytest.fixture
+def mock_ha_states_list():
+    """Mock HA /api/states response (list of state objects)."""
+    return [{"entity_id": "switch.living_room_lamp"}, {"entity_id": "light.office"}]
 
 
 @pytest.fixture
 async def discovery_service():
-    """Create discovery service with mocked dependencies"""
-    os.environ['DATA_API_URL'] = 'http://test-data-api:8006'
-    
+    """Create discovery service; set env so discover_entities does not exit early."""
+    os.environ["DATA_API_URL"] = "http://test-data-api:8006"
+    os.environ["HA_HTTP_URL"] = "http://test-ha:8123"
+    os.environ["HA_TOKEN"] = "test-token"
     service = DiscoveryService()
-    
-    # Mock HTTP session
-    service.session = AsyncMock()
-    
     yield service
-    
-    # Cleanup
-    try:
-        await service.shutdown()
-    except:
-        pass
+
+
+# --- discover_devices: returns list from HA WebSocket or HTTP ---
 
 
 @pytest.mark.asyncio
-async def test_device_discovery(discovery_service, mock_data_api_response):
-    """Test device discovery from data-api"""
-    # Mock data-api response
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json = AsyncMock(return_value=mock_data_api_response)
-    
-    with patch.object(discovery_service.session, 'get') as mock_get:
-        mock_get.return_value.__aenter__.return_value = mock_response
-        
-        # Discover devices
+async def test_device_discovery(discovery_service, mock_ha_device_list):
+    """discover_devices returns a list of devices from HA (HTTP/WebSocket)."""
+    with patch.object(
+        DiscoveryService, "_discover_devices_http", new_callable=AsyncMock, return_value=mock_ha_device_list
+    ):
         devices = await discovery_service.discover_devices()
-        
-        # Verify discovery occurred
-        assert devices is not None
-        assert isinstance(devices, dict)
+    assert devices is not None
+    assert isinstance(devices, list)
+    assert len(devices) >= 1
+    assert devices[0].get("name") == "Living Room Lamp"
 
 
 @pytest.mark.asyncio
-async def test_entity_discovery(discovery_service, mock_data_api_response):
-    """Test entity discovery from data-api"""
-    # Mock data-api response
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json = AsyncMock(return_value=mock_data_api_response)
-    
-    with patch.object(discovery_service.session, 'get') as mock_get:
-        mock_get.return_value.__aenter__.return_value = mock_response
-        
-        # Discover entities
+async def test_entity_discovery(discovery_service, mock_ha_states_list):
+    """discover_entities returns a list of entities from HA /api/states."""
+    # discover_entities uses aiohttp.ClientSession().get(...) to /api/states
+    class FakeGetCM:
+        async def __aenter__(self):
+            r = MagicMock()
+            r.status = 200
+            r.json = AsyncMock(return_value=mock_ha_states_list)
+            return r
+
+        async def __aexit__(self, *a):
+            return None
+
+    mock_sess = MagicMock()
+    mock_sess.get = lambda *a, **k: FakeGetCM()
+    mock_sess.__aenter__ = AsyncMock(return_value=mock_sess)
+    mock_sess.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("aiohttp.ClientSession", return_value=mock_sess):
         entities = await discovery_service.discover_entities()
-        
-        # Verify discovery occurred
-        assert entities is not None
-        assert isinstance(entities, dict)
+    assert entities is not None
+    assert isinstance(entities, list)
+    assert len(entities) >= 1
+    assert entities[0].get("entity_id") == "switch.living_room_lamp"
+
+
+# --- Cache helpers: get_device_id, get_area_id, get_device_metadata ---
+
+
+def test_get_device_id(discovery_service):
+    """get_device_id returns device_id from entity_to_device cache."""
+    discovery_service.entity_to_device["switch.living_room_lamp"] = "device_123"
+    assert discovery_service.get_device_id("switch.living_room_lamp") == "device_123"
+    assert discovery_service.get_device_id("unknown") is None
+
+
+def test_get_area_id(discovery_service):
+    """get_area_id returns area_id from entity_to_area or device_to_area cache."""
+    discovery_service.entity_to_area["switch.living_room_lamp"] = "area_living_room"
+    assert discovery_service.get_area_id("switch.living_room_lamp") == "area_living_room"
+    assert discovery_service.get_area_id("unknown") is None
+
+
+def test_get_device_metadata(discovery_service):
+    """get_device_metadata returns metadata from device_metadata cache."""
+    discovery_service.device_metadata["device_123"] = {
+        "manufacturer": "Philips",
+        "model": "Hue",
+        "name": "Living Room Lamp",
+    }
+    meta = discovery_service.get_device_metadata("device_123")
+    assert meta is not None
+    assert meta.get("manufacturer") == "Philips"
+    assert discovery_service.get_device_metadata("unknown") is None
+
+
+# --- Discovery returns fresh data when HTTP/WS are available ---
 
 
 @pytest.mark.asyncio
-async def test_get_device_info(discovery_service, mock_data_api_response):
-    """Test getting device info for entity"""
-    # Mock cached data
-    discovery_service._device_cache = {
-        'switch.living_room_lamp': {
-            'device_id': 'device_123',
-            'name': 'Living Room Lamp'
-        }
-    }
-    
-    # Get device info
-    device_info = await discovery_service.get_device_info('switch.living_room_lamp')
-    
-    # Verify device info returned
-    assert device_info is not None
-    assert 'device_id' in device_info
+async def test_discover_devices_and_entities_return_lists(discovery_service, mock_ha_device_list, mock_ha_states_list):
+    """discover_devices and discover_entities return lists when HA is available (mocked)."""
+    class FakeGetCM:
+        async def __aenter__(self):
+            r = MagicMock()
+            r.status = 200
+            r.json = AsyncMock(return_value=mock_ha_states_list)
+            return r
+
+        async def __aexit__(self, *a):
+            return None
+
+    mock_sess = MagicMock()
+    mock_sess.get = lambda *a, **k: FakeGetCM()
+    mock_sess.__aenter__ = AsyncMock(return_value=mock_sess)
+    mock_sess.__aexit__ = AsyncMock(return_value=None)
+
+    with patch.object(
+        DiscoveryService, "_discover_devices_http", new_callable=AsyncMock, return_value=mock_ha_device_list
+    ), patch("aiohttp.ClientSession", return_value=mock_sess):
+        devices = await discovery_service.discover_devices()
+        entities = await discovery_service.discover_entities()
+    assert isinstance(devices, list) and len(devices) >= 1
+    assert isinstance(entities, list) and len(entities) >= 1
 
 
-@pytest.mark.asyncio
-async def test_get_area_info(discovery_service, mock_data_api_response):
-    """Test getting area info for entity"""
-    # Mock cached data
-    discovery_service._entity_cache = {
-        'switch.living_room_lamp': {
-            'area_id': 'area_living_room'
-        }
-    }
-    discovery_service._area_cache = {
-        'area_living_room': {
-            'name': 'Living Room'
-        }
-    }
-    
-    # Get area info
-    area_info = await discovery_service.get_area_info('switch.living_room_lamp')
-    
-    # Verify area info returned
-    assert area_info is not None
-
-
-@pytest.mark.asyncio
-async def test_cache_refresh(discovery_service, mock_data_api_response):
-    """Test cache refresh mechanism"""
-    # Mock data-api response
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json = AsyncMock(return_value=mock_data_api_response)
-    
-    with patch.object(discovery_service.session, 'get') as mock_get:
-        mock_get.return_value.__aenter__.return_value = mock_response
-        
-        # Refresh cache
-        await discovery_service.refresh_cache()
-        
-        # Verify cache was refreshed
-        assert discovery_service._device_cache is not None
-        assert discovery_service._entity_cache is not None
+# --- Error handling: empty list when HA/HTTP fails ---
 
 
 @pytest.mark.asyncio
 async def test_discovery_error_handling(discovery_service):
-    """Test error handling in discovery service"""
-    # Mock API error
-    mock_response = AsyncMock()
-    mock_response.status = 500
-    mock_response.text = AsyncMock(return_value="Internal Server Error")
-    
-    with patch.object(discovery_service.session, 'get') as mock_get:
-        mock_get.return_value.__aenter__.return_value = mock_response
-        
-        # Discover should handle error gracefully
+    """When HA device discovery fails, discover_devices returns an empty list."""
+    with patch.object(
+        DiscoveryService, "_discover_devices_http", new_callable=AsyncMock, return_value=[]
+    ):
         devices = await discovery_service.discover_devices()
-        
-        # Should return empty dict or None on error
-        assert devices is None or isinstance(devices, dict)
+    assert isinstance(devices, list)
+    assert len(devices) == 0
+
+
+# --- store_discovery_results calls data-api; minimal smoke test ---
 
 
 @pytest.mark.asyncio
-async def test_data_api_integration(discovery_service, mock_data_api_response):
-    """Test integration with data-api service"""
-    # Mock successful data-api response
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json = AsyncMock(return_value=mock_data_api_response)
-    
-    with patch.object(discovery_service.session, 'get') as mock_get:
-        mock_get.return_value.__aenter__.return_value = mock_response
-        
-        # Test full integration
-        await discovery_service.refresh_cache()
-        
-        # Verify data-api was called
-        assert mock_get.called
-        
-        # Verify cache was populated
-        assert discovery_service._device_cache is not None
+async def test_store_discovery_results_posts_to_data_api(discovery_service, mock_ha_device_list, mock_ha_states_list):
+    """store_discovery_results POSTs devices/entities to data-api (mocked)."""
+    with patch("aiohttp.ClientSession") as MockSession:
+        mock_post = AsyncMock()
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.json = AsyncMock(return_value={"upserted": 1})
+        mock_post.return_value.__aenter__.return_value = mock_resp
+        mock_post.return_value.__aexit__ = AsyncMock(return_value=None)
 
+        mock_sess = MagicMock()
+        mock_sess.post = mock_post
+        mock_sess.__aenter__ = AsyncMock(return_value=mock_sess)
+        mock_sess.__aexit__ = AsyncMock(return_value=None)
+        MockSession.return_value = mock_sess
+
+        ok = await discovery_service.store_discovery_results(
+            mock_ha_device_list,
+            [{"entity_id": e["entity_id"]} for e in mock_ha_states_list],
+            [],
+            None,
+        )
+    assert ok is True
+    assert mock_post.called
