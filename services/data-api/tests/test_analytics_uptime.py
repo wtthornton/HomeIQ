@@ -21,7 +21,7 @@ def test_calculate_service_uptime_returns_100():
     # Mock SERVICE_START_TIME to be 1 hour ago
     start_time = datetime.utcnow() - timedelta(hours=1)
 
-    with patch('src.analytics_endpoints.SERVICE_START_TIME', start_time):
+    with patch('src.main.SERVICE_START_TIME', start_time):
         uptime = calculate_service_uptime()
 
         # Service has been running, should return 100%
@@ -30,8 +30,8 @@ def test_calculate_service_uptime_returns_100():
 
 def test_calculate_service_uptime_handles_errors():
     """Test that uptime calculation handles errors gracefully"""
-    # Mock MODULE import to raise an exception
-    with patch('src.analytics_endpoints.SERVICE_START_TIME', side_effect=ImportError("Cannot import")):
+    # SERVICE_START_TIME=None causes TypeError on (datetime.utcnow() - None), caught and returns None
+    with patch('src.main.SERVICE_START_TIME', None):
         uptime = calculate_service_uptime()
 
         # Should return None on error
@@ -43,7 +43,7 @@ def test_calculate_service_uptime_recent_start():
     # Mock SERVICE_START_TIME to be 30 seconds ago
     start_time = datetime.utcnow() - timedelta(seconds=30)
 
-    with patch('src.analytics_endpoints.SERVICE_START_TIME', start_time):
+    with patch('src.main.SERVICE_START_TIME', start_time):
         uptime = calculate_service_uptime()
 
         # Service just started, should still return 100%
@@ -54,7 +54,7 @@ def test_calculate_service_uptime_not_hardcoded():
     """Regression test: Ensure uptime is NOT hardcoded to 99.9"""
     start_time = datetime.utcnow() - timedelta(hours=1)
 
-    with patch('src.analytics_endpoints.SERVICE_START_TIME', start_time):
+    with patch('src.main.SERVICE_START_TIME', start_time):
         uptime = calculate_service_uptime()
 
         # Should NOT be the old hardcoded value

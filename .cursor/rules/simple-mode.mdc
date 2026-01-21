@@ -182,7 +182,9 @@ Use explicit commands for guaranteed workflow execution:
 | `*plan-analysis {description}` | Safe planning (read-only) | @analyst → @architect → @reviewer |
 | `*pr {title}` | Create pull request | @reviewer → @documenter |
 | `*full {description}` | Full SDLC workflow | All skills in sequence |
+| `*epic {epic-doc.md}` | Execute Epic document | Stories in dependency order |
 | `*help` | Show help | - |
+| `*resume` [workflow_id] | Resume failed/paused workflow | ResumeOrchestrator |
 | `*status` | Check status | - |
 
 ## Intent Detection
@@ -198,6 +200,9 @@ Simple Mode detects intent from keywords:
 - **Plan**: plan, planning, analyze, analysis, design, proposal, strategy, roadmap
 - **PR**: pr, pull request, create pr, open pr, merge request, mr
 - **Full**: full, complete, sdlc, lifecycle, everything
+- **Enhance**: enhance, improve prompt, expand prompt
+- **Breakdown**: breakdown, breakdown into tasks, task list
+- **Todo**: todo, beads, bd, task tracking
 
 ## ⚠️ CRITICAL: Explicit Command Precedence
 
@@ -259,7 +264,7 @@ Step 5: @implementer *implement "{specification}" {target_file}
 
 Step 6: @reviewer *review {target_file}
   → Create: docs/workflows/simple-mode/step6-review.md
-  → Quality scores (5 metrics), issues found, recommendations
+  → Quality scores (7 categories), issues found, recommendations
 
 Step 7: @tester *test {target_file}
   → Create: docs/workflows/simple-mode/step7-testing.md
@@ -298,6 +303,7 @@ Step 7: @tester *test {target_file}
 
 ### Full SDLC Workflow
 ```
+0. @enhancer *enhance (optional; full-sdlc preset includes an enhance step before requirements, run via EnhancerHandler)
 1. @analyst *gather-requirements "{description}"  → Requirements
 2. @planner *plan "{requirements}"         → Stories
 3. @architect *design "{specification}"    → Architecture
@@ -343,7 +349,7 @@ AI: [MUST use] @simple-mode *full "Add Context7 integration to all SDLC agents"
 | `@architect` | System architecture design |
 | `@designer` | API and data model design |
 | `@implementer` | Code generation and refactoring |
-| `@reviewer` | Code review with 5-metric scoring |
+| `@reviewer` | Code review with 7-category scoring |
 | `@tester` | Test generation and execution |
 | `@debugger` | Error analysis and debugging |
 | `@improver` | Code improvement suggestions |
@@ -485,6 +491,7 @@ Would you like me to proceed with the workflow?"
 
 ## Related Documentation
 
+- See `.cursor/rules/when-to-use.mdc` for importance and when to use each capability (Tier 1–2 first)
 - See `docs/SIMPLE_MODE_USER_GUIDE.md` for user guide with invocation options
 - See `.claude/skills/simple-mode/SKILL.md` for full skill definition
 - See `docs/SIMPLE_MODE_GUIDE.md` for complete documentation

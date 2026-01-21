@@ -14,9 +14,9 @@ Priority: HIGH
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...src.database import get_db
-from ...src.models.device import Device
-from ...src.models.entity import Entity
+from src.database import get_db
+from src.models.device import Device
+from src.models.entity import Entity
 
 
 @pytest.mark.integration

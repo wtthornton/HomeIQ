@@ -71,14 +71,16 @@ When you run `tapps-agents init` on any project (new or existing), it:
 
 **What it installs:**
 
-1. **Cursor Rules** (`.cursor/rules/`) - 7 rule files:
+1. **Cursor Rules** (`.cursor/rules/`) - rule files including:
    - `workflow-presets.mdc` - Workflow preset documentation (auto-generated from YAML)
    - `quick-reference.mdc` - Quick command reference
    - `agent-capabilities.mdc` - Agent capability descriptions
+   - `when-to-use.mdc` - Importance and when to use each capability (workflows, agents, commands)
    - `project-context.mdc` - Project context template
    - `project-profiling.mdc` - Project profiling guide
    - `simple-mode.mdc` - Simple Mode guide (natural language orchestration)
    - `command-reference.mdc` - This file (complete command reference)
+   - `cursor-mode-usage.mdc` - Cursor vs CLI usage (when to use @simple-mode vs tapps-agents workflow)
 
 2. **Cursor Skills** (`.claude/skills/`) - 14 agent skills + simple-mode skill:
    - Enables `@agent-name *command` syntax in Cursor chat
@@ -95,12 +97,20 @@ When you run `tapps-agents init` on any project (new or existing), it:
        - `@simple-mode *fix` - Bug fixing workflow with debugging
        - `@simple-mode *test` - Test generation workflow
        - `@simple-mode *epic` - Epic execution workflow (all stories in dependency order)
+       - `@simple-mode *tdd` - TDD workflow (Red-Green-Refactor, coverage ≥80%)
+       - `@simple-mode *e2e` - E2E test generation and run (Playwright MCP if available)
+       - `@simple-mode *build-fix` - Fix build/compile errors (distinct from *fix, *fix-tests)
+       - `@simple-mode *refactor-clean` - Dead code cleanup (unused imports, duplication)
+       - `@simple-mode *update-docs` - Sync documentation with code
+       - `@simple-mode *update-codemaps` - Refresh Context7 or codemap index
        - `@simple-mode *test-coverage` - Coverage-driven test generation
+       - `@simple-mode *security-review` - Security audit (reviewer + ops + OWASP-style)
        - `@simple-mode *fix-tests` - Auto-fix test failures
        - `@simple-mode *microservice` - Generate complete microservice structure
        - `@simple-mode *docker-fix` - Debug container errors
        - `@simple-mode *integrate-service` - Service-to-service integration
        - `@simple-mode *full` - Full SDLC workflow (9 steps)
+       - Domain skills: `@coding-standards`, `@backend-patterns`, `@frontend-patterns`, `@security-review`
        - Natural language commands (e.g., `@simple-mode Build a feature`)
      - **Simple Mode is enabled by default** in config after `init`
 
@@ -110,7 +120,7 @@ When you run `tapps-agents init` on any project (new or existing), it:
    - Quality thresholds and automation settings
 
 5. **Workflow Presets** (`workflows/presets/`):
-   - 5 predefined workflow YAML files (full, rapid, fix, quality, hotfix)
+   - 5 workflow preset YAML files: full-sdlc, rapid-dev, fix, quality, brownfield-analysis
    - Can be customized per project
 
 6. **MCP Config** (`.cursor/mcp.json`):
@@ -280,13 +290,12 @@ tapps-agents create "<description>" [--workflow <preset>]
 tapps-agents workflow <preset> [--prompt "<description>"] [--file <path>] [--auto] [--cli-mode] [--cursor-mode] [--dry-run] [--continue-from <step>] [--skip-steps <steps>]
 ```
 
-**Available Presets:**
+**Available Presets (5):**
 - `full` / `enterprise` - Complete SDLC pipeline
-- `rapid` / `feature` - Fast feature development
-- `fix` / `refactor` / `maintenance` - Bug fixes and refactoring
-- `quality` / `improve` - Code quality improvement
-- `hotfix` / `urgent` / `quick-fix` - Quick production fixes
-- `new-feature` / `simple-new-feature` - Simple new feature workflow
+- `rapid` / `feature` / `new-feature` / `simple-new-feature` - Fast feature development
+- `fix` / `maintenance` / `hotfix` / `urgent` / `quick-fix` / `refactor` - Bug fixes, hotfixes, maintenance
+- `quality` / `improve` / `simple-improve-quality` - Code quality improvement
+- `brownfield` / `brownfield-analysis` - Brownfield/legacy analysis
 - `list` - List all available presets
 - `recommend` - Get AI-powered workflow recommendation
 - `state` - Workflow state management (list, show, cleanup, resume)
@@ -379,6 +388,29 @@ tapps-agents cleanup workflow-docs --no-archive
 - Archives workflows older than retention period to `.tapps-agents/archives/workflows/`
 - Preserves workflow history while reducing IDE clutter
 
+### `health` - Health Checks and Usage (Analytics)
+**Purpose:** Health checks (environment, execution, cache, KB, outcomes) and usage/analytics (agent/workflow metrics). The former top-level `tapps-agents analytics` is replaced by `health usage`.
+
+**CLI Syntax:**
+```bash
+tapps-agents health check [--check <name>] [--format json|text]
+tapps-agents health dashboard [--format json|text]
+tapps-agents health usage dashboard|agents|workflows|system|trends [--format json|text] [--agent-id <id>] [--workflow-id <id>] [--days <n>] [--metric-type <type>]
+tapps-agents health metrics [--check-name <name>] [--status <status>] [--days <n>]
+tapps-agents health trends [--check-name <name>] [--days <n>]
+```
+
+**Usage subcommands (analytics):**
+- `health usage dashboard` (or `show`) - Usage/analytics overview
+- `health usage agents` - Agent performance; `--agent-id` to filter
+- `health usage workflows` - Workflow performance; `--workflow-id` to filter
+- `health usage system` - System status and resources
+- `health usage trends` - Historical trends; `--metric-type`, `--days`
+
+**When to Use:**
+- `health check`: Validate environment and run health checks
+- `health usage dashboard`: View agent/workflow metrics (replaces `tapps-agents analytics`)
+
 ### `score` - Quick Code Scoring
 **Purpose:** Fast code quality scoring (shortcut for `reviewer score`)
 
@@ -458,8 +490,8 @@ tapps-agents cursor check [--format json|text]  # alias
   - Checks directory structure
   - Verifies YAML frontmatter in SKILL.md files
   - Reports missing skills
-- **Cursor Rules** (`.cursor/rules/`) - Validates all 7 rule files are present
-  - Checks for required rule files (workflow-presets, quick-reference, agent-capabilities, etc.)
+- **Cursor Rules** (`.cursor/rules/`) - Validates required rule files are present
+  - Checks for rule files including: workflow-presets, quick-reference, agent-capabilities, when-to-use, project-context, project-profiling, simple-mode, command-reference, cursor-mode-usage (and others)
   - Verifies file format (.mdc extension)
   - Checks YAML syntax validity
   - Verifies agents are configured
@@ -567,6 +599,9 @@ tapps-agents simple-mode <command> [options]
 @simple-mode *review src/api/auth.py
 @simple-mode *fix src/buggy.py "Fix the error"
 @simple-mode *test src/api/auth.py
+@simple-mode *enhance "Add OAuth2 login"
+@simple-mode *breakdown "Migrate to microservices"
+@simple-mode *todo ready
 @simple-mode *epic docs/prd/epic-51-yaml-automation-quality-enhancement.md
 @simple-mode *full "Build a complete REST API"
 ```
@@ -958,6 +993,8 @@ tapps-agents enhancer enhance "<prompt>" [--format json|markdown|yaml]
 
 **Note:** The enhancer is designed for **code generation prompts**, not requirements gathering. If you need to extract requirements from stakeholder descriptions, use `@analyst *gather-requirements` instead.
 
+**Workflow:** Enhance steps in full-sdlc, rapid-dev, and Epic run via EnhancerHandler. **CLI auto-enhancement:** `auto_enhancement`, `PROMPT_ARGUMENT_MAP` (docs/CONFIGURATION.md).
+
 #### `*enhance-quick` / `enhance-quick` (Dual-Mode)
 **Purpose:** Quick prompt enhancement (stages 1-3)
 
@@ -980,14 +1017,6 @@ tapps-agents enhancer enhance-stage <stage> "<prompt>" [--format json|markdown|y
 ```
 
 **Stages:** `analysis`, `requirements`, `architecture`, `codebase`, `quality`, `strategy`, `synthesis`
-
-#### `*enhance-resume` / `enhance-resume` (CLI-First)
-**Purpose:** Resume interrupted enhancement session
-
-**CLI Syntax:**
-```bash
-tapps-agents enhancer enhance-resume <session-id> [--format json|markdown|yaml]
-```
 
 ### Debugger Agent (`@debugger`)
 
@@ -1138,6 +1167,10 @@ tapps-agents ops audit-dependencies [--format json|text]
 ```bash
 tapps-agents ops plan-deployment "<description>" [--format json|text]
 ```
+
+#### `*audit-bundle` / `audit-bundle` (Dual-Mode)
+**Purpose:** Opt-in bundle size analysis for Node/React/Vue (dist/build/out). Best-effort; does not block on build failure.  
+**CLI:** `tapps-agents ops audit-bundle` | **Cursor:** `@ops *audit-bundle`
 
 ### Analyst Agent (`@analyst`)
 
@@ -1349,7 +1382,7 @@ Simple Mode provides natural language orchestration with structured workflows. U
    - Output: Implemented code following design system and architecture
 6. **@reviewer *review** - Code quality review (with scores)
    - Creates: `docs/workflows/simple-mode/step6-review.md`
-   - Output: Quality scores (5 metrics), issues found, recommendations
+   - Output: Quality scores (7 categories: complexity, security, maintainability, test coverage, performance, structure, devex), issues found, recommendations
 7. **@tester *test** - Testing plan and validation
    - Creates: `docs/workflows/simple-mode/step7-testing.md`
    - Output: Test plan, test cases, validation criteria
@@ -1383,11 +1416,11 @@ Simple Mode provides natural language orchestration with structured workflows. U
 - Learning best practices
 
 **Workflow Steps:**
-1. **@reviewer *review** - Quality scores (5 metrics: complexity, security, maintainability, test coverage, performance)
+1. **@reviewer *review** - Quality scores (7 categories: complexity, security, maintainability, test coverage, performance, structure, devex)
 2. **@improver *improve** - Improvement suggestions (if issues found or score < threshold)
 
 **Output:**
-- Quality scores for all 5 metrics
+- Quality scores for all 7 categories
 - Detailed feedback on issues
 - Improvement suggestions (if needed)
 
@@ -1500,6 +1533,84 @@ Simple Mode provides natural language orchestration with structured workflows. U
 3. Prioritize gaps (critical paths, error handling, public APIs)
 4. Generate targeted tests for uncovered code
 5. Verify coverage improvement
+
+### TDD Workflow (`*tdd`)
+
+**Purpose:** Test-driven development: Red-Green-Refactor with coverage ≥80%
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *tdd {file}
+@simple-mode *tdd "<description>"
+```
+
+**Workflow Steps:** Define interfaces → failing tests (RED) → minimal code (GREEN) → refactor (IMPROVE) → @tester *test for coverage.
+
+### E2E Workflow (`*e2e`)
+
+**Purpose:** Generate and run E2E tests; Playwright MCP for execution when available
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *e2e [path]
+```
+
+**Workflow Steps:** @tester *generate-e2e-tests → run via Playwright MCP if available → report.
+
+### Build Fix Workflow (`*build-fix`)
+
+**Purpose:** Fix build/compile errors (Python, npm, tsc, cargo). Distinct from *fix (runtime) and *fix-tests.
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *build-fix "<build-output or description>"
+```
+
+**Workflow Steps:** Parse errors → @debugger *debug → @implementer *refactor → re-run build to verify.
+
+### Refactor Clean Workflow (`*refactor-clean`)
+
+**Purpose:** Mechanical cleanup: unused imports, dead code, duplication. Use *refactor for design changes.
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *refactor-clean {file}
+```
+
+**Workflow Steps:** @reviewer *duplication and/or Ruff → @implementer *refactor for cleanup.
+
+### Update Docs Workflow (`*update-docs`)
+
+**Purpose:** Sync documentation with code
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *update-docs [path]
+```
+
+**Workflow Steps:** @documenter *document or *document-api → sync README or docs/ if project scripts exist.
+
+### Update Codemaps Workflow (`*update-codemaps`)
+
+**Purpose:** Refresh codemap/context index (e.g. Context7 cache)
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *update-codemaps
+```
+
+**Workflow Steps:** Refresh project index; if Context7: @reviewer *docs-refresh or project cache refresh.
+
+### Security Review Workflow (`*security-review`)
+
+**Purpose:** Structured security check: reviewer + ops + OWASP-style checklist
+
+**Cursor Syntax:**
+```cursor
+@simple-mode *security-review [path]
+```
+
+**Workflow Steps:** @reviewer *review (security, bandit) → @ops *audit-security → OWASP-style checklist; summarize and remediation hints.
 
 ### Fix Tests Workflow (`*fix-tests`)
 
@@ -1962,6 +2073,7 @@ python scripts/your_script.py
 
 ## Related Documentation
 
+- **When to Use**: `.cursor/rules/when-to-use.mdc` — Importance and when to use each capability (workflows, agents, commands)
 - **Quick Reference**: `.cursor/rules/quick-reference.mdc`
 - **Agent Capabilities**: `.cursor/rules/agent-capabilities.mdc`
 - **Simple Mode Guide**: `.cursor/rules/simple-mode.mdc`

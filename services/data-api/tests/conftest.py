@@ -11,6 +11,8 @@ import pytest_asyncio
 # Set test database URL BEFORE any imports
 # This ensures the database module uses in-memory database for tests
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+# Allow data-api to start without DATA_API_API_KEY (for test_main and app imports)
+os.environ.setdefault("DATA_API_ALLOW_ANONYMOUS", "true")
 
 # Load path_setup dynamically
 def _load_add_service_src():
@@ -90,7 +92,10 @@ async def fresh_db():
     Ensures tests don't interfere with each other and use latest schema.
     """
     from src.database import Base, async_engine
-    
+
+    # Register all models with Base before create_all (else entities, devices, etc. missing)
+    import src.models  # noqa: F401
+
     # Drop all tables first, then create fresh schema
     async with async_engine.begin() as conn:
         # Drop all tables (if they exist)

@@ -143,20 +143,6 @@ Run a specific enhancement stage.
 - References stage execution best practices
 - Uses cached docs for accurate stage enhancement
 
-### `*enhance-resume {session-id}`
-
-Resume an interrupted enhancement session.
-
-**Example:**
-```
-@enhance-resume abc123
-```
-
-**Context7 Integration:**
-- Looks up session resumption patterns from KB cache
-- References session management best practices
-- Uses cached docs for session recovery
-
 ### `*docs {library}`
 
 Lookup library documentation from Context7 KB cache.
