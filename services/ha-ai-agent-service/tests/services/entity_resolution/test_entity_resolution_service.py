@@ -136,3 +136,71 @@ class TestEntityResolutionService:
         assert result.success is False
         assert result.error is not None
         assert "entity data" in result.error.lower() or "data_api_client" in result.error.lower()
+
+    # --- Switch LED pattern matching (SWITCH_LED_RESOLUTION_TAPPS_REVIEW.md) ---
+
+    def test__extract_pattern_keywords_switch_led(self, mock_data_api_client):
+        """_extract_pattern_keywords('switch led') -> {'switch_led'}."""
+        service = EntityResolutionService(mock_data_api_client)
+        assert service._extract_pattern_keywords("switch led") == {"switch_led"}
+
+    def test__extract_pattern_keywords_office_switch_led(self, mock_data_api_client):
+        """_extract_pattern_keywords('office switch led') -> {'switch_led'}."""
+        service = EntityResolutionService(mock_data_api_client)
+        assert service._extract_pattern_keywords("office switch led") == {"switch_led"}
+
+    def test__extract_pattern_keywords_wled_strip_no_pattern(self, mock_data_api_client):
+        """_extract_pattern_keywords('wled strip') -> {} (no switch_led pattern)."""
+        service = EntityResolutionService(mock_data_api_client)
+        assert service._extract_pattern_keywords("wled strip") == set()
+
+    @pytest.mark.asyncio
+    async def test_resolve_entities_office_switch_led_matches_led_effect_sensor(self):
+        """resolve_entities('office switch led') matches sensor.office_light_switch_led_effect."""
+        client = MagicMock(spec=DataAPIClient)
+        client.fetch_entities = AsyncMock(return_value=[
+            {
+                "entity_id": "sensor.office_light_switch_led_effect",
+                "friendly_name": "Office light switch LED effect",
+                "area_id": "office",
+                "domain": "sensor",
+            },
+            {
+                "entity_id": "light.office_wled_strip",
+                "friendly_name": "Office WLED Strip",
+                "area_id": "office",
+                "domain": "light",
+            },
+        ])
+        service = EntityResolutionService(client)
+        result = await service.resolve_entities("office switch led")
+        assert result.success is True
+        assert "sensor.office_light_switch_led_effect" in result.matched_entities
+        # Switch LED pattern should prefer the sensor, not the WLED strip
+        if len(result.matched_entities) >= 1:
+            assert result.matched_entities[0] == "sensor.office_light_switch_led_effect"
+
+    @pytest.mark.asyncio
+    async def test_resolve_entities_office_wled_matches_strip_not_switch_led(self):
+        """resolve_entities('office wled') matches WLED strip, not switch LED sensor."""
+        client = MagicMock(spec=DataAPIClient)
+        client.fetch_entities = AsyncMock(return_value=[
+            {
+                "entity_id": "sensor.office_light_switch_led_effect",
+                "friendly_name": "Office light switch LED effect",
+                "area_id": "office",
+                "domain": "sensor",
+            },
+            {
+                "entity_id": "light.office_wled_strip",
+                "friendly_name": "Office WLED Strip",
+                "area_id": "office",
+                "domain": "light",
+            },
+        ])
+        service = EntityResolutionService(client)
+        result = await service.resolve_entities("office wled")
+        assert result.success is True
+        # No switch_led pattern; device type 'led' matches both. WLED strip should be
+        # in the top matches (device type keyword, no pattern override).
+        assert "light.office_wled_strip" in result.matched_entities

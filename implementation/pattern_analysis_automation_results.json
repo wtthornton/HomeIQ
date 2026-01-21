@@ -9,13 +9,13 @@
     "analysis_status": {
       "status": "ready",
       "patterns": {
-        "total_patterns": 2207,
+        "total_patterns": 3742,
         "by_type": {
-          "co_occurrence": 2112,
-          "time_of_day": 95
+          "co_occurrence": 3633,
+          "time_of_day": 109
         },
-        "unique_devices": 135,
-        "avg_confidence": 0.944
+        "unique_devices": 181,
+        "avg_confidence": 0.945
       },
       "scheduler": {
         "status": "running",
@@ -28,11 +28,12 @@
       }
     },
     "synergy_stats": {
-      "total": 10000,
+      "total": 79343,
       "by_type": {
-        "device_pair": 8990,
-        "device_chain": 1000,
-        "scene_based": 10
+        "device_chain": 430,
+        "device_pair": 78864,
+        "scene_based": 24,
+        "weather_context": 25
       }
     }
   }

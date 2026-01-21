@@ -50,9 +50,15 @@ def sanitize_flux_value(value: str | None, max_length: int = MAX_SANITIZED_LENGT
 
     # Remove special characters that could be used for injection
     # Allow: word characters, spaces, dots, hyphens, underscores
-    sanitized = re.sub(r'[^\w\s.\-_]', '', str_value)
+    sanitized = re.sub(r'[^\w\s._-]', '', str_value)
 
-    # Escape quotes (defense in depth)
+    # Remove SQL/Flux line comments (--) to prevent injection
+    sanitized = re.sub(r'--+', '', sanitized)
+
+    # Remove newlines, tabs, and collapse inner whitespace
+    sanitized = re.sub(r'\s+', '', sanitized)
+
+    # Escape quotes (defense in depth; re.sub above removes them, this stays for clarity)
     sanitized = sanitized.replace('"', '\\"')
     sanitized = sanitized.replace("'", "\\'")
 

@@ -330,28 +330,46 @@ class WebSocketIngestionService:
             raise
 
     async def stop(self):
-        """Stop the service"""
+        """Stop the service. Logs and continues if a component's stop() raises."""
         logger.info("Stopping WebSocket Ingestion Service...")
 
-        # Stop high-volume processing components
+        # Stop high-volume processing components (each in try/except so one failure doesn't block cleanup)
         if self.async_event_processor:
-            await self.async_event_processor.stop()
+            try:
+                await self.async_event_processor.stop()
+            except Exception as e:
+                logger.error("Error stopping async_event_processor: %s", e)
         if self.batch_processor:
-            await self.batch_processor.stop()
+            try:
+                await self.batch_processor.stop()
+            except Exception as e:
+                logger.error("Error stopping batch_processor: %s", e)
         if self.memory_manager:
-            await self.memory_manager.stop()
+            try:
+                await self.memory_manager.stop()
+            except Exception as e:
+                logger.error("Error stopping memory_manager: %s", e)
 
         # Stop InfluxDB batch writer
         if hasattr(self, 'influxdb_batch_writer') and self.influxdb_batch_writer:
-            await self.influxdb_batch_writer.stop()
+            try:
+                await self.influxdb_batch_writer.stop()
+            except Exception as e:
+                logger.error("Error stopping influxdb_batch_writer: %s", e)
         # Stop InfluxDB manager
         if self.influxdb_manager:
-            await self.influxdb_manager.stop()
+            try:
+                await self.influxdb_manager.stop()
+            except Exception as e:
+                logger.error("Error stopping influxdb_manager: %s", e)
 
         # HTTP client cleanup is handled by context manager in main()
 
         if self.connection_manager:
-            await self.connection_manager.stop()
+            try:
+                await self.connection_manager.stop()
+            except Exception as e:
+                logger.error("Error stopping connection_manager: %s", e)
 
         logger.info("WebSocket Ingestion Service stopped")
 
@@ -534,10 +552,18 @@ class WebSocketIngestionService:
         )
 
         try:
-            # Add batch to async event processor
+            # Add batch to async event processor (continue on per-event errors so all are attempted)
             if self.async_event_processor:
                 for event in batch:
-                    await self.async_event_processor.process_event(event)
+                    try:
+                        await self.async_event_processor.process_event(event)
+                    except Exception as e:
+                        log_error_with_context(
+                            logger, "Error processing event in batch", e,
+                            operation="batch_processing",
+                            correlation_id=corr_id,
+                            batch_size=batch_size
+                        )
 
                 log_with_context(
                     logger, "DEBUG", "Batch processed by async event processor",

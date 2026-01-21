@@ -69,6 +69,14 @@ Detect intent from keywords:
 | Pull requests | `*pr` | PR creation with quality scores |
 | Framework development | `*full` | Requires requirements → security → documentation (9 steps) |
 | Enterprise/critical features | `*full` | When user explicitly requests full SDLC with security scanning |
+| TDD | `*tdd` | Red-Green-Refactor with coverage ≥80% |
+| E2E tests | `*e2e` | Generate and run E2E tests; Playwright MCP if available |
+| Build/compile errors | `*build-fix` | Fix build failures; distinct from *fix and *fix-tests |
+| Dead code cleanup | `*refactor-clean` | Unused imports, dead code; use *refactor for design changes |
+| Documentation sync | `*update-docs` | Sync docs with code |
+| Codemap/context refresh | `*update-codemaps` | Refresh Context7 or project index |
+| Coverage gaps | `*test-coverage` | Coverage-driven test generation |
+| Security audit | `*security-review` | Reviewer + ops + OWASP-style checklist |
 
 **Key Rule:** If the user says `*build`, use BUILD workflow. Only use `*full` if:
 1. User explicitly says `*full`
@@ -294,6 +302,125 @@ Orchestrate a test workflow.
 1. Invoke `@tester *test {file}`
 2. Report results
 
+### `*tdd {file} [description]`
+
+Orchestrate a TDD (test-driven development) workflow. Red-Green-Refactor with coverage target.
+
+**Example:**
+```
+@simple-mode *tdd src/calculator.py
+@simple-mode *tdd "Add tax calculation to checkout"
+```
+
+**Execution:**
+1. Define interfaces/contracts for the feature
+2. Invoke `@tester *generate-tests` or write failing tests (RED)
+3. Invoke `@implementer *implement` minimal code to pass (GREEN)
+4. Invoke `@implementer *refactor` to improve (IMPROVE)
+5. Invoke `@tester *test {file}` and ensure coverage ≥80%
+
+### `*e2e [file]`
+
+Orchestrate E2E test generation and, when available, run via Playwright MCP.
+
+**Example:**
+```
+@simple-mode *e2e
+@simple-mode *e2e tests/e2e/
+```
+
+**Execution:**
+1. Invoke `@tester *generate-e2e-tests` (or equivalent)
+2. If Playwright MCP is available, use it to run/validate tests
+3. Report results. See `tapps_agents/agents/tester/agent.py` generate_e2e_tests and doctor.py for Playwright detection.
+
+### `*build-fix [build-output or description]`
+
+Fix build/compile errors (e.g. Python, npm, tsc, cargo). Distinct from `*fix` (runtime) and `*fix-tests`.
+
+**Example:**
+```
+@simple-mode *build-fix "SyntaxError in src/auth.py line 42"
+@simple-mode *build-fix
+```
+(Paste or describe build output when prompted.)
+
+**Execution:**
+1. Parse build/compile errors (from `python -m py_compile`, `npm run build`, `tsc`, `cargo build`, etc.)
+2. Invoke `@debugger *debug "{error}" --file {file}` with error and file/line
+3. Invoke `@implementer *refactor {file} "{fix}"` to apply fix
+4. Re-run build to verify
+
+### `*refactor-clean {file}`
+
+Mechanical cleanup: unused imports, dead code, duplication. No heavy design; use `*refactor` for larger changes.
+
+**Example:**
+```
+@simple-mode *refactor-clean src/utils/helpers.py
+```
+
+**Execution:**
+1. Invoke `@reviewer *duplication {file}` and/or run Ruff for unused-import/dead-code
+2. Invoke `@implementer *refactor {file} "Remove unused imports and dead code"`
+3. Report changes
+
+### `*update-docs [path]`
+
+Sync documentation with code.
+
+**Example:**
+```
+@simple-mode *update-docs
+@simple-mode *update-docs src/api/
+```
+
+**Execution:**
+1. Invoke `@documenter *document` or `*document-api` for the target
+2. Sync README or `docs/` if project scripts exist
+
+### `*update-codemaps`
+
+Refresh codemap/context index (e.g. Context7 cache).
+
+**Example:**
+```
+@simple-mode *update-codemaps
+```
+
+**Execution:**
+1. Refresh project codemap or context index
+2. If Context7: use `@reviewer *docs-refresh` or the project's cache refresh flow
+
+### `*test-coverage {file} [--target N]`
+
+Coverage-driven test generation. Find gaps and generate tests for uncovered paths.
+
+**Example:**
+```
+@simple-mode *test-coverage src/api/auth.py --target 80
+```
+
+**Execution:**
+1. Use coverage data (`coverage.xml` / `coverage.json`) if available
+2. Find low or uncovered modules/paths
+3. Invoke `@tester *test` for those paths to improve coverage
+
+### `*security-review [path]`
+
+Structured security check: reviewer security score, ops audit, OWASP-style checklist.
+
+**Example:**
+```
+@simple-mode *security-review
+@simple-mode *security-review src/api/
+```
+
+**Execution:**
+1. Invoke `@reviewer *review {path}` (security score, bandit)
+2. Invoke `@ops *audit-security {target}`
+3. Apply OWASP-style checklist from `experts/knowledge/security/` and `data-privacy-compliance`; summarize and give remediation hints
+
 ### `*explore {query}`
 
 Orchestrate an explore workflow - understand and navigate codebases.
@@ -402,9 +529,25 @@ Orchestrate a full SDLC workflow.
 2. Loop back if quality scores don't meet thresholds
 3. Report final results
 
+### `*enhance "prompt"`
+
+Prompt enhancement via EnhancerAgent. `@simple-mode *enhance "short prompt"` or `tapps-agents simple-mode enhance --prompt "..." [--quick]`.
+
+### `*breakdown "prompt"`
+
+Task breakdown via PlannerAgent. `@simple-mode *breakdown "goal"` or `tapps-agents simple-mode breakdown --prompt "..."`.
+
+### `*todo {bd args}`
+
+Beads-backed todo; forwards to `bd` when available. Examples: `@simple-mode *todo ready`, `*todo create "Title"`.
+
 ### `*help`
 
-Show Simple Mode help.
+Show Simple Mode help. Commands: *build, *review, *fix, *test, *explore, *refactor, *plan-analysis, *pr, *enhance, *breakdown, *todo, *full, *epic, *status, *resume. See .cursor/rules/command-reference.mdc for *test-coverage, *fix-tests, *microservice, *docker-fix, *integrate-service.
+
+### `*resume` [workflow_id]
+
+Resume a failed or paused workflow. Use `@simple-mode *resume --list` to list resumable workflows.
 
 ### `*status`
 
@@ -508,17 +651,21 @@ Improvements Suggested: 5
 |-------|---------|--------------|
 | `@enhancer` | Prompt enhancement | `*enhance`, `*enhance-quick` |
 | `@planner` | User stories | `*plan`, `*create-story` |
-| `@architect` | System design | `*design` |
+| `@architect` | System design | `*design`, `*design-system` |
 | `@designer` | API/data design | `*design-api`, `*design-model` |
 | `@implementer` | Code generation | `*implement`, `*refactor` |
 | `@reviewer` | Code review | `*review`, `*score`, `*lint` |
 | `@tester` | Test generation | `*test`, `*generate-tests` |
 | `@debugger` | Error analysis | `*debug`, `*analyze-error` |
 | `@improver` | Code improvement | `*improve`, `*refactor` |
-| `@analyst` | Requirements | `*analyze`, `*requirements` |
-| `@documenter` | Documentation | `*document-api`, `*generate-readme` |
-| `@ops` | Security/ops | `*security-scan`, `*audit-deps` |
-| `@orchestrator` | Workflow coord | `*workflow-start`, `*workflow-status` |
+| `@analyst` | Requirements | `*gather-requirements`, `*estimate-effort` |
+| `@documenter` | Documentation | `*document`, `*document-api`, `*update-readme` |
+| `@ops` | Security/ops | `*security-scan`, `*compliance-check`, `*audit-dependencies`, `*audit-bundle` |
+| `@orchestrator` | Workflow coord | `*workflow`, `*workflow-start`, `*workflow-status` |
+| `@coding-standards` | Coding standards | Use with @reviewer; code-quality-analysis experts |
+| `@backend-patterns` | API/DB/cloud | Use with @architect, @designer; api-design, database, cloud experts |
+| `@frontend-patterns` | UI and a11y | Use with @designer, @reviewer; accessibility, user-experience experts |
+| `@security-review` | Security audit | Use with @reviewer, @ops; security, data-privacy-compliance experts |
 
 ## Configuration
 

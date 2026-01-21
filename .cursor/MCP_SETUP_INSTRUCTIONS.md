@@ -5,17 +5,50 @@
 
 ---
 
-## Required Configuration
+## 1. Set the API Key in Your Environment
 
-Create `.cursor/mcp.json` with the following content:
+**The key is never stored in the project.** Cursor resolves `${env:CONTEXT7_API_KEY}` from your OS environment.
+
+### Windows (PowerShell – current user, persistent)
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("CONTEXT7_API_KEY", "ctx7sk-xxxx-your-key-here", "User")
+```
+
+Or: **Settings → System → About → Advanced system settings → Environment Variables → User variables → New**
+
+### Windows (temporary, this session only)
+
+```powershell
+$env:CONTEXT7_API_KEY = "ctx7sk-xxxx-your-key-here"
+```
+
+Then start Cursor from this same PowerShell window.
+
+### macOS / Linux
+
+Add to `~/.zshrc`, `~/.bashrc`, or `~/.profile`:
+
+```bash
+export CONTEXT7_API_KEY="ctx7sk-xxxx-your-key-here"
+```
+
+Then restart the terminal and Cursor (or run `source ~/.zshrc` and start Cursor from that shell).
+
+---
+
+## 2. Required Configuration
+
+Create `.cursor/mcp.json` with the following (**no key in the file**):
 
 ```json
 {
   "mcpServers": {
-    "context7": {
-      "url": "https://context7.com/api/v2",
-      "headers": {
-        "CONTEXT7_API_KEY": "ctx7sk-49080f4f-b612-4d41-a16b-e8cf388ba7d7"
+    "Context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {
+        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
       }
     }
   }
@@ -26,23 +59,23 @@ Create `.cursor/mcp.json` with the following content:
 
 ## Configuration Details
 
-- **API URL:** `https://context7.com/api/v2`
-- **API Key:** `ctx7sk-49080f4f-b612-4d41-a16b-e8cf388ba7d7` (current working key)
+- **Server:** `npx -y @upstash/context7-mcp`
+- **API Key:** From environment via `${env:CONTEXT7_API_KEY}` — set `CONTEXT7_API_KEY` before starting Cursor
 - **Key Format:** Valid Context7 API key (starts with `ctx7sk`)
 
 ---
 
 ## Security
 
-- ✅ `.cursor/mcp.json` is in `.gitignore` - will NOT be committed to git
-- ✅ API key is stored locally only
-- ✅ Reference documentation created in `docs/kb/CONTEXT7_API_KEY_REFERENCE.md`
+- ✅ **No key in the repo** — `mcp.json` only references `${env:CONTEXT7_API_KEY}`
+- ✅ `.cursor/mcp.json` is in `.gitignore` (optional; it contains no secrets)
+- ✅ API key stays in your OS user environment or shell only
 
 ---
 
 ## Verification
 
-After creating the file, restart Cursor/IDE and test:
+After setting `CONTEXT7_API_KEY` and creating `mcp.json`, **fully quit and reopen Cursor** (so it sees the env var), then test:
 
 ```bash
 @bmad-master
@@ -76,5 +109,5 @@ Once MCP is configured:
 
 ---
 
-**Note:** This file can be committed to git (does not contain the actual API key). The actual configuration with the key is in `.cursor/mcp.json` which is gitignored.
+**Note:** This file and `.cursor/mcp.json` can be committed; neither contains the API key. The key exists only in your `CONTEXT7_API_KEY` environment variable.
 

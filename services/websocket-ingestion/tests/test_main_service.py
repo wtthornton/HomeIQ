@@ -107,7 +107,7 @@ class TestWebSocketIngestionService:
                                 with patch('src.main.BatchProcessor', return_value=mock_batch):
                                     with patch('src.main.AsyncEventProcessor', return_value=mock_async):
                                         with patch('src.main.InfluxDBConnectionManager') as mock_influxdb_mgr:
-                                            with patch('src.main.InfluxDBBatchWriter') as mock_batch_writer:
+                                            with patch('src.influxdb_batch_writer.InfluxDBBatchWriter') as mock_batch_writer:
                                                 with patch('src.main.HistoricalEventCounter') as mock_counter:
                                                     # Setup mocks
                                                     mock_influxdb_mgr.return_value.start = AsyncMock()
@@ -137,7 +137,7 @@ class TestWebSocketIngestionService:
                     with patch('src.main.AsyncEventProcessor'):
                         with patch('src.main.InfluxDBConnectionManager') as mock_influxdb_mgr:
                             with patch('src.main.HistoricalEventCounter'):
-                                with patch('src.main.InfluxDBBatchWriter'):
+                                with patch('src.influxdb_batch_writer.InfluxDBBatchWriter'):
                                     # Setup InfluxDB to fail
                                     mock_influxdb_mgr.return_value.start = AsyncMock(side_effect=Exception("Connection failed"))
                                     
@@ -154,12 +154,12 @@ class TestWebSocketIngestionService:
                     with patch('src.main.AsyncEventProcessor'):
                         with patch('src.main.InfluxDBConnectionManager') as mock_influxdb_mgr:
                             with patch('src.main.HistoricalEventCounter'):
-                                with patch('src.main.InfluxDBBatchWriter') as mock_batch_writer:
+                                with patch('src.influxdb_batch_writer.InfluxDBBatchWriter') as mock_batch_writer:
                                     # Setup InfluxDB to succeed
                                     mock_influxdb_mgr.return_value.start = AsyncMock()
                                     # Setup batch writer to fail
                                     mock_batch_writer.return_value.start = AsyncMock(side_effect=Exception("Batch writer failed"))
-                                    
+
                                     # Should raise exception
                                     with pytest.raises(Exception):
                                         await service.start()

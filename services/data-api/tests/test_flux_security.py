@@ -22,20 +22,20 @@ class TestFluxSanitization:
         """Test that SQL injection attempts are blocked."""
         # Common SQL injection patterns
         injection_attempts = [
-            "entity'; DROP TABLE events--",
-            "entity' OR '1'='1",
-            "entity'; DELETE FROM events--",
-            "entity' UNION SELECT * FROM events--",
+            ("entity'; DROP TABLE events--", ["DROP"]),
+            ("entity' OR '1'='1", []),
+            ("entity'; DELETE FROM events--", ["DELETE"]),
+            ("entity' UNION SELECT * FROM events--", []),
         ]
-        
-        for attempt in injection_attempts:
+
+        for attempt, preserved_words in injection_attempts:
             sanitized = sanitize_flux_value(attempt)
             # Should not contain SQL injection characters
             assert "'" not in sanitized or sanitized.count("'") == sanitized.count("\\'")
             assert ";" not in sanitized
             assert "--" not in sanitized
-            assert "DROP" in sanitized  # Should be preserved but safe
-            assert "DELETE" in sanitized  # Should be preserved but safe
+            for word in preserved_words:
+                assert word in sanitized  # keyword preserved but injection removed
 
     def test_flux_injection_prevention(self):
         """Test that Flux injection attempts are blocked."""
@@ -55,22 +55,23 @@ class TestFluxSanitization:
     def test_special_characters(self):
         """Test handling of special characters."""
         test_cases = [
-            ("test@example.com", "testexamplecom"),  # @ removed
+            ("test@example.com", "testexample.com"),  # @ removed, . kept for entity_ids
             ("test#123", "test123"),  # # removed
             ("test$value", "testvalue"),  # $ removed
             ("test%20encoded", "test20encoded"),  # % removed
             ("test&value", "testvalue"),  # & removed
         ]
-        
+
         for input_val, expected in test_cases:
             sanitized = sanitize_flux_value(input_val)
             assert sanitized == expected
 
     def test_quote_escaping(self):
-        """Test that quotes are properly escaped."""
-        assert sanitize_flux_value('test"value') == 'test\\"value'
-        assert sanitize_flux_value("test'value") == "test\\'value"
-        assert sanitize_flux_value('test"value"') == 'test\\"value\\"'
+        """Test that quotes are removed (injection-safe; escaping happens only if kept)."""
+        # Implementation removes ', " in the allowed-char filter for safety
+        assert sanitize_flux_value('test"value') == 'testvalue'
+        assert sanitize_flux_value("test'value") == "testvalue"
+        assert sanitize_flux_value('test"value"') == 'testvalue'
 
     def test_length_limiting(self):
         """Test that length limits are enforced."""

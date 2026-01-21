@@ -5,7 +5,18 @@ Story 22.1
 
 import pytest
 from sqlalchemy import text
-from src.database import AsyncSessionLocal, async_engine, check_db_health, get_db, init_db
+
+from src.database import (
+    DATABASE_URL,
+    AsyncSessionLocal,
+    async_engine,
+    check_db_health,
+    get_db,
+    init_db,
+)
+
+# In-memory SQLite uses journal_mode "memory", not "wal"
+_IS_MEMORY = ":memory:" in (DATABASE_URL or "")
 
 
 @pytest.mark.asyncio
@@ -27,11 +38,12 @@ async def test_session_factory_creation():
 
 @pytest.mark.asyncio
 async def test_wal_mode_enabled():
-    """Test that WAL mode is enabled"""
+    """Test that WAL mode is enabled (or memory for in-memory DBs)"""
     async with AsyncSessionLocal() as session:
         result = await session.execute(text("PRAGMA journal_mode"))
-        journal_mode = result.scalar()
-        assert journal_mode.lower() == "wal"
+        journal_mode = (result.scalar() or "").lower()
+        # In-memory DBs use "memory"; on-disk use "wal"
+        assert journal_mode in ("wal", "memory")
 
 
 @pytest.mark.asyncio
@@ -55,8 +67,12 @@ async def test_check_db_health():
     """Test health check function"""
     health = await check_db_health()
     assert health["status"] == "healthy"
-    assert health["journal_mode"] == "wal"
-    assert health["wal_enabled"] is True
+    # In-memory DBs use journal_mode "memory"; on-disk use "wal"
+    assert health["journal_mode"] in ("wal", "memory")
+    if _IS_MEMORY:
+        assert "wal_enabled" in health  # may be False for memory
+    else:
+        assert health["wal_enabled"] is True
     assert "database_size_mb" in health
 
 

@@ -142,6 +142,12 @@ Define system boundaries and interfaces.
 @define-boundaries "Payment processing service"
 ```
 
+### `*detect-patterns [--path {path}]`
+
+Detect architecture patterns from project layout (Layered, MVC, Clean/Hexagonal, CQRS, Microservices, etc.). Heuristics over directory structure; outputs pattern name, confidence, and evidence.
+
+**Example:** `@detect-patterns` or `@detect-patterns --path .`
+
 ### `*docs {library}`
 
 Lookup library documentation from Context7 KB cache.
