@@ -1,0 +1,6 @@
+# TappsCodingAgents - AI-assisted development framework
+# Install: pip install -r requirements-tapps.txt
+# https://github.com/wtthornton/TappsCodingAgents/releases/tag/v3.5.26
+#
+# v3.5.26 installed from GitHub (PyPI may lag behind releases)
+git+https://github.com/wtthornton/TappsCodingAgents.git@v3.5.26

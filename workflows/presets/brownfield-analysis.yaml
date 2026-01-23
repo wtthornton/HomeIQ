@@ -1,0 +1,235 @@
+# Brownfield Analysis Workflow
+# Comprehensive analysis of existing (brownfield) projects
+
+workflow:
+  id: brownfield-analysis
+  name: Brownfield Project Analysis
+  description: |
+    Comprehensive analysis workflow for existing codebases that provides:
+    - Project discovery and profiling
+    - Code quality assessment
+    - Architecture pattern analysis
+    - Codebase structure evaluation
+    - Technical debt categorization and prioritization
+    - Dependency and integration mapping
+    - Test and documentation coverage analysis
+    - Modernization roadmap generation
+    
+    This workflow orchestrates multiple agents to provide a complete picture
+    of a brownfield project's current state and recommended improvements.
+  type: brownfield
+
+sequence:
+  - step: discovery
+    agent: analyst
+    action: analyze-brownfield
+    parameters:
+      phase: discovery
+    creates:
+      - project_profile
+      - service_inventory
+      - tech_stack_summary
+      - file_structure_map
+    notes: |
+      Phase 1: Discover project structure, services, tech stack, and file organization.
+      Uses ProjectProfileDetector, ServiceDiscovery, and LanguageDetector.
+    output: |
+      - Project profile saved to .tapps-agents/project-profile.yaml
+      - Service inventory JSON
+      - Tech stack summary
+
+  - step: quality_analysis
+    agent: reviewer
+    action: analyze-project
+    requires:
+      - discovery
+    creates:
+      - quality_scores
+      - duplication_report
+      - security_scan_results
+    notes: |
+      Phase 2: Comprehensive code quality analysis across all services.
+      Uses reviewer analyze-project, duplication detection, and security scanning.
+    output: |
+      - Quality scores by service
+      - Duplication report
+      - Security vulnerabilities list
+
+  - step: architecture_analysis
+    agent: analyst
+    action: analyze-brownfield
+    parameters:
+      phase: architecture
+    requires:
+      - discovery
+    creates:
+      - architecture_patterns
+      - component_graph
+      - coupling_metrics
+      - architectural_debt
+    notes: |
+      Phase 3: Analyze architecture patterns, component relationships, and coupling.
+      Uses ArchitectureAnalyzer for import graph analysis and pattern detection.
+    output: |
+      - Architecture pattern inventory
+      - Component dependency graph
+      - Coupling/cohesion metrics
+      - Architectural debt assessment
+
+  - step: structure_analysis
+    agent: analyst
+    action: analyze-brownfield
+    parameters:
+      phase: structure
+    requires:
+      - discovery
+    creates:
+      - structure_quality_metrics
+      - module_organization
+      - structural_issues
+    notes: |
+      Phase 4: Assess codebase structure, module organization, and structural quality.
+      Uses StructureAnalyzer for organization and coupling analysis.
+    output: |
+      - Structure quality scores
+      - Module organization report
+      - Structural issue list
+
+  - step: dependency_analysis
+    agent: ops
+    action: audit-dependencies
+    requires:
+      - discovery
+    creates:
+      - dependency_tree
+      - security_vulnerabilities
+      - outdated_packages
+      - integration_points
+    notes: |
+      Phase 6: Analyze dependencies, security vulnerabilities, and integration points.
+      Uses ops audit-dependencies and DependencyAnalyzer.
+    output: |
+      - Dependency tree visualization
+      - Security vulnerability report
+      - Outdated package list
+      - Integration point map
+
+  - step: test_doc_analysis
+    agent: analyst
+    action: analyze-brownfield
+    parameters:
+      phase: tests_docs
+    requires:
+      - discovery
+    creates:
+      - test_coverage_report
+      - test_gaps
+      - documentation_coverage
+      - documentation_gaps
+    notes: |
+      Phase 7: Analyze test coverage and documentation completeness.
+      Uses TestCoverageAnalyzer and DocumentationAnalyzer.
+    output: |
+      - Test coverage report
+      - Test gap analysis
+      - Documentation coverage report
+      - Documentation gap analysis
+
+  - step: technical_debt_assessment
+    agent: analyst
+    action: analyze-brownfield
+    parameters:
+      phase: technical_debt
+    requires:
+      - quality_analysis
+      - architecture_analysis
+      - structure_analysis
+      - dependency_analysis
+      - test_doc_analysis
+    creates:
+      - debt_inventory
+      - debt_categorization
+      - prioritized_debt
+      - remediation_roadmap
+    notes: |
+      Phase 5: Aggregate and categorize technical debt from all analysis phases.
+      Uses TechnicalDebtAnalyzer to prioritize and generate recommendations.
+    output: |
+      - Technical debt inventory
+      - Debt categorization (code, architecture, dependencies, tests, docs)
+      - Prioritized debt list
+      - Remediation recommendations
+
+  - step: modernization_roadmap
+    agent: analyst
+    action: analyze-brownfield
+    parameters:
+      phase: modernization
+    requires:
+      - technical_debt_assessment
+    creates:
+      - modernization_opportunities
+      - prioritized_improvements
+      - effort_estimates
+      - implementation_roadmap
+    notes: |
+      Phase 8: Generate modernization roadmap with prioritized improvements.
+      Uses ModernizationRoadmapGenerator to synthesize all findings.
+    output: |
+      - Modernization opportunities list
+      - Prioritized improvement plan
+      - Effort estimates
+      - Implementation timeline
+
+  - step: generate_report
+    agent: analyst
+    action: analyze-brownfield
+    parameters:
+      phase: report_generation
+    requires:
+      - modernization_roadmap
+    creates:
+      - comprehensive_report_json
+      - comprehensive_report_markdown
+      - comprehensive_report_html
+    notes: |
+      Final step: Generate comprehensive reports in multiple formats.
+      Consolidates all phase results into unified reports.
+    output: |
+      - JSON report (machine-readable)
+      - Markdown report (human-readable)
+      - HTML report (interactive dashboard)
+
+gates:
+  - name: discovery_complete
+    condition: discovery.status == "success"
+    message: "Discovery phase must complete successfully"
+    
+  - name: quality_analysis_complete
+    condition: quality_analysis.status == "success"
+    message: "Quality analysis phase must complete successfully"
+
+outputs:
+  reports:
+    - type: json
+      path: reports/brownfield-analysis/analysis-report.json
+      description: "Complete analysis results in JSON format"
+    - type: markdown
+      path: reports/brownfield-analysis/analysis-report.md
+      description: "Human-readable markdown report"
+    - type: html
+      path: reports/brownfield-analysis/analysis-report.html
+      description: "Interactive HTML dashboard"
+
+metadata:
+  version: "1.0.0"
+  created: "2025-01-XX"
+  author: "TappsCodingAgents Framework"
+  estimated_duration: "15-30 minutes"
+  complexity: "high"
+  project_types:
+    - brownfield
+    - existing-project
+    - legacy-modernization
+    - codebase-assessment
+

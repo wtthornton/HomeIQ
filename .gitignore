@@ -89,6 +89,7 @@ htmlcov/
 .coverage.*
 coverage.xml
 *.cover
+coverage.json
 .hypothesis/
 .pytest_cache/
 
@@ -138,6 +139,21 @@ jscpd-report/
 test_nabu_casa_connection.py
 ai_automation_backup.db
 ha_events.log
+
+# Backup files
+*.backup
+*.bak
+.env.backup*
+.beads.bak/
+
+# Temporary data files
+conversation_data.json
+automation_from_ha.json
+automation_actions.yaml
+assistant_message.txt
+
+# Debug scripts (should be in scripts/ or deleted)
+debug_*.py
 
 # Phase 3 embedding test artifacts
 embedding_test_env/
@@ -198,3 +214,6 @@ TappsCodingAgents/
 
 
 tests/playwright-report/
+
+# Temporary folder for items pending deletion review
+deleteme/

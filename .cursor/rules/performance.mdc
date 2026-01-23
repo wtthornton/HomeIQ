@@ -1,0 +1,29 @@
+---
+description: Context and MCP usage - MCP/tool limits, when to delegate, model selection
+alwaysApply: false
+---
+
+# Performance and Context Rules
+
+## Context Window and MCP Usage
+
+- **MCPs**: Prefer ~20–30 MCPs configured total; enable **&lt;10 per project** to avoid shrinking the effective context
+- **Tools**: Keep **&lt;80 tools** active; disable unused MCPs via `disabledMcpServers` or project/local MCP config (e.g. `.cursor/mcp.json`)
+- Enable only MCPs needed for the current project (e.g. Context7 for docs; Playwright for E2E)
+
+## When to Delegate
+
+- Use `@simple-mode *build` for features; `*fix` for bugs; `*review` for quality—avoids ad-hoc context bloat
+- Prefer targeted agents (`@reviewer *score`, `@tester *test`) over loading many skills at once
+- For large codebases, narrow scope (file, module) before inviting broad search
+
+## Model and Resource Selection
+
+- Skills reference `model_profile` (e.g. `reviewer_profile`, `implementer_profile`); override in `requirements/model_profiles.yaml` or project config
+- Use higher-accuracy models for reviewer and security-review; lighter models for lint/score when acceptable
+- See `docs/MODEL_SELECTION.md` (or agent-capabilities) for profile resolution and overrides
+
+## References
+
+- `tapps_agents/core/doctor.py` - run `tapps-agents doctor` to check MCP and tool setup
+- `.cursor/mcp.json` and project MCP configuration for `disabledMcpServers` and enabled servers

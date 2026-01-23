@@ -1,0 +1,32 @@
+---
+description: Mandatory security checks - no hardcoded secrets, input validation, OWASP-style reminders
+alwaysApply: true
+---
+
+# Security Rules
+
+Always-follow security guidelines for code and configuration.
+
+## No Hardcoded Secrets
+
+- Never commit API keys, passwords, tokens, or credentials to source
+- Use environment variables, secret managers, or project config (e.g. `.tapps-agents/config.yaml` with env overrides)
+- Sanitize logs and error messages to avoid leaking secrets
+
+## Input Validation
+
+- Validate and sanitize all user input and external data
+- Use allowlists over blocklists where possible
+- Apply length limits and type checks before processing
+
+## OWASP and Common Vulnerabilities
+
+- **Injection**: parameterize queries; avoid string concatenation for SQL/shell/commands
+- **XSS**: escape output in web UIs; use CSP where applicable
+- **Broken auth**: use proven auth libraries; secure session and token handling
+
+## References
+
+- `tapps_agents/experts/knowledge/security/` - owasp-top10, secure-coding-practices, threat-modeling, vulnerability-patterns
+- `tapps_agents/experts/knowledge/data-privacy-compliance/` - gdpr, hipaa, encryption-privacy
+- Use `@reviewer *security-scan` and `@ops *audit-security` for structured checks
