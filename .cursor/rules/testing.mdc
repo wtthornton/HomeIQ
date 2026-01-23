@@ -1,0 +1,31 @@
+---
+description: TDD, Red-Green-Refactor, coverage targets, when to add tests
+alwaysApply: false
+---
+
+# Testing Rules
+
+## TDD / Red-Green-Refactor
+
+- **RED**: Write failing tests first (interfaces or behavior)
+- **GREEN**: Implement minimal code to pass
+- **IMPROVE**: Refactor while keeping tests green
+- Use `@simple-mode *tdd` for the full TDD workflow
+
+## Coverage Targets
+
+- **New and modified code**: aim for ≥80% coverage; quality gates may require 70–80%
+- **Critical paths**: error handling, auth, and data flows need tests
+- Use `@simple-mode *test-coverage` for gap-driven test generation
+
+## When to Add Tests
+
+- After implementing features (`@simple-mode *build` includes a test step)
+- When fixing bugs (`@simple-mode *fix` includes verification)
+- Before refactoring to preserve behavior
+- For public APIs and integration boundaries
+
+## References
+
+- `tapps_agents/experts/knowledge/testing/` - best-practices, test-design-patterns, test-strategies, coverage-analysis, mocking
+- Use `@tester *test` and `@tester *generate-tests`; `@simple-mode *test` for the workflow

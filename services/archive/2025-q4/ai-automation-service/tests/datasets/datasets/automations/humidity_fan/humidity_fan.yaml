@@ -1,5 +1,0 @@
----
-category: fan
-tests:
-  - sentences:
-      - !include_text DESCRIPTION.md

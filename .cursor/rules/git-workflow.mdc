@@ -1,0 +1,29 @@
+---
+description: Commit format, when to use *build/*fix branches, PR flow
+alwaysApply: false
+---
+
+# Git Workflow Rules
+
+## Commit Format
+
+- Use clear, imperative subject lines (e.g. "Add auth endpoint", "Fix null check in validator")
+- Optionally include scope: `feat(auth): add login endpoint`
+- Keep the body concise when needed; reference issues or PRs
+
+## Branching for Agent Workflows
+
+- **`*build` and `*full`**: when `human_oversight.branch_for_agent_changes` is true, work runs on `tapps-agents/build-{workflow_id}`; merge to main only after human review
+- **`*fix`**: typically on a short-lived branch or main, depending on project policy
+- Use `checkpoints_before_steps` (e.g. before implementer, designer) to review before large changes
+
+## PR Flow
+
+- Run `@simple-mode *review` on changed files before opening a PR
+- Use `@simple-mode *pr {title}` to generate PR description and quality summary
+- Ensure tests pass and quality gates meet thresholds (e.g. overall ≥70, security ≥6.5)
+
+## References
+
+- `tapps_agents/experts/knowledge/development-workflow/git-workflows.md`
+- `.cursor/rules/simple-mode.mdc` for workflow and human oversight options

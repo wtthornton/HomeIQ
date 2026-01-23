@@ -1,0 +1,31 @@
+---
+description: Immutability, file and line limits, structure; code quality and static analysis patterns
+alwaysApply: false
+---
+
+# Coding Style Rules
+
+Guidelines for consistency and maintainability.
+
+## Immutability and Side Effects
+
+- Prefer immutable data and pure functions where practical
+- Isolate side effects (I/O, mutations) at boundaries
+- Document when mutating shared state is necessary
+
+## File and Line Limits
+
+- Keep files under ~400 lines; split when larger
+- Prefer functions under ~50 lines; extract when logic grows
+- Use consistent module and package structure
+
+## Structure and Organization
+
+- One primary responsibility per module or class
+- Place public API at top; helpers and private below
+- Group related code; avoid scattered concerns
+
+## References
+
+- `tapps_agents/experts/knowledge/code-quality-analysis/` - code-metrics, complexity-analysis, static-analysis-patterns, technical-debt-patterns, quality-gates
+- Use `@reviewer *lint` and `@reviewer *review` for enforcement
