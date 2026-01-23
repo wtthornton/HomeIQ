@@ -1,0 +1,156 @@
+---
+description: Importance and when to use each TappsCodingAgents capability—workflows, agents, and commands. Use this to choose the right tool and understand what to prioritize.
+alwaysApply: false
+---
+
+# When to Use: Importance and Guidance
+
+This rule helps projects using **TappsCodingAgents with Cursor** understand which capabilities matter most and **when to use each one**. Prioritize higher tiers for better outcomes: orchestrated workflows, quality gates, traceability, and structured tests.
+
+---
+
+## Why This Matters
+
+TappsCodingAgents adds the most value when you use **orchestrated workflows** (multi-step sequences with quality gates and loopbacks) instead of one-off edits. Higher-importance items deliver that. Use **Tier 1–2** by default; use **Tier 3–4** when you need a specific capability; use **Tier 5–6** for niche or meta tasks.
+
+---
+
+## Quick Lookup: "I want to…" → Use this
+
+| I want to… | Use this | Importance |
+|------------|----------|------------|
+| **Build a new feature** | `@simple-mode *build "description"` | Tier 1 |
+| **Fix a bug or error** | `@simple-mode *fix <file> "description"` | Tier 1 |
+| **Run full SDLC** (framework work or enterprise) | `@simple-mode *full "description"` | Tier 1 |
+| **Review code quality** | `@simple-mode *review <file>` or `@reviewer *review <file>` | Tier 1–2 |
+| **Get a quick quality score** | `@reviewer *score <file>` | Tier 1 |
+| **Set up the project** (first time) | `tapps-agents init` | Tier 1 |
+| **Add or improve tests** | `@simple-mode *test <file>` or `@tester *test <file>` | Tier 2 |
+| **Refactor code** | `@simple-mode *refactor <file>` | Tier 3 |
+| **Debug an error** | `@debugger *debug "error" --file <file>` | Tier 2 |
+| **Improve a prompt before building** | `@enhancer *enhance "prompt"` or `@simple-mode *enhance "prompt"` | Tier 2 |
+| **Plan or break down work** | `@planner *plan "description"` or `@simple-mode *breakdown "description"` | Tier 2 |
+| **Run workflows in CI/terminal** | `tapps-agents workflow rapid|full|fix|quality|hotfix` | Tier 2 |
+| **Check environment** | `tapps-agents doctor` | Tier 3 |
+| **Security audit** | `@ops *audit-security` or `@simple-mode *security-review` | Tier 3 |
+| **Execute an Epic** | `@simple-mode *epic <epic-doc.md>` | Tier 3 |
+
+---
+
+## Tier 1: Highest importance — use these first
+
+These give the biggest improvement over ad-hoc work: orchestration, quality gates, traceability, and tests.
+
+| Capability | When to use |
+|------------|-------------|
+| **`tapps-agents init`** | First-time setup or after adding TappsCodingAgents. Run once per project to install Rules, Skills, and config. Without it, Cursor integration does not work. |
+| **`@simple-mode *build "description"`** | **New features, user stories, or greenfield work.** Use for any "add/implement/create" request. Runs: enhance → plan → architect → designer → implement → review → test, with quality gates and loopbacks. Prefer over going straight to code. |
+| **`@simple-mode *fix <file> "description"`** | **Bugs, runtime errors, or "fix this" requests.** Runs: debug → implement → test. Use when the problem is already identified or you have an error message. |
+| **`@simple-mode *full "description"`** | **Framework changes (e.g. `tapps_agents/`), enterprise/critical features, or when you need full traceability.** 9-step SDLC: requirements → plan → architect → designer → implement → review → test → security → docs. Required when modifying TappsCodingAgents itself. |
+| **`@reviewer *review <file>`** | **Pre-commit, PRs, or "how good is this code?"** Full review with 7-category scoring and actionable feedback. Use when you want detailed, structured feedback. |
+| **`@reviewer *score <file>`** | **Quick, objective quality check; CI gates; or "just the numbers."** Fast, no LLM. Use when you need a fast pass or a numeric threshold. |
+
+---
+
+## Tier 2: Strong support — use as part of workflows or for focused tasks
+
+These power the Tier 1 workflows or are the main way to do a specific job well.
+
+| Capability | When to use |
+|------------|-------------|
+| **`@simple-mode *review <file>`** | When you want **review plus improvement suggestions** in one go. Uses @reviewer then @improver if issues are found. |
+| **`@simple-mode *test <file>`** | **After implementing or when asked to "add tests."** Structured test generation. Prefer over ad-hoc test writing when you want coverage and consistency. |
+| **`@tester *test <file>`** / **`generate-tests`** | When you need **only tests** (no full *build/*fix). Use in workflows or when tests are the single goal. |
+| **`@implementer *implement "spec" <file>`** / **`*refactor <file> "instructions"`** | When you need **code generation or refactoring alone** (e.g. inside a custom flow, or after you already have a spec). Usually better to use *build or *fix so review and tests are included. |
+| **`@enhancer *enhance "prompt"`** | When a prompt is **vague or high-level** and you want a richer spec before planning or implementation. Often run as step 1 of *build; use standalone when iterating on a prompt. Also runs in *full (full-sdlc optional), rapid-dev, and *epic via EnhancerHandler. CLI: `auto_enhancement` (CONFIGURATION.md). |
+| **`@debugger *debug "error" --file <file>`** | When you have **an error message or stack trace** and need root-cause analysis. Feeds into *fix; use standalone when you only need diagnosis. |
+| **`@planner *plan "description"`** | When you need **user stories, acceptance criteria, or a plan** without running the full build. Use in *build/*full or when planning is the only goal. |
+| **`@architect *design "description"`** | When you need **system or high-level design** before coding. Use in *build/*full or for design-only work. |
+| **`tapps-agents workflow rapid`** | **CI/terminal: fast feature development** with quality checks. Use when automating in scripts or CI instead of Cursor chat. |
+| **`tapps-agents workflow full`** | **CI/terminal: full SDLC** with requirements, security, and docs. Use for automation of framework or enterprise work. |
+
+---
+
+## Tier 3: Important but more situational
+
+Use when the task clearly matches, or when a Tier 1–2 workflow doesn’t fit.
+
+| Capability | When to use |
+|------------|-------------|
+| **`@designer *design-api`** / **`*design-model`** | When you need **API or data-model design** before or outside of *build. Usually invoked inside *build/*full. |
+| **`@improver *improve <file> "instructions"`** | When you have **review feedback or a clear improvement goal** and want suggested edits. Used inside *review; use standalone for targeted improvements. |
+| **`@ops *audit-security`**, **`*check-compliance`**, **`*audit-dependencies`** | **Security, compliance (e.g. GDPR, HIPAA), or dependency audits.** Use in *full, before release, or when compliance is required. |
+| **`@documenter *document <file>`** / **`*document-api <file>`** | When **documentation** is the main deliverable. *full includes docs; use standalone when you only need to document. |
+| **`@simple-mode *refactor <file>`** | When the goal is **refactoring** with review and tests. Prefer over one-off refactors for larger changes. |
+| **`@simple-mode *epic <epic-doc.md>`** | When you are **implementing an Epic**: runs all stories in dependency order with quality gates. Use for large, multi-story work. |
+| **`@reviewer *lint`**, **`*type-check`** | **Fast style and type checks** for CI or local hygiene. Use for pre-commit or CI quality gates. |
+| **`@reviewer *security-scan`** | When you need **focused security scanning** without a full ops audit. |
+| **`tapps-agents doctor`** | **Environment and integration checks.** Use after setup, when something breaks, or in CI to validate tooling. |
+| **`tapps-agents cursor verify`** | **Check that Cursor Rules and Skills** are installed and valid. Use after init or when @-commands don’t work. |
+| **`tapps-agents workflow fix`**, **`quality`** | **CLI: bug fixes, maintenance, quality sprints, or hotfixes** when not using Cursor chat. (`hotfix` is an alias for `fix`.) |
+
+---
+
+## Tier 4: Useful in specific cases
+
+| Capability | When to use |
+|------------|-------------|
+| **`@simple-mode *test-coverage`** | When you want **coverage-driven test generation** for uncovered paths. |
+| **`@simple-mode *fix-tests`** | When **tests are failing** and you want automated fixes for common patterns (e.g. async, mocks, imports). |
+| **`@simple-mode *enhance`**, **`*breakdown`**, **`*todo`** | **Prompt enhancement, task breakdown, or Beads-backed todo** (e.g. `*todo ready`). Use when those are the explicit goals. |
+| **`@reviewer *docs <library>`** | When you need **library documentation** (Context7). Use for "how do I use X?" or API lookup. |
+| **`@reviewer *report`**, **`*duplication`** | **Project-wide quality or duplication reports.** Use for audits or technical-debt analysis. |
+| **`@analyst *gather-requirements`**, **`*estimate-effort`**, **`*assess-risk`** | **Requirements, estimation, or risk** when you’re not running *full. |
+| **`@architect *detect-patterns`** | When you need to **understand existing architecture** (e.g. Layered, MVC, Microservices) from the project layout. |
+| **`@ops *plan-deployment`**, **`*audit-bundle`** | **Deployment planning** or **frontend bundle analysis** (Node/React/Vue). |
+| **`continuous-bug-fix`** | **Automated test → fix loop** with quality gates. Use in CI or when batch-fixing test failures. |
+| **`@bug-fix-agent *fix-bug`** | **Automated fix with tests, review, and optional commit.** Use when you want full automation; be aware it can commit to main. |
+| **`tapps-agents create "description"`** | **Greenfield: create a full application** from a description. Shortcut for full SDLC on a new project. |
+| **`tapps-agents simple-mode`** (on, off, status, init, configure, full) | **Configure or run Simple Mode** from the CLI (e.g. `simple-mode full --prompt "..." --auto`). |
+
+---
+
+## Tier 5: Meta, low-frequency, or workflow control
+
+| Capability | When to use |
+|------------|-------------|
+| **`@evaluator *evaluate`** | **Evaluate TappsCodingAgents usage and effectiveness** (e.g. adherence, quality over time). Use for process improvement. |
+| **`@orchestrator *orchestrate`**, **`*sequence`** | **Custom YAML workflows or ad-hoc agent sequences** when presets and Simple Mode don’t fit. |
+| **`workflow state`** (list, show, cleanup), **resume**, **continue-from**, **skip-steps** | **Inspect, resume, or trim workflows** (e.g. after a failure or when re-running from a step). |
+| **`workflow recommend`**, **`dry-run`** | **Get a workflow suggestion** or **validate without running** (e.g. before CI). |
+| **`cleanup workflow-docs`** | **Remove or archive old workflow artifacts** to reduce clutter. |
+| **`score`** (top-level) | **Shortcut for `reviewer score`** when you prefer the shorter form. |
+| **`beads`** | **Beads (bd) passthrough** when using bd for task tracking. |
+
+---
+
+## Tier 6: Niche or convenience
+
+| Capability | When to use |
+|------------|-------------|
+| **`@simple-mode *microservice`**, **`*docker-fix`**, **`*integrate-service`** | **Microservice scaffolding, Docker debugging, or service-to-service integration** when those are the explicit goals. |
+| **`@simple-mode *explore`**, **`*plan-analysis`**, **`*pr`** | **Codebase exploration, safe planning (read-only), or PR creation** when you need only that. |
+| **`@planner *create-story`**, **`*list-stories`** | **Story management** when you’re not using *build/*full. |
+| **`workflow brownfield-analysis`** | **CLI: brownfield/legacy analysis** when not in Cursor. (simple-new-feature→rapid-dev, simple-improve-quality→quality, simple-fix-issues→fix.) |
+
+---
+
+## Cursor vs CLI: where to run things
+
+| Context | Prefer | Example |
+|---------|--------|---------|
+| **Interactive work in Cursor** | **@simple-mode** and **@agent** in chat | `@simple-mode *build "Add auth"` |
+| **CI, scripts, or no Cursor** | **CLI** `tapps-agents` | `tapps-agents workflow rapid --prompt "Add auth" --auto` |
+| **Quick, single-step checks** | **@agent** or CLI | `@reviewer *score src/` or `tapps-agents reviewer score src/` |
+
+In Cursor, **avoid** `tapps-agents workflow ...` for interactive development; use `@simple-mode` instead. See `cursor-mode-usage.mdc` for details.
+
+---
+
+## See also
+
+- **`quick-reference.mdc`** — Quick command table and where to run (Cursor vs terminal).
+- **`simple-mode.mdc`** — Workflow interceptor, step-by-step workflows, and Simple Mode commands.
+- **`command-reference.mdc`** — Full command and parameter reference.
+- **`agent-capabilities.mdc`** — What each agent does and when to use it.
+- **`cursor-mode-usage.mdc`** — When to use Cursor Skills vs CLI.

@@ -1,5 +1,0 @@
----
-category: vacuum
-tests:
-  - sentences:
-      - !include_text DESCRIPTION.md

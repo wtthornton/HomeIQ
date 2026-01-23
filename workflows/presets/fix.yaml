@@ -1,0 +1,78 @@
+# Fix Workflow
+# Best for: Bug fixes, hotfixes, maintenance, refactoring. Replaces maintenance, quick-fix, simple-fix-issues.
+
+workflow:
+  id: fix
+  name: "Fix"
+  description: "Debug, fix, and verify issues in existing code"
+  version: "1.0.0"
+
+  type: brownfield
+  auto_detect: true
+
+  settings:
+    quality_gates: true
+    code_scoring: true
+    context_tier_default: 2
+
+  steps:
+    - id: enhance
+      agent: enhancer
+      action: enhance_prompt
+      context_tier: 1
+      creates:
+        - enhanced-requirements.md
+      requires: []
+      condition: optional
+      next: debug
+
+    - id: debug
+      agent: debugger
+      action: analyze_error
+      context_tier: 2
+      requires: []
+      creates:
+        - debug-report.md
+      next: fix
+
+    - id: fix
+      agent: implementer
+      action: write_code
+      context_tier: 3
+      requires:
+        - debug-report.md
+      creates:
+        - fixed-code/
+      next: review
+
+    - id: review
+      agent: reviewer
+      action: review_code
+      context_tier: 2
+      requires:
+        - fixed-code/
+      scoring:
+        enabled: true
+        thresholds:
+          overall_min: 65
+          security_min: 6.5
+      gate:
+        condition: "scoring.passed == true"
+        on_pass: testing
+        on_fail: fix
+      next: testing
+
+    - id: testing
+      agent: tester
+      action: write_tests
+      context_tier: 2
+      requires:
+        - fixed-code/
+      creates:
+        - tests/
+      next: complete
+
+    - id: complete
+      agent: orchestrator
+      action: finalize
+      context_tier: 1
