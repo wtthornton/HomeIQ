@@ -21,9 +21,9 @@ numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (CPU-only, compatible with pandas a
 scipy>=1.16.3,<2.0.0  # Latest stable (2025)
 
 # Utilities
-python-dotenv==1.2.1
-tenacity==8.2.3
+python-dotenv==1.2.1  # Current stable
+tenacity==9.1.2  # Phase 2 upgrade - MAJOR version
 
 # Testing
-pytest==8.3.3
-pytest-asyncio==0.23.0
+pytest==9.0.2  # Phase 2 upgrade - latest stable
+pytest-asyncio==1.3.0  # Phase 2 upgrade - BREAKING: new async patterns
