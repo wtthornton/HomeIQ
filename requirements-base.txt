@@ -1,6 +1,6 @@
 # HomeIQ Shared Base Requirements
 # Common dependencies used across multiple services
-# Last Updated: January 2026
+# Last Updated: February 2026 - Phase 1: Critical Compatibility Fixes
 #
 # Usage in service requirements.txt:
 #   -r ../requirements-base.txt
@@ -56,8 +56,8 @@ opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0  # For database queries
 # ============================================
 # Database (Services with Database)
 # ============================================
-sqlalchemy>=2.0.45,<3.0.0  # Latest stable 2.0.45 (January 2026) - SQL toolkit and ORM
-aiosqlite>=0.21.0,<0.22.0  # Async SQLite driver - unpinned for patch updates
+sqlalchemy>=2.0.46,<3.0.0  # Phase 1: Updated to 2.0.46 (February 2026) - SQL toolkit and ORM
+aiosqlite>=0.22.1,<0.23.0  # Phase 1: Updated to 0.22.1 (February 2026) - Async SQLite driver
 alembic>=1.17.2,<2.0.0  # Database migration tool - unpinned for patch updates
 
 # ============================================
@@ -90,6 +90,19 @@ pytest-cov>=5.0.0,<6.0.0  # Coverage plugin - unpinned for patch updates
 # isort>=5.12.0,<6.0.0  # Import sorter
 # flake8>=6.1.0,<7.0.0  # Linter
 # mypy>=1.7.1,<2.0.0  # Type checker
+
+# ============================================
+# Phase 1 Update Notes (February 2026)
+# ============================================
+# Phase 1: Critical Compatibility Fixes
+# - SQLAlchemy: 2.0.45 → 2.0.46 (bug fixes and performance improvements)
+# - aiosqlite: 0.21.0 → 0.22.1 (async improvements and Python 3.13 support)
+# - FastAPI: 0.128.0 (already at target, maintained)
+# - Pydantic: 2.12.5 (already at target v2, maintained)
+# - httpx: 0.28.1 (already at target, maintained)
+#
+# Testing: All 30+ Python services rebuilt and validated
+# Status: ✅ Ready for Phase 2 (Database & Async Library Updates)
 
 # ============================================
 # Notes
