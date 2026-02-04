@@ -59,6 +59,7 @@ HomeIQ: ✓ Created automation. Want to add conditions or additional actions?
 ### 🤖 AI-Powered Automation
 - **Natural Language**: Create automations by describing what you want
 - **Pattern Mining**: AI analyzes your usage and suggests automations
+- **Automation Linter**: Validate and auto-fix Home Assistant automations with 15+ quality rules ([docs](docs/automation-linter.md))
 - **Device Templates**: Pre-built templates for common devices (thermostats, lights, appliances)
 - **Proactive Suggestions**: Context-aware recommendations based on weather, time, and events
 
@@ -212,6 +213,8 @@ For detailed architecture documentation, see:
 ### API Reference
 - [API Documentation](docs/api/API_REFERENCE.md) — RESTful API reference
 - [Interactive Docs](http://localhost:8003/docs) — Swagger UI (when running)
+- [Automation Linter API](docs/automation-linter.md) — YAML linting and validation service
+- [Automation Linter Rules](docs/automation-linter-rules.md) — Complete rules catalog
 
 ### For Developers
 - [Development Setup](docs/DEVELOPMENT.md) — Local development environment
