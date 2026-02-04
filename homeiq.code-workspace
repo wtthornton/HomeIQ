@@ -12,9 +12,12 @@
 			"**/node_modules": true,
 			"**/.pytest_cache": true
 		},
+		"window.titleBarStyle": "custom",
 		"workbench.colorCustomizations": {
 			"titleBar.activeBackground": "#1a535c",
 			"titleBar.activeForeground": "#e8f4f4",
+			"titleBar.inactiveBackground": "#1a535c",
+			"titleBar.inactiveForeground": "#b0c8c8",
 			"activityBar.background": "#0d3d42",
 			"activityBar.foreground": "#e8f4f4"
 		}

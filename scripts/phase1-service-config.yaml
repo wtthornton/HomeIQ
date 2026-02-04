@@ -1,0 +1,533 @@
+# Phase 1: Service Rebuild Configuration
+# Defines service categories, dependencies, and upgrade specifications
+# Used by phase1-batch-rebuild.sh for automated batch processing
+#
+# Author: TappsCodingAgents Framework with Context7 MCP
+# Date: 2026-02-04
+
+# ==================================================================================
+# Phase 1 Library Upgrade Targets
+# ==================================================================================
+library_upgrades:
+  python:
+    # Critical Compatibility Fixes
+    sqlalchemy:
+      from: ">=1.4.0,<2.0.0"
+      to: ">=2.0.35,<2.1.0"
+      breaking: true
+      priority: critical
+      notes: "SQLAlchemy 2.0 - Major rewrite, async support"
+
+    aiosqlite:
+      from: ">=0.20.0,<0.22.0"
+      to: ">=0.22.1"
+      breaking: false
+      priority: high
+      notes: "Async SQLite support improvements"
+
+    fastapi:
+      from: ">=0.115.0,<0.120.0"
+      to: ">=0.119.0,<0.125.0"
+      breaking: false
+      priority: high
+      notes: "Performance improvements and bug fixes"
+
+    pydantic:
+      from: ">=2.8.0,<2.10.0"
+      to: ">=2.12.0,<3.0.0"
+      breaking: false
+      priority: high
+      notes: "Standardize on Pydantic v2.12+"
+
+    httpx:
+      from: ">=0.27.0"
+      to: ">=0.28.1"
+      breaking: false
+      priority: medium
+      notes: "HTTP client improvements"
+
+  nodejs:
+    "@vitejs/plugin-react":
+      from: "4.7.0"
+      to: "5.1.2"
+      breaking: false
+      priority: medium
+
+    "typescript-eslint":
+      from: "8.48.0"
+      to: "8.53.0"
+      breaking: false
+      priority: low
+
+# ==================================================================================
+# Service Categories with Dependencies
+# ==================================================================================
+service_categories:
+
+  # Integration Services (8 services)
+  integration:
+    description: "External API integration services"
+    count: 8
+    priority: high
+    dependencies: []
+    services:
+      - name: weather-api
+        port: 8009
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: sports-api
+        port: 8005
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: carbon-intensity-service
+        port: 8010
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: electricity-pricing-service
+        port: 8011
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: air-quality-service
+        port: 8012
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: calendar-service
+        port: 8013
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: smart-meter-service
+        port: 8014
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: log-aggregator
+        port: 8015
+        type: python
+        health_check: "/health"
+        critical: false
+
+  # AI/ML Services (13 services)
+  ai_ml:
+    description: "AI/ML processing and inference services"
+    count: 13
+    priority: high
+    dependencies: []
+    services:
+      - name: ai-core-service
+        port: 8018
+        type: python
+        health_check: "/health"
+        critical: true
+        special_requirements:
+          - "NumPy 2.x compatible (Phase 3)"
+          - "OpenAI SDK updates"
+
+      - name: ai-pattern-service
+        port: 8034
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: ai-automation-service-new
+        port: 8036
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: ai-query-service
+        port: 8035
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: ai-training-service
+        port: 8033
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: ai-code-executor
+        port: 8030
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: ha-ai-agent-service
+        port: 8030
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: proactive-agent-service
+        port: 8031
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: ml-service
+        port: 8020
+        type: python
+        health_check: "/health"
+        critical: true
+        special_requirements:
+          - "scikit-learn updates"
+          - "Model compatibility testing"
+
+      - name: openvino-service
+        port: 8032
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: rag-service
+        port: 8037
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: nlp-fine-tuning
+        port: 8038
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: rule-recommendation-ml
+        port: 8039
+        type: python
+        health_check: "/health"
+        critical: false
+
+  # Device Services (7 services)
+  device:
+    description: "Device management and intelligence services"
+    count: 7
+    priority: medium
+    dependencies: []
+    services:
+      - name: device-intelligence-service
+        port: 8019
+        type: python
+        health_check: "/health"
+        critical: true
+
+      - name: device-context-classifier
+        port: 8021
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: device-database-client
+        port: 8022
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: device-health-monitor
+        port: 8023
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: device-recommender
+        port: 8024
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: device-setup-assistant
+        port: 8025
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: model-prep
+        port: 8026
+        type: python
+        health_check: "/health"
+        critical: false
+
+  # Automation Services (6 services)
+  automation:
+    description: "Automation linting and blueprint services"
+    count: 6
+    priority: medium
+    dependencies: []
+    services:
+      - name: automation-linter
+        port: 8016
+        type: python
+        health_check: "/health"
+        critical: false
+        special_requirements:
+          - "FastAPI 0.115.0 → 0.119.0+ (most outdated)"
+
+      - name: automation-miner
+        port: 8017
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: blueprint-index
+        port: 8027
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: blueprint-suggestion-service
+        port: 8028
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: yaml-validation-service
+        port: 8029
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: api-automation-edge
+        port: 8040
+        type: python
+        health_check: "/health"
+        critical: false
+
+  # Analytics Services (2 services)
+  analytics:
+    description: "Energy analytics and forecasting"
+    count: 2
+    priority: medium
+    dependencies: []
+    services:
+      - name: energy-correlator
+        port: 8041
+        type: python
+        health_check: "/health"
+        critical: false
+
+      - name: energy-forecasting
+        port: 8042
+        type: python
+        health_check: "/health"
+        critical: false
+
+  # Frontend Services (2 services)
+  frontend:
+    description: "React/Node.js frontend applications"
+    count: 2
+    priority: high
+    dependencies: []
+    services:
+      - name: health-dashboard
+        port: 3000
+        type: nodejs
+        health_check: null
+        critical: true
+        special_requirements:
+          - "React 18 (stay conservative for Phase 1)"
+          - "Vite 6 updates"
+
+      - name: ai-automation-ui
+        port: 3001
+        type: nodejs
+        health_check: null
+        critical: true
+        special_requirements:
+          - "React 18 (stay conservative for Phase 1)"
+          - "Vite 6 updates"
+
+  # Other Services (2 services)
+  other:
+    description: "Observability and simulation"
+    count: 2
+    priority: low
+    dependencies: []
+    services:
+      - name: observability-dashboard
+        port: 8501
+        type: python
+        health_check: null
+        critical: false
+        special_requirements:
+          - "Streamlit application"
+
+      - name: ha-simulator
+        port: 8043
+        type: python
+        health_check: "/health"
+        critical: false
+
+# ==================================================================================
+# Batch Processing Configuration
+# ==================================================================================
+batch_config:
+  default_batch_size: 5
+  max_parallel_builds: 10
+  build_timeout_seconds: 600
+  test_timeout_seconds: 300
+  health_check_timeout_seconds: 60
+
+  # Retry policy
+  retry:
+    max_attempts: 3
+    backoff_seconds: 30
+    exponential: true
+
+  # Build optimization
+  buildkit:
+    enabled: true
+    cache: true
+    inline_cache: true
+    progress: "plain"
+
+  # Resource limits (Docker Compose)
+  resources:
+    memory_limit: "2g"
+    cpu_limit: "2.0"
+
+# ==================================================================================
+# Health Check Configuration
+# ==================================================================================
+health_checks:
+  enabled: true
+  startup_grace_period: 30
+  interval: 10
+  timeout: 5
+  retries: 3
+
+  # Custom health check endpoints
+  endpoints:
+    python: "/health"
+    nodejs: null  # No standard health endpoint for frontend
+
+# ==================================================================================
+# Rollback Configuration
+# ==================================================================================
+rollback:
+  enabled: true
+  auto_rollback_on_critical_failure: true
+  backup_tag_prefix: "pre-phase1-rebuild"
+  preserve_logs: true
+
+  # Rollback triggers
+  triggers:
+    - "build_failure"
+    - "test_failure_critical"
+    - "health_check_failure_critical"
+
+# ==================================================================================
+# Monitoring Integration
+# ==================================================================================
+monitoring:
+  enabled: true
+  log_directory: "logs/phase1_builds"
+  state_file: ".rebuild_state_phase1.json"
+
+  # Monitoring dashboard
+  dashboard:
+    enabled: true
+    script: "scripts/phase1-monitor-rebuild.sh"
+    refresh_interval: 5
+
+  # Metrics collection
+  metrics:
+    collect_build_times: true
+    collect_test_results: true
+    collect_resource_usage: true
+
+  # Notifications (future enhancement)
+  notifications:
+    enabled: false
+    on_batch_complete: false
+    on_failure: true
+    on_completion: true
+
+# ==================================================================================
+# Context7 MCP Integration
+# ==================================================================================
+context7_integration:
+  enabled: true
+
+  # Library documentation lookup
+  library_docs:
+    - "sqlalchemy"
+    - "fastapi"
+    - "pydantic"
+    - "httpx"
+    - "pytest"
+
+  # Pattern matching
+  patterns:
+    - "async-sqlalchemy"
+    - "fastapi-best-practices"
+    - "pydantic-v2-migration"
+
+  # Code quality checks
+  quality_checks:
+    enabled: true
+    min_score: 70
+    auto_fix_linting: true
+
+# ==================================================================================
+# Validation Checklist
+# ==================================================================================
+validation:
+  pre_build:
+    - "Check Docker version >= 20.10"
+    - "Check Docker Compose version >= 2.0"
+    - "Verify BuildKit enabled"
+    - "Verify Phase 0 backups exist"
+    - "Check disk space >= 10GB"
+
+  post_build:
+    - "All services build successfully"
+    - "All tests pass (or skip-tests flag used)"
+    - "Health checks pass for critical services"
+    - "No port conflicts"
+    - "Resource usage within limits"
+
+  post_deployment:
+    - "All services respond to health checks"
+    - "API integration tests pass"
+    - "Performance regression < 10%"
+    - "No error spikes in logs"
+
+# ==================================================================================
+# Notes
+# ==================================================================================
+notes: |
+  This configuration file defines the complete rebuild specification for Phase 1
+  of the HomeIQ library upgrade plan.
+
+  **Key Points:**
+  - 40 services to rebuild (45 total - 5 core services excluded)
+  - Parallel batch processing with dependency awareness
+  - BuildKit optimization for faster builds
+  - Automated health checks and rollback support
+  - Context7 MCP integration for library documentation
+
+  **Usage:**
+  1. Review and customize batch_config for your infrastructure
+  2. Run: ./scripts/phase1-batch-rebuild.sh
+  3. Monitor: ./scripts/phase1-monitor-rebuild.sh
+
+  **Safety:**
+  - All images tagged before rebuild
+  - Automatic rollback on critical failures
+  - Comprehensive logging and state tracking
+  - Continue from last failure with --continue flag
+
+version: "1.0.0"
+last_updated: "2026-02-04"

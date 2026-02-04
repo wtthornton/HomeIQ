@@ -197,7 +197,7 @@ services:
           memory: 256M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health)"]
       interval: 30s
       timeout: 10s
       retries: 3
