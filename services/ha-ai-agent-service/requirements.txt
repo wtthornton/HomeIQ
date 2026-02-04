@@ -18,9 +18,9 @@ tenacity>=8.3.0,<9.0.0  # Retry library for API calls
 websockets>=12.0,<13.0  # WebSocket client for Home Assistant API
 
 # Database
-sqlalchemy>=2.0.44,<2.1.0  # Async ORM
-alembic>=1.14.0,<2.0.0  # Database migrations (Epic AI-20 Story AI20.6)
-aiosqlite>=0.21.0,<0.22.0  # Async SQLite driver
+sqlalchemy==2.0.46  # Phase 1 upgrade - aiosqlite 0.22.1 compatibility
+alembic==1.18.3  # Phase 1 upgrade - latest stable
+aiosqlite==0.22.1  # Phase 1 upgrade - futures-based (no threading.Thread)
 
 # OpenAI Integration (Epic AI-20)
 openai>=1.54.0,<2.0.0  # OpenAI Python SDK 1.54+ (2025 best practices)
