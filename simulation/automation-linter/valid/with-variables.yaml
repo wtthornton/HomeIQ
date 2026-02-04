@@ -1,0 +1,58 @@
+alias: "Morning routine with variables"
+description: "Execute morning routine with customized settings based on day of week"
+id: "morning_routine_advanced"
+mode: single
+variables:
+  weekday_brightness: 70
+  weekend_brightness: 50
+  coffee_maker: switch.coffee_maker
+  bedroom_lights:
+    - light.bedroom_main
+    - light.bedroom_bedside
+trigger:
+  - platform: time
+    at: "06:30:00"
+    id: weekday
+    variables:
+      brightness: "{{ weekday_brightness }}"
+  - platform: time
+    at: "08:00:00"
+    id: weekend
+    variables:
+      brightness: "{{ weekend_brightness }}"
+condition:
+  - condition: or
+    conditions:
+      - condition: and
+        conditions:
+          - condition: time
+            weekday:
+              - mon
+              - tue
+              - wed
+              - thu
+              - fri
+          - condition: trigger
+            id: weekday
+      - condition: and
+        conditions:
+          - condition: time
+            weekday:
+              - sat
+              - sun
+          - condition: trigger
+            id: weekend
+action:
+  - service: light.turn_on
+    target:
+      entity_id: "{{ bedroom_lights }}"
+    data:
+      brightness_pct: "{{ brightness }}"
+      transition: 60
+  - delay: "00:02:00"
+  - service: switch.turn_on
+    target:
+      entity_id: "{{ coffee_maker }}"
+  - service: notify.mobile_app
+    data:
+      message: "Good morning! Coffee is brewing."

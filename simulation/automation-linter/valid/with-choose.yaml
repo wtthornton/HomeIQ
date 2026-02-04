@@ -1,0 +1,49 @@
+alias: "Smart doorbell handler"
+description: "Different actions based on time of day when doorbell pressed"
+id: "doorbell_smart_handler"
+mode: queued
+max: 3
+trigger:
+  - platform: state
+    entity_id: binary_sensor.front_doorbell
+    to: "on"
+action:
+  - choose:
+      - conditions:
+          - condition: time
+            after: "08:00:00"
+            before: "20:00:00"
+        sequence:
+          - service: notify.mobile_app
+            data:
+              message: "Someone at the front door"
+              title: "Doorbell"
+          - service: camera.snapshot
+            target:
+              entity_id: camera.front_door
+            data:
+              filename: "/config/www/snapshots/doorbell_{{ now().strftime('%Y%m%d_%H%M%S') }}.jpg"
+      - conditions:
+          - condition: time
+            after: "20:00:00"
+            before: "23:00:00"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: light.front_porch
+            data:
+              brightness_pct: 100
+          - service: notify.mobile_app
+            data:
+              message: "Evening visitor at the door"
+              title: "Doorbell - Evening"
+    default:
+      - service: notify.mobile_app
+        data:
+          message: "Late night doorbell! Check cameras."
+          title: "Doorbell - LATE"
+      - service: light.turn_on
+        target:
+          entity_id: light.front_porch
+        data:
+          brightness_pct: 100

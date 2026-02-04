@@ -1,0 +1,18 @@
+alias: "Delay with single mode (problematic)"
+description: "Using delay with mode single can cause dropped triggers"
+id: "delay_single_mode_edge"
+mode: single
+trigger:
+  - platform: state
+    entity_id: binary_sensor.motion_sensor
+    to: "on"
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.hallway
+    data:
+      brightness_pct: 100
+  - delay: "00:05:00"
+  - service: light.turn_off
+    target:
+      entity_id: light.hallway

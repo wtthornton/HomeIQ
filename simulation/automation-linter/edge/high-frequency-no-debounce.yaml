@@ -1,0 +1,16 @@
+alias: "High frequency trigger without debounce"
+description: "State trigger without 'for' duration can fire very frequently"
+id: "high_frequency_no_debounce"
+mode: restart
+trigger:
+  - platform: state
+    entity_id: sensor.power_consumption
+action:
+  - service: notify.mobile_app
+    data:
+      message: "Power consumption changed to {{ states('sensor.power_consumption') }}W"
+  - service: input_number.set_value
+    target:
+      entity_id: input_number.last_power_reading
+    data:
+      value: "{{ states('sensor.power_consumption') }}"

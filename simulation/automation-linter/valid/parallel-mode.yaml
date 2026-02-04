@@ -1,0 +1,25 @@
+alias: "Motion activated lights (parallel)"
+description: "Allow multiple motion events to trigger simultaneously"
+id: "motion_lights_parallel"
+mode: parallel
+max: 5
+trigger:
+  - platform: state
+    entity_id:
+      - binary_sensor.kitchen_motion
+      - binary_sensor.hallway_motion
+      - binary_sensor.bathroom_motion
+    to: "on"
+    for: "00:00:02"
+action:
+  - service: light.turn_on
+    target:
+      entity_id: "{{ trigger.entity_id | replace('binary_sensor', 'light') | replace('_motion', '') }}"
+  - wait_for_trigger:
+      - platform: state
+        entity_id: "{{ trigger.entity_id }}"
+        to: "off"
+        for: "00:05:00"
+  - service: light.turn_off
+    target:
+      entity_id: "{{ trigger.entity_id | replace('binary_sensor', 'light') | replace('_motion', '') }}"
