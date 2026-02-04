@@ -27,9 +27,20 @@
       "Bash(sqlite3:*)",
       "Bash(pip install radon)",
       "Bash(python -m radon cc src --min C --show-complexity)",
-      "Bash(python -m radon cc src --min D --show-complexity)"
+      "Bash(python -m radon cc src --min D --show-complexity)",
+      "Skill(implementer)",
+      "Skill(implementer:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(sort:*)",
+      "Bash(git push:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "c:\\cursor\\HomeIQ"
+    ]
   }
 }
