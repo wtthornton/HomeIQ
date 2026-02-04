@@ -11,6 +11,12 @@
 			"**/*.pyc": true,
 			"**/node_modules": true,
 			"**/.pytest_cache": true
+		},
+		"workbench.colorCustomizations": {
+			"titleBar.activeBackground": "#1a535c",
+			"titleBar.activeForeground": "#e8f4f4",
+			"activityBar.background": "#0d3d42",
+			"activityBar.foreground": "#e8f4f4"
 		}
 	}
 }
