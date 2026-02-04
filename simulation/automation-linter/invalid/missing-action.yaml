@@ -1,0 +1,7 @@
+alias: "Broken automation - no action"
+description: "This automation is missing the action key"
+id: "broken_no_action"
+trigger:
+  - platform: state
+    entity_id: binary_sensor.motion
+    to: "on"

@@ -1,0 +1,14 @@
+alias: "Invalid service format"
+description: "Service names must be in domain.service format"
+id: "invalid_service_format"
+trigger:
+  - platform: state
+    entity_id: binary_sensor.door
+    to: "open"
+action:
+  - service: turn_on
+    target:
+      entity_id: light.hallway
+  - service: notify
+    data:
+      message: "Door opened"

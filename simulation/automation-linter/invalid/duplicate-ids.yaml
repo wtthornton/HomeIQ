@@ -1,0 +1,23 @@
+- alias: "First automation"
+  description: "This has a duplicate ID"
+  id: "duplicate_id_example"
+  trigger:
+    - platform: state
+      entity_id: sensor.temperature
+  action:
+    - service: climate.set_temperature
+      target:
+        entity_id: climate.living_room
+      data:
+        temperature: 22
+
+- alias: "Second automation"
+  description: "This has the SAME ID as the first"
+  id: "duplicate_id_example"
+  trigger:
+    - platform: state
+      entity_id: sensor.humidity
+  action:
+    - service: fan.turn_on
+      target:
+        entity_id: fan.bedroom
