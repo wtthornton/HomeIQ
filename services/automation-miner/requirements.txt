@@ -17,9 +17,9 @@ fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
 uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 
 # Database (Context7 validated: async ORM)
-sqlalchemy[asyncio]>=2.0.35,<3.0.0  # Latest stable (2025 - Epic 41)
-aiosqlite>=0.20.0,<0.21.0  # Latest stable (2025 - Epic 41)
-alembic>=1.13.0,<2.0.0  # Latest stable (2025 - Epic 41)
+sqlalchemy[asyncio]==2.0.46  # Phase 1 upgrade - aiosqlite 0.22.1 compatibility
+aiosqlite==0.22.1  # Phase 1 upgrade - futures-based (no threading.Thread)
+alembic==1.18.3  # Phase 1 upgrade - latest stable
 
 # Job Scheduling (Context7 validated: AsyncScheduler, CronTrigger)
 apscheduler>=3.10.0

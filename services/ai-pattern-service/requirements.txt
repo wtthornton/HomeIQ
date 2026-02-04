@@ -8,8 +8,8 @@ pydantic>=2.9.0,<3.0.0  # Latest stable (2025 - Epic 41)
 pydantic-settings>=2.5.0,<3.0.0  # Latest stable (2025 - Epic 41)
 
 # Database
-sqlalchemy>=2.0.35,<3.0.0  # Latest stable (2025 - Epic 41)
-aiosqlite>=0.20.0,<0.21.0  # Latest stable (2025 - Epic 41)
+sqlalchemy==2.0.46  # Phase 1 upgrade - aiosqlite 0.22.1 compatibility
+aiosqlite==0.22.1  # Phase 1 upgrade - futures-based (no threading.Thread)
 
 # Async support
 aiohttp>=3.13.2,<4.0.0  # Latest stable (2025)
