@@ -1,0 +1,14 @@
+alias: "Invalid entity ID format"
+description: "Entity IDs must be lowercase with underscores"
+id: "invalid_entity_ids"
+trigger:
+  - platform: state
+    entity_id: Binary_Sensor.Motion-Detector
+    to: "on"
+action:
+  - service: light.turn_on
+    target:
+      entity_id: Light.Living-Room
+  - service: notify.mobile_app
+    data:
+      message: "Motion detected at {{ trigger.entity_id }}"

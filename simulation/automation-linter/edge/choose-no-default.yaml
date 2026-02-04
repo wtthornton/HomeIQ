@@ -1,0 +1,25 @@
+alias: "Choose without default action"
+description: "Choose action without default means nothing happens if no conditions match"
+id: "choose_no_default"
+mode: single
+trigger:
+  - platform: state
+    entity_id: sensor.weather_condition
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: sensor.weather_condition
+            state: "sunny"
+        sequence:
+          - service: cover.open_cover
+            target:
+              entity_id: cover.living_room_blinds
+      - conditions:
+          - condition: state
+            entity_id: sensor.weather_condition
+            state: "rainy"
+        sequence:
+          - service: cover.close_cover
+            target:
+              entity_id: cover.living_room_blinds

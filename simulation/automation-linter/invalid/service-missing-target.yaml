@@ -1,0 +1,13 @@
+alias: "Service without target"
+description: "Most services require a target entity"
+id: "service_no_target"
+trigger:
+  - platform: time
+    at: "09:00:00"
+action:
+  - service: light.turn_on
+    data:
+      brightness_pct: 75
+  - service: climate.set_temperature
+    data:
+      temperature: 21

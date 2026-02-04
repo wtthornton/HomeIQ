@@ -1,0 +1,7 @@
+alias: "Broken automation - no trigger"
+description: "This automation is missing the trigger key"
+id: "broken_no_trigger"
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.living_room

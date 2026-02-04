@@ -1,0 +1,28 @@
+alias: "Climate control with conditions"
+description: "Adjust thermostat based on occupancy and temperature"
+id: "climate_control_smart"
+mode: single
+trigger:
+  - platform: numeric_state
+    entity_id: sensor.living_room_temperature
+    above: 24
+condition:
+  - condition: state
+    entity_id: binary_sensor.home_occupied
+    state: "on"
+  - condition: time
+    after: "08:00:00"
+    before: "22:00:00"
+  - condition: numeric_state
+    entity_id: sensor.outdoor_temperature
+    above: 20
+action:
+  - service: climate.set_temperature
+    target:
+      entity_id: climate.living_room
+    data:
+      temperature: 22
+      hvac_mode: cool
+  - service: notify.mobile_app
+    data:
+      message: "Cooling activated - indoor temp {{states('sensor.living_room_temperature')}}°C"

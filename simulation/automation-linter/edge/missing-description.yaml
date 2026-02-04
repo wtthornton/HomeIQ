@@ -1,0 +1,13 @@
+alias: "Automation without description"
+id: "no_description_maintainability"
+mode: single
+trigger:
+  - platform: state
+    entity_id: binary_sensor.garage_door
+    to: "open"
+    for: "00:10:00"
+action:
+  - service: notify.mobile_app
+    data:
+      message: "Garage door has been open for 10 minutes"
+      title: "Garage Alert"

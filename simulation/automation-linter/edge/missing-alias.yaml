@@ -1,0 +1,12 @@
+description: "Automation without alias (not user-friendly)"
+id: "no_alias_maintainability"
+mode: single
+trigger:
+  - platform: numeric_state
+    entity_id: sensor.battery_level
+    below: 20
+action:
+  - service: notify.mobile_app
+    data:
+      message: "Low battery: {{ trigger.to_state.attributes.friendly_name }} is at {{ trigger.to_state.state }}%"
+      title: "Battery Alert"

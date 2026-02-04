@@ -1,0 +1,29 @@
+alias: "Multi-trigger security lights"
+description: "Turn on security lights on motion or at specific time"
+id: "security_lights_multi_trigger"
+mode: restart
+trigger:
+  - platform: state
+    entity_id: binary_sensor.front_door_motion
+    to: "on"
+  - platform: state
+    entity_id: binary_sensor.back_door_motion
+    to: "on"
+  - platform: time
+    at: "20:00:00"
+condition:
+  - condition: state
+    entity_id: sun.sun
+    state: "below_horizon"
+action:
+  - service: light.turn_on
+    target:
+      entity_id:
+        - light.front_porch
+        - light.back_porch
+    data:
+      brightness_pct: 100
+  - service: notify.mobile_app
+    data:
+      message: "Security lights activated"
+      title: "Home Security"

@@ -2263,6 +2263,45 @@ services:
     volumes:
       - homeiq_logs:/var/log/homeiq
 
+  automation-linter:
+    build:
+      context: .
+      dockerfile: services/automation-linter/Dockerfile
+    container_name: homeiq-automation-linter
+    restart: unless-stopped
+    ports:
+      - "8016:8020"
+    environment:
+      - LOG_LEVEL=INFO
+      - MAX_YAML_SIZE_BYTES=500000
+      - PROCESSING_TIMEOUT_SECONDS=30
+    volumes:
+      - ./services/automation-linter/src:/app/src
+      - ./services/automation-linter/ui:/app/ui
+      - ./shared/ha_automation_lint:/app/shared/ha_automation_lint
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8020/health', timeout=5.0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=automation-linter,environment=production"
+
 volumes:
   influxdb_data:
   influxdb_config:

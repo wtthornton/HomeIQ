@@ -220,6 +220,7 @@ await influxdb_manager.write_points(points)
 | carbon-intensity | 8010 | Carbon data | InfluxDB |
 | air-quality | 8012 | AQI data | InfluxDB |
 | calendar | 8013 | HA calendar | InfluxDB |
+| **automation-linter** | **8020** | **HA automation linter/fixer** | **None (standalone)** |
 | InfluxDB | 8086 | Time-series DB | None |
 | health-dashboard | 3000 | React UI | data-api, admin-api |
 
