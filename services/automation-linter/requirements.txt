@@ -1,9 +1,9 @@
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-pydantic==2.9.2
-pyyaml==6.0.2
-python-multipart==0.0.9
-httpx==0.27.0
+fastapi==0.119.0  # Phase 1 upgrade - Pydantic v2 full support
+uvicorn[standard]==0.32.0  # Current stable
+pydantic==2.12.0  # Phase 1 upgrade - standardized version
+pyyaml==6.0.3  # Phase 1 upgrade - Python 3.14 support
+python-multipart==0.0.22  # Phase 1 upgrade - latest stable
+httpx==0.28.1  # Phase 1 upgrade - standardized version
 
 # Shared module (local)
 # Note: In production, this would be installed via pip from internal package
