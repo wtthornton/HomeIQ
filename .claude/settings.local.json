@@ -76,7 +76,12 @@
       "Bash(do echo \"Building $service...\")",
       "Bash(for svc in proactive-agent-service rag-service openvino-service)",
       "Bash(do echo \"=== Building $svc ===\")",
-      "Bash(for svc in rule-recommendation-ml ner-service ai-automation-ui observability-dashboard)"
+      "Bash(for svc in rule-recommendation-ml ner-service ai-automation-ui observability-dashboard)",
+      "Bash(grep:*)",
+      "Bash(python scripts/phase2-migrate-pytest-asyncio.py:*)",
+      "Bash(python scripts/phase2-migrate-tenacity.py:*)",
+      "Bash(python scripts/phase2-migrate-mqtt.py:*)",
+      "Bash(python scripts/phase2-migrate-influxdb.py:*)"
     ],
     "deny": [],
     "ask": [],
