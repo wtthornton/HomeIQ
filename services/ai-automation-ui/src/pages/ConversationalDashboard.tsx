@@ -286,7 +286,7 @@ export const ConversationalDashboard: React.FC = () => {
         await loadRefreshStatus();
       } else {
         // Fallback for unexpected response format
-        toast.info(response.message || 'Refresh completed');
+        toast(response.message || 'Refresh completed');
         await loadRefreshStatus();
       }
     } catch (error) {
@@ -694,7 +694,7 @@ export const ConversationalDashboard: React.FC = () => {
                     <>
                       {error ? (
                         <>
-                          <span className="text-red-500 dark:text-red-400 font-medium">⚠️ {error.message}</span>
+                          <span className="text-red-500 dark:text-red-400 font-medium">⚠️ {(error as { message: string }).message}</span>
                           <br />
                           <span className="text-xs opacity-70 mt-2 block">
                             Suggestions require at least 100 events from Home Assistant. Check that websocket-ingestion is running and writing events to InfluxDB.
