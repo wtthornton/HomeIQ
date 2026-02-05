@@ -69,10 +69,11 @@ class ServiceMigration:
 class Phase2Orchestrator:
     """Orchestrates Phase 2 batch migrations"""
 
-    def __init__(self, dry_run: bool = False, phase: Optional[str] = None, skip_tests: bool = False):
+    def __init__(self, dry_run: bool = False, phase: Optional[str] = None, skip_tests: bool = False, no_prompt: bool = False):
         self.dry_run = dry_run
         self.phase = phase
         self.skip_tests = skip_tests
+        self.no_prompt = no_prompt
         self.script_dir = Path(__file__).parent
         self.project_root = self.script_dir.parent
 
@@ -277,12 +278,14 @@ class Phase2Orchestrator:
             logger.info(f"[OK] {service.name} migrated successfully")
 
             # Prompt for validation before next critical service (if not dry run and not last)
-            if not self.dry_run and service != services[-1]:
+            if not self.dry_run and not self.no_prompt and service != services[-1]:
                 logger.info("")
                 logger.warning(f"CRITICAL service migrated: {service.name}")
                 logger.warning("Please validate service health before continuing")
                 input("Press Enter to continue to next critical service, or Ctrl+C to stop...")
                 logger.info("")
+            elif self.no_prompt and service != services[-1]:
+                logger.info(f"[AUTO] Continuing to next critical service (--no-prompt)")
 
         logger.info("-" * 80)
         logger.info(f"Phase D Summary: All {len(services)} critical services migrated successfully")
@@ -460,13 +463,19 @@ def main():
         action='store_true',
         help='Skip test validation after migration'
     )
+    parser.add_argument(
+        '--no-prompt',
+        action='store_true',
+        help='Skip manual validation prompts (automated mode)'
+    )
 
     args = parser.parse_args()
 
     orchestrator = Phase2Orchestrator(
         dry_run=args.dry_run,
         phase=args.phase,
-        skip_tests=args.skip_tests
+        skip_tests=args.skip_tests,
+        no_prompt=args.no_prompt
     )
 
     success = orchestrator.run()
