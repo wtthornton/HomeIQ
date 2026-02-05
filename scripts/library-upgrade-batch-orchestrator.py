@@ -69,9 +69,10 @@ class ServiceMigration:
 class Phase2Orchestrator:
     """Orchestrates Phase 2 batch migrations"""
 
-    def __init__(self, dry_run: bool = False, phase: Optional[str] = None):
+    def __init__(self, dry_run: bool = False, phase: Optional[str] = None, skip_tests: bool = False):
         self.dry_run = dry_run
         self.phase = phase
+        self.skip_tests = skip_tests
         self.script_dir = Path(__file__).parent
         self.project_root = self.script_dir.parent
 
@@ -348,6 +349,9 @@ class Phase2Orchestrator:
         if self.dry_run:
             cmd.append("--dry-run")
 
+        if self.skip_tests:
+            cmd.append("--skip-tests")
+
         logger.info(f"  Running: {migration_type.value} migration")
 
         try:
@@ -451,12 +455,18 @@ def main():
         choices=['a', 'b', 'c', 'd', 'A', 'B', 'C', 'D', 'all', 'ALL'],
         help='Run specific phase (a, b, c, d, or all)'
     )
+    parser.add_argument(
+        '--skip-tests',
+        action='store_true',
+        help='Skip test validation after migration'
+    )
 
     args = parser.parse_args()
 
     orchestrator = Phase2Orchestrator(
         dry_run=args.dry_run,
-        phase=args.phase
+        phase=args.phase,
+        skip_tests=args.skip_tests
     )
 
     success = orchestrator.run()
