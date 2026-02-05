@@ -77,10 +77,10 @@ class Phase2Orchestrator:
 
         # Migration scripts
         self.scripts = {
-            MigrationType.PYTEST_ASYNCIO: self.script_dir / "phase2-migrate-pytest-asyncio.py",
-            MigrationType.TENACITY: self.script_dir / "phase2-migrate-tenacity.py",
-            MigrationType.MQTT: self.script_dir / "phase2-migrate-mqtt.py",
-            MigrationType.INFLUXDB: self.script_dir / "phase2-migrate-influxdb.py",
+            MigrationType.PYTEST_ASYNCIO: self.script_dir / "library-upgrade-pytest-asyncio-1.3.0.py",
+            MigrationType.TENACITY: self.script_dir / "library-upgrade-tenacity-9.1.2.py",
+            MigrationType.MQTT: self.script_dir / "library-upgrade-mqtt-aiomqtt-2.4.0.py",
+            MigrationType.INFLUXDB: self.script_dir / "library-upgrade-influxdb3-python-0.17.0.py",
         }
 
         # Service configuration (from dependency analysis)
