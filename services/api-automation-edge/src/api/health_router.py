@@ -15,8 +15,8 @@ router = APIRouter(prefix="/health", tags=["health"])
 
 # Huey task queue (optional, imported if available)
 try:
-    from ..queue.huey_config import huey
-    from ..queue.scheduler import get_scheduler
+    from ..task_queue.huey_config import huey
+    from ..task_queue.scheduler import get_scheduler
     HUEY_AVAILABLE = True
 except ImportError:
     HUEY_AVAILABLE = False

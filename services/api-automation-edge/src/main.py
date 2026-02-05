@@ -50,7 +50,7 @@ app.include_router(observability_router)
 
 # Include task and schedule routers if Huey is available
 try:
-    from .queue.huey_config import huey
+    from .task_queue.huey_config import huey
     from .api.task_router import router as task_router
     from .api.schedule_router import router as schedule_router
     app.include_router(task_router)
@@ -69,7 +69,7 @@ capability_graph: CapabilityGraph = None
 def _start_huey_consumer() -> None:
     """Start Huey consumer in background thread."""
     try:
-        from .queue.huey_config import huey
+        from .task_queue.huey_config import huey
         logger.info("Starting Huey consumer...")
         huey.start()
         logger.info("Huey consumer started")
@@ -127,7 +127,7 @@ async def shutdown() -> None:
     # Stop Huey consumer if running
     if settings.use_task_queue:
         try:
-            from .queue.huey_config import huey
+            from .task_queue.huey_config import huey
             huey.stop()
             logger.info("Huey consumer stopped")
         except Exception as e:

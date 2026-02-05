@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Huey task queue (optional, imported if available)
 try:
-    from ..queue.huey_config import huey
+    from ..task_queue.huey_config import huey
     HUEY_AVAILABLE = True
 except ImportError:
     HUEY_AVAILABLE = False
