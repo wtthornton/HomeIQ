@@ -22,7 +22,7 @@ from ..config import settings
 
 # Huey task queue (optional, imported if available)
 try:
-    from ..queue.tasks import queue_automation_task
+    from ..task_queue.tasks import queue_automation_task
     HUEY_AVAILABLE = True
 except ImportError:
     HUEY_AVAILABLE = False

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Scheduler (optional, imported if available)
 try:
-    from ..queue.scheduler import get_scheduler
+    from ..task_queue.scheduler import get_scheduler
     SCHEDULER_AVAILABLE = True
 except ImportError:
     SCHEDULER_AVAILABLE = False
