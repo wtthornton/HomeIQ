@@ -36,9 +36,10 @@ logger = logging.getLogger(__name__)
 class MQTTMigrator:
     """Migrate service from asyncio-mqtt to aiomqtt 2.4.0"""
 
-    def __init__(self, service_path: Path, dry_run: bool = False):
+    def __init__(self, service_path: Path, dry_run: bool = False, skip_tests: bool = False):
         self.service_path = service_path
         self.dry_run = dry_run
+        self.skip_tests = skip_tests
         self.changes: List[str] = []
         self.errors: List[str] = []
         self.warnings: List[str] = []
@@ -80,13 +81,16 @@ class MQTTMigrator:
             # Step 6: Update requirements.txt
             requirements_updated = self._update_requirements()
 
-            # Step 7: Run tests to validate
-            if not self.dry_run and requirements_updated:
+            # Step 7: Run tests to validate (unless skipped)
+            if not self.dry_run and not self.skip_tests and requirements_updated:
                 tests_passed = self._run_tests()
                 if not tests_passed:
                     logger.warning("Tests failed after migration - rollback recommended")
                     self._create_rollback_script()
                     return False
+            elif self.skip_tests:
+                logger.info("  [OK] Skipped test validation (--skip-tests)")
+                self.changes.append("Test validation skipped")
 
             # Step 8: Create rollback script
             if not self.dry_run:
@@ -407,6 +411,11 @@ def main():
         nargs='+',
         help='Migrate multiple services (space-separated)'
     )
+    parser.add_argument(
+        '--skip-tests',
+        action='store_true',
+        help='Skip test validation after migration'
+    )
 
     args = parser.parse_args()
 
@@ -430,7 +439,7 @@ def main():
             service_path = project_root / 'services' / service
 
         # Migrate
-        migrator = MQTTMigrator(service_path, dry_run=args.dry_run)
+        migrator = MQTTMigrator(service_path, dry_run=args.dry_run, skip_tests=args.skip_tests)
         success = migrator.migrate()
         results.append((service, success))
 
