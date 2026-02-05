@@ -67,26 +67,51 @@
 
 ---
 
-## 📋 Phase 2: Database & Async Updates - READY TO START
+## 📋 Phase 2: Standard Library Updates - READY TO START
 
-**Target Start:** February 5, 2026
-**Estimated Duration:** 1 week
-**Focus:** Advanced database and async features
+**Target Start:** February 5-6, 2026
+**Estimated Duration:** 5-7 days
+**Focus:** Standard library updates with 5 breaking changes
+**Status:** ✅ Planning Complete (92/100 score)
 
 ### Planned Updates
-| Library | Current → Target | Services | Priority |
-|---------|------------------|----------|----------|
-| asyncpg | Current → 0.31.0+ | 15+ | HIGH |
-| aiohttp | Current → 3.12.0+ | 20+ | HIGH |
-| SQLAlchemy async | Basic → Advanced | 10+ | MEDIUM |
+| Library | From | To | Services | Risk |
+|---------|------|-----|----------|------|
+| **pytest** | 8.3.x | 9.0.2 | 30+ | LOW |
+| **pytest-asyncio** | 0.23.0 | 1.3.0 (BREAKING) | 25+ | HIGH |
+| **tenacity** | 8.2.3 | 9.1.2 (BREAKING) | 20+ | MEDIUM |
+| **asyncio-mqtt → aiomqtt** | N/A | 2.4.0 (BREAKING) | 5-8 | HIGH |
+| **influxdb3-python** | 0.3.0 | 0.17.0 (BREAKING) | 10+ | HIGH |
+| **python-dotenv** | Current | 1.2.1 | 30+ | LOW |
+
+### Epic Breakdown
+**Total:** 7 stories, 55 story points, 5-7 days
+
+1. **Story 1:** Service Dependency Analysis (5 pts, 4-6 hours)
+2. **Story 2:** pytest-asyncio 1.3.0 Migration (8 pts, 1-2 days)
+3. **Story 3:** tenacity 9.1.2 Migration (5 pts, 1 day)
+4. **Story 4:** asyncio-mqtt → aiomqtt Migration (13 pts, 2-3 days)
+5. **Story 5:** influxdb3-python 0.17.0 Migration (13 pts, 2-3 days)
+6. **Story 6:** Batch Rebuild Orchestration (13 pts, 2-3 days)
+7. **Story 7:** Testing & Validation (8 pts, 1-2 days)
+
+### Documentation
+- 📄 [Phase 2 Implementation Plan](docs/planning/phase2-implementation-plan.md) - Complete execution plan
+- 📄 [Phase 2 Plan Review](docs/planning/phase2-plan-review.md) - Quality review (92/100)
 
 ### Quick Start
 ```bash
-# Review Phase 2 details
-cat docs/planning/rebuild-deployment-plan.md | sed -n '/## Phase 2:/,/## Phase 3:/p'
+# Review Phase 2 implementation plan
+cat docs/planning/phase2-implementation-plan.md
 
-# Verify Phase 1 stability
-./scripts/phase1-validate-services.sh
+# Review Phase 2 plan review
+cat docs/planning/phase2-plan-review.md
+
+# Start Story 1: Dependency Analysis
+grep -r "pytest-asyncio" services/*/requirements.txt
+grep -r "tenacity" services/*/requirements.txt
+grep -r "asyncio_mqtt" services/*/requirements.txt
+grep -r "influxdb-client" services/*/requirements.txt
 ```
 
 ---
@@ -234,12 +259,19 @@ TOTAL: 33.3% complete (2/6 phases)
 
 ## 🔗 Quick Links
 
+### Phase Reports
 - 📄 [Detailed Status Tracker](docs/planning/rebuild-status.md)
 - 📄 [Phase 0 Execution Report](docs/planning/phase0-execution-report.md)
 - 📄 [Phase 1 Execution Complete](docs/planning/phase1-execution-complete.md)
+- 📄 [Phase 2 Implementation Plan](docs/planning/phase2-implementation-plan.md)
+- 📄 [Phase 2 Plan Review](docs/planning/phase2-plan-review.md)
+
+### Guides & Plans
 - 📄 [Phase 1 Batch Rebuild Guide](docs/planning/phase1-batch-rebuild-guide.md)
 - 📄 [Master Rebuild Plan](docs/planning/rebuild-deployment-plan.md)
 - 📄 [Library Upgrade Summary](upgrade-summary.md)
+
+### Backups
 - 📁 [Backup Manifest](backups/phase0_20260204_111804/MANIFEST.md)
 
 ---
