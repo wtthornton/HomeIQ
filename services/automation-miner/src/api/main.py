@@ -23,6 +23,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import settings
@@ -131,6 +132,15 @@ async def _initialize_database() -> Any:
     """Initialize database connection and create tables."""
     db = get_database()
     await db.create_tables()
+    # Migrate existing databases: add is_blueprint column if missing
+    async with db.engine.begin() as conn:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE community_automations ADD COLUMN is_blueprint BOOLEAN NOT NULL DEFAULT 0"
+            ))
+            logger.info("Migration: added is_blueprint column")
+        except Exception:
+            pass  # Column already exists
     logger.info("Database initialized")
     return db
 
