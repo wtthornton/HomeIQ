@@ -48,7 +48,7 @@ docker-compose ps
 curl http://localhost:8086/health    # InfluxDB
 curl http://localhost:8001/health    # WebSocket Ingestion
 curl http://localhost:8002/health    # Enrichment Pipeline
-curl http://localhost:8003/api/v1/health  # Admin API
+curl http://localhost:8004/api/v1/health  # Admin API
 curl http://localhost:3000           # Health Dashboard
 ```
 
@@ -358,7 +358,7 @@ Tests use the following endpoints (configurable in `docker-deployment.config.ts`
 - **InfluxDB**: http://localhost:8086
 - **WebSocket Ingestion**: http://localhost:8001
 - **Enrichment Pipeline**: http://localhost:8002
-- **Admin API**: http://localhost:8003
+- **Admin API**: http://localhost:8004
 - **Data Retention**: http://localhost:8080
 
 ### Docker Integration
@@ -435,7 +435,7 @@ docker-compose logs websocket-ingestion
 docker-compose logs admin-api
 
 # Check service health
-curl http://localhost:8003/api/v1/health
+curl http://localhost:8004/api/v1/health
 
 # Run single test with debug output
 npx playwright test tests/e2e/dashboard-functionality.spec.ts --config=tests/e2e/docker-deployment.config.ts --debug --headed

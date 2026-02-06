@@ -96,7 +96,7 @@ health-dashboard:
   ports:
     - "3000:80"
   environment:
-    - VITE_API_BASE_URL=http://localhost:8003/api/v1
+    - VITE_API_BASE_URL=http://localhost:8004/api/v1
     - VITE_WS_URL=ws://localhost:8001/ws
     - VITE_ENVIRONMENT=production
   depends_on:
@@ -289,7 +289,7 @@ docker build --progress=plain -t health-dashboard:latest .
 docker-compose logs health-dashboard
 
 # Test API endpoints directly
-curl http://localhost:8003/api/v1/health
+curl http://localhost:8004/api/v1/health
 ```
 
 **Solutions:**
@@ -303,7 +303,7 @@ curl http://localhost:8003/api/v1/health
    docker-compose ps admin-api
    
    # Check admin-api health
-   curl http://localhost:8003/health
+   curl http://localhost:8004/health
    ```
 
 3. **Rebuild and restart dashboard**:

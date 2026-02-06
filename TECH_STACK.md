@@ -7,7 +7,9 @@
 
 ## Overview
 
-HomeIQ is built as a microservices architecture with 40+ Docker containers, designed for single-home deployment on resource-constrained hardware (Intel NUC).
+HomeIQ is built as a microservices architecture with **46+ Docker containers** organized into **7 tiers by criticality**, designed for single-home deployment on resource-constrained hardware (Intel NUC).
+
+For complete service ranking and operational guidelines, see **[Services Ranked by Importance](services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
 
 ---
 
@@ -300,6 +302,8 @@ HomeIQ is built as a microservices architecture with 40+ Docker containers, desi
 
 ## References
 
+- [Services Ranked by Importance](services/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification
+- [Services Architecture Quick Reference](services/README_ARCHITECTURE_QUICK_REF.md) - Service patterns
 - [Phase 2 Final Summary](docs/planning/phase2-final-summary.md)
 - [Library Upgrade Plan](docs/planning/library-upgrade-plan.md)
 - [API Reference](docs/api/API_REFERENCE.md)

@@ -1,7 +1,16 @@
 # Services Architecture Quick Reference
 
-**Last Updated:** January 8, 2026 (Epic 31+)  
+**Last Updated:** February 6, 2026 (Epic 31+)
 **Purpose:** Quick reference for developers working on services
+
+---
+
+## 📊 Services Overview
+
+**Total Services:** 46+ microservices organized into 7 tiers by criticality
+
+For a complete ranking of all services by importance, see:
+- **[Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md)** - Comprehensive tier classification and operational guidelines
 
 ---
 
@@ -209,20 +218,57 @@ await influxdb_manager.write_points(points)
 
 ## Service Ports Reference
 
+### Tier 1: Mission-Critical
+
 | Service | Port | Purpose | Dependencies |
 |---------|------|---------|--------------|
 | websocket-ingestion | 8001 | HA event ingestion | InfluxDB, data-api |
-| ~~enrichment-pipeline~~ | ~~8002~~ | **DEPRECATED** | ~~None~~ |
-| admin-api | 8003 | System monitoring | All services |
-| sports-api | 8005 | Team Tracker integration | InfluxDB (standalone) |
+| admin-api | 8004 | System monitoring | All services |
 | data-api | 8006 | Query hub | InfluxDB, SQLite |
-| weather-api | 8009 | Weather data | InfluxDB |
-| carbon-intensity | 8010 | Carbon data | InfluxDB |
-| air-quality | 8012 | AQI data | InfluxDB |
-| calendar | 8013 | HA calendar | InfluxDB |
-| **automation-linter** | **8020** | **HA automation linter/fixer** | **None (standalone)** |
 | InfluxDB | 8086 | Time-series DB | None |
 | health-dashboard | 3000 | React UI | data-api, admin-api |
+
+### Tier 2: Essential Data Integration
+
+| Service | Port | Purpose | Dependencies |
+|---------|------|---------|--------------|
+| data-retention | 8080 | Data lifecycle management | InfluxDB, SQLite |
+| ha-setup-service | 8024 | HA health monitoring | HA, MQTT, Zigbee2MQTT |
+| weather-api | 8009 | Weather data | InfluxDB |
+| smart-meter-service | 8014 | Power monitoring | InfluxDB |
+| energy-correlator | 8017 | Power causality | InfluxDB |
+
+### Tier 3: AI/ML Core
+
+| Service | Port | Purpose | Dependencies |
+|---------|------|---------|--------------|
+| ai-core-service | 8018 | AI orchestration | openvino, ml-service |
+| device-intelligence-service | 8028 | Device capabilities | SQLite |
+| openvino-service | 8026 | Embeddings/reranking | PyTorch |
+| ml-service | 8025 | Clustering/anomaly | scikit-learn |
+| energy-forecasting | 8037 | Energy predictions | InfluxDB |
+
+### Tier 4+: Enhanced/Optional
+
+| Service | Port | Purpose | Dependencies |
+|---------|------|---------|--------------|
+| air-quality-service | 8012 | AQI data | InfluxDB |
+| sports-api | 8005 | Team Tracker | InfluxDB (standalone) |
+| carbon-intensity-service | 8010 | Carbon data | InfluxDB |
+| electricity-pricing-service | 8011 | Pricing data | InfluxDB |
+| calendar-service | 8013 | HA calendar | InfluxDB |
+| log-aggregator | 8015 | Centralized logs | Docker |
+| automation-miner | 8029 | Community crawling | SQLite |
+| automation-linter | 8016 | YAML linting | None (standalone) |
+| ai-automation-ui | 3001 | AI automation UI | ai services |
+
+### Deprecated Services
+
+| Service | Port | Status | Replacement |
+|---------|------|--------|-------------|
+| ~~enrichment-pipeline~~ | ~~8002~~ | **DEPRECATED** | Inline in websocket-ingestion |
+
+For complete service ranking and operational guidelines, see **[Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md)**
 
 ---
 
@@ -314,10 +360,12 @@ HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 
 ## Related Documentation
 
+- **[Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md)** - Complete service tier classification
 - **[Master Call Tree Index](../implementation/analysis/MASTER_CALL_TREE_INDEX.md)** - All call trees
 - **[HA Event Call Tree](../implementation/analysis/HA_EVENT_CALL_TREE.md)** - Detailed event flow
 - **[Tech Stack](../docs/architecture/tech-stack.md)** - Technology choices
 - **[Source Tree](../docs/architecture/source-tree.md)** - File organization
+- **[Event Flow Architecture](../docs/architecture/event-flow-architecture.md)** - Data flow documentation
 
 ---
 
@@ -325,6 +373,7 @@ HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 
 ---
 
-**Last Updated:** January 8, 2026  
+**Last Updated:** February 6, 2026
 **Epic Context:** Post-Epic 31 (enrichment-pipeline deprecated)
+**Service Count:** 46+ microservices across 7 tiers
 

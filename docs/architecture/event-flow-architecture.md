@@ -2,7 +2,19 @@
 
 ## Overview
 
-This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated January 2026**: State machine pattern implemented for robust connection and processing state management. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
+This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated February 2026**: State machine pattern implemented for robust connection and processing state management. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
+
+## Service Tiers
+
+The services involved in event flow are classified by criticality:
+
+| Tier | Services | Role |
+|------|----------|------|
+| **Tier 1** (Critical) | websocket-ingestion, data-api, InfluxDB | Core data pipeline |
+| **Tier 2** (Essential) | weather-api, energy-correlator | Data enrichment |
+| **Tier 3** (AI/ML) | ai-core-service, pattern-service | Intelligence layer |
+
+For complete service ranking, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
 
 ## Event Flow Diagram
 
@@ -575,6 +587,8 @@ Environment variables:
 
 ## References
 
+- [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification
+- [Services Architecture Quick Reference](../../services/README_ARCHITECTURE_QUICK_REF.md) - Service patterns
 - [Blueprint Architecture](./BLUEPRINT_ARCHITECTURE.md) - Blueprint-First Architecture details
 - [API Documentation](../API_DOCUMENTATION.md) - Complete API reference
 - [Data Models](./data-models.md) - Detailed data model specifications

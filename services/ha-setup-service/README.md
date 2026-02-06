@@ -437,7 +437,7 @@ Root endpoint with service information and available endpoints.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATA_API_URL` | `http://homeiq-data-api:8006` | Data API URL |
-| `ADMIN_API_URL` | `http://homeiq-admin-api:8003` | Admin API URL |
+| `ADMIN_API_URL` | `http://homeiq-admin-api:8004` | Admin API URL |
 
 #### Health Check Configuration
 
