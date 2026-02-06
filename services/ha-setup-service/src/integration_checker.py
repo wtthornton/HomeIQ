@@ -8,15 +8,18 @@ Context7 Best Practices Applied:
 - Pydantic models for validation
 """
 import asyncio
+import logging
 from datetime import datetime
 
 import aiohttp
 from pydantic import BaseModel, Field
 
 from .config import get_settings
+from .http_client import get_http_session
 from .schemas import IntegrationStatus
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class CheckResult(BaseModel):
@@ -107,18 +110,18 @@ class IntegrationHealthChecker:
             )
 
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Test auth with /api/config endpoint
-                async with session.get(
-                    f"{self.ha_url}/api/config",
-                    headers=headers,
-                    timeout=self.timeout
-                ) as response:
+            # Test auth with /api/config endpoint
+            async with session.get(
+                f"{self.ha_url}/api/config",
+                headers=headers,
+                timeout=self.timeout
+            ) as response:
                     if response.status == 200:
                         config_data = await response.json()
                         return CheckResult(
@@ -194,15 +197,15 @@ class IntegrationHealthChecker:
         - MQTT discovery enabled
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Get all config entries
-                async with session.get(
-                    f"{self.ha_url}/api/config/config_entries/entry",
+            # Get all config entries
+            async with session.get(
+                f"{self.ha_url}/api/config/config_entries/entry",
                     headers=headers,
                     timeout=self.timeout
                 ) as response:
@@ -295,7 +298,8 @@ class IntegrationHealthChecker:
             writer.close()
             await writer.wait_closed()
             return True
-        except:
+        except (OSError, asyncio.TimeoutError, ConnectionRefusedError) as e:
+            logger.debug(f"MQTT broker connectivity check failed: {e}")
             return False
 
     async def check_zigbee2mqtt_integration(self) -> CheckResult:
@@ -311,79 +315,64 @@ class IntegrationHealthChecker:
         which is simpler and more reliable than MQTT subscription.
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
+
+            # Check for Zigbee2MQTT bridge state using single-entity endpoint
+            async with session.get(
+                f"{self.ha_url}/api/states/sensor.zigbee2mqtt_bridge_state",
+                headers=headers,
+                timeout=self.timeout
+            ) as response:
+                if response.status == 200:
+                    z2m_bridge = await response.json()
+                elif response.status == 404:
+                    z2m_bridge = None
+                else:
+                    return CheckResult(
+                        integration_name="Zigbee2MQTT",
+                        integration_type="zigbee2mqtt",
+                        status=IntegrationStatus.ERROR,
+                        is_configured=False,
+                        is_connected=False,
+                        error_message=f"Failed to get HA states: HTTP {response.status}",
+                        check_details={"http_status": response.status}
+                    )
+
+            if not z2m_bridge:
+                return CheckResult(
+                    integration_name="Zigbee2MQTT",
+                    integration_type="zigbee2mqtt",
+                    status=IntegrationStatus.NOT_CONFIGURED,
+                    is_configured=False,
+                    is_connected=False,
+                    error_message="Zigbee2MQTT not detected in Home Assistant",
+                    check_details={
+                        "recommendation": "Install Zigbee2MQTT addon and configure MQTT integration"
+                    }
+                )
+
+            bridge_state = z2m_bridge.get('state', 'unknown')
+            is_online = bridge_state.lower() == 'online'
+
+            status = IntegrationStatus.HEALTHY if is_online else IntegrationStatus.WARNING
+
+            return CheckResult(
+                integration_name="Zigbee2MQTT",
+                integration_type="zigbee2mqtt",
+                status=status,
+                is_configured=True,
+                is_connected=is_online,
+                error_message=None if is_online else f"Bridge state: {bridge_state}",
+                check_details={
+                    "bridge_state": bridge_state,
+                    "bridge_entity": z2m_bridge.get('entity_id') if z2m_bridge else None,
+                    "recommendation": "Check Zigbee2MQTT addon logs if offline" if not is_online else None
                 }
-
-                # Check for Zigbee2MQTT entities (indicates addon is working)
-                async with session.get(
-                    f"{self.ha_url}/api/states",
-                    headers=headers,
-                    timeout=self.timeout
-                ) as response:
-                    if response.status == 200:
-                        states = await response.json()
-
-                        # Look for Zigbee2MQTT bridge state
-                        z2m_bridge = next(
-                            (s for s in states if s.get('entity_id') == 'sensor.zigbee2mqtt_bridge_state'),
-                            None
-                        )
-
-                        # Count Zigbee devices
-                        zigbee_devices = [
-                            s for s in states
-                            if s.get('entity_id', '').startswith('zigbee2mqtt.')
-                        ]
-
-                        if not z2m_bridge and not zigbee_devices:
-                            return CheckResult(
-                                integration_name="Zigbee2MQTT",
-                                integration_type="zigbee2mqtt",
-                                status=IntegrationStatus.NOT_CONFIGURED,
-                                is_configured=False,
-                                is_connected=False,
-                                error_message="Zigbee2MQTT not detected in Home Assistant",
-                                check_details={
-                                    "recommendation": "Install Zigbee2MQTT addon and configure MQTT integration"
-                                }
-                            )
-
-                        bridge_state = "unknown"
-                        is_online = False
-
-                        if z2m_bridge:
-                            bridge_state = z2m_bridge.get('state', 'unknown')
-                            is_online = bridge_state.lower() == 'online'
-
-                        status = IntegrationStatus.HEALTHY if is_online else IntegrationStatus.WARNING
-
-                        return CheckResult(
-                            integration_name="Zigbee2MQTT",
-                            integration_type="zigbee2mqtt",
-                            status=status,
-                            is_configured=True,
-                            is_connected=is_online,
-                            error_message=None if is_online else f"Bridge state: {bridge_state}",
-                            check_details={
-                                "bridge_state": bridge_state,
-                                "device_count": len(zigbee_devices),
-                                "bridge_entity": z2m_bridge.get('entity_id') if z2m_bridge else None,
-                                "recommendation": "Check Zigbee2MQTT addon logs if offline" if not is_online else None
-                            }
-                        )
-                    else:
-                        return CheckResult(
-                            integration_name="Zigbee2MQTT",
-                            integration_type="zigbee2mqtt",
-                            status=IntegrationStatus.ERROR,
-                            is_configured=False,
-                            is_connected=False,
-                            error_message=f"Failed to get HA states: HTTP {response.status}",
-                            check_details={"http_status": response.status}
-                        )
+            )
 
         except Exception as e:
             return CheckResult(
@@ -406,15 +395,15 @@ class IntegrationHealthChecker:
         - Entity registry sync
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Get device registry
-                async with session.get(
-                    f"{self.ha_url}/api/config/device_registry/list",
+            # Get device registry
+            async with session.get(
+                f"{self.ha_url}/api/config/device_registry/list",
                     headers=headers,
                     timeout=self.timeout
                 ) as response:
@@ -480,11 +469,11 @@ class IntegrationHealthChecker:
     async def _check_ingestor_device_sync(self, ha_device_count: int) -> dict:
         """Check if HA Ingestor has synced devices from HA"""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{self.data_api_url}/api/devices",
-                    timeout=aiohttp.ClientTimeout(total=5)
-                ) as response:
+            session = await get_http_session()
+            async with session.get(
+                f"{self.data_api_url}/api/devices",
+                timeout=aiohttp.ClientTimeout(total=5)
+            ) as response:
                     if response.status == 200:
                         data = await response.json()
                         ingestor_count = len(data.get('devices', []))
@@ -521,7 +510,8 @@ class IntegrationHealthChecker:
     async def check_data_api_integration(self) -> CheckResult:
         """Check HA Ingestor Data API status"""
         try:
-            async with aiohttp.ClientSession() as session, session.get(
+            session = await get_http_session()
+            async with session.get(
                 f"{self.data_api_url}/health",
                 timeout=aiohttp.ClientTimeout(total=5)
             ) as response:
@@ -567,7 +557,8 @@ class IntegrationHealthChecker:
         """Check HA Ingestor Admin API status"""
         try:
             admin_api_url = settings.admin_api_url
-            async with aiohttp.ClientSession() as session, session.get(
+            session = await get_http_session()
+            async with session.get(
                 f"{admin_api_url}/health",
                 timeout=aiohttp.ClientTimeout(total=5)
             ) as response:
@@ -619,106 +610,97 @@ class IntegrationHealthChecker:
         - Team Tracker integration is installed
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Get all config entries to check for HACS
-                async with session.get(
-                    f"{self.ha_url}/api/config/config_entries",
-                    headers=headers,
-                    timeout=self.timeout
-                ) as config_response:
-                    if config_response.status != 200:
-                        return CheckResult(
-                            integration_name="HACS",
-                            integration_type="custom_component",
-                            status=IntegrationStatus.ERROR,
-                            is_configured=False,
-                            is_connected=False,
-                            error_message=f"Cannot access HA config: HTTP {config_response.status}",
-                            check_details={
-                                "recommendation": "Check HA connectivity and token permissions"
-                            }
-                        )
+            # Get all config entries to check for HACS
+            async with session.get(
+                f"{self.ha_url}/api/config/config_entries",
+                headers=headers,
+                timeout=self.timeout
+            ) as config_response:
+                if config_response.status != 200:
+                    return CheckResult(
+                        integration_name="HACS",
+                        integration_type="custom_component",
+                        status=IntegrationStatus.ERROR,
+                        is_configured=False,
+                        is_connected=False,
+                        error_message=f"Cannot access HA config: HTTP {config_response.status}",
+                        check_details={
+                            "recommendation": "Check HA connectivity and token permissions"
+                        }
+                    )
 
-                    config_entries = await config_response.json()
+                config_entries = await config_response.json()
 
-                    # Look for HACS in config entries
-                    hacs_entry = None
-                    for entry in config_entries:
-                        entry_domain = entry.get('domain', '').lower()
-                        entry_title = entry.get('title', '').lower()
-                        if entry_domain == 'hacs' or 'hacs' in entry_title:
-                            hacs_entry = entry
-                            break
+                # Look for HACS in config entries
+                hacs_entry = None
+                for entry in config_entries:
+                    entry_domain = entry.get('domain', '').lower()
+                    entry_title = entry.get('title', '').lower()
+                    if entry_domain == 'hacs' or 'hacs' in entry_title:
+                        hacs_entry = entry
+                        break
 
-                # Also check if HACS entities exist (backup check)
-                async with session.get(
-                    f"{self.ha_url}/api/states",
-                    headers=headers,
-                    timeout=self.timeout
-                ) as states_response:
-                    hacs_entities_exist = False
-                    if states_response.status == 200:
-                        states = await states_response.json()
-                        hacs_entities = [s for s in states if s['entity_id'].startswith('sensor.hacs') or
-                                       s['entity_id'].startswith('binary_sensor.hacs')]
-                        hacs_entities_exist = len(hacs_entities) > 0
+            # Fetch /api/states ONCE and filter for both HACS entities AND Team Tracker sensors
+            hacs_entities_exist = False
+            tt_sensors = []
+            async with session.get(
+                f"{self.ha_url}/api/states",
+                headers=headers,
+                timeout=self.timeout
+            ) as states_response:
+                if states_response.status == 200:
+                    states = await states_response.json()
+                    hacs_entities = [s for s in states if s['entity_id'].startswith('sensor.hacs') or
+                                   s['entity_id'].startswith('binary_sensor.hacs')]
+                    hacs_entities_exist = len(hacs_entities) > 0
+                    tt_sensors = [s for s in states if 'team_tracker' in s['entity_id'].lower()]
 
-                    # Determine HACS status
-                    hacs_installed = hacs_entry is not None or hacs_entities_exist
+            # Determine HACS status
+            hacs_installed = hacs_entry is not None or hacs_entities_exist
 
-                    if hacs_installed:
-                        # Check for Team Tracker
-                        team_tracker_installed = any(
-                            'team_tracker' in entry.get('domain', '').lower()
-                            for entry in config_entries
-                        )
+            if hacs_installed:
+                # Check for Team Tracker
+                team_tracker_installed = any(
+                    'team_tracker' in entry.get('domain', '').lower()
+                    for entry in config_entries
+                )
+                team_tracker_installed = team_tracker_installed or len(tt_sensors) > 0
 
-                        # Check for Team Tracker sensors
-                        async with session.get(
-                            f"{self.ha_url}/api/states",
-                            headers=headers,
-                            timeout=self.timeout
-                        ) as tt_response:
-                            if tt_response.status == 200:
-                                tt_states = await tt_response.json()
-                                tt_sensors = [s for s in tt_states
-                                            if 'team_tracker' in s['entity_id'].lower()]
-                                team_tracker_installed = team_tracker_installed or len(tt_sensors) > 0
-
-                        return CheckResult(
-                            integration_name="HACS",
-                            integration_type="custom_component",
-                            status=IntegrationStatus.HEALTHY,
-                            is_configured=True,
-                            is_connected=True,
-                            check_details={
-                                "hacs_installed": True,
-                                "hacs_entities_found": hacs_entities_exist,
-                                "team_tracker_installed": team_tracker_installed,
-                                "recommendation": "Install Team Tracker via HACS" if not team_tracker_installed else "Ready to use sports features"
-                            }
-                        )
-                    else:
-                        # HACS not installed
-                        return CheckResult(
-                            integration_name="HACS",
-                            integration_type="custom_component",
-                            status=IntegrationStatus.NOT_CONFIGURED,
-                            is_configured=False,
-                            is_connected=False,
-                            error_message="HACS is not installed",
-                            check_details={
-                                "hacs_installed": False,
-                                "installation_note": "HACS must be installed manually via filesystem access",
-                                "recommendation": "See installation guide at https://hacs.xyz/docs/setup/download",
-                                "manual_steps_required": True
-                            }
-                        )
+                return CheckResult(
+                    integration_name="HACS",
+                    integration_type="custom_component",
+                    status=IntegrationStatus.HEALTHY,
+                    is_configured=True,
+                    is_connected=True,
+                    check_details={
+                        "hacs_installed": True,
+                        "hacs_entities_found": hacs_entities_exist,
+                        "team_tracker_installed": team_tracker_installed,
+                        "recommendation": "Install Team Tracker via HACS" if not team_tracker_installed else "Ready to use sports features"
+                    }
+                )
+            else:
+                # HACS not installed
+                return CheckResult(
+                    integration_name="HACS",
+                    integration_type="custom_component",
+                    status=IntegrationStatus.NOT_CONFIGURED,
+                    is_configured=False,
+                    is_connected=False,
+                    error_message="HACS is not installed",
+                    check_details={
+                        "hacs_installed": False,
+                        "installation_note": "HACS must be installed manually via filesystem access",
+                        "recommendation": "See installation guide at https://hacs.xyz/docs/setup/download",
+                        "manual_steps_required": True
+                    }
+                )
         except Exception as e:
             return CheckResult(
                 integration_name="HACS",

@@ -114,7 +114,7 @@ class DockerService:
                 return await self._get_mock_containers()
 
             # Get all containers (including stopped ones)
-            containers = self.client.containers.list(all=True)
+            containers = await asyncio.to_thread(self.client.containers.list, all=True)
 
             project_containers = []
 
@@ -177,19 +177,19 @@ class DockerService:
             if not container_name:
                 return False, f"Unknown service: {service_name}"
 
-            container = self.client.containers.get(container_name)
+            container = await asyncio.to_thread(self.client.containers.get, container_name)
 
             if container.status == 'running':
                 return True, f"Container {container_name} is already running"
 
             # Start the container
-            container.start()
+            await asyncio.to_thread(container.start)
 
             # Wait a moment for startup
             await asyncio.sleep(2)
 
             # Check if it started successfully
-            container.reload()
+            await asyncio.to_thread(container.reload)
             if container.status == 'running':
                 logger.info(f"Successfully started container: {container_name}")
                 return True, f"Container {container_name} started successfully"
@@ -207,10 +207,10 @@ class DockerService:
     async def stop_container(self, service_name: str) -> tuple[bool, str]:
         """
         Stop a Docker container
-        
+
         Args:
             service_name: Service name to stop
-            
+
         Returns:
             Tuple of (success, message)
         """
@@ -223,19 +223,19 @@ class DockerService:
             if not container_name:
                 return False, f"Unknown service: {service_name}"
 
-            container = self.client.containers.get(container_name)
+            container = await asyncio.to_thread(self.client.containers.get, container_name)
 
             if container.status != 'running':
                 return True, f"Container {container_name} is not running"
 
             # Stop the container
-            container.stop(timeout=10)
+            await asyncio.to_thread(container.stop, timeout=10)
 
             # Wait a moment for shutdown
             await asyncio.sleep(2)
 
             # Check if it stopped successfully
-            container.reload()
+            await asyncio.to_thread(container.reload)
             if container.status != 'running':
                 logger.info(f"Successfully stopped container: {container_name}")
                 return True, f"Container {container_name} stopped successfully"
@@ -253,10 +253,10 @@ class DockerService:
     async def restart_container(self, service_name: str) -> tuple[bool, str]:
         """
         Restart a Docker container
-        
+
         Args:
             service_name: Service name to restart
-            
+
         Returns:
             Tuple of (success, message)
         """
@@ -269,16 +269,16 @@ class DockerService:
             if not container_name:
                 return False, f"Unknown service: {service_name}"
 
-            container = self.client.containers.get(container_name)
+            container = await asyncio.to_thread(self.client.containers.get, container_name)
 
             # Restart the container
-            container.restart(timeout=10)
+            await asyncio.to_thread(container.restart, timeout=10)
 
             # Wait a moment for restart
             await asyncio.sleep(3)
 
             # Check if it restarted successfully
-            container.reload()
+            await asyncio.to_thread(container.reload)
             if container.status == 'running':
                 logger.info(f"Successfully restarted container: {container_name}")
                 return True, f"Container {container_name} restarted successfully"
@@ -316,8 +316,9 @@ class DockerService:
             if not container_name:
                 return f"Unknown service: {service_name}"
 
-            container = self.client.containers.get(container_name)
-            logs = container.logs(tail=tail, timestamps=True).decode('utf-8')
+            container = await asyncio.to_thread(self.client.containers.get, container_name)
+            logs_bytes = await asyncio.to_thread(container.logs, tail=tail, timestamps=True)
+            logs = logs_bytes.decode('utf-8')
 
             return logs
 
@@ -376,12 +377,12 @@ class DockerService:
             if not container_name:
                 return None
 
-            container = self.client.containers.get(container_name)
+            container = await asyncio.to_thread(self.client.containers.get, container_name)
 
             if container.status != 'running':
                 return None
 
-            stats = container.stats(stream=False)
+            stats = await asyncio.to_thread(container.stats, stream=False)
 
             # Calculate CPU usage
             cpu_delta = stats['cpu_stats']['cpu_usage']['total_usage'] - stats['precpu_stats']['cpu_usage']['total_usage']

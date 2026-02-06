@@ -6,6 +6,7 @@ Pattern-based name generation for devices (fast, no AI required).
 
 import logging
 import re
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,7 +35,9 @@ class DeviceNameGenerator:
 
     def __init__(self, settings: Any = None):
         self.settings = settings
-        self.pattern_cache: dict[str, NameSuggestion] = {}
+        # Use bounded LRU-style cache to prevent unbounded growth (LOW-5)
+        self._pattern_cache_max_size = 1000
+        self.pattern_cache: OrderedDict[str, NameSuggestion] = OrderedDict()
         self.ai_suggester = None
         
         # Initialize AI suggester if available
@@ -103,6 +106,18 @@ class DeviceNameGenerator:
         
         return suggestion
 
+    def _cache_put(self, key: str, value: NameSuggestion) -> None:
+        """Insert into bounded OrderedDict cache, evicting oldest if full."""
+        if key in self.pattern_cache:
+            # Move to end (most recently used)
+            self.pattern_cache.move_to_end(key)
+            self.pattern_cache[key] = value
+        else:
+            if len(self.pattern_cache) >= self._pattern_cache_max_size:
+                # Evict the oldest (first) entry
+                self.pattern_cache.popitem(last=False)
+            self.pattern_cache[key] = value
+
     def _pattern_based_generation(
         self,
         device: Device,
@@ -110,12 +125,12 @@ class DeviceNameGenerator:
     ) -> NameSuggestion:
         """
         Fast pattern-based name generation (no AI).
-        
+
         Strategies:
         - Location + Device Type: "Office Light"
         - Extract position from entity_id: "hue_1_6" → "Back Left"
         - Manufacturer + Location: "Philips Office Light"
-        
+
         Performance: <10ms per device
         """
         # Check cache first
@@ -135,7 +150,7 @@ class DeviceNameGenerator:
                     source="pattern",
                     reasoning=reasoning
                 )
-                self.pattern_cache[cache_key] = suggestion
+                self._cache_put(cache_key, suggestion)
                 return suggestion
 
         # Strategy 2: Extract position from entity_id
@@ -154,7 +169,7 @@ class DeviceNameGenerator:
                     source="pattern",
                     reasoning=reasoning
                 )
-                self.pattern_cache[cache_key] = suggestion
+                self._cache_put(cache_key, suggestion)
                 return suggestion
 
         # Strategy 3: Manufacturer + Location
@@ -171,7 +186,7 @@ class DeviceNameGenerator:
                 source="pattern",
                 reasoning=reasoning
             )
-            self.pattern_cache[cache_key] = suggestion
+            self._cache_put(cache_key, suggestion)
             return suggestion
 
         # Strategy 4: Clean up existing name
@@ -184,7 +199,7 @@ class DeviceNameGenerator:
                     source="pattern",
                     reasoning="Cleaned up existing device name"
                 )
-                self.pattern_cache[cache_key] = suggestion
+                self._cache_put(cache_key, suggestion)
                 return suggestion
 
         # Fallback: Use existing name or generic
@@ -195,7 +210,7 @@ class DeviceNameGenerator:
             source="pattern",
             reasoning="Fallback to existing name"
         )
-        self.pattern_cache[cache_key] = suggestion
+        self._cache_put(cache_key, suggestion)
         return suggestion
 
     def _extract_device_type(self, device: Device, entity: DeviceEntity | None = None) -> str | None:

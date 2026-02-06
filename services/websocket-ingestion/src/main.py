@@ -395,27 +395,8 @@ class WebSocketIngestionService:
             url=self.home_assistant_url
         )
 
-        # Call the connection manager's subscription logic
-        if self.connection_manager:
-            try:
-                log_with_context(
-                    logger, "INFO", "Calling connection manager subscription method",
-                    operation="subscription_trigger",
-                    correlation_id=corr_id
-                )
-                await self.connection_manager._subscribe_to_events()
-                log_with_context(
-                    logger, "INFO", "Subscription method completed",
-                    operation="subscription_complete",
-                    correlation_id=corr_id
-                )
-            except Exception as e:
-                log_with_context(
-                    logger, "ERROR", f"Failed to subscribe to events: {e}",
-                    operation="subscription_error",
-                    correlation_id=corr_id,
-                    error=str(e)
-                )
+        # Note: Event subscription is already handled by ConnectionManager._on_connect()
+        # Do NOT call _subscribe_to_events() here to avoid double subscription race condition
 
         # Trigger device and entity discovery
         # Entity discovery uses HTTP API (no WebSocket needed)

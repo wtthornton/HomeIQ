@@ -2,6 +2,6 @@
 Orchestrator Package
 """
 
-from .service_manager import ServiceManager
+from .service_manager import CircuitBreaker, ServiceManager
 
-__all__ = ['ServiceManager']
+__all__ = ["CircuitBreaker", "ServiceManager"]

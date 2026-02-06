@@ -2,7 +2,7 @@
 
 **Service:** energy-correlator (Port 8017)
 **Priority:** HIGH - Critical processing service with complex correlation algorithms
-**Current Coverage:** 0% (No tests exist)
+**Current Coverage:** ~70% (9 test files, ~90 tests across unit and integration)
 **Target Coverage:** >70%
 
 ---

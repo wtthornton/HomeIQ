@@ -1,3 +1,10 @@
+"""
+Classification benchmark tests (renamed from test_ner.py -- LOW-4).
+
+Tests pattern classification into categories and priorities using the
+classification_benchmark.json fixture (renamed from ner_benchmark.json).
+"""
+
 import json
 import sys
 from pathlib import Path
@@ -21,8 +28,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture(scope="module")
-def ner_benchmark():
-    with open(FIXTURES / "ner_benchmark.json", encoding="utf-8") as handle:
+def classification_benchmark():
+    with open(FIXTURES / "classification_benchmark.json", encoding="utf-8") as handle:
         return json.load(handle)
 
 
@@ -32,8 +39,8 @@ def classification_manager(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_classification_matches_benchmark(classification_manager, ner_benchmark):
-    for case in ner_benchmark:
+async def test_classification_matches_benchmark(classification_manager, classification_benchmark):
+    for case in classification_benchmark:
         result = await classification_manager.classify_pattern(case["text"])
         assert result["category"] == case["expected_category"]
         assert result["priority"] == case["expected_priority"]

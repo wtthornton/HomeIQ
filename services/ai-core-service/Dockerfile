@@ -50,9 +50,8 @@ USER appuser
 # Expose port
 EXPOSE 8018
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8018/health || exit 1
+# Health check is defined in docker-compose.yml (takes precedence over Dockerfile)
+# Removed HEALTHCHECK to avoid dual healthcheck mismatch
 
 # Run the application
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8018"]

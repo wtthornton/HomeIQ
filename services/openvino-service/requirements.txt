@@ -1,4 +1,4 @@
-# OpenVINO Service Dependencies
+# OpenVINO Service Dependencies (Production)
 # Phase 1: Containerized AI Models
 
 # Web Framework
@@ -7,13 +7,8 @@ uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 
 # Data Validation
 pydantic==2.12.4
-pydantic-settings==2.12.0
-
-# HTTP Client
-httpx>=0.28.1,<0.29.0  # Latest stable (November 2025)
 
 # Data Processing
-pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (2025)
 numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (CPU-only, compatible with OpenVINO and transformers)
 
 # Simplified Model Stack (Standard models for compatibility)
@@ -25,13 +20,3 @@ transformers==4.46.1          # HuggingFace models (compatible with sentence-tra
 torch>=2.4.0,<3.0.0  # Stable PyTorch 2.4.x CPU-only (November 2025)
 sentencepiece                 # Required for T5 tokenizer
 # Removed OpenVINO for now due to dependency conflicts
-
-# Utilities
-python-dotenv==1.2.1
-tenacity==8.2.3
-
-# Testing
-pytest==8.3.3
-pytest-asyncio==0.23.0
-hypothesis==6.112.0
-pytest-cov==5.0.0

@@ -7,7 +7,9 @@ Provides endpoints for:
 - Batch name enhancement
 """
 
-from datetime import datetime
+import asyncio
+import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -20,6 +22,8 @@ from ..models.database import Device, DeviceEntity
 from ..models.name_enhancement import NameSuggestion
 from ..services.name_enhancement import DeviceNameGenerator, NameUniquenessValidator
 from ..config import Settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/name-enhancement", tags=["Name Enhancement"])
 
@@ -122,7 +126,7 @@ async def get_name_suggestions(
         logger.error(f"Error getting name suggestions: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get name suggestions: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -155,7 +159,7 @@ async def accept_suggested_name(
 
         # Update device name_by_user
         device.name_by_user = request.suggested_name
-        device.updated_at = datetime.utcnow()
+        device.updated_at = datetime.now(timezone.utc)
 
         # Mark suggestion as accepted
         result = await session.execute(
@@ -168,7 +172,7 @@ async def accept_suggested_name(
         suggestion = result.scalar_one_or_none()
         if suggestion:
             suggestion.status = "accepted"
-            suggestion.reviewed_at = datetime.utcnow()
+            suggestion.reviewed_at = datetime.now(timezone.utc)
             
             # Learn from this customization
             try:
@@ -203,7 +207,7 @@ async def accept_suggested_name(
         )
         for other_suggestion in result.scalars().all():
             other_suggestion.status = "rejected"
-            other_suggestion.reviewed_at = datetime.utcnow()
+            other_suggestion.reviewed_at = datetime.now(timezone.utc)
 
         await session.commit()
 
@@ -224,7 +228,7 @@ async def accept_suggested_name(
         logger.error(f"Error accepting name: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to accept name: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -253,7 +257,7 @@ async def reject_suggested_name(
             )
 
         suggestion.status = "rejected"
-        suggestion.reviewed_at = datetime.utcnow()
+        suggestion.reviewed_at = datetime.now(timezone.utc)
         if reason:
             suggestion.user_feedback = reason
 
@@ -267,7 +271,7 @@ async def reject_suggested_name(
         logger.error(f"Error rejecting name: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to reject name: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -308,7 +312,7 @@ async def batch_enhance_names(
             logger.error(f"Error accessing discovery service: {e}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Name enhancement service not available: {str(e)}"
+                detail="Name enhancement service not available"
             )
 
         return BatchEnhanceResponse(
@@ -323,12 +327,8 @@ async def batch_enhance_names(
         logger.error(f"Error triggering batch enhancement: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to trigger batch enhancement: {str(e)}"
+            detail="Internal server error"
         )
-
-# Import asyncio
-import asyncio
-
 
 @router.get("/status")
 async def get_enhancement_status(
@@ -387,7 +387,7 @@ async def get_enhancement_status(
         logger.error(f"Error getting enhancement status: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get status: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -447,11 +447,7 @@ async def get_pending_suggestions(
         logger.error(f"Error getting pending suggestions: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get pending suggestions: {str(e)}"
+            detail="Internal server error"
         )
 
-
-# Import logger
-import logging
-logger = logging.getLogger(__name__)
 

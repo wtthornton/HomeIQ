@@ -2,9 +2,13 @@
 Cleanup router for data-retention service.
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from ..models import CleanupResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cleanup", tags=["cleanup"])
 
@@ -16,7 +20,7 @@ async def run_cleanup(
 ):
     """
     Run data cleanup operation.
-    
+
     Executes cleanup based on retention policies. Optionally filters by policy name.
     """
     try:
@@ -24,5 +28,6 @@ async def run_cleanup(
         results = await service.run_cleanup(policy_name)
         return {"results": results}
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        logger.error(f"Cleanup operation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
 

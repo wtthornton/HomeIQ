@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-import sys
+import re
 from contextlib import suppress
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -17,21 +17,20 @@ import aiohttp
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from influxdb_client_3 import InfluxDBClient3, Point
 from pydantic import BaseModel
 
-# Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-
 from shared.logging_config import setup_logging
 
+from . import __version__
 from .health_check import HealthCheckHandler
 
 # Load environment variables
 load_dotenv()
 
 SERVICE_NAME = "weather-api"
-SERVICE_VERSION = "2.2.0"
+SERVICE_VERSION = __version__
 
 # Configure logging
 logger = setup_logging(SERVICE_NAME)
@@ -58,12 +57,21 @@ class WeatherService:
     def __init__(self):
         # OpenWeatherMap config
         self.api_key = os.getenv('WEATHER_API_KEY')
-        self.location = os.getenv('WEATHER_LOCATION', 'Las Vegas')
+        location = os.getenv('WEATHER_LOCATION', 'Las Vegas')
+        if not re.match(r'^[a-zA-Z\s,.\-]{1,100}$', location):
+            raise ValueError(f"Invalid WEATHER_LOCATION: must be alphanumeric with spaces/commas, got '{location}'")
+        self.location = location
         self.base_url = "https://api.openweathermap.org/data/2.5"
         self.auth_mode: Literal["header", "query"] = os.getenv('WEATHER_API_AUTH_MODE', 'header').lower()  # 2025 default
         if self.auth_mode not in ("header", "query"):
             logger.warning("Invalid WEATHER_API_AUTH_MODE '%s', defaulting to 'header'", self.auth_mode)
             self.auth_mode = "header"
+        if self.auth_mode == "query":
+            logger.warning(
+                "SECURITY: WEATHER_API_AUTH_MODE=query sends API key in URL parameters. "
+                "This exposes the key in logs and proxy caches. Use 'header' mode unless "
+                "your API plan does not support header authentication."
+            )
 
         # InfluxDB config with fallback hostnames
         influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
@@ -112,6 +120,9 @@ class WeatherService:
         self.influx_write_success_count = 0
         self.health_handler = HealthCheckHandler(service_name=SERVICE_NAME, version=SERVICE_VERSION)
 
+        # Thundering herd protection
+        self._fetch_lock = asyncio.Lock()
+
         # Stats
         self.fetch_count = 0
         self.cache_hits = 0
@@ -155,17 +166,17 @@ class WeatherService:
                     org=self.influxdb_org
                 )
 
-                # Test connection by attempting a simple operation
-                # Note: InfluxDBClient3 doesn't have a direct ping, so we'll test on first write
+                # Actually test the connection with a lightweight query
+                await asyncio.to_thread(client.query, "SELECT 1")
                 self.working_influxdb_host = url
-                logger.info(f"✅ Successfully initialized InfluxDB client with URL: {url}")
+                logger.info(f"[OK] Successfully verified InfluxDB connection at: {url}")
                 return client
 
             except Exception as e:
                 logger.warning(f"Failed to connect to InfluxDB at {url}: {e}")
                 continue
 
-        logger.error(f"❌ Failed to connect to InfluxDB with any URL: {self.influxdb_urls}")
+        logger.error(f"[FAIL] Failed to connect to InfluxDB with any URL: {self.influxdb_urls}")
         return None
 
     async def shutdown(self):
@@ -205,7 +216,7 @@ class WeatherService:
                 if response.status == 200:
                     data = await response.json()
 
-                    timestamp = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
+                    timestamp = datetime.now(timezone.utc).isoformat()
                     weather = {
                         'temperature': data.get("main", {}).get("temp", 0),
                         'feels_like': data.get("main", {}).get("feels_like", 0),
@@ -236,27 +247,36 @@ class WeatherService:
 
     async def get_current_weather(self) -> dict[str, Any] | None:
         """Get current weather (cache-first)"""
-        # Check cache
-        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        # Check cache first (no lock needed for reads)
+        now = datetime.now(timezone.utc)
         if self.cached_weather and self.cache_time:
             age = (now - self.cache_time).total_seconds()
             if age < self.cache_ttl:
                 self.cache_hits += 1
                 return self.cached_weather
 
-        # Cache miss - fetch
-        self.cache_misses += 1
-        weather = await self.fetch_weather()
+        # Lock to prevent thundering herd on cache miss
+        async with self._fetch_lock:
+            # Double-check cache after acquiring lock
+            if self.cached_weather and self.cache_time:
+                age = (datetime.now(timezone.utc) - self.cache_time).total_seconds()
+                if age < self.cache_ttl:
+                    self.cache_hits += 1
+                    return self.cached_weather
 
-        if weather:
-            self.cached_weather = weather
-            self.cache_time = now
-            self.last_successful_fetch = now
+            # Cache miss - fetch
+            self.cache_misses += 1
+            weather = await self.fetch_weather()
 
-            # Write to InfluxDB
-            await self.store_in_influxdb(weather)
+            if weather:
+                self.cached_weather = weather
+                self.cache_time = datetime.now(timezone.utc)
+                self.last_successful_fetch = self.cache_time
 
-        return weather
+                # Write to InfluxDB
+                await self.store_in_influxdb(weather)
+
+            return weather
 
     async def store_in_influxdb(self, weather: dict[str, Any]):
         """Store weather in InfluxDB"""
@@ -264,33 +284,30 @@ class WeatherService:
             return
 
         if not self.influxdb_client:
-            logger.warning("InfluxDB client not initialized, skipping write")
-            return
+            logger.warning("InfluxDB client not available, attempting to reinitialize...")
+            self.influxdb_client = await self._initialize_influxdb()
+            if not self.influxdb_client:
+                logger.error("Cannot write to InfluxDB - client unavailable after reinit attempt")
+                return
 
         timestamp = datetime.fromisoformat(weather['timestamp'])
 
         point = Point("weather") \
             .tag("location", weather['location']) \
             .tag("condition", weather['condition']) \
+            .tag("description", weather.get('description', '')) \
             .field("temperature", float(weather['temperature'])) \
+            .field("feels_like", float(weather.get('feels_like', 0))) \
             .field("humidity", int(weather['humidity'])) \
             .field("pressure", int(weather['pressure'])) \
             .field("wind_speed", float(weather['wind_speed'])) \
             .field("cloudiness", int(weather['cloudiness'])) \
             .time(timestamp)
 
-        # If client initialization failed, try to reinitialize
-        if not self.influxdb_client:
-            logger.warning("InfluxDB client not available, attempting to reinitialize...")
-            self.influxdb_client = await self._initialize_influxdb()
-            if not self.influxdb_client:
-                logger.error("Cannot write to InfluxDB - client unavailable")
-                return
-
         for attempt in range(1, self.max_influx_retries + 1):
             try:
                 await asyncio.to_thread(self.influxdb_client.write, point)
-                self.last_influx_write = datetime.utcnow().replace(tzinfo=timezone.utc)
+                self.last_influx_write = datetime.now(timezone.utc)
                 self.last_influx_write_error = None
                 self.influx_write_success_count += 1
                 logger.info("Weather data written to InfluxDB")
@@ -328,18 +345,23 @@ class WeatherService:
     async def run_continuous(self):
         """Background fetch loop"""
         logger.info(f"Starting continuous fetch (every {self.cache_ttl}s)")
+        consecutive_failures = 0
 
         while True:
             try:
                 await self.get_current_weather()
+                consecutive_failures = 0  # Reset on success
                 await asyncio.sleep(self.cache_ttl)
             except asyncio.CancelledError:
                 logger.info("Continuous fetch loop cancelled")
                 raise
             except Exception as e:
+                consecutive_failures += 1
                 self.last_background_error = str(e)
-                logger.error(f"Error in continuous loop: {e}")
-                await asyncio.sleep(300)
+                backoff = min(300 * consecutive_failures, 1800)  # Max 30 minutes
+                logger.error(f"Error in continuous loop (failure #{consecutive_failures}): {e}. "
+                             f"Retrying in {backoff}s")
+                await asyncio.sleep(backoff)
 
     def start_background_task(self) -> asyncio.Task:
         """Start guarded background task"""
@@ -392,11 +414,12 @@ app = FastAPI(
     version=SERVICE_VERSION
 )
 
+cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001')
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[origin.strip() for origin in cors_origins.split(',')],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -422,16 +445,24 @@ async def health():
     if not weather_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    return await weather_service.health_handler.handle(weather_service)
+    result = await weather_service.health_handler.handle(weather_service)
+    status_code = 200 if result.get("status") == "healthy" else 503
+    return JSONResponse(content=result, status_code=status_code)
 
 
 @app.get("/metrics")
 async def metrics():
-    """Lightweight metrics endpoint (JSON)"""
+    """Lightweight numeric metrics endpoint (JSON)"""
     if not weather_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    return await weather_service.health_handler.handle(weather_service)
+    return {
+        "fetch_count": weather_service.fetch_count,
+        "cache_hits": weather_service.cache_hits,
+        "cache_misses": weather_service.cache_misses,
+        "influx_write_success_count": weather_service.influx_write_success_count,
+        "influx_write_failure_count": weather_service.influx_write_failure_count,
+    }
 
 
 @app.get("/current-weather", response_model=WeatherResponse)

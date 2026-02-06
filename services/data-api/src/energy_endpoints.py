@@ -70,17 +70,23 @@ class EnergyStatistics(BaseModel):
 router = APIRouter(prefix="/energy", tags=["energy"])
 
 
-def get_influxdb_client():
-    """Get InfluxDB client instance"""
-    influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-    influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
-    influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
+# HIGH-01: Module-level shared InfluxDB client to avoid creating one per request
+_shared_influxdb_client = None
 
-    return InfluxDBClient(
-        url=influxdb_url,
-        token=influxdb_token,
-        org=influxdb_org
-    )
+
+def get_influxdb_client():
+    """Get shared InfluxDB client instance (reused across requests)"""
+    global _shared_influxdb_client
+    if _shared_influxdb_client is None:
+        influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
+        influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
+        _shared_influxdb_client = InfluxDBClient(
+            url=influxdb_url,
+            token=influxdb_token,
+            org=influxdb_org
+        )
+    return _shared_influxdb_client
 
 
 @router.get("/correlations", response_model=list[EnergyCorrelation])
@@ -162,12 +168,7 @@ async def get_energy_correlations(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query correlations: {str(e)}"
         )
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/current", response_model=PowerReading)
@@ -218,12 +219,7 @@ async def get_current_power():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query power: {str(e)}"
         )
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/circuits", response_model=list[CircuitPowerReading])
@@ -269,12 +265,7 @@ async def get_circuit_power(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query circuits: {str(e)}"
         )
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/device-impact/{entity_id}", response_model=DeviceEnergyImpact)
@@ -389,12 +380,7 @@ async def get_device_energy_impact(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query device impact: {str(e)}"
         )
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/statistics", response_model=EnergyStatistics)
@@ -500,12 +486,7 @@ async def get_energy_statistics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query statistics: {str(e)}"
         )
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/top-consumers", response_model=list[DeviceEnergyImpact])
@@ -571,12 +552,7 @@ async def get_top_energy_consumers(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query top consumers: {str(e)}"
         )
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)
 
 
 # Carbon Intensity Endpoints
@@ -658,12 +634,7 @@ async def get_current_carbon_intensity():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query carbon intensity: {str(e)}"
         )
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/carbon-intensity/trends", response_model=CarbonIntensityTrendsResponse)
@@ -789,9 +760,4 @@ async def get_carbon_intensity_trends():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query carbon intensity trends: {str(e)}"
         )
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)

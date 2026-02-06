@@ -89,33 +89,43 @@ const ADMIN_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const DATA_API_BASE_URL = import.meta.env.VITE_DATA_API_URL || '';  // Will use nginx routing
 
 /**
- * Get API key from environment variable
- * Security: No hardcoded fallback - API key must be configured via environment
+ * Get authentication headers for API requests.
+ * Security: Do NOT bake API keys into the client bundle.
+ * In production, nginx proxy adds auth headers.
+ * In development, read from sessionStorage (set by login page) or fall back to VITE_API_KEY with a warning.
  */
-function getApiKey(): string {
-  const apiKey = import.meta.env.VITE_API_KEY;
-  
-  if (!apiKey) {
-    if (import.meta.env.MODE === 'production') {
-      throw new Error('VITE_API_KEY environment variable is required in production mode');
-    }
-    // Development mode: warn but allow requests without API key
-    console.warn('⚠️ VITE_API_KEY not set. API requests may fail authentication.');
-    return '';
-  }
-  
-  return apiKey;
-}
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
 
-const API_KEY = getApiKey();
+  // If an API key is stored in sessionStorage (set by login page), use it
+  const sessionKey = sessionStorage.getItem('api_key');
+  if (sessionKey) {
+    headers['X-API-Key'] = sessionKey;
+    return headers;
+  }
+
+  // Backward compatibility: if VITE_API_KEY is set (dev only), use it but warn
+  const envKey = import.meta.env.VITE_API_KEY;
+  if (envKey) {
+    console.warn(
+      'Security warning: VITE_API_KEY is set via environment variable and will be embedded in the client bundle. ' +
+      'This is insecure for production. Use session-based auth or nginx proxy auth instead.'
+    );
+    headers['Authorization'] = `Bearer ${envKey}`;
+    return headers;
+  }
+
+  // In production, nginx proxy handles auth - no client-side key needed
+  return headers;
+}
 
 /**
  * Add authentication headers to request options
  */
 function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
-  const authHeaders: Record<string, string> = {
-    'Authorization': `Bearer ${API_KEY}`,
-  };
+  const authHeaders = getAuthHeaders();
 
   if (headers instanceof Headers) {
     Object.entries(authHeaders).forEach(([key, value]) => {
@@ -126,8 +136,8 @@ function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
 
   if (Array.isArray(headers)) {
     // Filter out existing auth headers and add new ones
-    const filtered = headers.filter(([key]) => 
-      key.toLowerCase() !== 'authorization'
+    const filtered = headers.filter(([key]) =>
+      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-api-key'
     );
     return [...filtered, ...Object.entries(authHeaders)];
   }
@@ -300,98 +310,62 @@ class AdminApiClient extends BaseApiClient {
   }
 
   // Docker Management API methods (System Admin)
+
+  /**
+   * Validate service name to prevent injection attacks.
+   * Only allows alphanumeric characters, hyphens, underscores, and dots.
+   */
+  private validateServiceName(name: string): string {
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(name)) {
+      throw new Error(`Invalid service name: ${name}`);
+    }
+    return name;
+  }
+
   async getContainers(): Promise<ContainerInfo[]> {
     return this.fetchWithErrorHandling<ContainerInfo[]>(this.buildUrl('/api/v1/docker/containers'));
   }
 
   async startContainer(serviceName: string): Promise<ContainerOperationResponse> {
+    const validName = this.validateServiceName(serviceName);
     return this.fetchWithErrorHandling<ContainerOperationResponse>(
-      this.buildUrl(`/api/v1/docker/containers/${serviceName}/start`),
+      this.buildUrl(`/api/v1/docker/containers/${validName}/start`),
       { method: 'POST' }
     );
   }
 
   async stopContainer(serviceName: string): Promise<ContainerOperationResponse> {
+    const validName = this.validateServiceName(serviceName);
     return this.fetchWithErrorHandling<ContainerOperationResponse>(
-      this.buildUrl(`/api/v1/docker/containers/${serviceName}/stop`),
+      this.buildUrl(`/api/v1/docker/containers/${validName}/stop`),
       { method: 'POST' }
     );
   }
 
   async restartContainer(serviceName: string): Promise<ContainerOperationResponse> {
+    const validName = this.validateServiceName(serviceName);
     return this.fetchWithErrorHandling<ContainerOperationResponse>(
-      this.buildUrl(`/api/v1/docker/containers/${serviceName}/restart`),
+      this.buildUrl(`/api/v1/docker/containers/${validName}/restart`),
       { method: 'POST' }
     );
   }
 
   async testServiceHealth(serviceName: string, port: number): Promise<{ success: boolean; message: string; data?: any }> {
+    // Route through admin-api proxy instead of direct localhost connection
     try {
-      // Create abort controller for timeout (compatible with older browsers)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(`http://localhost:${port}/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        let errorText = '';
-        try {
-          errorText = await response.text();
-        } catch {
-          errorText = `HTTP ${response.status}`;
-        }
-        return {
-          success: false,
-          message: `${serviceName} returned status ${response.status}${errorText ? `: ${errorText.substring(0, 100)}` : ''}`,
-        };
-      }
-
-      let data: any = {};
-      try {
-        data = await response.json();
-      } catch {
-        // If response is not JSON, that's okay - service responded
-        data = { status: 'ok' };
-      }
-
-      // Extract status from response if available
-      const status = data.status || data.health || 'healthy';
-      const statusMessage = status === 'healthy' || status === 'ok' || status === 'pass'
-        ? `${serviceName} is healthy`
-        : `${serviceName} status: ${status}`;
-
+      const response = await this.fetchWithErrorHandling<any>(
+        this.buildUrl(`/api/v1/health/services/${encodeURIComponent(serviceName)}`),
+        { method: 'GET' }
+      );
       return {
         success: true,
-        message: statusMessage,
-        data,
+        message: `${serviceName} is healthy`,
+        data: response,
       };
     } catch (error: any) {
-      if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-        return {
-          success: false,
-          message: `${serviceName} did not respond within 5 seconds. It may be starting up or not running.`,
-        };
-      }
-      if (error.message?.includes('Failed to fetch') || 
-          error.message?.includes('NetworkError') ||
-          error.message?.includes('CORS') ||
-          error.message?.includes('ERR_CONNECTION_REFUSED')) {
-        return {
-          success: false,
-          message: `${serviceName} is not reachable on port ${port}. It may not be running or the port may be incorrect.`,
-        };
-      }
       return {
         success: false,
-        message: `${serviceName} test failed: ${error.message || 'Unknown error occurred'}`,
+        message: `${serviceName} health check failed: ${error.message || 'Unknown error occurred'}`,
       };
     }
   }

@@ -64,8 +64,21 @@ class DeviceService:
             logger.error(f"Error upserting device {device_data.get('id', 'unknown')}: {e}")
             raise
 
+    # Whitelist of allowed Device column names to prevent SQL injection (CRIT-2)
+    _ALLOWED_DEVICE_COLUMNS = frozenset({
+        "id", "name", "manufacturer", "model", "area_id", "area_name",
+        "integration", "sw_version", "hw_version", "power_source",
+        "via_device_id", "ha_device_id", "zigbee_device_id", "last_seen",
+        "health_score", "disabled_by", "device_class", "config_entry_id",
+        "connections_json", "identifiers_json", "zigbee_ieee",
+        "is_battery_powered", "lqi", "lqi_updated_at", "availability_status",
+        "name_by_user", "suggested_area", "entry_type", "configuration_url",
+        "labels_json", "serial_number", "model_id",
+        "created_at", "updated_at",
+    })
+
     async def bulk_upsert_devices(self, devices_data: list[dict[str, Any]]) -> list[Device]:
-        """Bulk upsert multiple devices using raw SQL to avoid SQLAlchemy ORM issues."""
+        """Bulk upsert multiple devices using parameterized queries."""
         if not devices_data:
             return []
 
@@ -82,27 +95,34 @@ class DeviceService:
 
                 entry["integration"] = integration_value
 
-                # Build column names and placeholders
-                columns = list(entry.keys())
+                # Filter to only allowed column names to prevent SQL injection (CRIT-2)
+                safe_entry = {k: v for k, v in entry.items() if k in self._ALLOWED_DEVICE_COLUMNS}
+                if not safe_entry.get("id"):
+                    logger.warning("Skipping device entry without id")
+                    continue
+
+                columns = list(safe_entry.keys())
                 placeholders = [f":{col}" for col in columns]
 
                 # Build UPDATE SET clause (exclude id and created_at)
-                update_parts = [f"{col}=excluded.{col}" for col in columns if col not in {"id", "created_at"}]
+                update_parts = [f"[{col}]=excluded.[{col}]" for col in columns if col not in {"id", "created_at"}]
 
-                # Build raw SQL
+                # Use SQLite bracket quoting for column names
+                quoted_columns = [f"[{col}]" for col in columns]
+
                 sql = f"""
-                INSERT INTO devices ({', '.join(columns)})
+                INSERT INTO devices ({', '.join(quoted_columns)})
                 VALUES ({', '.join(placeholders)})
                 ON CONFLICT(id) DO UPDATE SET
                 {', '.join(update_parts)}
                 """
 
-                await self.session.execute(text(sql), entry)
+                await self.session.execute(text(sql), safe_entry)
                 upserted_count += 1
 
             await self.session.commit()
 
-            device_ids = [entry["id"] for entry in devices_data]
+            device_ids = [entry["id"] for entry in devices_data if entry.get("id")]
             result = await self.session.execute(
                 select(Device).where(Device.id.in_(device_ids))
             )
@@ -110,17 +130,17 @@ class DeviceService:
 
             if missing_integrations:
                 logger.warning(
-                    "⚠️ Missing integration metadata for %d devices during bulk upsert (showing up to 5 IDs): %s",
+                    "Missing integration metadata for %d devices during bulk upsert (showing up to 5 IDs): %s",
                     len(missing_integrations),
                     missing_integrations[:5],
                 )
 
-            logger.info(f"Bulk upserted {upserted_count} devices successfully")
+            logger.info("Bulk upserted %d devices successfully", upserted_count)
             return devices
 
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Error bulk upserting devices: {e}")
+            logger.error("Error bulk upserting devices: %s", e)
             raise
 
     async def get_device_by_id(self, device_id: str) -> Device | None:

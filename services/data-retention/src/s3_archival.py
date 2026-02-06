@@ -8,6 +8,7 @@ For InfluxDB 2.7, these operations are disabled to prevent SSL errors.
 
 import logging
 import os
+import re
 import tempfile
 from datetime import datetime, timedelta
 from typing import Any
@@ -18,6 +19,18 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 logger = logging.getLogger(__name__)
+
+_ISO8601_RE = re.compile(
+    r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)?$'
+)
+
+
+def _validate_iso_timestamp(value: str) -> str:
+    """Validate that a string conforms to ISO 8601 format. Raises ValueError on invalid format."""
+    if not _ISO8601_RE.match(value):
+        raise ValueError(f"Invalid ISO 8601 timestamp: {value}")
+    return value
+
 
 # Try to import InfluxDB 3.0 client, but don't fail if not available
 try:
@@ -43,17 +56,20 @@ class S3ArchivalManager:
         self.aws_region = os.getenv('AWS_REGION', 'us-east-1')
 
         self.influxdb_client = None
-        self.s3_client = None
+        self._s3_client = None
         self.enabled = False
 
-        # Only initialize S3 if configured
-        if self.s3_bucket:
-            self.s3_client = boto3.client(
+    @property
+    def s3_client(self):
+        """Lazy S3 client creation - only initialized on first use."""
+        if self._s3_client is None and self.s3_bucket:
+            self._s3_client = boto3.client(
                 's3',
                 region_name=self.aws_region,
                 aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                 aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
             )
+        return self._s3_client
 
     def initialize(self):
         """Initialize InfluxDB client - disabled for InfluxDB 2.7"""
@@ -96,11 +112,13 @@ class S3ArchivalManager:
 
         cutoff_date = datetime.now() - timedelta(days=365)
 
+        parquet_file = None
         try:
             # Query old data
+            cutoff_iso = _validate_iso_timestamp(cutoff_date.isoformat())
             query = f'''
             SELECT * FROM daily_aggregates
-            WHERE time < TIMESTAMP '{cutoff_date.isoformat()}'
+            WHERE time < TIMESTAMP '{cutoff_iso}'
             ORDER BY time
             '''
 
@@ -143,9 +161,6 @@ class S3ArchivalManager:
 
             self.influxdb_client.write(metadata_point)
 
-            # Clean up temp file
-            os.remove(parquet_file)
-
             logger.info(f"Archived {len(result)} records to s3://{self.s3_bucket}/{s3_key} ({file_size_mb:.2f}MB)")
 
             return {
@@ -160,6 +175,9 @@ class S3ArchivalManager:
         except Exception as e:
             logger.error(f"Error archiving to S3: {e}")
             return {'status': 'error', 'error': str(e)}
+        finally:
+            if parquet_file and os.path.exists(parquet_file):
+                os.remove(parquet_file)
 
     async def restore_from_s3(self, s3_key: str) -> pd.DataFrame:
         """Restore data from S3 archive"""

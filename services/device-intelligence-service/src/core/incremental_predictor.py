@@ -97,7 +97,7 @@ class IncrementalFailurePredictor:
         
         self.is_trained = True
         accuracy = self.metric.get()
-        logger.info(f"✅ Initial training complete. Accuracy: {accuracy:.3f}")
+        logger.info(f"Initial training complete. Accuracy: {accuracy:.3f}")
     
     def learn_one(self, x: dict[str, float] | np.ndarray, y: int) -> float:
         """
@@ -183,15 +183,27 @@ class IncrementalFailurePredictor:
         probabilities = []
         for i in range(len(X)):
             features_dict = self._array_to_dict(X[i])
-            # River doesn't have predict_proba, use predict_one and estimate probability
-            pred = self.model.predict_one(features_dict)
-            # Return probability-like array [prob_class_0, prob_class_1]
-            if pred == 1:
-                prob = [0.0, 1.0]
-            else:
-                prob = [1.0, 0.0]
+            # Try to get actual probability distribution from the model (LOW-1)
+            try:
+                proba_dict = self.model.predict_proba_one(features_dict)
+                if proba_dict:
+                    prob_0 = proba_dict.get(0, 0.0)
+                    prob_1 = proba_dict.get(1, 0.0)
+                    # Normalize if needed
+                    total = prob_0 + prob_1
+                    if total > 0:
+                        prob = [prob_0 / total, prob_1 / total]
+                    else:
+                        prob = [0.5, 0.5]
+                else:
+                    pred = self.model.predict_one(features_dict)
+                    prob = [0.2, 0.8] if pred == 1 else [0.8, 0.2]
+            except (AttributeError, TypeError):
+                # Fallback if predict_proba_one not available
+                pred = self.model.predict_one(features_dict)
+                prob = [0.2, 0.8] if pred == 1 else [0.8, 0.2]
             probabilities.append(prob)
-        
+
         return np.array(probabilities)
     
     def get_accuracy(self) -> float:

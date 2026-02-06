@@ -55,14 +55,35 @@ export const useRealTimeMetrics = (pollInterval: number = 5000) => {
   }, []);
 
   useEffect(() => {
-    // Fetch immediately
-    fetchMetrics();
+    let interval: ReturnType<typeof setInterval> | null = null;
 
-    // Set up polling interval
-    const interval = setInterval(fetchMetrics, pollInterval);
+    const startPolling = () => {
+      fetchMetrics();
+      interval = setInterval(fetchMetrics, pollInterval);
+    };
 
-    // Cleanup on unmount
-    return () => clearInterval(interval);
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchMetrics, pollInterval]);
 
   return {

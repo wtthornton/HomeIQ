@@ -114,14 +114,18 @@ class RecommendationEngine:
                 device_id, health_score, device_metrics, historical_metrics
             ))
 
-            # Sort by priority and confidence
-            recommendations.sort(key=lambda r: (r.priority.value, r.confidence_score), reverse=True)
+            # Sort by priority rank and confidence (MED-5: fix alphabetical enum sorting)
+            _PRIORITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+            recommendations.sort(
+                key=lambda r: (_PRIORITY_RANK.get(r.priority.value, 0), r.confidence_score),
+                reverse=True
+            )
 
-            logger.info(f"📊 Generated {len(recommendations)} recommendations for device {device_id}")
+            logger.info("Generated %d recommendations for device %s", len(recommendations), device_id)
             return recommendations
 
         except Exception as e:
-            logger.error(f"❌ Error generating recommendations for device {device_id}: {e}")
+            logger.error("Error generating recommendations for device %s: %s", device_id, e)
             return []
 
     async def _generate_energy_recommendations(

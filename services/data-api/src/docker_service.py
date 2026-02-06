@@ -5,6 +5,7 @@ Handles Docker container operations for the HA Ingestor system
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum

@@ -10,8 +10,10 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from ..config import Settings
+from ..core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -60,12 +62,22 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
     uptime_seconds = int(time.time() - process.create_time())
     uptime_str = f"{uptime_seconds // 3600}h {(uptime_seconds % 3600) // 60}m {uptime_seconds % 60}s"
 
-    # Check dependencies (simplified - in production you'd actually test connections)
+    # Check dependencies with real database test (MED-2)
+    db_status = "unknown"
+    try:
+        async for session in get_db_session():
+            await session.execute(text("SELECT 1"))
+            db_status = "connected"
+            break
+    except Exception as e:
+        db_status = "disconnected"
+        logger.warning("Health check database test failed: %s", e)
+
     dependencies = {
-        "sqlite": "connected",  # TODO: Actually test database connection
-        "redis": "connected",    # TODO: Actually test Redis connection
-        "home_assistant": "connected",  # TODO: Actually test HA connection
-        "mqtt": "connected"      # TODO: Actually test MQTT connection
+        "sqlite": db_status,
+        "redis": "not_configured",
+        "home_assistant": "not_checked",
+        "mqtt": "not_checked"
     }
 
     return HealthResponse(

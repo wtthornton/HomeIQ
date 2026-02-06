@@ -8,6 +8,9 @@ pydantic-settings==2.12.0
 aiohttp==3.13.2
 aiosqlite==0.21.0
 
+# System metrics
+psutil>=5.9.0,<6.0.0
+
 # Database
 sqlalchemy==2.0.44
 alembic==1.17.2

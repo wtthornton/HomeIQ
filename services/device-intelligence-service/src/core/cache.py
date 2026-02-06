@@ -36,6 +36,7 @@ for p in candidate_paths:
 if shared_path and str(shared_path) not in sys.path:
     sys.path.insert(0, str(shared_path))
 
+import asyncio
 import logging
 
 from cache import BaseCache
@@ -168,7 +169,7 @@ def get_device_cache() -> DeviceCache:
     if _device_cache is None:
         # For single-home deployment: 6-hour TTL with max 500 devices
         _device_cache = DeviceCache(max_size=500, default_ttl=21600)  # 6 hours
-        logger.info("📦 Device cache initialized with 6-hour TTL")
+        logger.info("Device cache initialized with 6-hour TTL")
 
     return _device_cache
 
@@ -183,10 +184,10 @@ async def start_cache_cleanup_task():
                 await asyncio.sleep(60)  # Clean up every minute
                 expired_count = await cache.cleanup_expired()
                 if expired_count > 0:
-                    logger.debug(f"🧹 Cleaned up {expired_count} expired cache entries")
+                    logger.debug(f"Cleaned up {expired_count} expired cache entries")
             except Exception as e:
-                logger.error(f"❌ Cache cleanup error: {e}")
+                logger.error(f"Cache cleanup error: {e}")
 
     # Start cleanup task
     asyncio.create_task(cleanup_loop())
-    logger.info("🧹 Cache cleanup task started")
+    logger.info("Cache cleanup task started")

@@ -14,6 +14,11 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_flux_value(value: str) -> str:
+    """Sanitize a value for use in Flux query string literals."""
+    return str(value).replace('\\', '\\\\').replace('"', '\\"')
+
+
 class EventData(BaseModel):
     """Event data model"""
     id: str
@@ -474,11 +479,11 @@ class EventsEndpoints:
               |> filter(fn: (r) => r._field == "context_id")
             '''
 
-            # Add tag-based filters (indexed, efficient)
+            # Add tag-based filters (indexed, efficient) - sanitized to prevent Flux injection
             if event_filter.entity_id:
-                query += f'  |> filter(fn: (r) => r.entity_id == "{event_filter.entity_id}")\n'
+                query += f'  |> filter(fn: (r) => r.entity_id == "{_sanitize_flux_value(event_filter.entity_id)}")\n'
             if event_filter.event_type:
-                query += f'  |> filter(fn: (r) => r.event_type == "{event_filter.event_type}")\n'
+                query += f'  |> filter(fn: (r) => r.event_type == "{_sanitize_flux_value(event_filter.event_type)}")\n'
 
             # Group and limit
             query += '  |> group()\n'

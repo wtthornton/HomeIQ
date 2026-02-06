@@ -56,7 +56,7 @@ class NameUniquenessValidator:
                     self.name_cache.add(self._normalize_name(row.original_name))
 
             self._cache_loaded = True
-            logger.info(f"✅ Loaded {len(self.name_cache)} names into cache")
+            logger.info(f"Loaded {len(self.name_cache)} names into cache")
         except Exception as e:
             logger.warning(f"Failed to load name cache: {e}")
             self._cache_loaded = True  # Mark as loaded to avoid retry loops

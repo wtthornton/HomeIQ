@@ -7,23 +7,10 @@ uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 
 # Data Validation
 pydantic==2.12.4
-pydantic-settings==2.12.0
-
-# HTTP Client
-httpx>=0.28.1,<0.29.0  # Latest stable (November 2025)
 
 # Machine Learning
-scikit-learn>=1.5.0,<2.0.0  # Latest stable (2025)
-pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (2025)
-numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (CPU-only, compatible with pandas and scikit-learn)
+scikit-learn>=1.5.0,<1.6.0  # Pinned to 1.5.x to avoid behaviour changes
+numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (CPU-only, compatible with scikit-learn)
 
 # Data Processing
-scipy>=1.16.3,<2.0.0  # Latest stable (2025)
-
-# Utilities
-python-dotenv==1.2.1  # Current stable
-tenacity==9.1.2  # Phase 2 upgrade - MAJOR version
-
-# Testing
-pytest==9.0.2  # Phase 2 upgrade - latest stable
-pytest-asyncio==1.3.0  # Phase 2 upgrade - BREAKING: new async patterns
+scipy>=1.16.3,<1.17.0  # Transitive dependency, tightly pinned

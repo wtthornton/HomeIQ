@@ -3,7 +3,7 @@
 **Real-Time Power Consumption Data for Device-Level Energy Monitoring**
 
 **Port:** 8014
-**Technology:** Python 3.11+, FastAPI 0.121, aiohttp 3.13, InfluxDB 3.0
+**Technology:** Python 3.11+, aiohttp 3.13, InfluxDB 3.0
 **Container:** `homeiq-smart-meter`
 **Epic:** 31 (Direct InfluxDB Writes)
 
@@ -42,7 +42,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Start service
-uvicorn src.main:app --reload --port 8014
+python -m src.main
 ```
 
 ### Running with Docker
@@ -183,7 +183,6 @@ automation:
 - **Issues:** https://github.com/wtthornton/HomeIQ/issues
 - **Documentation:** `/docs` directory
 - **Health Check:** http://localhost:8014/health
-- **API Docs:** http://localhost:8014/docs
 
 ## Version History
 

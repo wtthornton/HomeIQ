@@ -24,23 +24,22 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/api/predictions", tags=["Predictions"])
 
-# Global analytics engine instance
-_analytics_engine: PredictiveAnalyticsEngine | None = None
-
-
-def get_analytics_engine() -> PredictiveAnalyticsEngine:
-    """Get or create analytics engine instance."""
-    global _analytics_engine
-    if _analytics_engine is None:
+async def get_analytics_engine(request: Request) -> PredictiveAnalyticsEngine:
+    """Get analytics engine from app state (HIGH-6: uses the trained instance)."""
+    engine = getattr(request.app.state, "analytics_engine", None)
+    if engine is None:
+        # Fallback to new instance if app state not available (e.g., in tests)
         from ..config import Settings
         settings = Settings()
-        _analytics_engine = PredictiveAnalyticsEngine(settings)
-    return _analytics_engine
+        engine = PredictiveAnalyticsEngine(settings)
+        logger.warning("Analytics engine not found in app state, created new instance")
+    return engine
 
 
 def get_device_repository() -> DeviceRepository:
     """Get device repository instance."""
-    cache = DeviceCache()
+    from .health_router import get_shared_device_cache
+    cache = get_shared_device_cache()
     return DeviceRepository(cache)
 
 
@@ -129,8 +128,8 @@ async def get_failure_predictions(
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting failure predictions: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting predictions: {str(e)}")
+        logger.error("Error getting failure predictions: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/failures/{device_id}")
@@ -172,8 +171,8 @@ async def get_device_failure_prediction(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error getting prediction for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting prediction: {str(e)}")
+        logger.error("Error getting prediction for device %s: %s", device_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/maintenance")
@@ -211,8 +210,8 @@ async def get_maintenance_recommendations(
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting maintenance recommendations: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {str(e)}")
+        logger.error("Error getting maintenance recommendations: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/train")
@@ -244,8 +243,8 @@ async def trigger_model_training(
             }
 
     except Exception as e:
-        logger.error(f"❌ Error starting model training: {e}")
-        raise HTTPException(status_code=500, detail=f"Error starting training: {str(e)}")
+        logger.error("Error starting model training: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/models/status")
@@ -258,8 +257,8 @@ async def get_model_status(
         return status
 
     except Exception as e:
-        logger.error(f"❌ Error getting model status: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting status: {str(e)}")
+        logger.error("Error getting model status: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/models/compare")
@@ -359,8 +358,8 @@ async def compare_models(
         return comparison
 
     except Exception as e:
-        logger.error(f"❌ Error comparing models: {e}")
-        raise HTTPException(status_code=500, detail=f"Error comparing models: {str(e)}")
+        logger.error("Error comparing models: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/predict")
@@ -378,8 +377,8 @@ async def predict_device_failure(
         return prediction
 
     except Exception as e:
-        logger.error(f"❌ Error predicting failure for device {request.device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error making prediction: {str(e)}")
+        logger.error("Error predicting failure for device %s: %s", request.device_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/incremental-update")
@@ -425,8 +424,8 @@ async def incremental_update(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error starting incremental update: {e}")
-        raise HTTPException(status_code=500, detail=f"Error starting incremental update: {str(e)}")
+        logger.error("Error starting incremental update: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/health")
@@ -444,7 +443,7 @@ async def get_predictions_health():
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting predictions health: {e}")
+        logger.error("Error getting predictions health: %s", e, exc_info=True)
         return {
             "service": "Predictive Analytics",
             "status": "error",
@@ -493,8 +492,8 @@ async def trigger_training_now(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error triggering training: {e}")
-        raise HTTPException(status_code=500, detail=f"Error triggering training: {str(e)}")
+        logger.error("Error triggering training: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/train/status")
@@ -519,7 +518,7 @@ async def get_training_status(request: Request):
         return scheduler.get_status()
     
     except Exception as e:
-        logger.error(f"❌ Error getting training status: {e}")
+        logger.error(f"Error getting training status: {e}")
         return {
             "enabled": False,
             "error": str(e)
@@ -558,7 +557,7 @@ async def get_model_version(
         raise
     except Exception as e:
         logger.error(f"Error getting model version: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting model version: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/models/health")

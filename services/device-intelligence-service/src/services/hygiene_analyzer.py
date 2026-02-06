@@ -73,7 +73,7 @@ class DeviceHygieneAnalyzer:
         findings.extend(self._detect_disabled_entities(ha_entities))
 
         await self._persist_findings(findings)
-        logger.info("🧹 Hygiene analyzer produced %s findings", len(findings))
+        logger.info("Hygiene analyzer produced %s findings", len(findings))
         return findings
 
     def _detect_duplicate_names(

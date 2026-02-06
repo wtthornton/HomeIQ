@@ -10,7 +10,7 @@ WORKDIR /app
 # Upgrade pip to latest version
 RUN pip install --upgrade pip==25.2
 
-# Copy requirements first for better caching
+# Copy requirements first for better caching (production only -- HIGH-3)
 COPY services/openvino-service/requirements.txt .
 
 # Install Python dependencies with CPU-only torch wheels and cache mount
@@ -39,15 +39,19 @@ COPY --from=builder /root/.local /home/appuser/.local
 COPY services/openvino-service/src/ ./src/
 COPY shared/ ./shared/
 
-# Create models directory and set ownership
+# Create models directory with a Docker volume mount point for caching
+# LOW-9: Model cache persists across container restarts when a volume is mounted
 RUN mkdir -p /app/models && \
     chown -R appuser:appgroup /app /home/appuser/.local
+
+VOLUME ["/app/models"]
 
 # Set environment variables
 ENV PATH=/home/appuser/.local/bin:$PATH
 ENV PYTHONPATH=/app:/app/src
 ENV MODELS_DIR=/app/models
 ENV HF_HOME=/app/models
+ENV MODEL_CACHE_DIR=/app/models
 
 # Switch to non-root user
 USER appuser
@@ -55,8 +59,8 @@ USER appuser
 # Expose port
 EXPOSE 8019
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+# Health check (start_period=300s for model loading)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=3 \
     CMD curl -f http://localhost:8019/health || exit 1
 
 # Run the application

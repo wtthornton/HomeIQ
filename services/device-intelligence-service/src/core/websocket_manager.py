@@ -18,13 +18,20 @@ logger = logging.getLogger(__name__)
 class WebSocketManager:
     """Manages WebSocket connections and real-time device updates."""
 
+    MAX_CONNECTIONS = 100  # Connection limit to prevent DoS (HIGH-4)
+
     def __init__(self):
         self.active_connections: list[WebSocket] = []
         self.device_subscribers: dict[str, set[WebSocket]] = defaultdict(set)
         self.connection_info: dict[WebSocket, dict[str, Any]] = {}
 
-    async def connect(self, websocket: WebSocket, client_id: str = None):
-        """Accept WebSocket connection."""
+    async def connect(self, websocket: WebSocket, client_id: str = None) -> bool:
+        """Accept WebSocket connection with connection limit (HIGH-4)."""
+        if len(self.active_connections) >= self.MAX_CONNECTIONS:
+            await websocket.close(code=1013, reason="Too many connections")
+            logger.warning("WebSocket connection rejected: max connections (%d) reached", self.MAX_CONNECTIONS)
+            return False
+
         await websocket.accept()
         self.active_connections.append(websocket)
 
@@ -43,6 +50,8 @@ class WebSocketManager:
             "client_id": self.connection_info[websocket]["client_id"],
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
+
+        return True
 
     def disconnect(self, websocket: WebSocket):
         """Remove WebSocket connection."""

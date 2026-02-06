@@ -6,10 +6,12 @@ import asyncio
 import os
 import secrets
 import sys
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
+import aiohttp
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -85,6 +87,33 @@ class ErrorResponse(BaseModel):
     request_id: str | None = Field(default=None, description="Request ID for tracking")
 
 
+_start_time = time.time()
+_request_count = 0
+_error_count = 0
+
+
+async def _check_dependency(name: str, url: str, timeout: float = 5.0) -> dict:
+    """Check the health of a dependency service."""
+    try:
+        start = time.time()
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with session.get(f"{url}/health") as response:
+                elapsed = (time.time() - start) * 1000
+                return {
+                    "name": name,
+                    "status": "healthy" if response.status == 200 else "unhealthy",
+                    "response_time_ms": round(elapsed, 2),
+                    "last_check": datetime.now().isoformat()
+                }
+    except Exception as e:
+        return {
+            "name": name,
+            "status": "unhealthy",
+            "error": str(e),
+            "last_check": datetime.now().isoformat()
+        }
+
+
 class AdminAPIService:
     """Main Admin API service"""
 
@@ -118,7 +147,7 @@ class AdminAPIService:
             )
 
         # CORS settings
-        self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
+        self.cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
         self.cors_methods = os.getenv('CORS_METHODS', 'GET,POST,PUT,DELETE').split(',')
         self.cors_headers = os.getenv('CORS_HEADERS', '*').split(',')
 
@@ -264,10 +293,16 @@ class AdminAPIService:
         # Request logging middleware
         @self.app.middleware("http")
         async def log_requests(request, call_next):
+            global _request_count, _error_count
             start_time = datetime.now()
 
             # Process request
             response = await call_next(request)
+
+            # Track request and error counts for health metrics
+            _request_count += 1
+            if response.status_code >= 500:
+                _error_count += 1
 
             # Log request
             process_time = (datetime.now() - start_time).total_seconds()
@@ -298,43 +333,54 @@ class AdminAPIService:
         # Enhanced health endpoint with dependency information
         @self.app.get("/api/v1/health")
         async def enhanced_health():
-            """Enhanced health endpoint with dependency information"""
+            """Enhanced health endpoint with actual dependency checks"""
+            global _request_count, _error_count
             try:
-                uptime_seconds = (datetime.now() - self.start_time).total_seconds()
+                uptime_seconds = time.time() - _start_time
 
-                # Create basic dependency health data (updated for Epic 31)
-                dependencies = [
-                    {
-                        "name": "InfluxDB",
-                        "type": "database",
-                        "status": "healthy",
-                        "response_time_ms": 5.2,
-                        "last_check": datetime.now().isoformat()
-                    },
-                    {
-                        "name": "WebSocket Ingestion",
-                        "type": "service",
-                        "status": "healthy",
-                        "response_time_ms": 12.1,
-                        "last_check": datetime.now().isoformat()
-                    },
-                    {
-                        "name": "Data API",
-                        "type": "service",
-                        "status": "healthy",
-                        "response_time_ms": 9.4,
-                        "last_check": datetime.now().isoformat()
-                    }
-                ]
+                # Perform actual dependency health checks concurrently
+                influxdb_url = os.getenv("INFLUXDB_URL", "http://homeiq-influxdb:8086")
+                websocket_url = os.getenv("WEBSOCKET_INGESTION_URL", "http://homeiq-websocket:8001")
+                data_api_url = os.getenv("DATA_API_URL", "http://homeiq-data-api:8006")
+
+                dep_checks = await asyncio.gather(
+                    _check_dependency("InfluxDB", influxdb_url),
+                    _check_dependency("WebSocket Ingestion", websocket_url),
+                    _check_dependency("Data API", data_api_url),
+                    return_exceptions=True
+                )
+
+                dependencies = []
+                for check in dep_checks:
+                    if isinstance(check, Exception):
+                        dependencies.append({
+                            "name": "unknown",
+                            "status": "unhealthy",
+                            "error": str(check),
+                            "last_check": datetime.now().isoformat()
+                        })
+                    else:
+                        dependencies.append(check)
+
+                # Determine overall status from dependency checks
+                all_healthy = all(d.get("status") == "healthy" for d in dependencies)
+                overall_status = "healthy" if all_healthy else "degraded"
+
                 rate_limiter_stats = self.rate_limiter.get_stats()
 
+                # Calculate uptime percentage from actual start time
+                uptime_human = f"{int(uptime_seconds // 3600)}h {int((uptime_seconds % 3600) // 60)}m {int(uptime_seconds % 60)}s"
+
+                # Calculate error rate from actual counts
+                total_requests = _request_count if _request_count > 0 else 1
+                error_rate = round((_error_count / total_requests) * 100, 2)
+
                 return {
-                    "status": "healthy",
+                    "status": overall_status,
                     "service": "admin-api",
                     "timestamp": datetime.now().isoformat(),
-                    "uptime_seconds": uptime_seconds,
-                    "uptime_human": f"{int(uptime_seconds // 3600)}h {int((uptime_seconds % 3600) // 60)}m {int(uptime_seconds % 60)}s",
-                    "uptime_percentage": 100.0,
+                    "uptime_seconds": round(uptime_seconds, 2),
+                    "uptime_human": uptime_human,
                     "dependencies": dependencies,
                     "security": {
                         "api_key_required": not self.allow_anonymous,
@@ -342,10 +388,10 @@ class AdminAPIService:
                         "rate_limit": rate_limiter_stats,
                     },
                     "metrics": {
-                        "uptime_human": f"{int(uptime_seconds // 3600)}h {int((uptime_seconds % 3600) // 60)}m {int(uptime_seconds % 60)}s",
-                        "uptime_percentage": 100.0,
-                        "total_requests": 0,
-                        "error_rate": 0.0
+                        "uptime_human": uptime_human,
+                        "uptime_seconds": round(uptime_seconds, 2),
+                        "total_requests": _request_count,
+                        "error_rate": error_rate
                     }
                 }
             except Exception as e:
@@ -441,12 +487,19 @@ class AdminAPIService:
         )
 
         # MQTT/Zigbee configuration endpoints
-        # Both GET and PUT are public (no auth) - allows dashboard to load and save config
-        # TODO: Add authentication for PUT endpoint in production
+        # GET is public (no auth) - allows dashboard to load config
         self.app.include_router(
             mqtt_config_public_router,
             prefix="/api/v1",
             tags=["Integrations"]
+        )
+
+        # PUT requires authentication - configuration changes must be secured
+        self.app.include_router(
+            mqtt_config_router,
+            prefix="/api/v1",
+            tags=["Integrations"],
+            dependencies=secure_dependency
         )
 
         # Docker management endpoints

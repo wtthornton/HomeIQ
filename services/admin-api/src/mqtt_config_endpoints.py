@@ -152,13 +152,12 @@ async def get_mqtt_config() -> MqttConfig:
     return MqttConfig.model_validate(data, from_attributes=False)
 
 
-@public_router.put("/mqtt", response_model=dict[str, Any])
+@router.put("/mqtt", response_model=dict[str, Any])
 async def update_mqtt_config(config: MqttConfig) -> dict[str, Any]:
     """
     Persist new MQTT/Zigbee configuration values.
-    
-    Note: This endpoint is currently public for dashboard integration.
-    In production, consider adding authentication for configuration changes.
+
+    This endpoint requires authentication. Configuration changes must be secured.
     """
     payload = config.model_dump(by_alias=True)
 

@@ -63,12 +63,13 @@ Get correlation statistics.
   "write_success_rate_pct": 100.0,
   "errors": 0,
   "retry_queue_size": 5,
-  "retry_queue_max_size": 250,
+  "retry_queue_capacity_pct": 2.0,
   "config": {
     "correlation_window_seconds": 10,
     "min_power_delta_w": 10.0,
     "max_events_per_interval": 500,
-    "lookback_minutes": 5
+    "power_lookup_padding_seconds": 30,
+    "max_retry_queue_size": 250
   }
 }
 ```
@@ -265,10 +266,10 @@ sequenceDiagram
 - `domain` - Device domain (switch, light, climate, etc.)
 
 **Fields:**
-- `power_before` - Power consumption before event (W)
-- `power_after` - Power consumption after event (W)
-- `power_delta` - Power change (W)
-- `correlation_confidence` - Confidence score (0-1)
+- `power_before_w` - Power consumption before event (W)
+- `power_after_w` - Power consumption after event (W)
+- `power_delta_w` - Power change (W)
+- `power_delta_pct` - Power change percentage
 
 ## Monitoring
 

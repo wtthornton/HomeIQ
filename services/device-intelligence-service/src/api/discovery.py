@@ -114,8 +114,8 @@ async def get_discovery_status(
         )
 
     except Exception as e:
-        logger.error(f"❌ Error getting discovery status: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting discovery status: {str(e)}")
+        logger.error(f"Error getting discovery status: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/sources", response_model=DiscoverySourcesResponse)
@@ -149,8 +149,8 @@ async def get_discovery_sources(
         return DiscoverySourcesResponse(sources=sources)
 
     except Exception as e:
-        logger.error(f"❌ Error getting discovery sources: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting discovery sources: {str(e)}")
+        logger.error(f"Error getting discovery sources: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/refresh")
@@ -164,7 +164,7 @@ async def refresh_discovery(
         Dict[str, Any]: Refresh operation result
     """
     try:
-        logger.info("🔄 Manual discovery refresh requested")
+        logger.info("Manual discovery refresh requested")
 
         success = await discovery_service.force_refresh()
 
@@ -184,8 +184,8 @@ async def refresh_discovery(
             }
 
     except Exception as e:
-        logger.error(f"❌ Error during discovery refresh: {e}")
-        raise HTTPException(status_code=500, detail=f"Error during discovery refresh: {str(e)}")
+        logger.error(f"Error during discovery refresh: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/devices", response_model=DeviceSummaryResponse)
@@ -226,8 +226,8 @@ async def get_devices_summary(
         )
 
     except Exception as e:
-        logger.error(f"❌ Error getting devices summary: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting devices summary: {str(e)}")
+        logger.error(f"Error getting devices summary: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/devices/{device_id}", response_model=DeviceResponse)
@@ -272,11 +272,11 @@ async def get_device(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error getting device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting device: {str(e)}")
+        logger.error(f"Error getting device {device_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/devices", response_model=list[DeviceResponse])
+@router.get("/devices/list", response_model=list[DeviceResponse])
 async def get_all_devices(
     area_id: str | None = None,
     integration: str | None = None,
@@ -284,13 +284,13 @@ async def get_all_devices(
     discovery_service: DiscoveryService = Depends(get_discovery_service)
 ) -> list[DeviceResponse]:
     """
-    Get all discovered devices with optional filtering.
-    
+    Get all discovered devices with optional filtering (MED-1: moved to /devices/list to fix duplicate route).
+
     Args:
         area_id: Filter by area ID
         integration: Filter by integration type
         limit: Maximum number of devices to return
-        
+
     Returns:
         List[DeviceResponse]: List of devices
     """
@@ -329,8 +329,8 @@ async def get_all_devices(
         return device_responses
 
     except Exception as e:
-        logger.error(f"❌ Error getting devices: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting devices: {str(e)}")
+        logger.error("Error getting devices: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/areas")
@@ -359,8 +359,8 @@ async def get_areas(
         ]
 
     except Exception as e:
-        logger.error(f"❌ Error getting areas: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting areas: {str(e)}")
+        logger.error(f"Error getting areas: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/groups")
@@ -387,5 +387,5 @@ async def get_zigbee_groups(
         ]
 
     except Exception as e:
-        logger.error(f"❌ Error getting Zigbee groups: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting Zigbee groups: {str(e)}")
+        logger.error(f"Error getting Zigbee groups: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

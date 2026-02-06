@@ -171,39 +171,37 @@ class DiscoveryService:
             logger.info("=" * 80)
 
             # Try WebSocket first (preferred method) - use message routing to avoid listen loop conflicts
+            devices = []
             if connection_manager:
                 logger.info("Using WebSocket for device discovery (with message routing)")
                 devices = await self._discover_devices_websocket(websocket, connection_manager)
-                if devices:
-                    return devices
-                logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
+                if not devices:
+                    logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
             elif websocket:
                 logger.info("Using WebSocket for device discovery (legacy mode)")
                 devices = await self._discover_devices_websocket(websocket, None)
-                if devices:
-                    return devices
-                logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
-            
+                if not devices:
+                    logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
+
             # Fallback to HTTP API if WebSocket not available or failed
-            logger.info("Attempting HTTP API for device discovery (fallback)")
-            devices = await self._discover_devices_http()
-            if devices:
-                logger.info(f"✅ Discovered {len(devices)} devices via HTTP API")
-                return devices
-            
-            logger.warning("⚠️  Both WebSocket and HTTP API failed - no devices discovered")
-            logger.info("💡 Device info will be available from entity registry (device_id references)")
-            return []
+            if not devices:
+                logger.info("Attempting HTTP API for device discovery (fallback)")
+                devices = await self._discover_devices_http()
+
+            if not devices:
+                logger.warning("⚠️  Both WebSocket and HTTP API failed - no devices discovered")
+                logger.info("💡 Device info will be available from entity registry (device_id references)")
+                return []
 
             device_count = len(devices)
             logger.info(f"✅ Discovered {device_count} devices")
 
-            # Epic 23.2: Build device → area mapping cache
+            # Epic 23.2: Build device -> area mapping cache
             # Epic 23.5: Build device metadata cache
             for device in devices:
                 device_id = device.get("id")
                 if device_id:
-                    # Store device → area mapping
+                    # Store device -> area mapping
                     area_id = device.get("area_id")
                     if area_id:
                         self.device_to_area[device_id] = area_id
@@ -217,8 +215,8 @@ class DiscoveryService:
                         "name_by_user": device.get("name_by_user")
                     }
 
-            logger.info(f"📍 Cached {len(self.device_to_area)} device → area mappings")
-            logger.info(f"🏷️  Cached {len(self.device_metadata)} device metadata entries")
+            logger.info(f"Cached {len(self.device_to_area)} device -> area mappings")
+            logger.info(f"Cached {len(self.device_metadata)} device metadata entries")
 
             # Update cache timestamp
             self._cache_timestamp = time.time()
@@ -226,7 +224,7 @@ class DiscoveryService:
             # Log sample device if available
             if devices:
                 sample = devices[0]
-                logger.info(f"📱 Sample device: {sample.get('name', 'Unknown')} "
+                logger.info(f"Sample device: {sample.get('name', 'Unknown')} "
                           f"(manufacturer: {sample.get('manufacturer', 'Unknown')}, "
                           f"model: {sample.get('model', 'Unknown')})")
 
@@ -276,7 +274,7 @@ class DiscoveryService:
             ha_url = ha_url.replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
 
             logger.info(f"🔗 Connecting to Home Assistant at: {ha_url}")
-            logger.info(f"🔑 Using token: {ha_token[:20]}..." if ha_token else "❌ No token!")
+            logger.info(f"🔑 Using token: ***{ha_token[-4:]}" if ha_token else "❌ No token!")
 
             headers = {
                 "Authorization": f"Bearer {ha_token}",

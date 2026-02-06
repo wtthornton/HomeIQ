@@ -2,10 +2,14 @@
 Health and statistics router for data-retention service.
 """
 
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException, Request
 
 from ..models import HealthResponse, StatisticsResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
@@ -15,7 +19,7 @@ router = APIRouter(tags=["health"])
 async def health_check(request: Request):
     """
     Health check endpoint.
-    
+
     Returns service health status including storage metrics and alerts.
     """
     try:
@@ -40,19 +44,20 @@ async def health_check(request: Request):
 
         return {
             "status": overall_status,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "service_status": service_status,
             "storage_metrics": storage_metrics,
             "active_alerts": len(storage_alerts),
             "alerts": storage_alerts
         }
     except Exception as e:
+        logger.error(f"Health check failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail={
                 "status": "error",
-                "timestamp": datetime.utcnow().isoformat(),
-                "error": str(e)
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": "Internal server error"
             }
         )
 
@@ -62,7 +67,7 @@ async def health_check(request: Request):
 async def get_statistics(request: Request):
     """
     Get service statistics.
-    
+
     Returns comprehensive service statistics including policy, cleanup, storage, compression, and backup statistics.
     """
     try:
@@ -70,5 +75,6 @@ async def get_statistics(request: Request):
         stats = service.get_service_statistics()
         return stats
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        logger.error(f"Get statistics failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
 

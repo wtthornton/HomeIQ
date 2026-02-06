@@ -30,3 +30,13 @@ if importlib.util.find_spec("src.core") is None:
         "device-intelligence core modules not available; skipping tests in alpha environment",
         allow_module_level=True,
     )
+
+from fastapi.testclient import TestClient
+from src.main import app
+
+
+@pytest.fixture()
+def client() -> TestClient:
+    """Provide a FastAPI TestClient for endpoint tests."""
+    with TestClient(app) as c:
+        yield c

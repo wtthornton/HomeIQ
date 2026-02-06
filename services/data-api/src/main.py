@@ -10,6 +10,7 @@ This service provides access to feature data including:
 - Home Assistant automation endpoints
 """
 
+import logging
 import os
 import secrets
 import sys
@@ -18,10 +19,13 @@ from datetime import datetime
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+
+# Early logger for use before setup_logging() is called
+_early_logger = logging.getLogger("data-api.startup")
 
 # Add shared directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
@@ -35,7 +39,7 @@ from shared.logging_config import setup_logging
 try:
     from shared.error_handler import register_error_handlers
 except ImportError:
-    logger.warning("Shared error handler not available, using default error handling")
+    _early_logger.warning("Shared error handler not available, using default error handling")
     register_error_handlers = None
 
 # Import observability modules
@@ -44,7 +48,7 @@ try:
     from shared.observability import instrument_fastapi, setup_tracing
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
-    logger.warning("Observability modules not available")
+    _early_logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
 # Story 22.1: SQLite database
@@ -140,8 +144,8 @@ class DataAPIService:
                 "Set DATA_API_API_KEY to enforce authentication."
             )
 
-        # CORS settings
-        self.cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
+        # CORS settings - default to localhost only; never use wildcard in production
+        self.cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
 
         # Initialize components
         self.auth_manager = AuthManager(
@@ -284,10 +288,12 @@ else:
     app.add_middleware(FastAPICorrelationMiddleware)
 
 # Add CORS middleware
+# HIGH-03: Do not use allow_credentials=True with wildcard origins
+_cors_allow_credentials = "*" not in data_api_service.cors_origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=data_api_service.cors_origins,
-    allow_credentials=True,
+    allow_credentials=_cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -298,18 +304,25 @@ async def apply_rate_limit(request, call_next):
     return await rate_limit_middleware(request, call_next, data_api_service.rate_limiter)
 
 
+# CRIT-06: Auth dependency for sensitive routes
+# All sensitive routers require authentication via the shared AuthManager.
+# Health and root endpoints remain public for monitoring/load-balancer probes.
+_auth_dependency = [Depends(data_api_service.auth_manager.get_current_user)]
+
 # Register endpoint routers (Stories 13.2-13.3)
 # Story 13.2: Events & Devices
 events_endpoints = EventsEndpoints()
 app.include_router(
     events_endpoints.router,
     prefix="/api/v1",
-    tags=["Events"]
+    tags=["Events"],
+    dependencies=_auth_dependency
 )
 
 app.include_router(
     devices_router,
-    tags=["Devices & Entities"]
+    tags=["Devices & Entities"],
+    dependencies=_auth_dependency
 )
 
 # Story 13.3: Alerts, Metrics, Integrations, WebSockets
@@ -317,13 +330,15 @@ alert_endpoints = AlertEndpoints()
 app.include_router(
     alert_endpoints.router,
     prefix="/api/v1",
-    tags=["Alerts"]
+    tags=["Alerts"],
+    dependencies=_auth_dependency
 )
 
 app.include_router(
     create_metrics_router(),
     prefix="/api/v1",
-    tags=["Metrics"]
+    tags=["Metrics"],
+    dependencies=_auth_dependency
 )
 
 # Create integration router with service-specific config_manager
@@ -331,7 +346,8 @@ integration_router = create_integration_router(config_manager)
 app.include_router(
     integration_router,
     prefix="/api/v1",
-    tags=["Integrations"]
+    tags=["Integrations"],
+    dependencies=_auth_dependency
 )
 
 # WebSocket endpoints removed - dashboard uses HTTP polling for simplicity
@@ -340,38 +356,44 @@ app.include_router(
 app.include_router(
     sports_router,
     prefix="/api/v1",
-    tags=["Sports Data"]
+    tags=["Sports Data"],
+    dependencies=_auth_dependency
 )
 
 app.include_router(
     ha_automation_router,
     prefix="/api/v1",
-    tags=["Home Assistant Automation"]
+    tags=["Home Assistant Automation"],
+    dependencies=_auth_dependency
 )
 
 # Story 21.4: Analytics Endpoints (Real-time metrics aggregation)
 app.include_router(
     analytics_router,
     prefix="/api/v1",
-    tags=["Analytics"]
+    tags=["Analytics"],
+    dependencies=_auth_dependency
 )
 
 # Phase 4: Energy Correlation Endpoints
 app.include_router(
     energy_router,
     prefix="/api/v1",
-    tags=["Energy"]
+    tags=["Energy"],
+    dependencies=_auth_dependency
 )
 
 app.include_router(
     hygiene_router,
-    tags=["Device Hygiene"]
+    tags=["Device Hygiene"],
+    dependencies=_auth_dependency
 )
 
 # MCP Code Execution Tools
 app.include_router(
     mcp_router,
-    tags=["MCP Tools"]
+    tags=["MCP Tools"],
+    dependencies=_auth_dependency
 )
 
 

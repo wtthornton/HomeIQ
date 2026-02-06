@@ -53,7 +53,12 @@ export function useAnalyticsData(
   const fetchAnalytics = useCallback(async (): Promise<void> => {
     try {
       // Fetch real analytics data from data-api
-      const response = await fetch(`/api/v1/analytics?range=${timeRange}`);
+      const response = await fetch(`/api/v1/analytics?range=${timeRange}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
+        },
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

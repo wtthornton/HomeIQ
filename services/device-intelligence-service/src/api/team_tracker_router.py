@@ -93,7 +93,7 @@ async def get_team_tracker_status(
 
     Returns installation status, configured teams count, and last check time.
     """
-    logger.info("📊 Fetching Team Tracker integration status")
+    logger.info("Fetching Team Tracker integration status")
 
     # Get or create integration status
     result = await session.execute(
@@ -120,7 +120,7 @@ async def get_team_tracker_status(
 
     # Count active teams
     active_teams_result = await session.execute(
-        select(TeamTrackerTeam).where(TeamTrackerTeam.is_active == True)
+        select(TeamTrackerTeam).where(TeamTrackerTeam.is_active.is_(True))
     )
     active_teams = len(active_teams_result.scalars().all())
 
@@ -147,7 +147,7 @@ async def detect_team_tracker_entities(
     Uses data-api service to query entities (where they are actually stored).
     """
     try:
-        logger.info("🔍 Detecting Team Tracker entities")
+        logger.info("Detecting Team Tracker entities")
 
         # Try multiple platform value variations
         platform_variations = ["teamtracker", "team_tracker", "TeamTracker", "TEAMTRACKER", "team-tracker"]
@@ -206,14 +206,14 @@ async def detect_team_tracker_entities(
                 if platform_match or entity_id_match:
                     team_sensors.append(entity)
                     logger.info(
-                        f"✅ Team Tracker entity detected: entity_id={original_entity_id}, "
+                        f" Team Tracker entity detected: entity_id={original_entity_id}, "
                         f"platform={entity.get('platform')}, name={entity.get('friendly_name') or entity.get('name')}"
                     )
             
             logger.info(f"Found {len(team_sensors)} Team Tracker sensors from data-api")
         except Exception as e:
             data_api_error = str(e)
-            logger.error(f"❌ Failed to query data-api: {e}", exc_info=True)
+            logger.error(f"Failed to query data-api: {e}", exc_info=True)
             logger.warning(f"Falling back to local database query...")
             # Fallback to local database query - use flexible pattern matching
             conditions = [
@@ -251,7 +251,7 @@ async def detect_team_tracker_entities(
         
         # Log details of detected entities for debugging
         if not team_sensors:
-            logger.warning("⚠️ No Team Tracker entities found.")
+            logger.warning("No Team Tracker entities found.")
             if data_api_error:
                 logger.warning(f"Data-api query failed: {data_api_error}")
             # Try to get debug info from data-api
@@ -262,7 +262,7 @@ async def detect_team_tracker_entities(
                 for sensor in all_sensors:
                     platform = sensor.get("platform", "unknown")
                     platforms[platform] = platforms.get(platform, 0) + 1
-                logger.info(f"📊 Available sensor platforms in data-api: {platforms}")
+                logger.info(f"Available sensor platforms in data-api: {platforms}")
                 await debug_client.close()
             except Exception as e:
                 logger.warning(f"Could not get platform debug info: {e}")
@@ -342,7 +342,7 @@ async def detect_team_tracker_entities(
         
         return response
     except Exception as e:
-        logger.error(f"❌ Error detecting Team Tracker entities: {e}", exc_info=True)
+        logger.error(f"Error detecting Team Tracker entities: {e}", exc_info=True)
         await session.rollback()
         error_detail = str(e)
         # Include more context in error message
@@ -368,11 +368,11 @@ async def get_configured_teams(
     Returns:
         List of configured teams
     """
-    logger.info(f"📋 Fetching configured teams (active_only={active_only})")
+    logger.info(f"Fetching configured teams (active_only={active_only})")
 
     query = select(TeamTrackerTeam)
     if active_only:
-        query = query.where(TeamTrackerTeam.is_active == True)
+        query = query.where(TeamTrackerTeam.is_active.is_(True))
 
     query = query.order_by(TeamTrackerTeam.priority.desc(), TeamTrackerTeam.team_name)
 
@@ -422,7 +422,7 @@ async def add_team(
     await session.commit()
     await session.refresh(new_team)
 
-    logger.info(f"✅ Team added successfully: {new_team.id}")
+    logger.info(f"Team added successfully: {new_team.id}")
 
     return TeamResponse.model_validate(new_team)
 
@@ -436,7 +436,7 @@ async def update_team(
     """
     Update an existing Team Tracker team configuration.
     """
-    logger.info(f"✏️ Updating team: {team_id}")
+    logger.info(f"✏ Updating team: {team_id}")
 
     result = await session.execute(
         select(TeamTrackerTeam).where(TeamTrackerTeam.id == team_id)
@@ -461,7 +461,7 @@ async def update_team(
     await session.commit()
     await session.refresh(team)
 
-    logger.info(f"✅ Team updated successfully: {team.id}")
+    logger.info(f"Team updated successfully: {team.id}")
 
     return TeamResponse.model_validate(team)
 
@@ -474,7 +474,7 @@ async def delete_team(
     """
     Delete a Team Tracker team configuration.
     """
-    logger.info(f"🗑️ Deleting team: {team_id}")
+    logger.info(f"Deleting team: {team_id}")
 
     result = await session.execute(
         select(TeamTrackerTeam).where(TeamTrackerTeam.id == team_id)
@@ -487,7 +487,7 @@ async def delete_team(
     await session.delete(team)
     await session.commit()
 
-    logger.info(f"✅ Team deleted successfully: {team_id}")
+    logger.info(f"Team deleted successfully: {team_id}")
 
     return {"message": "Team deleted successfully"}
 
@@ -502,7 +502,7 @@ async def sync_teams_from_ha(
     This fetches the current state and attributes of all detected Team Tracker
     sensors and updates our database with the latest information.
     """
-    logger.info("🔄 Syncing teams from Home Assistant")
+    logger.info("Syncing teams from Home Assistant")
 
     # First detect entities
     detection_result = await detect_team_tracker_entities(session=session)
@@ -533,7 +533,7 @@ async def get_diagnostics(
     - Platform distribution
     - Team Tracker candidates
     """
-    logger.info("🔍 Generating Team Tracker diagnostics")
+    logger.info("Generating Team Tracker diagnostics")
     
     diagnostics: dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -730,5 +730,5 @@ async def debug_platform_values(
             logger.error(f"Fallback query also failed: {fallback_error}", exc_info=True)
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to get platform debug info: {str(e)} (fallback also failed: {str(fallback_error)})"
+                detail="Internal server error"
             ) from e

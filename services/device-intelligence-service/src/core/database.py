@@ -30,7 +30,7 @@ def get_database_url(settings: Settings) -> str:
         db_dir = os.path.dirname(db_path)
         if db_dir:
             os.makedirs(db_dir, exist_ok=True)
-            logger.info(f"✅ Database directory ensured: {db_dir}")
+            logger.info(f"Database directory ensured: {db_dir}")
         return db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
     return db_url
 
@@ -87,7 +87,7 @@ async def recreate_tables():
     if not _engine:
         raise RuntimeError("Database not initialized")
 
-    logger.info("🔄 Recreating database tables")
+    logger.info("Recreating database tables")
 
     # Drop all existing tables
     async with _engine.begin() as conn:
@@ -97,4 +97,4 @@ async def recreate_tables():
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
 
-    logger.info("✅ Database tables recreated successfully")
+    logger.info("Database tables recreated successfully")

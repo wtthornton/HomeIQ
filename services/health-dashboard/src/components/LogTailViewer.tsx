@@ -49,7 +49,12 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
         if (selectedLevel !== 'all') params.append('level', selectedLevel);
         params.append('limit', '100');
         
-        const response = await fetch(`/log-aggregator/api/v1/logs?${params}`);
+        const response = await fetch(`/log-aggregator/api/v1/logs?${params}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
+          },
+        });
         if (response.ok) {
           const data = await response.json();
           setLogs(data.logs || []);
@@ -96,7 +101,12 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
       params.append('q', normalizedQuery);
       params.append('limit', '100');
         
-      const response = await fetch(`/log-aggregator/api/v1/logs/search?${params}`);
+      const response = await fetch(`/log-aggregator/api/v1/logs/search?${params}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setLogs(data.logs || []);

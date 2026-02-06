@@ -5,8 +5,9 @@ Generic smart meter integration with adapter pattern
 
 import asyncio
 import os
+import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
@@ -16,6 +17,7 @@ from influxdb_client_3 import InfluxDBClient3, Point
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
+from adapters.base import MeterAdapter
 from adapters.home_assistant import HomeAssistantAdapter
 from health_check import HealthCheckHandler
 
@@ -45,18 +47,22 @@ class SmartMeterService:
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
 
         # Service configuration
-        self.fetch_interval = 300  # 5 minutes
+        self.fetch_interval = int(os.getenv('FETCH_INTERVAL_SECONDS', '300'))
+        if self.fetch_interval < 10:
+            logger.warning(f"Fetch interval {self.fetch_interval}s too low, setting to 10s minimum")
+            self.fetch_interval = 10
 
         # Cache
         self.cached_data: dict[str, Any] | None = None
         self.last_fetch_time: datetime | None = None
         self.baseline_3am: float | None = None
+        self.CACHE_MAX_AGE_SECONDS = 900  # 15 minutes
 
         # Components
         self.session: aiohttp.ClientSession | None = None
         self.influxdb_client: InfluxDBClient3 | None = None
         self.health_handler = HealthCheckHandler()
-        self.adapter = None  # Will be initialized in startup
+        self.adapter: MeterAdapter | None = None  # Will be initialized in startup
 
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN required")
@@ -79,15 +85,15 @@ class SmartMeterService:
         # Initialize adapter based on meter type
         self.adapter = self._create_adapter()
 
-        # Test connection if using Home Assistant adapter
-        if isinstance(self.adapter, HomeAssistantAdapter):
-            connected = await self.adapter.test_connection()
+        # Test connection for any adapter
+        if self.adapter:
+            connected = await self.adapter.test_connection(self.session)
             if not connected:
-                logger.warning("Failed to connect to Home Assistant - will use mock data")
+                logger.warning("Failed to connect to meter - will use mock data")
 
         logger.info("Smart Meter Service initialized")
 
-    def _create_adapter(self) -> Any:
+    def _create_adapter(self) -> MeterAdapter | None:
         """Create adapter based on meter type"""
         if self.meter_type == 'home_assistant':
             if not self.ha_url or not self.ha_token:
@@ -127,18 +133,20 @@ class SmartMeterService:
 
                 # Add timestamp if not present
                 if 'timestamp' not in data:
-                    data['timestamp'] = datetime.now()
+                    data['timestamp'] = datetime.now(timezone.utc)
 
                 # Ensure percentages are calculated
                 for circuit in data.get('circuits', []):
                     if 'percentage' not in circuit:
+                        total = data.get('total_power_w', 0)
+                        power = circuit.get('power_w', 0)
                         circuit['percentage'] = (
-                            (circuit['power_w'] / data['total_power_w']) * 100
-                            if data['total_power_w'] > 0 else 0
+                            (power / total) * 100
+                            if total > 0 else 0
                         )
 
                 # Detect phantom loads (high 3am baseline)
-                current_hour = datetime.now().hour
+                current_hour = datetime.now(timezone.utc).hour
                 if current_hour == 3:
                     self.baseline_3am = data['total_power_w']
                     if self.baseline_3am > 200:
@@ -150,8 +158,8 @@ class SmartMeterService:
 
                 # Update cache and stats
                 self.cached_data = data
-                self.last_fetch_time = datetime.now()
-                self.health_handler.last_successful_fetch = datetime.now()
+                self.last_fetch_time = datetime.now(timezone.utc)
+                self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
                 self.health_handler.total_fetches += 1
 
                 logger.info(
@@ -166,15 +174,24 @@ class SmartMeterService:
                 log_error_with_context(
                     logger,
                     f"Error fetching from adapter: {e}",
-                    service="smart-meter-service",
-                    error=str(e)
+                    error=e,
+                    service="smart-meter-service"
                 )
                 self.health_handler.failed_fetches += 1
 
-                # Return cached data if available
-                if self.cached_data:
-                    logger.warning("Using cached data after adapter failure")
-                    return self.cached_data
+                # Return cached data if available and not too old
+                if self.cached_data and self.last_fetch_time:
+                    cache_age = (datetime.now(timezone.utc) - self.last_fetch_time).total_seconds()
+                    if cache_age < self.CACHE_MAX_AGE_SECONDS:
+                        logger.warning(
+                            f"Using cached data (age: {cache_age:.0f}s) after adapter failure"
+                        )
+                        return self.cached_data
+                    else:
+                        logger.warning(
+                            f"Cached data too old ({cache_age:.0f}s > {self.CACHE_MAX_AGE_SECONDS}s), "
+                            "falling back to mock data"
+                        )
 
                 # Fall through to mock data
                 logger.warning("No cached data available, using mock data")
@@ -196,54 +213,64 @@ class SmartMeterService:
                 {'name': 'Bedrooms', 'power_w': 150.0, 'percentage': 6.1},
                 {'name': 'Other', 'power_w': 100.0, 'percentage': 4.1}
             ],
-            'timestamp': datetime.now()
+            'timestamp': datetime.now(timezone.utc)
         }
 
         # Update stats
         self.cached_data = data
-        self.last_fetch_time = datetime.now()
-        self.health_handler.last_successful_fetch = datetime.now()
+        self.last_fetch_time = datetime.now(timezone.utc)
+        self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
         self.health_handler.total_fetches += 1
 
         logger.debug("Using mock data")
 
         return data
 
-    async def store_in_influxdb(self, data: dict[str, Any]) -> None:
-        """Store consumption data in InfluxDB"""
+    async def store_in_influxdb(self, data: dict[str, Any], max_retries: int = 3) -> None:
+        """Store consumption data in InfluxDB using batched writes with retry"""
 
         if not data:
             return
 
-        try:
-            # Store whole-home consumption
-            point = Point("smart_meter") \
-                .tag("meter_type", self.meter_type) \
-                .field("total_power_w", float(data['total_power_w'])) \
-                .field("daily_kwh", float(data['daily_kwh'])) \
+        points = []
+
+        # Whole-home consumption point
+        point = Point("smart_meter") \
+            .tag("meter_type", self.meter_type) \
+            .field("total_power_w", float(data['total_power_w'])) \
+            .field("daily_kwh", float(data['daily_kwh'])) \
+            .time(data['timestamp'])
+        points.append(point)
+
+        # Circuit-level data points
+        for circuit in data.get('circuits', []):
+            circuit_point = Point("smart_meter_circuit") \
+                .tag("circuit_name", circuit['name']) \
+                .field("power_w", float(circuit['power_w'])) \
+                .field("percentage", float(circuit['percentage'])) \
                 .time(data['timestamp'])
+            points.append(circuit_point)
 
-            self.influxdb_client.write(point)
-
-            # Store circuit-level data
-            for circuit in data.get('circuits', []):
-                circuit_point = Point("smart_meter_circuit") \
-                    .tag("circuit_name", circuit['name']) \
-                    .field("power_w", float(circuit['power_w'])) \
-                    .field("percentage", float(circuit['percentage'])) \
-                    .time(data['timestamp'])
-
-                self.influxdb_client.write(circuit_point)
-
-            logger.info("Smart meter data written to InfluxDB")
-
-        except Exception as e:
-            log_error_with_context(
-                logger,
-                f"Error writing to InfluxDB: {e}",
-                service="smart-meter-service",
-                error=str(e)
-            )
+        # Retry loop with exponential backoff
+        for attempt in range(max_retries):
+            try:
+                self.influxdb_client.write(points)
+                logger.info(f"Wrote {len(points)} points to InfluxDB")
+                return
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt
+                    logger.warning(
+                        f"InfluxDB write attempt {attempt + 1} failed, retrying in {wait}s: {e}"
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    log_error_with_context(
+                        logger,
+                        f"InfluxDB write failed after {max_retries} attempts: {e}",
+                        error=e,
+                        service="smart-meter-service"
+                    )
 
     async def run_continuous(self) -> None:
         """Run continuous data collection loop"""
@@ -263,8 +290,8 @@ class SmartMeterService:
                 log_error_with_context(
                     logger,
                     f"Error in continuous loop: {e}",
-                    service="smart-meter-service",
-                    error=str(e)
+                    error=e,
+                    service="smart-meter-service"
                 )
                 await asyncio.sleep(60)
 
@@ -293,10 +320,33 @@ async def main() -> None:
 
     logger.info(f"API endpoints available on port {port}")
 
-    try:
-        await service.run_continuous()
-    except KeyboardInterrupt:
+    # Handle shutdown signals
+    loop = asyncio.get_running_loop()
+    stop_event = asyncio.Event()
+
+    def handle_signal():
         logger.info("Received shutdown signal")
+        stop_event.set()
+
+    # Register signal handlers (SIGTERM for Docker, SIGINT for Ctrl+C)
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, handle_signal)
+        except NotImplementedError:
+            # Windows does not support add_signal_handler
+            pass
+
+    try:
+        # Run continuous collection until stop signal
+        collection_task = asyncio.create_task(service.run_continuous())
+        await stop_event.wait()
+        collection_task.cancel()
+        try:
+            await collection_task
+        except asyncio.CancelledError:
+            pass
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
     finally:
         await service.shutdown()
         await runner.cleanup()

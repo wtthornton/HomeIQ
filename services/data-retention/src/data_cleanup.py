@@ -1,9 +1,10 @@
 """Data cleanup and expiration service."""
 
 import asyncio
+import collections
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .retention_policy import RetentionPolicy, RetentionPolicyManager
@@ -24,7 +25,7 @@ class CleanupResult:
 
     def __post_init__(self):
         if self.cleanup_timestamp is None:
-            self.cleanup_timestamp = datetime.utcnow()
+            self.cleanup_timestamp = datetime.now(timezone.utc)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary."""
@@ -50,7 +51,7 @@ class DataCleanupService:
         """
         self.influxdb_client = influxdb_client
         self.policy_manager = RetentionPolicyManager()
-        self.cleanup_history: list[CleanupResult] = []
+        self.cleanup_history: collections.deque[CleanupResult] = collections.deque(maxlen=1000)
         self.is_running = False
         self.cleanup_task: asyncio.Task | None = None
 
@@ -135,7 +136,7 @@ class DataCleanupService:
         Returns:
             CleanupResult: Result of the cleanup operation
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Calculate expiration date
@@ -148,7 +149,7 @@ class DataCleanupService:
             # Delete expired records
             records_deleted = await self._delete_expired_records(records_to_delete)
 
-            cleanup_duration = (datetime.utcnow() - start_time).total_seconds()
+            cleanup_duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             return CleanupResult(
                 policy_name=policy.name,
@@ -159,7 +160,7 @@ class DataCleanupService:
             )
 
         except Exception as e:
-            cleanup_duration = (datetime.utcnow() - start_time).total_seconds()
+            cleanup_duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             return CleanupResult(
                 policy_name=policy.name,
                 records_deleted=0,
@@ -288,7 +289,7 @@ class DataCleanupService:
         Returns:
             List of cleanup results
         """
-        return self.cleanup_history[-limit:] if self.cleanup_history else []
+        return list(self.cleanup_history)[-limit:] if self.cleanup_history else []
 
     def get_cleanup_statistics(self) -> dict[str, Any]:
         """

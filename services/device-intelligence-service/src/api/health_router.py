@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.cache import DeviceCache
+from ..core.cache import DeviceCache, get_device_cache
 from ..core.database import get_db_session
 from ..core.device_state_tracker import device_state_tracker
 from ..core.health_scorer import health_scorer
@@ -22,10 +22,21 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/health", tags=["Health"])
 
+# Use shared cache instance instead of creating new one per request (performance fix)
+_shared_cache: DeviceCache | None = None
+
+
+def get_shared_device_cache() -> DeviceCache:
+    """Get shared device cache instance."""
+    global _shared_cache
+    if _shared_cache is None:
+        _shared_cache = get_device_cache()
+    return _shared_cache
+
 
 def get_device_repository() -> DeviceRepository:
-    """Get device repository instance."""
-    cache = DeviceCache()
+    """Get device repository instance with shared cache."""
+    cache = get_shared_device_cache()
     return DeviceRepository(cache)
 
 
@@ -120,7 +131,7 @@ async def get_all_health_scores(
 
     except Exception as e:
         logger.error(f"Error getting all health scores: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get health scores: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/scores/{device_id}")
@@ -158,7 +169,7 @@ async def get_device_health_score(device_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting health score for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get health score: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/trends/{device_id}")
@@ -248,7 +259,7 @@ async def get_device_health_trends(
         raise
     except Exception as e:
         logger.error(f"Error getting health trends for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get health trends: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/comparison")
@@ -346,7 +357,7 @@ async def compare_device_health_scores(
 
     except Exception as e:
         logger.error(f"Error comparing device health scores: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to compare health scores: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/summary")
@@ -401,7 +412,7 @@ async def get_health_summary():
 
     except Exception as e:
         logger.error(f"Error getting health summary: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get health summary: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/calculate/{device_id}")
@@ -419,4 +430,4 @@ async def calculate_device_health_score(device_id: str, metrics: dict[str, Any])
 
     except Exception as e:
         logger.error(f"Error calculating custom health score for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to calculate health score: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -65,10 +65,10 @@ class ConfigLoader:
                 config = yaml.safe_load(f)
                 if config is None:
                     return {}
-                logger.debug(f"✅ Loaded config for {device_type}: {config_path}")
+                logger.debug(f"Loaded config for {device_type}: {config_path}")
                 return config
         except Exception as e:
-            logger.error(f"❌ Error loading config for {device_type}: {e}")
+            logger.error(f"Error loading config for {device_type}: {e}")
             return {}
     
     def config_exists(self, device_type: str) -> bool:

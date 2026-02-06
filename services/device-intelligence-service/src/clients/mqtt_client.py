@@ -105,7 +105,7 @@ class MQTTClient:
     async def connect(self) -> bool:
         """Establish MQTT connection to Zigbee2MQTT bridge."""
         try:
-            logger.info(f"🔌 Connecting to MQTT broker: {self.host}:{self.port}")
+            logger.info(f"Connecting to MQTT broker: {self.host}:{self.port}")
 
             # Store event loop for use in MQTT callbacks (which run in different thread)
             self.event_loop = asyncio.get_running_loop()
@@ -135,15 +135,15 @@ class MQTTClient:
             await asyncio.sleep(1)
 
             if self.connected:
-                logger.info("✅ Successfully connected to MQTT broker")
+                logger.info("Successfully connected to MQTT broker")
                 self.reconnect_attempts = 0
                 return True
             else:
-                logger.error("❌ Failed to connect to MQTT broker")
+                logger.error("Failed to connect to MQTT broker")
                 return False
 
         except Exception as e:
-            logger.error(f"❌ Failed to connect to MQTT broker: {e}")
+            logger.error(f"Failed to connect to MQTT broker: {e}")
             return False
 
     async def disconnect(self):
@@ -153,28 +153,32 @@ class MQTTClient:
             self.client.disconnect()
             self.client = None
         self.connected = False
-        logger.info("🔌 Disconnected from MQTT broker")
+        logger.info("Disconnected from MQTT broker")
 
     def _on_connect(self, client, userdata, flags, rc):
         """MQTT connection callback."""
         if rc == 0:
             self.connected = True
-            logger.info("✅ MQTT broker connected")
+            logger.info("MQTT broker connected")
 
             # Subscribe to Zigbee2MQTT topics
             self._subscribe_to_topics()
         else:
-            logger.error(f"❌ MQTT broker connection failed with code {rc}")
+            logger.error(f"MQTT broker connection failed with code {rc}")
             self.connected = False
 
     def _on_disconnect(self, client, userdata, rc):
         """MQTT disconnection callback."""
         self.connected = False
         if rc != 0:
-            logger.warning(f"🔌 MQTT broker disconnected unexpectedly (code: {rc})")
-            asyncio.create_task(self._handle_reconnection())
+            logger.warning("MQTT broker disconnected unexpectedly (code: %d)", rc)
+            # Use run_coroutine_threadsafe since this callback runs in MQTT thread (HIGH-2)
+            if self.event_loop and self.event_loop.is_running():
+                asyncio.run_coroutine_threadsafe(self._handle_reconnection(), self.event_loop)
+            else:
+                logger.error("Cannot schedule reconnection: event loop not available")
         else:
-            logger.info("🔌 MQTT broker disconnected")
+            logger.info("MQTT broker disconnected")
 
     def _on_message(self, client, userdata, msg):
         """MQTT message callback."""
@@ -184,13 +188,13 @@ class MQTTClient:
             
             # Enhanced logging: Log ALL received MQTT messages for debugging
             payload_preview = payload[:200] if len(payload) > 200 else payload
-            logger.debug(f"📨 MQTT message received: topic={topic}, payload_size={len(payload)} bytes, preview={payload_preview}...")
+            logger.debug(f"MQTT message received: topic={topic}, payload_size={len(payload)} bytes, preview={payload_preview}...")
 
             # Parse JSON payload
             try:
                 data = json.loads(payload)
             except json.JSONDecodeError:
-                logger.warning(f"⚠️ Non-JSON message on topic {topic}: {payload[:100]}")
+                logger.warning(f"Non-JSON message on topic {topic}: {payload[:100]}")
                 return
 
             # Handle message based on topic
@@ -198,10 +202,10 @@ class MQTTClient:
             if self.event_loop and self.event_loop.is_running():
                 asyncio.run_coroutine_threadsafe(self._handle_message(topic, data), self.event_loop)
             else:
-                logger.error(f"❌ Cannot handle MQTT message: event loop not available for topic {topic}")
+                logger.error(f"Cannot handle MQTT message: event loop not available for topic {topic}")
 
         except Exception as e:
-            logger.error(f"❌ Error handling MQTT message: {e}")
+            logger.error(f"Error handling MQTT message: {e}")
 
     def _on_log(self, client, userdata, level, buf):
         """MQTT log callback."""
@@ -226,16 +230,16 @@ class MQTTClient:
         # Optional: Subscribe to Home Assistant discovery config topics
         if self.subscribe_discovery_configs:
             topics.append("homeassistant/+/+/+/config")
-            logger.info("📡 Discovery config subscription enabled")
+            logger.info("Discovery config subscription enabled")
 
         # Optional: Subscribe to Zigbee2MQTT device state topics
         if self.subscribe_device_states:
             topics.append(f"{self.base_topic}/+")
-            logger.info("📡 Device state subscription enabled (high volume)")
+            logger.info("Device state subscription enabled (high volume)")
 
         for topic in topics:
             self.client.subscribe(topic)
-            logger.info(f"📡 Subscribed to {topic}")
+            logger.info(f"Subscribed to {topic}")
 
     async def _handle_message(self, topic: str, data: dict[str, Any]):
         """Handle incoming MQTT messages."""
@@ -251,7 +255,7 @@ class MQTTClient:
                         data = data["result"]
                     # If it's already a list, use it directly
                     if not isinstance(data, list):
-                        logger.warning(f"⚠️ Unexpected device list format on {topic}: {type(data)}")
+                        logger.warning(f"Unexpected device list format on {topic}: {type(data)}")
                         return
                 await self._handle_devices_message(data)
             # Handle group list messages (both retained and response)
@@ -263,7 +267,7 @@ class MQTTClient:
                     elif isinstance(data, dict) and "result" in data:
                         data = data["result"]
                     if not isinstance(data, list):
-                        logger.warning(f"⚠️ Unexpected group list format on {topic}: {type(data)}")
+                        logger.warning(f"Unexpected group list format on {topic}: {type(data)}")
                         return
                 await self._handle_groups_message(data)
             elif topic == f"{self.base_topic}/bridge/info":
@@ -281,14 +285,14 @@ class MQTTClient:
                 # Zigbee2MQTT device state message (not bridge messages)
                 await self._handle_device_state(topic, data)
             else:
-                logger.debug(f"📨 Unhandled message on topic {topic}")
+                logger.debug(f"Unhandled message on topic {topic}")
 
         except Exception as e:
-            logger.error(f"❌ Error handling message on topic {topic}: {e}")
+            logger.error(f"Error handling message on topic {topic}: {e}")
 
     async def _handle_devices_message(self, data: list[dict[str, Any]]):
         """Handle devices message from Zigbee2MQTT bridge."""
-        logger.info(f"📱 Received {len(data)} devices from Zigbee2MQTT bridge")
+        logger.info(f"Received {len(data)} devices from Zigbee2MQTT bridge")
 
         # Store all devices first
         for device_data in data:
@@ -336,7 +340,7 @@ class MQTTClient:
                 self.devices[device.ieee_address] = device
 
             except Exception as e:
-                logger.error(f"❌ Error parsing device {device_data.get('ieee_address', 'unknown')}: {e}")
+                logger.error(f"Error parsing device {device_data.get('ieee_address', 'unknown')}: {e}")
 
         # Call message handler with full list (after all devices are stored)
         if "devices" in self.message_handlers:
@@ -344,7 +348,7 @@ class MQTTClient:
 
     async def _handle_groups_message(self, data: list[dict[str, Any]]):
         """Handle groups message from Zigbee2MQTT bridge."""
-        logger.info(f"👥 Received {len(data)} groups from Zigbee2MQTT bridge")
+        logger.info(f"Received {len(data)} groups from Zigbee2MQTT bridge")
 
         # Store all groups first
         for group_data in data:
@@ -359,7 +363,7 @@ class MQTTClient:
                 self.groups[group.id] = group
 
             except Exception as e:
-                logger.error(f"❌ Error parsing group {group_data.get('id', 'unknown')}: {e}")
+                logger.error(f"Error parsing group {group_data.get('id', 'unknown')}: {e}")
 
         # Call message handler with full list (after all groups are stored)
         if "groups" in self.message_handlers:
@@ -367,7 +371,7 @@ class MQTTClient:
 
     async def _handle_info_message(self, data: dict[str, Any]):
         """Handle info message from Zigbee2MQTT bridge."""
-        logger.info(f"ℹ️ Received Zigbee2MQTT bridge info: {data.get('version', 'unknown version')}")
+        logger.info(f"Received Zigbee2MQTT bridge info: {data.get('version', 'unknown version')}")
 
         # Call message handler if registered
         if "info" in self.message_handlers:
@@ -375,7 +379,7 @@ class MQTTClient:
 
     async def _handle_networkmap_message(self, data: dict[str, Any]):
         """Handle network map message from Zigbee2MQTT bridge."""
-        logger.info("🗺️ Received Zigbee2MQTT network map")
+        logger.info("Received Zigbee2MQTT network map")
 
         self.network_map = data
 
@@ -392,7 +396,7 @@ class MQTTClient:
             device_id = topic_parts[2]
             object_id = topic_parts[3] if len(topic_parts) > 3 else None
             
-            logger.debug(f"📋 Received HA discovery config: {component}/{device_id}/{object_id}")
+            logger.debug(f"Received HA discovery config: {component}/{device_id}/{object_id}")
             
             # Call message handler if registered
             if "discovery_config" in self.message_handlers:
@@ -404,14 +408,14 @@ class MQTTClient:
                     "config": data
                 })
         else:
-            logger.debug(f"📋 Received HA discovery config: {topic}")
+            logger.debug(f"Received HA discovery config: {topic}")
 
     async def _handle_device_state(self, topic: str, data: dict[str, Any]):
         """Handle Zigbee2MQTT device state message."""
         # Extract device friendly_name from topic: zigbee2mqtt/<friendly_name>
         friendly_name = topic.replace(f"{self.base_topic}/", "")
         
-        logger.debug(f"📊 Received Zigbee2MQTT device state: {friendly_name}")
+        logger.debug(f"Received Zigbee2MQTT device state: {friendly_name}")
         
         # Call message handler if registered
         if "device_state" in self.message_handlers:
@@ -424,22 +428,22 @@ class MQTTClient:
     async def _handle_reconnection(self):
         """Handle automatic reconnection."""
         if self.reconnect_attempts >= self.max_reconnect_attempts:
-            logger.error("❌ Max reconnection attempts reached")
+            logger.error("Max reconnection attempts reached")
             return
 
         self.reconnect_attempts += 1
         delay = self.reconnect_delay * self.reconnect_attempts
 
-        logger.info(f"🔄 Attempting MQTT reconnection {self.reconnect_attempts}/{self.max_reconnect_attempts} in {delay}s")
+        logger.info(f"Attempting MQTT reconnection {self.reconnect_attempts}/{self.max_reconnect_attempts} in {delay}s")
         await asyncio.sleep(delay)
 
         if await self.connect():
-            logger.info("✅ MQTT reconnection successful")
+            logger.info("MQTT reconnection successful")
 
     def register_message_handler(self, topic: str, handler: Callable[[dict[str, Any]], Awaitable[None]]):
         """Register a message handler for a specific topic."""
         self.message_handlers[topic] = handler
-        logger.info(f"📡 Registered message handler for {topic}")
+        logger.info(f"Registered message handler for {topic}")
 
     def get_devices(self) -> dict[str, ZigbeeDevice]:
         """Get all discovered Zigbee devices."""

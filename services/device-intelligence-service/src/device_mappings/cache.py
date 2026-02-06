@@ -5,6 +5,7 @@ Cache key format: device_mapping_{device_id}_{endpoint_type}
 Cache TTL: 300 seconds (5 minutes)
 """
 
+import asyncio
 import logging
 import time
 from typing import Any
@@ -19,16 +20,19 @@ class DeviceMappingCache:
     Cache entries expire after 5 minutes (300 seconds).
     """
     
-    def __init__(self, ttl: int = 300):
+    def __init__(self, ttl: int = 300, cleanup_interval: int = 60):
         """
         Initialize the cache.
-        
+
         Args:
             ttl: Time-to-live in seconds (default: 300 = 5 minutes)
+            cleanup_interval: Interval in seconds for periodic cleanup (default: 60)
         """
         self._cache: dict[str, tuple[Any, float]] = {}
         self._ttl = ttl
-        logger.debug(f"Device mapping cache initialized with TTL={ttl}s")
+        self._cleanup_interval = cleanup_interval
+        self._cleanup_task: asyncio.Task | None = None
+        logger.debug("Device mapping cache initialized with TTL=%ds", ttl)
     
     def get(self, key: str) -> Any | None:
         """
@@ -111,9 +115,36 @@ class DeviceMappingCache:
             del self._cache[key]
         
         if expired_keys:
-            logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
-        
+            logger.debug("Cleaned up %d expired cache entries", len(expired_keys))
+
         return len(expired_keys)
+
+    def start_periodic_cleanup(self) -> None:
+        """Start a background task that periodically cleans up expired entries."""
+        if self._cleanup_task is not None:
+            return  # Already running
+        try:
+            loop = asyncio.get_running_loop()
+            self._cleanup_task = loop.create_task(self._periodic_cleanup_loop())
+            logger.debug("Periodic cache cleanup started (interval=%ds)", self._cleanup_interval)
+        except RuntimeError:
+            logger.warning("No running event loop; periodic cleanup not started")
+
+    async def _periodic_cleanup_loop(self) -> None:
+        """Background loop that calls cleanup_expired at regular intervals."""
+        try:
+            while True:
+                await asyncio.sleep(self._cleanup_interval)
+                self.cleanup_expired()
+        except asyncio.CancelledError:
+            logger.debug("Periodic cache cleanup task cancelled")
+
+    def stop_periodic_cleanup(self) -> None:
+        """Stop the periodic cleanup background task."""
+        if self._cleanup_task is not None:
+            self._cleanup_task.cancel()
+            self._cleanup_task = None
+            logger.debug("Periodic cache cleanup stopped")
 
 
 # Global cache instance
@@ -125,6 +156,7 @@ def get_cache() -> DeviceMappingCache:
     global _cache
     if _cache is None:
         _cache = DeviceMappingCache(ttl=300)  # 5 minutes
+        _cache.start_periodic_cleanup()
     return _cache
 
 
@@ -132,5 +164,6 @@ def clear_cache() -> None:
     """Clear the global device mapping cache."""
     global _cache
     if _cache is not None:
+        _cache.stop_periodic_cleanup()
         _cache.clear()
 

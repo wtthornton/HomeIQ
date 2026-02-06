@@ -37,7 +37,7 @@ class DeviceMappingRegistry:
             raise TypeError(f"Handler must be an instance of DeviceHandler, got {type(handler)}")
         
         self._handlers[name] = handler
-        logger.info(f"✅ Registered device handler: {name}")
+        logger.info(f"Registered device handler: {name}")
     
     def get_handler(self, name: str) -> DeviceHandler | None:
         """
@@ -109,14 +109,14 @@ class DeviceMappingRegistry:
                 module = importlib.import_module(module_name)
                 if hasattr(module, "register"):
                     module.register(self)
-                    logger.debug(f"✅ Discovered handler module: {module_name}")
+                    logger.debug(f"Discovered handler module: {module_name}")
                 else:
-                    logger.debug(f"⚠️ Module {module_name} has no register function, skipping")
+                    logger.debug(f"Module {module_name} has no register function, skipping")
             except ImportError as e:
                 # Handler module doesn't exist yet (expected for new handlers)
                 logger.debug(f"Handler module {module_name} not found (will be created later): {e}")
             except Exception as e:
-                logger.warning(f"⚠️ Error discovering handler module {module_name}: {e}")
+                logger.warning(f"Error discovering handler module {module_name}: {e}")
     
     def clear(self) -> None:
         """Clear all registered handlers."""

@@ -7,7 +7,7 @@ import asyncio
 import logging
 
 from influxdb_client import InfluxDBClient, Point
-from influxdb_client.client.write_api import ASYNCHRONOUS
+from influxdb_client.client.write_api import SYNCHRONOUS
 from influxdb_client.rest import ApiException
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class InfluxDBWrapper:
                 org=self.influxdb_org
             )
 
-            self.write_api = self.client.write_api(write_options=ASYNCHRONOUS)
+            self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
             self.query_api = self.client.query_api()
 
             logger.info(f"Connected to InfluxDB at {self.influxdb_url}")

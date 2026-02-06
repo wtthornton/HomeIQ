@@ -350,9 +350,9 @@ class SyntheticDeviceGenerator:
             )
             training_samples.append(sample)
         
-        logger.info(f"✅ Generated {len(training_samples)} synthetic device samples")
-        logger.info(f"  - Normal devices: {normal_count}")
-        logger.info(f"  - Failure scenarios: {failure_count}")
+        logger.info(f"Generated {len(training_samples)} synthetic device samples")
+        logger.info(f"- Normal devices: {normal_count}")
+        logger.info(f"- Failure scenarios: {failure_count}")
         
         return training_samples
 
@@ -433,7 +433,7 @@ class SyntheticDeviceGenerator:
         """
         # Get base characteristics for device type
         if device_type not in self.DEVICE_CHARACTERISTICS:
-            device_type = 'sensor'  # Fallback
+            device_type = 'sensor'# Fallback
         
         base_chars = self.DEVICE_CHARACTERISTICS[device_type]
         

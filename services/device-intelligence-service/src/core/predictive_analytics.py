@@ -92,7 +92,7 @@ class PredictiveAnalyticsEngine:
             self.metrics_tracker = MLMetricsTracker()
             self.metrics_tracker.load_metrics()
         except Exception as e:
-            logger.warning(f"⚠️  Could not initialize metrics tracker: {e}")
+            logger.warning(f"Could not initialize metrics tracker: {e}")
             self.metrics_tracker = None
 
     async def initialize_models(self):
@@ -116,17 +116,17 @@ class PredictiveAnalyticsEngine:
                     try:
                         with open(metadata_path) as f:
                             self.model_metadata = json.load(f)
-                        logger.info(f"✅ Model metadata loaded: version {self.model_metadata.get('version', 'unknown')}")
+                        logger.info(f"Model metadata loaded: version {self.model_metadata.get('version', 'unknown')}")
                     except Exception as e:
-                        logger.warning(f"⚠️ Could not load model metadata: {e}")
+                        logger.warning(f"Could not load model metadata: {e}")
 
                 self.is_trained = True
-                logger.info("✅ Pre-trained models loaded successfully")
+                logger.info("Pre-trained models loaded successfully")
             else:
-                logger.info("📊 No pre-trained models found, will train new models")
+                logger.info("No pre-trained models found, will train new models")
                 await self.train_models()
         except Exception as e:
-            logger.error(f"❌ Error loading models: {e}")
+            logger.error(f"Error loading models: {e}")
             await self.train_models()
 
     async def train_models(self, historical_data: list[dict[str, Any]] = None, days_back: int = 180):
@@ -141,7 +141,7 @@ class PredictiveAnalyticsEngine:
                 data_source = "sample"
 
         if len(historical_data) < 100:
-            logger.warning("⚠️ Insufficient training data, using rule-based predictions")
+            logger.warning("Insufficient training data, using rule-based predictions")
             return
 
         try:
@@ -150,7 +150,7 @@ class PredictiveAnalyticsEngine:
             X, y_failure, y_anomaly = self._prepare_training_data(df)
 
             if len(X) < 50:
-                logger.warning("⚠️ Insufficient training samples, skipping model training")
+                logger.warning("Insufficient training samples, skipping model training")
                 return
 
             # Calculate training data statistics
@@ -203,9 +203,9 @@ class PredictiveAnalyticsEngine:
                     # Incremental model uses unscaled features
                     self.models["failure_prediction"].fit(X_train, y_failure_train, feature_names=self.feature_columns)
                     model_type = "incremental"
-                    logger.info("✅ Incremental model trained (10-50x faster updates enabled)")
+                    logger.info("Incremental model trained (10-50x faster updates enabled)")
                 except ImportError:
-                    logger.warning("⚠️  River library not available, falling back to configured model type")
+                    logger.warning("River library not available, falling back to configured model type")
                     model_type = self.settings.ML_FAILURE_MODEL.lower()
             
             if model_type != "incremental":
@@ -218,7 +218,7 @@ class PredictiveAnalyticsEngine:
                         "TabPFN requested but not available. Falling back to RandomForest. "
                         "Install TabPFN with: pip install tabpfn>=2.2.0,<7.0.0"
                     )
-                    model_type = "randomforest"  # Fallback - will be handled below
+                    model_type = "randomforest"# Fallback - will be handled below
                 else:
                     self.models["failure_prediction"] = TabPFNFailurePredictor()
                     # TabPFN works better without scaling, use original features
@@ -240,9 +240,9 @@ class PredictiveAnalyticsEngine:
                         force_col_wise=True
                     )
                     self.models["failure_prediction"].fit(X_train_scaled, y_failure_train)
-                    logger.info("✅ LightGBM model trained (2-5x faster than RandomForest)")
+                    logger.info("LightGBM model trained (2-5x faster than RandomForest)")
                 except ImportError:
-                    logger.warning("⚠️  LightGBM not available, falling back to RandomForest")
+                    logger.warning("LightGBM not available, falling back to RandomForest")
                     model_type = "randomforest"
             
             if model_type == "randomforest" or self.models["failure_prediction"] is None:
@@ -254,7 +254,7 @@ class PredictiveAnalyticsEngine:
                     class_weight="balanced"
                 )
                 self.models["failure_prediction"].fit(X_train_scaled, y_failure_train)
-                logger.info("✅ RandomForest model trained")
+                logger.info("RandomForest model trained")
             
             # Update metadata with model type
             self.model_metadata["model_type"] = model_type
@@ -281,8 +281,8 @@ class PredictiveAnalyticsEngine:
             else:
                 validation_result = await self._validate_models(X_test_scaled, y_failure_test, use_scaled=True)
             if not validation_result["valid"]:
-                logger.warning(f"⚠️ Model validation failed: {validation_result['reason']}")
-                logger.warning("⚠️ Models will not be saved. Using existing models if available.")
+                logger.warning(f"Model validation failed: {validation_result['reason']}")
+                logger.warning("Models will not be saved. Using existing models if available.")
                 self.is_trained = False
                 return
 
@@ -305,15 +305,15 @@ class PredictiveAnalyticsEngine:
 
             # Verify saved models can be loaded
             if not await self._verify_saved_models():
-                logger.error("❌ Saved models failed verification - removing invalid models")
+                logger.error("Saved models failed verification - removing invalid models")
                 self.is_trained = False
                 return
 
             self.is_trained = True
-            logger.info(f"✅ Models trained, validated, and saved successfully (version {self.model_metadata['version']})")
+            logger.info(f"Models trained, validated, and saved successfully (version {self.model_metadata['version']})")
 
         except Exception as e:
-            logger.error(f"❌ Error training models: {e}", exc_info=True)
+            logger.error(f"Error training models: {e}", exc_info=True)
             self.is_trained = False
             raise
 
@@ -377,7 +377,7 @@ class PredictiveAnalyticsEngine:
             }
 
         except Exception as e:
-            logger.error(f"❌ Error predicting failure for device {device_id}: {e}")
+            logger.error(f"Error predicting failure for device {device_id}: {e}")
             return await self._rule_based_prediction(device_id, metrics)
 
     async def predict_all_devices(self, devices_metrics: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
@@ -389,14 +389,14 @@ class PredictiveAnalyticsEngine:
                 prediction = await self.predict_device_failure(device_id, metrics)
                 predictions.append(prediction)
             except Exception as e:
-                logger.error(f"❌ Error predicting failure for device {device_id}: {e}")
+                logger.error(f"Error predicting failure for device {device_id}: {e}")
                 # Add fallback prediction
                 predictions.append({
                     "device_id": device_id,
                     "failure_probability": 0.0,
                     "risk_level": "unknown",
                     "error": str(e),
-                    "predicted_at": datetime.utcnow().isoformat()
+                    "predicted_at": datetime.now(timezone.utc).isoformat()
                 })
 
         return predictions
@@ -444,7 +444,7 @@ class PredictiveAnalyticsEngine:
 
     async def _collect_training_data(self, days_back: int = 180) -> list[dict[str, Any]]:
         """Collect historical data for training from database."""
-        logger.info(f"📊 Collecting training data from last {days_back} days...")
+        logger.info(f"Collecting training data from last {days_back} days...")
 
         try:
             # Get database session
@@ -460,31 +460,31 @@ class PredictiveAnalyticsEngine:
                 metrics = result.scalars().all()
 
                 if not metrics:
-                    logger.warning("⚠️ No historical metrics found in database, using sample data")
+                    logger.warning("No historical metrics found in database, using sample data")
                     return await self._generate_sample_training_data()
 
-                logger.info(f"📊 Found {len(metrics)} metric records from database")
+                logger.info(f"Found {len(metrics)} metric records from database")
 
                 # Aggregate metrics by device and time window
                 training_data = await self._aggregate_metrics_by_device(session, metrics, days_back)
 
                 # Validate training data
                 if not self._validate_training_data(training_data):
-                    logger.warning("⚠️ Training data validation failed, using sample data")
+                    logger.warning("Training data validation failed, using sample data")
                     return await self._generate_sample_training_data()
 
-                logger.info(f"✅ Collected {len(training_data)} training samples from {len(set(d['device_id'] for d in training_data))} devices")
+                logger.info(f"Collected {len(training_data)} training samples from {len(set(d['device_id'] for d in training_data))} devices")
                 return training_data
 
         except RuntimeError as e:
             if "Database not initialized" in str(e):
-                logger.warning("⚠️ Database not initialized, using sample data")
+                logger.warning("Database not initialized, using sample data")
             else:
-                logger.error(f"❌ Error collecting training data from database: {e}")
+                logger.error(f"Error collecting training data from database: {e}")
             return await self._generate_sample_training_data()
         except Exception as e:
-            logger.error(f"❌ Error collecting training data from database: {e}")
-            logger.info("📊 Falling back to sample data")
+            logger.error(f"Error collecting training data from database: {e}")
+            logger.info("Falling back to sample data")
             return await self._generate_sample_training_data()
 
     async def _aggregate_metrics_by_device(
@@ -575,11 +575,11 @@ class PredictiveAnalyticsEngine:
     def _validate_training_data(self, training_data: list[dict[str, Any]]) -> bool:
         """Validate training data quality."""
         if not training_data:
-            logger.warning("⚠️ Training data is empty")
+            logger.warning("Training data is empty")
             return False
 
         if len(training_data) < 50:
-            logger.warning(f"⚠️ Insufficient training samples: {len(training_data)} (minimum: 50)")
+            logger.warning(f"Insufficient training samples: {len(training_data)} (minimum: 50)")
             return False
 
         # Check feature completeness
@@ -593,21 +593,21 @@ class PredictiveAnalyticsEngine:
 
         missing_features = required_features - sample_features
         if missing_features:
-            logger.warning(f"⚠️ Missing features in training data: {missing_features}")
+            logger.warning(f"Missing features in training data: {missing_features}")
             # Not a hard failure - we can use defaults
 
         # Check for reasonable data ranges
         for feature in self.feature_columns:
             values = [d.get(feature, 0) for d in training_data]
             if not values or all(v == 0 for v in values):
-                logger.warning(f"⚠️ Feature {feature} has no variation (all zeros or missing)")
+                logger.warning(f"Feature {feature} has no variation (all zeros or missing)")
 
-        logger.info(f"✅ Training data validation passed: {len(training_data)} samples")
+        logger.info(f"Training data validation passed: {len(training_data)} samples")
         return True
 
     async def _generate_sample_training_data(self) -> list[dict[str, Any]]:
         """Generate sample training data as fallback."""
-        logger.info("📊 Generating sample training data...")
+        logger.info("Generating sample training data...")
         sample_data = []
 
         # Generate sample training data
@@ -656,7 +656,7 @@ class PredictiveAnalyticsEngine:
             "recommendations": await self._generate_maintenance_recommendations(
                 device_id, metrics, failure_score / 100, 0.0
             ),
-            "predicted_at": datetime.utcnow().isoformat(),
+            "predicted_at": datetime.now(timezone.utc).isoformat(),
             "model_version": "rule-based"
         }
 
@@ -744,10 +744,10 @@ class PredictiveAnalyticsEngine:
                 "evaluated_at": datetime.now(timezone.utc).isoformat()
             }
 
-            logger.info(f"📊 Model performance: Accuracy={accuracy:.3f}, Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}")
+            logger.info(f"Model performance: Accuracy={accuracy:.3f}, Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}")
 
         except Exception as e:
-            logger.error(f"❌ Error evaluating models: {e}")
+            logger.error(f"Error evaluating models: {e}")
             self.model_performance = {
                 "error": str(e),
                 "evaluated_at": datetime.now(timezone.utc).isoformat()
@@ -867,7 +867,7 @@ class PredictiveAnalyticsEngine:
             }
 
         except Exception as e:
-            logger.error(f"❌ Error validating models: {e}")
+            logger.error(f"Error validating models: {e}")
             return {
                 "valid": False,
                 "reason": f"Validation error: {str(e)}",
@@ -913,11 +913,11 @@ class PredictiveAnalyticsEngine:
             _ = test_anomaly_model.predict(dummy_anomaly)
             _ = test_anomaly_model.decision_function(dummy_anomaly)
 
-            logger.info("✅ Saved models verified successfully")
+            logger.info("Saved models verified successfully")
             return True
 
         except Exception as e:
-            logger.error(f"❌ Model verification failed: {e}")
+            logger.error(f"Model verification failed: {e}")
             return False
 
     async def _save_models(self):
@@ -936,15 +936,15 @@ class PredictiveAnalyticsEngine:
                 try:
                     import shutil
                     shutil.copy2(failure_model_path, backup_path)
-                    logger.info(f"📦 Backed up existing model to {backup_path}")
+                    logger.info(f"Backed up existing model to {backup_path}")
 
                     # Also backup metadata if it exists
                     if os.path.exists(metadata_path):
                         backup_metadata_path = f"{metadata_path}.backup_{backup_suffix}"
                         shutil.copy2(metadata_path, backup_metadata_path)
-                        logger.info(f"📦 Backed up model metadata to {backup_metadata_path}")
+                        logger.info(f"Backed up model metadata to {backup_metadata_path}")
                 except Exception as e:
-                    logger.warning(f"⚠️ Could not backup existing model: {e}")
+                    logger.warning(f"Could not backup existing model: {e}")
 
             # Save models (handle different model types)
             model_type = self.model_metadata.get("model_type", "randomforest")
@@ -956,8 +956,8 @@ class PredictiveAnalyticsEngine:
                 try:
                     joblib.dump(self.models["failure_prediction"], failure_model_path)
                 except Exception as e:
-                    logger.warning(f"⚠️  Could not save {model_type} model with joblib: {e}")
-                    logger.info("ℹ️  {model_type} models may need to be retrained on restart")
+                    logger.warning(f"Could not save {model_type} model with joblib: {e}")
+                    logger.info("{model_type} models may need to be retrained on restart")
             
             # Standard models (RandomForest, LightGBM, IsolationForest)
             if model_type not in ["tabpfn", "incremental"]:
@@ -972,10 +972,10 @@ class PredictiveAnalyticsEngine:
             with open(metadata_path, 'w') as f:
                 json.dump(self.model_metadata, f, indent=2)
 
-            logger.info(f"✅ Models and metadata saved successfully (version {self.model_metadata.get('version', 'unknown')})")
+            logger.info(f"Models and metadata saved successfully (version {self.model_metadata.get('version', 'unknown')})")
 
         except Exception as e:
-            logger.error(f"❌ Error saving models: {e}")
+            logger.error(f"Error saving models: {e}")
 
     def get_model_status(self) -> dict[str, Any]:
         """Get current model status and performance."""
@@ -995,11 +995,11 @@ class PredictiveAnalyticsEngine:
             new_data: List of new training samples (same format as historical_data)
         """
         if not self.settings.ML_USE_INCREMENTAL:
-            logger.warning("⚠️  Incremental learning not enabled in configuration")
+            logger.warning("Incremental learning not enabled in configuration")
             return
         
         if not self.is_trained:
-            logger.warning("⚠️  Model not trained, cannot perform incremental update")
+            logger.warning("Model not trained, cannot perform incremental update")
             return
         
         try:
@@ -1007,11 +1007,11 @@ class PredictiveAnalyticsEngine:
             
             # Check if current model supports incremental updates
             if not isinstance(self.models["failure_prediction"], IncrementalFailurePredictor):
-                logger.info("🔄 Converting to incremental model for updates...")
+                logger.info("Converting to incremental model for updates...")
                 # Convert existing model to incremental
                 # For now, we'll need to retrain with incremental model
                 # In future, could implement model conversion
-                logger.warning("⚠️  Current model doesn't support incremental updates. Use incremental model from start.")
+                logger.warning("Current model doesn't support incremental updates. Use incremental model from start.")
                 return
             
             # Prepare new data
@@ -1019,7 +1019,7 @@ class PredictiveAnalyticsEngine:
             X_new, y_new, _ = self._prepare_training_data(df)
             
             # Update incrementally
-            logger.info(f"📊 Updating model incrementally with {len(X_new)} new samples...")
+            logger.info(f"Updating model incrementally with {len(X_new)} new samples...")
             start_time = time.time()
             
             # Use incremental update
@@ -1028,7 +1028,7 @@ class PredictiveAnalyticsEngine:
             update_time = time.time() - start_time
             accuracy = self.models["failure_prediction"].get_accuracy()
             
-            logger.info(f"✅ Incremental update complete in {update_time:.3f}s. Current accuracy: {accuracy:.3f}")
+            logger.info(f"Incremental update complete in {update_time:.3f}s. Current accuracy: {accuracy:.3f}")
             
             # Update metadata
             self.model_metadata["last_incremental_update"] = datetime.now(timezone.utc).isoformat()
@@ -1043,9 +1043,9 @@ class PredictiveAnalyticsEngine:
                 )
             
         except ImportError:
-            logger.error("❌ River library not available for incremental learning")
+            logger.error("River library not available for incremental learning")
         except Exception as e:
-            logger.error(f"❌ Error in incremental update: {e}", exc_info=True)
+            logger.error(f"Error in incremental update: {e}", exc_info=True)
     
     async def shutdown(self):
         """Release any resources held by the analytics engine."""
@@ -1055,4 +1055,4 @@ class PredictiveAnalyticsEngine:
             "anomaly_detection": StandardScaler(),
         }
         self.is_trained = False
-        logger.info("🧹 Predictive analytics engine shut down")
+        logger.info("Predictive analytics engine shut down")

@@ -104,7 +104,7 @@ async def get_all_recommendations(
                 all_recommendations.extend(device_recommendations)
 
             except Exception as e:
-                logger.error(f"❌ Error processing device {device.id}: {e}")
+                logger.error(f"Error processing device {device.id}: {e}")
                 continue
 
         # Apply filters
@@ -166,8 +166,8 @@ async def get_all_recommendations(
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting recommendations: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {str(e)}")
+        logger.error(f"Error getting recommendations: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{device_id}")
@@ -294,8 +294,8 @@ async def get_device_recommendations(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error getting recommendations for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {str(e)}")
+        logger.error(f"Error getting recommendations for device {device_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/categories/{category}")
@@ -330,8 +330,8 @@ async def get_recommendations_by_category(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error getting recommendations by category {category}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {str(e)}")
+        logger.error(f"Error getting recommendations by category {category}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/impact/analysis")
@@ -373,8 +373,8 @@ async def get_recommendation_impact_analysis(
         }
 
     except Exception as e:
-        logger.error(f"❌ Error getting impact analysis: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting impact analysis: {str(e)}")
+        logger.error(f"Error getting impact analysis: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/apply")
@@ -401,5 +401,5 @@ async def apply_recommendation(
         }
 
     except Exception as e:
-        logger.error(f"❌ Error applying recommendation {recommendation_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error applying recommendation: {str(e)}")
+        logger.error(f"Error applying recommendation {recommendation_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

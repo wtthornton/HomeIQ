@@ -327,7 +327,7 @@ class HealthEndpoints:
             "start_time": self.start_time.isoformat(),
             "current_time": datetime.now().isoformat(),
             "memory_usage": self._get_memory_usage(),
-            "cpu_usage": self._get_cpu_usage(),
+            "cpu_usage": await self._get_cpu_usage(),
             "disk_usage": self._get_disk_usage()
         }
 
@@ -335,7 +335,7 @@ class HealthEndpoints:
         """Check InfluxDB health"""
         try:
             influxdb_url = self.service_urls["influxdb"]
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
                 async with session.get(f"{influxdb_url}/health") as response:
                     return response.status == 200
         except Exception as e:
@@ -345,7 +345,7 @@ class HealthEndpoints:
     async def _check_service_health(self, service_url: str) -> bool:
         """Check service health via HTTP"""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
                 async with session.get(service_url) as response:
                     return response.status == 200
         except Exception as e:
@@ -416,11 +416,11 @@ class HealthEndpoints:
         except ImportError:
             return {"error": "psutil not available"}
 
-    def _get_cpu_usage(self) -> dict[str, Any]:
+    async def _get_cpu_usage(self) -> dict[str, Any]:
         """Get CPU usage information"""
         try:
             import psutil
-            cpu_percent = psutil.cpu_percent(interval=1)
+            cpu_percent = await asyncio.to_thread(psutil.cpu_percent, interval=1)
             cpu_count = psutil.cpu_count()
             return {
                 "usage_percent": cpu_percent,

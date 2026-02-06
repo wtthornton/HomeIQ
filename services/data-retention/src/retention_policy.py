@@ -3,7 +3,7 @@
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
 
@@ -30,9 +30,9 @@ class RetentionPolicy:
 
     def __post_init__(self):
         if self.created_at is None:
-            self.created_at = datetime.utcnow()
+            self.created_at = datetime.now(timezone.utc)
         if self.updated_at is None:
-            self.updated_at = datetime.utcnow()
+            self.updated_at = datetime.now(timezone.utc)
 
     def get_expiration_date(self, from_date: datetime | None = None) -> datetime:
         """
@@ -45,7 +45,7 @@ class RetentionPolicy:
             datetime: Expiration date
         """
         if from_date is None:
-            from_date = datetime.utcnow()
+            from_date = datetime.now(timezone.utc)
 
         if self.retention_unit == RetentionPeriod.DAYS:
             return from_date - timedelta(days=self.retention_period)
@@ -104,10 +104,14 @@ class RetentionPolicyManager:
     def add_policy(self, policy: RetentionPolicy) -> None:
         """
         Add a new retention policy.
-        
+
         Args:
             policy: Retention policy to add
         """
+        errors = self.validate_policy(policy)
+        if errors:
+            raise ValueError(f"Invalid policy: {'; '.join(errors)}")
+
         if policy.name in self.policies:
             raise ValueError(f"Policy '{policy.name}' already exists")
 
@@ -117,14 +121,18 @@ class RetentionPolicyManager:
     def update_policy(self, policy: RetentionPolicy) -> None:
         """
         Update an existing retention policy.
-        
+
         Args:
             policy: Updated retention policy
         """
+        errors = self.validate_policy(policy)
+        if errors:
+            raise ValueError(f"Invalid policy: {'; '.join(errors)}")
+
         if policy.name not in self.policies:
             raise ValueError(f"Policy '{policy.name}' does not exist")
 
-        policy.updated_at = datetime.utcnow()
+        policy.updated_at = datetime.now(timezone.utc)
         self.policies[policy.name] = policy
         logger.info(f"Updated retention policy: {policy.name}")
 
@@ -209,7 +217,7 @@ class RetentionPolicyManager:
         """
         policies_data = {
             "policies": [policy.to_dict() for policy in self.policies.values()],
-            "exported_at": datetime.utcnow().isoformat()
+            "exported_at": datetime.now(timezone.utc).isoformat()
         }
         return json.dumps(policies_data, indent=2)
 
