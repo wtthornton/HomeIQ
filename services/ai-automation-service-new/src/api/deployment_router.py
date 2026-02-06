@@ -9,7 +9,7 @@ Handles deployment of automations to Home Assistant.
 from __future__ import annotations
 
 import logging
-from typing import Any, Annotated
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -35,13 +35,13 @@ class DeployRequest(BaseModel):
 @handle_route_errors("deploy suggestion")
 async def deploy_suggestion(
     suggestion_id: int,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)],
-    request: DeployRequest = DeployRequest()
+    request: DeployRequest = DeployRequest(),
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """
     Deploy an approved automation suggestion to Home Assistant.
     """
-    result = await service.deploy_suggestion(
+    result = await deployment_svc.deploy_suggestion(
         suggestion_id=suggestion_id,
         skip_validation=request.skip_validation,
         force_deploy=request.force_deploy
@@ -53,24 +53,24 @@ async def deploy_suggestion(
 @handle_route_errors("batch deploy")
 async def batch_deploy(
     suggestion_ids: list[int],
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """
     Deploy multiple automations in batch.
     """
-    result = await service.batch_deploy(suggestion_ids)
+    result = await deployment_svc.batch_deploy(suggestion_ids)
     return result
 
 
 @router.get("/automations")
 @handle_route_errors("list automations")
 async def list_deployed_automations(
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """
     List all deployed automations.
     """
-    automations = await service.list_deployed_automations()
+    automations = await deployment_svc.list_deployed_automations()
     return {"automations": automations}
 
 
@@ -78,12 +78,12 @@ async def list_deployed_automations(
 @handle_route_errors("get automation status")
 async def get_automation_status(
     automation_id: str,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """
     Get status of a deployed automation.
     """
-    status = await service.get_automation_status(automation_id)
+    status = await deployment_svc.get_automation_status(automation_id)
     if not status:
         raise HTTPException(status_code=404, detail="Automation not found")
     return status
@@ -93,10 +93,10 @@ async def get_automation_status(
 @handle_route_errors("enable automation")
 async def enable_automation(
     automation_id: str,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """Enable a deployed automation."""
-    success = await service.enable_automation(automation_id)
+    success = await deployment_svc.enable_automation(automation_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to enable automation")
     return {
@@ -110,10 +110,10 @@ async def enable_automation(
 @handle_route_errors("disable automation")
 async def disable_automation(
     automation_id: str,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """Disable a deployed automation."""
-    success = await service.disable_automation(automation_id)
+    success = await deployment_svc.disable_automation(automation_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to disable automation")
     return {
@@ -127,10 +127,10 @@ async def disable_automation(
 @handle_route_errors("trigger automation")
 async def trigger_automation(
     automation_id: str,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """Trigger a deployed automation."""
-    success = await service.trigger_automation(automation_id)
+    success = await deployment_svc.trigger_automation(automation_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to trigger automation")
     return {
@@ -146,7 +146,7 @@ async def test_ha_connection(
 ) -> dict[str, Any]:
     """
     Test connection to Home Assistant.
-    
+
     Note: Full implementation will be migrated from ai-automation-service
     in Story 39.10 completion phase.
     """
@@ -163,12 +163,12 @@ async def test_ha_connection(
 @handle_route_errors("rollback automation")
 async def rollback_automation(
     automation_id: str,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """
     Rollback automation to previous version.
     """
-    result = await service.rollback_automation(automation_id)
+    result = await deployment_svc.rollback_automation(automation_id)
     return result
 
 
@@ -176,12 +176,12 @@ async def rollback_automation(
 @handle_route_errors("get automation versions")
 async def get_automation_versions(
     automation_id: str,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """
     Get version history for an automation.
     """
-    versions = await service.get_automation_versions(automation_id)
+    versions = await deployment_svc.get_automation_versions(automation_id)
     return {"automation_id": automation_id, "versions": versions}
 
 
@@ -199,39 +199,39 @@ class DeployCompiledRequest(BaseModel):
 async def deploy_compiled_automation(
     request: DeployCompiledRequest,
     db: DatabaseSession,
-    service: Annotated[DeploymentService, Depends(get_deployment_service)]
+    deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
     """
     Deploy a compiled automation artifact to Home Assistant.
-    
+
     Hybrid Flow Implementation: Deploys from compiled_id (template-based flow).
     """
     import uuid
     from datetime import datetime, timezone
-    
+
     compiled_id = request.compiled_id
-    
+
     # Get compiled artifact
     query = select(CompiledArtifact).where(CompiledArtifact.compiled_id == compiled_id)
     result = await db.execute(query)
     compiled_artifact = result.scalar_one_or_none()
-    
+
     if not compiled_artifact:
         raise HTTPException(status_code=404, detail=f"Compiled artifact '{compiled_id}' not found")
-    
+
     # Deploy to HA using existing deployment service
     from ..api.dependencies import get_ha_client
     ha_client = get_ha_client()
-    
+
     try:
         # Deploy YAML to HA
         deployment_result = await ha_client.deploy_automation(compiled_artifact.yaml)
-        
+
         # Extract automation ID from deployment result
         ha_automation_id = deployment_result.get("automation_id") or deployment_result.get("entity_id")
         if not ha_automation_id:
             raise HTTPException(status_code=500, detail="Failed to extract automation ID from deployment")
-        
+
         # Create deployment record
         deployment_id = f"d_{uuid.uuid4().hex[:8]}"
         deployment = Deployment(
@@ -249,13 +249,13 @@ async def deploy_compiled_automation(
                 "deployed_at": datetime.now(timezone.utc).isoformat()
             }
         )
-        
+
         db.add(deployment)
         await db.commit()
         await db.refresh(deployment)
-        
+
         logger.info(f"Deployed automation {ha_automation_id} from compiled artifact {compiled_id}")
-        
+
         return {
             "deployment_id": deployment_id,
             "compiled_id": compiled_id,
@@ -263,8 +263,7 @@ async def deploy_compiled_automation(
             "status": "deployed",
             "version": 1
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to deploy compiled automation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to deploy automation: {str(e)}")
-
