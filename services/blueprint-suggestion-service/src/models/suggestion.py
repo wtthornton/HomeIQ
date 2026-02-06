@@ -1,13 +1,15 @@
 """SQLAlchemy models for Blueprint Suggestion Service."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import JSON, Column, DateTime, Float, String, Text, func
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 class BlueprintSuggestion(Base):
@@ -23,8 +25,8 @@ class BlueprintSuggestion(Base):
     matched_devices = Column(JSON, nullable=False)  # List of device signatures
     use_case = Column(String, index=True, nullable=True)
     status = Column(String, default="pending", index=True)  # pending, accepted, declined
-    created_at = Column(DateTime, default=datetime.utcnow, server_default=func.now())
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, server_default=func.now())
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), server_default=func.now())
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), server_default=func.now())
     accepted_at = Column(DateTime, nullable=True)
     declined_at = Column(DateTime, nullable=True)
     conversation_id = Column(String, nullable=True)  # Link to Agent conversation

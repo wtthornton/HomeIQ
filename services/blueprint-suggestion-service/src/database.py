@@ -1,5 +1,6 @@
 """Database connection and session management for Blueprint Suggestion Service."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -7,7 +8,7 @@ from typing import AsyncGenerator
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -74,10 +75,12 @@ async def run_alembic_migrations():
         # Configure Alembic
         alembic_cfg = Config(str(alembic_ini_path))
         
-        # Run migrations
+        # Run migrations in a thread pool to avoid blocking the event loop
+        # (Alembic's env.py calls asyncio.run() internally for async engines)
         logger.info("Running Alembic migrations...")
-        command.upgrade(alembic_cfg, "head")
-        logger.info("✅ Alembic migrations completed")
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, lambda: command.upgrade(alembic_cfg, "head"))
+        logger.info("Alembic migrations completed")
         return True
     except Exception as e:
         logger.error(f"Failed to run Alembic migrations: {e}", exc_info=True)

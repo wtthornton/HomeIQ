@@ -60,7 +60,10 @@ async_session_maker = async_sessionmaker(
 async def get_db() -> AsyncSession:
     """
     Dependency for getting database session.
-    
+
+    Commits on success, rolls back on exception.  The ``async with``
+    context manager already closes the session when exiting.
+
     Usage:
         @router.get("/endpoint")
         async def endpoint(db: AsyncSession = Depends(get_db)):
@@ -69,8 +72,10 @@ async def get_db() -> AsyncSession:
     async with async_session_maker() as session:
         try:
             yield session
-        finally:
-            await session.close()
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
 async def init_db():

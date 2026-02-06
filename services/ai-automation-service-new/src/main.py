@@ -73,6 +73,7 @@ from .api import (
     deployment_router,
     synergy_router,
 )
+from .api.dependencies import close_clients, init_clients
 from .api.middlewares import (
     AuthenticationMiddleware,
     RateLimitMiddleware,
@@ -110,10 +111,14 @@ def _start_scheduler() -> None:
     
     if scheduler:
         try:
-            # Parse schedule time (format: "HH:MM")
+            # Parse schedule time (format: "HH:MM") with validation (m4 fix)
             schedule_time = settings.scheduler_time.split(":")
+            if len(schedule_time) < 1 or len(schedule_time) > 2:
+                raise ValueError(f"Invalid scheduler_time format: '{settings.scheduler_time}'. Expected 'HH:MM'.")
             hour = int(schedule_time[0])
             minute = int(schedule_time[1]) if len(schedule_time) > 1 else 0
+            if not (0 <= hour <= 23) or not (0 <= minute <= 59):
+                raise ValueError(f"Invalid scheduler_time values: hour={hour}, minute={minute}")
             
             # Add daily suggestion generation job
             scheduler.add_job(
@@ -267,7 +272,10 @@ async def lifespan(app: FastAPI) -> None:
         Exception: If database initialization fails (prevents service startup)
     """
     _log_startup_info()
-    
+
+    # Initialize singleton HTTP clients (C4 fix)
+    init_clients()
+
     # Initialize database
     await _initialize_database()
     
@@ -301,6 +309,12 @@ async def lifespan(app: FastAPI) -> None:
         await stop_rate_limit_cleanup()
     except Exception as e:
         logger.warning(f"Rate limit cleanup shutdown failed: {e}")
+
+    # Close singleton HTTP clients (C4 fix)
+    try:
+        await close_clients()
+    except Exception as e:
+        logger.warning(f"Client cleanup failed: {e}")
 
 # Create FastAPI app
 app = FastAPI(

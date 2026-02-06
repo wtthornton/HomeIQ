@@ -5,9 +5,11 @@ Epic 39, Story 39.10: Automation Service Foundation
 Database connection pooling for shared SQLite database.
 """
 
+import asyncio
 import logging
 import os
 import sys
+from functools import partial
 from pathlib import Path
 
 from alembic import command
@@ -68,16 +70,14 @@ async_session_maker = async_sessionmaker(
 async def get_db() -> AsyncSession:
     """
     Dependency for getting database session.
-    
-    Usage:
-        @router.get("/endpoint")
-        async def endpoint(db: AsyncSession = Depends(get_db)):
-            ...
+
+    M9 fix: No longer auto-commits. Service methods should manage their own
+    transactions explicitly via session.commit(). The session auto-rolls back
+    on exception and closes in the finally block.
     """
     async with async_session_maker() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise
@@ -85,28 +85,33 @@ async def get_db() -> AsyncSession:
             await session.close()
 
 
+def _run_alembic_upgrade(alembic_ini_path: str) -> None:
+    """Run Alembic upgrade synchronously (called from thread executor)."""
+    alembic_cfg = Config(alembic_ini_path)
+    command.upgrade(alembic_cfg, "head")
+
+
 async def run_migrations():
     """
     Run Alembic migrations to ensure database schema is up to date.
-    
-    This should be called on service startup to ensure all migrations are applied.
+
+    M8 fix: Runs the synchronous Alembic command in a thread executor
+    to avoid blocking the async event loop.
     """
     try:
         # Get the service directory (parent of src/)
         service_dir = Path(__file__).parent.parent.parent
         alembic_ini_path = service_dir / "alembic.ini"
-        
+
         if not alembic_ini_path.exists():
             logger.warning(f"Alembic config not found at {alembic_ini_path}, skipping migrations")
             return
-        
-        # Configure Alembic
-        alembic_cfg = Config(str(alembic_ini_path))
-        
-        # Run migrations
+
+        # Run migrations in a thread executor to avoid blocking the event loop
         logger.info("Running Alembic migrations...")
-        command.upgrade(alembic_cfg, "head")
-        logger.info("✅ Alembic migrations completed")
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _run_alembic_upgrade, str(alembic_ini_path))
+        logger.info("Alembic migrations completed")
     except Exception as e:
         logger.error(f"Failed to run Alembic migrations: {e}", exc_info=True)
         # Don't raise - fallback to manual schema sync

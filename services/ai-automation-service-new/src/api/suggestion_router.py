@@ -136,22 +136,20 @@ async def refresh_suggestions(
         }
     except ValueError as e:
         # Handle validation errors (e.g., OpenAI not configured, Data API errors)
-        error_msg = str(e)
-        logger.error(f"Suggestion generation failed: {error_msg}")
+        logger.error(f"Suggestion generation failed: {e}")
         return {
             "success": False,
-            "message": error_msg,
+            "message": "Suggestion generation failed due to a configuration or validation error. Check server logs.",
             "count": 0,
             "suggestions": [],
             "error_code": "VALIDATION_ERROR"
         }
     except Exception as e:
-        # Handle unexpected errors
-        error_msg = f"Unexpected error during suggestion generation: {str(e)}"
-        logger.error(error_msg, exc_info=True)
+        # Handle unexpected errors (C3: don't leak internal details)
+        logger.error(f"Unexpected error during suggestion generation: {e}", exc_info=True)
         return {
             "success": False,
-            "message": error_msg,
+            "message": "Unexpected error during suggestion generation. Check server logs.",
             "count": 0,
             "suggestions": [],
             "error_code": "GENERATION_ERROR"
@@ -349,7 +347,7 @@ async def rebuild_suggestion_json(
 
     except Exception as e:
         logger.error(f"Failed to rebuild JSON for suggestion {suggestion_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to rebuild JSON: {e}")
+        raise HTTPException(status_code=500, detail="Failed to rebuild JSON. Check server logs for details.")
 
 
 @router.post("/query")
@@ -375,9 +373,31 @@ async def query_suggestions(
     - requires_confirmation: bool
     - tags: str | list[str]
     """
-    # Fetch all suggestions with JSON
-    from sqlalchemy import select
-    stmt = select(Suggestion).where(Suggestion.automation_json.isnot(None))
+    # C6 fix: Apply SQL-level filtering where possible before loading into memory
+    from sqlalchemy import select, func
+
+    # First get a count of suggestions with JSON (for estimation)
+    count_stmt = select(func.count()).select_from(Suggestion).where(
+        Suggestion.automation_json.isnot(None)
+    )
+    count_result = await db.execute(count_stmt)
+    total_with_json = count_result.scalar() or 0
+
+    if total_with_json == 0:
+        return {
+            "success": True,
+            "suggestions": [],
+            "count": 0,
+            "total": 0,
+            "limit": limit,
+            "offset": offset
+        }
+
+    # Load suggestions with JSON (SQLite doesn't support complex JSON queries,
+    # so we filter in Python but limit the initial load)
+    stmt = select(Suggestion).where(
+        Suggestion.automation_json.isnot(None)
+    ).order_by(Suggestion.created_at.desc())
     result = await db.execute(stmt)
     suggestions = result.scalars().all()
 

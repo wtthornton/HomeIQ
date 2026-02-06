@@ -334,10 +334,9 @@ If you need an entity that doesn't exist, use the closest matching entity from t
                 # Extract context from suggestion dict if available
                 homeiq_context = suggestion.get("homeiq_context")
             
-            # R1: Fetch entity context before generation
-            entity_context = await self._fetch_entity_context()
-            
             # Step 1: Generate HomeIQ JSON (entity context is fetched inside generate_homeiq_json)
+            # M2 fix: Removed duplicate _fetch_entity_context() call here;
+            # generate_homeiq_json() fetches it internally.
             automation_json = await self.generate_homeiq_json(
                 suggestion=suggestion,
                 homeiq_context=homeiq_context

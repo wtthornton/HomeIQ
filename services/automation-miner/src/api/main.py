@@ -39,15 +39,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Global state for initialization tracking
-_initialization_in_progress = False
-_initialization_complete = False
-
-
-async def _check_and_initialize_corpus(db) -> None:
+async def _check_and_initialize_corpus(app_instance: FastAPI, db) -> None:
     """Check corpus status and initialize if needed."""
-    global _initialization_in_progress, _initialization_complete
-    
     try:
         from ..jobs.weekly_refresh import WeeklyRefreshJob
         from ..miner.repository import CorpusRepository
@@ -66,7 +59,7 @@ async def _check_and_initialize_corpus(db) -> None:
             if stats['total'] == 0:
                 should_initialize = True
                 reason = "empty corpus"
-                logger.info("🔍 Corpus is empty - will run initial population on startup")
+                logger.info("Corpus is empty - will run initial population on startup")
             elif last_crawl:
                 # Ensure timezone-aware comparison
                 if last_crawl.tzinfo is None:
@@ -75,44 +68,43 @@ async def _check_and_initialize_corpus(db) -> None:
                 if days_since > 7:
                     should_initialize = True
                     reason = f"stale corpus ({days_since} days old)"
-                    logger.info(f"🔍 Corpus is stale ({days_since} days) - will refresh on startup")
+                    logger.info(f"Corpus is stale ({days_since} days) - will refresh on startup")
             else:
                 should_initialize = True
                 reason = "no last_crawl timestamp"
-                logger.info("🔍 No last crawl timestamp - will initialize on startup")
+                logger.info("No last crawl timestamp - will initialize on startup")
 
             # Run initialization if needed
             if should_initialize:
-                _initialization_in_progress = True
+                app_instance.state.initialization_in_progress = True
 
-                logger.info(f"🚀 Starting corpus initialization ({reason})...")
+                logger.info(f"Starting corpus initialization ({reason})...")
                 logger.info("   This will run in background during API startup")
 
                 # Run refresh job (will populate or update corpus)
                 job = WeeklyRefreshJob()
 
                 async def run_init_and_track():
-                    global _initialization_in_progress, _initialization_complete
                     try:
                         await job.run()
-                        _initialization_complete = True
+                        app_instance.state.initialization_complete = True
                     except Exception as e:
                         logger.error(f"Initialization failed: {e}", exc_info=True)
                     finally:
-                        _initialization_in_progress = False
+                        app_instance.state.initialization_in_progress = False
 
                 asyncio.create_task(run_init_and_track())
 
-                logger.info("✅ Corpus initialization started in background")
+                logger.info("Corpus initialization started in background")
             else:
-                _initialization_complete = True
+                app_instance.state.initialization_complete = True
                 logger.info(
-                    f"✅ Corpus is fresh ({stats['total']} automations, "
+                    f"Corpus is fresh ({stats['total']} automations, "
                     f"last crawl: {last_crawl})"
                 )
 
     except Exception as e:
-        logger.warning(f"⚠️ Startup initialization check failed: {e}")
+        logger.warning(f"Startup initialization check failed: {e}")
 
 
 async def _start_scheduler() -> object | None:
@@ -172,12 +164,16 @@ async def lifespan(app: FastAPI):
     """
     logger.info("Starting Automation Miner API...")
 
+    # Initialize app state
+    app.state.initialization_in_progress = False
+    app.state.initialization_complete = False
+
     # Initialize database
     db = await _initialize_database()
 
     # Initialize corpus on startup (Story AI4.4 enhancement)
     if settings.enable_automation_miner:
-        await _check_and_initialize_corpus(db)
+        await _check_and_initialize_corpus(app, db)
 
     # Start weekly refresh scheduler (Story AI4.4)
     scheduler = await _start_scheduler()
@@ -212,7 +208,7 @@ app.add_middleware(
         "http://homeiq-dashboard:80"
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -239,9 +235,12 @@ async def health_check() -> dict[str, Any]:
             last_crawl = await repo.get_last_crawl_timestamp()
 
             # Check initialization status
-            if _initialization_complete:
+            init_complete = getattr(app.state, 'initialization_complete', False)
+            init_in_progress = getattr(app.state, 'initialization_in_progress', False)
+
+            if init_complete:
                 init_status = "complete"
-            elif _initialization_in_progress:
+            elif init_in_progress:
                 init_status = "in_progress"
             else:
                 init_status = "not_started"
@@ -252,7 +251,7 @@ async def health_check() -> dict[str, Any]:
                 "version": "0.1.0",
                 "initialization": {
                     "status": init_status,
-                    "in_progress": _initialization_in_progress
+                    "in_progress": init_in_progress
                 },
                 "corpus": {
                     "total_automations": stats['total'],
@@ -263,12 +262,15 @@ async def health_check() -> dict[str, Any]:
             }
 
         except Exception as e:
-            logger.error(f"Health check failed: {e}")
-            return {
-                "status": "unhealthy",
-                "service": "automation-miner",
-                "error": str(e)
-            }
+            logger.error(f"Health check failed: {e}", exc_info=True)
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "status": "unhealthy",
+                    "service": "automation-miner"
+                }
+            )
 
 
 @app.get("/")

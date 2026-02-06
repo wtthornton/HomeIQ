@@ -6,7 +6,7 @@ Epic 39, Story 39.5: Pattern Service Foundation
 
 import logging
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
@@ -118,19 +118,25 @@ async def check_database_integrity_endpoint(
 
 
 @router.post("/database/repair", status_code=status.HTTP_200_OK)
-async def repair_database_endpoint() -> dict[str, Any]:
+async def repair_database_endpoint(
+    x_internal_token: str = Header(..., alias="X-Internal-Token")
+) -> dict[str, Any]:
     """
     Attempt to repair database corruption.
-    
+
     **WARNING:** This operation may take several minutes and will create a backup.
     Only use this if database corruption is detected.
-    
+    Requires X-Internal-Token header for authentication.
+
     Returns:
         dict: Repair operation results
     """
     try:
         from pathlib import Path
         from ..config import settings
+
+        if x_internal_token != settings.internal_api_token:
+            raise HTTPException(status_code=403, detail="Forbidden")
         
         db_path = Path(settings.database_path)
         logger.info(f"Attempting database repair for: {db_path}")

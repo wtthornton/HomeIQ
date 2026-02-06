@@ -18,13 +18,16 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
-from ..crud.synergies import get_synergy_opportunities
+from ..crud.synergies import get_synergy_opportunities, get_synergy_by_id
 from ..database import get_db
 from ..database.models import SynergyOpportunity
 from ..services.device_activity import DeviceActivityService
 from ..services.automation_generator import AutomationGenerator
 from ..services.automation_tracker import AutomationTracker
 from ..config import settings
+from .synergy_helpers import extract_synergy_fields, safe_parse_json, generate_xai_explanation
+
+logger = logging.getLogger(__name__)
 
 # Blueprint Opportunity Engine imports (Phase 2)
 try:
@@ -32,8 +35,6 @@ try:
     from ..blueprint_opportunity.schemas import BlueprintOpportunity, DeviceSignature
     BLUEPRINT_ENGINE_AVAILABLE = True
 except (ImportError, Exception) as e:
-    import logging
-    logger = logging.getLogger(__name__)
     logger.warning(f"Blueprint Opportunity Engine not available: {e}")
     BLUEPRINT_ENGINE_AVAILABLE = False
 
@@ -43,8 +44,6 @@ try:
     XAI_AVAILABLE = True
 except ImportError:
     XAI_AVAILABLE = False
-
-logger = logging.getLogger(__name__)
 
 # Create a separate router for specific routes that must be matched before parameterized routes
 # This ensures /stats and /list are matched before /{synergy_id}
@@ -341,179 +340,39 @@ async def list_synergies(
                 logger.warning(f"Failed to filter synergies by activity: {e}, returning all synergies")
                 # Continue with all synergies if filtering fails
 
-        # Convert to dictionaries with safe JSON parsing
+        # Convert to dictionaries with safe JSON parsing using synergy_helpers
         synergies_list = []
         for s in synergies:
-            # Handle both SynergyOpportunity objects and dicts (from raw SQL)
-            if isinstance(s, dict):
-                synergy_dict = s.copy()
-                metadata = synergy_dict.get("opportunity_metadata")
-                if isinstance(metadata, str):
-                    try:
-                        metadata = json.loads(metadata)
-                    except (json.JSONDecodeError, TypeError) as e:
-                        logger.warning(f"Failed to parse opportunity_metadata for synergy {synergy_dict.get('id')}: {e}")
-                        metadata = {}
-                elif metadata is None:
-                    metadata = {}
-                
-                device_ids = synergy_dict.get("device_ids")
-                if isinstance(device_ids, str):
-                    try:
-                        device_ids = json.loads(device_ids)
-                    except (json.JSONDecodeError, TypeError) as e:
-                        logger.warning(f"Failed to parse device_ids for synergy {synergy_dict.get('id')}: {e}")
-                        device_ids = []
-                elif device_ids is None:
-                    device_ids = []
-                
-                chain_devices = synergy_dict.get("chain_devices")
-                if isinstance(chain_devices, str):
-                    try:
-                        chain_devices = json.loads(chain_devices)
-                    except (json.JSONDecodeError, TypeError) as e:
-                        logger.warning(f"Failed to parse chain_devices for synergy {synergy_dict.get('id')}: {e}")
-                        chain_devices = None
-                elif chain_devices is None:
-                    chain_devices = None
-                
-                # Extract explanation and context_breakdown from metadata (2025 Enhancement)
-                explanation = metadata.get('explanation')
-                context_breakdown = metadata.get('context_breakdown')
-                context_metadata = metadata.get('context_metadata')
-                
-                # Generate explanation on-the-fly if not stored and XAI available
-                if not explanation and XAI_AVAILABLE:
-                    try:
-                        explainer = ExplainableSynergyGenerator()
-                        synergy_for_explanation = {
-                            'synergy_id': synergy_dict.get("synergy_id"),
-                            'relationship_type': metadata.get('relationship', ''),
-                            'trigger_entity': metadata.get('trigger_entity'),
-                            'trigger_name': metadata.get('trigger_name'),
-                            'action_entity': metadata.get('action_entity'),
-                            'action_name': metadata.get('action_name'),
-                            'area': synergy_dict.get("area"),
-                            'impact_score': synergy_dict.get("impact_score", 0.0),
-                            'confidence': synergy_dict.get("confidence", 0.0),
-                            'complexity': synergy_dict.get("complexity", "medium"),
-                            'opportunity_metadata': metadata
-                        }
-                        explanation = explainer.generate_explanation(synergy_for_explanation, context_metadata)
-                    except Exception as e:
-                        logger.warning(f"Failed to generate explanation for synergy {synergy_dict.get('synergy_id')}: {e}")
-                
-                # Phase 4: Extract blueprint metadata from opportunity_metadata
-                blueprint_info = metadata.get('blueprint', {}) if metadata else {}
-                
-                synergies_list.append({
-                    "id": synergy_dict.get("id"),
-                    "synergy_id": synergy_dict.get("synergy_id"),
-                    "synergy_type": synergy_dict.get("synergy_type"),
-                    "devices": device_ids,
-                    "chain_devices": chain_devices,
-                    "metadata": metadata,
-                    "impact_score": synergy_dict.get("impact_score", 0.0),
-                    "confidence": synergy_dict.get("confidence", 0.0),
-                    "complexity": synergy_dict.get("complexity", "medium"),
-                    "area": synergy_dict.get("area"),
-                    "synergy_depth": synergy_dict.get("synergy_depth", 2),
-                    "explanation": explanation,  # 2025 Enhancement: XAI explanation
-                    "context_breakdown": context_breakdown,  # 2025 Enhancement: Multi-modal context
-                    # Phase 4: Blueprint metadata
-                    "blueprint_id": synergy_dict.get("blueprint_id") or blueprint_info.get('id'),
-                    "blueprint_name": synergy_dict.get("blueprint_name") or blueprint_info.get('name'),
-                    "blueprint_fit_score": synergy_dict.get("blueprint_fit_score") or blueprint_info.get('fit_score'),
-                    "has_blueprint_match": bool(synergy_dict.get("blueprint_id") or blueprint_info.get('id')),
-                    "created_at": synergy_dict.get("created_at"),
-                    "updated_at": synergy_dict.get("updated_at")
-                })
+            is_dict = isinstance(s, dict)
+            fields = extract_synergy_fields(s, is_dict=is_dict)
+
+            # Generate explanation on-the-fly if not stored and XAI available
+            explanation = fields["explanation"]
+            if not explanation and XAI_AVAILABLE:
+                explainer = ExplainableSynergyGenerator()
+                explanation = generate_xai_explanation(fields, explainer)
+
+            # Phase 4: Extract blueprint metadata
+            metadata = fields["metadata"]
+            blueprint_info = metadata.get('blueprint', {}) if metadata else {}
+
+            if is_dict:
+                bp_id = s.get("blueprint_id") or blueprint_info.get('id')
+                bp_name = s.get("blueprint_name") or blueprint_info.get('name')
+                bp_fit = s.get("blueprint_fit_score") or blueprint_info.get('fit_score')
             else:
-                # SynergyOpportunity object, access attributes
-                metadata = s.opportunity_metadata
-                if isinstance(metadata, str):
-                    try:
-                        metadata = json.loads(metadata)
-                    except (json.JSONDecodeError, TypeError) as e:
-                        logger.warning(f"Failed to parse opportunity_metadata for synergy {s.id}: {e}")
-                        metadata = {}
-                elif not isinstance(metadata, dict) and metadata is not None:
-                    logger.warning(f"Unexpected opportunity_metadata type for synergy {s.id}: {type(metadata)}")
-                    metadata = {}
-                elif metadata is None:
-                    metadata = {}
-                
-                device_ids = s.device_ids
-                if isinstance(device_ids, str):
-                    try:
-                        device_ids = json.loads(device_ids)
-                    except (json.JSONDecodeError, TypeError) as e:
-                        logger.warning(f"Failed to parse device_ids for synergy {s.id}: {e}")
-                        device_ids = []
-                elif device_ids is None:
-                    device_ids = []
-                
-                chain_devices = getattr(s, 'chain_devices', None)
-                if isinstance(chain_devices, str):
-                    try:
-                        chain_devices = json.loads(chain_devices)
-                    except (json.JSONDecodeError, TypeError) as e:
-                        logger.warning(f"Failed to parse chain_devices for synergy {s.id}: {e}")
-                        chain_devices = None
-                elif chain_devices is None:
-                    chain_devices = None
-                
-                # Extract explanation and context_breakdown from metadata (2025 Enhancement)
-                explanation = metadata.get('explanation')
-                context_breakdown = metadata.get('context_breakdown')
-                context_metadata = metadata.get('context_metadata')
-                
-                # Generate explanation on-the-fly if not stored and XAI available
-                if not explanation and XAI_AVAILABLE:
-                    try:
-                        explainer = ExplainableSynergyGenerator()
-                        synergy_for_explanation = {
-                            'synergy_id': s.synergy_id,
-                            'relationship_type': metadata.get('relationship', ''),
-                            'trigger_entity': metadata.get('trigger_entity'),
-                            'trigger_name': metadata.get('trigger_name'),
-                            'action_entity': metadata.get('action_entity'),
-                            'action_name': metadata.get('action_name'),
-                            'area': s.area,
-                            'impact_score': float(s.impact_score) if s.impact_score is not None else 0.0,
-                            'confidence': float(s.confidence) if s.confidence is not None else 0.0,
-                            'complexity': s.complexity or "medium",
-                            'opportunity_metadata': metadata
-                        }
-                        explanation = explainer.generate_explanation(synergy_for_explanation, context_metadata)
-                    except Exception as e:
-                        logger.warning(f"Failed to generate explanation for synergy {s.synergy_id}: {e}")
-                
-                # Phase 4: Extract blueprint metadata from opportunity_metadata
-                blueprint_info = metadata.get('blueprint', {}) if metadata else {}
-                
-                synergies_list.append({
-                    "id": s.id,
-                    "synergy_id": s.synergy_id,
-                    "synergy_type": s.synergy_type,
-                    "devices": device_ids,
-                    "chain_devices": chain_devices,
-                    "metadata": metadata,
-                    "impact_score": float(s.impact_score) if s.impact_score is not None else 0.0,
-                    "confidence": float(s.confidence) if s.confidence is not None else 0.0,
-                    "complexity": s.complexity or "medium",
-                    "area": s.area,
-                    "synergy_depth": getattr(s, 'synergy_depth', 2),
-                    "explanation": explanation,  # 2025 Enhancement: XAI explanation
-                    "context_breakdown": context_breakdown,  # 2025 Enhancement: Multi-modal context
-                    # Phase 4: Blueprint metadata
-                    "blueprint_id": getattr(s, 'blueprint_id', None) or blueprint_info.get('id'),
-                    "blueprint_name": getattr(s, 'blueprint_name', None) or blueprint_info.get('name'),
-                    "blueprint_fit_score": getattr(s, 'blueprint_fit_score', None) or blueprint_info.get('fit_score'),
-                    "has_blueprint_match": bool(getattr(s, 'blueprint_id', None) or blueprint_info.get('id')),
-                    "created_at": s.created_at.isoformat() if s.created_at else None,
-                    "updated_at": s.updated_at.isoformat() if hasattr(s, 'updated_at') and s.updated_at else None
-                })
+                bp_id = getattr(s, 'blueprint_id', None) or blueprint_info.get('id')
+                bp_name = getattr(s, 'blueprint_name', None) or blueprint_info.get('name')
+                bp_fit = getattr(s, 'blueprint_fit_score', None) or blueprint_info.get('fit_score')
+
+            synergies_list.append({
+                **fields,
+                "explanation": explanation,
+                "blueprint_id": bp_id,
+                "blueprint_name": bp_name,
+                "blueprint_fit_score": bp_fit,
+                "has_blueprint_match": bool(bp_id),
+            })
 
         return {
             "success": True,
@@ -556,203 +415,29 @@ async def get_synergy(
         add a guard here as a safety measure.
     """
     try:
-        # Get all synergies and filter by synergy_id
-        synergies = await get_synergy_opportunities(db, limit=10000)
-        
-        synergy = None
-        for s in synergies:
-            if isinstance(s, dict):
-                if s.get("synergy_id") == synergy_id:
-                    synergy = s
-                    break
-            else:
-                if s.synergy_id == synergy_id:
-                    synergy = s
-                    break
-        
+        # Use direct DB lookup instead of loading all synergies
+        synergy = await get_synergy_by_id(db, synergy_id)
+
         if not synergy:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Synergy opportunity not found: {synergy_id}"
             )
-        
-        # Convert to dict format (same logic as list endpoint)
-        if isinstance(synergy, dict):
-            synergy_dict = synergy.copy()
-            metadata = synergy_dict.get("opportunity_metadata")
-            if isinstance(metadata, str):
-                try:
-                    metadata = json.loads(metadata)
-                except (json.JSONDecodeError, TypeError):
-                    metadata = {}
-            elif metadata is None:
-                metadata = {}
-            
-            device_ids = synergy_dict.get("device_ids")
-            if isinstance(device_ids, str):
-                try:
-                    device_ids = json.loads(device_ids)
-                except (json.JSONDecodeError, TypeError):
-                    device_ids = []
-            elif device_ids is None:
-                device_ids = []
-            
-            chain_devices = synergy_dict.get("chain_devices")
-            if isinstance(chain_devices, str):
-                try:
-                    chain_devices = json.loads(chain_devices)
-                except (json.JSONDecodeError, TypeError):
-                    chain_devices = None
-            elif chain_devices is None:
-                chain_devices = None
-            
-            # Extract explanation and context_breakdown (2025 Enhancement)
-            # Try to get from database columns first, then from metadata
-            explanation = synergy_dict.get("explanation") or metadata.get('explanation')
-            context_breakdown = synergy_dict.get("context_breakdown") or metadata.get('context_breakdown')
-            
-            # Parse JSON strings if needed
-            if isinstance(explanation, str):
-                try:
-                    explanation = json.loads(explanation)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            if isinstance(context_breakdown, str):
-                try:
-                    context_breakdown = json.loads(context_breakdown)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            
-            context_metadata = metadata.get('context_metadata')
-            
-            # Generate explanation on-the-fly if not stored and XAI available
-            if not explanation and XAI_AVAILABLE:
-                try:
-                    explainer = ExplainableSynergyGenerator()
-                    synergy_for_explanation = {
-                        'synergy_id': synergy_dict.get("synergy_id"),
-                        'relationship_type': metadata.get('relationship', ''),
-                        'trigger_entity': metadata.get('trigger_entity'),
-                        'trigger_name': metadata.get('trigger_name'),
-                        'action_entity': metadata.get('action_entity'),
-                        'action_name': metadata.get('action_name'),
-                        'area': synergy_dict.get("area"),
-                        'impact_score': synergy_dict.get("impact_score", 0.0),
-                        'confidence': synergy_dict.get("confidence", 0.0),
-                        'complexity': synergy_dict.get("complexity", "medium"),
-                        'opportunity_metadata': metadata
-                    }
-                    explanation = explainer.generate_explanation(synergy_for_explanation, context_metadata)
-                except Exception as e:
-                    logger.warning(f"Failed to generate explanation for synergy {synergy_dict.get('synergy_id')}: {e}")
-            
-            synergy_data = {
-                "id": synergy_dict.get("id"),
-                "synergy_id": synergy_dict.get("synergy_id"),
-                "synergy_type": synergy_dict.get("synergy_type"),
-                "devices": device_ids,
-                "chain_devices": chain_devices,
-                "metadata": metadata,
-                "impact_score": synergy_dict.get("impact_score", 0.0),
-                "confidence": synergy_dict.get("confidence", 0.0),
-                "complexity": synergy_dict.get("complexity", "medium"),
-                "area": synergy_dict.get("area"),
-                "synergy_depth": synergy_dict.get("synergy_depth", 2),
-                "explanation": explanation,  # 2025 Enhancement: XAI explanation
-                "context_breakdown": context_breakdown,  # 2025 Enhancement: Multi-modal context
-                "created_at": synergy_dict.get("created_at"),
-                "updated_at": synergy_dict.get("updated_at")
-            }
-        else:
-            # SynergyOpportunity object
-            metadata = synergy.opportunity_metadata
-            if isinstance(metadata, str):
-                try:
-                    metadata = json.loads(metadata)
-                except (json.JSONDecodeError, TypeError):
-                    metadata = {}
-            elif metadata is None:
-                metadata = {}
-            
-            device_ids = synergy.device_ids
-            if isinstance(device_ids, str):
-                try:
-                    device_ids = json.loads(device_ids)
-                except (json.JSONDecodeError, TypeError):
-                    device_ids = []
-            elif device_ids is None:
-                device_ids = []
-            
-            chain_devices = getattr(synergy, 'chain_devices', None)
-            if isinstance(chain_devices, str):
-                try:
-                    chain_devices = json.loads(chain_devices)
-                except (json.JSONDecodeError, TypeError):
-                    chain_devices = None
-            elif chain_devices is None:
-                chain_devices = None
-            
-            # Extract explanation and context_breakdown (2025 Enhancement)
-            # Try to get from database columns first, then from metadata
-            explanation = getattr(synergy, 'explanation', None) or metadata.get('explanation')
-            context_breakdown = getattr(synergy, 'context_breakdown', None) or metadata.get('context_breakdown')
-            
-            # Parse JSON strings if needed
-            if isinstance(explanation, str):
-                try:
-                    explanation = json.loads(explanation)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            if isinstance(context_breakdown, str):
-                try:
-                    context_breakdown = json.loads(context_breakdown)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            
-            context_metadata = metadata.get('context_metadata')
-            
-            # Generate explanation on-the-fly if not stored and XAI available
-            if not explanation and XAI_AVAILABLE:
-                try:
-                    explainer = ExplainableSynergyGenerator()
-                    synergy_for_explanation = {
-                        'synergy_id': synergy.synergy_id,
-                        'relationship_type': metadata.get('relationship', ''),
-                        'trigger_entity': metadata.get('trigger_entity'),
-                        'trigger_name': metadata.get('trigger_name'),
-                        'action_entity': metadata.get('action_entity'),
-                        'action_name': metadata.get('action_name'),
-                        'area': synergy.area,
-                        'impact_score': float(synergy.impact_score) if synergy.impact_score is not None else 0.0,
-                        'confidence': float(synergy.confidence) if synergy.confidence is not None else 0.0,
-                        'complexity': synergy.complexity or "medium",
-                        'opportunity_metadata': metadata
-                    }
-                    explanation = explainer.generate_explanation(synergy_for_explanation, context_metadata)
-                except Exception as e:
-                    logger.warning(f"Failed to generate explanation for synergy {synergy.synergy_id}: {e}")
-            
-            synergy_data = {
-                "id": synergy.id,
-                "synergy_id": synergy.synergy_id,
-                "synergy_type": synergy.synergy_type,
-                "devices": device_ids,
-                "chain_devices": chain_devices,
-                "metadata": metadata,
-                "impact_score": float(synergy.impact_score) if synergy.impact_score is not None else 0.0,
-                "confidence": float(synergy.confidence) if synergy.confidence is not None else 0.0,
-                "complexity": synergy.complexity or "medium",
-                "area": synergy.area,
-                "synergy_depth": getattr(synergy, 'synergy_depth', 2),
-                "explanation": explanation,  # 2025 Enhancement: XAI explanation
-                "context_breakdown": context_breakdown,  # 2025 Enhancement: Multi-modal context
-                "created_at": synergy.created_at.isoformat() if synergy.created_at else None,
-                "updated_at": synergy.updated_at.isoformat() if hasattr(synergy, 'updated_at') and synergy.updated_at else None
-            }
-        
+
+        # Convert to dict format using synergy_helpers
+        is_dict = isinstance(synergy, dict)
+        fields = extract_synergy_fields(synergy, is_dict=is_dict)
+
+        # Generate explanation on-the-fly if not stored and XAI available
+        explanation = fields["explanation"]
+        if not explanation and XAI_AVAILABLE:
+            explainer = ExplainableSynergyGenerator()
+            explanation = generate_xai_explanation(fields, explainer)
+        fields["explanation"] = explanation
+
         return {
             "success": True,
-            "data": synergy_data,
+            "data": fields,
             "message": "Synergy opportunity retrieved successfully"
         }
         
@@ -794,47 +479,36 @@ async def submit_synergy_feedback(
         will be implemented in Priority 2.4 (RL feedback loop).
     """
     try:
-        # Verify synergy exists
-        synergies = await get_synergy_opportunities(db, limit=10000)
-        synergy_found = False
-        for s in synergies:
-            if isinstance(s, dict):
-                if s.get("synergy_id") == synergy_id:
-                    synergy_found = True
-                    break
-            else:
-                if s.synergy_id == synergy_id:
-                    synergy_found = True
-                    break
-        
-        if not synergy_found:
+        # Verify synergy exists using direct lookup
+        synergy = await get_synergy_by_id(db, synergy_id)
+        if not synergy:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Synergy opportunity not found: {synergy_id}"
             )
-        
+
         # Store feedback in database and update RL optimizer (Phase 4.1 - RL feedback loop)
         feedback_data = {
             'accepted': feedback.accepted,
             'rating': feedback.rating,
             'feedback_text': feedback.feedback_text
         }
-        
+
         # Store in database
         try:
             from sqlalchemy import text
-            
+
             # Try to insert feedback (table created via migration script)
             insert_feedback_query = text("""
-                INSERT INTO synergy_feedback 
+                INSERT INTO synergy_feedback
                 (synergy_id, feedback_type, feedback_data, created_at)
                 VALUES (:synergy_id, :feedback_type, :feedback_data, datetime('now'))
             """)
-            
+
             feedback_type = 'accept' if feedback.accepted else 'reject'
             if feedback.rating:
                 feedback_type = 'rate'
-            
+
             await db.execute(
                 insert_feedback_query,
                 {
@@ -844,7 +518,7 @@ async def submit_synergy_feedback(
                 }
             )
             await db.commit()
-            
+
             logger.info(
                 f"Synergy feedback stored: synergy_id={synergy_id}, "
                 f"type={feedback_type}, rating={feedback.rating}"
@@ -855,20 +529,20 @@ async def submit_synergy_feedback(
                 f"Failed to store feedback in database (table may not exist yet): {e}. "
                 f"Run migration script: python scripts/add_2025_synergy_fields.py"
             )
-        
+
         # Update RL optimizer if available (2025 Enhancement)
+        rl_updated = False
         try:
             from ..synergy_detection.rl_synergy_optimizer import RLSynergyOptimizer
-            # Note: In production, RL optimizer should be a singleton or injected dependency
-            # For now, create instance (will be initialized per request - can be optimized later)
             rl_optimizer = RLSynergyOptimizer()
             await rl_optimizer.update_from_feedback(synergy_id, feedback_data)
+            rl_updated = True
             logger.info(f"RL optimizer updated with feedback for synergy {synergy_id}")
         except ImportError:
             logger.debug("RLSynergyOptimizer not available (numpy may be missing)")
         except Exception as e:
             logger.warning(f"Failed to update RL optimizer: {e}")
-        
+
         return {
             "success": True,
             "data": {
@@ -876,9 +550,9 @@ async def submit_synergy_feedback(
                 "feedback_received": True,
                 "accepted": feedback.accepted,
                 "rating": feedback.rating,
-                "rl_updated": True
+                "rl_updated": rl_updated
             },
-            "message": "Feedback received and RL optimizer updated successfully"
+            "message": "Feedback received successfully"
         }
         
     except HTTPException:
@@ -919,86 +593,24 @@ async def generate_automation_from_synergy(
         HTTPException: If synergy not found (404), HA config missing (400), or deployment fails (500)
     """
     try:
-        # Verify synergy exists
-        synergies = await get_synergy_opportunities(db, limit=10000)
-        synergy_data = None
-        for s in synergies:
-            if isinstance(s, dict):
-                if s.get("synergy_id") == synergy_id:
-                    # Extract devices and trigger/action from opportunity_metadata if not at top level
-                    synergy_data = s.copy()
-                    
-                    # Parse opportunity_metadata if it's a string
-                    opp_meta = synergy_data.get("opportunity_metadata")
-                    if isinstance(opp_meta, str):
-                        try:
-                            opp_meta = json.loads(opp_meta)
-                        except (json.JSONDecodeError, TypeError):
-                            opp_meta = {}
-                    elif opp_meta is None:
-                        opp_meta = {}
-                    
-                    # Extract devices from device_ids string or opportunity_metadata
-                    if "devices" not in synergy_data or not synergy_data["devices"]:
-                        device_ids = synergy_data.get("device_ids", "")
-                        if isinstance(device_ids, str) and device_ids:
-                            synergy_data["devices"] = device_ids.split(",")
-                        elif "devices" in opp_meta:
-                            synergy_data["devices"] = opp_meta["devices"]
-                        else:
-                            synergy_data["devices"] = []
-                    
-                    # Extract trigger_entity and action_entity from opportunity_metadata
-                    if "trigger_entity" not in synergy_data or not synergy_data.get("trigger_entity"):
-                        synergy_data["trigger_entity"] = opp_meta.get("trigger_entity")
-                    if "action_entity" not in synergy_data or not synergy_data.get("action_entity"):
-                        synergy_data["action_entity"] = opp_meta.get("action_entity")
-                    
-                    # Parse context_breakdown if it's a string
-                    ctx = synergy_data.get("context_breakdown")
-                    if isinstance(ctx, str):
-                        try:
-                            synergy_data["context_breakdown"] = json.loads(ctx)
-                        except (json.JSONDecodeError, TypeError):
-                            synergy_data["context_breakdown"] = None
-                    
-                    break
-            else:
-                if s.synergy_id == synergy_id:
-                    # Convert to dict if needed
-                    device_ids = getattr(s, 'device_ids', None)
-                    devices = device_ids.split(",") if device_ids and isinstance(device_ids, str) else []
-                    
-                    context_breakdown = None
-                    if hasattr(s, 'context_breakdown') and s.context_breakdown:
-                        if isinstance(s.context_breakdown, str):
-                            try:
-                                context_breakdown = json.loads(s.context_breakdown)
-                            except (json.JSONDecodeError, TypeError):
-                                context_breakdown = None
-                        else:
-                            context_breakdown = s.context_breakdown
-                    
-                    synergy_data = {
-                        "synergy_id": s.synergy_id,
-                        "synergy_type": s.synergy_type,
-                        "devices": devices,
-                        "trigger_entity": getattr(s, 'trigger_entity', None),
-                        "action_entity": getattr(s, 'action_entity', None),
-                        "area": s.area,
-                        "impact_score": s.impact_score,
-                        "confidence": s.confidence,
-                        "rationale": getattr(s, 'rationale', ''),
-                        "context_breakdown": context_breakdown
-                    }
-                    break
-        
-        if not synergy_data:
+        # Use direct DB lookup
+        synergy_raw = await get_synergy_by_id(db, synergy_id)
+        if not synergy_raw:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Synergy opportunity not found: {synergy_id}"
             )
-        
+
+        # Extract synergy fields using helpers
+        is_dict = isinstance(synergy_raw, dict)
+        synergy_data = extract_synergy_fields(synergy_raw, is_dict=is_dict)
+        # Ensure trigger_entity and action_entity are populated from metadata
+        metadata = synergy_data.get("metadata", {})
+        if not synergy_data.get("trigger_entity"):
+            synergy_data["trigger_entity"] = metadata.get("trigger_entity")
+        if not synergy_data.get("action_entity"):
+            synergy_data["action_entity"] = metadata.get("action_entity")
+
         # Check Home Assistant configuration
         if not settings.ha_url or not settings.ha_token:
             raise HTTPException(
@@ -1075,25 +687,14 @@ async def track_automation_execution(
         HTTPException: If synergy not found (404) or tracking fails (500)
     """
     try:
-        # Verify synergy exists
-        synergies = await get_synergy_opportunities(db, limit=10000)
-        synergy_found = False
-        for s in synergies:
-            if isinstance(s, dict):
-                if s.get("synergy_id") == synergy_id:
-                    synergy_found = True
-                    break
-            else:
-                if s.synergy_id == synergy_id:
-                    synergy_found = True
-                    break
-        
-        if not synergy_found:
+        # Verify synergy exists using direct lookup
+        synergy = await get_synergy_by_id(db, synergy_id)
+        if not synergy:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Synergy opportunity not found: {synergy_id}"
             )
-        
+
         # Initialize automation tracker
         tracker = AutomationTracker(db=db)
         
@@ -1536,42 +1137,24 @@ async def get_blueprint_matches_for_synergy(
         )
     
     try:
-        # Fetch synergy details
-        synergies = await get_synergy_opportunities(db, limit=10000)
-        synergy_data = None
-        for s in synergies:
-            if isinstance(s, dict):
-                if s.get("synergy_id") == synergy_id:
-                    synergy_data = s.copy()
-                    # Parse opportunity_metadata if string
-                    opp_meta = synergy_data.get("opportunity_metadata")
-                    if isinstance(opp_meta, str):
-                        try:
-                            synergy_data["opportunity_metadata"] = json.loads(opp_meta)
-                        except (json.JSONDecodeError, TypeError):
-                            synergy_data["opportunity_metadata"] = {}
-                    break
-            else:
-                if s.synergy_id == synergy_id:
-                    synergy_data = {
-                        "synergy_id": s.synergy_id,
-                        "synergy_type": s.synergy_type,
-                        "device_ids": s.device_ids,
-                        "area": s.area,
-                        "opportunity_metadata": json.loads(s.opportunity_metadata) if isinstance(s.opportunity_metadata, str) else s.opportunity_metadata or {}
-                    }
-                    break
-        
-        if not synergy_data:
+        # Fetch synergy details using direct lookup
+        synergy_raw = await get_synergy_by_id(db, synergy_id)
+        if not synergy_raw:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Synergy not found: {synergy_id}"
             )
-        
+
+        # Extract synergy data using helpers
+        is_dict = isinstance(synergy_raw, dict)
+        synergy_data = extract_synergy_fields(synergy_raw, is_dict=is_dict)
+        # The engine expects opportunity_metadata key
+        synergy_data["opportunity_metadata"] = synergy_data.get("metadata", {})
+
         engine = BlueprintOpportunityEngine(
             blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
         )
-        
+
         # Find blueprint matches for the synergy pattern
         matches = await engine.find_blueprints_for_synergy(
             synergy=synergy_data,

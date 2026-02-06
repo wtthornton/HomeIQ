@@ -7,9 +7,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.routes import router
+from .api.routes import init_schema_cache, router
 from .config import settings
-from .database import close_db, init_db
+from .database import close_db, get_db_context, init_db
 
 
 def _configure_logging() -> None:
@@ -32,6 +32,9 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.service_name} on port {settings.service_port}")
     await init_db()
+    # Cache schema check so we don't run PRAGMA on every GET /suggestions
+    async with get_db_context() as db:
+        await init_schema_cache(db)
     logger.info("Blueprint Suggestion Service started successfully")
     
     yield
@@ -52,19 +55,18 @@ app = FastAPI(
 
 def _get_cors_origins() -> list[str]:
     """Get list of allowed CORS origins."""
-    # CRITICAL: In production, replace ["*"] with specific origins
-    # Using ["*"] with allow_credentials=True is a security vulnerability
-    cors_origins_env = settings.cors_origins if hasattr(settings, "cors_origins") else None
-    if cors_origins_env:
-        return [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+    if settings.cors_origins:
+        return [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
     return ["*"]  # Development default
 
 
 # Add CORS middleware
+# Never combine allow_credentials=True with wildcard origins (violates CORS spec)
+_origins = _get_cors_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_get_cors_origins(),
-    allow_credentials=True,
+    allow_origins=_origins,
+    allow_credentials="*" not in _origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -6,11 +6,19 @@ Handles automation suggestion generation from queries.
 """
 
 import logging
+import re
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def _sanitize_for_log(text: str, max_length: int = 100) -> str:
+    """Strip control characters and truncate user input for safe logging."""
+    return _CONTROL_CHAR_RE.sub("", text)[:max_length]
 
 
 class SuggestionGenerator:
@@ -62,7 +70,7 @@ class SuggestionGenerator:
             # - OpenAI-based suggestion generation
             # - Pattern-based fallback
             
-            logger.info(f"📝 Generating suggestions for query: {query[:50]}...")
+            logger.info(f"[SUGGEST] Generating suggestions for query: {_sanitize_for_log(query, 50)}...")
             
             # Placeholder: Return empty list for now
             # Full implementation will be added in subsequent stories

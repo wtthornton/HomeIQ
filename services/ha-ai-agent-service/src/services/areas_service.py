@@ -36,7 +36,7 @@ class AreasService:
         self.context_builder = context_builder
         self.ha_client = HomeAssistantClient(
             ha_url=settings.ha_url,
-            access_token=settings.ha_token
+            access_token=settings.ha_token.get_secret_value()
         )
         self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
         self._cache_key = "areas_list"

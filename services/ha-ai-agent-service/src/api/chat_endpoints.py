@@ -60,6 +60,15 @@ class SimpleRateLimiter:
             req_time for req_time in self._requests[ip] if now - req_time < 60
         ]
 
+        # Clean stale IPs to prevent unbounded memory growth
+        if len(self._requests) > 10_000:
+            stale_ips = [
+                k for k, v in self._requests.items()
+                if not v or (now - max(v)) > 300  # 5 min stale
+            ]
+            for ip_key in stale_ips:
+                del self._requests[ip_key]
+
         # Check if limit exceeded
         if len(self._requests[ip]) >= self.requests_per_minute:
             return False
@@ -105,6 +114,63 @@ def _safe_parse_tool_arguments(arguments: Any) -> dict[str, Any]:
     # If it's neither dict nor str, log and return empty dict
     logger.warning(f"Unexpected tool arguments type {type(arguments)}, expected dict or str")
     return {}
+
+
+async def _process_tool_result(
+    tool_call,
+    tool_result: dict,
+    conversation_id: str,
+    conversation_service,
+    tool_calls: list,
+    tool_results: list,
+) -> None:
+    """
+    Process a single tool call result: handle preview/create workflow,
+    format the result for OpenAI, and append to tracking lists.
+    """
+    # Handle preview tool: store pending preview (Preview-and-Approval Workflow)
+    if tool_call.function.name == "preview_automation_from_prompt":
+        if tool_result.get("result", {}).get("success") and tool_result.get("result", {}).get("preview"):
+            preview_data = tool_result.get("result", {})
+            await conversation_service.set_pending_preview(conversation_id, preview_data)
+            logger.info(
+                f"[Preview] Conversation {conversation_id}: "
+                f"Stored pending preview for automation '{preview_data.get('alias', 'unknown')}'"
+            )
+
+    # Handle create tool: clear pending preview after execution (Preview-and-Approval Workflow)
+    if tool_call.function.name == "create_automation_from_prompt":
+        if tool_result.get("result", {}).get("success"):
+            await conversation_service.clear_pending_preview(conversation_id)
+            logger.info(
+                f"[Execution] Conversation {conversation_id}: "
+                f"Cleared pending preview after successful automation creation"
+            )
+
+    # Format tool result for OpenAI
+    tool_result_str = str(tool_result.get("result", ""))
+
+    # Store tool result for next OpenAI call
+    tool_results.append({
+        "tool_call_id": tool_call.id,
+        "content": tool_result_str
+    })
+
+    # Format tool call for response
+    parsed_arguments = _safe_parse_tool_arguments(tool_call.function.arguments)
+    tool_calls.append(
+        ToolCall(
+            id=tool_call.id,
+            name=tool_call.function.name,
+            arguments=parsed_arguments,
+        )
+    )
+
+    logger.debug(
+        f"[Tool Call] Conversation {conversation_id}: "
+        f"Completed {tool_call.function.name}. "
+        f"Result length: {len(tool_result_str)}"
+    )
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -428,98 +494,54 @@ async def chat(
                         f"[Tool Calls] Conversation {conversation_id}: "
                         f"Executing {len(assistant_message.tool_calls)} tool calls in parallel"
                     )
-                    
-                    async def execute_single_tool(tool_call):
+
+                    async def execute_single_tool(tc):
                         """Execute a single tool call with tracking"""
                         tool_exec_id = start_tracking("tool_execution", {
-                            "tool_name": tool_call.function.name,
+                            "tool_name": tc.function.name,
                             "iteration": iteration
                         })
                         tool_execution_ids.append(tool_exec_id)
                         try:
-                            tool_result = await tool_service.execute_tool_call(tool_call.model_dump())
+                            result = await tool_service.execute_tool_call(tc.model_dump())
                             end_tracking(tool_exec_id, {
-                                "success": tool_result.get("success", False),
-                                "result_length": len(str(tool_result.get("result", "")))
+                                "success": result.get("success", False),
+                                "result_length": len(str(result.get("result", "")))
                             })
-                            return tool_call, tool_result
+                            return tc, result
                         except Exception as e:
                             end_tracking(tool_exec_id, {
                                 "success": False,
                                 "error": str(e)
                             })
                             raise
-                    
-                    # Execute all tools in parallel
+
                     parallel_results = await asyncio.gather(
                         *[execute_single_tool(tc) for tc in assistant_message.tool_calls],
                         return_exceptions=True
                     )
-                    
-                    # Process results in order
+
                     for result in parallel_results:
                         if isinstance(result, Exception):
                             logger.error(f"Tool execution failed: {result}", exc_info=True)
-                            # Create error result
                             tool_results.append({
                                 "tool_call_id": "error",
                                 "content": f"Tool execution failed: {str(result)}"
                             })
                         else:
-                            tool_call, tool_result = result
-                            
-                            # Handle preview tool: store pending preview (2025 Preview-and-Approval Workflow)
-                            if tool_call.function.name == "preview_automation_from_prompt":
-                                if tool_result.get("result", {}).get("success") and tool_result.get("result", {}).get("preview"):
-                                    preview_data = tool_result.get("result", {})
-                                    await conversation_service.set_pending_preview(conversation_id, preview_data)
-                                    logger.info(
-                                        f"[Preview] Conversation {conversation_id}: "
-                                        f"Stored pending preview for automation '{preview_data.get('alias', 'unknown')}'"
-                                    )
-                            
-                            # Handle create tool: clear pending preview after execution (2025 Preview-and-Approval Workflow)
-                            if tool_call.function.name == "create_automation_from_prompt":
-                                if tool_result.get("result", {}).get("success"):
-                                    await conversation_service.clear_pending_preview(conversation_id)
-                                    logger.info(
-                                        f"[Execution] Conversation {conversation_id}: "
-                                        f"Cleared pending preview after successful automation creation"
-                                    )
-                            
-                            # Format tool result for OpenAI
-                            tool_result_str = str(tool_result.get("result", ""))
-                            
-                            # Store tool result for next OpenAI call
-                            tool_results.append({
-                                "tool_call_id": tool_call.id,
-                                "content": tool_result_str
-                            })
-                            
-                            # Format tool call for response
-                            parsed_arguments = _safe_parse_tool_arguments(tool_call.function.arguments)
-                            tool_calls.append(
-                                ToolCall(
-                                    id=tool_call.id,
-                                    name=tool_call.function.name,
-                                    arguments=parsed_arguments,
-                                )
-                            )
-                            
-                            logger.debug(
-                                f"[Tool Call] Conversation {conversation_id}: "
-                                f"Completed {tool_call.function.name}. "
-                                f"Result length: {len(tool_result_str)}"
+                            tc, tr = result
+                            await _process_tool_result(
+                                tc, tr, conversation_id,
+                                conversation_service, tool_calls, tool_results,
                             )
                 else:
-                    # Single tool call - execute sequentially (no benefit from parallelization)
+                    # Single tool call - execute sequentially
                     tool_call = assistant_message.tool_calls[0]
                     logger.debug(
                         f"[Tool Call] Conversation {conversation_id}: "
                         f"Executing {tool_call.function.name} with args: {tool_call.function.arguments}"
                     )
-                    
-                    # Execute tool call
+
                     tool_exec_id = start_tracking("tool_execution", {
                         "tool_name": tool_call.function.name,
                         "iteration": iteration
@@ -531,48 +553,9 @@ async def chat(
                         "result_length": len(str(tool_result.get("result", "")))
                     })
 
-                    # Handle preview tool: store pending preview (2025 Preview-and-Approval Workflow)
-                    if tool_call.function.name == "preview_automation_from_prompt":
-                        if tool_result.get("result", {}).get("success") and tool_result.get("result", {}).get("preview"):
-                            preview_data = tool_result.get("result", {})
-                            await conversation_service.set_pending_preview(conversation_id, preview_data)
-                            logger.info(
-                                f"[Preview] Conversation {conversation_id}: "
-                                f"Stored pending preview for automation '{preview_data.get('alias', 'unknown')}'"
-                            )
-                    
-                    # Handle create tool: clear pending preview after execution (2025 Preview-and-Approval Workflow)
-                    if tool_call.function.name == "create_automation_from_prompt":
-                        if tool_result.get("result", {}).get("success"):
-                            await conversation_service.clear_pending_preview(conversation_id)
-                            logger.info(
-                                f"[Execution] Conversation {conversation_id}: "
-                                f"Cleared pending preview after successful automation creation"
-                            )
-
-                    # Format tool result for OpenAI (must include tool_call_id)
-                    tool_result_str = str(tool_result.get("result", ""))
-                    
-                    # Store tool result for next OpenAI call
-                    tool_results.append({
-                        "tool_call_id": tool_call.id,
-                        "content": tool_result_str
-                    })
-
-                    # Format tool call for response
-                    parsed_arguments = _safe_parse_tool_arguments(tool_call.function.arguments)
-                    tool_calls.append(
-                        ToolCall(
-                            id=tool_call.id,
-                            name=tool_call.function.name,
-                            arguments=parsed_arguments,
-                        )
-                    )
-                    
-                    logger.debug(
-                        f"[Tool Call] Conversation {conversation_id}: "
-                        f"Completed {tool_call.function.name}. "
-                        f"Result length: {len(tool_result_str)}"
+                    await _process_tool_result(
+                        tool_call, tool_result, conversation_id,
+                        conversation_service, tool_calls, tool_results,
                     )
                 
                 # Continue loop to process tool results
@@ -660,6 +643,6 @@ async def chat(
         logger.exception("Unexpected error in chat endpoint")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error: {str(e)}",
+            detail="Internal server error",
         ) from e
 

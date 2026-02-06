@@ -20,36 +20,38 @@ router = APIRouter(prefix="/api/v1/preferences", tags=["Preferences"])
 
 class PreferenceResponse(BaseModel):
     """Response model for user preferences."""
-    
+
     max_suggestions: int = Field(..., description="Maximum suggestions to show (5-50)")
     creativity_level: str = Field(..., description="Creativity level (conservative/balanced/creative)")
     blueprint_preference: str = Field(..., description="Blueprint preference (low/medium/high)")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
                 "max_suggestions": 10,
                 "creativity_level": "balanced",
                 "blueprint_preference": "medium"
-            }
+            }]
         }
+    }
 
 
 class PreferenceUpdateRequest(BaseModel):
     """Request model for updating preferences."""
-    
+
     max_suggestions: int | None = Field(None, ge=5, le=50, description="Maximum suggestions (5-50)")
     creativity_level: str | None = Field(None, description="Creativity level (conservative/balanced/creative)")
     blueprint_preference: str | None = Field(None, description="Blueprint preference (low/medium/high)")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
                 "max_suggestions": 15,
                 "creativity_level": "creative",
                 "blueprint_preference": "high"
-            }
+            }]
         }
+    }
 
 
 @router.get("", response_model=PreferenceResponse)
@@ -72,31 +74,19 @@ async def get_preferences(
     )
 
 
-@router.put("", response_model=PreferenceResponse)
+@router.put("")
 async def update_preferences(
     request: PreferenceUpdateRequest,
     user_id: str = Query("default", description="User ID")
-) -> PreferenceResponse:
+):
     """
     Update user preferences.
-    
-    Currently returns default values (stub implementation).
-    Full implementation with database storage will be added in future update.
+
+    M10 fix: Returns 501 Not Implemented instead of silently ignoring the update.
+    Full implementation with database storage will be added in a future update.
     """
-    logger.info(f"Updating preferences for user '{user_id}' (stub - returning defaults)")
-    
-    # Log what would be updated (for debugging)
-    if request.max_suggestions is not None:
-        logger.debug(f"Would update max_suggestions to {request.max_suggestions}")
-    if request.creativity_level is not None:
-        logger.debug(f"Would update creativity_level to {request.creativity_level}")
-    if request.blueprint_preference is not None:
-        logger.debug(f"Would update blueprint_preference to {request.blueprint_preference}")
-    
-    # Return default values (stub implementation)
-    # TODO: Implement full preference storage with PreferenceManager and database
-    return PreferenceResponse(
-        max_suggestions=request.max_suggestions or 10,
-        creativity_level=request.creativity_level or "balanced",
-        blueprint_preference=request.blueprint_preference or "medium"
+    logger.info(f"Preference update requested for user '{user_id}' (not implemented)")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Preference storage is not yet implemented. Updates are not persisted."
     )

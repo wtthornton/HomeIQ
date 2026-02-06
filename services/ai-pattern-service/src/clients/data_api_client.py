@@ -302,6 +302,31 @@ class DataAPIClient:
             logger.error(f"❌ Unexpected error fetching entities: {e}")
             raise
 
+    async def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        """
+        Generic GET request to the Data API.
+
+        Args:
+            path: API path (e.g., "/api/devices")
+            params: Optional query parameters
+
+        Returns:
+            Parsed JSON response as a dictionary
+        """
+        try:
+            response = await self.client.get(
+                f"{self.base_url}{path}",
+                params=params
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"GET {path} failed: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in GET {path}: {e}")
+            raise
+
     async def close(self):
         """Close HTTP client connection pool"""
         await self.client.aclose()

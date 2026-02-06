@@ -1,0 +1,8 @@
+# AI Pattern Service - Development Dependencies
+# These are NOT needed in production Docker images
+
+-r requirements.txt
+
+# Testing
+pytest==9.0.2
+pytest-asyncio==1.3.0

@@ -50,22 +50,22 @@ class RAGService:
         self,
         db: AsyncSession,
         openvino_client: OpenVINOClient,
+        embedding_cache: dict[str, Any] | None = None,
         embedding_cache_size: int = 100
     ):
         """
         Initialize RAG service.
-        
+
         Args:
             db: Database session
             openvino_client: OpenVINO client for embeddings
+            embedding_cache: Shared embedding cache dict (singleton, persists across requests)
             embedding_cache_size: Size of in-memory embedding cache (default: 100)
         """
         self.db = db
         self.openvino_client = openvino_client
-        self._embedding_cache: dict[str, np.ndarray] = {}
+        self._embedding_cache: dict[str, Any] = embedding_cache if embedding_cache is not None else {}
         self._cache_size = embedding_cache_size
-        
-        logger.info(f"RAGService initialized (cache_size={embedding_cache_size})")
 
     async def _get_embedding(self, text: str) -> tuple[np.ndarray, bool]:
         """

@@ -160,5 +160,6 @@ app.include_router(suggestions_router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8031)
+    _settings = Settings()
+    uvicorn.run(app, host="0.0.0.0", port=_settings.service_port)
 

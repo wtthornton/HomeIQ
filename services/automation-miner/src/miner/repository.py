@@ -4,7 +4,6 @@ Corpus Repository
 Handles all database operations for the automation corpus.
 Uses SQLAlchemy async session management (Context7 pattern).
 """
-import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -30,18 +29,18 @@ class CorpusRepository:
         """
         self.session = session
 
-    async def save_automation(
+    async def _upsert_automation(
         self,
         metadata: AutomationMetadata
     ) -> CommunityAutomation:
         """
-        Save or update automation in corpus
-        
+        Upsert automation without committing (for batch use).
+
         Args:
             metadata: AutomationMetadata to save
-        
+
         Returns:
-            Saved CommunityAutomation instance
+            CommunityAutomation instance (uncommitted)
         """
         # Check if already exists (by source_id)
         stmt = select(CommunityAutomation).where(
@@ -52,6 +51,12 @@ class CorpusRepository:
         )
         result = await self.session.execute(stmt)
         existing = result.scalar_one_or_none()
+
+        # Determine if this is a blueprint
+        is_blueprint = (
+            isinstance(metadata.metadata, dict)
+            and '_blueprint_metadata' in metadata.metadata
+        )
 
         if existing:
             # Update existing
@@ -69,6 +74,7 @@ class CorpusRepository:
             existing.updated_at = metadata.updated_at
             existing.last_crawled = datetime.now(timezone.utc)
             existing.extra_metadata = metadata.metadata
+            existing.is_blueprint = is_blueprint
 
             logger.debug(f"Updated automation: {existing.id} - {metadata.title}")
         else:
@@ -90,15 +96,31 @@ class CorpusRepository:
                 created_at=metadata.created_at,
                 updated_at=metadata.updated_at,
                 last_crawled=datetime.now(timezone.utc),
-                extra_metadata=metadata.metadata
+                extra_metadata=metadata.metadata,
+                is_blueprint=is_blueprint
             )
             self.session.add(existing)
 
             logger.debug(f"Inserted new automation: {metadata.title}")
 
+        return existing
+
+    async def save_automation(
+        self,
+        metadata: AutomationMetadata
+    ) -> CommunityAutomation:
+        """
+        Save or update a single automation in corpus (commits immediately).
+
+        Args:
+            metadata: AutomationMetadata to save
+
+        Returns:
+            Saved CommunityAutomation instance
+        """
+        existing = await self._upsert_automation(metadata)
         await self.session.commit()
         await self.session.refresh(existing)
-
         return existing
 
     async def save_batch(
@@ -106,19 +128,20 @@ class CorpusRepository:
         metadata_list: list[AutomationMetadata]
     ) -> int:
         """
-        Save multiple automations in a batch
-        
+        Save multiple automations in a batch (single commit).
+
         Args:
             metadata_list: List of AutomationMetadata
-        
+
         Returns:
             Number of automations saved
         """
         count = 0
         for metadata in metadata_list:
-            await self.save_automation(metadata)
+            await self._upsert_automation(metadata)
             count += 1
 
+        await self.session.commit()
         logger.info(f"Batch saved: {count} automations")
         return count
 
@@ -264,8 +287,8 @@ class CorpusRepository:
         filters: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """
-        Search for blueprints specifically (automations with blueprint metadata)
-        
+        Search for blueprints specifically (automations with is_blueprint=True)
+
         Args:
             filters: Optional dictionary with keys:
                 - device: Filter by device type
@@ -273,64 +296,45 @@ class CorpusRepository:
                 - use_case: Filter by use case
                 - min_quality: Minimum quality score
                 - limit: Maximum results
-        
+
         Returns:
             List of automation dictionaries that are blueprints
         """
-        # Build base query
         stmt = select(CommunityAutomation)
-        
-        # Filter for blueprints: must have _blueprint_metadata in extra_metadata
-        # SQLite doesn't have native JSON support in SQLAlchemy, so we'll filter in Python
-        # Get all automations first, then filter for blueprints
-        all_automations = await self.get_all(
-            source=filters.get('source') if filters else None,
-            min_quality=filters.get('min_quality', 0.0) if filters else 0.0
-        )
-        
-        # Filter for blueprints and apply other filters
-        blueprints = []
-        for automation in all_automations:
-            # Check if it's a blueprint
-            if not automation.extra_metadata:
-                continue
-                
-            try:
-                metadata = automation.extra_metadata
-                if isinstance(metadata, str):
-                    metadata = json.loads(metadata)
-                
-                if not isinstance(metadata, dict) or '_blueprint_metadata' not in metadata:
-                    continue
-            except (json.JSONDecodeError, TypeError):
-                continue
-            
-            # Apply device filter
-            if filters and filters.get('device'):
-                device = filters['device']
-                if device not in (automation.devices or []):
-                    continue
-            
-            # Apply integration filter
-            if filters and filters.get('integration'):
-                integration = filters['integration']
-                if integration not in (automation.integrations or []):
-                    continue
-            
-            # Apply use case filter
-            if filters and filters.get('use_case'):
-                use_case = filters['use_case']
-                if automation.use_case != use_case:
-                    continue
-            
-            blueprints.append(self._to_dict(automation))
-        
-        # Sort by quality descending
-        blueprints.sort(key=lambda x: x.get('quality_score', 0), reverse=True)
-        
-        # Apply limit
+
+        conditions = [CommunityAutomation.is_blueprint == True]  # noqa: E712
+
+        if filters:
+            if filters.get('source'):
+                conditions.append(CommunityAutomation.source == filters['source'])
+
+            min_quality = filters.get('min_quality', 0.0)
+            if min_quality > 0.0:
+                conditions.append(CommunityAutomation.quality_score >= min_quality)
+
+            if filters.get('device'):
+                conditions.append(
+                    CommunityAutomation.devices.contains([filters['device']])
+                )
+
+            if filters.get('integration'):
+                conditions.append(
+                    CommunityAutomation.integrations.contains([filters['integration']])
+                )
+
+            if filters.get('use_case'):
+                conditions.append(CommunityAutomation.use_case == filters['use_case'])
+
+        stmt = stmt.where(and_(*conditions))
+        stmt = stmt.order_by(CommunityAutomation.quality_score.desc())
+
         limit = filters.get('limit', 50) if filters else 50
-        return blueprints[:limit]
+        stmt = stmt.limit(limit)
+
+        result = await self.session.execute(stmt)
+        automations = result.scalars().all()
+
+        return [self._to_dict(auto) for auto in automations]
 
     async def get_stats(self) -> dict[str, Any]:
         """
@@ -389,19 +393,12 @@ class CorpusRepository:
             if integrations:
                 unique_integrations.update(integrations)
 
-        # Count blueprints (automations with _blueprint_metadata)
-        blueprint_count = 0
-        all_automations_stmt = select(CommunityAutomation.extra_metadata)
-        all_metadata_result = await self.session.execute(all_automations_stmt)
-        for metadata_row in all_metadata_result.all():
-            metadata = metadata_row[0]
-            if metadata:
-                try:
-                    metadata_dict = metadata if isinstance(metadata, dict) else json.loads(metadata)
-                    if isinstance(metadata_dict, dict) and '_blueprint_metadata' in metadata_dict:
-                        blueprint_count += 1
-                except (json.JSONDecodeError, TypeError):
-                    pass
+        # Count blueprints using indexed is_blueprint column
+        blueprint_stmt = select(func.count(CommunityAutomation.id)).where(
+            CommunityAutomation.is_blueprint == True  # noqa: E712
+        )
+        blueprint_result = await self.session.execute(blueprint_stmt)
+        blueprint_count = blueprint_result.scalar() or 0
 
         return {
             'total': total,

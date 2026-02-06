@@ -58,8 +58,8 @@ async def get_device_possibilities(
         }
 
     except Exception as e:
-        logger.error(f"Failed to get device possibilities: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to get device possibilities: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/recommendations", response_model=list[DeviceRecommendation])
@@ -106,6 +106,6 @@ async def get_device_recommendations(
         return recommendations
 
     except Exception as e:
-        logger.error(f"Failed to generate recommendations: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to generate recommendations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 

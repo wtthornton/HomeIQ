@@ -15,6 +15,8 @@ will be completed in Story 39.10.
 """
 
 import logging
+import re
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +24,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 
 logger = logging.getLogger(__name__)
+
+# Pattern to strip control characters (newlines, tabs, ANSI escapes) from user input before logging
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def _sanitize_for_log(text: str, max_length: int = 100) -> str:
+    """Strip control characters and truncate user input for safe logging."""
+    return _CONTROL_CHAR_RE.sub("", text)[:max_length]
 
 router = APIRouter(prefix="/api/v1", tags=["Query"])
 
@@ -32,6 +42,13 @@ class QueryRequest(BaseModel):
     query: str = Field(..., description="Natural language query", max_length=500)
     user_id: str | None = Field(None, description="User ID for personalization")
     context: dict | None = Field(None, description="Additional context")
+
+
+class RefineRequest(BaseModel):
+    """Request for refining query results based on user feedback"""
+    feedback: str | None = Field(None, description="User feedback text", max_length=500)
+    selected_entities: list[str] = Field(default_factory=list, description="User-selected entity IDs")
+    additional_context: dict | None = Field(None, description="Additional refinement context")
 
 
 class QueryResponse(BaseModel):
@@ -55,7 +72,7 @@ async def process_query(
     
     Note: Full implementation will be migrated from ask_ai_router.py in Story 39.10.
     """
-    logger.info(f"🤖 Processing query: {request.query[:100]}...")
+    logger.info(f"[QUERY] Processing query: {_sanitize_for_log(request.query)}...")
     
     # TODO: Story 39.10 - Full implementation
     # - Entity extraction using UnifiedExtractionPipeline
@@ -65,7 +82,7 @@ async def process_query(
     
     # Placeholder response
     return QueryResponse(
-        query_id="query-placeholder",
+        query_id=f"query-{uuid.uuid4().hex[:8]}",
         status="pending",
         message="Query service foundation created. Full implementation in Story 39.10.",
         suggestions=[],
@@ -97,7 +114,7 @@ async def get_query_suggestions(
 @router.post("/query/{query_id}/refine")
 async def refine_query(
     query_id: str,
-    refinement: dict,
+    refinement: RefineRequest,
     db: AsyncSession = Depends(get_db)
 ) -> dict:
     """

@@ -190,6 +190,209 @@ async def list_suggestions(
         raise HTTPException(status_code=500, detail="Failed to list suggestions") from e
 
 
+# --- Static path routes MUST be defined before /{suggestion_id} to avoid shadowing ---
+
+
+@router.get("/stats/summary", response_model=SuggestionStatsResponse)
+async def get_suggestion_stats(
+    db: AsyncSession = Depends(get_db),
+    storage_service: SuggestionStorageService = Depends(get_storage_service),
+):
+    """
+    Get suggestion statistics.
+
+    Args:
+        db: Database session
+        storage_service: Storage service instance
+
+    Returns:
+        Suggestion statistics
+    """
+    try:
+        stats = await storage_service.get_suggestion_stats(db=db)
+        return SuggestionStatsResponse(**stats)
+    except Exception as e:
+        logger.error(f"Failed to get suggestion stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get suggestion stats") from e
+
+
+@router.get("/reports/invalid", response_model=InvalidReportsListResponse)
+async def list_invalid_reports(
+    reason: str | None = Query(None, description="Filter by reason"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List invalid suggestion reports (admin endpoint).
+
+    Returns reports with aggregated statistics by reason.
+
+    Epic: Proactive Suggestions Device Validation
+
+    Args:
+        reason: Optional filter by reason
+        limit: Maximum number of results
+        db: Database session
+
+    Returns:
+        List of reports with statistics
+    """
+    try:
+        # Build query with JOIN to avoid N+1 query problem
+        query = (
+            select(InvalidSuggestionReport, Suggestion.prompt)
+            .outerjoin(Suggestion, InvalidSuggestionReport.suggestion_id == Suggestion.id)
+            .order_by(InvalidSuggestionReport.reported_at.desc())
+            .limit(limit)
+        )
+
+        if reason:
+            query = query.where(InvalidSuggestionReport.reason == reason)
+
+        result = await db.execute(query)
+        rows = result.all()
+
+        # Get totals by reason
+        count_query = select(
+            InvalidSuggestionReport.reason,
+            sql_func.count().label("count")
+        ).group_by(InvalidSuggestionReport.reason)
+
+        count_result = await db.execute(count_query)
+        by_reason = {row.reason: row.count for row in count_result.all()}
+
+        # Build report items from JOIN results
+        report_items = []
+        for report, suggestion_prompt in rows:
+            report_items.append(InvalidReportItem(
+                id=report.id,
+                suggestion_id=report.suggestion_id,
+                reason=report.reason,
+                feedback=report.feedback,
+                reported_at=report.reported_at.isoformat() if report.reported_at else "",
+                suggestion_prompt=suggestion_prompt[:100] + "..." if suggestion_prompt and len(suggestion_prompt) > 100 else suggestion_prompt,
+            ))
+
+        total = sum(by_reason.values())
+
+        return InvalidReportsListResponse(
+            reports=report_items,
+            total=total,
+            by_reason=by_reason,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to list invalid reports: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to list reports"
+        ) from e
+
+
+# Global scheduler service reference (set by main.py)
+_scheduler_service: Any = None
+
+
+def set_scheduler_service(service: Any):
+    """Set scheduler service reference (called from main.py)"""
+    global _scheduler_service
+    _scheduler_service = service
+
+
+@router.post("/trigger")
+async def trigger_suggestion_generation():
+    """
+    Manually trigger suggestion generation (for testing/debugging).
+
+    Returns:
+        Job results
+    """
+    try:
+        if not _scheduler_service:
+            raise HTTPException(status_code=503, detail="Scheduler service not available")
+
+        results = await _scheduler_service.trigger_manual()
+        return {"success": True, "results": results}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to trigger suggestion generation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to trigger suggestion generation") from e
+
+
+@router.get("/debug/context")
+async def debug_context_analysis():
+    """
+    Debug endpoint to analyze context without creating suggestions.
+
+    Returns context analysis results to help diagnose why no suggestions are generated.
+    """
+    from ..services.context_analysis_service import ContextAnalysisService
+
+    try:
+        context_service = ContextAnalysisService()
+        context_analysis = await context_service.analyze_all_context()
+        await context_service.close()
+
+        return {
+            "success": True,
+            "context_analysis": context_analysis,
+            "summary": {
+                "weather_available": context_analysis.get("weather", {}).get("available", False),
+                "sports_available": context_analysis.get("sports", {}).get("available", False),
+                "energy_available": context_analysis.get("energy", {}).get("available", False),
+                "historical_available": context_analysis.get("historical_patterns", {}).get("available", False),
+                "total_insights": len(context_analysis.get("summary", {}).get("insights", [])),
+            },
+        }
+    except Exception as e:
+        logger.error(f"Failed to analyze context: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Context analysis failed") from e
+
+
+@router.post("/sample")
+async def create_sample_suggestion(
+    db: AsyncSession = Depends(get_db),
+    storage_service: SuggestionStorageService = Depends(get_storage_service),
+):
+    """
+    Create a sample suggestion for testing the UI.
+
+    This endpoint is for debugging purposes to verify the API and UI integration.
+    """
+    try:
+        # Create a sample suggestion
+        suggestion = await storage_service.create_suggestion(
+            prompt="It's going to be 90F today. Should I create an automation to pre-cool your home before you arrive?",
+            context_type="weather",
+            quality_score=0.85,
+            context_metadata={
+                "weather": {
+                    "available": True,
+                    "current": {"temperature": 90, "condition": "sunny", "humidity": 45},
+                },
+                "timestamp": "2025-01-07T12:00:00Z",
+            },
+            prompt_metadata={
+                "trigger": "high_temperature",
+                "temperature": 90,
+            },
+            db=db,
+        )
+
+        return {
+            "success": True,
+            "message": "Sample suggestion created",
+            "suggestion_id": suggestion.id,
+        }
+    except Exception as e:
+        logger.error(f"Failed to create sample suggestion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create sample suggestion") from e
+
+
+# --- Dynamic path routes (must come after all static paths) ---
+
+
 @router.get("/{suggestion_id}", response_model=SuggestionResponse)
 async def get_suggestion(
     suggestion_id: str,
@@ -373,131 +576,7 @@ async def send_suggestion_to_agent(
         raise
     except Exception as e:
         logger.error(f"Failed to send suggestion {suggestion_id} to agent: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to send suggestion: {str(e)}") from e
-
-
-@router.get("/stats/summary", response_model=SuggestionStatsResponse)
-async def get_suggestion_stats(
-    db: AsyncSession = Depends(get_db),
-    storage_service: SuggestionStorageService = Depends(get_storage_service),
-):
-    """
-    Get suggestion statistics.
-
-    Args:
-        db: Database session
-        storage_service: Storage service instance
-
-    Returns:
-        Suggestion statistics
-    """
-    try:
-        stats = await storage_service.get_suggestion_stats(db=db)
-        return SuggestionStatsResponse(**stats)
-    except Exception as e:
-        logger.error(f"Failed to get suggestion stats: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to get suggestion stats") from e
-
-
-# Global scheduler service reference (set by main.py)
-_scheduler_service: Any = None
-
-
-def set_scheduler_service(service: Any):
-    """Set scheduler service reference (called from main.py)"""
-    global _scheduler_service
-    _scheduler_service = service
-
-
-@router.post("/trigger")
-async def trigger_suggestion_generation():
-    """
-    Manually trigger suggestion generation (for testing/debugging).
-
-    Returns:
-        Job results
-    """
-    try:
-        if not _scheduler_service:
-            raise HTTPException(status_code=503, detail="Scheduler service not available")
-
-        results = await _scheduler_service.trigger_manual()
-        return {"success": True, "results": results}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to trigger suggestion generation: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to trigger suggestion generation") from e
-
-
-@router.get("/debug/context")
-async def debug_context_analysis():
-    """
-    Debug endpoint to analyze context without creating suggestions.
-
-    Returns context analysis results to help diagnose why no suggestions are generated.
-    """
-    from ..services.context_analysis_service import ContextAnalysisService
-
-    try:
-        context_service = ContextAnalysisService()
-        context_analysis = await context_service.analyze_all_context()
-        await context_service.close()
-
-        return {
-            "success": True,
-            "context_analysis": context_analysis,
-            "summary": {
-                "weather_available": context_analysis.get("weather", {}).get("available", False),
-                "sports_available": context_analysis.get("sports", {}).get("available", False),
-                "energy_available": context_analysis.get("energy", {}).get("available", False),
-                "historical_available": context_analysis.get("historical_patterns", {}).get("available", False),
-                "total_insights": len(context_analysis.get("summary", {}).get("insights", [])),
-            },
-        }
-    except Exception as e:
-        logger.error(f"Failed to analyze context: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to analyze context: {str(e)}") from e
-
-
-@router.post("/sample")
-async def create_sample_suggestion(
-    db: AsyncSession = Depends(get_db),
-    storage_service: SuggestionStorageService = Depends(get_storage_service),
-):
-    """
-    Create a sample suggestion for testing the UI.
-
-    This endpoint is for debugging purposes to verify the API and UI integration.
-    """
-    try:
-        # Create a sample suggestion
-        suggestion = await storage_service.create_suggestion(
-            prompt="It's going to be 90°F today. Should I create an automation to pre-cool your home before you arrive?",
-            context_type="weather",
-            quality_score=0.85,
-            context_metadata={
-                "weather": {
-                    "available": True,
-                    "current": {"temperature": 90, "condition": "sunny", "humidity": 45},
-                },
-                "timestamp": "2025-01-07T12:00:00Z",
-            },
-            prompt_metadata={
-                "trigger": "high_temperature",
-                "temperature": 90,
-            },
-            db=db,
-        )
-
-        return {
-            "success": True,
-            "message": "Sample suggestion created",
-            "suggestion_id": suggestion.id,
-        }
-    except Exception as e:
-        logger.error(f"Failed to create sample suggestion: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to create sample suggestion: {str(e)}") from e
+        raise HTTPException(status_code=500, detail="Failed to send suggestion to agent") from e
 
 
 @router.post("/{suggestion_id}/report", response_model=InvalidSuggestionReportResponse)
@@ -509,19 +588,19 @@ async def report_invalid_suggestion(
 ):
     """
     Report a suggestion as invalid.
-    
+
     Allows users to report suggestions that reference non-existent devices,
     are not relevant, or have other issues.
-    
+
     Epic: Proactive Suggestions Device Validation
     Story: User Feedback for Invalid Suggestions (P2)
-    
+
     Args:
         suggestion_id: ID of the suggestion to report
         report_data: Report details (reason, feedback)
         db: Database session
         storage_service: Storage service instance
-        
+
     Returns:
         Report confirmation with report ID
     """
@@ -530,7 +609,7 @@ async def report_invalid_suggestion(
         suggestion = await storage_service.get_suggestion(suggestion_id, db=db)
         if not suggestion:
             raise HTTPException(status_code=404, detail="Suggestion not found")
-        
+
         # Create report
         report = InvalidSuggestionReport(
             suggestion_id=suggestion_id,
@@ -540,18 +619,18 @@ async def report_invalid_suggestion(
         db.add(report)
         await db.commit()
         await db.refresh(report)
-        
+
         logger.info(
             f"Invalid suggestion reported: suggestion_id={suggestion_id}, "
             f"reason={report_data.reason}, report_id={report.id}"
         )
-        
+
         return InvalidSuggestionReportResponse(
             success=True,
             report_id=report.id,
-            message=f"Thank you for reporting. This helps improve our suggestions.",
+            message="Thank you for reporting. This helps improve our suggestions.",
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -559,81 +638,4 @@ async def report_invalid_suggestion(
         raise HTTPException(
             status_code=500,
             detail="Failed to submit report"
-        ) from e
-
-
-@router.get("/reports/invalid", response_model=InvalidReportsListResponse)
-async def list_invalid_reports(
-    reason: str | None = Query(None, description="Filter by reason"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    List invalid suggestion reports (admin endpoint).
-    
-    Returns reports with aggregated statistics by reason.
-    
-    Epic: Proactive Suggestions Device Validation
-    
-    Args:
-        reason: Optional filter by reason
-        limit: Maximum number of results
-        db: Database session
-        
-    Returns:
-        List of reports with statistics
-    """
-    try:
-        # Build query
-        query = select(InvalidSuggestionReport).order_by(
-            InvalidSuggestionReport.reported_at.desc()
-        ).limit(limit)
-        
-        if reason:
-            query = query.where(InvalidSuggestionReport.reason == reason)
-        
-        result = await db.execute(query)
-        reports = result.scalars().all()
-        
-        # Get totals by reason
-        count_query = select(
-            InvalidSuggestionReport.reason,
-            sql_func.count().label("count")
-        ).group_by(InvalidSuggestionReport.reason)
-        
-        count_result = await db.execute(count_query)
-        by_reason = {row.reason: row.count for row in count_result.all()}
-        
-        # Get suggestion prompts for context
-        report_items = []
-        for report in reports:
-            # Fetch suggestion prompt
-            suggestion_query = select(Suggestion.prompt).where(
-                Suggestion.id == report.suggestion_id
-            )
-            suggestion_result = await db.execute(suggestion_query)
-            suggestion_prompt = suggestion_result.scalar_one_or_none()
-            
-            report_items.append(InvalidReportItem(
-                id=report.id,
-                suggestion_id=report.suggestion_id,
-                reason=report.reason,
-                feedback=report.feedback,
-                reported_at=report.reported_at.isoformat() if report.reported_at else "",
-                suggestion_prompt=suggestion_prompt[:100] + "..." if suggestion_prompt and len(suggestion_prompt) > 100 else suggestion_prompt,
-            ))
-        
-        total = sum(by_reason.values())
-        
-        return InvalidReportsListResponse(
-            reports=report_items,
-            total=total,
-            by_reason=by_reason,
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to list invalid reports: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to list reports"
         ) from e

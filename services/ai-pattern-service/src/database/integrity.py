@@ -110,17 +110,28 @@ async def attempt_database_repair(db_path: Optional[Path] = None) -> bool:
             try:
                 logger.info("Attempting repair using SQLite .recover command")
                 recovered_path = db_path.with_suffix(".recovered")
-                
-                # Use sqlite3 command-line tool to recover
-                # .recover reads all data from corrupted database
-                recover_cmd = f'sqlite3 "{db_path}" ".recover" | sqlite3 "{recovered_path}"'
-                result = subprocess.run(
-                    recover_cmd,
-                    shell=True,
+
+                # Use sqlite3 command-line tool to recover (safe: no shell=True)
+                sqlite3_path = shutil.which("sqlite3")
+                if not sqlite3_path:
+                    raise FileNotFoundError("sqlite3 not found on PATH")
+
+                recover_proc = subprocess.run(
+                    [sqlite3_path, str(db_path), ".recover"],
                     capture_output=True,
                     text=True,
                     timeout=300  # 5 minute timeout
                 )
+                if recover_proc.returncode == 0:
+                    result = subprocess.run(
+                        [sqlite3_path, str(recovered_path)],
+                        input=recover_proc.stdout,
+                        capture_output=True,
+                        text=True,
+                        timeout=300
+                    )
+                else:
+                    result = recover_proc
                 
                 if result.returncode == 0 and recovered_path.exists():
                     # Verify recovered database
@@ -235,8 +246,7 @@ async def attempt_database_repair(db_path: Optional[Path] = None) -> bool:
             return False
     
     # Run synchronous repair in executor
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _repair_sync)
+    return await asyncio.to_thread(_repair_sync)
 
 
 def is_database_corruption_error(error: Exception) -> bool:

@@ -45,7 +45,7 @@ class EntityInventoryService:
         self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
         self.ha_client = HomeAssistantClient(
             ha_url=settings.ha_url,
-            access_token=settings.ha_token
+            access_token=settings.ha_token.get_secret_value()
         )
         self.device_intelligence_client = DeviceIntelligenceClient(settings)
         self._cache_key = "entity_inventory_summary"

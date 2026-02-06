@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import settings
+from ..confidence import calculate_entity_confidence
 
 logger = logging.getLogger(__name__)
 
@@ -96,14 +97,5 @@ class ClarificationService:
     
     def _calculate_base_confidence(self, entities: list[dict[str, Any]]) -> float:
         """Calculate base confidence from entities."""
-        if not entities:
-            return 0.5
-        
-        entity_count = len(entities)
-        quality_score = sum(
-            (1.0 if e.get('entity_id') else 0.5) * e.get('confidence', 0.7)
-            for e in entities
-        ) / len(entities) if entities else 0.5
-        
-        return min(0.95, 0.5 + (entity_count * 0.08) + (quality_score * 0.15))
+        return calculate_entity_confidence(entities)
 

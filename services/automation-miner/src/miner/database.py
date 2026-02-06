@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import JSON, Column, DateTime, Float, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -64,15 +64,15 @@ class CommunityAutomation(Base):
     # Additional metadata (JSON) - renamed to avoid SQLAlchemy reserved name
     extra_metadata = Column(JSON, nullable=True)
 
+    # Blueprint flag for efficient filtering
+    is_blueprint = Column(Boolean, nullable=False, default=False, index=True)
+
     def __repr__(self):
         return f"<CommunityAutomation(id={self.id}, title='{self.title}', quality={self.quality_score})>"
 
 
-# Create indexes for JSON fields (SQLite doesn't support GIN, but we can add expression indexes)
-# For PostgreSQL, these would be GIN indexes
-Index('ix_use_case', CommunityAutomation.use_case)
-Index('ix_quality_score', CommunityAutomation.quality_score)
-Index('ix_source', CommunityAutomation.source)
+# Note: Indexes for use_case, quality_score, and source are created via index=True
+# on the Column definitions above. No explicit Index() calls needed.
 
 
 class MinerState(Base):
@@ -156,12 +156,20 @@ class Database:
 _db: Database | None = None
 
 
-def get_database() -> Database:
-    """Get global database instance (singleton)"""
+def get_database(db_path: str | None = None) -> Database:
+    """Get database instance. Uses singleton for default path, new instance for custom paths."""
+    if db_path:
+        return Database(db_path)
     global _db
     if _db is None:
         _db = Database()
     return _db
+
+
+def reset_database() -> None:
+    """Reset the global database singleton (for testing)."""
+    global _db
+    _db = None
 
 
 async def get_db_session():

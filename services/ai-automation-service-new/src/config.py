@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     scheduler_timezone: str = "America/Los_Angeles"
     scheduler_suggestion_limit: int = 10  # Max suggestions to generate per day
     
+    # API Key validation (comma-separated list; empty = allow any key for dev)
+    api_keys: set[str] = set()
+
     # Logging
     log_level: str = "INFO"
     

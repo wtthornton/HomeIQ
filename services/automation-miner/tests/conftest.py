@@ -8,20 +8,20 @@ Following Context7 KB best practices from /pytest-dev/pytest
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from httpx import AsyncClient
 
-if not os.getenv("AUTOMATION_MINER_TESTS"):
-    pytest.skip(
-        "automation-miner tests require external services and env configuration; skipping in alpha environment",
-        allow_module_level=True,
-    )
+# Mark for tests that require external services (integration tests)
+needs_external = pytest.mark.skipif(
+    not os.getenv("AUTOMATION_MINER_TESTS"),
+    reason="Requires external services (set AUTOMATION_MINER_TESTS=1 to enable)"
+)
 
 
-# ✅ Context7 Best Practice: Shared async client
 @pytest.fixture
+@pytest.mark.asyncio
 async def client():
     """Async HTTP client for Automation Miner API"""
     from src.api.main import app
@@ -30,17 +30,17 @@ async def client():
         yield ac
 
 
-# ✅ Context7 Best Practice: Database fixtures
 @pytest.fixture
+@pytest.mark.asyncio
 async def test_db():
     """
-    Test database with automatic setup and teardown
-    
-    Creates tables before test, drops after test completes.
+    Test database with automatic setup and teardown.
+
+    Uses in-memory SQLite for test isolation.
     """
     from src.miner.database import get_database
 
-    db = get_database()
+    db = get_database(db_path=":memory:")
     await db.create_tables()
     yield db
     await db.drop_tables()
@@ -48,17 +48,16 @@ async def test_db():
 
 
 @pytest.fixture
+@pytest.mark.asyncio
 async def test_repository(test_db):
     """Test repository with database session"""
     from src.miner.repository import CorpusRepository
 
-    async for session in test_db.get_session():
+    async with test_db.get_session() as session:
         repo = CorpusRepository(session)
         yield repo
-        break
 
 
-# ✅ Context7 Best Practice: Sample data fixtures
 @pytest.fixture
 def sample_automation_metadata():
     """Sample automation metadata for testing"""
@@ -78,12 +77,11 @@ def sample_automation_metadata():
         vote_count=500,
         source="discourse",
         source_id="test123",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
     )
 
 
-# ✅ Context7 Best Practice: Parametrized search queries
 @pytest.fixture(params=[
     {"device": "light", "min_quality": 0.7, "limit": 10},
     {"device": "motion_sensor", "min_quality": 0.8, "limit": 5},
@@ -94,7 +92,6 @@ def search_params(request):
     return request.param
 
 
-# ✅ Context7 Best Practice: Test markers
 def pytest_configure(config):
     """Register custom pytest markers"""
     config.addinivalue_line("markers", "unit: Unit tests")

@@ -27,7 +27,7 @@ class SynergiesClient:
         if settings is None:
             settings = Settings()
         self.base_url = (base_url or settings.ai_automation_service_url).rstrip("/")
-        self.api_key = settings.ai_automation_api_key
+        self.api_key = settings.ai_automation_api_key.get_secret_value() if settings.ai_automation_api_key else None
         self.timeout = aiohttp.ClientTimeout(total=60)  # Increased for larger result sets (5000 limit)
 
     async def get_synergies(

@@ -15,7 +15,6 @@ alembic>=1.13.0,<2.0.0
 
 # HTTP clients (2025 patterns)
 httpx>=0.28.1,<0.29.0
-aiohttp>=3.13.2,<4.0.0
 
 # OpenAI API
 openai>=1.54.0,<2.0.0

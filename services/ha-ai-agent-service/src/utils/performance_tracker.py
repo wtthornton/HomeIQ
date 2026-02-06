@@ -124,9 +124,13 @@ class PerformanceTracker:
             timestamp=time.time()
         )
         
+        # Cleanup: remove processed metrics to prevent unbounded memory growth
+        for metric_id in metric_ids:
+            self.metrics.pop(metric_id, None)
+
         # Add to reports
         self.reports.append(report)
-        
+
         # Log report (convert seconds to milliseconds for display)
         total_duration_ms = total_duration * 1000
         logger.info(

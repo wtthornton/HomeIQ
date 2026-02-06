@@ -23,8 +23,8 @@ router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
 # Request/Response models
 class StoreRequest(BaseModel):
     """Request model for storing knowledge."""
-    text: str = Field(..., description="Text to store")
-    knowledge_type: str = Field(..., description="Knowledge type (e.g., 'query', 'pattern')")
+    text: str = Field(..., description="Text to store", min_length=1, max_length=10000)
+    knowledge_type: str = Field(..., description="Knowledge type (e.g., 'query', 'pattern')", min_length=1, max_length=100)
     metadata: dict[str, Any] | None = Field(None, description="Optional metadata")
     success_score: float = Field(0.5, ge=0.0, le=1.0, description="Success score (0.0-1.0)")
 
@@ -37,8 +37,8 @@ class StoreResponse(BaseModel):
 
 class RetrieveRequest(BaseModel):
     """Request model for retrieving knowledge."""
-    query: str = Field(..., description="Query text")
-    knowledge_type: str | None = Field(None, description="Filter by knowledge type")
+    query: str = Field(..., description="Query text", min_length=1, max_length=10000)
+    knowledge_type: str | None = Field(None, description="Filter by knowledge type", max_length=100)
     top_k: int = Field(5, ge=1, le=100, description="Number of results to return")
     min_similarity: float = Field(0.7, ge=0.0, le=1.0, description="Minimum similarity threshold")
 
@@ -51,8 +51,8 @@ class RetrieveResponse(BaseModel):
 
 class SearchRequest(BaseModel):
     """Request model for searching knowledge."""
-    query: str = Field(..., description="Query text")
-    filters: dict[str, Any] | None = Field(None, description="Optional filters")
+    query: str = Field(..., description="Query text", min_length=1, max_length=10000)
+    filters: dict[str, Any] | None = Field(None, description="Optional filters (supported: knowledge_type)")
     top_k: int = Field(5, ge=1, le=100, description="Number of results to return")
     min_similarity: float = Field(0.7, ge=0.0, le=1.0, description="Minimum similarity threshold")
 
