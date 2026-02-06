@@ -30,14 +30,14 @@ class Deduplicator:
     def calculate_similarity_hash(self, metadata: AutomationMetadata) -> str:
         """
         Calculate hash for quick duplicate detection
-        
+
         Based on normalized title + devices
-        
+
         Args:
             metadata: AutomationMetadata instance
-        
+
         Returns:
-            MD5 hash string
+            SHA256 hash string
         """
         # Normalize title (lowercase, no spaces)
         normalized_title = metadata.title.lower().replace(' ', '').replace('-', '')
@@ -48,8 +48,7 @@ class Deduplicator:
         # Create hash input
         hash_input = f"{normalized_title}|{','.join(sorted_devices)}"
 
-        # Calculate MD5 hash
-        return hashlib.md5(hash_input.encode()).hexdigest()
+        return hashlib.sha256(hash_input.encode()).hexdigest()
 
     def calculate_title_similarity(self, title1: str, title2: str) -> float:
         """

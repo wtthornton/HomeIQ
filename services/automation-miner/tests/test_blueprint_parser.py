@@ -28,14 +28,15 @@ class TestAutomationParser:
 blueprint:
   name: Test Automation
   domain: automation
-input:
-  entity:
-    name: Entity
-    selector:
-      entity: {}
+  input:
+    entity:
+      name: Entity
+      selector:
+        entity: {}
 """
         parser = AutomationParser()
-        result = parser.parse_blueprint(blueprint_yaml)
+        # parse_yaml handles string input and dispatches to parse_blueprint
+        result = parser.parse_yaml(blueprint_yaml)
         assert result is not None
-        assert "blueprint" in result
+        assert "_blueprint_metadata" in result
 

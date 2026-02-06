@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/automation", tags=["automation"])
 
+# M7 fix: Cache template library as module-level singleton (same pattern as plan_router)
+_template_library: TemplateLibrary | None = None
+
 
 class ValidateRequest(BaseModel):
     """Request to validate automation plan."""
@@ -40,11 +43,14 @@ class ValidateResponse(BaseModel):
 
 
 def get_template_library() -> TemplateLibrary:
-    """Get or create template library instance."""
-    from pathlib import Path
-    current_file = Path(__file__)
-    templates_dir = current_file.parent.parent / "templates" / "templates"
-    return TemplateLibrary(templates_dir=templates_dir)
+    """Get or create template library instance (cached)."""
+    global _template_library
+    if _template_library is None:
+        from pathlib import Path
+        current_file = Path(__file__)
+        templates_dir = current_file.parent.parent / "templates" / "templates"
+        _template_library = TemplateLibrary(templates_dir=templates_dir)
+    return _template_library
 
 
 def get_template_validator(
@@ -86,7 +92,7 @@ async def validate_plan(
         
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Validation error. Check server logs for details.")
     except Exception as e:
         logger.error(f"Failed to validate plan: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to validate plan: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to validate plan. Check server logs for details.")

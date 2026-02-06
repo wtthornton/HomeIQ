@@ -48,6 +48,7 @@ except ImportError:
     OBSERVABILITY_AVAILABLE = False
 
 from .api import health_router, metrics_router, rag_router
+from .clients.openvino_client import OpenVINOClient
 from .config import settings
 from .database.session import init_db
 
@@ -103,18 +104,26 @@ async def lifespan(app: FastAPI):
     
     # Initialize database
     await _initialize_database()
-    
+
+    # Create singleton OpenVINO client
+    openvino_client = OpenVINOClient(base_url=settings.openvino_service_url)
+    app.state.openvino_client = openvino_client
+
+    # Create singleton embedding cache
+    app.state.embedding_cache: dict[str, Any] = {}
+
     # Setup observability if available
     await _setup_observability()
-    
-    logger.info("✅ RAG Service startup complete")
+
+    logger.info("[OK] RAG Service startup complete")
     logger.info("=" * 60)
-    
+
     yield
-    
+
     # Shutdown
     logger.info("=" * 60)
     logger.info("RAG Service Shutting Down")
+    await openvino_client.close()
     logger.info("=" * 60)
 
 # Create FastAPI app

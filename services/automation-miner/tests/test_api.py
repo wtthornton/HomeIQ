@@ -3,7 +3,15 @@ Integration Tests for API
 
 Tests FastAPI endpoints.
 """
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+# Add service src to path
+service_dir = Path(__file__).parent.parent
+src_path = service_dir / "src"
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
 
 import pytest
 from httpx import AsyncClient
@@ -15,8 +23,8 @@ from src.miner.repository import CorpusRepository
 
 @pytest.fixture
 async def test_db():
-    """Create test database"""
-    db = get_database()
+    """Create test database using in-memory SQLite"""
+    db = get_database(db_path=":memory:")
     await db.create_tables()
     yield db
     await db.drop_tables()
@@ -26,7 +34,7 @@ async def test_db():
 @pytest.fixture
 async def sample_automation(test_db):
     """Create sample automation in database"""
-    async for session in test_db.get_session().__aiter__():
+    async with test_db.get_session() as session:
         repo = CorpusRepository(session)
 
         metadata = AutomationMetadata(
@@ -43,12 +51,11 @@ async def sample_automation(test_db):
             vote_count=500,
             source="discourse",
             source_id="test123",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
 
         await repo.save_automation(metadata)
-        break
 
 
 @pytest.mark.asyncio

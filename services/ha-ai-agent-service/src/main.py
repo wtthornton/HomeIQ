@@ -134,7 +134,7 @@ async def lifespan(_app: FastAPI) -> None:
         # Initialize tool service
         ha_client = HomeAssistantClient(
             ha_url=settings.ha_url,
-            access_token=settings.ha_token,
+            access_token=settings.ha_token.get_secret_value(),
             timeout=settings.ha_timeout
         )
         data_api_client = DataAPIClient(base_url=settings.data_api_url)
@@ -143,7 +143,7 @@ async def lifespan(_app: FastAPI) -> None:
         from .clients.ai_automation_client import AIAutomationClient
         ai_automation_client = AIAutomationClient(
             base_url=settings.ai_automation_service_url,
-            api_key=settings.ai_automation_api_key
+            api_key=settings.ai_automation_api_key.get_secret_value() if settings.ai_automation_api_key else None
         )
         logger.info(f"✅ AI Automation Service client initialized ({settings.ai_automation_service_url})")
         
@@ -151,7 +151,7 @@ async def lifespan(_app: FastAPI) -> None:
         from .clients.hybrid_flow_client import HybridFlowClient
         hybrid_flow_client = HybridFlowClient(
             base_url=settings.ai_automation_service_url,
-            api_key=settings.ai_automation_api_key
+            api_key=settings.ai_automation_api_key.get_secret_value() if settings.ai_automation_api_key else None
         )
         logger.info(f"✅ Hybrid Flow client initialized ({settings.ai_automation_service_url})")
         
@@ -159,7 +159,7 @@ async def lifespan(_app: FastAPI) -> None:
         from .clients.yaml_validation_client import YAMLValidationClient
         yaml_validation_client = YAMLValidationClient(
             base_url=settings.yaml_validation_service_url,
-            api_key=settings.yaml_validation_api_key
+            api_key=settings.yaml_validation_api_key.get_secret_value() if settings.yaml_validation_api_key else None
         )
         logger.info(f"✅ YAML Validation Service client initialized ({settings.yaml_validation_service_url})")
         
@@ -303,7 +303,7 @@ async def health_check() -> dict:
         logger.exception("Error during health check")
         raise HTTPException(
             status_code=503,
-            detail=f"Health check failed: {str(e)}"
+            detail="Health check failed"
         )
 
 
@@ -321,7 +321,7 @@ async def get_context() -> dict:
         }
     except Exception as e:
         logger.exception("Error building context")
-        raise HTTPException(status_code=500, detail=f"Failed to build context: {str(e)}") from e
+        raise HTTPException(status_code=500, detail="Failed to build context") from e
 
 
 @app.get("/api/v1/system-prompt")
@@ -338,7 +338,7 @@ async def get_system_prompt() -> dict:
         }
     except Exception as e:
         logger.exception("Error getting system prompt")
-        raise HTTPException(status_code=500, detail=f"Failed to get system prompt: {str(e)}") from e
+        raise HTTPException(status_code=500, detail="Failed to get system prompt") from e
 
 
 @app.get("/api/v1/complete-prompt")
@@ -355,7 +355,7 @@ async def get_complete_prompt() -> dict:
         }
     except Exception as e:
         logger.exception("Error building complete prompt")
-        raise HTTPException(status_code=500, detail=f"Failed to build complete prompt: {str(e)}") from e
+        raise HTTPException(status_code=500, detail="Failed to build complete prompt") from e
 
 
 class ValidationRequest(BaseModel):
@@ -408,7 +408,7 @@ async def validate_yaml(request: ValidationRequest) -> dict:
         raise
     except Exception as e:
         logger.exception("Error validating YAML")
-        raise HTTPException(status_code=500, detail=f"Failed to validate YAML: {str(e)}") from e
+        raise HTTPException(status_code=500, detail="Failed to validate YAML") from e
 
 
 @app.get("/api/v1/tools")
@@ -426,7 +426,7 @@ async def get_tools() -> dict:
         }
     except Exception as e:
         logger.exception("Error getting tools")
-        raise HTTPException(status_code=500, detail=f"Failed to get tools: {str(e)}") from e
+        raise HTTPException(status_code=500, detail="Failed to get tools") from e
 
 
 @app.post("/api/v1/tools/execute")
@@ -458,7 +458,7 @@ async def execute_tool(request: dict) -> dict:
         raise
     except Exception as e:
         logger.exception("Error executing tool")
-        raise HTTPException(status_code=500, detail=f"Failed to execute tool: {str(e)}") from e
+        raise HTTPException(status_code=500, detail="Failed to execute tool") from e
 
 
 @app.post("/api/v1/tools/execute-openai")
@@ -484,7 +484,7 @@ async def execute_tool_openai(request: dict) -> dict:
         return result
     except Exception as e:
         logger.exception("Error executing tool call")
-        raise HTTPException(status_code=500, detail=f"Failed to execute tool call: {str(e)}") from e
+        raise HTTPException(status_code=500, detail="Failed to execute tool call") from e
 
 
 if __name__ == "__main__":

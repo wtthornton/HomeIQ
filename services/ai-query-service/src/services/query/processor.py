@@ -6,6 +6,7 @@ Extracts core query processing logic from ask_ai_router.py
 """
 
 import logging
+import re
 import uuid
 from datetime import datetime
 from typing import Any
@@ -13,8 +14,17 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import settings
+from ..confidence import calculate_entity_confidence
 
 logger = logging.getLogger(__name__)
+
+# Pattern to strip control characters (newlines, tabs, ANSI escapes) from user input before logging
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def _sanitize_for_log(text: str, max_length: int = 100) -> str:
+    """Strip control characters and truncate user input for safe logging."""
+    return _CONTROL_CHAR_RE.sub("", text)[:max_length]
 
 
 class QueryProcessor:
@@ -68,7 +78,7 @@ class QueryProcessor:
         if len(query) > settings.max_query_length:
             raise ValueError(f"Query exceeds maximum length of {settings.max_query_length} characters")
         
-        logger.info(f"🤖 Processing query: {query[:100]}...")
+        logger.info(f"[QUERY] Processing query: {_sanitize_for_log(query)}...")
         
         try:
             # Step 1: Extract entities
@@ -136,25 +146,16 @@ class QueryProcessor:
         clarification_result: dict[str, Any] | None
     ) -> float:
         """Calculate confidence score based on entities, suggestions, and clarification needs."""
-        base_confidence = 0.5
-        
-        # Boost based on entity count and quality
-        if entities:
-            entity_count = len(entities)
-            quality_score = sum(
-                (1.0 if e.get('entity_id') else 0.5) * e.get('confidence', 0.7)
-                for e in entities
-            ) / len(entities) if entities else 0.5
-            base_confidence = 0.5 + (entity_count * 0.08) + (quality_score * 0.15)
-        
+        base_confidence = calculate_entity_confidence(entities)
+
         # Boost based on suggestions
         if suggestions:
             base_confidence = min(0.9, base_confidence + (len(suggestions) * 0.1))
-        
+
         # Reduce if clarification needed
         if clarification_result and clarification_result.get("needed"):
             base_confidence = max(0.3, base_confidence - 0.2)
-        
+
         return min(0.95, base_confidence)
     
     def _build_message(

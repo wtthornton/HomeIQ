@@ -327,8 +327,13 @@ class AutomationParser:
         Returns:
             'energy', 'comfort', 'security', or 'convenience'
         """
-        # Combine all text for analysis
-        text = f"{title} {description} {str(automation)}".lower()
+        # Combine relevant fields for analysis (exclude internal metadata keys)
+        relevant_parts = {
+            k: v for k, v in automation.items()
+            if not k.startswith('_')
+            and k in ('trigger', 'condition', 'action', 'alias', 'mode')
+        }
+        text = f"{title} {description} {str(relevant_parts)}".lower()
 
         # Count keyword matches for each category
         scores = dict.fromkeys(self.USE_CASE_KEYWORDS, 0)
@@ -403,25 +408,46 @@ class AutomationParser:
 
         return round(quality, 3)
 
+    # All HA entity domains for PII scrubbing
+    _ENTITY_DOMAINS = (
+        'light|switch|sensor|binary_sensor|climate|cover|lock|camera|fan|'
+        'media_player|vacuum|alarm_control_panel|input_boolean|input_select|'
+        'input_number|input_text|input_datetime|timer|counter|script|scene|'
+        'automation|person|zone|device_tracker|weather|sun|group|number|'
+        'select|button|text|water_heater|siren|humidifier|update'
+    )
+
     def remove_pii(self, text: str) -> str:
         """
         Remove personally identifiable information from text
-        
+
         Args:
             text: Input text
-        
+
         Returns:
             Text with PII removed
         """
-        # Remove entity IDs (e.g., light.bedroom_lamp -> light)
-        text = re.sub(r'\b(light|switch|sensor|binary_sensor)\.[a-z0-9_]+', r'\1', text)
+        # Remove entity IDs for all HA domains (e.g., light.bedroom_lamp -> light)
+        text = re.sub(
+            rf'\b({self._ENTITY_DOMAINS})\.[a-z0-9_]+',
+            r'\1',
+            text
+        )
 
-        # Remove IP addresses
+        # Remove IPv4 addresses
         text = re.sub(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', '[IP]', text)
 
-        # Remove common personal names (basic pattern)
-        # This is optional and may have false positives
-        # text = re.sub(r'\b[A-Z][a-z]+\'s\b', '[NAME]\'s', text)
+        # Remove IPv6 addresses
+        text = re.sub(r'\b[0-9a-fA-F:]{7,39}\b', '[IP]', text)
+
+        # Remove email addresses
+        text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', text)
+
+        # Remove MAC addresses
+        text = re.sub(r'\b([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b', '[MAC]', text)
+
+        # Remove Home Assistant URLs
+        text = re.sub(r'https?://[a-zA-Z0-9._-]+(?::\d+)?/?', '[URL]', text)
 
         return text
 

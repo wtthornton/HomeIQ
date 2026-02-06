@@ -37,7 +37,7 @@ class HealthCheckService:
         self.context_builder = context_builder
         self.ha_client = HomeAssistantClient(
             ha_url=settings.ha_url,
-            access_token=settings.ha_token,
+            access_token=settings.ha_token.get_secret_value(),
             timeout=5  # Short timeout for health checks
         )
         self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
@@ -123,7 +123,7 @@ class HealthCheckService:
 
     async def check_openai(self) -> dict[str, Any]:
         """Check OpenAI configuration (doesn't make API call, just checks config)"""
-        if not self.settings.openai_api_key:
+        if not self.settings.openai_api_key or not self.settings.openai_api_key.get_secret_value():
             return {
                 "status": "warning",
                 "message": "OpenAI API key not configured"

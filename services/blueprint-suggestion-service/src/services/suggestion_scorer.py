@@ -1,31 +1,23 @@
 """Suggestion scorer with 2025 scoring pattern for blueprint suggestions."""
 
 import logging
-import os
-import sys
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Optional
 
-# Add ai-pattern-service to path to import DeviceMatcher
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "ai-pattern-service" / "src"))
+from ..config import settings
+from .external_schemas import BlueprintSummary, DeviceSignature, UserProfile
 
 try:
-    from blueprint_opportunity.device_matcher import DeviceMatcher, UserProfile
-    from blueprint_opportunity.schemas import BlueprintSummary, DeviceSignature
+    from blueprint_opportunity.device_matcher import DeviceMatcher
     DEVICE_MATCHER_AVAILABLE = True
 except ImportError:
-    logger = logging.getLogger(__name__)
-    logger.warning("DeviceMatcher not available, using fallback scoring")
     DEVICE_MATCHER_AVAILABLE = False
     DeviceMatcher = None
-    UserProfile = None
-    BlueprintSummary = None
-    DeviceSignature = None
-
-from ..config import settings
 
 logger = logging.getLogger(__name__)
+
+if not DEVICE_MATCHER_AVAILABLE:
+    logger.warning("DeviceMatcher not available, using fallback scoring")
 
 
 class SuggestionScorer:
@@ -106,16 +98,24 @@ class SuggestionScorer:
         # Calculate complexity bonus
         complexity_bonus = self._calculate_complexity_bonus(complexity)
         
-        # Calculate final score with weights from config
-        final_score = (
-            device_match_score * settings.device_match_weight +
-            blueprint_quality_score * settings.blueprint_quality_weight +
-            community_rating * settings.community_rating_weight +
-            complexity_bonus * settings.complexity_bonus_weight
+        # Calculate final score with normalized weights from config.
+        # temporal_relevance and user_profile weights are already included in
+        # device_match_score via DeviceMatcher, so we only apply the remaining 4
+        # weights and normalize them to sum to 1.0.
+        applied_weight_sum = (
+            settings.device_match_weight
+            + settings.blueprint_quality_weight
+            + settings.community_rating_weight
+            + settings.complexity_bonus_weight
         )
-        
-        # Note: temporal_relevance and user_profile_match are already included in device_match_score
-        # We don't double-count them here
+        norm = 1.0 / applied_weight_sum if applied_weight_sum > 0 else 1.0
+
+        final_score = (
+            device_match_score * settings.device_match_weight * norm +
+            blueprint_quality_score * settings.blueprint_quality_weight * norm +
+            community_rating * settings.community_rating_weight * norm +
+            complexity_bonus * settings.complexity_bonus_weight * norm
+        )
         
         return min(1.0, max(0.0, final_score))
     

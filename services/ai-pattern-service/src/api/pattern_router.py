@@ -223,59 +223,110 @@ async def list_patterns(
             ) from e
 
 
+def _calculate_pattern_stats(patterns: list) -> dict[str, Any]:
+    """
+    Calculate statistics from a list of patterns.
+
+    Extracted as a helper to eliminate duplication in error recovery branches.
+
+    Args:
+        patterns: List of Pattern objects or dicts
+
+    Returns:
+        Stats dictionary with total_patterns, by_type, avg_confidence, unique_devices, total_occurrences
+    """
+    total_patterns = len(patterns)
+    by_type: dict[str, int] = {}
+    total_confidence = 0.0
+    total_occurrences = 0
+    unique_device_set: set[str] = set()
+
+    for p in patterns:
+        if isinstance(p, dict):
+            pattern_type = p.get("pattern_type", "unknown")
+            confidence = p.get("confidence", 0.0)
+            occurrences = p.get("occurrences", 0)
+            device_id = p.get("device_id")
+        else:
+            pattern_type = p.pattern_type
+            confidence = p.confidence
+            occurrences = p.occurrences
+            device_id = p.device_id
+
+        by_type[pattern_type] = by_type.get(pattern_type, 0) + 1
+        total_confidence += confidence
+        total_occurrences += occurrences
+
+        if device_id:
+            individual_devices = device_id.split('+')
+            unique_device_set.update(individual_devices)
+
+    avg_confidence = total_confidence / total_patterns if total_patterns > 0 else 0.0
+
+    return {
+        "total_patterns": total_patterns,
+        "by_type": by_type,
+        "avg_confidence": round(avg_confidence, 3),
+        "unique_devices": len(unique_device_set),
+        "total_occurrences": total_occurrences
+    }
+
+
 @router.get("/stats")
 async def get_pattern_stats(
     db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     Get pattern statistics.
-    
+
     Returns summary statistics about detected patterns.
     Handles database corruption gracefully with automatic recovery attempts.
     """
     from ..database.integrity import (
         DatabaseIntegrityError,
         is_database_corruption_error,
-        safe_database_query,
         check_database_integrity,
         attempt_database_repair
     )
     from ..config import settings
     from pathlib import Path
-    
+
+    _empty_stats = {
+        "total_patterns": 0,
+        "by_type": {},
+        "avg_confidence": 0.0,
+        "unique_devices": 0,
+        "total_occurrences": 0
+    }
+
     async def _fetch_patterns_for_stats():
         """Inner function to fetch patterns for stats calculation"""
-        # Try with large limit first, fallback to smaller if corruption detected
         try:
             return await get_patterns(db, limit=10000)
         except Exception as e:
             if is_database_corruption_error(e):
                 logger.warning(f"Failed to fetch all patterns due to corruption, trying smaller limit: {e}")
-                # Try with smaller limit - may avoid corrupted pages
                 try:
                     return await get_patterns(db, limit=1000)
                 except Exception as e2:
                     if is_database_corruption_error(e2):
                         logger.warning(f"Smaller limit also failed, trying minimal limit: {e2}")
-                        # Try with minimal limit
                         return await get_patterns(db, limit=100)
                     else:
                         raise
             else:
                 raise
-    
+
     async def _attempt_repair_and_retry():
         """Attempt database repair and retry query"""
         logger.info("Attempting automatic database repair...")
         db_path = Path(settings.database_path)
         repair_success = await attempt_database_repair(db_path)
-        
+
         if repair_success:
             logger.info("Database repair successful, retrying query")
-            # Re-check integrity after repair
             is_healthy, error_msg = await check_database_integrity(db)
             if is_healthy:
-                # Retry the query
                 try:
                     return await _fetch_patterns_for_stats()
                 except Exception as retry_error:
@@ -287,255 +338,72 @@ async def get_pattern_stats(
         else:
             logger.error("Database repair failed")
             raise DatabaseIntegrityError("Database repair failed")
-    
+
+    def _stats_response(patterns, message_suffix=""):
+        """Build a successful stats response."""
+        stats = _calculate_pattern_stats(patterns)
+        msg = "Pattern statistics retrieved successfully"
+        if message_suffix:
+            msg += f" ({message_suffix})"
+        return {"success": True, "data": stats, "message": msg}
+
+    def _corruption_fallback(error_msg):
+        """Return safe fallback for corruption errors."""
+        return {
+            "success": False,
+            "data": _empty_stats,
+            "message": "Database corruption detected. Automatic repair attempted but failed. Please use the repair endpoint.",
+            "error": str(error_msg),
+            "repair_available": True
+        }
+
     try:
-        # Try to fetch patterns first - if query succeeds, return stats even if integrity check would fail
-        # This allows stats to work when data is readable despite corruption
         try:
             patterns = await _fetch_patterns_for_stats()
         except Exception as query_error:
-            # If query fails, check if it's corruption-related
             if is_database_corruption_error(query_error):
                 logger.warning(f"Query failed due to corruption: {query_error}")
-                # Check database integrity
                 is_healthy, error_msg = await check_database_integrity(db)
-                
+
                 if not is_healthy:
                     logger.warning(f"Database integrity check failed: {error_msg}")
-                    # Attempt automatic repair
                     try:
                         patterns = await _attempt_repair_and_retry()
                     except DatabaseIntegrityError:
-                        # Repair failed, return safe fallback
-                        return {
-                            "success": False,
-                            "data": {
-                                "total_patterns": 0,
-                                "by_type": {},
-                                "avg_confidence": 0.0,
-                                "unique_devices": 0,
-                                "total_occurrences": 0
-                            },
-                            "message": "Database integrity check failed. Automatic repair attempted but failed. Please use the repair endpoint.",
-                            "error": f"Database corruption detected: {error_msg}",
-                            "repair_available": True
-                        }
+                        return _corruption_fallback(error_msg)
                 else:
-                    # Integrity check passed but query failed - re-raise original error
                     raise
             else:
-                # Not a corruption error, re-raise
                 raise
-        
-        # If we got here, we have patterns - calculate stats even if integrity check would fail
-        # (This allows stats to work when data is readable despite corruption)
-        except DatabaseIntegrityError as integrity_error:
-            logger.error(f"Database corruption detected during stats query: {integrity_error}")
-            # Attempt automatic repair
-            try:
-                patterns = await _attempt_repair_and_retry()
-            except DatabaseIntegrityError:
-                # Repair failed, return safe fallback
-                return {
-                    "success": False,
-                    "data": {
-                        "total_patterns": 0,
-                        "by_type": {},
-                        "avg_confidence": 0.0,
-                        "unique_devices": 0,
-                        "total_occurrences": 0
-                    },
-                    "message": "Database corruption detected. Automatic repair attempted but failed. Please use the repair endpoint.",
-                    "error": str(integrity_error),
-                    "repair_available": True
-                }
-        
-        total_patterns = len(patterns)
-        by_type = {}
-        total_confidence = 0.0
-        total_occurrences = 0
-        unique_device_set = set()
-        
-        for p in patterns:
-            # Handle both dict and Pattern object
-            if isinstance(p, dict):
-                pattern_type = p.get("pattern_type", "unknown")
-                confidence = p.get("confidence", 0.0)
-                occurrences = p.get("occurrences", 0)
-                device_id = p.get("device_id")
-            else:
-                pattern_type = p.pattern_type
-                confidence = p.confidence
-                occurrences = p.occurrences
-                device_id = p.device_id
-            
-            # Count pattern types
-            by_type[pattern_type] = by_type.get(pattern_type, 0) + 1
-            total_confidence += confidence
-            total_occurrences += occurrences
-            
-            # Collect unique devices (handle co-occurrence patterns with '+' separator)
-            if device_id:
-                # Split by '+' to handle co-occurrence patterns (e.g., "device1+device2")
-                individual_devices = device_id.split('+')
-                unique_device_set.update(individual_devices)
-        
-        avg_confidence = total_confidence / total_patterns if total_patterns > 0 else 0.0
-        unique_devices = len(unique_device_set)
-        
-        return {
-            "success": True,
-            "data": {
-                "total_patterns": total_patterns,
-                "by_type": by_type,  # Changed from pattern_types to by_type
-                "avg_confidence": round(avg_confidence, 3),  # Changed from average_confidence to avg_confidence
-                "unique_devices": unique_devices,  # Added missing unique_devices
-                "total_occurrences": total_occurrences
-            },
-            "message": "Pattern statistics retrieved successfully"
-        }
-    
+
+        return _stats_response(patterns)
+
     except DatabaseIntegrityError as integrity_error:
         logger.error(f"Database integrity error in get_pattern_stats: {integrity_error}", exc_info=True)
-        # Attempt automatic repair
         try:
-            db_path = Path(settings.database_path)
-            repair_success = await attempt_database_repair(db_path)
-            if repair_success:
-                logger.info("Repair successful, retrying stats query...")
-                # Retry the entire function logic
-                try:
-                    patterns = await _fetch_patterns_for_stats()
-                    # Continue with stats calculation
-                    total_patterns = len(patterns)
-                    by_type = {}
-                    total_confidence = 0.0
-                    total_occurrences = 0
-                    unique_device_set = set()
-                    
-                    for p in patterns:
-                        if isinstance(p, dict):
-                            pattern_type = p.get("pattern_type", "unknown")
-                            confidence = p.get("confidence", 0.0)
-                            occurrences = p.get("occurrences", 0)
-                            device_id = p.get("device_id")
-                        else:
-                            pattern_type = p.pattern_type
-                            confidence = p.confidence
-                            occurrences = p.occurrences
-                            device_id = p.device_id
-                        
-                        by_type[pattern_type] = by_type.get(pattern_type, 0) + 1
-                        total_confidence += confidence
-                        total_occurrences += occurrences
-                        
-                        if device_id:
-                            individual_devices = device_id.split('+')
-                            unique_device_set.update(individual_devices)
-                    
-                    avg_confidence = total_confidence / total_patterns if total_patterns > 0 else 0.0
-                    unique_devices = len(unique_device_set)
-                    
-                    return {
-                        "success": True,
-                        "data": {
-                            "total_patterns": total_patterns,
-                            "by_type": by_type,
-                            "avg_confidence": round(avg_confidence, 3),
-                            "unique_devices": unique_devices,
-                            "total_occurrences": total_occurrences
-                        },
-                        "message": "Pattern statistics retrieved successfully (after database repair)"
-                    }
-                except Exception as retry_error:
-                    logger.error(f"Query failed after repair: {retry_error}")
-                    raise HTTPException(
-                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                        detail=f"Database corruption detected. Repair attempted but query still fails. Please use the repair endpoint. Error: {str(integrity_error)}"
-                    ) from integrity_error
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=f"Database corruption detected. Automatic repair failed. Please use the repair endpoint. Error: {str(integrity_error)}"
-                ) from integrity_error
-        except HTTPException:
-            raise
+            patterns = await _attempt_repair_and_retry()
+            return _stats_response(patterns, "after database repair")
+        except DatabaseIntegrityError:
+            return _corruption_fallback(integrity_error)
         except Exception as repair_error:
             logger.error(f"Repair attempt failed: {repair_error}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Database corruption detected. Repair attempt failed. Please use the repair endpoint. Error: {str(integrity_error)}"
+                detail=f"Database corruption detected. Repair attempt failed. Error: {str(integrity_error)}"
             ) from integrity_error
     except Exception as e:
-        # Check if it's a corruption error we didn't catch
         if is_database_corruption_error(e):
             logger.error(f"Database corruption detected (unhandled): {e}", exc_info=True)
-            # Attempt automatic repair
             try:
-                db_path = Path(settings.database_path)
-                repair_success = await attempt_database_repair(db_path)
-                if repair_success:
-                    logger.info("Repair successful for unhandled corruption error, retrying...")
-                    try:
-                        patterns = await _fetch_patterns_for_stats()
-                        # Calculate stats
-                        total_patterns = len(patterns)
-                        by_type = {}
-                        total_confidence = 0.0
-                        total_occurrences = 0
-                        unique_device_set = set()
-                        
-                        for p in patterns:
-                            if isinstance(p, dict):
-                                pattern_type = p.get("pattern_type", "unknown")
-                                confidence = p.get("confidence", 0.0)
-                                occurrences = p.get("occurrences", 0)
-                                device_id = p.get("device_id")
-                            else:
-                                pattern_type = p.pattern_type
-                                confidence = p.confidence
-                                occurrences = p.occurrences
-                                device_id = p.device_id
-                            
-                            by_type[pattern_type] = by_type.get(pattern_type, 0) + 1
-                            total_confidence += confidence
-                            total_occurrences += occurrences
-                            
-                            if device_id:
-                                individual_devices = device_id.split('+')
-                                unique_device_set.update(individual_devices)
-                        
-                        avg_confidence = total_confidence / total_patterns if total_patterns > 0 else 0.0
-                        unique_devices = len(unique_device_set)
-                        
-                        return {
-                            "success": True,
-                            "data": {
-                                "total_patterns": total_patterns,
-                                "by_type": by_type,
-                                "avg_confidence": round(avg_confidence, 3),
-                                "unique_devices": unique_devices,
-                                "total_occurrences": total_occurrences
-                            },
-                            "message": "Pattern statistics retrieved successfully (after database repair)"
-                        }
-                    except Exception as retry_error:
-                        raise HTTPException(
-                            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                            detail=f"Database corruption detected. Repair attempted but query still fails. Please use the repair endpoint. Error: {str(e)}"
-                        ) from e
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                        detail=f"Database corruption detected. Automatic repair failed. Please use the repair endpoint. Error: {str(e)}"
-                    ) from e
-            except HTTPException:
-                raise
-            except Exception as repair_error:
+                patterns = await _attempt_repair_and_retry()
+                return _stats_response(patterns, "after database repair")
+            except (DatabaseIntegrityError, Exception) as repair_error:
+                if isinstance(repair_error, DatabaseIntegrityError):
+                    return _corruption_fallback(e)
                 logger.error(f"Repair attempt failed: {repair_error}")
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=f"Database corruption detected. Repair attempt failed. Please use the repair endpoint. Error: {str(e)}"
+                    detail=f"Database corruption detected. Repair attempt failed. Error: {str(e)}"
                 ) from e
         else:
             logger.error(f"Failed to get pattern stats: {e}", exc_info=True)

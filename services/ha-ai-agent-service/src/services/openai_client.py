@@ -63,12 +63,12 @@ class OpenAIClient:
         Args:
             settings: Application settings with OpenAI configuration
         """
-        if not settings.openai_api_key:
+        if not settings.openai_api_key or not settings.openai_api_key.get_secret_value():
             raise ValueError("OpenAI API key is required")
 
         self.settings = settings
         self.client = AsyncOpenAI(
-            api_key=settings.openai_api_key,
+            api_key=settings.openai_api_key.get_secret_value(),
             timeout=settings.openai_timeout,
             max_retries=0,  # We handle retries ourselves with tenacity
         )
@@ -135,29 +135,6 @@ class OpenAIClient:
         )
         async def _make_request():
             """Internal function to make API request with retry logic"""
-            # Verify messages before sending
-            if not messages:
-                logger.error("❌ CRITICAL: No messages provided to OpenAI API!")
-                raise ValueError("Messages list is empty")
-            
-            # Verify system message is first
-            system_msg = messages[0] if messages else None
-            if not system_msg or system_msg.get("role") != "system":
-                logger.error(
-                    f"❌ CRITICAL: System message missing or not first! "
-                    f"First message: {system_msg}, Total messages: {len(messages)}"
-                )
-                raise ValueError("System message must be first message")
-            
-            system_content = system_msg.get("content", "")
-            logger.info(
-                f"[OpenAI API] Sending {len(messages)} messages to OpenAI. "
-                f"System message: {len(system_content)} chars, "
-                f"Contains 'CRITICAL': {'CRITICAL' in system_content}, "
-                f"Contains 'HOME ASSISTANT CONTEXT': {'HOME ASSISTANT CONTEXT' in system_content}, "
-                f"Tools: {len(tools) if tools else 0}"
-            )
-            
             # Prepare request parameters
             # GPT-5.1 and newer models use max_completion_tokens instead of max_tokens
             request_params: dict[str, Any] = {

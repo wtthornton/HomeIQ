@@ -302,30 +302,35 @@ class SuggestionService:
 
     async def get_usage_stats(self) -> dict[str, Any]:
         """
-        Get suggestion usage statistics.
-        
+        Get suggestion usage statistics using SQL aggregation (C5 fix).
+
         Returns:
             Dictionary with usage statistics
         """
         try:
-            # Get counts by status
-            query = select(Suggestion)
-            result = await self.db.execute(query)
-            all_suggestions = result.scalars().all()
-            
+            # Get total count
+            total_query = select(func.count()).select_from(Suggestion)
+            total_result = await self.db.execute(total_query)
+            total = total_result.scalar() or 0
+
+            # Get counts by status using GROUP BY (C5: avoids loading all rows)
+            status_query = select(
+                Suggestion.status, func.count()
+            ).group_by(Suggestion.status)
+            status_result = await self.db.execute(status_query)
+            by_status = {
+                (status or "unknown"): count
+                for status, count in status_result.all()
+            }
+
             stats = {
-                "total": len(all_suggestions),
-                "by_status": {},
+                "total": total,
+                "by_status": by_status,
                 "openai_usage": self.openai_client.get_usage_stats() if self.openai_client else {}
             }
-            
-            # Count by status
-            for suggestion in all_suggestions:
-                status = suggestion.status or "unknown"
-                stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
-            
+
             return stats
-            
+
         except Exception as e:
             logger.error(f"Failed to get usage stats: {e}")
             raise

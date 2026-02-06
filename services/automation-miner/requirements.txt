@@ -24,6 +24,9 @@ alembic==1.18.3  # Phase 1 upgrade - latest stable
 # Job Scheduling (Context7 validated: AsyncScheduler, CronTrigger)
 apscheduler>=3.10.0
 
+# CLI
+click>=8.1.0
+
 # YAML Parsing
 pyyaml>=6.0
 
@@ -32,10 +35,4 @@ rapidfuzz>=3.14.3
 
 # Logging
 python-json-logger>=2.0.0
-
-# Development
-pytest>=8.3.3
-pytest-asyncio>=0.23.0
-pytest-cov>=4.1.0
-pytest-httpx>=0.30.0
 

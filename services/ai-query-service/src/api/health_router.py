@@ -6,6 +6,7 @@ Epic 39, Story 39.9: Query Service Foundation
 
 import logging
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,18 +18,27 @@ router = APIRouter()
 
 
 @router.get("/health", status_code=status.HTTP_200_OK)
-async def health_check() -> dict[str, str]:
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """
-    Basic health check endpoint.
-    
+    Basic health check endpoint with database connectivity verification.
+
     Returns:
         dict: Health status information including service name and database status.
     """
-    return {
-        "status": "ok",
-        "service": "ai-query-service",
-        "database": "unknown"
-    }
+    try:
+        await db.execute(text("SELECT 1"))
+        return {
+            "status": "ok",
+            "service": "ai-query-service",
+            "database": "connected"
+        }
+    except Exception as e:
+        logger.error(f"[ERROR] Health check database probe failed: {e}", exc_info=True)
+        return {
+            "status": "degraded",
+            "service": "ai-query-service",
+            "database": "disconnected"
+        }
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)
@@ -52,13 +62,15 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
             "database": "connected"
         }
     except Exception as e:
-        logger.error(f"Readiness check failed: {e}", exc_info=True)
-        return {
-            "status": "not_ready",
-            "service": "ai-query-service",
-            "database": "disconnected",
-            "error": str(e)
-        }
+        logger.error(f"[ERROR] Readiness check failed: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "not_ready",
+                "service": "ai-query-service",
+                "database": "disconnected"
+            }
+        )
 
 
 @router.get("/live", status_code=status.HTTP_200_OK)

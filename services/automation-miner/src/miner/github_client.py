@@ -241,31 +241,39 @@ class GitHubClient:
             logger.warning(f"[{correlation_id}] Unexpected file format: {path}")
             return ""
 
+    MAX_TRAVERSAL_DEPTH = 10
+
     async def find_blueprint_files(
         self,
         owner: str,
         repo: str,
         path: str = "",
-        correlation_id: str | None = None
+        correlation_id: str | None = None,
+        _depth: int = 0
     ) -> list[dict[str, Any]]:
         """
         Recursively find blueprint YAML files in repository
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             path: Starting path (empty for root)
             correlation_id: Optional correlation ID
-        
+            _depth: Internal recursion depth counter
+
         Returns:
             List of blueprint file metadata
         """
         correlation_id = correlation_id or str(uuid4())
         blueprint_files = []
-        
+
+        if _depth >= self.MAX_TRAVERSAL_DEPTH:
+            logger.warning(f"[{correlation_id}] Max traversal depth ({self.MAX_TRAVERSAL_DEPTH}) reached at {path}")
+            return blueprint_files
+
         try:
             contents = await self.get_repository_contents(owner, repo, path, correlation_id)
-            
+
             for item in contents:
                 if item.get("type") == "file":
                     # Check if it's a YAML file
@@ -288,26 +296,27 @@ class GitHubClient:
                         except Exception as e:
                             logger.warning(f"[{correlation_id}] Error reading file {item.get('path')}: {e}")
                             continue
-                
+
                 elif item.get("type") == "dir":
                     # Skip common non-blueprint directories
                     dir_name = item.get("name", "").lower()
                     if dir_name in [".git", "node_modules", "__pycache__", ".github"]:
                         continue
-                    
+
                     # Recursively search subdirectories
                     try:
                         sub_files = await self.find_blueprint_files(
-                            owner, repo, item.get("path", ""), correlation_id
+                            owner, repo, item.get("path", ""), correlation_id,
+                            _depth=_depth + 1
                         )
                         blueprint_files.extend(sub_files)
                     except Exception as e:
                         logger.warning(f"[{correlation_id}] Error searching directory {item.get('path')}: {e}")
                         continue
-            
+
         except Exception as e:
             logger.error(f"[{correlation_id}] Error finding blueprints in {owner}/{repo}/{path}: {e}")
-        
+
         return blueprint_files
 
     async def crawl_repository(
@@ -380,8 +389,6 @@ class GitHubClient:
             results.append(result)
         
         return results
-
-
 
 
 

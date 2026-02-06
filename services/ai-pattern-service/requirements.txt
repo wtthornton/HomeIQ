@@ -39,7 +39,5 @@ opentelemetry-exporter-otlp-proto-grpc>=1.24.0,<2.0.0
 opentelemetry-instrumentation-requests>=0.45b0,<1.0.0
 opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0
 
-# Development
-pytest==9.0.2  # Phase 2 upgrade - latest stable
-pytest-asyncio==1.3.0  # Phase 2 upgrade - BREAKING: new async patterns
+# Development dependencies moved to requirements-dev.txt
 

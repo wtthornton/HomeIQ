@@ -4,6 +4,7 @@ API Routes for Automation Miner
 Implements corpus query endpoints.
 """
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,16 +22,16 @@ router = APIRouter(tags=["corpus"])
 async def search_corpus(
     device: str | None = Query(None, description="Filter by device type (e.g., 'light', 'motion_sensor')"),
     integration: str | None = Query(None, description="Filter by integration (e.g., 'mqtt', 'zigbee2mqtt')"),
-    use_case: str | None = Query(None, description="Filter by use case (energy/comfort/security/convenience)"),
+    use_case: Literal['energy', 'comfort', 'security', 'convenience'] | None = Query(None, description="Filter by use case"),
     min_quality: float = Query(0.7, ge=0.0, le=1.0, description="Minimum quality score"),
     limit: int = Query(50, ge=1, le=500, description="Maximum results"),
     db: AsyncSession = Depends(get_db_session)
 ):
     """
     Search community automation corpus
-    
+
     Query automations by device type, integration, use case, and quality threshold.
-    
+
     Example:
         GET /api/automation-miner/corpus/search?device=motion_sensor&use_case=security&min_quality=0.8
     """
@@ -61,15 +62,15 @@ async def search_corpus(
         )
 
     except Exception as e:
-        logger.error(f"Search failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Search failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/corpus/blueprints", response_model=SearchResponse)
 async def search_blueprints(
     device: str | None = Query(None, description="Filter by device type (e.g., 'light', 'motion_sensor')"),
     integration: str | None = Query(None, description="Filter by integration (e.g., 'mqtt', 'zigbee2mqtt')"),
-    use_case: str | None = Query(None, description="Filter by use case (energy/comfort/security/convenience)"),
+    use_case: Literal['energy', 'comfort', 'security', 'convenience'] | None = Query(None, description="Filter by use case"),
     min_quality: float = Query(0.7, ge=0.0, le=1.0, description="Minimum quality score"),
     limit: int = Query(50, ge=1, le=500, description="Maximum results"),
     db: AsyncSession = Depends(get_db_session)
@@ -110,8 +111,8 @@ async def search_blueprints(
         )
 
     except Exception as e:
-        logger.error(f"Blueprint search failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Blueprint search failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/corpus/stats", response_model=StatsResponse)
@@ -146,8 +147,8 @@ async def get_stats(
         return StatsResponse(**stats)
 
     except Exception as e:
-        logger.error(f"Stats request failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Stats request failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/corpus/{automation_id}", response_model=AutomationResponse)
@@ -179,6 +180,6 @@ async def get_automation(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Get automation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Get automation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 

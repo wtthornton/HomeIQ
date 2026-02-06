@@ -89,6 +89,6 @@ async def get_refresh_status(db: AsyncSession = Depends(get_db_session)):
         }
 
     except Exception as e:
-        logger.error(f"Failed to get refresh status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to get refresh status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 

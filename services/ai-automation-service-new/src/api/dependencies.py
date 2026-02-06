@@ -3,6 +3,9 @@ Dependency Injection Helpers (2025 Patterns)
 
 Epic 39, Story 39.10: Automation Service Foundation
 Following 2025 FastAPI dependency injection patterns with Annotated types.
+
+C4 Fix: HTTP clients are now application-scoped singletons stored on app.state,
+created during lifespan startup and closed during shutdown.
 """
 
 import logging
@@ -35,11 +38,6 @@ DatabaseSession = Annotated[AsyncSession, Depends(get_db)]
 def get_api_key(request: Request) -> str:
     """
     Extract API key from request state (set by AuthenticationMiddleware).
-    
-    Usage:
-        @router.get("/endpoint")
-        async def endpoint(api_key: str = Depends(get_api_key)):
-            ...
     """
     if not hasattr(request.state, "api_key"):
         raise ValueError("API key not found in request state. Ensure AuthenticationMiddleware is configured.")
@@ -49,11 +47,6 @@ def get_api_key(request: Request) -> str:
 def get_authenticated_user(request: Request) -> dict:
     """
     Get authenticated user information from request state.
-    
-    Usage:
-        @router.get("/endpoint")
-        async def endpoint(user: dict = Depends(get_authenticated_user)):
-            ...
     """
     return {
         "api_key": get_api_key(request),
@@ -65,34 +58,81 @@ def get_authenticated_user(request: Request) -> dict:
 AuthenticatedUser = Annotated[dict, Depends(get_authenticated_user)]
 
 
-# Client dependencies
-def get_data_api_client() -> DataAPIClient:
-    """Get Data API client instance."""
-    return DataAPIClient(base_url=settings.data_api_url)
+# --- Application-scoped singleton clients (C4 fix) ---
+# These are created once during lifespan startup and reused across all requests.
+
+_data_api_client: DataAPIClient | None = None
+_ha_client: HomeAssistantClient | None = None
+_openai_client: OpenAIClient | None = None
+_yaml_validation_client: YAMLValidationClient | None = None
 
 
-def get_ha_client() -> HomeAssistantClient:
-    """Get Home Assistant client instance."""
-    return HomeAssistantClient(
+def init_clients() -> None:
+    """Initialize singleton HTTP clients. Called during lifespan startup."""
+    global _data_api_client, _ha_client, _openai_client, _yaml_validation_client
+    _data_api_client = DataAPIClient(base_url=settings.data_api_url)
+    _ha_client = HomeAssistantClient(
         ha_url=settings.ha_url,
         access_token=settings.ha_token
     )
-
-
-def get_openai_client() -> OpenAIClient:
-    """Get OpenAI client instance."""
-    return OpenAIClient(
+    _openai_client = OpenAIClient(
         api_key=settings.openai_api_key,
         model=settings.openai_model
     )
-
-
-def get_yaml_validation_client() -> YAMLValidationClient:
-    """Get YAML Validation Service client instance (Epic 51)."""
-    return YAMLValidationClient(
+    _yaml_validation_client = YAMLValidationClient(
         base_url=settings.yaml_validation_service_url,
         api_key=settings.yaml_validation_api_key
     )
+    logger.info("Singleton HTTP clients initialized")
+
+
+async def close_clients() -> None:
+    """Close all singleton HTTP clients. Called during lifespan shutdown."""
+    global _data_api_client, _ha_client, _openai_client, _yaml_validation_client
+    for client in [_data_api_client, _ha_client, _yaml_validation_client]:
+        if client and hasattr(client, 'close'):
+            try:
+                await client.close()
+            except Exception as e:
+                logger.warning(f"Error closing client: {e}")
+    _data_api_client = None
+    _ha_client = None
+    _openai_client = None
+    _yaml_validation_client = None
+    logger.info("Singleton HTTP clients closed")
+
+
+# Client dependencies - return singletons
+def get_data_api_client() -> DataAPIClient:
+    """Get Data API client singleton."""
+    if _data_api_client is None:
+        # Fallback for tests or when lifespan hasn't run
+        return DataAPIClient(base_url=settings.data_api_url)
+    return _data_api_client
+
+
+def get_ha_client() -> HomeAssistantClient:
+    """Get Home Assistant client singleton."""
+    if _ha_client is None:
+        return HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token)
+    return _ha_client
+
+
+def get_openai_client() -> OpenAIClient:
+    """Get OpenAI client singleton."""
+    if _openai_client is None:
+        return OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
+    return _openai_client
+
+
+def get_yaml_validation_client() -> YAMLValidationClient:
+    """Get YAML Validation Service client singleton (Epic 51)."""
+    if _yaml_validation_client is None:
+        return YAMLValidationClient(
+            base_url=settings.yaml_validation_service_url,
+            api_key=settings.yaml_validation_api_key
+        )
+    return _yaml_validation_client
 
 
 # Service dependencies

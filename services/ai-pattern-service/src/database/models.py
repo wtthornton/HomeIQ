@@ -9,14 +9,16 @@ The models are defined here for type checking and ORM usage,
 but the actual tables are managed by ai-automation-service.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
+
 
 # Use the same Base as the main service for shared database
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
 class SynergyOpportunity(Base):
@@ -41,8 +43,8 @@ class SynergyOpportunity(Base):
     complexity = Column(String(20), nullable=False)  # 'low', 'medium', 'high'
     confidence = Column(Float, nullable=False)
     area = Column(String(100))  # Area/room where devices are located
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
     # Phase 2: Pattern validation fields
     pattern_support_score = Column(Float, default=0.0, nullable=False)
     validated_by_patterns = Column(Boolean, default=False, nullable=False)
@@ -86,7 +88,7 @@ class SynergyFeedback(Base):
     synergy_id = Column(String(36), ForeignKey('synergy_opportunities.synergy_id'), nullable=False, index=True)
     feedback_type = Column(String(20), nullable=False, index=True)  # 'accept', 'reject', 'deploy', 'rate'
     feedback_data = Column(JSON, nullable=False)  # Feedback details (rating, comment, accepted, deployed, etc.)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     def __repr__(self) -> str:
         return f"<SynergyFeedback(id={self.id}, synergy_id={self.synergy_id}, type={self.feedback_type})>"

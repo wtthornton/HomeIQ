@@ -24,6 +24,9 @@ from ..database import AsyncSessionLocal
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
 from ..pattern_analyzer.filters import EventFilter
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
+from ..synergy_detection.synergy_detector import DeviceSynergyDetector
+
+logger = logging.getLogger(__name__)
 
 # 2026 Enhancement: Relationship discovery from events
 try:
@@ -42,9 +45,6 @@ except ImportError as e:
     logger.warning(f"TemporalSynergyDetector not available: {e}")
     TEMPORAL_DETECTOR_AVAILABLE = False
     TemporalSynergyDetector = None
-from ..synergy_detection.synergy_detector import DeviceSynergyDetector
-
-logger = logging.getLogger(__name__)
 
 
 class PatternAnalysisScheduler:

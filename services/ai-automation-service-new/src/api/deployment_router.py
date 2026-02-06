@@ -266,4 +266,4 @@ async def deploy_compiled_automation(
 
     except Exception as e:
         logger.error(f"Failed to deploy compiled automation: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to deploy automation: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to deploy automation. Check server logs for details.")

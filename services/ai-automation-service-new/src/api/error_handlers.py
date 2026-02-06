@@ -46,7 +46,7 @@ def handle_route_errors(
                 logger.error(f"Failed to {operation_name}: {e}", exc_info=True)
                 raise HTTPException(
                     status_code=default_status_code,
-                    detail=str(e)
+                    detail=f"Failed to {operation_name}. Check server logs for details."
                 )
         return wrapper  # type: ignore
     return decorator

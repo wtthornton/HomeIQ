@@ -291,6 +291,65 @@ class HomeAssistantClient:
             logger.error(f"Failed to trigger automation {automation_id}: {e}")
             return False
 
+    async def get_state(self, entity_id: str) -> dict[str, Any] | None:
+        """
+        Get the current state of an entity (M6 fix).
+
+        Args:
+            entity_id: Entity ID (e.g. "light.living_room")
+
+        Returns:
+            State dictionary or None if not found
+        """
+        if not self.ha_url or not self.access_token:
+            return None
+
+        url = f"{self.ha_url}/api/states/{entity_id}"
+        try:
+            response = await self.client.get(url)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get state for {entity_id}: {e}")
+            return None
+
+    async def set_state(
+        self,
+        entity_id: str,
+        state: str,
+        attributes: dict[str, Any] | None = None
+    ) -> bool:
+        """
+        Set the state of an entity (M6 fix).
+
+        Uses the HA /api/states/<entity_id> POST endpoint.
+
+        Args:
+            entity_id: Entity ID
+            state: New state value
+            attributes: Optional attributes dict
+
+        Returns:
+            True if successful
+        """
+        if not self.ha_url or not self.access_token:
+            return False
+
+        url = f"{self.ha_url}/api/states/{entity_id}"
+        payload: dict[str, Any] = {"state": state}
+        if attributes:
+            payload["attributes"] = attributes
+
+        try:
+            response = await self.client.post(url, json=payload)
+            response.raise_for_status()
+            return True
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to set state for {entity_id}: {e}")
+            return False
+
     async def health_check(self) -> bool:
         """
         Check if Home Assistant is accessible.

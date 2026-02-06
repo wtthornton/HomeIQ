@@ -257,7 +257,6 @@ async def store_synergy_opportunities(
 
     except Exception as e:
         logger.error(f"Failed to store synergy opportunities: {e}", exc_info=True)
-        raise
         try:
             await db.rollback()
         except Exception:
@@ -406,6 +405,41 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
     
     await db.commit()
     return stored_count
+
+
+async def get_synergy_by_id(
+    db: AsyncSession,
+    synergy_id: str
+) -> Any | None:
+    """
+    Retrieve a single synergy opportunity by its synergy_id.
+
+    Args:
+        db: Database session
+        synergy_id: Unique synergy identifier
+
+    Returns:
+        SynergyOpportunity instance or None if not found
+    """
+    try:
+        try:
+            from ...database.models import SynergyOpportunity
+        except ImportError:
+            logger.warning("SynergyOpportunity model not available, using raw SQL")
+            from sqlalchemy import text
+            query = text("SELECT * FROM synergy_opportunities WHERE synergy_id = :synergy_id")
+            result = await db.execute(query, {"synergy_id": synergy_id})
+            row = result.fetchone()
+            return dict(row._mapping) if row else None
+
+        query = select(SynergyOpportunity).where(
+            SynergyOpportunity.synergy_id == synergy_id
+        )
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
+    except Exception as e:
+        logger.error(f"Failed to get synergy by id {synergy_id}: {e}", exc_info=True)
+        raise
 
 
 async def get_synergy_opportunities(

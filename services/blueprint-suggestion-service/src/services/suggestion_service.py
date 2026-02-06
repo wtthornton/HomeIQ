@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import delete, func, select
@@ -142,8 +142,8 @@ class SuggestionService:
             return None
         
         suggestion.status = "accepted"
-        suggestion.accepted_at = datetime.utcnow()
-        suggestion.updated_at = datetime.utcnow()
+        suggestion.accepted_at = datetime.now(timezone.utc)
+        suggestion.updated_at = datetime.now(timezone.utc)
         if conversation_id:
             suggestion.conversation_id = conversation_id
         
@@ -174,8 +174,8 @@ class SuggestionService:
             return None
         
         suggestion.status = "declined"
-        suggestion.declined_at = datetime.utcnow()
-        suggestion.updated_at = datetime.utcnow()
+        suggestion.declined_at = datetime.now(timezone.utc)
+        suggestion.updated_at = datetime.now(timezone.utc)
         
         await db.commit()
         await db.refresh(suggestion)

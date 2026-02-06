@@ -39,7 +39,7 @@ class ServicesSummaryService:
         self.context_builder = context_builder
         self.ha_client = HomeAssistantClient(
             ha_url=settings.ha_url,
-            access_token=settings.ha_token
+            access_token=settings.ha_token.get_secret_value()
         )
         self._cache_key = "services_summary"
         self._cache_ttl = 900  # 15 minutes (P1: Increased TTL - services change occasionally)

@@ -36,6 +36,12 @@ class BusinessRuleValidator:
         "alarm_control_panel.alarm_disarm",
     }
 
+    # Dangerous services that should never be used in automations
+    BLOCKED_SERVICES = {
+        "shell_command", "python_script", "rest_command",
+        "script.reload", "homeassistant.restart", "homeassistant.stop",
+    }
+
     def __init__(
         self,
         entity_resolution_service: Optional[EntityResolutionService] = None,
@@ -188,6 +194,17 @@ class BusinessRuleValidator:
         """
         warnings = []
 
+        # Check for blocked/dangerous services
+        blocked_services_used = [
+            s for s in services
+            if any(s.startswith(bs) for bs in self.BLOCKED_SERVICES)
+        ]
+        if blocked_services_used:
+            warnings.append(
+                f"BLOCKED: Dangerous service(s) detected: {', '.join(blocked_services_used)}. "
+                "These services are not allowed in automations for security reasons."
+            )
+
         # Check for security-related entities
         security_entities = [
             e
@@ -259,6 +276,14 @@ class BusinessRuleValidator:
             Safety score from 0.0 (unsafe) to 10.0 (safe)
         """
         score = 10.0  # Start with perfect score
+
+        # Check for blocked/dangerous services (maximum penalty)
+        blocked_services_used = [
+            s for s in services
+            if any(s.startswith(bs) for bs in self.BLOCKED_SERVICES)
+        ]
+        if blocked_services_used:
+            score -= 5.0
 
         # Check for security entities (deduct points)
         security_entities = [

@@ -7,6 +7,7 @@ context-aware insights for automation suggestions.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -18,9 +19,6 @@ from ..clients.weather_api_client import WeatherAPIClient
 from ..config import Settings
 
 logger = logging.getLogger(__name__)
-
-# Global settings instance
-_settings = Settings()
 
 
 class ContextAnalysisService:
@@ -44,9 +42,13 @@ class ContextAnalysisService:
         """
         self.weather_client = weather_client or WeatherAPIClient()
         self.sports_client = sports_client or SportsDataClient()
-        self.carbon_client = carbon_client or CarbonIntensityClient(
-            data_api_url=_settings.data_api_url
-        )
+        if carbon_client is None:
+            settings = Settings()
+            self.carbon_client = CarbonIntensityClient(
+                data_api_url=settings.data_api_url
+            )
+        else:
+            self.carbon_client = carbon_client
         self.data_api_client = data_api_client or DataAPIClient()
         logger.info("Context Analysis Service initialized")
 
@@ -67,10 +69,31 @@ class ContextAnalysisService:
         logger.info("Starting comprehensive context analysis")
 
         # Analyze all contexts in parallel
-        weather_analysis = await self.analyze_weather()
-        sports_analysis = await self.analyze_sports()
-        energy_analysis = await self.analyze_energy()
-        historical_analysis = await self.analyze_historical_patterns()
+        results = await asyncio.gather(
+            self.analyze_weather(),
+            self.analyze_sports(),
+            self.analyze_energy(),
+            self.analyze_historical_patterns(),
+            return_exceptions=True,
+        )
+
+        # Handle any exceptions from gather
+        weather_analysis = results[0] if not isinstance(results[0], BaseException) else {
+            "available": False, "error": str(results[0]), "current": None,
+            "forecast": None, "trends": None, "insights": [],
+        }
+        sports_analysis = results[1] if not isinstance(results[1], BaseException) else {
+            "available": False, "error": str(results[1]),
+            "live_games": [], "upcoming_games": [], "insights": [],
+        }
+        energy_analysis = results[2] if not isinstance(results[2], BaseException) else {
+            "available": False, "error": str(results[2]),
+            "current_intensity": None, "trends": None, "insights": [],
+        }
+        historical_analysis = results[3] if not isinstance(results[3], BaseException) else {
+            "available": False, "error": str(results[3]),
+            "events": [], "patterns": [], "insights": [],
+        }
 
         # Aggregate and correlate
         summary = self._create_summary(
@@ -123,12 +146,12 @@ class ContextAnalysisService:
             humidity = current_weather.get("humidity")
             forecast = current_weather.get("forecast", [])
 
-            # Generate insights
+            # Generate insights (thresholds in Celsius to match prompt_generation_service)
             insights = []
             if temperature:
-                if temperature > 85:
+                if temperature > 29:
                     insights.append("High temperature detected - consider cooling automation")
-                elif temperature < 50:
+                elif temperature < 10:
                     insights.append("Low temperature detected - consider heating automation")
 
             if condition and "rain" in condition.lower():

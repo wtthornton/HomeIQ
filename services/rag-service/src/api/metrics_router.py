@@ -35,6 +35,8 @@ class MetricsResponse(BaseModel):
     storage_errors: int
     error_rate: float
     avg_success_score: float
+    total_latency_ms: float
+    total_success_scores: int
 
 
 @router.get("", response_model=MetricsResponse)

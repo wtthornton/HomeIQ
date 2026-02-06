@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Coverage artifacts (m5)
+coverage.json
+htmlcov/
+.coverage
+
+# Ruff cache (m6)
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+*.env.local
+
+# Database
+*.db

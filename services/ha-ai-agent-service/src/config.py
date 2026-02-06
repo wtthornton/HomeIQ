@@ -1,6 +1,6 @@
 """Configuration management for HA AI Agent Service"""
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,7 +18,7 @@ class Settings(BaseSettings):
         default="http://homeassistant:8123",
         description="Home Assistant URL"
     )
-    ha_token: str = Field(
+    ha_token: SecretStr = Field(
         default="",
         description="Home Assistant long-lived access token"
     )
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         default="http://ai-automation-service-new:8036",
         description="AI Automation Service URL (Hybrid Flow endpoints)"
     )
-    ai_automation_api_key: str | None = Field(
+    ai_automation_api_key: SecretStr | None = Field(
         default=None,
         description="API key for AI Automation Service (required for patterns/synergies endpoints)"
     )
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
         default="http://yaml-validation-service:8037",
         description="YAML Validation Service URL for comprehensive YAML validation"
     )
-    yaml_validation_api_key: str | None = Field(
+    yaml_validation_api_key: SecretStr | None = Field(
         default=None,
         description="API key for YAML Validation Service (optional)"
     )
@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     device_intelligence_enabled: bool = True
 
     # OpenAI Configuration
-    openai_api_key: str | None = Field(
+    openai_api_key: SecretStr | None = Field(
         default=None,
         description="OpenAI API key for GPT-5.1 (better quality and 50% cost savings vs GPT-4o)"
     )

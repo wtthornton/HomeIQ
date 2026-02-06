@@ -29,7 +29,7 @@ class MQTTNotificationClient:
     def __init__(self, broker: str | None = None, port: int = 1883, username: str | None = None, password: str | None = None, enabled: bool = True):
         """
         Initialize MQTT client.
-        
+
         Args:
             broker: MQTT broker host (optional) - can be URL (mqtt://host:port) or hostname
             port: MQTT broker port (used if broker is hostname, ignored if broker is URL)
@@ -38,12 +38,15 @@ class MQTTNotificationClient:
             enabled: Whether MQTT is enabled
         """
         # Parse broker URL if provided (e.g., mqtt://host:port)
+        self._use_tls = False
         if broker:
             if broker.startswith(('mqtt://', 'mqtts://', 'ws://', 'wss://')):
                 from urllib.parse import urlparse
                 parsed = urlparse(broker)
                 self.broker = parsed.hostname or parsed.netloc.split(':')[0]
                 self.port = parsed.port or port
+                if broker.startswith(('mqtts://', 'wss://')):
+                    self._use_tls = True
             else:
                 self.broker = broker
                 self.port = port
@@ -86,6 +89,10 @@ class MQTTNotificationClient:
 
                 if self.username and self.password:
                     self.client.username_pw_set(self.username, self.password)
+
+                if self._use_tls:
+                    import ssl
+                    self.client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
 
                 self.client.on_connect = self._on_connect
                 self.client.on_disconnect = self._on_disconnect

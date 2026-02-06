@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Database
+data/*.db
+*.db
+
+# IDE
+.vscode/
+.idea/
+
+# Cache
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Coverage
+coverage_html/
+htmlcov/
+.coverage
+
+# Environment
+.env

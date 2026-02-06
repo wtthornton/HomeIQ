@@ -8,11 +8,9 @@ Following 2025 FastAPI best practices with async/await and proper dependency inj
 import asyncio
 import logging
 import time
-from collections import OrderedDict, defaultdict, deque
-from typing import Annotated
+from collections import defaultdict, deque
 
 from fastapi import Request, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
@@ -28,19 +26,11 @@ DEFAULT_RATE_LIMIT_TOKENS = 100
 DEFAULT_REFILL_RATE = 10.0  # tokens per second
 
 # Simple token bucket for rate limiting (can be replaced with Redis in production)
-_rate_limit_buckets: dict[str, dict] = defaultdict(lambda: {
-    "tokens": DEFAULT_RATE_LIMIT_TOKENS,
-    "last_refill": time.time(),
-    "last_access": time.time(),
-    "capacity": DEFAULT_RATE_LIMIT_TOKENS,
-    "refill_rate": DEFAULT_REFILL_RATE
-})
+_rate_limit_buckets: dict[str, dict] = {}
+_rate_limit_locks: dict[str, asyncio.Lock] = {}
 
 # Background cleanup task reference
 _cleanup_task: asyncio.Task | None = None
-
-# HTTP Bearer token security
-security = HTTPBearer(auto_error=False)
 
 # Performance metrics (simple in-memory storage for single-user)
 _performance_metrics: dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))  # Store last 1000 requests per endpoint
@@ -75,31 +65,43 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         else:
             identifier = f"key:{api_key}"
         
-        # Check rate limit
+        # Get or create bucket with lock for thread safety (M3)
+        if identifier not in _rate_limit_buckets:
+            _rate_limit_buckets[identifier] = {
+                "tokens": DEFAULT_RATE_LIMIT_TOKENS,
+                "last_refill": time.time(),
+                "last_access": time.time(),
+                "capacity": DEFAULT_RATE_LIMIT_TOKENS,
+                "refill_rate": DEFAULT_REFILL_RATE,
+            }
+        if identifier not in _rate_limit_locks:
+            _rate_limit_locks[identifier] = asyncio.Lock()
+
         bucket = _rate_limit_buckets[identifier]
         current_time = time.time()
-        
-        # Refill tokens based on elapsed time
-        elapsed = current_time - bucket["last_refill"]
-        tokens_to_add = elapsed * bucket["refill_rate"]
-        bucket["tokens"] = min(bucket["capacity"], bucket["tokens"] + tokens_to_add)
-        bucket["last_refill"] = current_time
-        bucket["last_access"] = current_time
-        
-        # Check if request is allowed
-        if bucket["tokens"] < 1:
-            return JSONResponse(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                content={
-                    "error": "rate_limit_exceeded",
-                    "message": "Rate limit exceeded. Please try again later.",
-                    "retry_after": int(1 / bucket["refill_rate"])  # seconds until next token
-                },
-                headers={"Retry-After": str(int(1 / bucket["refill_rate"]))}
-            )
-        
-        # Consume token
-        bucket["tokens"] -= 1
+
+        async with _rate_limit_locks[identifier]:
+            # Refill tokens based on elapsed time
+            elapsed = current_time - bucket["last_refill"]
+            tokens_to_add = elapsed * bucket["refill_rate"]
+            bucket["tokens"] = min(bucket["capacity"], bucket["tokens"] + tokens_to_add)
+            bucket["last_refill"] = current_time
+            bucket["last_access"] = current_time
+
+            # Check if request is allowed
+            if bucket["tokens"] < 1:
+                return JSONResponse(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    content={
+                        "error": "rate_limit_exceeded",
+                        "message": "Rate limit exceeded. Please try again later.",
+                        "retry_after": int(1 / bucket["refill_rate"])
+                    },
+                    headers={"Retry-After": str(int(1 / bucket["refill_rate"]))}
+                )
+
+            # Consume token
+            bucket["tokens"] -= 1
         
         # Process request with timing
         start_time = time.time()
@@ -140,15 +142,13 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     def _is_internal_request(self, request: Request) -> bool:
         """
         Check if request is from an internal service.
-        
-        Internal requests are:
-        - From internal IP ranges (Docker networks, localhost)
-        - With X-Internal-Service header (for explicit internal service identification)
+
+        Internal requests are identified by:
+        - Source IP in internal network ranges (Docker networks, localhost)
+
+        Note: X-Internal-Service header bypass was removed (security: C1)
+        as it could be forged by any external client.
         """
-        # Check for explicit internal service header
-        if request.headers.get("X-Internal-Service") == "true":
-            return True
-        
         # Check client IP address
         client_ip = request.client.host if request.client else None
         if client_ip:
@@ -188,15 +188,26 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={
                     "error": "authentication_required",
-                    "message": "API key required for external requests. Provide X-HomeIQ-API-Key header or Authorization Bearer token. Internal service requests are automatically allowed."
+                    "message": "API key required. Provide X-HomeIQ-API-Key header or Authorization Bearer token."
                 }
             )
-        
+
+        # Validate API key against configured keys (C2: actual validation)
+        valid_api_keys = settings.api_keys if hasattr(settings, 'api_keys') and settings.api_keys else set()
+        if valid_api_keys and api_key not in valid_api_keys:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={
+                    "error": "invalid_api_key",
+                    "message": "Invalid API key."
+                }
+            )
+
         # Store API key in request state for use in endpoints
         request.state.api_key = api_key
         request.state.authenticated = True
         request.state.internal_service = False
-        
+
         # Process request
         return await call_next(request)
 

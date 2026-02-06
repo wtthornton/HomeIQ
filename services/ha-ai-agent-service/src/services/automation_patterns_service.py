@@ -41,7 +41,7 @@ class AutomationPatternsService:
         self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
         self.ha_client = HomeAssistantClient(
             ha_url=settings.ha_url,
-            access_token=settings.ha_token
+            access_token=settings.ha_token.get_secret_value()
         )
         self._cache_key = "automation_patterns_summary"
         self._cache_ttl = 1800  # 30 minutes (patterns change occasionally)

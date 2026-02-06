@@ -31,7 +31,7 @@ class RAGKnowledge(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     text = Column(Text, nullable=False)  # Original text (query, pattern, blueprint, etc.)
     embedding = Column(JSON, nullable=False)  # 1024-dim BGE-M3-base embedding array (stored as JSON)
-    knowledge_type = Column(String, nullable=False, index=True)  # 'query', 'pattern', 'blueprint', 'automation', etc.
+    knowledge_type = Column(String, nullable=False)  # 'query', 'pattern', 'blueprint', 'automation', etc.
     metadata_json = Column("metadata", JSON, nullable=True)  # Flexible metadata (device_id, area_id, confidence, etc.) - mapped to 'metadata' column
     success_score = Column(Float, default=0.5, nullable=False)  # 0.0-1.0 (learned from user feedback)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -43,8 +43,11 @@ class Settings(BaseSettings):
     analysis_schedule: str = "0 3 * * *"  # Default: 3 AM daily (cron format)
     enable_incremental: bool = True  # Enable incremental pattern updates
     
+    # Internal API authentication
+    internal_api_token: str = "change-me-in-production"
+
     # Home Assistant Configuration (for automation generation)
-    ha_url: str = "http://192.168.1.86:8123"  # Home Assistant URL
+    ha_url: str = "http://homeassistant:8123"  # Home Assistant URL
     ha_token: str | None = None  # Home Assistant long-lived access token
     ha_version: str = "2025.1"  # Home Assistant version
     
