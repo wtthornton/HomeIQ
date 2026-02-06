@@ -5,17 +5,15 @@ Fetches grid carbon intensity from WattTime API
 
 import asyncio
 import os
-import sys
-from datetime import datetime, timedelta
+import re
+import signal
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
 from influxdb_client_3 import InfluxDBClient3, Point
-
-# Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from health_check import HealthCheckHandler
 
@@ -42,7 +40,10 @@ class CarbonIntensityService:
         self.token_refresh_buffer = 300  # Refresh 5 minutes before expiry (seconds)
 
         # WattTime configuration
-        self.region = os.getenv('GRID_REGION', 'CAISO_NORTH')
+        grid_region = os.getenv('GRID_REGION', 'CAISO_NORTH')
+        if not re.match(r'^[A-Za-z0-9_]+$', grid_region):
+            raise ValueError(f"Invalid GRID_REGION '{grid_region}': must be alphanumeric and underscores only")
+        self.region = grid_region
         self.base_url = "https://api.watttime.org/v3"
 
         # InfluxDB configuration
@@ -52,8 +53,8 @@ class CarbonIntensityService:
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
 
         # Service configuration
-        self.fetch_interval = 900  # 15 minutes in seconds
-        self.cache_duration = 15  # minutes
+        self.fetch_interval = int(os.getenv('FETCH_INTERVAL', '900'))
+        self.cache_duration = timedelta(minutes=15)
 
         # Cache
         self.cached_data: dict[str, Any] | None = None
@@ -87,14 +88,14 @@ class CarbonIntensityService:
             if not self.api_token:
                 if is_placeholder_username or is_placeholder_password:
                     logger.error(
-                        "❌ WattTime credentials are placeholder values! "
+                        "[ERROR] WattTime credentials are placeholder values! "
                         "Please update WATTTIME_USERNAME and WATTTIME_PASSWORD in .env file with your actual credentials. "
                         "Register at https://watttime.org if you don't have an account. "
                         "Service will run in standby mode until credentials are configured."
                     )
                 else:
                     logger.warning(
-                        "⚠️  No WattTime credentials configured! "
+                        "[WARN] No WattTime credentials configured! "
                         "Service will run in standby mode. "
                         "Add WATTTIME_USERNAME/PASSWORD to environment to enable data fetching."
                     )
@@ -135,6 +136,14 @@ class CarbonIntensityService:
             database=self.influxdb_bucket,
             org=self.influxdb_org
         )
+
+        # Validate InfluxDB connection at startup
+        try:
+            test_point = Point("service_startup").tag("service", "carbon-intensity-service").field("status", 1)
+            await asyncio.wait_for(asyncio.to_thread(self.influxdb_client.write, test_point), timeout=10.0)
+            logger.info("InfluxDB connection validated successfully")
+        except Exception as e:
+            logger.warning(f"InfluxDB startup validation failed (will retry on writes): {e}")
 
         logger.info("Carbon Intensity Service initialized successfully")
 
@@ -195,10 +204,10 @@ class CarbonIntensityService:
                     self.api_token = data.get('token')
 
                     # WattTime tokens expire in 30 minutes
-                    self.token_expires_at = datetime.now() + timedelta(minutes=30)
+                    self.token_expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
                     # Update health check
-                    self.health_handler.last_token_refresh = datetime.now()
+                    self.health_handler.last_token_refresh = datetime.now(timezone.utc)
                     self.health_handler.token_refresh_count += 1
 
                     logger.info(f"Token refreshed successfully, expires at {self.token_expires_at.isoformat()}")
@@ -279,20 +288,25 @@ class CarbonIntensityService:
 
         # If token expires soon (within buffer time), refresh now
         if self.token_expires_at:
-            time_until_expiry = (self.token_expires_at - datetime.now()).total_seconds()
+            time_until_expiry = (self.token_expires_at - datetime.now(timezone.utc)).total_seconds()
             if time_until_expiry < self.token_refresh_buffer:
                 logger.info(f"Token expires in {time_until_expiry:.0f}s, refreshing...")
                 return await self.refresh_token()
 
+        if not self.api_token:
+            logger.error("No API token available")
+            return False
         return True  # Token still valid
 
     def _parse_watttime_response(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """Parse WattTime API response into standardized format."""
+        carbon_intensity = raw_data.get('moer') or 0
+        renewable_pct = raw_data.get('renewable_pct') or 0
         data = {
-            'carbon_intensity': raw_data.get('moer', 0),  # Marginal emissions rate
-            'renewable_percentage': raw_data.get('renewable_pct', 0),
-            'fossil_percentage': 100 - raw_data.get('renewable_pct', 0),
-            'timestamp': datetime.now()
+            'carbon_intensity': float(carbon_intensity),
+            'renewable_percentage': float(renewable_pct),
+            'fossil_percentage': 100.0 - float(renewable_pct),
+            'timestamp': datetime.now(timezone.utc)
         }
 
         # Extract forecasts if available
@@ -309,8 +323,8 @@ class CarbonIntensityService:
     def _update_cache_and_health(self, data: dict[str, Any]) -> None:
         """Update cache and health check metrics."""
         self.cached_data = data
-        self.last_fetch_time = datetime.now()
-        self.health_handler.last_successful_fetch = datetime.now()
+        self.last_fetch_time = datetime.now(timezone.utc)
+        self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
         self.health_handler.total_fetches += 1
 
     async def fetch_carbon_intensity(self) -> dict[str, Any] | None:
@@ -320,6 +334,12 @@ class CarbonIntensityService:
         if not self.credentials_configured:
             # Don't log error every time, just return None quietly
             return None
+
+        # Return cached data if still within TTL
+        if self.cached_data and self.last_fetch_time:
+            cache_age = datetime.now(timezone.utc) - self.last_fetch_time
+            if cache_age < self.cache_duration:
+                return self.cached_data
 
         if not self.session:
             logger.error("HTTP session not initialized")
@@ -393,16 +413,37 @@ class CarbonIntensityService:
                     self.health_handler.failed_fetches += 1
                     return self.cached_data
 
+                elif response.status in (429, 500, 502, 503):
+                    # Retryable transient errors - exponential backoff
+                    last_status = response.status
+                    retry_delays = [5, 10, 20]
+                    for attempt, delay in enumerate(retry_delays, 1):
+                        logger.warning(f"Transient HTTP {last_status}, retry {attempt}/{len(retry_delays)} after {delay}s")
+                        await asyncio.sleep(delay)
+                        async with self.session.get(url, headers=headers, params=params) as retry_resp:
+                            if retry_resp.status == 200:
+                                raw_data = await retry_resp.json()
+                                data = self._parse_watttime_response(raw_data)
+                                self._update_cache_and_health(data)
+                                logger.info(f"Carbon intensity (retry {attempt}): {data['carbon_intensity']:.1f} gCO2/kWh")
+                                return data
+                            last_status = retry_resp.status
+                            if retry_resp.status not in (429, 500, 502, 503):
+                                break
+
+                    logger.error(f"WattTime API returned status {last_status} after {len(retry_delays)} retries")
+                    self.health_handler.failed_fetches += 1
+                    return self.cached_data
+
                 else:
-                    error = aiohttp.ClientResponseError(
-                        request_info=response.request_info,
-                        history=response.history,
-                        status=response.status
-                    )
                     log_error_with_context(
                         logger,
                         f"WattTime API returned status {response.status}",
-                        error,
+                        aiohttp.ClientResponseError(
+                            request_info=response.request_info,
+                            history=response.history,
+                            status=response.status
+                        ),
                         service="carbon-intensity-service"
                     )
                     self.health_handler.failed_fetches += 1
@@ -458,11 +499,21 @@ class CarbonIntensityService:
 
             # CRITICAL FIX: Use asyncio.to_thread to avoid blocking the event loop
             # InfluxDBClient3.write() is synchronous and blocks the async event loop
-            await asyncio.to_thread(self.influxdb_client.write, point)
+            await asyncio.wait_for(asyncio.to_thread(self.influxdb_client.write, point), timeout=15.0)
 
             logger.info("Carbon intensity data written to InfluxDB")
+            self.health_handler.last_successful_write = datetime.now(timezone.utc)
 
+        except asyncio.TimeoutError:
+            self.health_handler.influxdb_write_failures += 1
+            log_error_with_context(
+                logger,
+                "InfluxDB write timed out after 15s",
+                TimeoutError("InfluxDB write timed out after 15s"),
+                service="carbon-intensity-service"
+            )
         except Exception as e:
+            self.health_handler.influxdb_write_failures += 1
             log_error_with_context(
                 logger,
                 f"Error writing to InfluxDB: {e}",
@@ -530,12 +581,34 @@ async def main():
 
     logger.info(f"Health check endpoint available on port {port}")
 
+    # Register signal handlers for graceful Docker shutdown
+    loop = asyncio.get_running_loop()
+    shutdown_event = asyncio.Event()
+
+    def _signal_handler():
+        logger.info("Received shutdown signal")
+        shutdown_event.set()
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, _signal_handler)
+        except NotImplementedError:
+            # Windows does not support add_signal_handler
+            pass
+
     try:
-        # Run continuous data collection
-        await service.run_continuous()
+        # Run continuous data collection until shutdown
+        continuous_task = asyncio.create_task(service.run_continuous())
+        shutdown_task = asyncio.create_task(shutdown_event.wait())
+        done, pending = await asyncio.wait(
+            [continuous_task, shutdown_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
 
     except KeyboardInterrupt:
-        logger.info("Received shutdown signal")
+        logger.info("Received keyboard interrupt")
 
     finally:
         await service.shutdown()

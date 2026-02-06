@@ -156,9 +156,17 @@ async def test_cache_functionality(service):
 
 
 @pytest.mark.asyncio
-async def test_missing_env_variables():
-    """Test service fails gracefully without required env vars"""
+async def test_missing_influxdb_token_raises():
+    """Test service raises ValueError when INFLUXDB_TOKEN is missing"""
 
-    with pytest.raises(ValueError, match="WATTTIME_API_TOKEN"):
-        service = CarbonIntensityService()
+    with pytest.raises(ValueError, match="INFLUXDB_TOKEN"):
+        CarbonIntensityService()
+
+
+@pytest.mark.asyncio
+async def test_missing_watttime_credentials_enters_standby(monkeypatch):
+    """Test service enters standby mode when WattTime credentials are missing"""
+    monkeypatch.setenv('INFLUXDB_TOKEN', 'test_token')
+    service = CarbonIntensityService()
+    assert service.credentials_configured is False
 

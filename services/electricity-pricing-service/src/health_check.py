@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 class HealthCheckHandler:
     """Health check endpoint handler"""
 
+    STARTUP_GRACE_PERIOD = 300  # 5 minutes
+
     def __init__(self):
         self.start_time = datetime.now(timezone.utc)
         self.last_successful_fetch: datetime | None = None
@@ -30,6 +32,9 @@ class HealthCheckHandler:
             time_since_last = (datetime.now(timezone.utc) - self.last_successful_fetch).total_seconds()
             if time_since_last > 7200:  # 2 hours without successful fetch
                 healthy = False
+        elif uptime > self.STARTUP_GRACE_PERIOD:
+            # No successful fetch after grace period
+            healthy = False
 
         status = {
             "status": "healthy" if healthy else "degraded",
@@ -38,7 +43,7 @@ class HealthCheckHandler:
             "last_successful_fetch": self.last_successful_fetch.isoformat() if self.last_successful_fetch else None,
             "total_fetches": self.total_fetches,
             "failed_fetches": self.failed_fetches,
-            "success_rate": (self.total_fetches - self.failed_fetches) / self.total_fetches if self.total_fetches > 0 else 0,
+            "success_rate": self.total_fetches / (self.total_fetches + self.failed_fetches) if (self.total_fetches + self.failed_fetches) > 0 else 0,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
