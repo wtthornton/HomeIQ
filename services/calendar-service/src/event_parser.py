@@ -13,32 +13,32 @@ logger = logging.getLogger(__name__)
 class CalendarEventParser:
     """Parse and enrich calendar events from Home Assistant"""
 
-    # Patterns for detecting work-from-home indicators
+    # Pre-compiled patterns for detecting work-from-home indicators
     WFH_PATTERNS = [
-        r'\bWFH\b',
-        r'\bWork From Home\b',
-        r'\bHome Office\b',
-        r'\bRemote Work\b',
-        r'\bWorking From Home\b',
+        re.compile(r'\bWFH\b', re.IGNORECASE),
+        re.compile(r'\bWork From Home\b', re.IGNORECASE),
+        re.compile(r'\bHome Office\b', re.IGNORECASE),
+        re.compile(r'\bRemote Work\b', re.IGNORECASE),
+        re.compile(r'\bWorking From Home\b', re.IGNORECASE),
     ]
 
-    # Patterns for detecting home location indicators
+    # Pre-compiled patterns for detecting home location indicators
     HOME_PATTERNS = [
-        r'\bHome\b',
-        r'\bHouse\b',
-        r'\bResidence\b',
-        r'\bApartment\b',
+        re.compile(r'\bHome\b', re.IGNORECASE),
+        re.compile(r'\bHouse\b', re.IGNORECASE),
+        re.compile(r'\bResidence\b', re.IGNORECASE),
+        re.compile(r'\bApartment\b', re.IGNORECASE),
     ]
 
-    # Patterns for detecting away/out indicators
+    # Pre-compiled patterns for detecting away/out indicators
     AWAY_PATTERNS = [
-        r'\bOffice\b',
-        r'\bWork\b',
-        r'\bTravel\b',
-        r'\bTrip\b',
-        r'\bVacation\b',
-        r'\bOut of Town\b',
-        r'\bBusiness\b',
+        re.compile(r'\bOffice\b', re.IGNORECASE),
+        re.compile(r'\bWork\b', re.IGNORECASE),
+        re.compile(r'\bTravel\b', re.IGNORECASE),
+        re.compile(r'\bTrip\b', re.IGNORECASE),
+        re.compile(r'\bVacation\b', re.IGNORECASE),
+        re.compile(r'\bOut of Town\b', re.IGNORECASE),
+        re.compile(r'\bBusiness\b', re.IGNORECASE),
     ]
 
     @staticmethod
@@ -65,18 +65,11 @@ class CalendarEventParser:
         # String format
         if isinstance(dt_value, str):
             try:
-                # Remove 'Z' suffix if present
-                dt_str = dt_value.rstrip('Z')
-
-                # Try parsing with timezone
-                if '+' in dt_str or dt_str.count('-') > 2:
-                    return datetime.fromisoformat(dt_str)
-                else:
-                    # No timezone, assume UTC
-                    dt = datetime.fromisoformat(dt_str)
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    return dt
+                dt_str = dt_value.replace('Z', '+00:00')
+                dt = datetime.fromisoformat(dt_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
             except ValueError as e:
                 logger.error(f"Failed to parse datetime string '{dt_value}': {e}")
                 return None
@@ -160,14 +153,14 @@ class CalendarEventParser:
         return parsed_event
 
     @staticmethod
-    def _matches_patterns(text: str, patterns: list[str]) -> bool:
+    def _matches_patterns(text: str, patterns: list[re.Pattern]) -> bool:
         """
-        Check if text matches any of the regex patterns
-        
+        Check if text matches any of the pre-compiled regex patterns
+
         Args:
             text: Text to check
-            patterns: List of regex patterns
-        
+            patterns: List of pre-compiled regex patterns
+
         Returns:
             True if any pattern matches, False otherwise
         """
@@ -175,7 +168,7 @@ class CalendarEventParser:
             return False
 
         for pattern in patterns:
-            if re.search(pattern, text, re.IGNORECASE):
+            if pattern.search(text):
                 return True
 
         return False

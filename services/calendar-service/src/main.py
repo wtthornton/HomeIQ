@@ -4,15 +4,14 @@ Integrates with Home Assistant Calendar for occupancy prediction
 """
 
 import asyncio
-import os
-import sys
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 from aiohttp import web
+from aiohttp import ClientError
 from influxdb_client_3 import InfluxDBClient3, Point
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from config import settings
 from event_parser import CalendarEventParser
@@ -104,8 +103,9 @@ class CalendarService:
         self.health_handler.calendar_count = len(self.calendar_entities)
 
         # Create InfluxDB client
+        parsed_url = urlparse(self.influxdb_url)
         self.influxdb_client = InfluxDBClient3(
-            host=self.influxdb_url,
+            host=parsed_url.hostname,
             token=self.influxdb_token,
             database=self.influxdb_bucket,
             org=self.influxdb_org
@@ -127,9 +127,11 @@ class CalendarService:
         """Fetch today's calendar events from Home Assistant"""
 
         try:
-            # Define time range (today)
+            # Define time range (today in local timezone)
+            local_tz = ZoneInfo(settings.timezone)
             now = datetime.now(timezone.utc)
-            end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+            now_local = datetime.now(local_tz)
+            end_of_day = now_local.replace(hour=23, minute=59, second=59, microsecond=999999)
 
             # Fetch events from all configured calendars
             all_events_raw = await self.ha_client.get_events_from_multiple_calendars(
@@ -154,26 +156,33 @@ class CalendarService:
             # Sort by start time
             parsed_events.sort(key=lambda e: e['start'] if e.get('start') else now)
 
-            self.health_handler.last_successful_fetch = datetime.now()
+            self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
             self.health_handler.total_fetches += 1
 
             return parsed_events
 
+        except (ClientError, ConnectionError, TimeoutError) as e:
+            log_error_with_context(
+                logger,
+                f"Network error fetching calendar events: {e}",
+                service="calendar-service",
+                error=str(e)
+            )
+            self.health_handler.ha_connected = False
+            self.health_handler.failed_fetches += 1
+            return []
         except Exception as e:
-            # CRITICAL FIX: Preserve exception chain (B904 compliance)
             log_error_with_context(
                 logger,
                 f"Error fetching calendar events: {e}",
                 service="calendar-service",
                 error=str(e)
             )
-            self.health_handler.ha_connected = False
             self.health_handler.failed_fetches += 1
-            # Log and return empty list, but preserve exception context
             logger.debug(f"Exception context: {type(e).__name__}: {e}", exc_info=True)
             return []
 
-    async def predict_home_status(self) -> dict[str, Any]:
+    async def predict_home_status(self) -> dict[str, Any] | None:
         """Predict home occupancy based on calendar"""
 
         try:
@@ -211,7 +220,7 @@ class CalendarService:
             # Calculate arrival time and confidence
             if next_home_event:
                 arrival_time = next_home_event['start']
-                travel_time = timedelta(minutes=30)  # Estimate
+                travel_time = timedelta(minutes=settings.default_travel_time_minutes)
                 prepare_time = arrival_time - travel_time
                 hours_until_arrival = (arrival_time - now).total_seconds() / 3600
 
@@ -249,8 +258,16 @@ class CalendarService:
 
             return prediction
 
+        except (ClientError, ConnectionError, TimeoutError) as e:
+            log_error_with_context(
+                logger,
+                f"Network error predicting occupancy: {e}",
+                service="calendar-service",
+                error=str(e)
+            )
+            self.health_handler.failed_fetches += 1
+            return None
         except Exception as e:
-            # CRITICAL FIX: Preserve exception chain (B904 compliance)
             log_error_with_context(
                 logger,
                 f"Error predicting occupancy: {e}",
@@ -258,7 +275,6 @@ class CalendarService:
                 error=str(e)
             )
             self.health_handler.failed_fetches += 1
-            # Log exception context for debugging
             logger.debug(f"Exception context: {type(e).__name__}: {e}", exc_info=True)
             return None
 
@@ -279,7 +295,10 @@ class CalendarService:
                 .field("currently_home", bool(prediction['currently_home'])) \
                 .field("wfh_today", bool(prediction['wfh_today'])) \
                 .field("confidence", float(prediction['confidence'])) \
-                .field("hours_until_arrival", float(prediction['hours_until_arrival']) if prediction['hours_until_arrival'] is not None else 0) \
+                .field("hours_until_arrival", float(prediction['hours_until_arrival']) if prediction['hours_until_arrival'] is not None else -1.0) \
+                .field("event_count", int(prediction.get('event_count', 0))) \
+                .field("current_event_count", int(prediction.get('current_event_count', 0))) \
+                .field("upcoming_event_count", int(prediction.get('upcoming_event_count', 0))) \
                 .time(prediction['timestamp'])
 
             # CRITICAL FIX: Use asyncio.to_thread() to avoid blocking the event loop
@@ -373,7 +392,7 @@ async def main() -> None:
 
     try:
         await service.run_continuous()
-    except KeyboardInterrupt:
+    except asyncio.CancelledError:
         logger.info("Received shutdown signal")
     finally:
         await service.shutdown()

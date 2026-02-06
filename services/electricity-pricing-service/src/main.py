@@ -5,7 +5,6 @@ Fetches real-time electricity pricing from utility APIs
 
 import asyncio
 import os
-import sys
 from datetime import datetime, timezone
 from typing import Any
 
@@ -13,9 +12,6 @@ import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
 from influxdb_client_3 import InfluxDBClient3, Point
-
-# Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 
 from health_check import HealthCheckHandler
 from providers import AwattarProvider
@@ -35,7 +31,6 @@ class ElectricityPricingService:
 
     def __init__(self):
         self.provider_name = os.getenv('PRICING_PROVIDER', 'awattar')
-        self.api_key = os.getenv('PRICING_API_KEY', '')
 
         # InfluxDB configuration
         self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
@@ -44,8 +39,8 @@ class ElectricityPricingService:
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
 
         # Service configuration
-        self.fetch_interval = 3600  # 1 hour in seconds
-        self.cache_duration = 60  # minutes
+        self.fetch_interval = int(os.getenv('FETCH_INTERVAL', '3600'))  # seconds
+        self.cache_duration = int(os.getenv('CACHE_DURATION', '60'))  # minutes
         
         # Epic 49 Story 49.1: Security configuration
         self.allowed_networks = os.getenv('ALLOWED_NETWORKS', '').split(',') if os.getenv('ALLOWED_NETWORKS') else None
@@ -72,10 +67,6 @@ class ElectricityPricingService:
         # Validate configuration
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
-        
-        # Epic 49 Story 49.1: Set logger for security module
-        import security
-        security.logger = logger
 
     def _get_provider(self):
         """Get pricing provider based on configuration"""
@@ -136,6 +127,10 @@ class ElectricityPricingService:
 
             data = await self.provider.fetch_pricing(self.session)
 
+            if data is None:
+                logger.warning("Provider returned no data")
+                return self.cached_data
+
             # Add timestamp
             data['timestamp'] = datetime.now(timezone.utc)
             data['provider'] = self.provider_name
@@ -162,10 +157,13 @@ class ElectricityPricingService:
             )
             self.health_handler.failed_fetches += 1
 
-            # Return cached data if available
-            if self.cached_data:
-                logger.warning("Using cached pricing data")
-                return self.cached_data
+            # Return cached data if available and not expired
+            if self.cached_data and self.last_fetch_time:
+                age_min = (datetime.now(timezone.utc) - self.last_fetch_time).total_seconds() / 60
+                if age_min < self.cache_duration:
+                    logger.warning("Using cached pricing data")
+                    return self.cached_data
+                logger.error(f"Cache expired ({age_min:.0f}m > {self.cache_duration}m)")
 
             return None
 
@@ -175,14 +173,25 @@ class ElectricityPricingService:
         Epic 49 Story 49.2: Batch writes for performance optimization
         """
 
+        if not self.influxdb_client:
+            logger.error("InfluxDB client not initialized, skipping write")
+            return
+
         if not data:
             logger.warning("No data to store in InfluxDB")
             return
 
         try:
+            # Validate required fields before building Points
+            required = ['provider', 'currency', 'current_price', 'peak_period', 'timestamp']
+            missing = [f for f in required if f not in data]
+            if missing:
+                logger.error(f"Missing required fields for InfluxDB write: {missing}")
+                return
+
             # Epic 49 Story 49.2: Collect all points for batch write
             points = []
-            
+
             # Store current pricing
             current_point = Point("electricity_pricing") \
                 .tag("provider", data['provider']) \

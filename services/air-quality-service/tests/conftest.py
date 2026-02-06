@@ -131,6 +131,7 @@ async def service_instance():
     os.environ['LONGITUDE'] = '-115.1398'
 
     service = AirQualityService()
+    service.retry_delays = []  # Disable retries in tests
 
     yield service
 

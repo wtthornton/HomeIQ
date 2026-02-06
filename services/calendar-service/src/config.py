@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     # Service configuration
     calendar_fetch_interval: int = 900  # 15 minutes default
     service_port: int = 8013
+    timezone: str = "UTC"
+    default_travel_time_minutes: int = 30
     
     model_config = SettingsConfigDict(
         env_file=".env",

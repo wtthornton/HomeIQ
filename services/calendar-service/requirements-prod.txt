@@ -1,11 +1,6 @@
 python-dotenv>=1.0.1,<2.0.0
 influxdb3-python>=0.3.0,<1.0.0
-pandas>=2.2.0,<3.0.0  # Latest stable (2025 - Epic 41)
 aiohttp>=3.13.2,<4.0.0  # Latest stable (2025 - Epic 41)
 websockets>=10.0,<16.0  # Required for shared.enhanced_ha_connection_manager
 pydantic-settings>=2.0.0,<3.0.0  # Required for BaseSettings
-google-auth==2.25.2
-google-auth-oauthlib==1.2.0
-google-auth-httplib2==0.2.0
-google-api-python-client==2.110.0
 

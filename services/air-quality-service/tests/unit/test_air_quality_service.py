@@ -2,7 +2,7 @@
 Unit tests for air quality service logic
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -257,7 +257,7 @@ class TestAPIEndpoints:
     async def test_get_current_aqi_with_data(self, service_instance, sample_aqi_data):
         """GIVEN: Cached data exists | WHEN: GET /current-aqi | THEN: Return data"""
         service_instance.cached_data = sample_aqi_data.copy()
-        service_instance.last_fetch_time = datetime.now()
+        service_instance.last_fetch_time = datetime.now(timezone.utc)
 
         mock_request = MagicMock()
         response = await service_instance.get_current_aqi(mock_request)

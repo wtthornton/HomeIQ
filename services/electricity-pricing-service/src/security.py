@@ -6,14 +6,12 @@ Provides validation functions for API endpoints and input parameters.
 """
 
 import ipaddress
-import re
+import logging
 from typing import Optional
 
 from aiohttp import web
 
-# Import logger from main module when available
-# This avoids circular imports - logger will be set after main module loads
-logger = None  # Will be set by main module if needed
+logger = logging.getLogger(__name__)
 
 
 def validate_hours_parameter(hours_str: str | None, default: int = 4) -> int:
@@ -68,8 +66,7 @@ def validate_internal_request(request: web.Request, allowed_networks: Optional[l
 
     peername = request.remote
     if not peername:
-        if logger:
-            logger.warning("Could not determine remote address for internal request validation.")
+        logger.warning("Could not determine remote address for internal request validation.")
         return False
 
     try:
@@ -78,13 +75,11 @@ def validate_internal_request(request: web.Request, allowed_networks: Optional[l
             network = ipaddress.ip_network(network_str)
             if request_ip in network:
                 return True
-        
-        if logger:
-            logger.warning(f"Request from {request_ip} not in allowed networks: {allowed_networks}")
+
+        logger.warning(f"Request from {request_ip} rejected: not in allowed networks")
         return False
     except ValueError as e:
-        if logger:
-            logger.error(f"Invalid IP address or network configuration for validation: {e}")
+        logger.error(f"Invalid IP address or network configuration for validation: {e}")
         return False
 
 

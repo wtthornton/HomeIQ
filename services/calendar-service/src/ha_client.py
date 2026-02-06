@@ -4,11 +4,14 @@ Home Assistant REST API Client for Calendar Integration
 
 import asyncio
 import logging
+import re
 from datetime import datetime
 from typing import Any
 
 import aiohttp
 from aiohttp import ClientError, ClientTimeout
+
+CALENDAR_ID_PATTERN = re.compile(r'^(calendar\.)?[a-z0-9_]+$')
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +29,15 @@ class HomeAssistantCalendarClient:
             timeout: Request timeout in seconds
         """
         self.base_url = base_url.rstrip('/')
-        self.token = token
         self.timeout = ClientTimeout(total=timeout)
         self.session: aiohttp.ClientSession | None = None
         self._headers = {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
         }
+
+    def __repr__(self) -> str:
+        return f"HomeAssistantCalendarClient(base_url={self.base_url!r})"
 
     async def __aenter__(self):
         """Async context manager entry"""
@@ -42,6 +47,11 @@ class HomeAssistantCalendarClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
         await self.close()
+
+    @staticmethod
+    def _validate_calendar_id(calendar_id: str) -> None:
+        if not CALENDAR_ID_PATTERN.match(calendar_id.strip()):
+            raise ValueError(f"Invalid calendar entity ID: {calendar_id!r}")
 
     async def connect(self):
         """Initialize HTTP session"""
@@ -87,19 +97,13 @@ class HomeAssistantCalendarClient:
             List of calendar entity IDs (e.g., ['calendar.primary', 'calendar.work'])
         """
         try:
-            async with self.session.get(f"{self.base_url}/api/states") as response:
+            async with self.session.get(f"{self.base_url}/api/calendars") as response:
                 if response.status != 200:
-                    logger.error(f"Failed to get states: HTTP {response.status}")
+                    logger.error(f"Failed to get calendars: HTTP {response.status}")
                     return []
 
-                states = await response.json()
-
-                # Filter for calendar entities
-                calendars = [
-                    state['entity_id']
-                    for state in states
-                    if state['entity_id'].startswith('calendar.')
-                ]
+                calendars_data = await response.json()
+                calendars = [cal['entity_id'] for cal in calendars_data]
 
                 logger.info(f"Found {len(calendars)} calendar entities: {calendars}")
                 return calendars
@@ -137,6 +141,8 @@ class HomeAssistantCalendarClient:
                 }
             ]
         """
+        self._validate_calendar_id(calendar_id)
+
         # Ensure calendar_id doesn't have 'calendar.' prefix for API call
         if calendar_id.startswith('calendar.'):
             calendar_id = calendar_id[9:]  # Remove 'calendar.' prefix
@@ -197,6 +203,8 @@ class HomeAssistantCalendarClient:
                 }
             }
         """
+        self._validate_calendar_id(calendar_id)
+
         # Ensure calendar_id has 'calendar.' prefix for state API
         if not calendar_id.startswith('calendar.'):
             calendar_id = f'calendar.{calendar_id}'

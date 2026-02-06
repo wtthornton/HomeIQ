@@ -4,6 +4,7 @@ Use this to register a new WattTime account programmatically
 """
 
 import asyncio
+import getpass
 import sys
 
 import aiohttp
@@ -32,7 +33,7 @@ async def register_watttime(username: str, password: str, email: str, org: str):
         "org": org
     }
 
-    print("\n🔐 Registering WattTime Account")
+    print("\n[AUTH] Registering WattTime Account")
     print(f"   Username: {username}")
     print(f"   Email: {email}")
     print(f"   Organization: {org}")
@@ -45,33 +46,33 @@ async def register_watttime(username: str, password: str, email: str, org: str):
                 response_text = await response.text()
 
                 if response.status == 200 or response.status == 201:
-                    print("✅ Registration Successful!")
+                    print("[OK] Registration Successful!")
                     print(f"   Response: {response_text}")
                     print()
-                    print("📧 Check your email for verification (if required)")
+                    print("[INFO] Check your email for verification (if required)")
                     print()
-                    print("🔑 Testing login with new credentials...")
+                    print("[AUTH] Testing login with new credentials...")
 
                     # Test login immediately
                     login_success = await test_login(username, password)
 
                     if login_success:
-                        print("✅ Login test successful! Your credentials work.")
+                        print("[OK] Login test successful! Your credentials work.")
                         print()
-                        print("📝 Add to your .env file:")
+                        print("[NOTE] Add to your .env file:")
                         print(f"   WATTTIME_USERNAME={username}")
                         print("   WATTTIME_PASSWORD=your_password")
                     else:
-                        print("⚠️  Registration succeeded but login test failed.")
+                        print("[WARN] Registration succeeded but login test failed.")
                         print("   You may need to verify your email first.")
 
                     return True
 
                 elif response.status == 400:
-                    print("❌ Registration Failed (400 Bad Request)")
+                    print("[ERROR] Registration Failed (400 Bad Request)")
                     print(f"   Response: {response_text}")
                     print()
-                    print("💡 Common Issues:")
+                    print("[HINT] Common Issues:")
                     print("   - Username already taken")
                     print("   - Invalid email format")
                     print("   - Password too weak")
@@ -79,12 +80,12 @@ async def register_watttime(username: str, password: str, email: str, org: str):
                     return False
 
                 else:
-                    print(f"❌ Registration Failed (HTTP {response.status})")
+                    print(f"[ERROR] Registration Failed (HTTP {response.status})")
                     print(f"   Response: {response_text}")
                     return False
 
     except Exception as e:
-        print(f"❌ Error during registration: {e}")
+        print(f"[ERROR] Error during registration: {e}")
         return False
 
 
@@ -101,7 +102,7 @@ async def test_login(username: str, password: str):
                 if response.status == 200:
                     data = await response.json()
                     token = data.get('token', '')
-                    print(f"   Token received: {token[:30]}...")
+                    print(f"   Token received: {'*' * 20} (length: {len(token)})")
                     return True
                 else:
                     print(f"   Login failed: HTTP {response.status}")
@@ -124,13 +125,13 @@ async def check_username_available(username: str):
         async with aiohttp.ClientSession() as session:
             async with session.post(url, auth=auth) as response:
                 if response.status == 401:
-                    print(f"⚠️  Username '{username}' already exists")
+                    print(f"[WARN] Username '{username}' already exists")
                     return False
                 elif response.status == 404:
-                    print(f"✅ Username '{username}' appears to be available")
+                    print(f"[OK] Username '{username}' appears to be available")
                     return True
                 else:
-                    print(f"❓ Unknown response: {response.status}")
+                    print(f"[UNKNOWN] Unknown response: {response.status}")
                     return None
 
     except Exception as e:
@@ -146,10 +147,10 @@ def print_usage():
 ╚══════════════════════════════════════════════════════════════╝
 
 USAGE:
-    python register_watttime.py <username> <password> <email> <org>
+    python register_watttime.py <username> <email> <org>
 
 EXAMPLE:
-    python register_watttime.py myuser SecurePass123 me@email.com "Home Project"
+    python register_watttime.py myuser me@email.com "Home Project"
 
 REQUIREMENTS:
     - Username: Must be unique, alphanumeric
@@ -174,21 +175,21 @@ MANUAL REGISTRATION:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 4:
         print_usage()
         sys.exit(1)
 
     username = sys.argv[1]
-    password = sys.argv[2]
-    email = sys.argv[3]
-    org = sys.argv[4]
+    password = getpass.getpass("Password: ")
+    email = sys.argv[2]
+    org = sys.argv[3]
 
     # Run registration
     success = asyncio.run(register_watttime(username, password, email, org))
 
     if success:
         print()
-        print("🎉 Registration Complete!")
+        print("[OK] Registration Complete!")
         print()
         print("NEXT STEPS:")
         print("1. Add credentials to your .env file or docker-compose.yml")
@@ -200,7 +201,7 @@ if __name__ == "__main__":
         sys.exit(0)
     else:
         print()
-        print("❌ Registration failed. Please try manual registration at:")
+        print("[ERROR] Registration failed. Please try manual registration at:")
         print("   https://watttime.org")
         print()
         sys.exit(1)

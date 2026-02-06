@@ -13,15 +13,18 @@ from __future__ import annotations
 
 import asyncio
 import os
+import random
 import sys
-from contextlib import suppress
+import time
+from collections import defaultdict
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 from typing import Any, Literal
 from urllib.parse import urlparse
 
 import aiohttp
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from influxdb_client_3 import InfluxDBClient3, Point
 from pydantic import BaseModel
@@ -42,6 +45,37 @@ SERVICE_VERSION = "1.0.0"
 # Configure logging
 logger = setup_logging(SERVICE_NAME)
 
+SPORTS_API_KEY = os.getenv('SPORTS_API_KEY', '')
+
+
+async def verify_api_key(x_api_key: str = Header(...)) -> str:
+    if not SPORTS_API_KEY:
+        return x_api_key
+    if x_api_key != SPORTS_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return x_api_key
+
+
+class RateLimiter:
+    """Simple in-memory rate limiter using sliding window."""
+
+    def __init__(self, max_requests: int = 30, window_seconds: int = 60) -> None:
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._requests: defaultdict[str, list[float]] = defaultdict(list)
+
+    def is_allowed(self, key: str = "global") -> bool:
+        now = time.monotonic()
+        window_start = now - self.window_seconds
+        self._requests[key] = [t for t in self._requests[key] if t > window_start]
+        if len(self._requests[key]) >= self.max_requests:
+            return False
+        self._requests[key].append(now)
+        return True
+
+
+rate_limiter = RateLimiter()
+
 
 # Pydantic Models
 class TeamTrackerSensor(BaseModel):
@@ -57,7 +91,7 @@ class SportsDataResponse(BaseModel):
     """Sports data response"""
     sensors: list[dict[str, Any]]
     count: int
-    last_update: str
+    last_update: str | None = None
 
 
 class SportsService:
@@ -171,7 +205,8 @@ class SportsService:
         """Initialize service components."""
         logger.info("Initializing Sports API Service...")
         
-        self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
+        connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
+        self.session = aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=10))
         
         # Try to connect to InfluxDB with fallback hostnames
         self.influxdb_client = await self._initialize_influxdb()
@@ -254,11 +289,15 @@ class SportsService:
                     logger.info(f"Fetched {len(team_tracker_sensors)} Team Tracker sensors from HA")
                     return team_tracker_sensors
                 else:
-                    logger.error(f"HA API error: {response.status}")
+                    body = await response.text()
+                    logger.error(f"HA API error: {response.status} - {body[:500]}")
                     return []
         
         except Exception as e:
-            logger.error(f"Error fetching Team Tracker sensors: {e}")
+            safe_msg = str(e)
+            if self.ha_token:
+                safe_msg = safe_msg.replace(self.ha_token, "[REDACTED]")
+            logger.error(f"Error fetching Team Tracker sensors: {safe_msg}")
             return []
 
     def parse_sensor_data(self, sensor: dict[str, Any]) -> dict[str, Any]:
@@ -314,9 +353,6 @@ class SportsService:
             
             # 6. Last play - for real-time play reactions (touchdowns, goals)
             'last_play': attributes.get('last_play', ''),
-            
-            # Include all other attributes for completeness
-            'all_attributes': attributes
         }
         
         return parsed
@@ -351,7 +387,7 @@ class SportsService:
             List of InfluxDB Point objects
         """
         points: list[Point] = []
-        timestamp = datetime.utcnow().replace(tzinfo=timezone.utc)
+        timestamp = datetime.now(timezone.utc)
         
         for sensor_data in sensors:
             point = self._create_point_from_sensor(sensor_data, timestamp)
@@ -376,9 +412,14 @@ class SportsService:
             .tag("team_abbr", sensor_data.get('team_abbr', '')) \
             .tag("team_id", str(sensor_data.get('team_id', ''))) \
             .tag("state", sensor_data['state']) \
-            .field("team_score", self._safe_int(sensor_data.get('team_score'))) \
-            .field("opponent_score", self._safe_int(sensor_data.get('opponent_score'))) \
             .time(timestamp)
+
+        team_score = self._safe_int(sensor_data.get('team_score'))
+        if team_score is not None:
+            point = point.field("team_score", team_score)
+        opponent_score = self._safe_int(sensor_data.get('opponent_score'))
+        if opponent_score is not None:
+            point = point.field("opponent_score", opponent_score)
         
         # Add optional fields
         point = self._add_optional_fields(point, sensor_data)
@@ -514,7 +555,7 @@ class SportsService:
         Args:
             point_count: Number of points written
         """
-        self.last_influx_write = datetime.utcnow().replace(tzinfo=timezone.utc)
+        self.last_influx_write = datetime.now(timezone.utc)
         self.last_influx_write_error = None
         self.influx_write_success_count += 1
         self.sensors_processed += point_count
@@ -535,7 +576,7 @@ class SportsService:
         
         # Update cache
         self.cached_sensors = parsed_sensors
-        self.cache_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+        self.cache_time = datetime.now(timezone.utc)
         self.last_successful_fetch = self.cache_time
         self.fetch_count += 1
         
@@ -547,18 +588,22 @@ class SportsService:
     async def run_continuous(self):
         """Background fetch loop"""
         logger.info(f"Starting continuous fetch (every {self.poll_interval}s)")
-        
+        consecutive_errors = 0
+
         while True:
             try:
                 await self.get_current_sports_data()
+                consecutive_errors = 0
                 await asyncio.sleep(self.poll_interval)
             except asyncio.CancelledError:
                 logger.info("Continuous fetch loop cancelled")
                 raise
             except Exception as e:
+                consecutive_errors += 1
                 self.last_background_error = str(e)
                 logger.error(f"Error in continuous loop: {e}")
-                await asyncio.sleep(300)
+                backoff = min(300, (2 ** consecutive_errors) + random.uniform(0, 1))
+                await asyncio.sleep(backoff)
 
     def start_background_task(self) -> asyncio.Task:
         """Start guarded background task"""
@@ -590,16 +635,14 @@ class SportsService:
 sports_service = None
 
 
-async def startup() -> None:
-    """Startup handler for FastAPI application."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global sports_service
-    sports_service = SportsService()
-    await sports_service.startup()
-    sports_service.start_background_task()
-
-
-async def shutdown() -> None:
-    """Shutdown handler for FastAPI application."""
+    service = SportsService()
+    await service.startup()
+    service.start_background_task()
+    sports_service = service
+    yield
     if sports_service:
         await sports_service.shutdown()
 
@@ -608,20 +651,20 @@ async def shutdown() -> None:
 app = FastAPI(
     title="Sports API Service",
     description="Home Assistant Team Tracker integration service",
-    version=SERVICE_VERSION
+    version=SERVICE_VERSION,
+    lifespan=lifespan,
 )
+
+_cors_origins_env = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001')
+_cors_origins = [o.strip() for o in _cors_origins_env.split(',') if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "OPTIONS"],
     allow_headers=["*"],
 )
-
-# Lifecycle
-app.add_event_handler("startup", startup)
-app.add_event_handler("shutdown", shutdown)
 
 
 @app.get("/")
@@ -631,7 +674,7 @@ async def root() -> dict[str, Any]:
         "service": SERVICE_NAME,
         "version": SERVICE_VERSION,
         "status": "running",
-        "endpoints": ["/health", "/metrics", "/sports-data", "/stats"]
+        "endpoints": ["/health", "/sports-data", "/stats"]
     }
 
 
@@ -644,23 +687,17 @@ async def health() -> dict[str, Any]:
     return await sports_service.health_handler.handle(sports_service)
 
 
-@app.get("/metrics")
-async def metrics() -> dict[str, Any]:
-    """Lightweight metrics endpoint (JSON)."""
-    if not sports_service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-    
-    return await sports_service.health_handler.handle(sports_service)
-
-
 @app.get("/sports-data", response_model=SportsDataResponse)
-async def get_sports_data() -> SportsDataResponse:
-    """Get current sports data from Team Tracker sensors."""
+async def get_sports_data(_api_key: str = Depends(verify_api_key)) -> SportsDataResponse:
+    """Get current sports data from Team Tracker sensors (cached)."""
     if not sports_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
-    sensors = await sports_service.get_current_sports_data()
-    
+
+    if not rate_limiter.is_allowed("sports-data"):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+    sensors = sports_service.cached_sensors or []
+
     return SportsDataResponse(
         sensors=sensors,
         count=len(sensors),
@@ -669,7 +706,7 @@ async def get_sports_data() -> SportsDataResponse:
 
 
 @app.get("/stats")
-async def stats() -> dict[str, Any]:
+async def stats(_api_key: str = Depends(verify_api_key)) -> dict[str, Any]:
     """Service statistics endpoint."""
     if not sports_service:
         raise HTTPException(status_code=503, detail="Service not initialized")

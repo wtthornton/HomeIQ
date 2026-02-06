@@ -7,15 +7,10 @@ WORKDIR /app
 # Upgrade pip to latest version
 RUN pip install --upgrade pip==25.2
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
 # Copy requirements and install Python dependencies with cache mount
 COPY services/log-aggregator/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --user -r requirements.txt
 
 # Production stage
 FROM python:3.12-slim AS production

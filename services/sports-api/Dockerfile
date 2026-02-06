@@ -12,9 +12,9 @@ RUN pip install --upgrade pip==25.2
 RUN apk add --no-cache gcc musl-dev linux-headers
 
 # Copy requirements and install Python dependencies
-COPY services/sports-api/requirements.txt .
+COPY services/sports-api/requirements-prod.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --no-cache-dir --user -r requirements-prod.txt
 
 # Production stage
 FROM python:3.12-alpine AS production
@@ -52,4 +52,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 8005
 
 # Run application
-CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8005"]
+CMD python -m uvicorn src.main:app --host 0.0.0.0 --port ${SERVICE_PORT:-8005}

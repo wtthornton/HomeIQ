@@ -1,4 +1,5 @@
-from tests.path_setup import add_service_src
+import sys
+import os
 
-add_service_src(__file__)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
