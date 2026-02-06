@@ -398,9 +398,8 @@ class BackupRestoreService:
 
                 points.append(point)
 
-            # Write points to InfluxDB
-            await self.influxdb_client.write_api().write(
-                bucket="home-assistant-events",
+            # Write points to InfluxDB (new API: no write_api(), no bucket parameter)
+            await self.influxdb_client.write(
                 record=points
             )
 
