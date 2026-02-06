@@ -76,7 +76,7 @@ class FakeSentenceTransformer:
     """Minimal stand-in for sentence-transformers SentenceTransformer."""
 
     def __init__(self, dimension: int = EMBEDDING_DIMENSION):
-        """Initialize with embedding dimension (1024 for BGE-M3-base)."""
+        """Initialize with embedding dimension (1024 for BGE-large-en-v1.5)."""
         self.dimension = dimension
 
     def encode(self, texts: Iterable[str], convert_to_numpy: bool = True) -> np.ndarray:
@@ -92,32 +92,75 @@ class _FakeScalar:
         return self._value
 
 
+class _FakeTensor:
+    """Fake tensor that supports indexing and detach/cpu/tolist for batched logits."""
+
+    def __init__(self, values: list[list[float]]):
+        self._values = values
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple):
+            # Handle [:, 0] style indexing
+            rows, col = key
+            if isinstance(rows, slice) and col == 0:
+                return _FakeColumn([row[0] for row in self._values])
+        return self._values[key]
+
+
+class _FakeColumn:
+    """Fake column tensor that supports detach().cpu().tolist()."""
+
+    def __init__(self, values: list[float]):
+        self._values = values
+
+    def detach(self):
+        return self
+
+    def cpu(self):
+        return self
+
+    def tolist(self) -> list[float]:
+        return self._values
+
+
 class _FakeLogits:
-    def __init__(self, value: float):
-        self.logits = [[_FakeScalar(value)]]
+    """Fake model output supporting both single and batch modes."""
+
+    def __init__(self, values: list[list[float]]):
+        self.logits = _FakeTensor(values)
 
 
 class FakeRerankerTokenizer:
-    """Tokenizer stand-in that simply stores the pair string."""
+    """Tokenizer stand-in that supports both single-pair and batch-pair modes (HIGH-5)."""
 
-    def __call__(self, pair: str, **_: Any) -> dict[str, str]:
-        return {"pair": pair}
+    def __call__(self, pairs, **_: Any) -> dict[str, Any]:
+        # Support both single string and list of strings
+        if isinstance(pairs, str):
+            pairs = [pairs]
+        return {"pairs": pairs}
 
 
 class FakeRerankerModel:
-    """Produces similarity-based scores without Torch dependencies."""
+    """Produces similarity-based scores without Torch dependencies.
+
+    HIGH-5: Updated to support batched inference -- accepts a list of pairs
+    and returns logits with shape (N, 1).
+    """
 
     def __call__(self, **inputs: Any) -> _FakeLogits:
-        pair: str = inputs["pair"]
-        if "[SEP]" in pair:
-            query, candidate = [segment.strip() for segment in pair.split("[SEP]", 1)]
-        else:
-            query, candidate = pair, pair
+        pairs = inputs["pairs"]
+        values = []
+        for pair in pairs:
+            if "[SEP]" in pair:
+                query, candidate = [segment.strip() for segment in pair.split("[SEP]", 1)]
+            else:
+                query, candidate = pair, pair
 
-        query_vec = deterministic_embedding(query)
-        candidate_vec = deterministic_embedding(candidate)
-        score = cosine_similarity(query_vec, candidate_vec)
-        return _FakeLogits(score)
+            query_vec = deterministic_embedding(query)
+            candidate_vec = deterministic_embedding(candidate)
+            score = cosine_similarity(query_vec, candidate_vec)
+            values.append([score])
+        return _FakeLogits(values)
 
 
 class FakeClassifierTokenizer:
@@ -180,7 +223,7 @@ class TestOpenVINOManager(OpenVINOManager):
 
     def __init__(self, models_dir: str):
         super().__init__(models_dir=models_dir)
-        # Lazily populated – the overridden _load_* methods will assign them.
+        # Lazily populated -- the overridden _load_* methods will assign them.
 
     async def _load_embedding_model(self):
         if self._embed_model is None:
@@ -198,9 +241,8 @@ class TestOpenVINOManager(OpenVINOManager):
             self._classifier_tokenizer = FakeClassifierTokenizer()
 
     async def _run_blocking(self, func, *args, timeout=None, **kwargs):
-        """Bypass threadpool to keep tests fast."""
+        """Bypass threadpool and semaphore to keep tests fast."""
         result = func(*args, **kwargs)
         if asyncio.iscoroutine(result):
             return await result
         return result
-

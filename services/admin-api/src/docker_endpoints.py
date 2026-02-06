@@ -363,8 +363,8 @@ class DockerEndpoints:
         ):
             """Get API key status for a specific service"""
             try:
-                status = self.api_key_service.get_api_key_status(service)
-                return {"service": service, "status": status.value}
+                key_status = self.api_key_service.get_api_key_status(service)
+                return {"service": service, "status": key_status.value}
 
             except Exception as e:
                 logger.error(f"Error getting API key status for {service}: {e}")

@@ -46,7 +46,7 @@ async def test_query_recent_events(correlator_with_mock, mock_influxdb_client):
     # Mock query results
     mock_results = [
         {
-            '_time': datetime.now(timezone.utc) - timedelta(minutes=2),
+            'time': datetime.now(timezone.utc) - timedelta(minutes=2),
             'entity_id': 'switch.lamp',
             '_value': 'on',
             '_measurement': 'home_assistant_events'
@@ -72,7 +72,7 @@ async def test_get_power_at_time(correlator_with_mock, mock_influxdb_client):
     # Mock query results
     mock_results = [
         {
-            '_time': datetime.now(timezone.utc),
+            'time': datetime.now(timezone.utc),
             '_value': 2450.0,
             '_measurement': 'smart_meter',
             '_field': 'total_power_w'

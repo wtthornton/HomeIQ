@@ -616,7 +616,7 @@ class ConnectionManager:
 
                     if processed_event:
                         # Record for rate monitoring
-                        self.event_rate_monitor.record_event(processed_event)
+                        await self.event_rate_monitor.record_event(processed_event)
 
                         # Call event handler
                         if self.on_event:
@@ -692,10 +692,10 @@ class ConnectionManager:
         """
         return self.state_machine.get_state() in [ConnectionState.CONNECTED, ConnectionState.CONNECTING, ConnectionState.RECONNECTING]
 
-    def get_status(self) -> dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """
         Get connection manager status
-        
+
         Returns:
             Dictionary with status information
         """
@@ -721,7 +721,7 @@ class ConnectionManager:
             "client_status": client_status,
             "event_subscription": self.event_subscription.get_subscription_status(),
             "event_processing": self.event_processor.get_processing_statistics(),
-            "event_rates": self.event_rate_monitor.get_rate_statistics(),
+            "event_rates": await self.event_rate_monitor.get_rate_statistics(),
             "error_statistics": self.error_handler.get_error_statistics(),
             "timestamp": datetime.now(timezone.utc).isoformat()
         }

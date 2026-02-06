@@ -35,12 +35,12 @@ class DeviceRepository:
         # Try cache first
         cached_device = await self.cache.get_device(device_id)
         if cached_device:
-            logger.debug(f"📦 Cache hit for device {device_id}")
+            logger.debug(f"Cache hit for device {device_id}")
             # Convert cached dict back to Device object
             return self._dict_to_device(cached_device)
 
         # Cache miss - query database
-        logger.debug(f"📦 Cache miss for device {device_id}")
+        logger.debug(f"Cache miss for device {device_id}")
         stmt = select(Device).where(Device.id == device_id)
         result = await session.execute(stmt)
         device = result.scalar_one_or_none()
@@ -62,11 +62,11 @@ class DeviceRepository:
         # Try cache first
         cached_devices = await self.cache.get_devices_by_area(area_id)
         if cached_devices:
-            logger.debug(f"📦 Cache hit for area {area_id}")
+            logger.debug(f"Cache hit for area {area_id}")
             return [self._dict_to_device(d) for d in cached_devices]
 
         # Cache miss - query database
-        logger.debug(f"📦 Cache miss for area {area_id}")
+        logger.debug(f"Cache miss for area {area_id}")
         stmt = select(Device).where(Device.area_id == area_id)
         result = await session.execute(stmt)
         devices = result.scalars().all()
@@ -82,11 +82,11 @@ class DeviceRepository:
         # Try cache first
         cached_devices = await self.cache.get_devices_by_integration(integration)
         if cached_devices:
-            logger.debug(f"📦 Cache hit for integration {integration}")
+            logger.debug(f"Cache hit for integration {integration}")
             return [self._dict_to_device(d) for d in cached_devices]
 
         # Cache miss - query database
-        logger.debug(f"📦 Cache miss for integration {integration}")
+        logger.debug(f"Cache miss for integration {integration}")
         stmt = select(Device).where(Device.integration == integration)
         result = await session.execute(stmt)
         devices = result.scalars().all()
@@ -112,7 +112,7 @@ class DeviceRepository:
             await self.cache.invalidate_area_cache(device.area_id)
         await self.cache.invalidate_integration_cache(device.integration)
 
-        logger.info(f"✅ Created device {device.id}")
+        logger.info(f"Created device {device.id}")
         return device
 
     async def update_device(self, session: AsyncSession, device_id: str, update_data: dict[str, Any]) -> Device | None:
@@ -149,7 +149,7 @@ class DeviceRepository:
                 await self.cache.invalidate_integration_cache(old_integration)
                 await self.cache.invalidate_integration_cache(device.integration)
 
-            logger.info(f"✅ Updated device {device_id}")
+            logger.info(f"Updated device {device_id}")
 
         return device
 
@@ -175,7 +175,7 @@ class DeviceRepository:
             if integration:
                 await self.cache.invalidate_integration_cache(integration)
 
-            logger.info(f"✅ Deleted device {device_id}")
+            logger.info(f"Deleted device {device_id}")
             return True
 
         return False
@@ -204,7 +204,7 @@ class DeviceRepository:
         # Invalidate related caches
         await self.cache.invalidate_all_device_cache()
 
-        logger.info(f"✅ Bulk created {len(devices)} devices")
+        logger.info(f"Bulk created {len(devices)} devices")
         return devices
 
     async def bulk_update_devices(self, session: AsyncSession, updates: list[dict[str, Any]]) -> int:
@@ -244,7 +244,7 @@ class DeviceRepository:
             device_id = update_data["device_id"]
             await self.cache.invalidate_device(device_id)
 
-        logger.info(f"✅ Bulk updated {result.rowcount} devices")
+        logger.info(f"Bulk updated {result.rowcount} devices")
         return result.rowcount
 
     # Device Capabilities Operations
@@ -280,7 +280,7 @@ class DeviceRepository:
         result = await session.execute(stmt)
         await session.commit()
 
-        logger.info(f"✅ Bulk upserted {len(capabilities_data)} capabilities")
+        logger.info(f"Bulk upserted {len(capabilities_data)} capabilities")
         return len(capabilities_data)
 
     # Device Health Operations
@@ -299,7 +299,7 @@ class DeviceRepository:
         await session.commit()
         await session.refresh(metric)
 
-        logger.debug(f"📊 Recorded health metric {metric_name} for device {device_id}")
+        logger.debug(f"Recorded health metric {metric_name} for device {device_id}")
         return metric
 
     async def get_device_health_metrics(self, session: AsyncSession, device_id: str,

@@ -103,28 +103,28 @@ class DataAPIClient:
                 logger.warning(f"Unexpected entities response format: {type(data)}")
                 entities = []
 
-            logger.info(f"✅ Fetched {len(entities)} entities from Data API")
+            logger.info(f"Fetched {len(entities)} entities from Data API")
             return entities
 
         except httpx.HTTPStatusError as e:
             error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
-            logger.error(f"❌ HTTP error fetching entities from Data API: {error_msg}")
+            logger.error(f"HTTP error fetching entities from Data API: {error_msg}")
             raise Exception(error_msg) from e
         except httpx.ConnectError as e:
             error_msg = f"Could not connect to Data API at {self.base_url}. Is the service running?"
-            logger.error(f"❌ Connection error: {error_msg}")
+            logger.error(f"Connection error: {error_msg}")
             raise Exception(error_msg) from e
         except httpx.TimeoutException as e:
             error_msg = f"Data API request timed out after 30 seconds"
-            logger.error(f"❌ Timeout error: {error_msg}")
+            logger.error(f"Timeout error: {error_msg}")
             raise Exception(error_msg) from e
         except httpx.HTTPError as e:
             error_msg = f"HTTP error fetching entities from Data API: {str(e)}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f"{error_msg}")
             raise Exception(error_msg) from e
         except Exception as e:
             error_msg = f"Unexpected error fetching entities: {str(e)}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f"{error_msg}")
             raise Exception(error_msg) from e
 
     async def close(self):

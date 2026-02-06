@@ -1,44 +1,26 @@
 [
   {
     "text": "Apple Inc. CEO Tim Cook announced the new iPhone in Cupertino.",
-    "entities": [
-      {"text": "Apple Inc.", "type": "ORG"},
-      {"text": "Tim Cook", "type": "PER"},
-      {"text": "Cupertino", "type": "LOC"}
-    ],
     "expected_category": "convenience",
     "expected_priority": "medium"
   },
   {
     "text": "Solar panels generated 12 kWh while the home battery charged during peak sunlight.",
-    "entities": [
-      {"text": "solar panels", "type": "DEVICE"}
-    ],
     "expected_category": "energy",
     "expected_priority": "medium"
   },
   {
     "text": "The front door lock alarm triggered after detecting motion at midnight.",
-    "entities": [
-      {"text": "front door", "type": "LOC"},
-      {"text": "lock alarm", "type": "DEVICE"}
-    ],
     "expected_category": "security",
     "expected_priority": "high"
   },
   {
     "text": "Adjust the thermostat to 70 degrees before bedtime for better sleep.",
-    "entities": [
-      {"text": "thermostat", "type": "DEVICE"}
-    ],
     "expected_category": "comfort",
     "expected_priority": "medium"
   },
   {
     "text": "Send a reminder to water the indoor plants every Sunday afternoon.",
-    "entities": [
-      {"text": "indoor plants", "type": "DEVICE"}
-    ],
     "expected_category": "convenience",
     "expected_priority": "low"
   }

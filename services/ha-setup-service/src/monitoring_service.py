@@ -7,7 +7,8 @@ Context7 Best Practices Applied:
 - Graceful shutdown handling
 """
 import asyncio
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from .models import EnvironmentHealth
 from .schemas import HealthStatus
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class ContinuousHealthMonitor:
@@ -53,12 +55,12 @@ class ContinuousHealthMonitor:
     async def start(self):
         """Start continuous monitoring"""
         if self.running:
-            print("⚠️  Continuous monitoring already running")
+            logger.warning("Continuous monitoring already running")
             return
 
         self.running = True
         self.task = asyncio.create_task(self._monitor_loop())
-        print("✅ Continuous health monitoring started")
+        logger.info("Continuous health monitoring started")
 
     async def stop(self):
         """Stop continuous monitoring"""
@@ -73,15 +75,15 @@ class ContinuousHealthMonitor:
             except asyncio.CancelledError:
                 pass
 
-        print("✅ Continuous health monitoring stopped")
+        logger.info("Continuous health monitoring stopped")
 
     async def _monitor_loop(self):
         """Main monitoring loop"""
-        print("🔄 Starting continuous health monitoring loop")
+        logger.info("Starting continuous health monitoring loop")
 
         while self.running:
             try:
-                current_time = datetime.now()
+                current_time = datetime.now(timezone.utc)
 
                 # Check if health check is due
                 if self._is_health_check_due(current_time):
@@ -97,10 +99,10 @@ class ContinuousHealthMonitor:
                 await asyncio.sleep(10)
 
             except asyncio.CancelledError:
-                print("🛑 Monitoring loop cancelled")
+                logger.info("Monitoring loop cancelled")
                 break
             except Exception as e:
-                print(f"❌ Error in monitoring loop: {e}")
+                logger.error("Error in monitoring loop", exc_info=e)
                 # Continue running even if an error occurs
                 await asyncio.sleep(10)
 
@@ -137,10 +139,10 @@ class ContinuousHealthMonitor:
                         f"Issues: {', '.join(health_result.issues_detected)}"
                     )
 
-                print(f"✅ Health check complete - Score: {health_result.health_score}/100")
+                logger.info(f"Health check complete - Score: {health_result.health_score}/100")
 
         except Exception as e:
-            print(f"❌ Error running health check: {e}")
+            logger.error("Error running health check", exc_info=e)
 
     async def _run_integration_check(self):
         """Run scheduled integration check"""
@@ -176,11 +178,13 @@ class ContinuousHealthMonitor:
                         f"Integrations with errors: {', '.join([r.integration_name for r in error_integrations])}"
                     )
 
-                print(f"✅ Integration check complete - "
-                      f"{sum(1 for r in check_results if r.status.value == 'healthy')}/{len(check_results)} healthy")
+                logger.info(
+                    f"Integration check complete - "
+                    f"{sum(1 for r in check_results if r.status.value == 'healthy')}/{len(check_results)} healthy"
+                )
 
         except Exception as e:
-            print(f"❌ Error running integration check: {e}")
+            logger.error("Error running integration check", exc_info=e)
 
     async def _send_alert(self, title: str, message: str):
         """
@@ -189,11 +193,7 @@ class ContinuousHealthMonitor:
         Placeholder for future alerting implementation
         Currently logs to console
         """
-        print("=" * 80)
-        print(f"🚨 ALERT: {title}")
-        print(f"   {message}")
-        print(f"   Time: {datetime.now().isoformat()}")
-        print("=" * 80)
+        logger.critical(f"ALERT: {title} - {message}")
 
         # Future: Send to alert_manager, email, Slack, etc.
 
@@ -213,7 +213,7 @@ class ContinuousHealthMonitor:
             Trend data including average score, score changes, issue frequency
         """
         try:
-            cutoff_time = datetime.now() - timedelta(hours=hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
 
             # Get health metrics from database
             stmt = select(EnvironmentHealth).where(
@@ -273,7 +273,7 @@ class ContinuousHealthMonitor:
             }
 
         except Exception as e:
-            print(f"❌ Error calculating health trends: {e}")
+            logger.error("Error calculating health trends", exc_info=e)
             return {
                 "period_hours": hours,
                 "data_points": 0,

@@ -60,7 +60,7 @@ async def test_process_recent_events_full_flow(correlator_with_mock, mock_influx
     # Mock event query results
     mock_events = [
         {
-            '_time': now - timedelta(seconds=30),
+            'time': now - timedelta(seconds=30),
             'entity_id': 'switch.living_room_lamp',
             '_value': 'on',
             'previous_state': 'off',
@@ -72,7 +72,7 @@ async def test_process_recent_events_full_flow(correlator_with_mock, mock_influx
     # Mock power query results (before and after)
     mock_power_before = [
         {
-            '_time': now - timedelta(seconds=35),
+            'time': now - timedelta(seconds=35),
             '_value': 2450.0,
             '_measurement': 'smart_meter',
             '_field': 'total_power_w'
@@ -81,7 +81,7 @@ async def test_process_recent_events_full_flow(correlator_with_mock, mock_influx
     
     mock_power_after = [
         {
-            '_time': now - timedelta(seconds=25),
+            'time': now - timedelta(seconds=25),
             '_value': 2510.0,
             '_measurement': 'smart_meter',
             '_field': 'total_power_w'
@@ -110,7 +110,7 @@ async def test_process_recent_events_full_flow(correlator_with_mock, mock_influx
     
     # Verify statistics were updated
     stats = correlator_with_mock.get_statistics()
-    assert stats['events_processed'] >= 0
+    assert stats['total_events_processed'] >= 0
 
 
 @pytest.mark.asyncio
@@ -119,7 +119,7 @@ async def test_process_recent_events_no_correlation(correlator_with_mock, mock_i
     # Mock events with no power change (below threshold)
     mock_events = [
         {
-            '_time': datetime.now(timezone.utc) - timedelta(seconds=30),
+            'time': datetime.now(timezone.utc) - timedelta(seconds=30),
             'entity_id': 'switch.lamp',
             '_value': 'on',
             '_measurement': 'home_assistant_events'
@@ -129,12 +129,12 @@ async def test_process_recent_events_no_correlation(correlator_with_mock, mock_i
     # Mock power data with small change (below min_power_delta)
     mock_power = [
         {
-            '_time': datetime.now(timezone.utc) - timedelta(seconds=25),
+            'time': datetime.now(timezone.utc) - timedelta(seconds=25),
             '_value': 2450.0,
             '_measurement': 'smart_meter'
         },
         {
-            '_time': datetime.now(timezone.utc) - timedelta(seconds=35),
+            'time': datetime.now(timezone.utc) - timedelta(seconds=35),
             '_value': 2455.0,  # Only 5W change (below 10W threshold)
             '_measurement': 'smart_meter'
         }
@@ -152,7 +152,7 @@ async def test_process_recent_events_no_correlation(correlator_with_mock, mock_i
     
     # Should process without error (no correlation found is valid)
     stats = correlator_with_mock.get_statistics()
-    assert stats['events_processed'] >= 0
+    assert stats['total_events_processed'] >= 0
 
 
 @pytest.mark.asyncio
@@ -170,7 +170,7 @@ async def test_process_recent_events_error_recovery(correlator_with_mock, mock_i
     
     # Statistics should reflect error
     stats = correlator_with_mock.get_statistics()
-    assert 'events_processed' in stats or 'errors' in stats
+    assert 'total_events_processed' in stats or 'errors' in stats
 
 
 @pytest.mark.asyncio
@@ -195,13 +195,13 @@ async def test_correlation_window_logic(correlator_with_mock, mock_influxdb_clie
     # Create events within and outside correlation window
     mock_events = [
         {
-            '_time': now - timedelta(seconds=5),  # Within 10s window
+            'time': now - timedelta(seconds=5),  # Within 10s window
             'entity_id': 'switch.lamp',
             '_value': 'on',
             '_measurement': 'home_assistant_events'
         },
         {
-            '_time': now - timedelta(seconds=15),  # Outside 10s window
+            'time': now - timedelta(seconds=15),  # Outside 10s window
             'entity_id': 'switch.other',
             '_value': 'on',
             '_measurement': 'home_assistant_events'

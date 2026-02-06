@@ -84,8 +84,8 @@ class Settings(BaseSettings):
     # MQTT Configuration
     # Defaults to Home Assistant's MQTT broker (same server as HA HTTP API)
     MQTT_BROKER: str = Field(
-        default="mqtt://192.168.1.86:1883",
-        description="MQTT broker URL (defaults to HA's MQTT broker)"
+        default="mqtt://localhost:1883",
+        description="MQTT broker URL (defaults to localhost; set via environment variable)"
     )
     MQTT_USERNAME: str | None = Field(
         default=None,
@@ -134,6 +134,16 @@ class Settings(BaseSettings):
     ENABLE_LOCAL_LLM: bool = Field(
         default=False,
         description="Enable local LLM (Ollama) for name generation (optional)"
+    )
+
+    # Authentication Configuration (CRIT-3)
+    API_KEY: str | None = Field(
+        default=None,
+        description="API key for non-health endpoints"
+    )
+    ADMIN_API_TOKEN: str | None = Field(
+        default=None,
+        description="Admin token for destructive operations (recreate-tables, cleanup, optimize)"
     )
 
     # HTTP Configuration
@@ -284,7 +294,7 @@ class Settings(BaseSettings):
             return self.HA_WS_URL
         return self.HA_URL.replace('http://', 'ws://').replace('https://', 'wss://') + '/api/websocket'
 
-    def get_nabu_casa_ws_url(self) -> str:
+    def get_nabu_casa_ws_url(self) -> str | None:
         """Get the WebSocket URL for Nabu Casa."""
         if self.NABU_CASA_URL:
             return self.NABU_CASA_URL.replace('https://', 'wss://') + '/api/websocket'

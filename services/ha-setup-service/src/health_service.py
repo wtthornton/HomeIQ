@@ -8,7 +8,7 @@ Context7 Best Practices Applied:
 """
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
@@ -24,6 +24,7 @@ from .schemas import (
     IntegrationStatus,
     PerformanceMetrics,
 )
+from .http_client import get_http_session
 from .scoring_algorithm import HealthScoringAlgorithm
 
 settings = get_settings()
@@ -40,10 +41,8 @@ class HealthMonitoringService:
     """
 
     def __init__(self):
-        import os
         self.ha_url = settings.ha_url.rstrip("/")
-        # Try settings first, then environment variables as fallback
-        self.ha_token = settings.ha_token or os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN", "")
+        self.ha_token = settings.ha_token
         self.data_api_url = settings.data_api_url
         self.admin_api_url = settings.admin_api_url
         self.scoring_algorithm = HealthScoringAlgorithm()  # Enhanced scoring
@@ -185,7 +184,7 @@ class HealthMonitoringService:
             integrations=normalized_integrations,
             performance=PerformanceMetrics(**performance),
             issues_detected=issues,
-            timestamp=datetime.now()
+            timestamp=datetime.now(timezone.utc)
         )
 
     async def _check_ha_core(self) -> dict:
@@ -202,12 +201,10 @@ class HealthMonitoringService:
     async def _check_ha_core_direct(self) -> dict:
         """Direct HA core check - uses same approach as working container test"""
         try:
-            # Use same approach as test script that works
-            import os
             ha_url = self.ha_url
-            ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN") or self.ha_token or ""
+            ha_token = self.ha_token
 
-            logger.info(f"HA core check starting: URL={ha_url}, Token={'SET (' + str(len(ha_token)) + ' chars)' if ha_token else 'NOT SET'}")
+            logger.info("HA core check starting", extra={"ha_url": ha_url, "token_configured": bool(ha_token)})
 
             if not ha_token:
                 logger.warning("HA core check: No token available")
@@ -217,72 +214,72 @@ class HealthMonitoringService:
                     "error": "HA_TOKEN not configured. Set HA_TOKEN or HOME_ASSISTANT_TOKEN environment variable."
                 }
 
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                url = f"{ha_url}/api/config"
-                logger.info(f"HA core check: Calling {url}")
+            url = f"{ha_url}/api/config"
+            logger.info(f"HA core check: Calling {url}")
 
-                # Check HA API availability and get config (includes version)
-                async with session.get(
-                    url,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    logger.info(f"HA core check: Response status={response.status}")
+            # Check HA API availability and get config (includes version)
+            async with session.get(
+                url,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                logger.info(f"HA core check: Response status={response.status}")
 
-                    if response.status == 200:
-                        data = await response.json()
-                        version = data.get("version", "unknown")
-                        logger.info(f"HA core check: API returned version={version}, data keys={list(data.keys())[:5]}")
-                        # Always return the version we got from the API
-                        return {
-                            "status": "healthy" if version and version != "unknown" else "warning",
-                            "version": version
-                        }
-                    elif response.status == 401:
-                        logger.warning("HA core check: Authentication failed (401)")
-                        # Try to extract version from error response if available
-                        try:
-                            error_data = await response.json()
-                            version = error_data.get("version")
-                            if version:
-                                return {
-                                    "status": "warning",
-                                    "version": version,
-                                    "error": "Authentication failed - invalid token"
-                                }
-                        except:
-                            pass
-                        return {
-                            "status": "warning",
-                            "version": "unknown",
-                            "error": "Authentication failed - check HA_TOKEN configuration"
-                        }
-                    else:
-                        logger.warning(f"HA core check: Unexpected status {response.status}")
-                        # Try to extract version from error response if available
-                        try:
-                            error_data = await response.json()
-                            version = error_data.get("version")
-                            if version:
-                                return {
-                                    "status": "warning",
-                                    "version": version,
-                                    "error": f"HTTP {response.status}"
-                                }
-                        except:
-                            pass
-                        text = await response.text()
-                        logger.debug(f"Response: {text[:200]}")
-                        return {
-                            "status": "warning",
-                            "version": "unknown",
-                            "error": f"HTTP {response.status}"
-                        }
+                if response.status == 200:
+                    data = await response.json()
+                    version = data.get("version", "unknown")
+                    logger.info(f"HA core check: API returned version={version}, data keys={list(data.keys())[:5]}")
+                    # Always return the version we got from the API
+                    return {
+                        "status": "healthy" if version and version != "unknown" else "warning",
+                        "version": version
+                    }
+                elif response.status == 401:
+                    logger.warning("HA core check: Authentication failed (401)")
+                    # Try to extract version from error response if available
+                    try:
+                        error_data = await response.json()
+                        version = error_data.get("version")
+                        if version:
+                            return {
+                                "status": "warning",
+                                "version": version,
+                                "error": "Authentication failed - invalid token"
+                            }
+                    except (aiohttp.ContentTypeError, ValueError, KeyError):
+                        pass
+                    return {
+                        "status": "warning",
+                        "version": "unknown",
+                        "error": "Authentication failed - check HA_TOKEN configuration"
+                    }
+                else:
+                    logger.warning(f"HA core check: Unexpected status {response.status}")
+                    # Try to extract version from error response if available
+                    try:
+                        error_data = await response.json()
+                        version = error_data.get("version")
+                        if version:
+                            return {
+                                "status": "warning",
+                                "version": version,
+                                "error": f"HTTP {response.status}"
+                            }
+                    except (aiohttp.ContentTypeError, ValueError, KeyError):
+                        pass
+                    text = await response.text()
+                    logger.debug(f"Response: {text[:200]}")
+                    return {
+                        "status": "warning",
+                        "version": "unknown",
+                        "error": f"HTTP {response.status}"
+                    }
         except asyncio.TimeoutError as e:
             logger.warning(f"HA core check: Timeout - {e}")
             return {"status": "warning", "version": "unknown", "error": "Timeout"}
@@ -312,7 +309,7 @@ class HealthMonitoringService:
                 "is_configured": False,
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now()
+                "last_check": datetime.now(timezone.utc)
             })
 
         # Check HA Ingestor services (always include, even if check fails)
@@ -328,7 +325,7 @@ class HealthMonitoringService:
                 "is_configured": True,  # Service exists, just not reachable
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now()
+                "last_check": datetime.now(timezone.utc)
             })
 
         return integrations
@@ -336,15 +333,15 @@ class HealthMonitoringService:
     async def _check_mqtt_integration(self) -> dict:
         """Check MQTT broker status"""
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Check MQTT config entry
-                async with session.get(
-                    f"{self.ha_url}/api/config/config_entries/entry",
+            # Check MQTT config entry
+            async with session.get(
+                f"{self.ha_url}/api/config/config_entries/entry",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
@@ -360,7 +357,7 @@ class HealthMonitoringService:
                                 "is_configured": True,
                                 "is_connected": True,
                                 "error_message": None,
-                                "last_check": datetime.now()
+                                "last_check": datetime.now(timezone.utc)
                             }
                         else:
                             return {
@@ -370,7 +367,7 @@ class HealthMonitoringService:
                                 "is_configured": False,
                                 "is_connected": False,
                                 "error_message": "MQTT integration not found",
-                                "last_check": datetime.now()
+                                "last_check": datetime.now(timezone.utc)
                             }
 
                     # Non-200 responses should produce a structured error result
@@ -381,7 +378,7 @@ class HealthMonitoringService:
                         "is_configured": False,
                         "is_connected": False,
                         "error_message": f"Failed to fetch config entries: HTTP {response.status}",
-                        "last_check": datetime.now()
+                        "last_check": datetime.now(timezone.utc)
                     }
         except Exception as e:
             return {
@@ -391,7 +388,7 @@ class HealthMonitoringService:
                 "is_configured": False,
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now()
+                "last_check": datetime.now(timezone.utc)
             }
 
     async def _check_zigbee2mqtt_integration(self) -> dict:
@@ -427,13 +424,14 @@ class HealthMonitoringService:
                 "is_connected": False,
                 "error_message": f"HA API check failed: {str(e)}",
                 "check_details": {"error_type": type(e).__name__},
-                "last_check": datetime.now()
+                "last_check": datetime.now(timezone.utc)
             }
 
     async def _check_data_api(self) -> dict:
         """Check HA Ingestor Data API status"""
         try:
-            async with aiohttp.ClientSession() as session, session.get(
+            session = await get_http_session()
+            async with session.get(
                 f"{self.data_api_url}/health",
                 timeout=aiohttp.ClientTimeout(total=5)
             ) as response:
@@ -445,7 +443,7 @@ class HealthMonitoringService:
                         "is_configured": True,
                         "is_connected": True,
                         "error_message": None,
-                        "last_check": datetime.now()
+                        "last_check": datetime.now(timezone.utc)
                     }
                 # Surface non-200 responses as warning/error data instead of None
                 return {
@@ -455,7 +453,7 @@ class HealthMonitoringService:
                     "is_configured": True,
                     "is_connected": False,
                     "error_message": f"Health endpoint returned HTTP {response.status}",
-                    "last_check": datetime.now()
+                    "last_check": datetime.now(timezone.utc)
                 }
         except Exception as e:
             return {
@@ -465,18 +463,41 @@ class HealthMonitoringService:
                 "is_configured": True,
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now()
+                "last_check": datetime.now(timezone.utc)
             }
 
     async def _check_performance(self) -> dict:
-        """Check system performance metrics"""
+        """Check system performance metrics using real system data"""
         try:
-            # For now, return hardcoded values (will be enhanced in Epic 30)
+            import time
+            import psutil
+
+            process = psutil.Process()
+
+            # Measure actual HA response time
+            response_time_ms = 0.0
+            try:
+                session = await get_http_session()
+                headers = {
+                    "Authorization": f"Bearer {self.ha_token}",
+                    "Content-Type": "application/json"
+                }
+                start = time.monotonic()
+                async with session.get(
+                    f"{self.ha_url}/api/",
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
+                    response_time_ms = round((time.monotonic() - start) * 1000, 2)
+            except Exception:
+                response_time_ms = 0.0
+
+            mem_info = process.memory_info()
             performance = {
-                "response_time_ms": 45.2,
-                "cpu_usage_percent": 12.5,
-                "memory_usage_mb": 256.0,
-                "uptime_seconds": 86400
+                "response_time_ms": response_time_ms,
+                "cpu_usage_percent": process.cpu_percent(),
+                "memory_usage_mb": round(mem_info.rss / 1024 / 1024, 1),
+                "uptime_seconds": int(time.time() - process.create_time())
             }
             logger.debug(f"Performance metrics: {performance}")
             return performance
@@ -489,45 +510,6 @@ class HealthMonitoringService:
                 "memory_usage_mb": None,
                 "uptime_seconds": None
             }
-
-    def _calculate_health_score(
-        self,
-        ha_status: dict,
-        integrations: list[dict],
-        performance: dict
-    ) -> int:
-        """
-        Calculate overall health score (0-100)
-        
-        Weighting:
-        - HA Core: 40%
-        - Integrations: 40%
-        - Performance: 20%
-        """
-        score = 0
-
-        # HA Core score (40 points)
-        if ha_status.get("status") == "healthy":
-            score += 40
-        elif ha_status.get("status") == "warning":
-            score += 20
-
-        # Integrations score (40 points)
-        if integrations:
-            healthy_count = sum(1 for i in integrations if i.get("status") == IntegrationStatus.HEALTHY.value)
-            integration_score = (healthy_count / len(integrations)) * 40
-            score += int(integration_score)
-
-        # Performance score (20 points)
-        response_time = performance.get("response_time_ms", 0)
-        if response_time < 100:
-            score += 20
-        elif response_time < 500:
-            score += 10
-        elif response_time < 1000:
-            score += 5
-
-        return min(100, max(0, score))
 
     def _detect_issues(
         self,
@@ -559,8 +541,8 @@ class HealthMonitoringService:
         return issues
 
     def _determine_overall_status(self, health_score: int, issues: list[str]) -> str:
-        """Determine overall health status"""
-        if health_score >= 80 and not issues:
+        """Determine overall health status based on score thresholds"""
+        if health_score >= 80:
             return HealthStatus.HEALTHY.value
         elif health_score >= 50:
             return HealthStatus.WARNING.value
@@ -602,5 +584,5 @@ class HealthMonitoringService:
         except Exception as e:
             await db.rollback()
             # Log error but don't fail the health check
-            print(f"Error storing health metric: {e}")
+            logger.error("Error storing health metric", exc_info=e)
 

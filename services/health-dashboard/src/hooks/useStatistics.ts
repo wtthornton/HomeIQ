@@ -7,7 +7,43 @@ export const useStatistics = (period: string = '1h', refreshInterval: number = 6
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStatistics = async () => {
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
+    const fetchStatistics = async () => {
+      try {
+        setError(null);
+        const statsData = await apiService.getStatistics(period);
+        if (mounted) {
+          setStatistics(statsData);
+        }
+      } catch (err) {
+        if (mounted && !controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch statistics');
+          console.error('Statistics fetch error:', err);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Initial fetch
+    fetchStatistics();
+
+    // Set up polling
+    const interval = setInterval(fetchStatistics, refreshInterval);
+
+    return () => {
+      mounted = false;
+      controller.abort();
+      clearInterval(interval);
+    };
+  }, [period, refreshInterval]);
+
+  const refresh = async () => {
     try {
       setError(null);
       const statsData = await apiService.getStatistics(period);
@@ -20,15 +56,5 @@ export const useStatistics = (period: string = '1h', refreshInterval: number = 6
     }
   };
 
-  useEffect(() => {
-    // Initial fetch
-    fetchStatistics();
-
-    // Set up polling
-    const interval = setInterval(fetchStatistics, refreshInterval);
-
-    return () => clearInterval(interval);
-  }, [period, refreshInterval]);
-
-  return { statistics, loading, error, refresh: fetchStatistics };
+  return { statistics, loading, error, refresh };
 };

@@ -248,7 +248,16 @@ class InfluxDBBatchWriter:
             self.overflow_strategy,
         )
         self.overflow_strategy = "drop_oldest"
-        return self._apply_backpressure_locked()
+        # Inline drop_oldest logic instead of recursive call
+        dropped = min(overflow, len(self.current_batch))
+        self.dropped_points += dropped
+        del self.current_batch[:dropped]
+        logger.warning(
+            "Backpressure triggered: dropped %s oldest points to stay under %s pending limit",
+            dropped,
+            self.max_pending_points,
+        )
+        return True
 
     async def _process_batch_with_metrics(self, batch_to_process: list[Point]):
         if not batch_to_process:

@@ -13,14 +13,16 @@ Context7 Best Practices Applied:
 """
 import asyncio
 import logging
+from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 import aiohttp
 from pydantic import BaseModel, Field
 
 from .config import get_settings
+from .http_client import get_http_session
 from .integration_checker import CheckResult, IntegrationHealthChecker, IntegrationStatus
 
 settings = get_settings()
@@ -42,8 +44,7 @@ class RecoveryAction(str, Enum):
     MANUAL_INTERVENTION = "manual_intervention"
 
 
-@dataclass
-class BridgeMetrics:
+class BridgeMetrics(BaseModel):
     """Bridge performance metrics"""
     response_time_ms: float
     device_count: int
@@ -84,7 +85,7 @@ class ZigbeeBridgeManager:
         self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
         self.integration_checker = IntegrationHealthChecker()
-        self.recovery_history: list[RecoveryAttempt] = []
+        self.recovery_history: deque[RecoveryAttempt] = deque(maxlen=100)
         self.monitoring_active = False
         self.monitoring_interval = 30  # seconds
         self.max_recovery_attempts = 3
@@ -113,9 +114,9 @@ class ZigbeeBridgeManager:
             return BridgeHealthStatus(
                 bridge_state=bridge_state,
                 is_connected=integration_result.is_connected,
-                last_check=datetime.now(),
+                last_check=datetime.now(timezone.utc),
                 metrics=metrics,
-                recovery_attempts=self.recovery_history[-5:],  # Last 5 attempts
+                recovery_attempts=list(self.recovery_history)[-5:],  # Last 5 attempts
                 consecutive_failures=self._count_consecutive_failures(),
                 health_score=health_score,
                 recommendations=recommendations
@@ -126,7 +127,7 @@ class ZigbeeBridgeManager:
             return BridgeHealthStatus(
                 bridge_state=BridgeState.ERROR,
                 is_connected=False,
-                last_check=datetime.now(),
+                last_check=datetime.now(timezone.utc),
                 metrics=BridgeMetrics(response_time_ms=0, device_count=0),
                 consecutive_failures=self._count_consecutive_failures(),
                 health_score=0,
@@ -136,55 +137,60 @@ class ZigbeeBridgeManager:
     async def _get_bridge_metrics(self) -> BridgeMetrics:
         """Get detailed bridge performance metrics"""
         try:
-            start_time = datetime.now()
+            start_time = datetime.now(timezone.utc)
 
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Get all states to analyze bridge and device metrics
-                async with session.get(
-                    f"{self.ha_url}/api/states",
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status == 200:
-                        states = await response.json()
+            # Fetch bridge state using single-entity endpoint
+            async with session.get(
+                f"{self.ha_url}/api/states/sensor.zigbee2mqtt_bridge_state",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                # Calculate response time
+                response_time = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
-                        # Calculate response time
-                        response_time = (datetime.now() - start_time).total_seconds() * 1000
+                if response.status == 200:
+                    bridge_state = await response.json()
+                else:
+                    bridge_state = None
 
-                        # Count Zigbee devices
-                        zigbee_devices = [
-                            s for s in states
-                            if s.get('entity_id', '').startswith('zigbee2mqtt.')
-                        ]
+            # For device metrics we still need all states (unavoidable for counts)
+            async with session.get(
+                f"{self.ha_url}/api/states",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    states = await response.json()
 
-                        # Get bridge state entity
-                        bridge_state = next(
-                            (s for s in states if s.get('entity_id') == 'sensor.zigbee2mqtt_bridge_state'),
-                            None
-                        )
+                    # Count Zigbee devices
+                    zigbee_devices = [
+                        s for s in states
+                        if s.get('entity_id', '').startswith('zigbee2mqtt.')
+                    ]
 
-                        # Calculate additional metrics
-                        signal_strength_avg = self._calculate_avg_signal_strength(states)
-                        network_health_score = self._calculate_network_health(states)
-                        last_seen_devices = self._count_recently_seen_devices(states)
-                        coordinator_uptime = self._get_coordinator_uptime(states)
+                    # Calculate additional metrics
+                    signal_strength_avg = self._calculate_avg_signal_strength(states)
+                    network_health_score = self._calculate_network_health(states)
+                    last_seen_devices = self._count_recently_seen_devices(states)
+                    coordinator_uptime = self._get_coordinator_uptime(states)
 
-                        return BridgeMetrics(
-                            response_time_ms=response_time,
-                            device_count=len(zigbee_devices),
-                            signal_strength_avg=signal_strength_avg,
-                            network_health_score=network_health_score,
-                            last_seen_devices=last_seen_devices,
-                            coordinator_uptime_hours=coordinator_uptime
-                        )
-                    else:
-                        logger.warning(f"Failed to get bridge metrics: HTTP {response.status}")
-                        return BridgeMetrics(response_time_ms=0, device_count=0)
+                    return BridgeMetrics(
+                        response_time_ms=response_time,
+                        device_count=len(zigbee_devices),
+                        signal_strength_avg=signal_strength_avg,
+                        network_health_score=network_health_score,
+                        last_seen_devices=last_seen_devices,
+                        coordinator_uptime_hours=coordinator_uptime
+                    )
+                else:
+                    logger.warning(f"Failed to get bridge metrics: HTTP {response.status}")
+                    return BridgeMetrics(response_time_ms=0, device_count=0)
 
         except Exception as e:
             logger.error(f"Error getting bridge metrics: {e}")
@@ -224,7 +230,7 @@ class ZigbeeBridgeManager:
 
     def _count_recently_seen_devices(self, states: list[dict]) -> int:
         """Count devices seen in the last hour"""
-        cutoff_time = datetime.now() - timedelta(hours=1)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=1)
         recent_devices = 0
 
         for state in states:
@@ -393,13 +399,13 @@ class ZigbeeBridgeManager:
         # Check cooldown period
         if not force and self.recovery_history:
             last_attempt = self.recovery_history[-1]
-            if datetime.now() - last_attempt.timestamp < timedelta(seconds=self.recovery_cooldown):
-                return False, f"Recovery cooldown active. Next attempt available in {self.recovery_cooldown - (datetime.now() - last_attempt.timestamp).total_seconds():.0f} seconds"
+            if datetime.now(timezone.utc) - last_attempt.timestamp < timedelta(seconds=self.recovery_cooldown):
+                return False, f"Recovery cooldown active. Next attempt available in {self.recovery_cooldown - (datetime.now(timezone.utc) - last_attempt.timestamp).total_seconds():.0f} seconds"
 
         # Check max attempts
         recent_attempts = [
             attempt for attempt in self.recovery_history
-            if datetime.now() - attempt.timestamp < timedelta(hours=1)
+            if datetime.now(timezone.utc) - attempt.timestamp < timedelta(hours=1)
         ]
         if len(recent_attempts) >= self.max_recovery_attempts:
             return False, f"Maximum recovery attempts ({self.max_recovery_attempts}) reached in the last hour"
@@ -408,10 +414,10 @@ class ZigbeeBridgeManager:
         recovery_action = self._determine_recovery_action()
 
         # Execute recovery
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         try:
             success, message = await self._execute_recovery_action(recovery_action)
-            duration = (datetime.now() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             # Record attempt
             attempt = RecoveryAttempt(
@@ -426,7 +432,7 @@ class ZigbeeBridgeManager:
             return success, message
 
         except Exception as e:
-            duration = (datetime.now() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             attempt = RecoveryAttempt(
                 timestamp=start_time,
                 action=recovery_action,
@@ -459,15 +465,15 @@ class ZigbeeBridgeManager:
     async def _restart_zigbee2mqtt_addon(self) -> tuple[bool, str]:
         """Attempt to restart Zigbee2MQTT addon"""
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Try to restart the addon (this requires addon manager API)
-                async with session.post(
-                    f"{self.ha_url}/api/hassio/addon/zigbee2mqtt/restart",
+            # Try to restart the addon (this requires addon manager API)
+            async with session.post(
+                f"{self.ha_url}/api/hassio/addon/zigbee2mqtt/restart",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
@@ -490,15 +496,15 @@ class ZigbeeBridgeManager:
     async def _restart_mqtt_integration(self) -> tuple[bool, str]:
         """Attempt to restart MQTT integration"""
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Reload MQTT integration
-                async with session.post(
-                    f"{self.ha_url}/api/services/mqtt/reload",
+            # Reload MQTT integration
+            async with session.post(
+                f"{self.ha_url}/api/services/mqtt/reload",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=15)
                 ) as response:
@@ -514,16 +520,16 @@ class ZigbeeBridgeManager:
     async def _reset_coordinator(self) -> tuple[bool, str]:
         """Attempt to reset Zigbee coordinator"""
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Try to reset coordinator via service call
-                payload = {"device": "coordinator"}
-                async with session.post(
-                    f"{self.ha_url}/api/services/zigbee2mqtt/permit_join",
+            # Try to reset coordinator via service call
+            payload = {"device": "coordinator"}
+            async with session.post(
+                f"{self.ha_url}/api/services/zigbee2mqtt/permit_join",
                     headers=headers,
                     json=payload,
                     timeout=aiohttp.ClientTimeout(total=15)
@@ -609,7 +615,7 @@ class ZigbeeBridgeManager:
 
     def get_recovery_history(self) -> list[RecoveryAttempt]:
         """Get recovery attempt history"""
-        return self.recovery_history.copy()
+        return list(self.recovery_history)
 
     def clear_recovery_history(self) -> None:
         """Clear recovery attempt history"""

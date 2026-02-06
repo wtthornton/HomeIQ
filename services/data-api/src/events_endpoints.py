@@ -22,6 +22,21 @@ from .flux_utils import sanitize_flux_value
 
 logger = logging.getLogger(__name__)
 
+# HIGH-01: Module-level shared InfluxDB client to avoid creating one per request
+_shared_influxdb_client = None
+
+
+def _get_shared_influxdb_client():
+    """Get or create a shared InfluxDB client instance."""
+    global _shared_influxdb_client
+    if _shared_influxdb_client is None:
+        from influxdb_client import InfluxDBClient
+        influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
+        influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
+        _shared_influxdb_client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+    return _shared_influxdb_client
+
 
 
 class EventData(BaseModel):
@@ -82,7 +97,7 @@ class EventsEndpoints:
         @self.router.get("/events/categories", response_model=dict[str, Any])
         async def get_event_categories(
             home_type: str | None = Query(None, description="Home type for category mapping"),
-            hours: int = Query(24, description="Hours of history to analyze")
+            hours: int = Query(default=24, ge=1, le=720, description="Hours of history to analyze")
         ):
             """
             Get event categories with counts.
@@ -397,21 +412,18 @@ class EventsEndpoints:
     async def _get_event_from_influxdb(self, event_id: str) -> EventData | None:
         """
         Retrieve a single event from InfluxDB with full detail payload.
-        
+
         Strategy:
             - If the identifier is a context_id (default HA pattern), query by context_id using direct field filter
             - If the identifier is the synthetic `event_<timestamp>_<entity>` format,
               parse the timestamp/entity and query within a narrow time range
         """
         try:
-            from influxdb_client import InfluxDBClient
+            from influxdb_client import InfluxDBClient  # noqa: F401 - needed for type checking
         except ImportError:
             logger.warning("InfluxDB client unavailable; cannot fetch event detail")
             return None
 
-        influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-        influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
-        influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
         influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
         context_id = None
@@ -433,9 +445,8 @@ class EventsEndpoints:
         else:
             context_id = event_id
 
-        client = None
         try:
-            client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+            client = _get_shared_influxdb_client()
             query_api = client.query_api()
 
             if context_id:
@@ -520,12 +531,6 @@ from(bucket: "{influxdb_bucket}")
         except Exception as e:
             logger.error(f"Error fetching event {event_id} from InfluxDB: {e}", exc_info=True)
             return None
-        finally:
-            if client:
-                try:
-                    client.close()
-                except Exception:
-                    pass
 
     def _build_event_from_record(self, record, fallback_id: str) -> EventData | None:
         """Build EventData object from a pivoted Flux record."""
@@ -769,16 +774,11 @@ from(bucket: "{influxdb_bucket}")
             Dictionary with category counts and distribution
         """
         try:
-            from influxdb_client import InfluxDBClient
-            
-            influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-            influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
-            influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
             influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-            
-            client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+
+            client = _get_shared_influxdb_client()
             query_api = client.query_api()
-            
+
             # Query event categories from InfluxDB
             query = f'''
             from(bucket: "{influxdb_bucket}")
@@ -789,19 +789,19 @@ from(bucket: "{influxdb_bucket}")
               |> count()
               |> sort(columns: ["_value"], desc: true)
             '''
-            
+
             result = query_api.query(query)
-            
+
             categories = {}
             total = 0
-            
+
             for table in result:
                 for record in table.records:
                     category = record.values.get("event_category", "general")
                     count = record.get_value()
                     categories[category] = count
                     total += count
-            
+
             # Calculate percentages
             distribution = {
                 category: {
@@ -810,9 +810,7 @@ from(bucket: "{influxdb_bucket}")
                 }
                 for category, count in categories.items()
             }
-            
-            client.close()
-            
+
             return {
                 "home_type": home_type or "unknown",
                 "period_hours": hours,
@@ -943,19 +941,11 @@ from(bucket: "{influxdb_bucket}")
             - Field filter reduces duplicate records
             - Limit/offset support for large result sets
         """
-        client = None
         try:
-            # Import InfluxDB client
-            from influxdb_client import InfluxDBClient
-
-            # Get InfluxDB configuration
-            influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-            influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
-            influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
             influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
-            # Create InfluxDB client
-            client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+            # Use shared InfluxDB client (HIGH-01 fix)
+            client = _get_shared_influxdb_client()
             query_api = client.query_api()
 
             # Epic 45.5: Smart query routing - determine data source based on time range
@@ -1033,10 +1023,11 @@ from(bucket: "{influxdb_bucket}")
             # Group all tag-based series together, then get distinct records
             query += '  |> group()\n'
             query += '  |> sort(columns: ["_time"], desc: true)\n'
-            query += f'  |> limit(n: {limit})\n'
 
+            # MED-06: Apply offset BEFORE limit so pagination works correctly
             if offset > 0:
                 query += f'  |> offset(n: {offset})\n'
+            query += f'  |> limit(n: {limit})\n'
 
             # Log the query for debugging
             logger.debug(f"Executing Flux query:\n{query}")
@@ -1112,12 +1103,6 @@ from(bucket: "{influxdb_bucket}")
         except Exception as e:
             logger.error(f"Error querying InfluxDB: {e}")
             return []
-        finally:
-            if client:
-                try:
-                    client.close()
-                except Exception as close_err:
-                    logger.warning(f"Failed to close InfluxDB client: {close_err}")
 
     async def _trace_automation_chain(self, context_id: str, max_depth: int, include_details: bool) -> list[dict[str, Any]]:
         """
@@ -1133,17 +1118,11 @@ from(bucket: "{influxdb_bucket}")
         Returns:
             List of events in the automation chain
         """
-        client = None
         try:
-            from influxdb_client import InfluxDBClient
-
-            # Initialize InfluxDB client
-            influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-            influxdb_token = os.getenv("INFLUXDB_TOKEN")
-            influxdb_org = os.getenv("INFLUXDB_ORG", "homeassistant")
             influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
-            client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+            # Use shared InfluxDB client (HIGH-01 fix)
+            client = _get_shared_influxdb_client()
             query_api = client.query_api()
 
             chain = []
@@ -1241,10 +1220,4 @@ from(bucket: "{influxdb_bucket}")
             import traceback
             logger.error(traceback.format_exc())
             return []
-        finally:
-            if client:
-                try:
-                    client.close()
-                except Exception as close_err:
-                    logger.warning(f"Failed to close InfluxDB client: {close_err}")
 

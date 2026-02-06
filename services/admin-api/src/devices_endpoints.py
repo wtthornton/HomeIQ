@@ -14,6 +14,11 @@ from .influxdb_client import AdminAPIInfluxDBClient
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_flux_value(value: str) -> str:
+    """Sanitize a value for use in Flux query string literals."""
+    return str(value).replace('\\', '\\\\').replace('"', '\\"')
+
+
 # Response Models
 class DeviceResponse(BaseModel):
     """Device response model"""
@@ -268,11 +273,12 @@ async def get_entity(entity_id: str):
     """
     try:
         # Query specific entity
+        safe_entity_id = _sanitize_flux_value(entity_id)
         query = f'''
             from(bucket: "entities")
                 |> range(start: -90d)
                 |> filter(fn: (r) => r["_measurement"] == "entities")
-                |> filter(fn: (r) => r["entity_id"] == "{entity_id}")
+                |> filter(fn: (r) => r["entity_id"] == "{safe_entity_id}")
                 |> last()
         '''
 
@@ -364,15 +370,15 @@ def _build_devices_query(filters: dict[str, str], limit: int) -> str:
             |> filter(fn: (r) => r["_measurement"] == "devices")
     '''
 
-    # Add filters
+    # Add filters (sanitized to prevent Flux injection)
     if filters.get("manufacturer"):
-        query += f'\n    |> filter(fn: (r) => r["manufacturer"] == "{filters["manufacturer"]}")'
+        query += f'\n    |> filter(fn: (r) => r["manufacturer"] == "{_sanitize_flux_value(filters["manufacturer"])}")'
     if filters.get("model"):
-        query += f'\n    |> filter(fn: (r) => r["model"] == "{filters["model"]}")'
+        query += f'\n    |> filter(fn: (r) => r["model"] == "{_sanitize_flux_value(filters["model"])}")'
     if filters.get("area_id"):
-        query += f'\n    |> filter(fn: (r) => r["area_id"] == "{filters["area_id"]}")'
+        query += f'\n    |> filter(fn: (r) => r["area_id"] == "{_sanitize_flux_value(filters["area_id"])}")'
     if filters.get("device_id"):
-        query += f'\n    |> filter(fn: (r) => r["device_id"] == "{filters["device_id"]}")'
+        query += f'\n    |> filter(fn: (r) => r["device_id"] == "{_sanitize_flux_value(filters["device_id"])}")'
 
     query += f'\n    |> last()\n    |> limit(n: {limit})'
 
@@ -387,13 +393,13 @@ def _build_entities_query(filters: dict[str, str], limit: int) -> str:
             |> filter(fn: (r) => r["_measurement"] == "entities")
     '''
 
-    # Add filters
+    # Add filters (sanitized to prevent Flux injection)
     if filters.get("domain"):
-        query += f'\n    |> filter(fn: (r) => r["domain"] == "{filters["domain"]}")'
+        query += f'\n    |> filter(fn: (r) => r["domain"] == "{_sanitize_flux_value(filters["domain"])}")'
     if filters.get("platform"):
-        query += f'\n    |> filter(fn: (r) => r["platform"] == "{filters["platform"]}")'
+        query += f'\n    |> filter(fn: (r) => r["platform"] == "{_sanitize_flux_value(filters["platform"])}")'
     if filters.get("device_id"):
-        query += f'\n    |> filter(fn: (r) => r["device_id"] == "{filters["device_id"]}")'
+        query += f'\n    |> filter(fn: (r) => r["device_id"] == "{_sanitize_flux_value(filters["device_id"])}")'
 
     query += f'\n    |> last()\n    |> limit(n: {limit})'
 

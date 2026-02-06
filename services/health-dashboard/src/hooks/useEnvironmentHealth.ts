@@ -27,7 +27,12 @@ export function useEnvironmentHealth(): UseEnvironmentHealthReturn {
     try {
       setError(null);
       setLoading(true);
-      const response = await fetch(`${SETUP_SERVICE_URL}/api/health/environment`);
+      const response = await fetch(`${SETUP_SERVICE_URL}/api/health/environment`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
+        },
+      });
 
       const bodyText = await response.text();
 

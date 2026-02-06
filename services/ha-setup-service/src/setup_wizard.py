@@ -7,17 +7,20 @@ Context7 Best Practices Applied:
 - Rollback capabilities
 - Progress tracking
 """
+import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
 from pydantic import BaseModel
 
 from .config import get_settings
+from .http_client import get_http_session
 from .schemas import SetupWizardStatus
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class SetupStep(BaseModel):
@@ -82,7 +85,7 @@ class SetupWizardFramework:
             "current_step": 0,
             "configuration": initial_config or {},
             "status": SetupWizardStatus.IN_PROGRESS,
-            "started_at": datetime.now(),
+            "started_at": datetime.now(timezone.utc),
             "completed_steps": [],
             "errors": []
         }
@@ -130,7 +133,7 @@ class SetupWizardFramework:
 
             return {
                 "success": True,
-                "step": step.dict(),
+                "step": step.model_dump(),
                 "result": result,
                 "next_step": step_number + 1 if step_number + 1 < len(steps) else None
             }
@@ -139,12 +142,12 @@ class SetupWizardFramework:
             session["errors"].append({
                 "step": step_number,
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
 
             return {
                 "success": False,
-                "step": step.dict(),
+                "step": step.model_dump(),
                 "error": str(e)
             }
 
@@ -179,10 +182,10 @@ class SetupWizardFramework:
             try:
                 await self._rollback_step(session, step_number)
             except Exception as e:
-                print(f"❌ Error rolling back step {step_number}: {e}")
+                logger.error(f"Error rolling back step {step_number}", exc_info=e)
 
         session["status"] = SetupWizardStatus.CANCELLED
-        session["completed_at"] = datetime.now()
+        session["completed_at"] = datetime.now(timezone.utc)
 
     async def _rollback_step(self, session: dict, step_number: int):
         """
@@ -275,15 +278,15 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
     async def _check_prerequisites(self) -> dict:
         """Check if MQTT and Zigbee2MQTT addon are installed"""
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Check MQTT integration
-                async with session.get(
-                    f"{self.ha_url}/api/config/config_entries/entry",
+            # Check MQTT integration
+            async with session.get(
+                f"{self.ha_url}/api/config/config_entries/entry",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
@@ -329,15 +332,15 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
     async def _enable_discovery(self) -> dict:
         """Enable MQTT discovery"""
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Trigger MQTT discovery
-                async with session.post(
-                    f"{self.ha_url}/api/services/mqtt/discover",
+            # Trigger MQTT discovery
+            async with session.post(
+                f"{self.ha_url}/api/services/mqtt/discover",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:

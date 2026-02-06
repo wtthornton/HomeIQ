@@ -7,6 +7,7 @@ Tracks model performance metrics over time for monitoring and alerting.
 
 import json
 import logging
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -35,7 +36,8 @@ class MLMetricsTracker:
         """
         self.metrics_dir = Path(metrics_dir)
         self.metrics_dir.mkdir(parents=True, exist_ok=True)
-        self.metrics_history: list[dict[str, Any]] = []
+        # Use bounded deque to prevent unbounded memory growth (HIGH-3)
+        self.metrics_history: deque[dict[str, Any]] = deque(maxlen=10_000)
         
     def record_training(
         self,
@@ -71,7 +73,7 @@ class MLMetricsTracker:
         self.metrics_history.append(metric_entry)
         self._save_metrics()
         
-        logger.info(f"📊 Training metrics recorded: {model_type} v{model_version}, accuracy={performance.get('accuracy', 0):.3f}")
+        logger.info("Training metrics recorded: %s v%s, accuracy=%.3f", model_type, model_version, performance.get('accuracy', 0))
     
     def record_incremental_update(
         self,
@@ -98,7 +100,7 @@ class MLMetricsTracker:
         self.metrics_history.append(metric_entry)
         self._save_metrics()
         
-        logger.info(f"📊 Incremental update recorded: {samples} samples, {update_time:.3f}s, accuracy={accuracy:.3f}")
+        logger.info("Incremental update recorded: %d samples, %.3fs, accuracy=%.3f", samples, update_time, accuracy)
     
     def record_inference(
         self,
@@ -233,19 +235,20 @@ class MLMetricsTracker:
         try:
             metrics_file = self.metrics_dir / "metrics_history.json"
             with open(metrics_file, 'w') as f:
-                json.dump(self.metrics_history, f, indent=2)
+                json.dump(list(self.metrics_history), f, indent=2)
         except Exception as e:
-            logger.warning(f"⚠️  Could not save metrics: {e}")
-    
+            logger.warning("Could not save metrics: %s", e)
+
     def load_metrics(self):
         """Load metrics history from file."""
         try:
             metrics_file = self.metrics_dir / "metrics_history.json"
             if metrics_file.exists():
                 with open(metrics_file) as f:
-                    self.metrics_history = json.load(f)
-                logger.info(f"✅ Loaded {len(self.metrics_history)} metric entries")
+                    loaded = json.load(f)
+                self.metrics_history = deque(loaded, maxlen=10_000)
+                logger.info("Loaded %d metric entries", len(self.metrics_history))
         except Exception as e:
-            logger.warning(f"⚠️  Could not load metrics: {e}")
-            self.metrics_history = []
+            logger.warning("Could not load metrics: %s", e)
+            self.metrics_history = deque(maxlen=10_000)
 

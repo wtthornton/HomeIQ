@@ -191,8 +191,7 @@ if __name__ == "__main__":
         print("Pattern Aggregate Retention Results:")
         print(f"  Duration: {results['duration_seconds']:.2f}s")
         for bucket, result in results['results'].items():
-            print(f"  {bucket}: {'✅' if result['success'] else '❌'}")
+            status = 'OK' if result['success'] else 'FAIL'
+            print(f"  {bucket}: {status}")
 
-# Run if executed directly
-if __name__ == "__main__":
     asyncio.run(main())

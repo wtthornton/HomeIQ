@@ -7,13 +7,14 @@ Context7 Best Practices Applied:
 - Automated optimization execution
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 import aiohttp
 from pydantic import BaseModel
 
 from .config import get_settings
+from .http_client import get_http_session
 
 settings = get_settings()
 
@@ -84,7 +85,7 @@ class PerformanceAnalysisEngine:
         )
 
         return {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "response_time": response_time_analysis if not isinstance(response_time_analysis, Exception) else {},
             "resource_usage": resource_analysis if not isinstance(resource_analysis, Exception) else {},
             "configuration": config_analysis if not isinstance(config_analysis, Exception) else {},
@@ -94,20 +95,20 @@ class PerformanceAnalysisEngine:
     async def _analyze_response_times(self) -> dict:
         """Analyze HA API response times"""
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Test multiple endpoints and measure response time
-                start_time = datetime.now()
-                async with session.get(
-                    f"{self.ha_url}/api/states",
+            # Test multiple endpoints and measure response time
+            start_time = datetime.now(timezone.utc)
+            async with session.get(
+                f"{self.ha_url}/api/states",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
-                    elapsed = (datetime.now() - start_time).total_seconds() * 1000
+                    elapsed = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
                     if response.status == 200:
                         states = await response.json()
@@ -121,26 +122,43 @@ class PerformanceAnalysisEngine:
             return {"error": str(e), "status": "error"}
 
     async def _analyze_resource_usage(self) -> dict:
-        """Analyze system resource usage"""
-        # Placeholder - will use system metrics when available
-        return {
-            "cpu_usage_percent": 12.5,
-            "memory_usage_mb": 256.0,
-            "status": "healthy"
-        }
+        """Analyze system resource usage using real metrics"""
+        try:
+            import psutil
+
+            process = psutil.Process()
+            mem_info = process.memory_info()
+            cpu_percent = process.cpu_percent()
+            memory_mb = round(mem_info.rss / 1024 / 1024, 1)
+
+            status = "healthy"
+            if cpu_percent > 80 or memory_mb > 512:
+                status = "warning"
+
+            return {
+                "cpu_usage_percent": cpu_percent,
+                "memory_usage_mb": memory_mb,
+                "status": status
+            }
+        except Exception:
+            return {
+                "cpu_usage_percent": 0.0,
+                "memory_usage_mb": 0.0,
+                "status": "unknown"
+            }
 
     async def _analyze_configuration(self) -> dict:
         """Analyze configuration efficiency"""
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
 
-                # Get HA configuration
-                async with session.get(
-                    f"{self.ha_url}/api/config",
+            # Get HA configuration
+            async with session.get(
+                f"{self.ha_url}/api/config",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:

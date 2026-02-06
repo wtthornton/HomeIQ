@@ -8,7 +8,6 @@ numpy>=1.26.0
 
 # Time Series Forecasting
 darts>=0.30.0
-statsforecast>=1.7.0
 
 # ML
 torch>=2.5.0
@@ -23,8 +22,8 @@ uvicorn>=0.30.0
 httpx>=0.27.0
 pydantic>=2.5.0
 
-# InfluxDB (optional)
-influxdb-client>=1.40.0
+# InfluxDB
+influxdb3-python[pandas]>=0.3.0,<1.0.0
 
 # Utilities
 python-dotenv>=1.0.0

@@ -51,7 +51,7 @@ async def reload_device_mappings() -> dict[str, Any]:
         registry = reload_registry()
         handlers = registry.get_all_handlers()
         
-        logger.info(f"✅ Device mapping registry reloaded: {len(handlers)} handlers, cache cleared")
+        logger.info(f"Device mapping registry reloaded: {len(handlers)} handlers, cache cleared")
         
         return {
             "status": "success",
@@ -61,10 +61,10 @@ async def reload_device_mappings() -> dict[str, Any]:
             "cache_cleared": True
         }
     except Exception as e:
-        logger.error(f"❌ Error reloading device mappings: {e}", exc_info=True)
+        logger.error(f"Error reloading device mappings: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to reload device mappings: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -88,10 +88,10 @@ async def get_device_mappings_status() -> dict[str, Any]:
             "cache_size": cache.size()
         }
     except Exception as e:
-        logger.error(f"❌ Error getting device mappings status: {e}", exc_info=True)
+        logger.error(f"Error getting device mappings status: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get device mappings status: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -152,10 +152,10 @@ async def get_device_type(device_id: str, device_data: DeviceData) -> dict[str, 
         
         return result
     except Exception as e:
-        logger.error(f"❌ Error getting device type for {device_id}: {e}", exc_info=True)
+        logger.error(f"Error getting device type for {device_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get device type: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -222,10 +222,10 @@ async def get_device_relationships(
         
         return result
     except Exception as e:
-        logger.error(f"❌ Error getting device relationships for {device_id}: {e}", exc_info=True)
+        logger.error(f"Error getting device relationships for {device_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get device relationships: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -292,9 +292,9 @@ async def get_device_context(
         
         return result
     except Exception as e:
-        logger.error(f"❌ Error getting device context for {device_id}: {e}", exc_info=True)
+        logger.error(f"Error getting device context for {device_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get device context: {str(e)}"
+            detail="Internal server error"
         )
 

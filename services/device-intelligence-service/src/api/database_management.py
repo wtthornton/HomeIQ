@@ -9,7 +9,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +22,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/database", tags=["Database Management"])
 
 settings = Settings()
+
+# Whitelist of known database tables to prevent SQL injection (CRIT-1)
+KNOWN_TABLES = frozenset({
+    "devices", "device_capabilities", "device_relationships",
+    "device_health_metrics", "device_entities", "device_hygiene_issues",
+    "discovery_sessions", "cache_stats", "name_suggestions",
+    "name_preferences", "zigbee_device_metadata",
+    "team_tracker_integrations", "team_tracker_teams",
+    "predictions", "recommendations",
+})
+
+
+async def verify_admin_token(x_admin_token: str = Header(...)):
+    """Verify admin token for destructive operations (CRIT-3)."""
+    expected = getattr(settings, "ADMIN_API_TOKEN", None)
+    if not expected or x_admin_token != expected:
+        raise HTTPException(status_code=403, detail="Invalid admin token")
 
 
 class RecreateTablesResponse(BaseModel):
@@ -57,7 +74,7 @@ class DatabaseStatsResponse(BaseModel):
     tables: dict[str, int]
 
 
-@router.post("/recreate-tables", response_model=RecreateTablesResponse)
+@router.post("/recreate-tables", response_model=RecreateTablesResponse, dependencies=[Depends(verify_admin_token)])
 async def recreate_database_tables() -> RecreateTablesResponse:
     """
     Recreate all database tables with the latest schema.
@@ -69,24 +86,24 @@ async def recreate_database_tables() -> RecreateTablesResponse:
         RecreateTablesResponse: Success status and message
     """
     try:
-        logger.info("🔄 Recreating database tables")
+        logger.info("Recreating database tables")
 
         # Import here to avoid circular dependencies
         from ..core.database import recreate_tables
 
         await recreate_tables()
 
-        logger.info("✅ Database tables recreated successfully")
+        logger.info("Database tables recreated successfully")
         return RecreateTablesResponse(
             success=True,
             message="Database tables recreated successfully with latest schema"
         )
 
     except Exception as e:
-        logger.error(f"❌ Failed to recreate database tables: {e}")
+        logger.error("Failed to recreate database tables: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to recreate database tables: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -120,14 +137,14 @@ async def get_database_status() -> DatabaseStatusResponse:
         )
 
     except Exception as e:
-        logger.error(f"❌ Database status check failed: {e}")
+        logger.error("Database status check failed: %s", e, exc_info=True)
         return DatabaseStatusResponse(
             status="error",
-            message=f"Database error: {str(e)}"
+            message="Database error occurred"
         )
 
 
-@router.post("/cleanup", response_model=DatabaseCleanupResponse)
+@router.post("/cleanup", response_model=DatabaseCleanupResponse, dependencies=[Depends(verify_admin_token)])
 async def cleanup_database(
     days_to_keep: int = 90,
     session: AsyncSession = Depends(get_db_session)
@@ -142,7 +159,7 @@ async def cleanup_database(
         DatabaseCleanupResponse: Cleanup results
     """
     try:
-        logger.info(f"🧹 Starting database cleanup (keeping {days_to_keep} days)")
+        logger.info("Starting database cleanup (keeping %d days)", days_to_keep)
 
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
         records_deleted = 0
@@ -163,7 +180,7 @@ async def cleanup_database(
 
         await session.commit()
 
-        logger.info(f"✅ Database cleanup completed: {records_deleted} records deleted")
+        logger.info("Database cleanup completed: %d records deleted", records_deleted)
         return DatabaseCleanupResponse(
             success=True,
             message="Database cleanup completed successfully",
@@ -172,14 +189,14 @@ async def cleanup_database(
 
     except Exception as e:
         await session.rollback()
-        logger.error(f"❌ Database cleanup failed: {e}")
+        logger.error("Database cleanup failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Database cleanup failed: {str(e)}"
+            detail="Internal server error"
         )
 
 
-@router.post("/optimize", response_model=DatabaseOptimizeResponse)
+@router.post("/optimize", response_model=DatabaseOptimizeResponse, dependencies=[Depends(verify_admin_token)])
 async def optimize_database(
     session: AsyncSession = Depends(get_db_session)
 ) -> DatabaseOptimizeResponse:
@@ -190,7 +207,7 @@ async def optimize_database(
         DatabaseOptimizeResponse: Optimization results
     """
     try:
-        logger.info("🔧 Starting database optimization")
+        logger.info("Starting database optimization")
 
         # Run VACUUM to reclaim space
         await session.execute(text("VACUUM"))
@@ -200,7 +217,7 @@ async def optimize_database(
 
         await session.commit()
 
-        logger.info("✅ Database optimization completed")
+        logger.info("Database optimization completed")
         return DatabaseOptimizeResponse(
             success=True,
             message="Database optimized successfully (VACUUM and ANALYZE completed)"
@@ -208,10 +225,10 @@ async def optimize_database(
 
     except Exception as e:
         await session.rollback()
-        logger.error(f"❌ Database optimization failed: {e}")
+        logger.error("Database optimization failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Database optimization failed: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -248,13 +265,17 @@ async def get_database_stats(
         total_records = 0
 
         for table in tables:
+            if table not in KNOWN_TABLES:
+                logger.warning("Skipping unrecognized table: %s", table)
+                continue
             try:
-                result = await session.execute(text(f"SELECT COUNT(*) FROM {table}"))
+                # Use SQLite bracket quoting for table name safety (CRIT-1)
+                result = await session.execute(text(f"SELECT COUNT(*) FROM [{table}]"))
                 count = result.scalar()
                 table_counts[table] = count
                 total_records += count
             except Exception as e:
-                logger.warning(f"Could not get count for table {table}: {e}")
+                logger.warning("Could not get count for table %s: %s", table, e)
                 table_counts[table] = 0
 
         return DatabaseStatsResponse(
@@ -265,10 +286,10 @@ async def get_database_stats(
         )
 
     except Exception as e:
-        logger.error(f"❌ Failed to get database stats: {e}")
+        logger.error("Failed to get database stats: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get database stats: {str(e)}"
+            detail="Internal server error"
         )
 
 

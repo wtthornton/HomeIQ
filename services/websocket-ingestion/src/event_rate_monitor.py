@@ -2,8 +2,8 @@
 Event Rate Monitor for tracking event capture rates
 """
 
+import asyncio
 import logging
-import threading
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -16,10 +16,11 @@ class EventRateMonitor:
 
     def __init__(self, window_size_minutes: int = 60):
         self.window_size_minutes = window_size_minutes
-        self.event_timestamps = deque()
+        self.event_timestamps = deque(maxlen=window_size_minutes * 200)
         self.events_by_type = {}
         self.events_by_entity = {}
-        self.lock = threading.Lock()
+        self._max_entity_entries = 10000
+        self.lock = asyncio.Lock()
 
         # Rate calculation windows
         self.minute_rates = deque(maxlen=60)  # Last 60 minutes
@@ -30,15 +31,15 @@ class EventRateMonitor:
         self.start_time = datetime.now(timezone.utc)
         self.last_event_time: datetime = None
 
-    def record_event(self, event_data: dict[str, Any]):
+    async def record_event(self, event_data: dict[str, Any]):
         """
         Record an event for rate monitoring
-        
+
         Args:
             event_data: The processed event data
         """
         try:
-            with self.lock:
+            async with self.lock:
                 current_time = datetime.now(timezone.utc)
 
                 # Record timestamp
@@ -55,6 +56,16 @@ class EventRateMonitor:
                     entity_id = event_data.get("entity_id")
                     if entity_id:
                         self.events_by_entity[entity_id] = self.events_by_entity.get(entity_id, 0) + 1
+
+                        # PERF-002: Evict lowest-count entries if dict exceeds max size
+                        if len(self.events_by_entity) > self._max_entity_entries:
+                            # Remove the 10% lowest-count entries to avoid frequent evictions
+                            sorted_entities = sorted(
+                                self.events_by_entity.items(), key=lambda x: x[1]
+                            )
+                            entries_to_remove = len(self.events_by_entity) - self._max_entity_entries + (self._max_entity_entries // 10)
+                            for key, _ in sorted_entities[:entries_to_remove]:
+                                del self.events_by_entity[key]
 
                 # Clean old timestamps
                 self._clean_old_timestamps(current_time)
@@ -88,18 +99,18 @@ class EventRateMonitor:
         except Exception as e:
             logger.error(f"Error calculating rates: {e}")
 
-    def get_current_rate(self, window_minutes: int = 1) -> float:
+    async def get_current_rate(self, window_minutes: int = 1) -> float:
         """
         Get current event rate
-        
+
         Args:
             window_minutes: Time window in minutes
-            
+
         Returns:
             Events per minute
         """
         try:
-            with self.lock:
+            async with self.lock:
                 cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
                 recent_events = sum(1 for ts in self.event_timestamps if ts >= cutoff_time)
                 return recent_events / window_minutes
@@ -107,18 +118,18 @@ class EventRateMonitor:
             logger.error(f"Error calculating current rate: {e}")
             return 0.0
 
-    def get_average_rate(self, window_minutes: int = 60) -> float:
+    async def get_average_rate(self, window_minutes: int = 60) -> float:
         """
         Get average event rate over specified window
-        
+
         Args:
             window_minutes: Time window in minutes
-            
+
         Returns:
             Average events per minute
         """
         try:
-            with self.lock:
+            async with self.lock:
                 if window_minutes == 60 and self.minute_rates:
                     return sum(self.minute_rates) / len(self.minute_rates)
                 elif window_minutes == 60 * 24 and self.hour_rates:
@@ -132,24 +143,27 @@ class EventRateMonitor:
             logger.error(f"Error calculating average rate: {e}")
             return 0.0
 
-    def get_rate_statistics(self) -> dict[str, Any]:
+    async def get_rate_statistics(self) -> dict[str, Any]:
         """
         Get comprehensive rate statistics
-        
+
         Returns:
             Dictionary with rate statistics
         """
         try:
-            with self.lock:
+            async with self.lock:
                 current_time = datetime.now(timezone.utc)
                 uptime = current_time - self.start_time
 
-                # Calculate rates
-                current_rate_1min = self.get_current_rate(1)
-                current_rate_5min = self.get_current_rate(5)
-                current_rate_15min = self.get_current_rate(15)
-                average_rate_1hour = self.get_average_rate(60)
-                average_rate_24hour = self.get_average_rate(60 * 24)
+                # Calculate rates (call internal non-locking versions to avoid deadlock)
+                cutoff_1min = current_time - timedelta(minutes=1)
+                current_rate_1min = sum(1 for ts in self.event_timestamps if ts >= cutoff_1min) / 1
+                cutoff_5min = current_time - timedelta(minutes=5)
+                current_rate_5min = sum(1 for ts in self.event_timestamps if ts >= cutoff_5min) / 5
+                cutoff_15min = current_time - timedelta(minutes=15)
+                current_rate_15min = sum(1 for ts in self.event_timestamps if ts >= cutoff_15min) / 15
+                average_rate_1hour = sum(self.minute_rates) / len(self.minute_rates) if self.minute_rates else 0.0
+                average_rate_24hour = (sum(self.hour_rates) / len(self.hour_rates) / 60) if self.hour_rates else 0.0
 
                 # Calculate overall rate
                 overall_rate = self.total_events / (uptime.total_seconds() / 60) if uptime.total_seconds() > 0 else 0
@@ -205,18 +219,18 @@ class EventRateMonitor:
             logger.error(f"Error getting top entities: {e}")
             return []
 
-    def get_rate_alerts(self) -> list[dict[str, Any]]:
+    async def get_rate_alerts(self) -> list[dict[str, Any]]:
         """
         Check for rate anomalies and generate alerts
-        
+
         Returns:
             List of alert dictionaries
         """
         alerts = []
 
         try:
-            current_rate = self.get_current_rate(1)
-            average_rate = self.get_average_rate(60)
+            current_rate = await self.get_current_rate(1)
+            average_rate = await self.get_average_rate(60)
 
             # Alert if current rate is significantly different from average
             if average_rate > 0:
@@ -258,9 +272,9 @@ class EventRateMonitor:
 
         return alerts
 
-    def reset_statistics(self):
+    async def reset_statistics(self):
         """Reset all statistics"""
-        with self.lock:
+        async with self.lock:
             self.event_timestamps.clear()
             self.events_by_type.clear()
             self.events_by_entity.clear()

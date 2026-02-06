@@ -1,0 +1,8 @@
+# OpenVINO Service Dependencies (Development / Testing)
+-r requirements.txt
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.23.0
+hypothesis==6.112.0
+pytest-cov==5.0.0

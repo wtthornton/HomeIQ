@@ -189,7 +189,7 @@ class TestDataValidation:
         # Mock response with missing fields
         mock_client.query = AsyncMock(return_value=[
             {
-                '_time': datetime.utcnow(),
+                'time': datetime.now(timezone.utc),
                 # Missing entity_id, domain, state
             }
         ])

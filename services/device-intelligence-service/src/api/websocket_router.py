@@ -9,8 +9,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+
+from ..config import Settings
 
 from ..core.device_state_tracker import device_state_tracker
 from ..core.performance_collector import performance_collector
@@ -20,6 +22,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ws", tags=["WebSocket"])
 
+_settings = Settings()
+
+
+async def verify_admin_token(x_admin_token: str = Header(...)):
+    """Verify admin token for broadcast/simulate endpoints (HIGH-5)."""
+    expected = getattr(_settings, "ADMIN_API_TOKEN", None)
+    if not expected or x_admin_token != expected:
+        raise HTTPException(status_code=403, detail="Invalid admin token")
+
 
 @router.websocket("/")
 async def websocket_endpoint(websocket: WebSocket):
@@ -27,7 +38,9 @@ async def websocket_endpoint(websocket: WebSocket):
     client_id = f"client_{datetime.now().timestamp()}"
 
     try:
-        await websocket_manager.connect(websocket, client_id)
+        connected = await websocket_manager.connect(websocket, client_id)
+        if not connected:
+            return
 
         while True:
             # Receive message from client
@@ -192,13 +205,22 @@ async def websocket_test_page():
                 const messages = document.getElementById('messages');
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message';
-                messageDiv.innerHTML = `<strong>${++messageCount}:</strong> ${text}`;
+                // Use textContent to prevent XSS (HIGH-1)
+                const strong = document.createElement('strong');
+                strong.textContent = (++messageCount) + ':';
+                messageDiv.appendChild(strong);
+                const span = document.createElement('span');
+                span.textContent = ' ' + text;
+                messageDiv.appendChild(span);
                 messages.appendChild(messageDiv);
                 messages.scrollTop = messages.scrollHeight;
             }
 
             function clearMessages() {
-                document.getElementById('messages').innerHTML = '';
+                const messages = document.getElementById('messages');
+                while (messages.firstChild) {
+                    messages.removeChild(messages.firstChild);
+                }
                 messageCount = 0;
             }
 
@@ -224,7 +246,7 @@ async def get_websocket_stats():
     }
 
 
-@router.post("/broadcast/test")
+@router.post("/broadcast/test", dependencies=[Depends(verify_admin_token)])
 async def broadcast_test_message(message: dict[str, Any]):
     """Broadcast test message to all connected clients."""
     await websocket_manager.broadcast_to_all({
@@ -240,7 +262,7 @@ async def broadcast_test_message(message: dict[str, Any]):
     }
 
 
-@router.post("/device/{device_id}/simulate")
+@router.post("/device/{device_id}/simulate", dependencies=[Depends(verify_admin_token)])
 async def simulate_device_update(device_id: str, update_data: dict[str, Any] = None):
     """Simulate device update for testing."""
     if update_data is None:

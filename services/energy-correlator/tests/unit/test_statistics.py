@@ -3,7 +3,7 @@ Unit tests for statistics tracking and reporting
 Tests all statistics methods in EnergyEventCorrelator
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -57,7 +57,7 @@ class TestEventCounterTracking:
             # Process 10 events
             for i in range(10):
                 event = {
-                    'time': datetime.utcnow(),
+                    'time': datetime.now(timezone.utc),
                     'entity_id': f'switch.test_{i}',
                     'domain': 'switch',
                     'state': 'on',
@@ -87,7 +87,7 @@ class TestEventCounterTracking:
 
             for i in range(5):
                 event = {
-                    'time': datetime.utcnow(),
+                    'time': datetime.now(timezone.utc),
                     'entity_id': f'switch.test_{i}',
                     'domain': 'switch',
                     'state': 'on',
@@ -274,7 +274,7 @@ class TestErrorCounterTracking:
             mock_get_power.side_effect = [2450.0, 2510.0]  # 60W delta
 
             event = {
-                'time': datetime.utcnow(),
+                'time': datetime.now(timezone.utc),
                 'entity_id': 'switch.test',
                 'domain': 'switch',
                 'state': 'on',
@@ -307,7 +307,7 @@ class TestErrorCounterTracking:
                 mock_get_power.side_effect = [2450.0, 2510.0]  # 60W delta each
 
                 event = {
-                    'time': datetime.utcnow(),
+                    'time': datetime.now(timezone.utc),
                     'entity_id': f'switch.test_{i}',
                     'domain': 'switch',
                     'state': 'on',

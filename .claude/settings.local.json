@@ -81,12 +81,17 @@
       "Bash(python scripts/phase2-migrate-pytest-asyncio.py:*)",
       "Bash(python scripts/phase2-migrate-tenacity.py:*)",
       "Bash(python scripts/phase2-migrate-mqtt.py:*)",
-      "Bash(python scripts/phase2-migrate-influxdb.py:*)"
+      "Bash(python scripts/phase2-migrate-influxdb.py:*)",
+      "Bash(xargs:*)",
+      "Bash(for:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "c:\\cursor\\HomeIQ"
+      "c:\\cursor\\HomeIQ",
+      "C:\\cursor\\HomeIQ\\.git\\hooks"
     ]
   }
 }

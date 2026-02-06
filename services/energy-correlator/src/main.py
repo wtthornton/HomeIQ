@@ -5,6 +5,7 @@ Post-processes HA events and power data to find causality relationships
 
 import asyncio
 import os
+import signal
 import sys
 from datetime import datetime, timezone
 
@@ -24,9 +25,33 @@ load_dotenv()
 
 logger = setup_logging("energy-correlator")
 
-# Set logger in security module for error logging
-from . import security as security_module
-security_module.logger = logger
+
+def _parse_int_env(name: str, default: int, min_val: int | None = None) -> int:
+    """Parse an integer environment variable with validation.
+
+    Args:
+        name: Environment variable name
+        default: Default value if not set
+        min_val: Minimum allowed value (inclusive)
+
+    Returns:
+        Parsed integer value
+
+    Raises:
+        ValueError: If value is not a valid integer or below min_val
+    """
+    raw = os.getenv(name, str(default))
+    try:
+        value = int(raw)
+    except (ValueError, TypeError):
+        raise ValueError(
+            f"Invalid value for {name}: '{raw}'. Must be an integer."
+        )
+    if min_val is not None and value < min_val:
+        raise ValueError(
+            f"Invalid value for {name}: {value}. Must be >= {min_val}."
+        )
+    return value
 
 
 class EnergyCorrelatorService:
@@ -45,11 +70,11 @@ class EnergyCorrelatorService:
         except ValueError as e:
             raise ValueError(f"Invalid InfluxDB bucket configuration: {e}")
 
-        # Service configuration
-        self.processing_interval = int(os.getenv('PROCESSING_INTERVAL', '60'))  # 1 minute
-        self.lookback_minutes = int(os.getenv('LOOKBACK_MINUTES', '5'))  # Process last 5 minutes
-        self.max_events_per_interval = int(os.getenv('MAX_EVENTS_PER_INTERVAL', '500'))
-        self.max_retry_queue_size = int(os.getenv('MAX_RETRY_QUEUE_SIZE', '250'))
+        # Service configuration (with validation)
+        self.processing_interval = _parse_int_env('PROCESSING_INTERVAL', 60, min_val=1)
+        self.lookback_minutes = _parse_int_env('LOOKBACK_MINUTES', 5, min_val=1)
+        self.max_events_per_interval = _parse_int_env('MAX_EVENTS_PER_INTERVAL', 500, min_val=1)
+        self.max_retry_queue_size = _parse_int_env('MAX_RETRY_QUEUE_SIZE', 250, min_val=1)
         self.retry_window_minutes = int(os.getenv('RETRY_WINDOW_MINUTES', str(self.lookback_minutes)))
         self.correlation_window_seconds = int(os.getenv('CORRELATION_WINDOW_SECONDS', '10'))
         self.power_lookup_padding_seconds = int(os.getenv('POWER_LOOKUP_PADDING_SECONDS', '30'))
@@ -152,9 +177,39 @@ class EnergyCorrelatorService:
                 await asyncio.sleep(self.error_retry_interval)
 
 
+def _cors_middleware(allowed_origins: list[str]):
+    """Create a CORS middleware for aiohttp.
+
+    Args:
+        allowed_origins: List of allowed origin URLs
+    """
+    @web.middleware
+    async def middleware(request: web.Request, handler):
+        origin = request.headers.get('Origin', '')
+
+        # Handle preflight OPTIONS requests
+        if request.method == 'OPTIONS':
+            response = web.Response(status=204)
+        else:
+            response = await handler(request)
+
+        if origin in allowed_origins or '*' in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Max-Age'] = '3600'
+
+        return response
+
+    return middleware
+
+
 async def create_app(service: EnergyCorrelatorService):
     """Create web application"""
-    app = web.Application()
+    cors_origins_raw = os.getenv('CORS_ORIGINS', 'http://localhost:3000')
+    cors_origins = [o.strip() for o in cors_origins_raw.split(',') if o.strip()]
+
+    app = web.Application(middlewares=[_cors_middleware(cors_origins)])
 
     # Health check endpoint
     app.router.add_get('/health', service.health_handler.handle)
@@ -162,8 +217,15 @@ async def create_app(service: EnergyCorrelatorService):
     # Statistics endpoint
     async def get_statistics(request):
         """Get correlation statistics"""
-        stats = service.correlator.get_statistics()
-        return web.json_response(stats)
+        try:
+            stats = service.correlator.get_statistics()
+            return web.json_response(stats)
+        except Exception as e:
+            logger.error(f"Error getting statistics: {e}")
+            return web.json_response(
+                {"error": "Failed to retrieve statistics"},
+                status=500
+            )
 
     app.router.add_get('/statistics', get_statistics)
 
@@ -215,7 +277,19 @@ async def main():
         logger.info(f"Service running on port {port}")
         logger.info("Endpoints: /health, /statistics, /statistics/reset")
 
-        # Run correlation loop
+        # Register signal handlers for graceful shutdown (Linux/Docker)
+        loop = asyncio.get_event_loop()
+        stop_event = asyncio.Event()
+
+        def _signal_handler():
+            logger.info("Received shutdown signal")
+            stop_event.set()
+
+        if sys.platform != 'win32':
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, _signal_handler)
+
+        # Run correlation loop (will be interrupted by signal)
         await service.run_continuous()
 
     except KeyboardInterrupt:

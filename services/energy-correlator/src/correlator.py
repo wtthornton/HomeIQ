@@ -7,13 +7,32 @@ import logging
 from bisect import bisect_left
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, TypedDict
 
 from influxdb_client import Point
 
 from .influxdb_wrapper import InfluxDBWrapper
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_flux_value(value: str) -> str:
+    """
+    Sanitize a string value for safe interpolation into Flux queries.
+    Removes characters that could be used for Flux injection.
+
+    Args:
+        value: The string value to sanitize
+
+    Returns:
+        Sanitized string safe for Flux query interpolation
+    """
+    return value.replace('"', '').replace('\\', '').replace('\n', '').replace('\r', '')
+
+
+class PowerCache(TypedDict):
+    timestamps: list[float]
+    values: list[float]
 
 
 @dataclass
@@ -92,7 +111,7 @@ class EnergyEventCorrelator:
         # Runtime caches
         # Epic 48 Story 48.5: Use dataclasses for memory efficiency
         self._pending_events: list[DeferredEvent] = []
-        self._power_cache: dict[str, list[float]] | None = None
+        self._power_cache: PowerCache | None = None
 
         # Statistics
         self.total_events_processed = 0
@@ -167,7 +186,8 @@ class EnergyEventCorrelator:
                 point = await self._correlate_event_with_power(
                     event,
                     retry_queue=deferred_events,
-                    write_result=False
+                    write_result=False,
+                    allow_fallback=False
                 )
 
                 if point:
@@ -186,9 +206,9 @@ class EnergyEventCorrelator:
                 logger.debug(f"Deferred {len(self._pending_events)} events for retry")
 
             logger.info(
-                f"Processed {self.total_events_processed} events, "
-                f"found {self.correlations_found} correlations, "
-                f"wrote {self.correlations_written} to InfluxDB"
+                f"Batch complete: processed {len(events)} events, "
+                f"found {len(batch_points)} correlations "
+                f"(cumulative: {self.total_events_processed}/{self.correlations_found})"
             )
 
         except Exception as e:
@@ -216,8 +236,9 @@ class EnergyEventCorrelator:
         start_time = now - timedelta(minutes=minutes)
 
         # Flux query for InfluxDB 2.x with batching limits
+        safe_bucket = sanitize_flux_value(self.influxdb_bucket)
         flux_query = f'''
-        from(bucket: "{self.influxdb_bucket}")
+        from(bucket: "{safe_bucket}")
           |> range(start: {start_time.isoformat()}Z, stop: {now.isoformat()}Z)
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) => 
@@ -263,15 +284,19 @@ class EnergyEventCorrelator:
         event: dict,
         *,
         retry_queue: list[DeferredEvent] | None = None,
-        write_result: bool = True
+        write_result: bool = True,
+        allow_fallback: bool = True
     ):
         """
         Correlate a single event with power changes
-        
+
         Looks for power changes within ±10 seconds of the event
-        
+
         Args:
             event: Event data with time, entity_id, state, previous_state
+            retry_queue: Optional list to append deferred events to
+            write_result: Whether to write the correlation point immediately
+            allow_fallback: If False, skip individual InfluxDB queries on cache miss
         """
         self.total_events_processed += 1
 
@@ -283,15 +308,15 @@ class EnergyEventCorrelator:
 
         # Get power before event (within correlation window)
         time_before = event_time - timedelta(seconds=self.correlation_window_seconds / 2)
-        power_before = await self._get_power_at_time(time_before)
+        power_before = await self._get_power_at_time(time_before, allow_fallback=allow_fallback)
 
         # Get power after event
         time_after = event_time + timedelta(seconds=self.correlation_window_seconds / 2)
-        power_after = await self._get_power_at_time(time_after)
+        power_after = await self._get_power_at_time(time_after, allow_fallback=allow_fallback)
 
         if power_before is None or power_after is None:
             logger.debug(f"No power data found for event {entity_id} at {event_time}")
-            if retry_queue is not None:
+            if retry_queue is not None and len(retry_queue) < self.max_retry_queue_size:
                 # Epic 48 Story 48.5: Use DeferredEvent dataclass
                 deferred = DeferredEvent(
                     time=event_time,
@@ -301,6 +326,11 @@ class EnergyEventCorrelator:
                     previous_state=previous_state or ''
                 )
                 retry_queue.append(deferred)
+            elif retry_queue is not None:
+                logger.debug(
+                    f"Retry queue full ({self.max_retry_queue_size}), "
+                    f"dropping event for {entity_id}"
+                )
             return
 
         # Calculate delta
@@ -332,15 +362,19 @@ class EnergyEventCorrelator:
 
         return point
 
-    async def _get_power_at_time(self, target_time: datetime) -> float | None:
+    async def _get_power_at_time(
+        self, target_time: datetime, *, allow_fallback: bool = True
+    ) -> float | None:
         """
         Get power reading closest to target time
-        
+
         Looks within ±30 seconds of target time
-        
+
         Args:
             target_time: Target timestamp
-            
+            allow_fallback: If False, return None on cache miss instead of
+                querying InfluxDB (prevents N+1 queries in batch mode)
+
         Returns:
             Power reading in watts, or None if not found
         """
@@ -350,12 +384,16 @@ class EnergyEventCorrelator:
             if cached_value is not None:
                 return cached_value
 
+        if not allow_fallback:
+            return None  # In batch mode, rely solely on cache
+
         start_time = target_time - timedelta(seconds=self.power_lookup_padding_seconds)
         end_time = target_time + timedelta(seconds=self.power_lookup_padding_seconds)
 
         # Flux query for smart_meter measurement
+        safe_bucket = sanitize_flux_value(self.influxdb_bucket)
         flux_query = f'''
-        from(bucket: "{self.influxdb_bucket}")
+        from(bucket: "{safe_bucket}")
           |> range(start: {start_time.isoformat()}Z, stop: {end_time.isoformat()}Z)
           |> filter(fn: (r) => r["_measurement"] == "smart_meter")
           |> filter(fn: (r) => r["_field"] == "total_power_w")
@@ -531,7 +569,7 @@ class EnergyEventCorrelator:
 
         return filtered
 
-    async def _build_power_cache(self, events: list[dict[str, Any]]) -> dict[str, list[float]]:
+    async def _build_power_cache(self, events: list[dict[str, Any]]) -> PowerCache:
         """Fetch power samples covering the entire batch window"""
         timestamps = [event.get('time') for event in events if isinstance(event.get('time'), datetime)]
         if not timestamps:
@@ -550,8 +588,9 @@ class EnergyEventCorrelator:
         start_iso = start_time.isoformat().replace('+00:00', 'Z')
         end_iso = end_time.isoformat().replace('+00:00', 'Z')
 
+        safe_bucket = sanitize_flux_value(self.influxdb_bucket)
         flux_query = f'''
-        from(bucket: "{self.influxdb_bucket}")
+        from(bucket: "{safe_bucket}")
           |> range(start: time(v: "{start_iso}"), stop: time(v: "{end_iso}"))
           |> filter(fn: (r) => r["_measurement"] == "smart_meter")
           |> filter(fn: (r) => r["_field"] == "total_power_w")
@@ -586,7 +625,7 @@ class EnergyEventCorrelator:
     def _lookup_power_in_cache(
         self,
         target_time: datetime,
-        cache: dict[str, list[float]]
+        cache: PowerCache
     ) -> float | None:
         """Find the nearest cached power reading to the requested time"""
         timestamps = cache.get("timestamps") or []

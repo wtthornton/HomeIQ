@@ -2,7 +2,11 @@
 Backup and restore router for data-retention service.
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query, Request
+
+logger = logging.getLogger(__name__)
 
 from ..models import (
     BackupCreateRequest,
@@ -35,7 +39,8 @@ async def create_backup(request: Request, backup_request: BackupCreateRequest):
         )
         return backup_info
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        logger.error(f"Backup creation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
 
 
 @router.post("/restore", response_model=RestoreResponse)
@@ -61,7 +66,8 @@ async def restore_backup(request: Request, restore_request: RestoreRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        logger.error(f"Backup restore failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
 
 
 @router.get("/backups", response_model=BackupHistoryResponse)
@@ -79,7 +85,8 @@ async def get_backup_history(
         history = service.get_backup_history(limit)
         return {"backups": history}
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        logger.error(f"Get backup history failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
 
 
 @router.get("/stats", response_model=BackupStatisticsResponse)
@@ -94,7 +101,8 @@ async def get_backup_statistics(request: Request):
         stats = service.get_backup_statistics()
         return stats
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        logger.error(f"Get backup statistics failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
 
 
 @router.delete("/cleanup", response_model=CleanupBackupsResponse)
@@ -115,5 +123,6 @@ async def cleanup_old_backups(
             "deleted_count": deleted_count
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        logger.error(f"Backup cleanup failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
 

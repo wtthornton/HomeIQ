@@ -122,7 +122,7 @@ class HomeAssistantClient:
                     ws_url = url.replace('http://', 'ws://').replace('https://', 'wss://')
                     ws_url = f"{ws_url}/api/websocket"
 
-                logger.info(f"🔌 Connecting to Home Assistant WebSocket: {ws_url}")
+                logger.info(f"Connecting to Home Assistant WebSocket: {ws_url}")
 
                 # Connect with authentication header
                 headers = {"Authorization": f"Bearer {self.token}"}
@@ -136,7 +136,7 @@ class HomeAssistantClient:
                 )
 
                 self.current_url = url
-                logger.info(f"✅ Successfully connected to Home Assistant at {url}")
+                logger.info(f"Successfully connected to Home Assistant at {url}")
 
                 # Handle authentication response
                 auth_response = await asyncio.wait_for(
@@ -145,7 +145,7 @@ class HomeAssistantClient:
                 auth_data = json.loads(auth_response)
 
                 if auth_data.get("type") == "auth_required":
-                    logger.info("🔐 Authentication required, sending token...")
+                    logger.info("Authentication required, sending token...")
                     await self.websocket.send(json.dumps({"type": "auth", "access_token": self.token}))
 
                     auth_result = await asyncio.wait_for(
@@ -154,28 +154,26 @@ class HomeAssistantClient:
                     auth_result_data = json.loads(auth_result)
 
                     if auth_result_data.get("type") == "auth_ok":
-                        logger.info("✅ Successfully authenticated with Home Assistant")
+                        logger.info("Successfully authenticated with Home Assistant")
                         self.connected = True
                         self.reconnect_attempts = 0
                         return True
                     else:
-                        logger.error(f"❌ Authentication failed: {auth_result_data}")
+                        logger.error(f"Authentication failed: {auth_result_data}")
                         return False
                 elif auth_data.get("type") == "auth_ok":
-                    logger.info("✅ Already authenticated with Home Assistant")
+                    logger.info("Already authenticated with Home Assistant")
                     self.connected = True
                     self.reconnect_attempts = 0
                     return True
                 else:
-                    logger.error(f"❌ Unexpected authentication response: {auth_data}")
+                    logger.error(f"Unexpected authentication response: {auth_data}")
                     return False
 
-                break
-
             except Exception as e:
-                logger.warning(f"❌ Failed to connect to {url}: {e}")
+                logger.warning(f"Failed to connect to {url}: {e}")
                 if url == urls_to_try[-1]:  # Last URL failed
-                    logger.error("❌ Failed to connect to any Home Assistant URL")
+                    logger.error("Failed to connect to any Home Assistant URL")
                     return False
                 continue
 
@@ -195,7 +193,7 @@ class HomeAssistantClient:
 
         self._cancel_all_pending_messages()
         self.connected = False
-        logger.info("🔌 Disconnected from Home Assistant")
+        logger.info("Disconnected from Home Assistant")
 
     async def send_message(self, message: dict[str, Any]) -> dict[str, Any]:
         """Send a message and wait for response."""
@@ -222,10 +220,10 @@ class HomeAssistantClient:
             return response
 
         except asyncio.TimeoutError:
-            logger.error(f"⏰ Timeout waiting for response to message {current_message_id}")
+            logger.error(f"Timeout waiting for response to message {current_message_id}")
             raise
         except Exception as e:
-            logger.error(f"❌ Error sending message: {e}")
+            logger.error(f"Error sending message: {e}")
             raise
         finally:
             # Clean up pending message
@@ -262,17 +260,17 @@ class HomeAssistantClient:
                         await self._handle_subscription_message(data)
 
                 except json.JSONDecodeError as e:
-                    logger.error(f"❌ Failed to parse WebSocket message: {e}")
+                    logger.error(f"Failed to parse WebSocket message: {e}")
                 except Exception as e:
-                    logger.error(f"❌ Error handling WebSocket message: {e}")
+                    logger.error(f"Error handling WebSocket message: {e}")
 
         except ConnectionClosed as exc:
-            logger.warning("🔌 WebSocket connection closed: %s", exc)
+            logger.warning("WebSocket connection closed: %s", exc)
             self.connected = False
             self._cancel_all_pending_messages(exc)
             await self._handle_reconnection()
         except Exception as e:
-            logger.error(f"❌ WebSocket error: {e}")
+            logger.error(f"WebSocket error: {e}")
             self.connected = False
             self._cancel_all_pending_messages(e)
 
@@ -286,18 +284,18 @@ class HomeAssistantClient:
                 try:
                     await self.subscriptions[event_type](data)
                 except Exception as e:
-                    logger.error(f"❌ Error in subscription handler for {event_type}: {e}")
+                    logger.error(f"Error in subscription handler for {event_type}: {e}")
 
     async def _handle_reconnection(self):
         """Handle automatic reconnection."""
         if self.reconnect_attempts >= self.max_reconnect_attempts:
-            logger.error("❌ Max reconnection attempts reached")
+            logger.error("Max reconnection attempts reached")
             return
 
         self.reconnect_attempts += 1
         delay = self.reconnect_delay * self.reconnect_attempts
 
-        logger.info(f"🔄 Attempting reconnection {self.reconnect_attempts}/{self.max_reconnect_attempts} in {delay}s")
+        logger.info(f"Attempting reconnection {self.reconnect_attempts}/{self.max_reconnect_attempts} in {delay}s")
         await asyncio.sleep(delay)
 
         if await self.connect():
@@ -354,7 +352,7 @@ class HomeAssistantClient:
             return datetime.now(timezone.utc)
 
         except Exception as e:
-            logger.warning(f"⚠️ Failed to parse timestamp {timestamp}: {e}")
+            logger.warning(f"Failed to parse timestamp {timestamp}: {e}")
             return datetime.now(timezone.utc)
 
     async def get_device_registry(self) -> list[HADevice]:
@@ -396,11 +394,11 @@ class HomeAssistantClient:
                 )
                 devices.append(device)
 
-            logger.info(f"📱 Discovered {len(devices)} devices from Home Assistant")
+            logger.info(f"Discovered {len(devices)} devices from Home Assistant")
             return devices
 
         except Exception as e:
-            logger.error(f"❌ Failed to get device registry: {e}")
+            logger.error(f"Failed to get device registry: {e}")
             return []
 
     async def get_entity_registry(self) -> list[HAEntity]:
@@ -439,11 +437,11 @@ class HomeAssistantClient:
                 )
                 entities.append(entity)
 
-            logger.info(f"🔧 Discovered {len(entities)} entities from Home Assistant")
+            logger.info(f"Discovered {len(entities)} entities from Home Assistant")
             return entities
 
         except Exception as e:
-            logger.error(f"❌ Failed to get entity registry: {e}")
+            logger.error(f"Failed to get entity registry: {e}")
             return []
 
     async def get_area_registry(self) -> list[HAArea]:
@@ -465,11 +463,11 @@ class HomeAssistantClient:
                 )
                 areas.append(area)
 
-            logger.info(f"🏠 Discovered {len(areas)} areas from Home Assistant")
+            logger.info(f"Discovered {len(areas)} areas from Home Assistant")
             return areas
 
         except Exception as e:
-            logger.error(f"❌ Failed to get area registry: {e}")
+            logger.error(f"Failed to get area registry: {e}")
             return []
 
     async def get_config_entries(self) -> dict[str, str]:
@@ -491,11 +489,11 @@ class HomeAssistantClient:
                 if entry_id and domain:
                     config_entry_map[entry_id] = domain
 
-            logger.info(f"🔧 Retrieved {len(config_entry_map)} config entries")
+            logger.info(f"Retrieved {len(config_entry_map)} config entries")
             return config_entry_map
 
         except Exception as e:
-            logger.error(f"❌ Failed to get config entries: {e}")
+            logger.error(f"Failed to get config entries: {e}")
             return {}
 
     async def get_states(self) -> list[dict[str, Any]]:
@@ -525,11 +523,11 @@ class HomeAssistantClient:
             })
 
             states = response.get("result", [])
-            logger.info(f"📊 Retrieved {len(states)} entity states from Home Assistant")
+            logger.info(f"Retrieved {len(states)} entity states from Home Assistant")
             return states
 
         except Exception as e:
-            logger.error(f"❌ Failed to get entity states: {e}")
+            logger.error(f"Failed to get entity states: {e}")
             return []
 
     async def get_config(self) -> dict[str, Any]:
@@ -566,14 +564,14 @@ class HomeAssistantClient:
                 async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
                     if response.status == 200:
                         config = await response.json()
-                        logger.info(f"📋 Retrieved Home Assistant system config (version: {config.get('version', 'unknown')})")
+                        logger.info(f"Retrieved Home Assistant system config (version: {config.get('version', 'unknown')})")
                         return config
                     else:
                         error_text = await response.text()
-                        logger.error(f"❌ Failed to get system config: HTTP {response.status} - {error_text}")
+                        logger.error(f"Failed to get system config: HTTP {response.status} - {error_text}")
                         return {}
         except Exception as e:
-            logger.error(f"❌ Failed to get system config: {e}")
+            logger.error(f"Failed to get system config: {e}")
             return {}
 
     async def update_device_registry_entry(self, device_id: str, **fields: Any) -> dict[str, Any]:
@@ -591,11 +589,11 @@ class HomeAssistantClient:
 
         response = await self.send_message(payload)
         if response.get("success"):
-            logger.info("🛠️ Updated device %s with %s", device_id, list(fields.keys()))
+            logger.info("Updated device %s with %s", device_id, list(fields.keys()))
             return response.get("result", {})
 
         error = response.get("error")
-        logger.error("❌ Failed to update device %s: %s", device_id, error)
+        logger.error("Failed to update device %s: %s", device_id, error)
         raise RuntimeError(f"Failed to update device registry: {error}")
 
     async def update_entity_registry_entry(self, entity_id: str, **fields: Any) -> dict[str, Any]:
@@ -613,11 +611,11 @@ class HomeAssistantClient:
 
         response = await self.send_message(payload)
         if response.get("success"):
-            logger.info("🛠️ Updated entity %s with %s", entity_id, list(fields.keys()))
+            logger.info("Updated entity %s with %s", entity_id, list(fields.keys()))
             return response.get("result", {})
 
         error = response.get("error")
-        logger.error("❌ Failed to update entity %s: %s", entity_id, error)
+        logger.error("Failed to update entity %s: %s", entity_id, error)
         raise RuntimeError(f"Failed to update entity registry: {error}")
 
     async def start_config_flow(self, handler: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -634,11 +632,11 @@ class HomeAssistantClient:
 
         response = await self.send_message(payload)
         if response.get("success"):
-            logger.info("🚀 Started config flow for handler %s", handler)
+            logger.info("Started config flow for handler %s", handler)
             return response.get("result", {})
 
         error = response.get("error")
-        logger.error("❌ Failed to start config flow for %s: %s", handler, error)
+        logger.error("Failed to start config flow for %s: %s", handler, error)
         raise RuntimeError(f"Failed to start config flow: {error}")
 
     async def subscribe_to_events(self, event_type: str, callback: Callable[[dict[str, Any]], Awaitable[None]]):
@@ -651,10 +649,10 @@ class HomeAssistantClient:
                 "event_type": event_type
             })
 
-            logger.info(f"📡 Subscribed to {event_type} events")
+            logger.info(f"Subscribed to {event_type} events")
 
         except Exception as e:
-            logger.error(f"❌ Failed to subscribe to {event_type} events: {e}")
+            logger.error(f"Failed to subscribe to {event_type} events: {e}")
 
     async def subscribe_to_registry_updates(
         self,
@@ -680,7 +678,7 @@ class HomeAssistantClient:
                 async def default_entity_handler(event_data: dict[str, Any]):
                     action = event_data.get("event", {}).get("action", "unknown")
                     entity_id = event_data.get("event", {}).get("entity_id", "unknown")
-                    logger.info(f"📋 Entity registry updated: {action} - {entity_id}")
+                    logger.info(f"Entity registry updated: {action} - {entity_id}")
 
                 await self.subscribe_to_events("entity_registry_updated", default_entity_handler)
 
@@ -692,14 +690,14 @@ class HomeAssistantClient:
                 async def default_device_handler(event_data: dict[str, Any]):
                     action = event_data.get("event", {}).get("action", "unknown")
                     device_id = event_data.get("event", {}).get("device_id", "unknown")
-                    logger.info(f"📱 Device registry updated: {action} - {device_id}")
+                    logger.info(f"Device registry updated: {action} - {device_id}")
 
                 await self.subscribe_to_events("device_registry_updated", default_device_handler)
 
-            logger.info("✅ Subscribed to registry update events (entity_registry_updated, device_registry_updated)")
+            logger.info("Subscribed to registry update events (entity_registry_updated, device_registry_updated)")
 
         except Exception as e:
-            logger.error(f"❌ Failed to subscribe to registry updates: {e}")
+            logger.error(f"Failed to subscribe to registry updates: {e}")
 
     async def subscribe_to_state_changes(
         self,
@@ -728,9 +726,9 @@ class HomeAssistantClient:
         """
         try:
             await self.subscribe_to_events("state_changed", callback)
-            logger.info("✅ Subscribed to state_changed events for real-time telemetry")
+            logger.info("Subscribed to state_changed events for real-time telemetry")
         except Exception as e:
-            logger.error(f"❌ Failed to subscribe to state_changed events: {e}")
+            logger.error(f"Failed to subscribe to state_changed events: {e}")
             raise
 
     async def start_message_handler(self):

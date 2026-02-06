@@ -63,33 +63,29 @@ class StatisticsAggregator:
     def _get_eligible_entities(self) -> list[dict[str, Any]]:
         """
         Get list of entities eligible for statistics aggregation from SQLite.
-        
+
         Returns:
             List of dictionaries with statistic_id, state_class, has_mean, has_sum, unit_of_measurement
         """
         try:
             import sqlite3
-            
-            conn = sqlite3.connect(self.sqlite_path)
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                SELECT statistic_id, state_class, has_mean, has_sum, unit_of_measurement
-                FROM statistics_meta
-            """)
-            
-            entities = []
-            for row in cursor.fetchall():
-                entities.append({
-                    "statistic_id": row[0],  # entity_id
-                    "state_class": row[1],
-                    "has_mean": bool(row[2]),
-                    "has_sum": bool(row[3]),
-                    "unit_of_measurement": row[4]
-                })
-            
-            conn.close()
-            return entities
+
+            with sqlite3.connect(self.sqlite_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute("""
+                    SELECT statistic_id, state_class, has_mean, has_sum, unit_of_measurement
+                    FROM statistics_meta
+                """)
+                return [
+                    {
+                        "statistic_id": row["statistic_id"],
+                        "state_class": row["state_class"],
+                        "has_mean": bool(row["has_mean"]),
+                        "has_sum": bool(row["has_sum"]),
+                        "unit_of_measurement": row["unit_of_measurement"]
+                    }
+                    for row in cursor
+                ]
         except Exception as e:
             logger.error(f"Error fetching eligible entities from SQLite: {e}")
             return []
@@ -124,86 +120,96 @@ class StatisticsAggregator:
             
             range_end = datetime.now(timezone.utc)
             
-            # Aggregate each entity
+            # Aggregate entities in batches to avoid N+1 query problem
             aggregated_points = []
             entities_processed = 0
-            
-            for entity in eligible_entities:
-                entity_id = entity["statistic_id"]
-                has_mean = entity["has_mean"]
-                has_sum = entity["has_sum"]
-                
+            BATCH_SIZE = 50
+
+            # Format time for Flux query
+            start_flux = range_start.strftime("%Y-%m-%dT%H:%M:%SZ")
+            end_flux = range_end.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            for batch_start in range(0, len(eligible_entities), BATCH_SIZE):
+                batch = eligible_entities[batch_start:batch_start + BATCH_SIZE]
+                entity_ids = [e["statistic_id"] for e in batch]
+                entity_map = {e["statistic_id"]: e for e in batch}
+
                 try:
-                    # Format time for Flux query
-                    start_flux = range_start.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    end_flux = range_end.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    
-                    # Query raw events for this entity in the time range
-                    # Aggregate with mean, min, max (where applicable)
+                    # Build batched entity filter
+                    entity_filter = " or ".join(
+                        f'r.entity_id == "{eid}"' for eid in entity_ids
+                    )
+
                     base_query = f'''
                     from(bucket: "{self.influxdb_bucket}")
                       |> range(start: time(v: "{start_flux}"), stop: time(v: "{end_flux}"))
                       |> filter(fn: (r) => r._measurement == "home_assistant_events")
-                      |> filter(fn: (r) => r.entity_id == "{entity_id}")
+                      |> filter(fn: (r) => {entity_filter})
                       |> filter(fn: (r) => r._field == "state_value")
                       |> filter(fn: (r) => exists r._value)
                       |> filter(fn: (r) => isNumeric(r._value))
                     '''
-                    
-                    # Execute query for mean
+
+                    # Execute batched queries for mean, min, max
                     mean_query = base_query + '|> aggregateWindow(every: 5m, fn: mean, createEmpty: false)'
                     result = self.query_api.query(mean_query)
-                    
-                    # Process mean results
-                    mean_values = {}
+
+                    # Process mean results keyed by (entity_id, time)
+                    mean_values: dict[tuple, dict] = {}
                     for table in result:
                         for record in table.records:
                             time_key = record.get_time()
                             value = record.get_value()
+                            eid = record.values.get("entity_id", "")
                             if value is not None and isinstance(value, (int, float)):
-                                mean_values[time_key] = {"mean": float(value)}
-                    
-                    # Query for min and max if has_mean
-                    if has_mean and mean_values:
+                                mean_values[(eid, time_key)] = {"mean": float(value)}
+
+                    # Query for min and max in batch
+                    if mean_values:
                         min_query = base_query + '|> aggregateWindow(every: 5m, fn: min, createEmpty: false)'
                         max_query = base_query + '|> aggregateWindow(every: 5m, fn: max, createEmpty: false)'
-                        
+
                         min_result = self.query_api.query(min_query)
                         max_result = self.query_api.query(max_query)
-                        
+
                         for table in min_result:
                             for record in table.records:
                                 time_key = record.get_time()
                                 value = record.get_value()
-                                if time_key in mean_values and value is not None and isinstance(value, (int, float)):
-                                    mean_values[time_key]["min"] = float(value)
-                        
+                                eid = record.values.get("entity_id", "")
+                                key = (eid, time_key)
+                                if key in mean_values and value is not None and isinstance(value, (int, float)):
+                                    mean_values[key]["min"] = float(value)
+
                         for table in max_result:
                             for record in table.records:
                                 time_key = record.get_time()
                                 value = record.get_value()
-                                if time_key in mean_values and value is not None and isinstance(value, (int, float)):
-                                    mean_values[time_key]["max"] = float(value)
-                    
+                                eid = record.values.get("entity_id", "")
+                                key = (eid, time_key)
+                                if key in mean_values and value is not None and isinstance(value, (int, float)):
+                                    mean_values[key]["max"] = float(value)
+
                     # Create aggregated points
-                    for time_key, values in mean_values.items():
+                    for (eid, time_key), values in mean_values.items():
+                        entity = entity_map.get(eid, {})
                         point = Point("statistics_short_term") \
-                            .tag("entity_id", entity_id) \
+                            .tag("entity_id", eid) \
                             .tag("state_class", entity.get("state_class", "")) \
                             .field("mean", values["mean"]) \
                             .time(time_key)
-                        
+
                         if "min" in values:
                             point = point.field("min", values["min"])
                         if "max" in values:
                             point = point.field("max", values["max"])
-                        
+
                         aggregated_points.append(point)
-                    
-                    entities_processed += 1
-                    
+
+                    entities_processed += len(batch)
+
                 except Exception as e:
-                    logger.error(f"Error aggregating entity {entity_id}: {e}")
+                    logger.error(f"Error aggregating entity batch: {e}")
                     self.errors += 1
                     continue
             
@@ -262,55 +268,63 @@ class StatisticsAggregator:
             
             range_end = datetime.now(timezone.utc)
             
-            # Aggregate each entity from short-term statistics
+            # Aggregate entities from short-term statistics in batches
             aggregated_points = []
             entities_processed = 0
-            
-            for entity in eligible_entities:
-                entity_id = entity["statistic_id"]
-                has_mean = entity["has_mean"]
-                has_sum = entity["has_sum"]
-                
+            BATCH_SIZE = 50
+
+            # Format time for Flux query
+            start_flux = range_start.strftime("%Y-%m-%dT%H:%M:%SZ")
+            end_flux = range_end.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            for batch_start in range(0, len(eligible_entities), BATCH_SIZE):
+                batch = eligible_entities[batch_start:batch_start + BATCH_SIZE]
+                entity_ids = [e["statistic_id"] for e in batch]
+                entity_map = {e["statistic_id"]: e for e in batch}
+
                 try:
-                    # Format time for Flux query
-                    start_flux = range_start.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    end_flux = range_end.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    
+                    # Build batched entity filter
+                    entity_filter = " or ".join(
+                        f'r.entity_id == "{eid}"' for eid in entity_ids
+                    )
+
                     # Query short-term statistics and aggregate to hourly
                     flux_query = f'''
                     from(bucket: "{self.influxdb_bucket}")
                       |> range(start: time(v: "{start_flux}"), stop: time(v: "{end_flux}"))
                       |> filter(fn: (r) => r._measurement == "statistics_short_term")
-                      |> filter(fn: (r) => r.entity_id == "{entity_id}")
+                      |> filter(fn: (r) => {entity_filter})
                       |> filter(fn: (r) => r._field == "mean")
                       |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
                     '''
-                    
+
                     # Execute query
                     result = self.query_api.query(flux_query)
-                    
+
                     # Process results and create aggregated points
                     for table in result:
                         for record in table.records:
-                            time = record.get_time()
+                            record_time = record.get_time()
                             value = record.get_value()
-                            
+                            eid = record.values.get("entity_id", "")
+
                             if value is None or not isinstance(value, (int, float)):
                                 continue
-                            
+
+                            entity = entity_map.get(eid, {})
                             # Create aggregated point
                             point = Point("statistics") \
-                                .tag("entity_id", entity_id) \
+                                .tag("entity_id", eid) \
                                 .tag("state_class", entity.get("state_class", "")) \
                                 .field("mean", float(value)) \
-                                .time(time)
-                            
+                                .time(record_time)
+
                             aggregated_points.append(point)
-                    
-                    entities_processed += 1
-                    
+
+                    entities_processed += len(batch)
+
                 except Exception as e:
-                    logger.error(f"Error aggregating entity {entity_id}: {e}")
+                    logger.error(f"Error aggregating entity batch: {e}")
                     self.errors += 1
                     continue
             

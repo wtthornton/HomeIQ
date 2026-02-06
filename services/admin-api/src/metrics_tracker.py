@@ -40,10 +40,48 @@ class ResponseTimeTracker:
             if len(self.measurements[service]) > self.max_measurements_per_service:
                 self.measurements[service] = self.measurements[service][-self.max_measurements_per_service:]
 
+    def _get_stats_unlocked(self, service: str) -> dict[str, Any]:
+        """
+        Get response time statistics for a service without acquiring the lock.
+        Must be called while the lock is already held.
+
+        Returns:
+            - min: Minimum response time
+            - max: Maximum response time
+            - avg: Average response time
+            - p50: 50th percentile (median)
+            - p95: 95th percentile
+            - p99: 99th percentile
+            - count: Number of measurements
+        """
+        if service not in self.measurements or not self.measurements[service]:
+            return {
+                'min': 0,
+                'max': 0,
+                'avg': 0,
+                'p50': 0,
+                'p95': 0,
+                'p99': 0,
+                'count': 0
+            }
+
+        durations = sorted([m['duration_ms'] for m in self.measurements[service]])
+        count = len(durations)
+
+        return {
+            'min': round(durations[0], 2),
+            'max': round(durations[-1], 2),
+            'avg': round(sum(durations) / count, 2),
+            'p50': round(self._percentile(durations, 50), 2),
+            'p95': round(self._percentile(durations, 95), 2),
+            'p99': round(self._percentile(durations, 99), 2),
+            'count': count
+        }
+
     async def get_stats(self, service: str) -> dict[str, Any]:
         """
         Get response time statistics for a service.
-        
+
         Returns:
             - min: Minimum response time
             - max: Maximum response time
@@ -54,36 +92,14 @@ class ResponseTimeTracker:
             - count: Number of measurements
         """
         async with self._lock:
-            if service not in self.measurements or not self.measurements[service]:
-                return {
-                    'min': 0,
-                    'max': 0,
-                    'avg': 0,
-                    'p50': 0,
-                    'p95': 0,
-                    'p99': 0,
-                    'count': 0
-                }
-
-            durations = sorted([m['duration_ms'] for m in self.measurements[service]])
-            count = len(durations)
-
-            return {
-                'min': round(durations[0], 2),
-                'max': round(durations[-1], 2),
-                'avg': round(sum(durations) / count, 2),
-                'p50': round(self._percentile(durations, 50), 2),
-                'p95': round(self._percentile(durations, 95), 2),
-                'p99': round(self._percentile(durations, 99), 2),
-                'count': count
-            }
+            return self._get_stats_unlocked(service)
 
     async def get_all_stats(self) -> dict[str, dict[str, Any]]:
         """Get stats for all tracked services"""
         async with self._lock:
             stats = {}
             for service in self.measurements.keys():
-                stats[service] = await self.get_stats(service)
+                stats[service] = self._get_stats_unlocked(service)
             return stats
 
     def _percentile(self, sorted_values: list, percentile: int) -> float:

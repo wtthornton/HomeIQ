@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import psutil
@@ -136,7 +136,7 @@ class StorageMonitor:
             backup_size = await self._get_backup_size()
 
             metrics = StorageMetrics(
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 total_size_bytes=disk_usage.total,
                 used_size_bytes=disk_usage.used,
                 available_size_bytes=disk_usage.free,
@@ -302,7 +302,7 @@ class StorageMonitor:
             message=message,
             threshold_percentage=threshold_percentage,
             current_percentage=current_percentage,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         self.active_alerts.append(alert)
@@ -358,7 +358,7 @@ class StorageMonitor:
         Returns:
             List of storage metrics
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         return [
             metrics for metrics in self.metrics_history
             if metrics.timestamp >= cutoff_time

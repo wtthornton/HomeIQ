@@ -14,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import APIKeyHeader
 
 from .api.database_management import router as database_management_router
 from .api.device_mappings_router import router as device_mappings_router
@@ -34,43 +35,43 @@ from .core.database import close_database, initialize_database
 from .core.predictive_analytics import PredictiveAnalyticsEngine
 from .scheduler.training_scheduler import TrainingScheduler
 
-# Configure logging
+# Load settings first so log level is available
+settings = Settings()
+
+# Configure logging (MED-13: configurable log level instead of hardcoded DEBUG)
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","service":"device-intelligence"}'
 )
 logger = logging.getLogger(__name__)
-
-# Load settings
-settings = Settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events."""
     analytics_engine: PredictiveAnalyticsEngine | None = None
     training_scheduler: TrainingScheduler | None = None
-    logger.info("🚀 Device Intelligence Service starting up...")
-    logger.info(f"📊 Service configuration loaded: Port {settings.DEVICE_INTELLIGENCE_PORT}")
+    logger.info("Device Intelligence Service starting up...")
+    logger.info("Service configuration loaded: Port %d", settings.DEVICE_INTELLIGENCE_PORT)
 
     try:
         settings.validate_required_runtime_fields()
         await initialize_database(settings)
-        logger.info("✅ Database initialized successfully")
+        logger.info("Database initialized successfully")
 
         analytics_engine = PredictiveAnalyticsEngine()
         await analytics_engine.initialize_models()
         app.state.analytics_engine = analytics_engine
-        logger.info("✅ Predictive analytics engine initialized")
+        logger.info("Predictive analytics engine initialized")
 
         # Start training scheduler (Epic 46.2: Built-in Nightly Training Scheduler)
         training_scheduler = TrainingScheduler(settings, analytics_engine)
         training_scheduler.start()
         app.state.training_scheduler = training_scheduler
-        logger.info("✅ Training scheduler initialized")
+        logger.info("Training scheduler initialized")
 
         yield
     finally:
-        logger.info("🛑 Device Intelligence Service shutting down...")
+        logger.info("Device Intelligence Service shutting down...")
         
         # Stop training scheduler
         if training_scheduler:
@@ -82,7 +83,7 @@ async def lifespan(app: FastAPI):
             await analytics_engine.shutdown()
 
         await close_database()
-        logger.info("✅ Resources closed gracefully")
+        logger.info("Resources closed gracefully")
 
 # Create FastAPI application
 app = FastAPI(
@@ -103,6 +104,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add API key authentication middleware (CRIT-3)
+@app.middleware("http")
+async def check_api_key(request: Request, call_next):
+    """Check API key for non-health endpoints."""
+    # Skip auth for health, docs, root, and openapi
+    skip_paths = ["/health", "/docs", "/redoc", "/openapi.json", "/"]
+    path = request.url.path
+    if any(path == p or path.startswith(p + "/") for p in skip_paths if p != "/") or path == "/":
+        return await call_next(request)
+
+    # Skip auth if no API_KEY is configured (backward compatibility)
+    if not settings.API_KEY:
+        return await call_next(request)
+
+    api_key = request.headers.get("X-API-Key")
+    if not api_key or api_key != settings.API_KEY:
+        return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
+
+    return await call_next(request)
+
+
 # Add request/response logging middleware
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next) -> Any:
@@ -110,7 +132,7 @@ async def add_process_time_header(request: Request, call_next) -> Any:
     start_time = time.perf_counter()
 
     # Log request
-    logger.info(f"📥 Request: {request.method} {request.url}")
+    logger.info("Request: %s %s", request.method, request.url)
 
     response = await call_next(request)
 
@@ -119,7 +141,7 @@ async def add_process_time_header(request: Request, call_next) -> Any:
     response.headers["X-Process-Time"] = str(process_time)
 
     # Log response
-    logger.info(f"📤 Response: {response.status_code} ({process_time:.3f}s)")
+    logger.info("Response: %d (%.3fs)", response.status_code, process_time)
 
     return response
 
@@ -127,7 +149,7 @@ async def add_process_time_header(request: Request, call_next) -> Any:
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle request validation errors."""
-    logger.error(f"❌ Validation error: {exc}")
+    logger.error("Validation error: %s", exc)
     return JSONResponse(
         status_code=422,
         content={
@@ -140,7 +162,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle general exceptions."""
-    logger.error(f"❌ Unhandled error: {exc}", exc_info=True)
+    logger.error("Unhandled error: %s", exc, exc_info=True)
     return JSONResponse(
         status_code=500,
         content={

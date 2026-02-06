@@ -6,14 +6,14 @@ Epic 32: Home Assistant Configuration Validation & Suggestions
 """
 import asyncio
 import logging
-import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import aiohttp
 from pydantic import BaseModel, Field
 
 from .config import get_settings
+from .http_client import get_http_session
 from .suggestion_engine import SuggestionEngine
 
 settings = get_settings()
@@ -35,7 +35,7 @@ class ValidationSummary(BaseModel):
     """Summary of validation results"""
     total_issues: int = 0
     by_category: dict[str, int] = Field(default_factory=dict)
-    scan_timestamp: datetime = Field(default_factory=datetime.now)
+    scan_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     ha_version: str | None = None
 
 
@@ -90,7 +90,7 @@ class ValidationService:
                 async with self._cache_lock:
                     if cache_key in self._cache:
                         cached_time, cached_result = self._cache[cache_key]
-                        if datetime.now() - cached_time < self._cache_ttl:
+                        if datetime.now(timezone.utc) - cached_time < self._cache_ttl:
                             logger.debug("Returning cached validation results")
                             return cached_result
                         else:
@@ -137,9 +137,9 @@ class ValidationService:
             # Cache result (only if no filters applied)
             if use_cache and not category and min_confidence == 0:
                 async with self._cache_lock:
-                    self._cache[cache_key] = (datetime.now(), result)
+                    self._cache[cache_key] = (datetime.now(timezone.utc), result)
                     # Clean up old cache entries
-                    now = datetime.now()
+                    now = datetime.now(timezone.utc)
                     expired_keys = [
                         k for k, (t, _) in self._cache.items()
                         if now - t >= self._cache_ttl
@@ -160,69 +160,69 @@ class ValidationService:
     
     async def _fetch_ha_data(self) -> tuple[list[dict], list[dict], str]:
         """Fetch entities and areas from Home Assistant"""
-        async with aiohttp.ClientSession() as session:
-            headers = {
-                "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
-            }
-            
-            # Fetch entities from entity registry
-            async with session.get(
-                f"{self.ha_url}/api/config/entity_registry/list",
-                headers=headers,
-                timeout=self.timeout
-            ) as response:
-                if response.status == 200:
-                    entities = await response.json()
-                else:
-                    logger.warning(f"Entity registry API returned {response.status}, using states API")
-                    # Fallback to states API
-                    async with session.get(
-                        f"{self.ha_url}/api/states",
-                        headers=headers,
-                        timeout=self.timeout
-                    ) as states_response:
-                        if states_response.status == 200:
-                            states = await states_response.json()
-                            entities = [
-                                {
-                                    "entity_id": s.get("entity_id"),
-                                    "name": s.get("attributes", {}).get("friendly_name"),
-                                    "area_id": s.get("attributes", {}).get("area_id"),
-                                    "device_id": s.get("attributes", {}).get("device_id")
-                                }
-                                for s in states
-                            ]
-                        else:
-                            raise Exception(f"Failed to fetch entities: {states_response.status}")
-            
-            # Fetch areas
-            async with session.get(
-                f"{self.ha_url}/api/config/area_registry/list",
-                headers=headers,
-                timeout=self.timeout
-            ) as response:
-                if response.status == 200:
-                    areas = await response.json()
-                else:
-                    logger.warning(f"Area registry API returned {response.status}")
-                    areas = []
-            
-            # Get HA version
-            ha_version = None
-            try:
+        session = await get_http_session()
+        headers = {
+            "Authorization": f"Bearer {self.ha_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Fetch entities from entity registry
+        async with session.get(
+            f"{self.ha_url}/api/config/entity_registry/list",
+            headers=headers,
+            timeout=self.timeout
+        ) as response:
+            if response.status == 200:
+                entities = await response.json()
+            else:
+                logger.warning(f"Entity registry API returned {response.status}, using states API")
+                # Fallback to states API
                 async with session.get(
-                    f"{self.ha_url}/api/config",
+                    f"{self.ha_url}/api/states",
                     headers=headers,
                     timeout=self.timeout
-                ) as config_response:
-                    if config_response.status == 200:
-                        config = await config_response.json()
-                        ha_version = config.get("version")
-            except Exception as e:
-                logger.warning(f"Could not fetch HA version: {e}")
-            
-            return entities, areas, ha_version
+                ) as states_response:
+                    if states_response.status == 200:
+                        states = await states_response.json()
+                        entities = [
+                            {
+                                "entity_id": s.get("entity_id"),
+                                "name": s.get("attributes", {}).get("friendly_name"),
+                                "area_id": s.get("attributes", {}).get("area_id"),
+                                "device_id": s.get("attributes", {}).get("device_id")
+                            }
+                            for s in states
+                        ]
+                    else:
+                        raise Exception(f"Failed to fetch entities: {states_response.status}")
+
+        # Fetch areas
+        async with session.get(
+            f"{self.ha_url}/api/config/area_registry/list",
+            headers=headers,
+            timeout=self.timeout
+        ) as response:
+            if response.status == 200:
+                areas = await response.json()
+            else:
+                logger.warning(f"Area registry API returned {response.status}")
+                areas = []
+
+        # Get HA version
+        ha_version = None
+        try:
+            async with session.get(
+                f"{self.ha_url}/api/config",
+                headers=headers,
+                timeout=self.timeout
+            ) as config_response:
+                if config_response.status == 200:
+                    config = await config_response.json()
+                    ha_version = config.get("version")
+        except Exception as e:
+            logger.warning(f"Could not fetch HA version: {e}")
+
+        return entities, areas, ha_version
     
     async def _detect_issues(
         self,
@@ -303,7 +303,7 @@ class ValidationService:
         return ValidationSummary(
             total_issues=len(issues),
             by_category=by_category,
-            scan_timestamp=datetime.now(),
+            scan_timestamp=datetime.now(timezone.utc),
             ha_version=ha_version
         )
     
@@ -323,14 +323,14 @@ class ValidationService:
             Success response with details
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
-                }
-                
-                # Update entity registry
-                async with session.post(
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json"
+            }
+
+            # Update entity registry
+            async with session.post(
                     f"{self.ha_url}/api/config/entity_registry/update/{entity_id}",
                     headers=headers,
                     json={"area_id": area_id},
@@ -343,7 +343,7 @@ class ValidationService:
                             "success": True,
                             "entity_id": entity_id,
                             "area_id": area_id,
-                            "applied_at": datetime.now().isoformat(),
+                            "applied_at": datetime.now(timezone.utc).isoformat(),
                             "result": result
                         }
                     else:

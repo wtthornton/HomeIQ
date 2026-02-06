@@ -8,10 +8,19 @@ For InfluxDB 2.7, these operations are disabled to prevent SSL errors.
 
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+VALID_IDENTIFIER = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+ALLOWED_VIEW_NAMES = {
+    "mv_daily_energy_by_device",
+    "mv_hourly_room_activity",
+    "mv_daily_carbon_summary",
+}
 
 # Try to import InfluxDB 3.0 client, but don't fail if not available
 try:
@@ -187,11 +196,7 @@ class MaterializedViewManager:
 
     async def refresh_all_views(self):
         """Refresh all materialized views"""
-        
-        if not self.enabled:
-            logger.debug("Materialized views disabled - skipping refresh")
-            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
-        
+
         if not self.enabled:
             logger.debug("Materialized views disabled - skipping refresh")
             return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
@@ -225,20 +230,35 @@ class MaterializedViewManager:
 
     async def query_view(self, view_name: str, filters: dict[str, Any] = None) -> list[dict]:
         """Query materialized view (fast)"""
-        
+
         if not self.enabled:
             logger.debug("Materialized views disabled - cannot query view")
             return []
+
+        # Validate view_name is a safe identifier
+        if not VALID_IDENTIFIER.match(view_name):
+            raise ValueError(f"Invalid view name: {view_name}")
+
+        # Whitelist allowed view names
+        if view_name not in ALLOWED_VIEW_NAMES:
+            raise ValueError(f"Unknown view: {view_name}")
 
         query = f"SELECT * FROM {view_name}"
 
         if filters:
             conditions = []
             for key, value in filters.items():
+                # Validate key is a safe identifier
+                if not VALID_IDENTIFIER.match(key):
+                    raise ValueError(f"Invalid filter key: {key}")
+                # Validate and escape filter values
                 if isinstance(value, str):
-                    conditions.append(f"{key} = '{value}'")
-                else:
+                    safe_value = value.replace("'", "''")
+                    conditions.append(f"{key} = '{safe_value}'")
+                elif isinstance(value, (int, float)):
                     conditions.append(f"{key} = {value}")
+                else:
+                    raise ValueError(f"Unsupported filter value type: {type(value)}")
 
             if conditions:
                 query += f" WHERE {' AND '.join(conditions)}"

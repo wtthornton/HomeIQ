@@ -5,6 +5,7 @@ Story 22.2: Updated to use SQLite storage
 """
 
 import logging
+import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -41,6 +42,20 @@ from .services.entity_enrichment import get_entity_enrichment_service
 logger = logging.getLogger(__name__)
 
 
+# HIGH-01: Module-level shared InfluxDB client to avoid creating one per request
+_shared_influxdb_client = None
+
+
+def _get_shared_influxdb_client():
+    """Get or create a shared InfluxDB client instance."""
+    global _shared_influxdb_client
+    if _shared_influxdb_client is None:
+        from influxdb_client import InfluxDBClient
+        influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
+        influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
+        _shared_influxdb_client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+    return _shared_influxdb_client
 
 
 # Response Models
@@ -489,18 +504,11 @@ async def get_device_reliability(
     - Coverage percentage (% of events with device metadata)
     - Top manufacturers/models by event volume
     """
-    client = None
     try:
-        from influxdb_client import InfluxDBClient
-
-        # Get InfluxDB configuration
-        influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-        influxdb_token = os.getenv("INFLUXDB_TOKEN")
-        influxdb_org = os.getenv("INFLUXDB_ORG", "homeassistant")
         influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
-        # Create client
-        client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+        # Use shared InfluxDB client (HIGH-01 fix)
+        client = _get_shared_influxdb_client()
         query_api = client.query_api()
 
         # Build query based on group_by parameter (sanitized)
@@ -583,12 +591,7 @@ async def get_device_reliability(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get device reliability metrics: {str(e)}"
         ) from e
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/api/entities", response_model=EntitiesListResponse)
@@ -950,16 +953,10 @@ async def get_integration_performance(
     Returns event rate, error rate, response time, and discovery status
     """
     try:
-        from influxdb_client import InfluxDBClient
-
-        # Get InfluxDB configuration
-        influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-        influxdb_token = os.getenv("INFLUXDB_TOKEN")
-        influxdb_org = os.getenv("INFLUXDB_ORG", "homeassistant")
         influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
-        # Create client
-        client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+        # Use shared InfluxDB client (HIGH-01 fix)
+        client = _get_shared_influxdb_client()
         query_api = client.query_api()
 
         # Calculate events per minute
@@ -1075,12 +1072,7 @@ async def get_integration_performance(
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
-    finally:
-        if client:
-            try:
-                client.close()
-            except Exception as close_err:
-                logger.warning(f"Failed to close InfluxDB client: {close_err}")
+    # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/api/integrations/{platform}/analytics")

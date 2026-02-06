@@ -6,10 +6,13 @@ Provides validation functions for API endpoints and bucket names.
 """
 
 import ipaddress
+import logging
 import re
 from typing import Optional
 
 from aiohttp import web
+
+logger = logging.getLogger(__name__)
 
 
 def validate_bucket_name(bucket: str) -> str:
@@ -58,21 +61,32 @@ def validate_internal_request(request: web.Request, allowed_networks: Optional[l
         False otherwise.
     """
     # Default to common internal network ranges if not specified
-    default_networks = ['127.0.0.1/32', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
-    
+    default_networks = [
+        '127.0.0.1/32', '::1/128',
+        '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16',
+        'fe80::/10'  # Link-local
+    ]
+
     if allowed_networks is None:
         allowed_networks = default_networks
     else:
         # Combine custom networks with defaults
         allowed_networks = list(set(allowed_networks + default_networks))
-    
+
     peername = request.remote
     if not peername:
         return False
-    
-    # Extract IP from "IP:PORT" format if present
-    if ':' in peername:
+
+    # Extract IP from address, handling IPv6 properly
+    if peername.startswith('['):
+        # IPv6 with port: [::1]:54321
+        bracket_end = peername.find(']')
+        if bracket_end != -1:
+            peername = peername[1:bracket_end]
+    elif peername.count(':') == 1:
+        # IPv4 with port: 192.168.1.1:54321
         peername = peername.split(':')[0]
+    # else: bare IPv6 address (no port) or bare IPv4 - use as-is
     
     try:
         request_ip = ipaddress.ip_address(peername)

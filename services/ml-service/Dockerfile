@@ -1,6 +1,6 @@
 # Multi-stage build for ML Service
 # Phase 1: Containerized AI Models
-# Libraries: scikit-learn, pandas, numpy
+# Libraries: scikit-learn, numpy, scipy
 # Optimized: Multi-stage build with non-root user (slim base for ML libraries)
 
 FROM python:3.12-slim AS builder
@@ -44,8 +44,8 @@ COPY shared/ ./shared/
 # Set ownership
 RUN chown -R appuser:appgroup /app /home/appuser/.local
 
-# Set environment variables
-ENV PYTHONPATH=/app:/app/src
+# Set environment variables (only /app to avoid ambiguous imports)
+ENV PYTHONPATH=/app
 ENV PATH=/home/appuser/.local/bin:$PATH
 
 # Switch to non-root user

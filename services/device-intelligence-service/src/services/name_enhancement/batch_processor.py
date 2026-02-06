@@ -6,7 +6,7 @@ Batch process name enhancements using APScheduler (resource-efficient).
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -49,9 +49,9 @@ class NameEnhancementBatchProcessor:
             )
             self.scheduler.start()
             self.is_running = True
-            logger.info(f"✅ Name enhancement batch processor started (schedule: {schedule})")
+            logger.info(f"Name enhancement batch processor started (schedule: {schedule})")
         except Exception as e:
-            logger.error(f"❌ Failed to start batch processor: {e}")
+            logger.error(f"Failed to start batch processor: {e}")
             raise
 
     def stop(self):
@@ -59,7 +59,7 @@ class NameEnhancementBatchProcessor:
         if self.scheduler.running:
             self.scheduler.shutdown()
         self.is_running = False
-        logger.info("🛑 Name enhancement batch processor stopped")
+        logger.info("Name enhancement batch processor stopped")
 
     async def process_pending_devices(
         self,
@@ -82,17 +82,17 @@ class NameEnhancementBatchProcessor:
         - Memory: <100MB peak
         """
         try:
-            logger.info("🔄 Starting name enhancement batch processing")
+            logger.info("Starting name enhancement batch processing")
 
             async for session in get_db_session():
                 # Find devices that need enhancement
                 devices_to_process = await self._find_devices_needing_enhancement(session)
                 
                 if not devices_to_process:
-                    logger.info("✅ No devices need name enhancement")
+                    logger.info("No devices need name enhancement")
                     return
 
-                logger.info(f"📋 Found {len(devices_to_process)} devices needing name enhancement")
+                logger.info(f"Found {len(devices_to_process)} devices needing name enhancement")
 
                 # Process in batches
                 total_processed = 0
@@ -100,7 +100,7 @@ class NameEnhancementBatchProcessor:
 
                 for i in range(0, len(devices_to_process), self.batch_size):
                     batch = devices_to_process[i:i + self.batch_size]
-                    logger.info(f"🔄 Processing batch {i // self.batch_size + 1} ({len(batch)} devices)")
+                    logger.info(f"Processing batch {i // self.batch_size + 1} ({len(batch)} devices)")
 
                     suggestions = await self.process_batch(
                         batch,
@@ -116,13 +116,13 @@ class NameEnhancementBatchProcessor:
                     await asyncio.sleep(1)
 
                 logger.info(
-                    f"✅ Batch processing complete: {total_processed} devices processed, "
+                    f" Batch processing complete: {total_processed} devices processed, "
                     f"{total_suggestions} suggestions generated"
                 )
                 break  # Only need one session
 
         except Exception as e:
-            logger.error(f"❌ Error in batch processing: {e}", exc_info=True)
+            logger.error(f"Error in batch processing: {e}", exc_info=True)
 
     async def _find_devices_needing_enhancement(
         self,
@@ -216,12 +216,12 @@ class NameEnhancementBatchProcessor:
                 if auto_accept and suggestion.confidence >= 0.9:
                     device.name_by_user = suggestion.name
                     name_suggestion.status = "accepted"
-                    name_suggestion.reviewed_at = datetime.utcnow()
-                    logger.info(f"✅ Auto-accepted high-confidence suggestion: {suggestion.name}")
+                    name_suggestion.reviewed_at = datetime.now(timezone.utc)
+                    logger.info(f"Auto-accepted high-confidence suggestion: {suggestion.name}")
 
         if suggestions_created:
             await session.commit()
-            logger.info(f"✅ Stored {len(suggestions_created)} name suggestions")
+            logger.info(f"Stored {len(suggestions_created)} name suggestions")
 
         return suggestions_created
 

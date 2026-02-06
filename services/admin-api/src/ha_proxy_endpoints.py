@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any
 
 import httpx
@@ -8,6 +9,16 @@ router = APIRouter(prefix="/api/v1/ha-proxy", tags=["Home Assistant Proxy"])
 
 HA_URL = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
 HA_TOKEN = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
+
+
+def _validate_entity_id(entity_id: str) -> str:
+    """Validate entity_id matches expected format to prevent SSRF."""
+    # Normalize __ to . for HA format
+    normalized = entity_id if "." in entity_id else entity_id.replace("__", ".")
+    # Validate format: domain.name (only alphanumeric, underscores, dots)
+    if not re.match(r'^[a-z_]+\.[a-z0-9_]+$', normalized):
+        raise HTTPException(status_code=400, detail=f"Invalid entity_id format: {entity_id}")
+    return normalized
 
 
 async def _fetch_from_home_assistant(path: str) -> Any:
@@ -76,7 +87,7 @@ async def list_states(
     summary="Fetch a specific Home Assistant entity state",
 )
 async def get_state(entity_id: str) -> Any:
-    normalized = entity_id if "." in entity_id else entity_id.replace("__", ".")
+    normalized = _validate_entity_id(entity_id)
     try:
         return await _fetch_from_home_assistant(f"/api/states/{normalized}")
     except HTTPException as exc:

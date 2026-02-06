@@ -1,14 +1,15 @@
 """Backup and restore capabilities for data retention service."""
 
 import asyncio
+import collections
 import json
 import logging
 import os
 import shutil
 import tarfile
 import tempfile
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,20 @@ class BackupInfo:
             "error_message": self.error_message
         }
 
+ALLOWED_CONFIG_FILES = {"config.yaml", ".env", "influxdb.conf"}
+
+
+def _safe_extract(tar: tarfile.TarFile, path: str | Path) -> None:
+    """Safely extract tar archive, preventing path traversal (Zip Slip)."""
+    abs_target = os.path.realpath(str(path))
+    for member in tar.getmembers():
+        member_path = os.path.join(path, member.name)
+        abs_path = os.path.realpath(member_path)
+        if not abs_path.startswith(abs_target + os.sep) and abs_path != abs_target:
+            raise ValueError(f"Path traversal detected in archive: {member.name}")
+    tar.extractall(path, filter='data')
+
+
 class BackupRestoreService:
     """Service for backup and restore operations."""
 
@@ -55,7 +70,7 @@ class BackupRestoreService:
         self.backup_dir = Path(backup_dir)
         self.backup_dir.mkdir(parents=True, exist_ok=True)
 
-        self.backup_history: list[BackupInfo] = []
+        self.backup_history: collections.deque[BackupInfo] = collections.deque(maxlen=1000)
         self.is_running = False
         self.backup_task: asyncio.Task | None = None
 
@@ -102,7 +117,7 @@ class BackupRestoreService:
         Returns:
             BackupInfo: Information about the created backup
         """
-        backup_id = f"{backup_type}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        backup_id = f"{backup_type}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         backup_file = self.backup_dir / f"{backup_id}.tar.gz"
 
         try:
@@ -115,7 +130,7 @@ class BackupRestoreService:
                 # Collect backup contents
                 metadata = {
                     "backup_type": backup_type,
-                    "created_at": datetime.utcnow().isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                     "include_data": include_data,
                     "include_config": include_config,
                     "include_logs": include_logs
@@ -148,7 +163,7 @@ class BackupRestoreService:
             backup_info = BackupInfo(
                 backup_id=backup_id,
                 backup_type=backup_type,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 size_bytes=backup_size,
                 file_path=str(backup_file),
                 metadata=metadata,
@@ -166,7 +181,7 @@ class BackupRestoreService:
             backup_info = BackupInfo(
                 backup_id=backup_id,
                 backup_type=backup_type,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 size_bytes=0,
                 file_path=str(backup_file),
                 metadata={},
@@ -332,7 +347,7 @@ class BackupRestoreService:
                 temp_path = Path(temp_dir)
 
                 with tarfile.open(backup_file, "r:gz") as tar:
-                    tar.extractall(temp_path)
+                    _safe_extract(tar, temp_path)
 
                 # Read backup metadata
                 metadata_file = temp_path / "backup_metadata.json"
@@ -421,10 +436,17 @@ class BackupRestoreService:
             return
 
         try:
-            # Restore configuration files
+            # Restore configuration files (whitelist only)
             for config_file in config_dir.iterdir():
                 if config_file.is_file():
-                    dest_path = f"/app/{config_file.name}"
+                    if config_file.name not in ALLOWED_CONFIG_FILES:
+                        logger.warning(f"Skipping unrecognized config file: {config_file.name}")
+                        continue
+                    dest_path = Path("/app") / config_file.name
+                    # Verify path doesn't escape target directory
+                    if not dest_path.resolve().is_relative_to(Path("/app").resolve()):
+                        logger.warning(f"Skipping suspicious config file: {config_file.name}")
+                        continue
                     shutil.copy2(config_file, dest_path)
                     logger.info(f"Restored config file: {config_file.name}")
 
@@ -499,7 +521,7 @@ class BackupRestoreService:
         Returns:
             List of backup information
         """
-        return self.backup_history[-limit:] if self.backup_history else []
+        return list(self.backup_history)[-limit:] if self.backup_history else []
 
     def get_backup_statistics(self) -> dict[str, Any]:
         """
@@ -544,7 +566,7 @@ class BackupRestoreService:
         Returns:
             Number of backup files deleted
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
         deleted_count = 0
 
         try:

@@ -7,7 +7,7 @@ Lightweight preference learning from user customizations (no heavy ML).
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -57,7 +57,7 @@ class PreferenceLearner:
                     logger.warning(f"Failed to parse pattern data: {e}")
 
             self._patterns_loaded = True
-            logger.info(f"✅ Loaded {len(preferences)} preference patterns")
+            logger.info(f"Loaded {len(preferences)} preference patterns")
         except Exception as e:
             logger.warning(f"Failed to load preference patterns: {e}")
             self._patterns_loaded = True  # Mark as loaded to avoid retry loops
@@ -296,7 +296,7 @@ class PreferenceLearner:
                 # Update existing pattern
                 matching.learned_from_count += 1
                 matching.confidence = min(1.0, matching.confidence + 0.1)
-                matching.last_updated = datetime.utcnow()
+                matching.last_updated = datetime.now(timezone.utc)
             else:
                 # Create new pattern
                 new_pattern = NamePreference(

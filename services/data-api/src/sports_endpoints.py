@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.influxdb_query_client import InfluxDBQueryClient
 from .database import get_db
+from .flux_utils import sanitize_flux_value
 from .models.team_preferences import TeamPreferences
 from .sports_influxdb_writer import get_sports_writer
 
@@ -144,18 +145,19 @@ async def get_live_games(
         '''
         
         if league:
+            safe_league = sanitize_flux_value(league.upper())
             query = f'''
                 from(bucket: "home_assistant_events")
                     |> range(start: -5m)
                     |> filter(fn: (r) => r._measurement == "sports_data")
-                    |> filter(fn: (r) => r.league == "{league.upper()}")
+                    |> filter(fn: (r) => r.league == "{safe_league}")
                     |> filter(fn: (r) => r.state == "IN")
                     |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                     |> sort(columns: ["_time"], desc: true)
             '''
-        
+
         results = await influxdb_client._execute_query(query)
-        
+
         games = []
         seen_entities = set()  # Deduplicate by entity_id
         for record in results:
@@ -163,7 +165,7 @@ async def get_live_games(
             if entity_id in seen_entities:
                 continue
             seen_entities.add(entity_id)
-            
+
             # Filter by team_ids if provided
             if team_ids:
                 team_list = [t.strip().lower() for t in team_ids.split(",")]
@@ -274,11 +276,12 @@ async def get_upcoming_games(
         '''
         
         if league:
+            safe_league = sanitize_flux_value(league.upper())
             query = f'''
                 from(bucket: "home_assistant_events")
                     |> range(start: -5m)
                     |> filter(fn: (r) => r._measurement == "sports_data")
-                    |> filter(fn: (r) => r.league == "{league.upper()}")
+                    |> filter(fn: (r) => r.league == "{safe_league}")
                     |> filter(fn: (r) => r.state == "PRE")
                     |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                     |> sort(columns: ["_time"], desc: true)
@@ -445,22 +448,26 @@ async def get_game_history(
         # Determine measurement based on league
         measurements = []
         if league:
-            measurements.append(f"{league.lower()}_scores")
+            safe_league = sanitize_flux_value(league.lower())
+            measurements.append(f"{safe_league}_scores")
         else:
             measurements.extend(["nfl_scores", "nhl_scores"])
 
         all_games = []
+        safe_team = sanitize_flux_value(team)
 
         for measurement in measurements:
+            safe_measurement = sanitize_flux_value(measurement)
             query = f'''
                 from(bucket: "sports_data")
                     |> range(start: {season}-01-01T00:00:00Z, stop: {season+1}-01-01T00:00:00Z)
-                    |> filter(fn: (r) => r._measurement == "{measurement}")
-                    |> filter(fn: (r) => r.home_team == "{team}" or r.away_team == "{team}")
+                    |> filter(fn: (r) => r._measurement == "{safe_measurement}")
+                    |> filter(fn: (r) => r.home_team == "{safe_team}" or r.away_team == "{safe_team}")
             '''
 
             if status_filter:
-                query += f'|> filter(fn: (r) => r.status == "{status_filter}")'
+                safe_status = sanitize_flux_value(status_filter)
+                query += f'|> filter(fn: (r) => r.status == "{safe_status}")'
 
             query += '|> sort(columns: ["_time"], desc: true)'
             query += f'|> limit(n: {limit})'
@@ -523,16 +530,20 @@ async def get_game_timeline(
     try:
         measurements = []
         if league:
-            measurements.append(f"{league.lower()}_scores")
+            safe_league = sanitize_flux_value(league.lower())
+            measurements.append(f"{safe_league}_scores")
         else:
             measurements.extend(["nfl_scores", "nhl_scores"])
 
+        safe_game_id = sanitize_flux_value(game_id)
+
         for measurement in measurements:
+            safe_measurement = sanitize_flux_value(measurement)
             query = f'''
                 from(bucket: "sports_data")
                     |> range(start: -7d)
-                    |> filter(fn: (r) => r._measurement == "{measurement}")
-                    |> filter(fn: (r) => r.game_id == "{game_id}")
+                    |> filter(fn: (r) => r._measurement == "{safe_measurement}")
+                    |> filter(fn: (r) => r.game_id == "{safe_game_id}")
                     |> sort(columns: ["_time"])
             '''
 

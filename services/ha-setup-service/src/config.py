@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     enable_performance_monitoring: bool = True
     performance_sample_interval: int = 30
 
+    # CORS configuration
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:3001"]
+
     class Config:
         env_file = ".env"
         case_sensitive = False

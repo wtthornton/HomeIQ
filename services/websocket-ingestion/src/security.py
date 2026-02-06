@@ -12,9 +12,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-# Import logger from main module when available
-# This avoids circular imports - logger will be set after main module loads
-logger = None  # Will be set by main module if needed
+logger = logging.getLogger(__name__)
 
 # Constants
 MAX_MESSAGE_SIZE = 64 * 1024  # 64KB

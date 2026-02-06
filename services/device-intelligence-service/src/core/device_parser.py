@@ -76,12 +76,12 @@ class DeviceParser:
     def update_areas(self, areas: list[HAArea]):
         """Update area registry for device normalization."""
         self.areas = {area.area_id: area for area in areas}
-        logger.info(f"📋 Updated area registry with {len(self.areas)} areas")
+        logger.info(f"Updated area registry with {len(self.areas)} areas")
 
     def update_config_entries(self, config_entries: dict[str, str]):
         """Update config entries mapping for integration resolution."""
         self.config_entries = config_entries
-        logger.info(f"🔧 Updated config entries mapping with {len(self.config_entries)} entries")
+        logger.info(f"Updated config entries mapping with {len(self.config_entries)} entries")
 
     def parse_devices(
         self,
@@ -90,7 +90,7 @@ class DeviceParser:
         zigbee_devices: dict[str, ZigbeeDevice]
     ) -> list[UnifiedDevice]:
         """Parse and normalize devices from multiple sources."""
-        logger.info(f"🔄 Parsing {len(ha_devices)} HA devices, {len(ha_entities)} entities, {len(zigbee_devices)} Zigbee devices")
+        logger.info(f"Parsing {len(ha_devices)} HA devices, {len(ha_entities)} entities, {len(zigbee_devices)} Zigbee devices")
 
         unified_devices = []
 
@@ -102,7 +102,7 @@ class DeviceParser:
                     unified_devices.append(unified_device)
                     self.devices[unified_device.id] = unified_device
             except Exception as e:
-                logger.error(f"❌ Error parsing HA device {ha_device.id}: {e}")
+                logger.error(f"Error parsing HA device {ha_device.id}: {e}")
 
         # Process standalone Zigbee devices (not in HA)
         for zigbee_device in zigbee_devices.values():
@@ -113,9 +113,9 @@ class DeviceParser:
                         unified_devices.append(unified_device)
                         self.devices[unified_device.id] = unified_device
                 except Exception as e:
-                    logger.error(f"❌ Error parsing standalone Zigbee device {zigbee_device.ieee_address}: {e}")
+                    logger.error(f"Error parsing standalone Zigbee device {zigbee_device.ieee_address}: {e}")
 
-        logger.info(f"✅ Parsed {len(unified_devices)} unified devices")
+        logger.info(f"Parsed {len(unified_devices)} unified devices")
         return unified_devices
 
     def _parse_ha_device(

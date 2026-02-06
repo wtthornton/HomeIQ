@@ -55,6 +55,10 @@ export const useAlerts = ({
       try {
         const alertsResponse = await fetch(`/api/v1/alerts?${params.toString()}`, {
           signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
+          },
         });
         clearTimeout(timeoutId);
         
@@ -66,7 +70,12 @@ export const useAlerts = ({
         setAlerts(alertsData);
         
         // Fetch summary
-        const summaryResponse = await fetch('/api/v1/alerts/summary');
+        const summaryResponse = await fetch('/api/v1/alerts/summary', {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
+          },
+        });
         if (summaryResponse.ok) {
           const summaryData: AlertSummary = await summaryResponse.json();
           setSummary(summaryData);
@@ -97,6 +106,7 @@ export const useAlerts = ({
         method: 'POST',
         headers: withCsrfHeader({
           'Content-Type': 'application/json',
+          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
         }),
       });
 
@@ -129,6 +139,7 @@ export const useAlerts = ({
         method: 'POST',
         headers: withCsrfHeader({
           'Content-Type': 'application/json',
+          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
         }),
       });
 

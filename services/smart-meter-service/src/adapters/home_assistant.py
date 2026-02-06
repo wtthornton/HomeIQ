@@ -4,7 +4,8 @@ Pulls energy data from HA's existing energy sensors
 """
 
 import logging
-from datetime import datetime
+import math
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
@@ -31,7 +32,14 @@ class HomeAssistantAdapter(MeterAdapter):
             "Authorization": f"Bearer {ha_token}",
             "Content-Type": "application/json"
         }
+        self._discovered_circuits: list[str] | None = None
+        self._last_discovery: datetime | None = None
+        self._discovery_interval = 3600  # Re-discover every hour
+
         logger.info(f"Home Assistant adapter initialized for {ha_url}")
+
+    def __repr__(self):
+        return f"HomeAssistantAdapter(url={self.ha_url})"
 
     async def fetch_consumption(
         self,
@@ -77,7 +85,7 @@ class HomeAssistantAdapter(MeterAdapter):
                 'total_power_w': float(total_power),
                 'daily_kwh': float(daily_kwh),
                 'circuits': circuits,
-                'timestamp': datetime.now()
+                'timestamp': datetime.now(timezone.utc)
             }
 
         except Exception as e:
@@ -138,7 +146,7 @@ class HomeAssistantAdapter(MeterAdapter):
         self,
         session: aiohttp.ClientSession,
         entity_id: str
-    ) -> str:
+    ) -> str | None:
         """
         Get state of a single HA sensor
         
@@ -176,43 +184,37 @@ class HomeAssistantAdapter(MeterAdapter):
             logger.error(f"Unexpected error fetching {entity_id}: {e}")
             return None
 
-    async def _get_circuit_data(
-        self,
-        session: aiohttp.ClientSession
-    ) -> list[dict[str, Any]]:
-        """
-        Get all power circuit sensors from HA
-        
-        Searches for sensors with:
-        - entity_id starting with 'sensor.power_'
-        - device_class = 'power'
-        - unit_of_measurement = 'W' or 'kW'
-        
-        Returns:
-            List of circuits with name, entity_id, power_w
-        """
+    @staticmethod
+    def _validate_power_reading(value: float, entity_id: str) -> float | None:
+        """Validate a power reading, returning None if invalid"""
+        if math.isnan(value) or math.isinf(value):
+            logger.warning(f"Invalid power reading from {entity_id}: {value}")
+            return None
+        if value < 0:
+            logger.warning(f"Negative power reading from {entity_id}: {value}W")
+            return None
+        if value > 100000:  # 100kW sanity check for residential
+            logger.warning(f"Unreasonably high power from {entity_id}: {value}W")
+            return None
+        return value
+
+    async def _discover_circuits(self, session: aiohttp.ClientSession) -> None:
+        """Discover circuit power sensors from HA and cache entity IDs"""
         url = f"{self.ha_url}/api/states"
-        circuits = []
 
         try:
             async with session.get(url, headers=self.headers) as response:
                 if response.status != 200:
-                    logger.error(f"Failed to fetch states: HTTP {response.status}")
-                    return []
+                    logger.error(f"Failed to fetch states for discovery: HTTP {response.status}")
+                    return
 
                 states = await response.json()
+                discovered = []
 
-                # Filter for power sensors
                 for state in states:
                     entity_id = state.get('entity_id', '')
                     attributes = state.get('attributes', {})
-                    state_value = state.get('state', '0')
 
-                    # Skip unavailable sensors
-                    if state_value in ('unavailable', 'unknown', 'none', None):
-                        continue
-
-                    # Check if it's a power sensor
                     device_class = attributes.get('device_class', '')
                     unit = attributes.get('unit_of_measurement', '')
 
@@ -222,52 +224,84 @@ class HomeAssistantAdapter(MeterAdapter):
                         unit in ('W', 'kW')
                     )
 
-                    # Exclude the total power sensor
                     is_total = any(x in entity_id.lower() for x in ['total', 'home', 'consumption'])
 
                     if is_power_sensor and not is_total:
-                        try:
-                            power_w = float(state_value)
+                        discovered.append(entity_id)
 
-                            # Convert kW to W if needed
-                            if unit == 'kW':
-                                power_w *= 1000
-
-                            circuits.append({
-                                'name': attributes.get('friendly_name', entity_id),
-                                'entity_id': entity_id,
-                                'power_w': power_w
-                            })
-                        except (ValueError, TypeError):
-                            # Skip sensors with non-numeric states
-                            continue
-
-                logger.info(f"Found {len(circuits)} circuit power sensors")
-                return circuits
+                self._discovered_circuits = discovered
+                self._last_discovery = datetime.now(timezone.utc)
+                logger.info(f"Discovered {len(discovered)} circuit power sensors")
 
         except Exception as e:
-            logger.error(f"Error fetching circuit data: {e}")
-            return []
+            logger.error(f"Error during circuit discovery: {e}")
 
-    async def test_connection(self) -> bool:
+    async def _get_circuit_data(
+        self,
+        session: aiohttp.ClientSession
+    ) -> list[dict[str, Any]]:
         """
-        Test connection to Home Assistant
-        
+        Get all power circuit sensors from HA
+
+        Uses cached circuit discovery (refreshed every hour) and validates
+        power readings before including them.
+
+        Returns:
+            List of circuits with name, entity_id, power_w
+        """
+        # Re-discover circuits periodically
+        if (self._discovered_circuits is None or
+                self._last_discovery is None or
+                (datetime.now(timezone.utc) - self._last_discovery).total_seconds() > self._discovery_interval):
+            await self._discover_circuits(session)
+
+        circuits = []
+
+        for entity_id in (self._discovered_circuits or []):
+            state_str = await self._get_sensor_state(session, entity_id)
+            if state_str is None:
+                continue
+
+            try:
+                power_w = float(state_str)
+            except (ValueError, TypeError):
+                continue
+
+            # Validate the reading
+            power_w = self._validate_power_reading(power_w, entity_id)
+            if power_w is None:
+                continue
+
+            circuits.append({
+                'name': entity_id,
+                'entity_id': entity_id,
+                'power_w': power_w
+            })
+
+        logger.info(f"Found {len(circuits)} circuit power sensors")
+        return circuits
+
+    async def test_connection(self, session: aiohttp.ClientSession) -> bool:
+        """
+        Test connection to Home Assistant using the shared session
+
+        Args:
+            session: aiohttp session to use for the connection test
+
         Returns:
             True if connection successful, False otherwise
         """
         url = f"{self.ha_url}/api/"
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=self.headers) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        logger.info(f"Connected to Home Assistant: {data.get('message', 'OK')}")
-                        return True
-                    else:
-                        logger.error(f"Failed to connect to HA: HTTP {response.status}")
-                        return False
+            async with session.get(url, headers=self.headers) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Connected to Home Assistant: {data.get('message', 'OK')}")
+                    return True
+                else:
+                    logger.error(f"Failed to connect to HA: HTTP {response.status}")
+                    return False
         except Exception as e:
             logger.error(f"Connection test failed: {e}")
             return False

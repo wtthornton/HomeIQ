@@ -5,11 +5,8 @@ uvicorn[standard]>=0.40.0,<0.41.0  # Latest stable 0.40.x series with standard e
 
 # HTTP Client (keep aiohttp for client usage, not web framework)
 aiohttp>=3.13.3,<4.0.0  # Latest stable 3.13.3 (January 2026) - Align with base
-asyncio-mqtt>=0.16.1,<0.17.0  # Unpinned for patch updates
 python-dotenv>=1.2.1,<2.0.0  # Unpinned for patch updates
 pydantic>=2.12.5,<3.0.0  # Latest stable 2.12.5 (January 2026) - Align with base
 psutil>=7.2.1,<8.0.0  # Latest stable 7.2.1 (January 2026) - Align with base
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025)
 websockets>=12.0,<13.0.0  # Unpinned for patch updates
-pytest>=8.3.3,<9.0.0  # Unpinned for patch updates
-pytest-asyncio>=1.3.0,<2.0.0  # Latest stable 1.3.0 (January 2026) - Align with base

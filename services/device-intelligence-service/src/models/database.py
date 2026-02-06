@@ -8,11 +8,13 @@ from datetime import datetime
 from typing import Any, Optional
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Modern SQLAlchemy 2.0 declarative base (MED-10)."""
+    pass
 
 
 class Device(Base):

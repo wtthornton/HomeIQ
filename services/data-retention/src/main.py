@@ -16,7 +16,6 @@ from .backup_restore import BackupRestoreService
 from .data_cleanup import DataCleanupService
 from .data_compression import DataCompressionService
 from .materialized_views import MaterializedViewManager
-from .retention_endpoints import RetentionEndpoints
 from .retention_policy import RetentionPeriod, RetentionPolicy, RetentionPolicyManager
 from .s3_archival import S3ArchivalManager
 from .scheduler import RetentionScheduler
@@ -48,8 +47,7 @@ class DataRetentionService:
         self.archival_manager: S3ArchivalManager | None = None
         self.analytics: StorageAnalytics | None = None
         self.scheduler: RetentionScheduler | None = None
-        self.retention_endpoints: RetentionEndpoints | None = None
-        
+
         # Epic 45.3: Statistics aggregator
         self.statistics_aggregator: StatisticsAggregator | None = None
 
@@ -157,7 +155,7 @@ class DataRetentionService:
         """Add a new retention policy."""
         policy = RetentionPolicy(
             name=policy_data["name"],
-            description=policy_data["description"],
+            description=policy_data.get("description", ""),
             retention_period=policy_data["retention_period"],
             retention_unit=RetentionPeriod(policy_data["retention_unit"]),
             enabled=policy_data.get("enabled", True)
@@ -169,19 +167,13 @@ class DataRetentionService:
         """Update an existing retention policy."""
         policy = RetentionPolicy(
             name=policy_data["name"],
-            description=policy_data["description"],
+            description=policy_data.get("description", ""),
             retention_period=policy_data["retention_period"],
             retention_unit=RetentionPeriod(policy_data["retention_unit"]),
             enabled=policy_data.get("enabled", True)
         )
 
         self.policy_manager.update_policy(policy)
-
-    def setup_epic2_endpoints(self, app):
-        """Setup Epic 2 API endpoints (deprecated - now handled by FastAPI routers)"""
-        # Epic 2 endpoints are now handled by FastAPI routers in api/routers/retention.py
-        # This method is kept for backward compatibility but does nothing
-        logger.info("Epic 2 retention endpoints are now handled by FastAPI routers")
 
     def remove_retention_policy(self, policy_name: str) -> None:
         """Remove a retention policy."""
@@ -287,10 +279,6 @@ class DataRetentionService:
             stats["backup_statistics"] = self.backup_service.get_backup_statistics()
 
         return stats
-
-# Global service instance
-data_retention_service = DataRetentionService()
-
 
 # Import FastAPI app from api module
 from .api.app import app

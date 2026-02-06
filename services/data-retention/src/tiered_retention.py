@@ -8,10 +8,23 @@ For InfluxDB 2.7, these operations are disabled to prevent SSL errors.
 
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+_ISO8601_RE = re.compile(
+    r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)?$'
+)
+
+
+def _validate_iso_timestamp(value: str) -> str:
+    """Validate that a string conforms to ISO 8601 format. Raises ValueError on invalid format."""
+    if not _ISO8601_RE.match(value):
+        raise ValueError(f"Invalid ISO 8601 timestamp: {value}")
+    return value
+
 
 # Try to import InfluxDB 3.0 client, but don't fail if not available
 try:
@@ -84,6 +97,7 @@ class TieredRetentionManager:
 
         try:
             # Create hourly aggregates
+            cutoff_iso = _validate_iso_timestamp(cutoff_date.isoformat())
             query = f'''
             SELECT
                 DATE_TRUNC('hour', time) as hour,
@@ -95,7 +109,7 @@ class TieredRetentionManager:
                 COUNT(*) as sample_count,
                 SUM(energy_consumption) as total_energy
             FROM home_assistant_events
-            WHERE time < TIMESTAMP '{cutoff_date.isoformat()}'
+            WHERE time < TIMESTAMP '{cutoff_iso}'
             GROUP BY DATE_TRUNC('hour', time), entity_id, domain
             '''
 
@@ -149,6 +163,7 @@ class TieredRetentionManager:
         cutoff_date = datetime.now() - timedelta(days=90)
 
         try:
+            cutoff_iso = _validate_iso_timestamp(cutoff_date.isoformat())
             query = f'''
             SELECT
                 DATE_TRUNC('day', hour) as day,
@@ -160,7 +175,7 @@ class TieredRetentionManager:
                 SUM(sample_count) as total_samples,
                 SUM(total_energy) as daily_energy
             FROM hourly_aggregates
-            WHERE hour < TIMESTAMP '{cutoff_date.isoformat()}'
+            WHERE hour < TIMESTAMP '{cutoff_iso}'
             GROUP BY DATE_TRUNC('day', hour), entity_id, domain
             '''
 

@@ -22,6 +22,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, HttpUrl
 
 from shared.influxdb_query_client import InfluxDBQueryClient
+from .flux_utils import sanitize_flux_value
 
 logger = logging.getLogger(__name__)
 
@@ -101,14 +102,15 @@ async def get_game_status(team: str):
     try:
         # Normalize team name for case-insensitive matching
         team_lower = team.lower().strip()
-        
+        safe_team = sanitize_flux_value(team_lower)
+
         # Query only latest game for this team (last 7 days)
         # Use case-insensitive matching by converting to lowercase in Flux
         query = f'''
             from(bucket: "sports_data")
                 |> range(start: -7d)
                 |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
-                |> filter(fn: (r) => strings.toLower(v: r.home_team) == "{team_lower}" or strings.toLower(v: r.away_team) == "{team_lower}")
+                |> filter(fn: (r) => strings.toLower(v: r.home_team) == "{safe_team}" or strings.toLower(v: r.away_team) == "{safe_team}")
                 |> sort(columns: ["_time"], desc: true)
                 |> limit(n: 1)
         '''
@@ -166,13 +168,14 @@ async def get_game_context(team: str):
     try:
         # Normalize team name for case-insensitive matching
         team_lower = team.lower().strip()
-        
+        safe_team = sanitize_flux_value(team_lower)
+
         # Query latest game with case-insensitive matching
         query = f'''
             from(bucket: "sports_data")
                 |> range(start: -7d)
                 |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
-                |> filter(fn: (r) => strings.toLower(v: r.home_team) == "{team_lower}" or strings.toLower(v: r.away_team) == "{team_lower}")
+                |> filter(fn: (r) => strings.toLower(v: r.home_team) == "{safe_team}" or strings.toLower(v: r.away_team) == "{safe_team}")
                 |> sort(columns: ["_time"], desc: true)
                 |> limit(n: 1)
         '''
@@ -464,8 +467,9 @@ async def webhook_event_detector():
             # Build query - filter by monitored teams if specified
             if monitored_teams:
                 # Build team filter with case-insensitive matching (OR condition for home_team or away_team)
+                # Sanitize team names from database to prevent Flux injection
                 team_filters = " or ".join([
-                    f'strings.toLower(v: r.home_team) == "{team.lower()}" or strings.toLower(v: r.away_team) == "{team.lower()}"' 
+                    f'strings.toLower(v: r.home_team) == "{sanitize_flux_value(team.lower())}" or strings.toLower(v: r.away_team) == "{sanitize_flux_value(team.lower())}"'
                     for team in monitored_teams
                 ])
                 query = f'''

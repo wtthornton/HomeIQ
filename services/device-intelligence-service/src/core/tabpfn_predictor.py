@@ -64,7 +64,7 @@ class TabPFNFailurePredictor:
         self.model.fit(X, y)
         self.is_trained = True
         
-        logger.info("✅ TabPFN training complete (instant - model ready for prediction)")
+        logger.info("TabPFN training complete (instant - model ready for prediction)")
     
     def predict(self, X: np.ndarray) -> np.ndarray:
         """

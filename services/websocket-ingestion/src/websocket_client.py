@@ -128,7 +128,7 @@ class HomeAssistantWebSocketClient:
             logger.info("Waiting for auth_required message")
             # Wait for auth_required message
             auth_required_msg = await self.websocket.receive()
-            logger.info(f"Received auth message: {auth_required_msg.data}")
+            logger.info("Received auth_required message from Home Assistant")
 
             if auth_required_msg.type == WSMsgType.TEXT:
                 auth_data = json.loads(auth_required_msg.data)
@@ -143,7 +143,7 @@ class HomeAssistantWebSocketClient:
                         'access_token': self.token
                     }
 
-                    logger.info(f"Sending auth message: {auth_message}")
+                    logger.info("Sending auth message (token masked)")
                     await self.websocket.send_str(json.dumps(auth_message))
 
                     # Wait for auth result

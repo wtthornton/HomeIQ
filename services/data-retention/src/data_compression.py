@@ -1,14 +1,16 @@
 """Data compression and optimization service."""
 
 import asyncio
+import collections
 import gzip
 import json
 import logging
 import lzma
 import zlib
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from functools import partial
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -34,7 +36,7 @@ class CompressionResult:
 
     def __post_init__(self):
         if self.compression_timestamp is None:
-            self.compression_timestamp = datetime.utcnow()
+            self.compression_timestamp = datetime.now(timezone.utc)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary."""
@@ -62,7 +64,7 @@ class DataCompressionService:
             influxdb_client: InfluxDB client for data operations
         """
         self.influxdb_client = influxdb_client
-        self.compression_history: list[CompressionResult] = []
+        self.compression_history: collections.deque[CompressionResult] = collections.deque(maxlen=1000)
         self.is_running = False
         self.compression_task: asyncio.Task | None = None
 
@@ -100,33 +102,42 @@ class DataCompressionService:
 
         logger.info("Data compression service stopped")
 
-    async def compress_data(self, data: bytes, algorithm: CompressionAlgorithm) -> CompressionResult:
+    async def compress_data(self, data: bytes, algorithm: CompressionAlgorithm,
+                           _track_history: bool = True) -> CompressionResult:
         """
         Compress data using specified algorithm.
-        
+
         Args:
             data: Data to compress
             algorithm: Compression algorithm to use
-            
+            _track_history: Whether to append result to compression_history
+
         Returns:
             CompressionResult: Result of compression operation
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         original_size = len(data)
 
         try:
+            loop = asyncio.get_event_loop()
             if algorithm == CompressionAlgorithm.GZIP:
-                compressed_data = gzip.compress(data, compresslevel=9)
+                compressed_data = await loop.run_in_executor(
+                    None, partial(gzip.compress, data, compresslevel=6)
+                )
             elif algorithm == CompressionAlgorithm.LZMA:
-                compressed_data = lzma.compress(data, preset=9)
+                compressed_data = await loop.run_in_executor(
+                    None, partial(lzma.compress, data, preset=6)
+                )
             elif algorithm == CompressionAlgorithm.ZLIB:
-                compressed_data = zlib.compress(data, level=9)
+                compressed_data = await loop.run_in_executor(
+                    None, partial(zlib.compress, data, 6)
+                )
             else:
                 raise ValueError(f"Unsupported compression algorithm: {algorithm}")
 
             compressed_size = len(compressed_data)
-            compression_ratio = compressed_size / original_size
-            compression_duration = (datetime.utcnow() - start_time).total_seconds()
+            compression_ratio = compressed_size / original_size if original_size > 0 else 1.0
+            compression_duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             result = CompressionResult(
                 algorithm=algorithm,
@@ -137,7 +148,8 @@ class DataCompressionService:
                 success=True
             )
 
-            self.compression_history.append(result)
+            if _track_history:
+                self.compression_history.append(result)
 
             logger.info(f"Data compressed with {algorithm.value}: "
                        f"{original_size} -> {compressed_size} bytes "
@@ -146,7 +158,7 @@ class DataCompressionService:
             return result
 
         except Exception as e:
-            compression_duration = (datetime.utcnow() - start_time).total_seconds()
+            compression_duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             result = CompressionResult(
                 algorithm=algorithm,
                 original_size_bytes=original_size,
@@ -157,7 +169,8 @@ class DataCompressionService:
                 error_message=str(e)
             )
 
-            self.compression_history.append(result)
+            if _track_history:
+                self.compression_history.append(result)
             logger.error(f"Data compression failed with {algorithm.value}: {e}")
 
             return result
@@ -176,7 +189,7 @@ class DataCompressionService:
         best_ratio = 1.0
 
         for algorithm in self.compression_algorithms:
-            result = await self.compress_data(data, algorithm)
+            result = await self.compress_data(data, algorithm, _track_history=False)
 
             if result.success and result.compression_ratio < best_ratio:
                 best_ratio = result.compression_ratio
@@ -242,7 +255,7 @@ class DataCompressionService:
             ]
 
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
 
             # Query InfluxDB for old data
             query = f"""
@@ -336,7 +349,7 @@ class DataCompressionService:
         Returns:
             List of compression results
         """
-        return self.compression_history[-limit:] if self.compression_history else []
+        return list(self.compression_history)[-limit:] if self.compression_history else []
 
     def get_compression_statistics(self) -> dict[str, Any]:
         """

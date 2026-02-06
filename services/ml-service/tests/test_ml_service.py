@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 # Test configuration
-ML_SERVICE_URL = "http://localhost:8021"
+ML_SERVICE_URL = "http://localhost:8020"
 
 class TestMLService:
     """Test suite for ML Service"""

@@ -3,14 +3,14 @@
 **Classical Machine Learning for Pattern Detection and Analysis**
 
 **Port:** 8020 (internal), exposed as 8025 (external)
-**Technology:** Python 3.11+, FastAPI 0.121, scikit-learn 1.4, pandas 2.3
+**Technology:** Python 3.12+, FastAPI 0.123, scikit-learn 1.5, numpy 1.26
 **Container:** `homeiq-ml-service`
 **Database:** None (stateless ML service)
 **Scale:** Optimized for ~50-100 devices (single-home, not multi-home)
 
 ## Overview
 
-The ML Service provides classical machine learning algorithms for clustering, anomaly detection, and feature analysis. It complements deep learning models with traditional ML algorithms that are faster, more interpretable, and don't require pre-training for certain tasks.
+The ML Service provides classical machine learning algorithms for clustering and anomaly detection. It complements deep learning models with traditional ML algorithms that are faster, more interpretable, and don't require pre-training for certain tasks.
 
 **Port Mapping Note:** The service runs on internal port 8020 but is exposed as port 8025 externally to avoid port conflicts with other services. All examples in this document use port 8025 (external) for production access. When developing locally without Docker, use port 8020.
 
@@ -18,18 +18,19 @@ The ML Service provides classical machine learning algorithms for clustering, an
 
 - **Clustering Algorithms** - KMeans, DBSCAN for pattern grouping
 - **Anomaly Detection** - Isolation Forest for outlier detection
-- **Feature Importance** - Random Forest for feature ranking
-- **Batch Processing** - Efficient multi-operation processing
+- **Batch Processing** - Concurrent multi-operation processing
 - **Fast Inference** - <100ms for most operations
 - **No Pre-training** - Classical algorithms ready to use
 - **Interpretable Results** - Understandable decision processes
+- **Rate Limiting** - Per-IP sliding window protection
+- **Request Tracing** - X-Request-ID header for log correlation
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.11+
-- scikit-learn 1.4+
+- Python 3.12+
+- scikit-learn 1.5+
 
 ### Running Locally
 
@@ -65,9 +66,15 @@ curl http://localhost:8025/health
 ### Health & Status
 
 #### `GET /health`
-Service health check
+Service liveness check
 ```bash
 curl http://localhost:8025/health
+```
+
+#### `GET /ready`
+Service readiness check (verifies managers are initialized)
+```bash
+curl http://localhost:8025/ready
 ```
 
 ### Clustering
@@ -140,15 +147,21 @@ curl -X POST http://localhost:8025/anomaly \
 ### Batch Processing
 
 #### `POST /batch/process`
-Process multiple operations efficiently
+Process multiple operations concurrently
 
 ```bash
 curl -X POST http://localhost:8025/batch/process \
   -H "Content-Type: application/json" \
   -d '{
     "operations": [
-      {"type": "cluster", "data": [[1,2],[3,4]], "algorithm": "kmeans", "n_clusters": 2},
-      {"type": "anomaly", "data": [[1,1],[10,10]], "contamination": 0.1}
+      {
+        "type": "cluster",
+        "data": {"data": [[1,2],[3,4]], "algorithm": "kmeans", "n_clusters": 2}
+      },
+      {
+        "type": "anomaly",
+        "data": {"data": [[1,1],[10,10]], "contamination": 0.1}
+      }
     ]
   }'
 ```
@@ -157,8 +170,8 @@ curl -X POST http://localhost:8025/batch/process \
 ```json
 {
   "results": [
-    {"labels": [0, 1], "n_clusters": 2},
-    {"labels": [1, -1], "n_anomalies": 1}
+    {"type": "cluster", "status": "success", "labels": [0, 1], "n_clusters": 2},
+    {"type": "anomaly", "status": "success", "labels": [1, -1], "n_anomalies": 1}
   ],
   "processing_time": 0.087
 }
@@ -179,6 +192,8 @@ curl -X POST http://localhost:8025/batch/process \
 | `ML_MAX_CLUSTERS` | `100` | Safety cap for requested clusters |
 | `ML_MAX_DATA_POINTS` | `50000` | Upper bound on rows per request |
 | `ML_ALGORITHM_TIMEOUT_SECONDS` | `8` | Timeout for CPU-bound operations |
+| `ML_RATE_LIMIT_WINDOW` | `60` | Rate limit sliding window in seconds |
+| `ML_RATE_LIMIT_MAX_REQUESTS` | `120` | Maximum requests per window per IP |
 
 ## Architecture
 
@@ -222,14 +237,6 @@ curl -X POST http://localhost:8025/batch/process \
   - Parameters: `contamination` (outlier proportion)
   - Time complexity: O(n log n)
 
-- **Local Outlier Factor** - Density deviation detection
-  - Best for: Local density anomalies
-  - Parameters: `n_neighbors`, `contamination`
-
-**Feature Analysis:**
-- **Random Forest** - Feature importance ranking
-- **PCA** - Dimensionality reduction
-
 ## Use Cases
 
 ### 1. Pattern Clustering
@@ -254,18 +261,6 @@ energy_data = [
   [500, 520, 510],  # Anomaly (spike)
 ]
 # Result: [1, 1, -1] - Third entry is anomaly
-```
-
-### 3. Feature Importance
-Rank which features matter most:
-```python
-# Which factors affect device failures?
-features = [
-  [age, usage, temp, humidity],
-  ...
-]
-# Result: {"importance": [0.4, 0.3, 0.2, 0.1]}
-# Age and usage are most important
 ```
 
 ## Safety Guardrails (2025)
@@ -314,7 +309,7 @@ curl -X POST http://localhost:8025/cluster \
   }'
 
 # Test anomaly detection
-curl -X POST http://localhost:8025/detect-anomalies \
+curl -X POST http://localhost:8025/anomaly \
   -H "Content-Type: application/json" \
   -d '{
     "data": [[1.0, 1.0], [1.2, 1.1], [10.0, 10.0]],
@@ -334,37 +329,24 @@ curl -X POST http://localhost:8025/detect-anomalies \
 
 ## Dependencies
 
-### Core
+### Production (`requirements.txt`)
 
 ```
-fastapi==0.121.2          # Web framework
-uvicorn[standard]==0.38.0 # ASGI server
-pydantic==2.12.4          # Data validation
-pydantic-settings==2.12.0 # Settings management
+fastapi>=0.123.0,<0.124.0     # Web framework
+uvicorn[standard]>=0.32.0,<0.33.0  # ASGI server
+pydantic==2.12.4               # Data validation
+scikit-learn>=1.5.0,<1.6.0     # ML algorithms
+numpy>=1.26.0,<1.27.0          # Numerical computing
+scipy>=1.16.3,<1.17.0          # Scientific computing
 ```
 
-### Machine Learning
+### Testing (`requirements-test.txt`)
 
 ```
-scikit-learn==1.4.2       # ML algorithms
-pandas==2.3.3             # Data analysis
-numpy==2.3.4              # Numerical computing
-scipy==1.16.3             # Scientific computing
-```
-
-### Utilities
-
-```
-httpx==0.27.2             # HTTP client
-python-dotenv==1.2.1      # Environment variables
-tenacity==8.2.3           # Retry logic
-```
-
-### Testing
-
-```
-pytest==8.3.3             # Testing framework
-pytest-asyncio==0.23.0    # Async test support
+httpx>=0.28.1,<0.29.0         # HTTP client for tests
+pytest>=9.0.0,<10.0.0         # Testing framework
+pytest-asyncio>=0.25.0,<0.26.0  # Async test support
+pytest-cov>=6.0.0,<7.0.0      # Coverage reporting
 ```
 
 ## Troubleshooting
@@ -431,6 +413,28 @@ pytest-asyncio==0.23.0    # Async test support
 
 ## Version History
 
+### 2.3.0 (February 06, 2026)
+- Added NaN/Inf input validation to prevent data corruption (CRITICAL)
+- Added rate limiting middleware with configurable per-IP sliding window
+- Added request ID middleware (X-Request-ID) for log correlation
+- Added `/ready` readiness endpoint separate from `/health` liveness
+- Switched to structured JSON logging for better log aggregation
+- Made batch processing concurrent via `asyncio.gather`
+- Added typed Pydantic models for batch operations (discriminated union)
+- Added per-operation error handling in batch (partial success support)
+- Fixed anomaly detection double computation (fit_predict + decision_function)
+- Improved DBSCAN auto-eps heuristic (90th percentile, k=min_samples+1)
+- Improved KMeans auto-cluster heuristic (sqrt-based, capped at 20)
+- Made KMeans `n_init` adaptive (10 for small data, 3 for large data)
+- Extracted shared `scale_features` utility to eliminate duplication
+- Removed unused dependencies (pandas, python-dotenv, tenacity, pydantic-settings)
+- Separated test dependencies into `requirements-test.txt`
+- Fixed `pytest-asyncio` version (was pinned to non-existent 1.3.0)
+- Restricted CORS `allow_headers` to specific needed headers
+- Removed undocumented/unimplemented algorithms from README
+- Tightened `scikit-learn` and `scipy` version ranges
+- Added comprehensive unit tests (NaN/Inf, DBSCAN, batch, timeouts, edge cases)
+
 ### 2.2.1 (December 09, 2025)
 - Updated documentation to reflect port mapping (8020 internal, 8025 external)
 - Clarified port usage for Docker vs local development
@@ -457,7 +461,7 @@ pytest-asyncio==0.23.0    # Async test support
 
 ---
 
-**Last Updated:** December 09, 2025
-**Version:** 2.2.1
+**Last Updated:** February 06, 2026
+**Version:** 2.3.0
 **Status:** Production Ready ✅
 **Port:** 8020 (internal), 8025 (external)

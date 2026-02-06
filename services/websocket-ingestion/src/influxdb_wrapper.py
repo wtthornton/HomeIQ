@@ -473,6 +473,10 @@ class InfluxDBConnectionManager:
             logger.error(f"Error writing {len(points)} points to bucket {bucket}: {e}")
             return False
 
+    def _sanitize_flux_value(self, value: str) -> str:
+        """Sanitize a value for use in Flux query string literals."""
+        return value.replace('\\', '\\\\').replace('"', '\\"')
+
     async def query_devices(self, filters: dict[str, Any] = None, bucket: str = "devices") -> list[dict[str, Any]]:
         """
         Query devices from InfluxDB
@@ -495,11 +499,11 @@ class InfluxDBConnectionManager:
 
         # Add filters
         if filters.get("manufacturer"):
-            query += f'\n    |> filter(fn: (r) => r["manufacturer"] == "{filters["manufacturer"]}")'
+            query += f'\n    |> filter(fn: (r) => r["manufacturer"] == "{self._sanitize_flux_value(filters["manufacturer"])}")'
         if filters.get("model"):
-            query += f'\n    |> filter(fn: (r) => r["model"] == "{filters["model"]}")'
+            query += f'\n    |> filter(fn: (r) => r["model"] == "{self._sanitize_flux_value(filters["model"])}")'
         if filters.get("area_id"):
-            query += f'\n    |> filter(fn: (r) => r["area_id"] == "{filters["area_id"]}")'
+            query += f'\n    |> filter(fn: (r) => r["area_id"] == "{self._sanitize_flux_value(filters["area_id"])}")'
 
         query += '\n    |> last()'
 
@@ -527,11 +531,11 @@ class InfluxDBConnectionManager:
 
         # Add filters
         if filters.get("domain"):
-            query += f'\n    |> filter(fn: (r) => r["domain"] == "{filters["domain"]}")'
+            query += f'\n    |> filter(fn: (r) => r["domain"] == "{self._sanitize_flux_value(filters["domain"])}")'
         if filters.get("platform"):
-            query += f'\n    |> filter(fn: (r) => r["platform"] == "{filters["platform"]}")'
+            query += f'\n    |> filter(fn: (r) => r["platform"] == "{self._sanitize_flux_value(filters["platform"])}")'
         if filters.get("device_id"):
-            query += f'\n    |> filter(fn: (r) => r["device_id"] == "{filters["device_id"]}")'
+            query += f'\n    |> filter(fn: (r) => r["device_id"] == "{self._sanitize_flux_value(filters["device_id"])}")'
 
         query += '\n    |> last()'
 

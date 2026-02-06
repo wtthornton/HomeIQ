@@ -4,9 +4,15 @@ These endpoints are called by code executed in the ai-code-executor sandbox.
 """
 
 import logging
+import re
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+
+def _sanitize_flux_value(value: str) -> str:
+    """Sanitize a value for use in Flux query string literals."""
+    return str(value).replace('\\', '\\\\').replace('"', '\\"')
 
 logger = logging.getLogger(__name__)
 
@@ -47,16 +53,20 @@ async def query_device_history(request: QueryDeviceHistoryRequest):
 
         influx_client = InfluxDBQueryClient()
 
-        # Query InfluxDB
+        # Query InfluxDB - sanitize all user inputs to prevent Flux injection
+        safe_entity_id = _sanitize_flux_value(request.entity_id)
+        safe_start_time = _sanitize_flux_value(request.start_time)
+        safe_end_time = _sanitize_flux_value(request.end_time)
+
         query = f'''
         from(bucket: "home_assistant_events")
-            |> range(start: {request.start_time}, stop: {request.end_time})
-            |> filter(fn: (r) => r.entity_id == "{request.entity_id}")
+            |> range(start: {safe_start_time}, stop: {safe_end_time})
+            |> filter(fn: (r) => r.entity_id == "{safe_entity_id}")
         '''
 
         if request.fields:
             fields_filter = ' or '.join(
-                f'r._field == "{field}"' for field in request.fields
+                f'r._field == "{_sanitize_flux_value(field)}"' for field in request.fields
             )
             query += f'\n    |> filter(fn: (r) => {fields_filter})'
 
@@ -137,17 +147,22 @@ async def search_events(
 
         influx_client = InfluxDBQueryClient()
 
-        # Build query
+        # Build query - sanitize all user inputs to prevent Flux injection
+        safe_start_time = _sanitize_flux_value(start_time)
+        safe_end_time = _sanitize_flux_value(end_time)
+
         query = f'''
         from(bucket: "home_assistant_events")
-            |> range(start: {start_time}, stop: {end_time})
+            |> range(start: {safe_start_time}, stop: {safe_end_time})
         '''
 
         if entity_id:
-            query += f'\n    |> filter(fn: (r) => r.entity_id == "{entity_id}")'
+            safe_entity_id = _sanitize_flux_value(entity_id)
+            query += f'\n    |> filter(fn: (r) => r.entity_id == "{safe_entity_id}")'
 
         if event_type:
-            query += f'\n    |> filter(fn: (r) => r.event_type == "{event_type}")'
+            safe_event_type = _sanitize_flux_value(event_type)
+            query += f'\n    |> filter(fn: (r) => r.event_type == "{safe_event_type}")'
 
         query += f'\n    |> limit(n: {limit})'
 

@@ -7,9 +7,11 @@ import logging
 
 import numpy as np
 from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
+
+from .utils import scale_features
 
 logger = logging.getLogger(__name__)
+
 
 class AnomalyDetectionManager:
     """
@@ -21,11 +23,6 @@ class AnomalyDetectionManager:
 
     def __init__(self):
         logger.info("AnomalyDetectionManager initialized")
-
-    @staticmethod
-    def _scale_features(data: list[list[float]]) -> np.ndarray:
-        scaler = StandardScaler()
-        return scaler.fit_transform(np.array(data, dtype=np.float64))
 
     def detect_anomalies(
         self,
@@ -42,7 +39,7 @@ class AnomalyDetectionManager:
         if not data:
             return [], []
 
-        X_scaled = self._scale_features(data)
+        X_scaled = scale_features(data)
 
         isolation_forest = IsolationForest(
             contamination=contamination,
@@ -50,9 +47,10 @@ class AnomalyDetectionManager:
             n_estimators=100,
         )
 
-        labels = isolation_forest.fit_predict(X_scaled)
+        # fit once, then predict and score separately to avoid redundant fitting
+        isolation_forest.fit(X_scaled)
+        labels = isolation_forest.predict(X_scaled)
         scores = isolation_forest.decision_function(X_scaled)
-        del isolation_forest
 
         n_anomalies = sum(1 for label in labels if label == -1)
         logger.info(

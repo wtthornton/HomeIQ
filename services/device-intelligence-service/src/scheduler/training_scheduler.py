@@ -47,6 +47,7 @@ class TrainingScheduler:
         self._last_training_time: datetime | None = None
         self._last_training_status: str = "never_run"
         self._last_training_error: str | None = None
+        self._mode_override: str | None = None  # MED-7: avoid mutating settings
         
         logger.info(
             f"TrainingScheduler initialized: "
@@ -68,12 +69,12 @@ class TrainingScheduler:
             try:
                 CronTrigger.from_crontab(self.settings.ML_TRAINING_SCHEDULE)
             except Exception as e:
-                logger.error(f"❌ Invalid cron expression '{self.settings.ML_TRAINING_SCHEDULE}': {e}")
+                logger.error(f"Invalid cron expression '{self.settings.ML_TRAINING_SCHEDULE}': {e}")
                 raise ValueError(f"Invalid cron expression: {e}") from e
             
             # Validate training mode
             if self.settings.ML_TRAINING_MODE not in ['full', 'incremental']:
-                logger.error(f"❌ Invalid training mode '{self.settings.ML_TRAINING_MODE}'. Must be 'full' or 'incremental'")
+                logger.error(f"Invalid training mode '{self.settings.ML_TRAINING_MODE}'. Must be 'full' or 'incremental'")
                 raise ValueError(f"Invalid training mode: {self.settings.ML_TRAINING_MODE}")
             
             # Add scheduled job
@@ -90,13 +91,13 @@ class TrainingScheduler:
             job = self.scheduler.get_job('nightly_training')
             next_run = job.next_run_time if job else None
             
-            logger.info(f"✅ Training scheduler started: schedule={self.settings.ML_TRAINING_SCHEDULE}")
-            logger.info(f"   Mode: {self.settings.ML_TRAINING_MODE}")
+            logger.info(f"Training scheduler started: schedule={self.settings.ML_TRAINING_SCHEDULE}")
+            logger.info(f"Mode: {self.settings.ML_TRAINING_MODE}")
             if next_run:
-                logger.info(f"   Next run: {next_run}")
+                logger.info(f"Next run: {next_run}")
         
         except Exception as e:
-            logger.error(f"❌ Failed to start training scheduler: {e}", exc_info=True)
+            logger.error(f"Failed to start training scheduler: {e}", exc_info=True)
             raise
 
     def stop(self):
@@ -111,9 +112,9 @@ class TrainingScheduler:
                     # Note: We can't actually wait for async function, but we can shutdown gracefully
                 
                 self.scheduler.shutdown(wait=True)
-                logger.info("✅ Training scheduler stopped")
+                logger.info("Training scheduler stopped")
         except Exception as e:
-            logger.error(f"❌ Failed to stop training scheduler: {e}", exc_info=True)
+            logger.error(f"Failed to stop training scheduler: {e}", exc_info=True)
 
     async def _run_training(self):
         """
@@ -123,26 +124,29 @@ class TrainingScheduler:
         """
         # Prevent concurrent runs
         if self.is_running:
-            logger.warning("⚠️ Training already running, skipping scheduled run")
+            logger.warning("Training already running, skipping scheduled run")
             return
         
         self.is_running = True
         start_time = datetime.now(timezone.utc)
         
         try:
+            # Use mode override if set, otherwise use settings (MED-7)
+            effective_mode = self._mode_override or self.settings.ML_TRAINING_MODE
+
             logger.info("=" * 80)
-            logger.info("🚀 Starting scheduled model training")
-            logger.info(f"   Mode: {self.settings.ML_TRAINING_MODE}")
-            logger.info(f"   Time: {start_time.isoformat()}")
+            logger.info("Starting scheduled model training")
+            logger.info("Mode: %s", effective_mode)
+            logger.info("Time: %s", start_time.isoformat())
             logger.info("=" * 80)
-            
+
             # Get or create analytics engine
             if not self.analytics_engine:
                 self.analytics_engine = PredictiveAnalyticsEngine(self.settings)
                 await self.analytics_engine.initialize_models()
-            
+
             # Execute training based on mode
-            if self.settings.ML_TRAINING_MODE == "incremental":
+            if effective_mode == "incremental":
                 # Use incremental update if available (10-50x faster)
                 logger.info("Using incremental update mode (faster)")
                 await self._run_incremental_training()
@@ -159,8 +163,8 @@ class TrainingScheduler:
             self._last_training_error = None
             
             logger.info("=" * 80)
-            logger.info(f"✅ Scheduled training completed successfully")
-            logger.info(f"   Duration: {duration:.1f} seconds")
+            logger.info(f"Scheduled training completed successfully")
+            logger.info(f"Duration: {duration:.1f} seconds")
             logger.info("=" * 80)
         
         except Exception as e:
@@ -172,8 +176,8 @@ class TrainingScheduler:
             self._last_training_error = str(e)
             
             logger.error("=" * 80)
-            logger.error(f"❌ Scheduled training failed: {e}")
-            logger.error(f"   Duration: {duration:.1f} seconds")
+            logger.error(f"Scheduled training failed: {e}")
+            logger.error(f"Duration: {duration:.1f} seconds")
             logger.error("=" * 80, exc_info=True)
         
         finally:
@@ -193,10 +197,10 @@ class TrainingScheduler:
         if hasattr(self.analytics_engine, 'update_models_incremental'):
             try:
                 await self.analytics_engine.update_models_incremental(days_back=180)
-                logger.info("✅ Incremental update completed")
+                logger.info("Incremental update completed")
                 return
             except Exception as e:
-                logger.warning(f"⚠️ Incremental update failed, falling back to full training: {e}")
+                logger.warning(f"Incremental update failed, falling back to full training: {e}")
                 # Fall through to full training
         
         # Fallback to full training
@@ -236,14 +240,12 @@ class TrainingScheduler:
 
     async def _run_training_with_mode(self, mode: str):
         """Run training with specific mode (for manual trigger)."""
-        original_mode = self.settings.ML_TRAINING_MODE
+        # Store the requested mode as an instance override instead of mutating settings (MED-7)
+        self._mode_override = mode
         try:
-            # Temporarily override mode
-            self.settings.ML_TRAINING_MODE = mode
             await self._run_training()
         finally:
-            # Restore original mode
-            self.settings.ML_TRAINING_MODE = original_mode
+            self._mode_override = None
 
     def get_status(self) -> dict[str, Any]:
         """
