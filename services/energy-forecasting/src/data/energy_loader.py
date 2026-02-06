@@ -87,57 +87,54 @@ class EnergyDataLoader:
             Polars DataFrame with energy data
         """
         try:
-            from influxdb_client import InfluxDBClient
+            from influxdb_client_3 import InfluxDBClient3
             import os
         except ImportError:
-            logger.warning("influxdb_client not installed")
+            logger.warning("influxdb_client_3 not installed")
             return self._create_synthetic_data()
-        
-        url = os.getenv("INFLUXDB_URL", "http://localhost:8086")
+
+        host = os.getenv("INFLUXDB_URL", "http://localhost:8086")
         token = os.getenv("INFLUXDB_TOKEN", "")
-        org = os.getenv("INFLUXDB_ORG", "homeiq")
+        database = bucket  # In new API, bucket becomes database
         
         if not token:
             logger.warning("INFLUXDB_TOKEN not set, using synthetic data")
             return self._create_synthetic_data()
         
-        # Build Flux query
+        # Build SQL query (new API uses SQL instead of Flux)
         if start_time is None:
             start_time = datetime.now() - timedelta(days=30)
         if end_time is None:
             end_time = datetime.now()
-        
+
+        # Convert to SQL query
         query = f'''
-        from(bucket: "{bucket}")
-            |> range(start: {start_time.isoformat()}Z, stop: {end_time.isoformat()}Z)
-            |> filter(fn: (r) => r._measurement == "{measurement}")
-            |> filter(fn: (r) => r._field == "{field}")
-            |> aggregateWindow(every: {self.frequency}, fn: mean, createEmpty: false)
+        SELECT time, {field}
+        FROM {measurement}
+        WHERE time >= '{start_time.isoformat()}'
+          AND time <= '{end_time.isoformat()}'
+        ORDER BY time
         '''
-        
+
         try:
-            client = InfluxDBClient(url=url, token=token, org=org)
-            query_api = client.query_api()
-            
-            tables = query_api.query(query)
-            
-            records = []
-            for table in tables:
-                for record in table.records:
-                    records.append({
-                        "timestamp": record.get_time(),
-                        "power": record.get_value(),
-                    })
-            
+            # New API: InfluxDBClient3 with host/database parameters
+            client = InfluxDBClient3(host=host, token=token, database=database)
+
+            # Query returns pandas DataFrame
+            df_pandas = client.query(query=query)
+
             client.close()
-            
-            if not records:
+
+            if df_pandas is None or df_pandas.empty:
                 logger.warning("No data returned from InfluxDB")
                 return self._create_synthetic_data()
-            
-            df = pl.DataFrame(records)
+
+            # Convert pandas to polars and standardize column names
+            df = pl.from_pandas(df_pandas)
+            df = df.rename({"time": "timestamp", field: "power"})
+
             logger.info(f"Loaded {len(df):,} rows from InfluxDB")
-            
+
             return df
             
         except Exception as e:
