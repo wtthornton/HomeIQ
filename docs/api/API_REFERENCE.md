@@ -15,7 +15,7 @@
 1. [Overview](#overview)
 2. [Architecture](#architecture)
 3. [Authentication](#authentication)
-4. [Admin API](#admin-api) (Port 8003)
+4. [Admin API](#admin-api) (Port 8004)
 5. [Data API](#data-api) (Port 8006)
 6. [Sports API Service](#sports-api-service) (Port 8005)
 7. [AI Automation Services](#ai-automation-services-epic-39-modularization) (Ports 8016-8018, 8021)
@@ -47,7 +47,7 @@ The HA Ingestor is an **API-first platform** designed for Home Automation data m
 
 | Service | Port | Base URL | Purpose |
 |---------|------|----------|---------|
-| **Admin API** | 8003 | `http://localhost:8003` | System monitoring, Docker management |
+| **Admin API** | 8004 | `http://localhost:8004` | System monitoring, Docker management |
 | **Data API** | 8006 | `http://localhost:8006` | Feature data (events, devices, sports, analytics) |
 | **AI Automation** | 8024 | `http://localhost:8024` | Automation suggestions & conversational AI |
 | **AI Pattern Service** | 8020/8034 | `http://localhost:8034` | Pattern detection, synergy analysis, blueprint opportunities |
@@ -73,7 +73,7 @@ The HA Ingestor is an **API-first platform** designed for Home Automation data m
                    │                        │
                    ▼                        ▼
 ┌─────────────────────────────┐  ┌──────────────────────────────┐
-│   Admin API (8003→8004)     │  │     Data API (8006)          │
+│   Admin API (8004)     │  │     Data API (8006)          │
 │                             │  │                              │
 │ • Health checks             │  │ • Events (8 endpoints)       │
 │ • Docker management (5)     │  │ • Devices & Entities (5)     │
@@ -136,7 +136,7 @@ health-dashboard (Port 3000)
 ### Local Network (Development)
 ```bash
 # No authentication required for local access
-curl http://localhost:8003/health
+curl http://localhost:8004/health
 ```
 
 ### Remote Access (Production)
@@ -155,7 +155,7 @@ Set `ENABLE_AUTH=false` in environment variables to disable authentication (deve
 
 ## Admin API
 
-**Base URL:** `http://localhost:8003`  
+**Base URL:** `http://localhost:8004`  
 **Purpose:** System monitoring, health checks, Docker container management
 
 ### Health Endpoints
@@ -2433,7 +2433,7 @@ List synergies with blueprint enrichment.
 
 ## Statistics API
 
-**Base URL:** `http://localhost:8003`
+**Base URL:** `http://localhost:8004`
 
 ### Core Endpoints
 
@@ -2618,7 +2618,7 @@ const response = await axios.get(
 ```typescript
 // Single API call for all metrics
 async function updateDashboard() {
-  const response = await fetch('http://localhost:8003/api/v1/real-time-metrics');
+  const response = await fetch('http://localhost:8004/api/v1/real-time-metrics');
   const metrics = await response.json();
   
   updateEventRate(metrics.events_per_hour);

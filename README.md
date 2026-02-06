@@ -130,7 +130,7 @@ docker compose up -d
    - Type: "Turn on lights when I arrive home"
    - Review and deploy your automation
 
-3. **Explore APIs**: [http://localhost:8003/docs](http://localhost:8003/docs)
+3. **Explore APIs**: [http://localhost:8004/docs](http://localhost:8004/docs)
    - Interactive API documentation
    - Test endpoints and view real-time data
 
@@ -153,13 +153,13 @@ Natural language automation creation:
 Once HomeIQ is running, explore these interfaces:
 - **Health Dashboard**: [http://localhost:3000](http://localhost:3000) — System monitoring and dependency graphs
 - **AI Automation UI**: [http://localhost:3001](http://localhost:3001) — Conversational automation interface
-- **API Documentation**: [http://localhost:8003/docs](http://localhost:8003/docs) — Interactive Swagger UI
+- **API Documentation**: [http://localhost:8004/docs](http://localhost:8004/docs) — Interactive Swagger UI
 
 ---
 
 ## 🏗️ Architecture Overview
 
-HomeIQ runs as a collection of **40+ microservices** in Docker containers, designed for single-home deployment on resource-constrained hardware like an Intel NUC.
+HomeIQ runs as a collection of **46+ microservices** organized into 7 tiers by criticality, designed for single-home deployment on resource-constrained hardware like an Intel NUC.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -194,6 +194,7 @@ Home Assistant → websocket-ingestion → InfluxDB (direct writes)
 - Query via data-api endpoint
 
 For detailed architecture documentation, see:
+- [Services Ranked by Importance](services/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification
 - [Event Flow Architecture](docs/architecture/event-flow-architecture.md) - Event processing and data flow
 - [Development Guide](docs/DEVELOPMENT.md) - Complete system architecture
 - [Services Architecture Quick Reference](services/README_ARCHITECTURE_QUICK_REF.md) - Service patterns
@@ -213,7 +214,7 @@ For detailed architecture documentation, see:
 
 ### API Reference
 - [API Documentation](docs/api/API_REFERENCE.md) — RESTful API reference
-- [Interactive Docs](http://localhost:8003/docs) — Swagger UI (when running)
+- [Interactive Docs](http://localhost:8004/docs) — Swagger UI (when running)
 - [Automation Linter API](docs/automation-linter.md) — YAML linting and validation service
 - [Automation Linter Rules](docs/automation-linter-rules.md) — Complete rules catalog
 
@@ -230,7 +231,7 @@ For detailed architecture documentation, see:
 
 | Metric | Value |
 |--------|-------|
-| **Active Services** | 41 microservices + InfluxDB |
+| **Active Services** | 46+ microservices across 7 tiers |
 | **Target Hardware** | Intel NUC (i3/i5, 8-16GB RAM) |
 | **Memory Footprint** | ~8-10 GB (optimized) |
 | **Optimized For** | Single home, 50-100 devices |

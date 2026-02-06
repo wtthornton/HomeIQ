@@ -1,8 +1,8 @@
 # HomeIQ Deployment Runbook
 
-**Last Updated:** December 29, 2025  
-**Status:** Active  
-**Version:** 2.1
+**Last Updated:** February 6, 2026
+**Status:** Active
+**Version:** 2.2
 
 ---
 
@@ -20,7 +20,9 @@ This runbook provides step-by-step instructions for deploying HomeIQ to producti
 
 HomeIQ is an AI-powered Home Assistant intelligence platform that captures, enriches, and stores Home Assistant events with multi-source data enrichment, providing real-time monitoring, advanced analytics, conversational AI automation, and production-ready deployment capabilities.
 
-**Deployment Model:** Single NUC deployment - all 30+ microservices run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
+**Deployment Model:** Single NUC deployment - all 46+ microservices run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
+
+For complete service ranking and deployment priority, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
 
 ### Core Features
 
@@ -68,7 +70,7 @@ HomeIQ is an AI-powered Home Assistant intelligence platform that captures, enri
 
 ### Services Deployed
 
-HomeIQ deploys **38 microservices** (plus InfluxDB and Jaeger infrastructure) organized into the following categories:
+HomeIQ deploys **46+ microservices** organized into **7 tiers by criticality** (see [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)). Below are the key service categories:
 
 #### 🗄️ Infrastructure Services
 
