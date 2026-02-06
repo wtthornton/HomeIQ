@@ -217,3 +217,16 @@ tests/playwright-report/
 
 # Temporary folder for items pending deletion review
 deleteme/
+
+# Diagnostics folder (may contain secrets from docker inspect)
+diagnostics/
+
+# Backups folder (may contain large files and sensitive data)
+backups/
+
+# Migration backup folders and rollback scripts
+services/*/.migration_backup_*/
+services/*/rollback_*.sh
+
+# Phase 2 migration result files
+phase2_results_*.json
