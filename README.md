@@ -7,12 +7,13 @@
 Transform your Home Assistant into an intelligent automation powerhouse with conversational AI, pattern detection, and advanced analytics.
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.0-blue?style=for-the-badge)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-ISC-blue?style=for-the-badge)](LICENSE)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-41BDF5?style=for-the-badge&logo=home-assistant)](https://www.home-assistant.io/)
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
-[Features](#-key-features) • [Quick Start](#-quick-start) • [Screenshots](#-screenshots) • [Documentation](#-documentation) • [Support](#-support)
+[Features](#-key-features) • [Quick Start](#-quick-start) • [Tech Stack](TECH_STACK.md) • [Documentation](#-documentation) • [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -158,7 +159,7 @@ Once HomeIQ is running, explore these interfaces:
 
 ## 🏗️ Architecture Overview
 
-HomeIQ runs as a collection of 30+ microservices in Docker containers, designed for single-home deployment on resource-constrained hardware like an Intel NUC.
+HomeIQ runs as a collection of **40+ microservices** in Docker containers, designed for single-home deployment on resource-constrained hardware like an Intel NUC.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -220,6 +221,8 @@ For detailed architecture documentation, see:
 - [Development Setup](docs/DEVELOPMENT.md) — Local development environment
 - [Contributing Guide](CONTRIBUTING.md) — How to contribute
 - [Architecture Documentation](docs/architecture/) — Technical deep-dives
+- [Tech Stack](TECH_STACK.md) — Complete technology reference
+- [Changelog](CHANGELOG.md) — Version history and updates
 
 ---
 
@@ -227,29 +230,37 @@ For detailed architecture documentation, see:
 
 | Metric | Value |
 |--------|-------|
-| **Active Services** | 30 microservices + InfluxDB |
+| **Active Services** | 41 microservices + InfluxDB |
 | **Target Hardware** | Intel NUC (i3/i5, 8-16GB RAM) |
+| **Memory Footprint** | ~8-10 GB (optimized) |
 | **Optimized For** | Single home, 50-100 devices |
-| **Backend** | Python 3.12+, FastAPI |
-| **Frontend** | React 18, TypeScript, Vite |
-| **AI/ML** | OpenVINO, OpenAI GPT-4o-mini, LangChain |
+| **Backend** | Python 3.12+, FastAPI 0.128.x, Pydantic 2.12 |
+| **Frontend** | React 18, TypeScript 5, Vite 6, TailwindCSS 4 |
+| **AI/ML** | OpenVINO 2024.x, OpenAI GPT-4o-mini, LangChain 0.3.x |
+| **Database** | InfluxDB 2.7+ (time-series), SQLite (metadata) |
+
+For detailed technology information, see [TECH_STACK.md](TECH_STACK.md).
 
 ---
 
 ## 🗺️ Roadmap
 
-### Current (v1.x)
+### Current (v2.x) - February 2026
 - ✅ Conversational AI automation
 - ✅ Pattern detection and suggestions
 - ✅ Device health monitoring
 - ✅ Multi-source data enrichment
-- 🚧 Advanced ML models
+- ✅ Phase 2 library upgrades (100% complete)
+- ✅ Memory optimization (~5-6 GB savings)
+- 🚧 Advanced ML models (Phase 3)
 
 ### Future
 - 📱 Mobile app integration
 - 🔊 Voice assistant support
 - 🌐 Multi-language support
 - 📈 Predictive automation
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed release history.
 
 ---
 

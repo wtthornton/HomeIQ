@@ -6,7 +6,7 @@ Extracted from ai-automation-service for independent scaling.
 """
 
 import logging
-from typing import Any, Annotated
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -45,12 +45,12 @@ class GenerateRequest(BaseModel):
 async def generate_suggestions(
     request: GenerateRequest,
     db: DatabaseSession,
-    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
 ) -> dict[str, Any]:
     """
     Generate automation suggestions from patterns.
     """
-    suggestions = await service.generate_suggestions(
+    suggestions = await suggestion_svc.generate_suggestions(
         pattern_ids=request.pattern_ids,
         days=request.days,
         limit=request.limit
@@ -65,15 +65,15 @@ async def generate_suggestions(
 @router.get("/list")
 @handle_route_errors("list suggestions")
 async def list_suggestions(
-    service: Annotated[SuggestionService, Depends(get_suggestion_service)],
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    status: str | None = Query(None)
+    status: str | None = Query(None),
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
 ) -> dict[str, Any]:
     """
     List automation suggestions with filtering and pagination.
     """
-    result = await service.list_suggestions(
+    result = await suggestion_svc.list_suggestions(
         limit=limit,
         offset=offset,
         status=status
@@ -84,12 +84,12 @@ async def list_suggestions(
 @router.get("/usage/stats")
 @handle_route_errors("get usage stats")
 async def get_usage_stats(
-    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
 ) -> dict[str, Any]:
     """
     Get suggestion usage statistics.
     """
-    stats = await service.get_usage_stats()
+    stats = await suggestion_svc.get_usage_stats()
     return stats
 
 
@@ -97,14 +97,14 @@ async def get_usage_stats(
 @handle_route_errors("refresh suggestions")
 async def refresh_suggestions(
     db: DatabaseSession,
-    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
 ) -> dict[str, Any]:
     """
     Manually trigger suggestion generation.
-    
+
     Generates new automation suggestions and stores them in the database
     with status="draft" for user review.
-    
+
     Returns:
         {
             "success": True/False,
@@ -117,8 +117,8 @@ async def refresh_suggestions(
     try:
         # Generate suggestions synchronously (Option 1 from analysis)
         # Default: 10 suggestions, 30 days of data
-        suggestions = await service.generate_suggestions(limit=10, days=30)
-        
+        suggestions = await suggestion_svc.generate_suggestions(limit=10, days=30)
+
         if len(suggestions) == 0:
             return {
                 "success": False,
@@ -127,7 +127,7 @@ async def refresh_suggestions(
                 "suggestions": [],
                 "error_code": "NO_SUGGESTIONS_GENERATED"
             }
-        
+
         return {
             "success": True,
             "message": f"Suggestion generation completed. Generated {len(suggestions)} suggestions.",
@@ -164,7 +164,7 @@ async def get_refresh_status(
 ) -> dict[str, Any]:
     """
     Get status of suggestion refresh operation.
-    
+
     Note: Full implementation will be migrated from ai-automation-service
     in Story 39.10 completion phase.
     """
@@ -180,17 +180,17 @@ async def get_refresh_status(
 @router.get("/health")
 @handle_route_errors("health check")
 async def get_suggestions_health(
-    service: Annotated[SuggestionService, Depends(get_suggestion_service)]
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
 ) -> dict[str, Any]:
     """
     Health check endpoint for suggestion generation prerequisites.
-    
+
     Checks:
     - Database connectivity
     - Data API connectivity
     - Event count availability
     - OpenAI API key configuration
-    
+
     Returns:
         {
             "healthy": True/False,
@@ -220,35 +220,35 @@ async def get_suggestions_health(
         "can_generate": 0,
         "openai_configured": False
     }
-    
+
     # Check database connectivity
     try:
         from sqlalchemy import select, func
         count_query = select(func.count()).select_from(Suggestion)
-        result = await service.db.execute(count_query)
+        result = await suggestion_svc.db.execute(count_query)
         total_suggestions = result.scalar() or 0
         checks["database"] = True
     except Exception as e:
         issues.append(f"Database connection failed: {str(e)}")
-    
+
     # Check OpenAI configuration
-    if service.openai_client and service.openai_client.client:
+    if suggestion_svc.openai_client and suggestion_svc.openai_client.client:
         checks["openai"] = True
         details["openai_configured"] = True
     else:
         issues.append("OpenAI API key not configured")
-    
+
     # Check Data API connectivity and event count
     try:
-        if await service.data_api_client.health_check():
+        if await suggestion_svc.data_api_client.health_check():
             checks["data_api"] = True
             # Try to fetch events (with small limit for health check)
             try:
-                events = await service.data_api_client.fetch_events(limit=100)
+                events = await suggestion_svc.data_api_client.fetch_events(limit=100)
                 event_count = len(events) if events else 0
                 details["event_count"] = event_count
                 details["can_generate"] = event_count // 100
-                
+
                 if event_count >= 100:
                     checks["events_available"] = True
                 else:
@@ -259,9 +259,9 @@ async def get_suggestions_health(
             issues.append("Data API service not responding")
     except Exception as e:
         issues.append(f"Data API health check failed: {str(e)}")
-    
+
     healthy = all(checks.values())
-    
+
     return {
         "healthy": healthy,
         "checks": checks,
@@ -279,19 +279,19 @@ async def get_suggestion_json(
 ) -> dict[str, Any]:
     """
     Get HomeIQ JSON Automation for a suggestion.
-    
+
     Returns the stored automation_json if available, otherwise returns error.
     """
     suggestion = await db.get(Suggestion, suggestion_id)
     if not suggestion:
         raise HTTPException(status_code=404, detail="Suggestion not found")
-    
+
     if not suggestion.automation_json:
         raise HTTPException(
             status_code=404,
             detail="HomeIQ JSON not available for this suggestion"
         )
-    
+
     return {
         "success": True,
         "suggestion_id": suggestion_id,
@@ -306,18 +306,18 @@ async def get_suggestion_json(
 async def rebuild_suggestion_json(
     suggestion_id: int,
     db: DatabaseSession,
-    rebuilder: Annotated[JSONRebuilder, Depends(get_json_rebuilder)],
-    from_yaml: bool = Query(False, description="Rebuild from YAML instead of description")
+    from_yaml: bool = Query(False, description="Rebuild from YAML instead of description"),
+    rebuilder: JSONRebuilder = Depends(get_json_rebuilder)
 ) -> dict[str, Any]:
     """
     Rebuild HomeIQ JSON Automation for a suggestion.
-    
+
     Can rebuild from YAML (if automation_yaml exists) or from description.
     """
     suggestion = await db.get(Suggestion, suggestion_id)
     if not suggestion:
         raise HTTPException(status_code=404, detail="Suggestion not found")
-    
+
     try:
         if from_yaml and suggestion.automation_yaml:
             # Rebuild from YAML
@@ -334,19 +334,19 @@ async def rebuild_suggestion_json(
                 suggestion_id=suggestion_id,
                 pattern_id=suggestion.pattern_id
             )
-        
+
         # Update suggestion with rebuilt JSON
         suggestion.automation_json = automation_json
         suggestion.json_schema_version = automation_json.get("version", "1.0.0")
         await db.commit()
-        
+
         return {
             "success": True,
             "suggestion_id": suggestion_id,
             "automation_json": automation_json,
             "message": "JSON rebuilt successfully"
         }
-    
+
     except Exception as e:
         logger.error(f"Failed to rebuild JSON for suggestion {suggestion_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to rebuild JSON: {e}")
@@ -357,13 +357,13 @@ async def rebuild_suggestion_json(
 async def query_suggestions(
     filters: dict[str, Any],
     db: DatabaseSession,
-    query_service: Annotated[JSONQueryService, Depends(get_json_query_service)],
     limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
+    query_svc: JSONQueryService = Depends(get_json_query_service)
 ) -> dict[str, Any]:
     """
     Query suggestions by JSON properties.
-    
+
     Filters can include:
     - device_id: str | list[str]
     - entity_id: str | list[str]
@@ -380,17 +380,17 @@ async def query_suggestions(
     stmt = select(Suggestion).where(Suggestion.automation_json.isnot(None))
     result = await db.execute(stmt)
     suggestions = result.scalars().all()
-    
+
     # Extract JSON from suggestions
     automations = [s.automation_json for s in suggestions if s.automation_json]
-    
+
     # Query using JSONQueryService
-    matching_automations = query_service.query(automations, filters)
-    
+    matching_automations = query_svc.query(automations, filters)
+
     # Apply pagination
     total = len(matching_automations)
     paginated = matching_automations[offset:offset + limit]
-    
+
     # Map back to suggestions
     automation_aliases = {a.get("alias"): a for a in paginated}
     matching_suggestions = [
@@ -404,7 +404,7 @@ async def query_suggestions(
         for s in suggestions
         if s.automation_json and s.automation_json.get("alias") in automation_aliases
     ]
-    
+
     return {
         "success": True,
         "suggestions": matching_suggestions,
@@ -413,4 +413,3 @@ async def query_suggestions(
         "limit": limit,
         "offset": offset
     }
-
