@@ -16,6 +16,31 @@
 - **Implement entity capabilities enrichment and device card entity display** (571dbb7) - wtthornton
 - **Add Streamlit observability dashboard with OpenTelemetry integration** (6bdb15f) - wtthornton
 
+### Fixed
+
+- **Fix blueprint-suggestion-service: create tests directory and migrate** (59827f0) - wtthornton
+- **Fix data-retention InfluxDB write_api usage** (43b4664) - wtthornton
+- **Fix energy-forecasting InfluxDB API to use new influxdb3-python** (e969324) - wtthornton
+- **Fix orchestrator script references after rename** (2d89316) - wtthornton
+- **Resolve ai-automation-ui TypeScript compilation errors** (3bd93bf) - wtthornton
+- **Resolve api-automation-edge queue module naming conflict** (c93b149) - wtthornton
+- **Fix Docker deployment issues: FastAPI dependency injection and TypeScript errors** (88c7ac5) - wtthornton
+
+
+### Added
+
+- **Add service tier ranking and clean up documentation** (f7a887a) - wtthornton
+- **Add diagnostics, backups, and migration artifacts to .gitignore** (263d12c) - wtthornton
+- **Add --no-prompt flag for automated Phase D execution** (cfa9233) - wtthornton
+- **Add --skip-tests flag to MQTT migration script** (b8da908) - wtthornton
+- **Add --skip-tests flag to all migration scripts** (612fc8e) - wtthornton
+- **Add Phase 1 automated batch rebuild system for 40 services** (ec9e337) - wtthornton
+- **Phase 2 library upgrades - standard library updates** (9f8eeba) - wtthornton
+- **Phase 1 library upgrades - critical compatibility fixes** (b17796f) - wtthornton
+- **add Home Assistant automation linter service** (9212bed) - wtthornton
+- **Implement entity capabilities enrichment and device card entity display** (571dbb7) - wtthornton
+- **Add Streamlit observability dashboard with OpenTelemetry integration** (6bdb15f) - wtthornton
+
 ### Changed
 
 - **Improve code quality across 29 files in 25 services** (4bfb575) - wtthornton
