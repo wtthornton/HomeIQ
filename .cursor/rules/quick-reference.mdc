@@ -32,6 +32,13 @@ alwaysApply: false
 | Backend patterns | `@backend-patterns` |
 | Frontend/a11y patterns | `@frontend-patterns` |
 | Quick score only | `@reviewer *score <file>` (exception) |
+| Execute an Epic | `@simple-mode *epic <epic-doc.md>` |
+| Check Epic progress | `tapps-agents epic status [--epic-id <id>]` |
+| Consult a domain expert | `@expert *consult <domain> "<question>"` |
+| List available experts | `@expert *list` |
+| Search expert knowledge | `@expert *search "<query>"` |
+
+**Build presets (CLI):** `--preset minimal|standard|comprehensive` or omit to **auto-suggest from prompt scope** (minimal = fast path; standard = all 7 steps; comprehensive = full design). Use `@enhancer *enhance-quick "prompt"` or CLI `--quick` for **concise enhancement** (stages 1–3).
 
 **Importance and when to use:** See `when-to-use.mdc` for which capabilities matter most (Tier 1–2 first) and when to use each workflow, agent, and command.
 
@@ -137,6 +144,9 @@ These commands work in **both** modes with equivalent results:
 | Implement | `@implementer *implement "<spec>" <file>` | `tapps-agents implementer implement "<spec>" <file>` |
 | Test | `@tester *test <file>` | `tapps-agents tester test <file>` |
 | Debug | `@debugger *debug "<error>" --file <file>` | `tapps-agents debugger debug "<error>" --file <file>` |
+| Epic Status | `@simple-mode *epic status` | `tapps-agents epic status [--epic-id <id>]` |
+| Expert List | `@expert *list` | `tapps-agents expert list` |
+| Expert Consult | `@expert *consult <domain> "<question>"` | `tapps-agents expert consult <domain> "<question>"` |
 
 **Choose based on:**
 - **Cursor**: Interactive, context-aware, natural language
@@ -195,14 +205,47 @@ tapps-agents workflow rapid --print-paths --prompt "Add feature"  # Show artifac
 tapps-agents workflow rapid --no-print-paths --prompt "Add feature"
 ```
 
-### Quick Project Creation (Cursor Native)
+### Epic Management
+```bash
+# Check Epic progress
+tapps-agents epic status [--epic-id <id>]
+
+# Approve Epic for execution
+tapps-agents epic approve --epic-id <id>
+
+# Pause Epic and write session handoff
+tapps-agents epic pause [--epic-id <id>]
+
+# Execute Epic via Simple Mode
+# In Cursor: @simple-mode *epic <epic-doc.md>
+```
+
+### Expert System
+```bash
+# List all available experts
+tapps-agents expert list [--domain <domain>]
+
+# Consult a domain expert
+tapps-agents expert consult <domain> "<question>"
+
+# Search expert knowledge bases
+tapps-agents expert search "<query>"
+
+# Show expert details
+tapps-agents expert info <expert-id>
+
+# List cached Context7 libraries
+tapps-agents expert cached
+```
+
+### Quick Project Creation (Skills-Based)
 ```bash
 # Create a complete project from description (uses full SDLC workflow)
 python -m tapps_agents.cli create "Create a modern web application"
 
 # This is a shortcut for: workflow full --auto --prompt
-# Automatically runs in Cursor-native mode
-# Uses Cursor Skills
+# Automatically uses Skills-based execution mode (Cursor or Claude)
+# Leverages configured LLM via Skills
 ```
 
 ### Code Generation
@@ -227,6 +270,18 @@ python -m tapps_agents.cli tester generate-tests <file.py>
 
 # Run existing tests
 python -m tapps_agents.cli tester run-tests
+```
+
+### Performance Dashboard
+```bash
+# Generate and open HTML performance dashboard
+tapps-agents dashboard
+
+# Generate without opening browser
+tapps-agents dashboard --no-open
+
+# Last 14 days, custom output
+tapps-agents dashboard --days 14 -o reports/dashboard.html
 ```
 
 ### Environment & Setup
@@ -392,7 +447,7 @@ The framework handles this automatically, but you can also add Scripts directory
 
 ### Python Version Warning
 **Issue:** Doctor warns about Python version
-**Solution:** If you're on Python 3.13+, you're fine. The warning is informational. The project requires `>=3.13`.
+**Solution:** If you're on Python 3.12+, you're fine. The warning is informational. The project requires `>=3.12`.
 
 ### Playwright Warning
 **Issue:** "Playwright not available" message
@@ -611,18 +666,18 @@ python -c "import tapps_agents; print(tapps_agents.__version__)"
 - Multi-Service Analyzer
 
 
-### Cursor Native Execution Mode
+### Skills-Based Execution Mode
 
-When running in Cursor IDE, workflows automatically use **Cursor Native Execution**:
+When running in supported IDEs (Cursor IDE or Claude Code CLI), workflows automatically use **Skills-based execution**:
 - ✅ **No API Key Required** (file-based mode by default)
-- ✅ Uses Cursor Skills (`@agent-name` commands)
-- ✅ Leverages Cursor's configured LLM
+- ✅ Uses TappsCodingAgents Skills (`@agent-name` commands)
+- ✅ Leverages IDE's configured LLM (Cursor's LLM or Claude)
 - ✅ Project profiling automatically included
 - ✅ Worktree isolation per workflow step
 
 **Execution Modes:**
-1. **File-Based** (default): Creates command files, works immediately
-2. **API-Based** (optional): Programmatic execution with `CURSOR_API_KEY` set
+1. **File-Based** (default): Creates command files, works immediately in both Cursor and Claude
+2. **API-Based** (optional): Programmatic execution (Cursor: with `CURSOR_API_KEY`, Claude: native)
 
 **Project Profiling:**
 - Automatically detects project characteristics (deployment type, tenancy, scale, compliance)

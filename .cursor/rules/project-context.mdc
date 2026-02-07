@@ -118,6 +118,10 @@ tapps-agents simple-mode full --prompt "Implement [enhancement description]" --a
    - If unclear, ask: "Are you asking about using the framework or developing it?"
    - Provide examples for both contexts when relevant
 
+5. **When asked for feedback on tapps-agents effectiveness** (e.g. "provide feedback on how well tapps-agents helps you as an LLM"):
+   - **Include health metrics in the feedback report or document.** Run `tapps-agents health overview` (or `tapps-agents health usage dashboard`) and include the output or a summary.
+   - This ensures feedback is actionable and comparable (subsystem health, usage, top agents/workflows). See `docs/feedback/README.md` for placement.
+
 ## File Organization
 
 ```

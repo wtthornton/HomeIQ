@@ -4,13 +4,13 @@ Phase 1.2: Core health analysis logic
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .ha_client import HAClient
 from .models import HealthIssue, HealthSeverity, MaintenanceRecommendation
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("device-health-monitor")
 
 
 class HealthAnalyzer:
@@ -85,7 +85,7 @@ class HealthAnalyzer:
         # Check last seen
         last_seen = await self._get_last_seen(device_entities)
         if last_seen:
-            hours_ago = (datetime.now() - last_seen).total_seconds() / 3600
+            hours_ago = (datetime.now(timezone.utc) - last_seen).total_seconds() / 3600
             if hours_ago > 24:
                 issues.append(HealthIssue(
                     type="device_not_responding",
@@ -129,7 +129,7 @@ class HealthAnalyzer:
         return {
             "device_id": device_id,
             "device_name": device_name,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "overall_status": overall_status,
             "response_time_ms": response_time,
             "battery_level": battery_level,
@@ -147,7 +147,7 @@ class HealthAnalyzer:
         
         try:
             # Get history for last hour
-            start_time = datetime.now() - timedelta(hours=1)
+            start_time = datetime.now(timezone.utc) - timedelta(hours=1)
             total_time = 0.0
             count = 0
             

@@ -512,7 +512,1876 @@ python -m tapps_agents.cli enhancer enhance-stage requirements --session-id <ses
 
 ---
 
+## Performance Insight Dashboard
+
+**Not an agent**, but a top-level CLI command that aggregates metrics from all subsystems into a self-contained HTML report.
+
+**Command:** `tapps-agents dashboard [--no-open] [--output <path>] [--days <n>] [--verbose]`
+
+**What it covers:**
+- Agent execution counts, success rates, and trends
+- Expert consultation frequency, confidence scores, and ROI
+- Context7 cache hit rates, library usage, and RAG quality
+- Quality gate pass rates, dimension scores, and recent failures
+- Workflow success rates, preset distribution, and Epic progress
+- Learning system trends (first-pass rate, weight adjustments, KB growth)
+- Health check status across all subsystems
+- Event stream (recent workflow events)
+- Recommendations engine (actionable suggestions based on data)
+
+**When to use:** To get a visual overview of how well tapps-agents is performing in a project. Complements `health overview` (text) with charts, tables, and drill-down tabs.
+
+---
+
 ## Agent Selection Guide
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
+
+### Analyst Agent
+
+**Purpose**: Analyst Agent - Requirements gathering and technical research.
+
+**Commands**:
+- `*description` - See agent documentation
+
+
+### Architect Agent
+
+**Purpose**: Architect Agent - System and security architecture design.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*component` - See agent documentation
+- `*sequence` - See agent documentation
+- `*deployment` - See agent documentation
+- `*class` - See agent documentation
+
+
+### Cleanup Agent
+
+**Purpose**: Cleanup Agent - Project structure analysis and cleanup.
+
+
+### Debugger Agent
+
+**Purpose**: Debugger Agent - Error analysis and debugging.
+
+
+### Designer Agent
+
+**Purpose**: Designer Agent - API contracts, data models, UI/UX specifications.
+
+**Commands**:
+- `*requirements` - See agent documentation
+- `*page` - See agent documentation
+- `*component` - See agent documentation
+- `*flow` - See agent documentation
+
+
+### Documenter Agent
+
+**Purpose**: Documenter Agent - Documentation generation.
+
+
+### Enhancer Agent
+
+**Purpose**: Enhancer Agent - Transforms simple prompts into comprehensive, context-aware prompts.
+
+**Commands**:
+- `*analysis` - See agent documentation
+- `*requirements` - See agent documentation
+- `*architecture` - See agent documentation
+- `*codebase_context` - See agent documentation
+- `*quality` - See agent documentation
+- `*implementation` - See agent documentation
+- `*synthesis` - See agent documentation
+- `*enhance` - See agent documentation
+
+
+### Evaluator Agent
+
+**Purpose**: Evaluator Agent - Evaluates TappsCodingAgents framework effectiveness.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+
+
+### Implementer Agent
+
+**Purpose**: Implementer Agent - Code generation and file writing.
+
+
+### Improver Agent
+
+**Purpose**: Improver Agent - Code refactoring, performance optimization, and quality improvements.
+
+**Commands**:
+- `*file_path` - See agent documentation
+- `*instruction` - See agent documentation
+- `*type` - See agent documentation
+- `*performance` - See agent documentation
+- `*memory` - See agent documentation
+- `*both` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Edit` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+
+
+### Ops Agent
+
+**Purpose**: Ops Agent - Security scanning, compliance, deployment, and infrastructure management.
+
+**Commands**:
+- `*target` - See agent documentation
+- `*type` - See agent documentation
+- `*all` - See agent documentation
+- `*sql_injection` - See agent documentation
+- `*xss` - See agent documentation
+- `*secrets` - See agent documentation
+- `*general` - See agent documentation
+- `*GDPR` - See agent documentation
+- `*HIPAA` - See agent documentation
+- `*SOC2` - See agent documentation
+- `*local` - See agent documentation
+- `*staging` - See agent documentation
+- `*production` - See agent documentation
+- `*environment` - See agent documentation
+- `*docker` - See agent documentation
+- `*kubernetes` - See agent documentation
+- `*terraform` - See agent documentation
+- `*help` - See agent documentation
+- `*Read` - See agent documentation
+- `*Write` - See agent documentation
+- `*Grep` - See agent documentation
+- `*Glob` - See agent documentation
+- `*Bash` - See agent documentation
+- `*Edit` - See agent documentation
+
+
+### Orchestrator Agent
+
+**Purpose**: Orchestrator Agent - Coordinates YAML-defined workflows and makes gate decisions.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*on_pass` - See agent documentation
+- `*on_fail` - See agent documentation
+
+
+### Planner Agent
+
+**Purpose**: Planner Agent - Story/epic planning and task breakdown.
+
+**Commands**:
+- `*feature` - See agent documentation
+- `*description` - See agent documentation
+- `*filesystem` - See agent documentation
+- `*git` - See agent documentation
+- `*analysis` - See agent documentation
+- `*context7` - See agent documentation
+
+
+### Reviewer Agent
+
+**Purpose**: Reviewer Agent - Code review with Code Scoring.
+
+**Commands**:
+- `*help` - See agent documentation
+- `*lint` - See agent documentation
+- `*review` - See agent documentation
+- `*score` - See agent documentation
+- `*duplication` - See agent documentation
+
+
+### Tester Agent
+
+**Purpose**: Tester Agent - Test generation and execution.
+
 
 ### By Task Type
 

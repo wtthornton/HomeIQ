@@ -6,7 +6,105 @@ TappsCodingAgents provides preset workflows that can be executed with simple one
 
 ## Available Workflow Presets
 
-### 1. Enterprise Development
+### 1. Full SDLC Pipeline (`full` / `enterprise`)
+
+**Command:** `python -m tapps_agents.cli workflow full`
+
+**Best for:** Complete software development lifecycle with all quality gates
+
+**Agent Sequence:**
+1. Analyst - Gather Requirements
+2. Planner - Create Stories
+3. Architect - Design System
+4. Designer - Api Design
+5. Implementer - Write Code
+6. Reviewer - Review Code
+7. Tester - Write Tests
+8. Ops - Security Scan
+9. Documenter - Generate Docs
+10. Orchestrator - Finalize
+
+**Quality Gates:**
+- Overall score: ≥70
+- Security: ≥7.0
+- Maintainability: ≥7.0
+
+### 2. Rapid Development (`rapid` / `feature`)
+
+**Command:** `python -m tapps_agents.cli workflow rapid`
+
+**Best for:** Fast feature development with quality checks
+
+**Agent Sequence:**
+1. Enhancer - Enhance Prompt
+2. Planner - Create Stories
+3. Implementer - Write Code
+4. Reviewer - Review Code
+5. Tester - Write Tests
+6. Orchestrator - Finalize
+
+**Quality Gates:**
+- Overall score: ≥65
+- Security: ≥6.5
+
+### 3. Fix (`fix` / `maintenance` / `hotfix` / `urgent` / `refactor` / `quick-fix`)
+
+**Command:** `python -m tapps_agents.cli workflow fix`
+
+**Best for:** Debug, fix, and verify issues in existing code
+
+**Agent Sequence:**
+1. Enhancer - Enhance Prompt
+2. Debugger - Analyze Error
+3. Implementer - Write Code
+4. Reviewer - Review Code
+5. Tester - Write Tests
+6. Orchestrator - Finalize
+
+**Quality Gates:**
+- Overall score: ≥65
+- Security: ≥6.5
+
+### 4. Quality Improvement (`quality` / `improve`)
+
+**Command:** `python -m tapps_agents.cli workflow quality`
+
+**Best for:** Comprehensive code review and improvement cycle
+
+**Agent Sequence:**
+1. Reviewer - Review Code
+2. Improver - Refactor
+3. Reviewer - Review Code
+4. Tester - Write Tests
+5. Ops - Security Scan
+6. Orchestrator - Finalize
+
+**Quality Gates:**
+- Overall score: ≥75
+- Security: ≥7.5
+- Maintainability: ≥8.0
+
+### 5. Brownfield Project Analysis (`brownfield`)
+
+**Command:** `python -m tapps_agents.cli workflow brownfield`
+
+**Best for:** Comprehensive analysis workflow for existing codebases that provides:
+- Project discovery and profiling
+- Code quality assessment
+- Architecture pattern analysis
+- Codebase structure evaluation
+- Technical debt categorization and prioritization
+- Dependency and integration mapping
+- Test and documentation coverage analysis
+- Modernization roadmap generation
+
+This workflow orchestrates multiple agents to provide a complete picture
+of a brownfield project's current state and recommended improvements.
+
+
+**Agent Sequence:**
+
+### 6. Enterprise Development
 
 **Command:** `python -m tapps_agents.cli workflow enterprise-development`
 
@@ -29,7 +127,7 @@ TappsCodingAgents provides preset workflows that can be executed with simple one
 - Security: ≥7.0
 - Maintainability: ≥7.0
 
-### 2. Maintenance & Bug Fixing
+### 7. Maintenance & Bug Fixing
 
 **Command:** `python -m tapps_agents.cli workflow maintenance`
 
@@ -47,7 +145,7 @@ TappsCodingAgents provides preset workflows that can be executed with simple one
 - Overall score: ≥70
 - Maintainability: ≥7.5
 
-### 3. Quick Fix
+### 8. Quick Fix
 
 **Command:** `python -m tapps_agents.cli workflow quick-fix`
 
@@ -64,7 +162,7 @@ TappsCodingAgents provides preset workflows that can be executed with simple one
 - Overall score: ≥60
 - Security: ≥7.0
 
-### 4. Simple Fix Issues
+### 9. Simple Fix Issues
 
 **Command:** `python -m tapps_agents.cli workflow simple-fix-issues`
 
@@ -77,7 +175,7 @@ TappsCodingAgents provides preset workflows that can be executed with simple one
 4. Tester - Write Tests
 5. Orchestrator - Finalize
 
-### 5. Simple Improve Quality
+### 10. Simple Improve Quality
 
 **Command:** `python -m tapps_agents.cli workflow simple-improve-quality`
 
@@ -93,6 +191,24 @@ TappsCodingAgents provides preset workflows that can be executed with simple one
 **Quality Gates:**
 - Overall score: ≥75
 - Maintainability: ≥8.0
+
+### 11. Simple New Feature
+
+**Command:** `python -m tapps_agents.cli workflow simple-new-feature`
+
+**Best for:** Build new features with automatic quality checks
+
+**Agent Sequence:**
+1. Enhancer - Enhance Prompt
+2. Planner - Create Stories
+3. Implementer - Write Code
+4. Reviewer - Review Code
+5. Tester - Write Tests
+6. Orchestrator - Finalize
+
+**Quality Gates:**
+- Overall score: ≥65
+- Security: ≥6.5
 
 ## Usage in Cursor AI
 
@@ -115,11 +231,28 @@ When working in Cursor AI, you can:
 
 ## When to Use Each Workflow
 
+- **Complete software development lifecycle with all quality gates** → `workflow full`
+- **Fast feature development with quality checks** → `workflow rapid`
+- **Debug, fix, and verify issues in existing code** → `workflow fix`
+- **Comprehensive code review and improvement cycle** → `workflow quality`
+- **Comprehensive analysis workflow for existing codebases that provides:
+- Project discovery and profiling
+- Code quality assessment
+- Architecture pattern analysis
+- Codebase structure evaluation
+- Technical debt categorization and prioritization
+- Dependency and integration mapping
+- Test and documentation coverage analysis
+- Modernization roadmap generation
+
+This workflow orchestrates multiple agents to provide a complete picture
+of a brownfield project's current state and recommended improvements** → `workflow brownfield`
 - **Complete enterprise software development lifecycle with all quality gates, compliance checks, and comprehensive documentation** → `workflow enterprise-development`
 - **Debug, improve, and refactor existing code** → `workflow maintenance`
 - **Fast bug fix with minimal overhead** → `workflow quick-fix`
 - **Debug and fix issues in existing code** → `workflow simple-fix-issues`
 - **Improve code quality through review and refactoring** → `workflow simple-improve-quality`
+- **Build new features with automatic quality checks** → `workflow simple-new-feature`
 
 ## Integration
 
@@ -139,10 +272,16 @@ python -m tapps_agents.cli workflow list
 ## Customization
 
 Workflow presets are defined in `workflows/presets/`:
+- `full-sdlc.yaml`
+- `rapid-dev.yaml`
+- `fix.yaml`
+- `quality.yaml`
+- `brownfield-analysis.yaml`
 - `enterprise-development.yaml`
 - `maintenance.yaml`
 - `quick-fix.yaml`
 - `simple-fix-issues.yaml`
 - `simple-improve-quality.yaml`
+- `simple-new-feature.yaml`
 
 You can modify these files or create your own presets.

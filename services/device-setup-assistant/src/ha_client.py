@@ -9,7 +9,7 @@ from typing import Any
 
 import aiohttp
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("device-setup-assistant")
 
 
 class HAClient:
@@ -18,6 +18,10 @@ class HAClient:
     def __init__(self):
         """Initialize HA client"""
         self.ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
+        if self.ha_url:
+            self.ha_url = self.ha_url.rstrip("/")
+        else:
+            raise ValueError("HA_URL or HA_HTTP_URL environment variable must be set")
         self.ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
         self.headers = {
             "Authorization": f"Bearer {self.ha_token}",
@@ -41,12 +45,13 @@ class HAClient:
         try:
             session = await self._get_session()
             url = f"{self.ha_url}/api/config/device_registry/list"
-            
+
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
+                    devices = data if isinstance(data, list) else data.get("devices", [])
                     registry_dict = {}
-                    for device in data.get("devices", []):
+                    for device in devices:
                         device_id = device.get("id")
                         if device_id:
                             registry_dict[device_id] = device
@@ -66,12 +71,13 @@ class HAClient:
         try:
             session = await self._get_session()
             url = f"{self.ha_url}/api/config/entity_registry/list"
-            
+
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
+                    entities = data if isinstance(data, list) else data.get("entities", [])
                     registry_dict = {}
-                    for entity in data.get("entities", []):
+                    for entity in entities:
                         entity_id = entity.get("entity_id")
                         if entity_id:
                             registry_dict[entity_id] = entity
@@ -90,4 +96,3 @@ class HAClient:
         """Close the session"""
         if self._session and not self._session.closed:
             await self._session.close()
-

@@ -65,33 +65,33 @@ DEVICE_PATTERNS: dict[str, dict[str, Any]] = {
 DOMAIN_TO_DEVICE_TYPE: dict[str, str] = {
     # Lighting
     "light": "light",
-    
+
     # Switches and outlets
     "switch": "switch",
-    
+
     # Sensors
     "sensor": "sensor",
     "binary_sensor": "sensor",
-    
+
     # Climate
     "climate": "thermostat",
     "fan": "fan",
-    
+
     # Security
     "lock": "lock",
     "camera": "camera",
     "alarm_control_panel": "alarm",
-    
+
     # Covers
     "cover": "cover",
     "garage_door": "cover",
-    
+
     # Media
     "media_player": "media_player",
-    
+
     # Vacuum
     "vacuum": "vacuum",
-    
+
     # Other
     "valve": "valve",
     "button": "button",
@@ -101,82 +101,99 @@ DOMAIN_TO_DEVICE_TYPE: dict[str, str] = {
 # Priority order for domain-based classification (most specific first)
 DOMAIN_PRIORITY = [
     "light", "switch", "climate", "fan", "lock", "camera",
-    "sensor", "binary_sensor", "cover", "media_player", "vacuum"
+    "alarm_control_panel", "sensor", "binary_sensor", "cover",
+    "media_player", "vacuum", "garage_door", "valve", "button", "remote"
 ]
 
 
-def match_device_pattern(entity_domains: list[str], entity_attributes: dict[str, Any]) -> str | None:
+def match_device_pattern(
+    entity_domains: list[str],
+    attribute_keys: set[str]
+) -> tuple[str | None, float]:
     """
     Match entities to device patterns.
-    
+
     Uses domain-based classification as primary method, with pattern matching as fallback.
-    
+
     Args:
         entity_domains: List of entity domains (sensor, light, etc.)
-        entity_attributes: Dictionary of entity attributes
-        
+        attribute_keys: Set of attribute key names across all entities
+
     Returns:
-        Matched device type or None
+        Tuple of (matched device type or None, confidence score 0.0-1.0)
     """
     if not entity_domains:
-        return None
-    
+        return None, 0.0
+
     # PRIMARY: Domain-based classification (most reliable)
     # Check domains in priority order
     for domain in DOMAIN_PRIORITY:
         if domain in entity_domains:
             device_type = DOMAIN_TO_DEVICE_TYPE.get(domain)
             if device_type:
-                return device_type
-    
+                # Domain match is high confidence; more matching domains = higher
+                domain_count = sum(1 for d in entity_domains if d == domain)
+                total = len(entity_domains)
+                # Base confidence 0.7, boosted by domain prevalence (up to 0.95)
+                confidence = min(0.7 + 0.25 * (domain_count / max(total, 1)), 0.95)
+                return device_type, round(confidence, 3)
+
     # FALLBACK: Try any domain in mapping
     for domain in entity_domains:
         device_type = DOMAIN_TO_DEVICE_TYPE.get(domain)
         if device_type:
-            return device_type
-    
+            return device_type, 0.6
+
     # SECONDARY: Pattern-based matching (for complex devices)
     # Build feature set from entities
     features = set()
     for domain in entity_domains:
         features.add(domain)
-    
-    # Add attributes as features
-    for attr_key, attr_value in entity_attributes.items():
-        if isinstance(attr_value, (str, int, float, bool)):
-            features.add(attr_key)
-    
+
+    # Add attribute keys as features
+    features.update(attribute_keys)
+
     # Score each pattern
     best_match = None
     best_score = 0.0
-    
+    best_raw_score = 0.0
+    best_max_score = 1.0
+
     for device_type, pattern in DEVICE_PATTERNS.items():
         required = set(pattern["required"])
         optional = set(pattern.get("optional", []))
-        
+
         # Check required features
         required_matches = len(required.intersection(features))
         if required_matches < len(required):
             continue  # Missing required features
-        
-        # Calculate score
+
+        # Calculate score: required features worth 2 points, optional worth 1
         optional_matches = len(optional.intersection(features))
-        score = required_matches * 2 + optional_matches
-        
-        if score > best_score:
-            best_score = score
+        raw_score = required_matches * 2 + optional_matches
+        max_possible = len(required) * 2 + len(optional)
+
+        if raw_score > best_raw_score:
+            best_raw_score = raw_score
+            best_max_score = max_possible
             best_match = device_type
-    
-    return best_match
+
+    if best_match and best_max_score > 0:
+        # Normalize to 0.3-0.85 range for pattern matches (lower than domain matches)
+        normalized = best_raw_score / best_max_score
+        confidence = round(0.3 + 0.55 * normalized, 3)
+        return best_match, confidence
+
+    return None, 0.0
 
 
 def get_device_category(device_type: str | None) -> str | None:
     """
     Get device category from device type.
-    
+
     Args:
         device_type: Device type (fridge, light, etc.)
-        
+
     Returns:
         Device category (appliance, lighting, etc.)
     """
@@ -190,7 +207,13 @@ def get_device_category(device_type: str | None) -> str | None:
         "switch": "control",
         "camera": "security",
         "lock": "security",
-        "fan": "climate"
+        "fan": "climate",
+        "alarm": "security",
+        "cover": "cover",
+        "media_player": "entertainment",
+        "vacuum": "appliance",
+        "valve": "plumbing",
+        "button": "control",
+        "remote": "control",
     }
     return category_map.get(device_type) if device_type else None
-

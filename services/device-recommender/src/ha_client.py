@@ -9,7 +9,7 @@ from typing import Any
 
 import aiohttp
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("device-recommender")
 
 
 class HAClient:
@@ -24,6 +24,9 @@ class HAClient:
             "Content-Type": "application/json"
         } if self.ha_token else {}
         self._session: aiohttp.ClientSession | None = None
+
+        if not self.ha_url:
+            logger.warning("HA_URL / HA_HTTP_URL not set - Home Assistant integration disabled")
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create client session"""
@@ -40,13 +43,14 @@ class HAClient:
         """Get user's devices from HA API"""
         try:
             session = await self._get_session()
-            
+
             # Get device registry
             url = f"{self.ha_url}/api/config/device_registry/list"
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return data.get("devices", [])
+                    devices = data if isinstance(data, list) else data.get("devices", [])
+                    return devices
                 elif response.status == 404:
                     # Fallback: get from entity registry
                     return await self._get_devices_from_entities(session)
@@ -64,8 +68,8 @@ class HAClient:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
-                    entities = data.get("entities", [])
-                    
+                    entities = data if isinstance(data, list) else data.get("entities", [])
+
                     # Extract unique devices
                     devices = {}
                     for entity in entities:
@@ -78,12 +82,11 @@ class HAClient:
                                 "model": entity.get("model")
                             }
                     return list(devices.values())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Error getting devices from entity registry: {e}")
         return []
 
     async def close(self):
         """Close the session"""
         if self._session and not self._session.closed:
             await self._session.close()
-

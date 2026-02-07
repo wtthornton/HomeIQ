@@ -82,7 +82,7 @@ When you run `tapps-agents init` on any project (new or existing), it:
    - `command-reference.mdc` - This file (complete command reference)
    - `cursor-mode-usage.mdc` - Cursor vs CLI usage (when to use @simple-mode vs tapps-agents workflow)
 
-2. **Cursor Skills** (`.claude/skills/`) - 14 agent skills + simple-mode skill:
+2. **Cursor Skills** (`.claude/skills/`) - 22 skills (14 agents + simple-mode + expert + patterns + utilities):
    - Enables `@agent-name *command` syntax in Cursor chat
    - Each skill defines agent capabilities, tools, and instructions
    - Skills are model-agnostic (use Cursor's configured LLM)
@@ -137,6 +137,22 @@ When you run `tapps-agents init` on any project (new or existing), it:
    - Excludes large/generated files from Cursor indexing
    - Auto-updated with TappsCodingAgents patterns (backups, archives, artifacts)
    - Preserves existing user patterns
+
+9. **Framework version** (`.tapps-agents/.framework-version`):
+   - Stores installed package version; written on init and init --reset
+   - Used for upgrade detection and backup manifest (version_before / version_after)
+
+10. **Beads (bd) support**:
+   - When `tools/bd` exists (bd.exe or bd), init ensures `scripts/set_bd_path.ps1` exists (does not overwrite)
+   - After init, if `.beads` is missing, init prints a hint: run `bd init` or `bd init --stealth`, then `bd doctor --fix`. When `beads.required` is true, init prints a REQUIRED message; workflows will fail until Beads is initialized.
+   - Use `tapps-agents doctor` for Beads status (enabled, required, sync_epic, hooks_*); doctor fails when beads.required and bd missing or not initialized; see docs/BEADS_INTEGRATION.md
+
+**init --reset behavior:**
+- Detects existing installation; identifies framework-managed files (rules, skills, presets, .cursorignore, MCP if Context7)
+- Creates backup under `.tapps-agents/backups/init-reset-<timestamp>` with manifest (framework_version_before, files)
+- Deletes framework files; preserves custom Skills, Rules, presets, and user data (config, experts, knowledge, worktrees)
+- Re-runs full init; updates backup manifest with framework_version_after; writes `.tapps-agents/.framework-version`
+- Rollback: `tapps-agents init --rollback .tapps-agents/backups/init-reset-<timestamp>`
 
 **Parameters:**
 
@@ -344,49 +360,134 @@ tapps-agents workflow rapid --skip-steps "enhance,planning" --prompt "Add user a
 tapps-agents workflow rapid --cli-mode --auto --prompt "Add user auth"
 ```
 
+### `epic` - Epic Management Commands
+**Purpose:** Manage Epic execution state, approval, and session handoff
+
+**CLI Syntax:**
+```bash
+tapps-agents epic status [--epic-id <id>] [--all] [--format json|text]
+tapps-agents epic approve --epic-id <id>
+tapps-agents epic pause [--epic-id <id>]
+```
+
+**Subcommands:**
+- `status` - Show Epic execution status (stories, completion %, progress)
+  - `--epic-id`: Filter to specific Epic
+  - `--all`: List all Epic states
+  - `--format`: Output format
+- `approve` - Mark an Epic as approved for execution
+  - `--epic-id` (required): Epic to approve
+- `pause` - Pause Epic execution and write session handoff
+  - `--epic-id`: Epic to pause (latest if omitted)
+
+**Epic Execution via Simple Mode:**
+```bash
+# Execute an Epic with story-only workflow (pre-approved stories)
+tapps-agents simple-mode epic docs/prd/epic-51.md --approved --story-workflow-mode story-only
+
+# Full workflow per story
+tapps-agents simple-mode epic docs/prd/epic-51.md --story-workflow-mode full
+```
+
+**Epic State Cleanup:**
+```bash
+tapps-agents cleanup epic-state [--retention-days 30] [--remove-completed] [--archive] [--dry-run]
+```
+
+**When to Use:**
+- **status**: Check progress of an in-flight Epic
+- **approve**: Approve an Epic before execution (required unless `--approved` flag)
+- **pause**: Save handoff context for session continuation
+
+### `expert` - Expert System Commands
+**Purpose:** Discover, consult, and search project experts and knowledge bases
+
+**CLI Syntax:**
+```bash
+tapps-agents expert list [--domain <domain>] [--format json|text]
+tapps-agents expert consult --domain <domain> --question "<question>" [--format json|text]
+tapps-agents expert info --expert-id <id> [--format json|text]
+tapps-agents expert search --query "<query>" [--format json|text]
+tapps-agents expert cached [--library <name>] [--format json|text]
+```
+
+**Subcommands:**
+- `list` - List all available experts (built-in + project-defined)
+- `consult` - Consult an expert domain with a question
+- `info` - Show detailed info about a specific expert
+- `search` - Search across all knowledge base files
+- `cached` - List cached Context7 libraries with sizes
+
+**Cursor Skill Syntax:**
+```cursor
+@expert *list
+@expert *consult security "OAuth2 best practices"
+@expert *info expert-id
+@expert *search "authentication patterns"
+@expert *cached
+```
+
+**When to Use:**
+- **list**: Discover what experts are available for your project
+- **consult**: Get domain-specific guidance before implementation
+- **search**: Find relevant knowledge across all expert knowledge bases
+- **cached**: Check what Context7 library documentation is available
+
 ### `cleanup` - Cleanup TappsCodingAgents Artifacts
 **Purpose:** Clean up various TappsCodingAgents artifacts to free disk space and reduce IDE clutter
 
 **CLI Syntax:**
 ```bash
 tapps-agents cleanup workflow-docs [--keep-latest <n>] [--retention-days <n>] [--archive] [--no-archive] [--dry-run]
+tapps-agents cleanup sessions [--keep-latest <n>] [--max-age-days <n>] [--dry-run]
+tapps-agents cleanup all [--dry-run]
 ```
 
 **Subcommands:**
 - `workflow-docs` - Clean up old workflow documentation directories
+- `sessions` - Clean up `.tapps-agents/sessions/` (enhancer + long-running agent sessions)
 
-**Parameters:**
+**Parameters (workflow-docs):**
 - `--keep-latest <n>`: Keep N most recent workflows visible (default: from config, typically 5)
 - `--retention-days <n>`: Archive workflows older than N days (default: from config, typically 30)
 - `--archive`: Enable archival of old workflows (default: from config)
 - `--no-archive`: Disable archival (workflows will be kept visible)
 - `--dry-run`: Preview changes without making them
 
+**Parameters (sessions):**
+- `--keep-latest <n>`: Keep N most recent enhancer session files (default: from config, typically 50)
+- `--max-age-days <n>`: Remove sessions older than N days (default: from config, typically 30)
+- `--dry-run`: Preview changes without making them
+
 **When to Use:**
-- Reducing IDE clutter from accumulated workflow directories
-- Freeing disk space from old workflow documentation
-- Managing workflow artifact retention policies
+- **workflow-docs**: Reducing IDE clutter from accumulated workflow directories; freeing disk space from old workflow documentation
+- **sessions**: When `.tapps-agents/sessions/` is large (many enhancer runs); removes zero-byte files and prunes by age/count; also runs SessionManager cleanup for long-running agent sessions
 
 **Examples:**
 ```bash
 # Preview cleanup (dry-run)
 tapps-agents cleanup workflow-docs --dry-run
+tapps-agents cleanup sessions --dry-run
+tapps-agents cleanup all --dry-run
 
 # Cleanup with defaults from config
 tapps-agents cleanup workflow-docs
+tapps-agents cleanup sessions
+tapps-agents cleanup all
 
-# Custom retention policy
+# Custom retention (workflow-docs)
 tapps-agents cleanup workflow-docs --keep-latest 10 --retention-days 60
+
+# Custom retention (sessions)
+tapps-agents cleanup sessions --keep-latest 100 --max-age-days 7
 
 # Cleanup without archiving (keep workflows visible)
 tapps-agents cleanup workflow-docs --no-archive
 ```
 
 **What It Does:**
-- Scans `docs/workflows/simple-mode/` for workflow directories
-- Keeps the N most recent workflows visible
-- Archives workflows older than retention period to `.tapps-agents/archives/workflows/`
-- Preserves workflow history while reducing IDE clutter
+- **workflow-docs**: Scans `docs/workflows/simple-mode/` for workflow directories; keeps the N most recent visible; archives older than retention to `.tapps-agents/archives/workflows/`
+- **sessions**: Removes zero-byte JSONs in `.tapps-agents/sessions/`; prunes enhancer session files by keep_latest and max_age_days; runs SessionManager.cleanup_old_sessions() for completed/failed agent sessions. See `docs/reviews/SESSIONS_FOLDER_REVIEW.md`.
 
 ### `health` - Health Checks and Usage (Analytics)
 **Purpose:** Health checks (environment, execution, cache, KB, outcomes) and usage/analytics (agent/workflow metrics). The former top-level `tapps-agents analytics` is replaced by `health usage`.
@@ -395,21 +496,65 @@ tapps-agents cleanup workflow-docs --no-archive
 ```bash
 tapps-agents health check [--check <name>] [--format json|text]
 tapps-agents health dashboard [--format json|text]
+tapps-agents health overview [--format json|text]
 tapps-agents health usage dashboard|agents|workflows|system|trends [--format json|text] [--agent-id <id>] [--workflow-id <id>] [--days <n>] [--metric-type <type>]
 tapps-agents health metrics [--check-name <name>] [--status <status>] [--days <n>]
 tapps-agents health trends [--check-name <name>] [--days <n>]
 ```
 
-**Usage subcommands (analytics):**
+**Subcommands:**
+- `health check` - Run health checks (environment, execution, context7_cache, knowledge_base, outcomes)
+- `health dashboard` - Display health dashboard
+- `health overview` (or `summary`) - 1000-foot view: health + usage for all subsystems (recommended for feedback reports)
 - `health usage dashboard` (or `show`) - Usage/analytics overview
 - `health usage agents` - Agent performance; `--agent-id` to filter
 - `health usage workflows` - Workflow performance; `--workflow-id` to filter
 - `health usage system` - System status and resources
 - `health usage trends` - Historical trends; `--metric-type`, `--days`
+- `health metrics` - Stored health metrics (filter by check name, status, days)
+- `health trends` - Health trends over time (requires `--check-name`)
 
 **When to Use:**
 - `health check`: Validate environment and run health checks
+- `health overview`: Single rolled-up report for feedback or status at a glance (include in feedback reports per project-context.mdc)
 - `health usage dashboard`: View agent/workflow metrics (replaces `tapps-agents analytics`)
+
+### `dashboard` - Performance Insight Dashboard
+**Purpose:** Generate a self-contained HTML dashboard with full insight into tapps-agents performance across all subsystems (agents, experts, cache/RAG, quality, workflows, learning, health).
+
+**CLI Syntax:**
+```bash
+tapps-agents dashboard [--no-open] [--output <path>] [--days <n>] [--verbose]
+```
+
+**Parameters:**
+- `--no-open`: Generate without opening in browser
+- `--output` / `-o`: Custom output path (default: `.tapps-agents/dashboard/dashboard.html`)
+- `--days`: Number of days to include in metrics (default: 30)
+- `--verbose`: Show detailed generation progress
+
+**Examples:**
+```bash
+# Generate and open dashboard
+tapps-agents dashboard
+
+# Generate for last 14 days without opening
+tapps-agents dashboard --no-open --days 14
+
+# Save to custom path
+tapps-agents dashboard -o reports/dashboard.html
+```
+
+**When to Use:**
+- Review overall tapps-agents performance in a project
+- Include in feedback reports (visual complement to `health overview`)
+- Identify underperforming agents or experts
+- Check cache hit rates and RAG quality
+- Track quality gate pass rates and workflow success
+
+**Difference from `health` commands:**
+- `health overview`: Text-based summary of subsystem health (quick, terminal output)
+- `dashboard`: Rich HTML with charts, tables, recommendations (comprehensive, browser-based)
 
 ### `score` - Quick Code Scoring
 **Purpose:** Fast code quality scoring (shortcut for `reviewer score`)
@@ -486,7 +631,7 @@ tapps-agents cursor check [--format json|text]  # alias
 - **Pre-commit checks**: Validate setup before committing integration files
 
 **What It Checks:**
-- **Cursor Skills** (`.claude/skills/`) - Validates all 14 agent skills + simple-mode are present
+- **Cursor Skills** (`.claude/skills/`) - Validates all 22 skills are present
   - Checks directory structure
   - Verifies YAML frontmatter in SKILL.md files
   - Reports missing skills
@@ -571,13 +716,15 @@ tapps-agents simple-mode <command> [options]
   - **When to use**: Track your Simple Mode usage and unlocked features
   - **Why**: Shows learning level, commands used, features unlocked
 
-- `full [--prompt "<desc>"] [--file <path>] [--auto]` - Run full lifecycle workflow
+- `full [--prompt "<desc>"] [--file <path>] [--auto] [--no-auto-checkpoint] [--checkpoint-debug]` - Run full lifecycle workflow
   - **When to use**: Complete SDLC workflow with all quality gates
   - **Why**: Comprehensive workflow with requirements, design, implementation, testing, security, documentation
   - **Parameters**:
     - `--prompt`: Natural language description (required for greenfield)
     - `--file`: Target file/directory (for brownfield/refactoring)
-    - `--auto`: Fully automated execution
+    - `--auto`: Fully automated execution (skips interactive prompts)
+    - `--no-auto-checkpoint`: Disable workflow mismatch checkpoint detection and switching (after planning)
+    - `--checkpoint-debug`: Enable verbose checkpoint logging for debugging
 
 **Simple Mode is Installed by `init`:**
 - Simple Mode skill (`.claude/skills/simple-mode/`) is automatically installed by `tapps-agents init`
@@ -966,7 +1113,7 @@ tapps-agents designer design-model "<description>" [--format json|text]
 **Available Commands:**
 
 #### `*enhance` / `enhance` (Dual-Mode)
-**Purpose:** Full prompt enhancement (7-stage pipeline) for code generation prompts
+**Purpose:** Full prompt enhancement (7-stage pipeline) for code generation prompts. The 7-stage pipeline is defined by the Enhancer agent (analysis, requirements, architecture, codebase context, quality, implementation, synthesis). **Adaptive enhancement:** Build orchestrator and EnhancerHandler use PromptAnalyzer; when the prompt is detailed (>150 words), **quick** (stages 1–3) is used automatically to save time and tokens. In task/template copy, use "Run enhancement (full or quick per prompt analysis)" rather than "Run full 7-stage" so intent detectors and streamlining control the mode.
 
 **CLI Syntax:**
 ```bash
@@ -1353,6 +1500,11 @@ Simple Mode provides natural language orchestration with structured workflows. U
 
 **Purpose:** Build new features with complete 7-step workflow. **This is the most commonly used Simple Mode command.**
 
+**CLI Syntax:**
+```bash
+tapps-agents simple-mode build --prompt "<description>" [--file <path>] [--fast] [--preset minimal|standard|comprehensive] [--auto] [--no-auto-checkpoint] [--checkpoint-debug]
+```
+
 **Cursor Syntax:**
 ```cursor
 @simple-mode *build "Create a user authentication feature"
@@ -1399,6 +1551,11 @@ Simple Mode provides natural language orchestration with structured workflows. U
 - Overall score must be ≥ 70 (configurable)
 - Security score must be ≥ 6.5
 - If thresholds not met, workflow loops back to improve code
+
+**Checkpoint / workflow mismatch (build only, non-fast):**
+- After the Planning step, the framework may detect that a different workflow (e.g. *fix) is more appropriate and prompt to switch. Controlled by config `simple_mode.enable_checkpoints` (default: true) and CLI:
+  - `--no-auto-checkpoint`: Disable checkpoint detection and switching for this run
+  - `--checkpoint-debug`: Enable verbose checkpoint logging
 
 ### Review Workflow (`*review`)
 
@@ -1703,6 +1860,11 @@ Simple Mode provides natural language orchestration with structured workflows. U
 
 **Purpose:** Complete software development lifecycle with all quality gates
 
+**CLI Syntax:**
+```bash
+tapps-agents simple-mode full [--prompt "<desc>"] [--file <path>] [--auto] [--no-auto-checkpoint] [--checkpoint-debug]
+```
+
 **Cursor Syntax:**
 ```cursor
 @simple-mode *full "<description>"
@@ -1730,6 +1892,8 @@ Simple Mode provides natural language orchestration with structured workflows. U
 - Test execution with retry logic
 - Security validation with remediation
 - Final quality review before completion
+
+**Checkpoint / workflow mismatch:** Config `simple_mode.enable_checkpoints` (default: true). Use `--no-auto-checkpoint` to disable for a run; `--checkpoint-debug` for verbose logging.
 
 **⚠️ CRITICAL: Framework Development MUST Use Full SDLC**
 

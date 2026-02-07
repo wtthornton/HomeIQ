@@ -25,10 +25,13 @@ ENV PATH=/root/.local/bin:$PATH
 
 # Copy application code
 COPY src/ ./src/
-COPY models/ ./models/ 2>/dev/null || true
 
-# Create models directory if it doesn't exist
+# Create models directory
 RUN mkdir -p /app/models
+
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser
+RUN chown -R appuser:appuser /app
 
 # Environment variables
 ENV PORT=8036
@@ -39,9 +42,11 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Limit ONNX Runtime threads for NUC
 ENV OMP_NUM_THREADS=4
 
+USER appuser
+
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8036/api/v1/health')" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8036/api/v1/health')" || exit 1
 
 EXPOSE 8036
 

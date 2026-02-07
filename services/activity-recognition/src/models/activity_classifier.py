@@ -50,7 +50,7 @@ class ActivityLSTM(nn.Module):
     
     def __init__(
         self,
-        input_size: int = 10,
+        input_size: int = 5,
         hidden_size: int = 64,
         num_layers: int = 2,
         num_classes: int = 10,
@@ -342,7 +342,7 @@ class ActivityTrainer:
     
     def load_checkpoint(self, path: Path) -> None:
         """Load model checkpoint."""
-        checkpoint = torch.load(path, map_location=self.device)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=True)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
@@ -383,7 +383,7 @@ def export_to_onnx(
         input_names=["sensor_sequence"],
         output_names=["activity_logits"],
         dynamic_axes={
-            "sensor_sequence": {0: "batch_size"},
+            "sensor_sequence": {0: "batch_size", 1: "sequence_length"},
             "activity_logits": {0: "batch_size"},
         },
         opset_version=opset_version,

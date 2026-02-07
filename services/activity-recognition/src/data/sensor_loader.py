@@ -278,24 +278,25 @@ class SensorDataLoader:
                 df = df.with_columns([
                     pl.col("timestamp").str.to_datetime().alias("timestamp")
                 ])
-            except Exception:
-                pass  # Already datetime or unparseable
+            except Exception as e:
+                logger.debug(f"Could not parse timestamp column: {e}")
         
         return df
     
-    def _generate_activity_labels(self, hour_of_day: np.ndarray, n_samples: int) -> np.ndarray:
+    def _generate_activity_labels(self, hour_of_day: np.ndarray, n_samples: int, rng: np.random.Generator) -> np.ndarray:
         """
         Generate activity labels based on hour of day.
-        
+
         Args:
             hour_of_day: Array of hours (0-23) for each sample
             n_samples: Total number of samples
-            
+            rng: NumPy random Generator instance
+
         Returns:
             Array of activity labels (0-9)
         """
         activity_label = np.zeros(n_samples, dtype=int)
-        
+
         for i, h in enumerate(hour_of_day):
             if 0 <= h < 6:
                 activity_label[i] = 0  # sleeping
@@ -315,11 +316,11 @@ class SensorDataLoader:
                 activity_label[i] = 7  # watching_tv
             else:
                 activity_label[i] = 8  # relaxing
-        
+
         # Add some noise to activity labels
-        noise_mask = np.random.random(n_samples) < 0.1
-        activity_label[noise_mask] = np.random.randint(0, 10, noise_mask.sum())
-        
+        noise_mask = rng.random(n_samples) < 0.1
+        activity_label[noise_mask] = rng.integers(0, 10, noise_mask.sum())
+
         return activity_label
     
     def _create_synthetic_data(self, n_samples: int = 10000) -> pl.DataFrame:
@@ -330,48 +331,48 @@ class SensorDataLoader:
         """
         logger.info(f"Creating synthetic sensor data ({n_samples:,} samples)")
         
-        np.random.seed(42)
-        
+        rng = np.random.default_rng(42)
+
         # Generate timestamps (1 minute intervals)
         start_time = datetime(2024, 1, 1)
         timestamps = [start_time + timedelta(minutes=i) for i in range(n_samples)]
-        
+
         # Generate sensor values with realistic patterns
         hour_of_day = np.array([t.hour for t in timestamps])
-        
+
         # Motion: Higher during day, lower at night
         motion_prob = np.where(
             (hour_of_day >= 7) & (hour_of_day <= 22),
             0.3,  # Day
             0.05  # Night
         )
-        motion = np.random.binomial(1, motion_prob)
-        
+        motion = rng.binomial(1, motion_prob)
+
         # Door: Peaks at morning/evening
         door_prob = np.where(
-            (hour_of_day == 7) | (hour_of_day == 8) | 
+            (hour_of_day == 7) | (hour_of_day == 8) |
             (hour_of_day == 17) | (hour_of_day == 18),
             0.2,
             0.02
         )
-        door = np.random.binomial(1, door_prob)
-        
+        door = rng.binomial(1, door_prob)
+
         # Temperature: Varies with time of day
-        temperature = 20 + 3 * np.sin(2 * np.pi * hour_of_day / 24) + np.random.normal(0, 0.5, n_samples)
-        
+        temperature = 20 + 3 * np.sin(2 * np.pi * hour_of_day / 24) + rng.normal(0, 0.5, n_samples)
+
         # Humidity: Inversely related to temperature
-        humidity = 50 - 5 * np.sin(2 * np.pi * hour_of_day / 24) + np.random.normal(0, 2, n_samples)
-        
+        humidity = 50 - 5 * np.sin(2 * np.pi * hour_of_day / 24) + rng.normal(0, 2, n_samples)
+
         # Power: Higher during waking hours
         power_base = np.where(
             (hour_of_day >= 6) & (hour_of_day <= 23),
             500,
             100
         )
-        power = power_base + np.random.exponential(100, n_samples)
+        power = power_base + rng.exponential(100, n_samples)
         
         # Activity labels based on time of day
-        activity_label = self._generate_activity_labels(hour_of_day, n_samples)
+        activity_label = self._generate_activity_labels(hour_of_day, n_samples, rng)
         
         df = pl.DataFrame({
             "timestamp": timestamps,

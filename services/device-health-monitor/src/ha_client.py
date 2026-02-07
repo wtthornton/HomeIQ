@@ -4,12 +4,12 @@ Phase 1.2: Query HA API for device states and history
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import aiohttp
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("device-health-monitor")
 
 
 class HAClient:
@@ -92,7 +92,7 @@ class HAClient:
             session = await self._get_session()
             
             if end_time is None:
-                end_time = datetime.now()
+                end_time = datetime.now(timezone.utc)
             
             # Format times for HA API
             start_str = start_time.isoformat()
@@ -129,9 +129,10 @@ class HAClient:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
-                    # Convert list to dict for easy lookup
+                    # HA returns a flat list, not {"entities": [...]}
+                    entities = data if isinstance(data, list) else data.get('entities', [])
                     registry_dict = {}
-                    for entity in data.get('entities', []):
+                    for entity in entities:
                         entity_id = entity.get('entity_id')
                         if entity_id:
                             registry_dict[entity_id] = entity

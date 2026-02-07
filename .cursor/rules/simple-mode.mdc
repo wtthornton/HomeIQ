@@ -10,6 +10,8 @@ alwaysApply: true
 
 **When a user asks you to implement features, fix bugs, review code, or write tests, you MUST DEFAULT to using `@simple-mode` commands.**
 
+**Adaptive Learning**: TappsCodingAgents continuously learns and improves. Experts are auto-generated as new domains are detected, scoring weights adapt to maximize first-pass success, and expert voting improves based on performance. The system gets better with each use, optimizing for fast and correct code generation on the first attempt.
+
 ### ⚠️ MANDATORY: Workflow Interceptor Pattern
 
 **BEFORE making any code edits for feature implementation, bug fixes, or new functionality, you MUST:**
@@ -118,6 +120,30 @@ When a user requests Simple Mode workflow (especially `*build` commands), you MU
 - Comprehensive testing (test plans, validation criteria)
 - Full traceability (requirements → stories → architecture → implementation)
 
+## ⚠️ NEW: Adaptive Checkpoints (v3.5.37+)
+
+**Workflows are now adaptive** - checkpoints analyze task complexity and quality to optimize execution:
+
+1. **Checkpoint 1 (After Enhance):** Early validation using prompt analysis (70% confidence)
+2. **Checkpoint 2 (After Planning):** Main checkpoint using story points and files affected (85% confidence)
+3. **Checkpoint 3 (After Test):** Quality gate for early termination (90% confidence)
+
+**What This Means:**
+- Workflows automatically switch when task is simpler than expected
+- Optional steps (security, docs) are skipped when quality is excellent (≥80)
+- You'll be prompted to confirm workflow switches
+- Saves 20K-40K tokens per optimization
+
+**Checkpoint Benefits:**
+- ✅ **Automatic workflow optimization** - Switches to simpler workflows when appropriate
+- ✅ **Token efficiency** - Saves 20K-40K tokens per prevented mismatch
+- ✅ **Quality-based termination** - Skips optional steps when quality is high
+- ✅ **User choice** - Prompts user to confirm workflow switches
+
+**Disable checkpoints:** Use `--no-auto-checkpoint` flag or set `enable_checkpoints: false` in config
+
+**See:** `docs/CHECKPOINT_SYSTEM_GUIDE.md` for complete details
+
 ## ⚠️ CRITICAL: You MUST Invoke Skills Directly
 
 **When you are running as simple-mode, you ARE the orchestrator. You MUST directly invoke other skills using `@skill-name *command` syntax.**
@@ -183,6 +209,11 @@ Use explicit commands for guaranteed workflow execution:
 | `*pr {title}` | Create pull request | @reviewer → @documenter |
 | `*full {description}` | Full SDLC workflow | All skills in sequence |
 | `*epic {epic-doc.md}` | Execute Epic document | Stories in dependency order |
+| `*enhance "prompt"` | Prompt enhancement | EnhanceOrchestrator |
+| `*breakdown "prompt"` | Task breakdown | BreakdownOrchestrator |
+| `*todo <bd args>` | Beads-backed todo | TodoOrchestrator |
+| `*build-fix`, `*fix-tests`, `*test-coverage`, `*security-review`, `*update-docs`, `*update-codemaps`, `*microservice`, `*docker-fix`, `*integrate-service` | Specialized workflows | See command-reference.mdc |
+| `*dashboard [--no-open] [--days N]` | Performance Insight Dashboard | DashboardGenerator |
 | `*help` | Show help | - |
 | `*resume` [workflow_id] | Resume failed/paused workflow | ResumeOrchestrator |
 | `*status` | Check status | - |
@@ -237,14 +268,19 @@ Simple Mode detects intent from keywords:
 
 ## Skill Orchestration Workflows
 
-### Build Workflow (MUST FOLLOW ALL STEPS)
+### Build Workflow (ADAPTIVE - 3-7 steps with checkpoints)
 
-**When user requests `@simple-mode *build` or build-related commands, you MUST execute ALL steps:**
+**When user requests `@simple-mode *build`, the workflow adapts based on task complexity:**
 
 ```
 Step 1: @enhancer *enhance "{description}"
   → Create: docs/workflows/simple-mode/step1-enhanced-prompt.md
   → Enhanced prompt with requirements analysis, architecture guidance, quality standards
+
+✅ Checkpoint 1 (After Enhance):
+   → Early mismatch detection using prompt analysis
+   → May switch to *fix or different workflow if task is simpler
+   → Confidence: 70%
 
 Step 2: @planner *plan "{enhanced prompt}"
   → Create: docs/workflows/simple-mode/step2-user-stories.md
@@ -253,6 +289,12 @@ Step 2: @planner *plan "{enhanced prompt}"
 Step 3: @architect *design "{specification}"
   → Create: docs/workflows/simple-mode/step3-architecture.md
   → System architecture, component design, data flow, performance considerations
+
+✅ Checkpoint 2 (After Planning):
+   → Task complexity analysis using story points and files affected
+   → May switch to simpler workflow (*fix) if task is low complexity
+   → Saves 20K-40K tokens by switching to appropriate workflow
+   → Confidence: 85%
 
 Step 4: @designer *design-api "{specification}" OR design components
   → Create: docs/workflows/simple-mode/step4-design.md
@@ -269,11 +311,25 @@ Step 6: @reviewer *review {target_file}
 Step 7: @tester *test {target_file}
   → Create: docs/workflows/simple-mode/step7-testing.md
   → Test plan, browser compatibility, accessibility checklist, performance validation
+
+✅ Checkpoint 3 (Quality Gate):
+   → If quality score ≥ 80: Skip optional steps (saves 12K tokens)
+   → If quality score 75-79: Skip docs only
+   → If quality score < 75: Continue with all steps
+   → Confidence: 90%
+
+Step 8 (optional): Security scan (skipped if quality ≥ 80)
+Step 9 (optional): Documentation (skipped if quality ≥ 75)
 ```
+
+**Checkpoint System:**
+- ✅ Workflows adapt automatically based on task complexity
+- ✅ User is prompted to confirm workflow switches
+- ✅ Disable with `--no-auto-checkpoint` flag
 
 **DO NOT:**
 - ❌ Skip directly to implementation
-- ❌ Skip documentation steps
+- ❌ Skip documentation steps (unless checkpoint recommends)
 - ❌ Combine steps
 - ❌ Implement without planning
 
@@ -282,6 +338,7 @@ Step 7: @tester *test {target_file}
 - ✅ Create documentation files for each step
 - ✅ Use outputs from previous steps as inputs
 - ✅ Report progress ("Starting Step 1...", "Step 1 complete, starting Step 2...")
+- ✅ Respect checkpoint recommendations (prompt user for confirmation)
 
 ### Review Workflow
 ```
@@ -301,18 +358,41 @@ Step 7: @tester *test {target_file}
 1. @tester *test {file}                    → Tests generated
 ```
 
-### Full SDLC Workflow
+### Full SDLC Workflow (ADAPTIVE - 5-9 steps with checkpoints)
+
+**Full workflow adapts based on task complexity and quality:**
+
 ```
 0. @enhancer *enhance (optional; full-sdlc preset includes an enhance step before requirements, run via EnhancerHandler)
+
+✅ Checkpoint 1 (After Enhance):
+   → Early validation using prompt analysis
+   → May switch to *build or *fix if task is simpler
+   → Confidence: 70%
+
 1. @analyst *gather-requirements "{description}"  → Requirements
 2. @planner *plan "{requirements}"         → Stories
+
+✅ Checkpoint 2 (After Planning):
+   → Comprehensive task analysis (story points, files affected, complexity)
+   → May switch to *build if task doesn't require full SDLC
+   → Saves 20K-40K tokens by switching to appropriate workflow
+   → Confidence: 85%
+
 3. @architect *design "{specification}"    → Architecture
 4. @designer *design-api "{spec}"          → API design
 5. @implementer *implement "{spec}" {file} → Code
 6. @reviewer *review {file}                → Quality (loop if < 70)
 7. @tester *test {file}                    → Tests
-8. @ops *security-scan {file}              → Security
-9. @documenter *document-api {file}        → Documentation
+
+✅ Checkpoint 3 (Quality Gate):
+   → If quality score ≥ 80: Skip security + docs (saves 12K-13K tokens)
+   → If quality score 75-79: Skip docs only
+   → If quality score < 75: Continue with all steps
+   → Confidence: 90%
+
+8. @ops *security-scan {file}              → Security (optional if quality ≥ 80)
+9. @documenter *document-api {file}        → Documentation (optional if quality ≥ 75)
 ```
 
 **⚠️ MANDATORY for Framework Development:**
@@ -331,6 +411,9 @@ This ensures:
 - ✅ Security validation
 - ✅ Complete documentation
 - ✅ Full traceability
+- ✅ Adaptive checkpoints optimize workflow execution
+
+**Note:** Even for framework development, checkpoints will optimize the workflow. For critical framework changes, checkpoints are conservative and less likely to recommend switching.
 
 **Example:**
 ```
@@ -358,6 +441,7 @@ AI: [MUST use] @simple-mode *full "Add Context7 integration to all SDLC agents"
 | `@ops` | Security scanning and deployment |
 | `@orchestrator` | YAML workflow coordination |
 | `@evaluator` | Framework effectiveness evaluation |
+| `@expert` | Expert discovery and consultation |
 
 ## Examples
 

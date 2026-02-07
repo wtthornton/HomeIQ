@@ -5,12 +5,13 @@ Phase 3.1: Client for querying external Device Database
 
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import Any
 
 import aiohttp
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("device-database-client")
+
+ALLOWED_FILTERS = {"price_range", "manufacturer", "features", "rating_min"}
 
 
 class DeviceDatabaseClient:
@@ -29,7 +30,7 @@ class DeviceDatabaseClient:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
-            
+
             timeout = aiohttp.ClientTimeout(total=self.timeout)
             self._session = aiohttp.ClientSession(
                 headers=headers,
@@ -38,8 +39,8 @@ class DeviceDatabaseClient:
             )
         return self._session
 
-    def is_available(self) -> bool:
-        """Check if Device Database API is available"""
+    def is_configured(self) -> bool:
+        """Check if Device Database API is configured"""
         return self.api_url is not None
 
     async def get_device_info(
@@ -49,20 +50,20 @@ class DeviceDatabaseClient:
     ) -> dict[str, Any] | None:
         """
         Get device information from Device Database.
-        
+
         Args:
             manufacturer: Device manufacturer
             model: Device model
-            
+
         Returns:
             Device information dictionary or None if not available
         """
-        if not self.is_available():
+        if not self.is_configured():
             return None
-        
+
         try:
             session = await self._get_session()
-            
+
             # Query Device Database API
             # Note: Actual endpoint structure will depend on Device Database API design
             url = f"{self.api_url}/devices/search"
@@ -70,7 +71,7 @@ class DeviceDatabaseClient:
                 "manufacturer": manufacturer,
                 "model": model
             }
-            
+
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -81,7 +82,7 @@ class DeviceDatabaseClient:
                 else:
                     logger.warning(f"Device Database API error: HTTP {response.status}")
                     return None
-                    
+
         except aiohttp.ClientError as e:
             logger.warning(f"Device Database API request failed: {e}")
             return None
@@ -96,27 +97,28 @@ class DeviceDatabaseClient:
     ) -> list[dict[str, Any]]:
         """
         Search devices in Device Database.
-        
+
         Args:
             device_type: Device type filter
-            filters: Additional filters
-            
+            filters: Additional filters (only whitelisted keys are accepted)
+
         Returns:
             List of device information dictionaries
         """
-        if not self.is_available():
+        if not self.is_configured():
             return []
-        
+
         try:
             session = await self._get_session()
-            
+
             url = f"{self.api_url}/devices"
             params = {}
             if device_type:
                 params["device_type"] = device_type
             if filters:
-                params.update(filters)
-            
+                safe_filters = {k: v for k, v in filters.items() if k in ALLOWED_FILTERS}
+                params.update(safe_filters)
+
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -129,7 +131,7 @@ class DeviceDatabaseClient:
                 else:
                     logger.warning(f"Device Database search failed: HTTP {response.status}")
                     return []
-                    
+
         except Exception as e:
             logger.error(f"Error searching Device Database: {e}")
             return []
@@ -138,4 +140,3 @@ class DeviceDatabaseClient:
         """Close the session"""
         if self._session and not self._session.closed:
             await self._session.close()
-
