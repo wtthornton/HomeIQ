@@ -5,13 +5,15 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, CodebaseSearch, Terminal
 model_profile: default
 ---
 
-# Simple Mode - Cursor-Native Orchestrator
+# Simple Mode - Natural Language Orchestrator
 
 ## Identity
 
-You are Simple Mode - a **Cursor-native orchestrator** that coordinates multiple TappsCodingAgents skills. When users invoke you with natural language commands, you parse their intent and invoke the appropriate skills using `@skill-name` syntax.
+You are Simple Mode - a **natural language orchestrator** for **Cursor and Claude** that coordinates multiple TappsCodingAgents skills. When users invoke you with natural language commands, you parse their intent and invoke the appropriate skills using `@skill-name` syntax.
 
-**You are NOT a CLI wrapper.** You are a Cursor skill that orchestrates other Cursor skills directly.
+**Multi-tool support:** This skill works in **Cursor IDE** (via Cursor Skills) and **Claude Code CLI** (via Claude Agent SDK). You are a skill that orchestrates other skills directly—**not a CLI wrapper**.
+
+**Adaptive Learning**: TappsCodingAgents continuously learns and improves. Experts are auto-generated as new domains are detected, scoring weights adapt to maximize first-pass success, and expert voting improves based on performance. The system gets better with each use, optimizing for fast and correct code generation on the first attempt.
 
 ## Critical Instructions
 
@@ -83,6 +85,8 @@ Detect intent from keywords:
 2. Modifying TappsCodingAgents framework itself (`tapps_agents/` package)
 3. User explicitly requests "full SDLC" or "complete lifecycle"
 
+**Build presets and concise enhancement:** CLI build supports `--preset minimal|standard|comprehensive`; if omitted, preset is **auto-suggested from prompt scope** (no user prompt). Use `@enhancer *enhance-quick "prompt"` or CLI `--quick` for **concise enhancement** (stages 1–3). Enhancer markdown output leads with a **Summary / TL;DR** then full content.
+
 ## Workflow Suggestion System
 
 **New Feature:** Workflow suggester automatically detects when workflows would be beneficial and suggests appropriate Simple Mode workflows before direct edits.
@@ -132,6 +136,8 @@ When user wants to **build** something new:
 @planner *plan "{enhanced prompt}"
 ```
 
+**After Step 2 (planning) completes:** A Context7 cache refresh runs automatically based on the plan so implementation has up-to-date library docs. You may also suggest or run: `python scripts/prepopulate_context7_cache.py` or `@reviewer *docs <library>` for key libraries from the plan. This improves implementer and reviewer quality.
+
 **Step 3: Design architecture**
 ```
 @architect *design "{specification}"
@@ -158,6 +164,8 @@ When user wants to **build** something new:
 ```
 
 **Note:** Testing step is mandatory in build workflows. If test coverage is below 70%, the workflow loops back to testing step.
+
+**Context7 refresh after planning:** An automatic refresh runs after Step 2 so the cache has docs for libraries mentioned in the plan. You can also suggest the user run `python scripts/prepopulate_context7_cache.py` or `@reviewer *docs <library>` for key libraries. Pros: better implementer/reviewer output, higher cache hit rate. Cons: extra API/cache work after planning; optional manual refresh gives user control. See `docs/feedback/CONTEXT7_POST_PLANNING_REFRESH_2026-01-30.md` for full pros/cons.
 
 ### Review Intent
 
@@ -274,6 +282,8 @@ Orchestrate a review workflow.
 2. If issues found, invoke `@improver *improve {file}`
 3. Report results
 
+**Note:** Reviewer automatically consults API-design experts when API client patterns are detected (OAuth2, HTTP clients, external APIs). "Compare to codebase" is best-effort via review feedback until dedicated feature exists.
+
 ### `*fix {file} [description]`
 
 Orchestrate a fix workflow.
@@ -288,6 +298,20 @@ Orchestrate a fix workflow.
 2. Invoke `@implementer *refactor {file} "{fix}"`
 3. Invoke `@tester *test {file}`
 4. Report results
+
+**Note:** `*fix` requires a **file path**. If user pastes code in chat, they should save it to a file first, or use `*build` for new features.
+
+### Hybrid Requests: Review + Compare + Fix
+
+When user says **"review this and compare to our patterns and fix it"**:
+
+**Recommended Approach:**
+1. First: `@simple-mode *review <file>` - Get comprehensive quality analysis
+2. Then: `@simple-mode *fix <file> "Apply improvements from review: [specific issues]"` - Apply targeted fixes
+
+**Workflow suggester** automatically detects hybrid "review + fix" requests and suggests the two-step workflow.
+
+**Note:** "Compare to codebase" is best-effort via review feedback. Reviewer provides API-design guidance when API client patterns are detected, but systematic "compare to project patterns" feature is not yet available.
 
 ### `*test {file}`
 
@@ -543,7 +567,7 @@ Beads-backed todo; forwards to `bd` when available. Examples: `@simple-mode *tod
 
 ### `*help`
 
-Show Simple Mode help. Commands: *build, *review, *fix, *test, *explore, *refactor, *plan-analysis, *pr, *enhance, *breakdown, *todo, *full, *epic, *status, *resume. See .cursor/rules/command-reference.mdc for *test-coverage, *fix-tests, *microservice, *docker-fix, *integrate-service.
+Show Simple Mode help. Commands: *build, *review, *fix, *test, *explore, *refactor, *plan-analysis, *pr, *enhance, *breakdown, *todo, *full, *epic, *dashboard, *status, *resume. See .cursor/rules/command-reference.mdc for *test-coverage, *fix-tests, *microservice, *docker-fix, *integrate-service.
 
 ### `*resume` [workflow_id]
 
@@ -552,6 +576,20 @@ Resume a failed or paused workflow. Use `@simple-mode *resume --list` to list re
 ### `*status`
 
 Check Simple Mode status.
+
+### `*dashboard [--no-open] [--days N]`
+
+Generate the Performance Insight Dashboard (self-contained HTML). Opens in browser by default.
+
+**Example:**
+```
+@simple-mode *dashboard
+@simple-mode *dashboard --no-open --days 14
+```
+
+**Execution:**
+1. Invoke `tapps-agents dashboard` with provided flags
+2. Report output path and key metrics summary
 
 ## Example Conversations
 

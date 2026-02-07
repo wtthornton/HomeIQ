@@ -7,6 +7,7 @@ Port: 8036
 """
 
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -43,11 +44,11 @@ logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> None:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler."""
     # Startup
     logger.info("Starting Activity Recognition Service...")
-    
+
     # Load ONNX model
     model_path = Path(os.getenv("MODEL_PATH", "./models/activity_lstm.onnx"))
     if model_path.exists():
@@ -61,9 +62,9 @@ async def lifespan(app: FastAPI) -> None:
             "No ONNX model found. Train a model and export to ONNX.",
             path=str(model_path)
         )
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Activity Recognition Service...")
 
@@ -78,14 +79,18 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Add CORS middleware only if explicit origins are configured
+cors_origins = os.getenv("CORS_ORIGINS", "").split(",")
+cors_origins = [o.strip() for o in cors_origins if o.strip()]
+
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Include routers
 app.include_router(router)
@@ -103,7 +108,7 @@ async def root() -> dict[str, str]:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "src.main:app",
         host=os.getenv("HOST", "0.0.0.0"),

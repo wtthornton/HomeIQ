@@ -230,3 +230,8 @@ services/*/rollback_*.sh
 
 # Phase 2 migration result files
 phase2_results_*.json
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/agent-memory/
+.claude/agent-memory-local/

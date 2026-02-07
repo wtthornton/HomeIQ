@@ -14,7 +14,7 @@ RUN apk add --no-cache gcc musl-dev linux-headers
 # Copy requirements and install Python dependencies
 COPY services/device-context-classifier/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --user -r requirements.txt
 
 # Production stage
 FROM python:3.12-alpine AS production
@@ -22,7 +22,7 @@ FROM python:3.12-alpine AS production
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apk add --no-cache curl ca-certificates
+RUN apk add --no-cache ca-certificates
 
 # Create non-root user
 RUN addgroup -g 1001 -S appgroup && \
@@ -47,10 +47,6 @@ USER appuser
 
 # Expose port
 EXPOSE 8020
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8020/health || exit 1
 
 # Run service
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8020"]
