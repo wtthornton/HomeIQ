@@ -1,8 +1,8 @@
 # Phase 1: Automated Batch Rebuild Guide
 
-**Date:** February 4, 2026
+**Date:** February 7, 2026
 **Status:** Ready for Execution
-**Target:** 40 Services
+**Target:** 42+ Services (includes activity-recognition, model-prep; all in Docker—see SERVICES_RANKED_BY_IMPORTANCE.md for ports)
 **Framework:** TappsCodingAgents with Context7 MCP
 
 ---
@@ -37,17 +37,17 @@ The Phase 1 automated batch rebuild system provides:
 
 ### Services Covered
 
-**40 Services** organized into 7 categories:
+**42+ Services** organized into 7 categories (Docker host ports: see [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)):
 
 | Category | Count | Examples |
 |----------|-------|----------|
 | Integration | 8 | weather-api, sports-api, calendar-service |
 | AI/ML | 13 | ai-core-service, ml-service, rag-service |
-| Device | 7 | device-intelligence-service, device-health-monitor |
+| Device | 8 | device-intelligence-service, device-health-monitor, activity-recognition |
 | Automation | 6 | automation-linter, blueprint-index |
 | Analytics | 2 | energy-correlator, energy-forecasting |
 | Frontend | 2 | health-dashboard, ai-automation-ui |
-| Other | 2 | observability-dashboard, ha-simulator |
+| Other | 3 | observability-dashboard, ha-simulator, model-prep |
 
 ### Library Upgrades Applied
 
@@ -243,7 +243,7 @@ ls -lh backups/
 - device-health-monitor (Port 8023)
 - device-recommender (Port 8024)
 - device-setup-assistant (Port 8025)
-- model-prep (Port 8026)
+- model-prep (one-shot, no port; profile: development)
 
 ---
 
@@ -279,7 +279,7 @@ ls -lh backups/
 
 **Services:**
 - energy-correlator (Port 8041)
-- energy-forecasting (Port 8042)
+- energy-forecasting (Port 8042; see SERVICES_RANKED_BY_IMPORTANCE.md for Docker host ports)
 
 ---
 
@@ -312,7 +312,7 @@ ls -lh backups/
 
 **Services:**
 - observability-dashboard (Port 8501)
-- ha-simulator (Port 8043)
+- ha-simulator (Port 8125; profile: development)
 
 ---
 

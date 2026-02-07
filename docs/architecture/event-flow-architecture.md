@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated February 2026**: State machine pattern implemented for robust connection and processing state management. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
+This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated February 7, 2026**: State machine pattern implemented for robust connection and processing state management. Activity-recognition and energy-forecasting added to Docker deployment. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
 
 ## Service Tiers
 
@@ -12,9 +12,10 @@ The services involved in event flow are classified by criticality:
 |------|----------|------|
 | **Tier 1** (Critical) | websocket-ingestion, data-api, InfluxDB | Core data pipeline |
 | **Tier 2** (Essential) | weather-api, energy-correlator | Data enrichment |
-| **Tier 3** (AI/ML) | ai-core-service, pattern-service | Intelligence layer |
+| **Tier 3** (AI/ML) | ai-core-service, pattern-service, energy-forecasting | Intelligence layer |
+| **Tier 6** (Device) | activity-recognition | Activity inference |
 
-For complete service ranking, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
+For complete service ranking and Docker port mapping, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
 
 ## Event Flow Diagram
 
@@ -475,7 +476,7 @@ test_event = {
 
 ## Automation Generation Flow (January 2026)
 
-The event data flowing through this architecture is also analyzed by the AI Pattern Service to detect automation opportunities. See [Blueprint Architecture](./BLUEPRINT_ARCHITECTURE.md) for the complete automation generation flow.
+The event data flowing through this architecture is also analyzed by the AI Pattern Service to detect automation opportunities. See [Documentation Index](../README.md) and [API Reference](../api/API_REFERENCE.md) for automation and blueprint-related docs.
 
 ### High-Level Flow
 
@@ -587,12 +588,9 @@ Environment variables:
 
 ## References
 
-- [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification
+- [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification and Docker ports
 - [Services Architecture Quick Reference](../../services/README_ARCHITECTURE_QUICK_REF.md) - Service patterns
-- [Blueprint Architecture](./BLUEPRINT_ARCHITECTURE.md) - Blueprint-First Architecture details
-- [API Documentation](../API_DOCUMENTATION.md) - Complete API reference
-- [Data Models](./data-models.md) - Detailed data model specifications
-- [Event Validation Fix](../fixes/event-validation-fix-summary.md) - October 2025 validation fix details
-- [Event Structure Alignment](../fixes/event-structure-alignment.md) - Event structure design document
+- [API Reference](../api/API_REFERENCE.md) - Complete API documentation
+- [Documentation Index](../README.md) - All docs and correct paths
 - [Home Assistant WebSocket API](https://developers.home-assistant.io/docs/api/websocket) - Official HA API docs
 

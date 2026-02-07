@@ -15,7 +15,7 @@ test.describe('API Endpoints Tests', () => {
   test.describe('Admin API Endpoints', () => {
     
     test('GET /api/v1/health - Complete health status', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/health');
+      const response = await page.request.get('http://localhost:8004/api/v1/health');
       expect(response.status()).toBe(200);
       
       const healthData = await response.json();
@@ -56,7 +56,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/stats - System statistics', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/stats');
+      const response = await page.request.get('http://localhost:8004/api/v1/stats');
       expect(response.status()).toBe(200);
       
       const statsData = await response.json();
@@ -75,7 +75,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/stats with period parameter', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/stats?period=1h');
+      const response = await page.request.get('http://localhost:8004/api/v1/stats?period=1h');
       expect(response.status()).toBe(200);
       
       const statsData = await response.json();
@@ -83,7 +83,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/stats with service parameter', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/stats?service=websocket-ingestion');
+      const response = await page.request.get('http://localhost:8004/api/v1/stats?service=websocket-ingestion');
       expect(response.status()).toBe(200);
       
       const statsData = await response.json();
@@ -91,7 +91,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/stats/services - Service-specific statistics', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/stats/services');
+      const response = await page.request.get('http://localhost:8004/api/v1/stats/services');
       expect(response.status()).toBe(200);
       
       const servicesData = await response.json();
@@ -99,7 +99,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/config - System configuration', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/config');
+      const response = await page.request.get('http://localhost:8004/api/v1/config');
       expect(response.status()).toBe(200);
       
       const configData = await response.json();
@@ -116,7 +116,7 @@ test.describe('API Endpoints Tests', () => {
 
     test('PUT /api/v1/config - Update configuration', async ({ page }) => {
       // Get current configuration
-      const getResponse = await page.request.get('http://localhost:8003/api/v1/config');
+      const getResponse = await page.request.get('http://localhost:8004/api/v1/config');
       const currentConfig = await getResponse.json();
       
       // Update configuration
@@ -125,7 +125,7 @@ test.describe('API Endpoints Tests', () => {
         refresh_interval: 45000
       };
       
-      const putResponse = await page.request.put('http://localhost:8003/api/v1/config', {
+      const putResponse = await page.request.put('http://localhost:8004/api/v1/config', {
         data: updatedConfig
       });
       
@@ -134,14 +134,14 @@ test.describe('API Endpoints Tests', () => {
         expect(updatedData).toHaveProperty('refresh_interval', 45000);
         
         // Restore original configuration
-        await page.request.put('http://localhost:8003/api/v1/config', {
+        await page.request.put('http://localhost:8004/api/v1/config', {
           data: currentConfig
         });
       }
     });
 
     test('GET /api/v1/events - Recent events', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events');
+      const response = await page.request.get('http://localhost:8006/api/v1/events');
       expect(response.status()).toBe(200);
       
       const eventsData = await response.json();
@@ -157,7 +157,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/events with query parameters', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events?limit=50&offset=0');
+      const response = await page.request.get('http://localhost:8006/api/v1/events?limit=50&offset=0');
       expect(response.status()).toBe(200);
       
       const eventsData = await response.json();
@@ -166,7 +166,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/events with filters', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events?entity_id=sensor.temperature');
+      const response = await page.request.get('http://localhost:8006/api/v1/events?entity_id=sensor.temperature');
       expect(response.status()).toBe(200);
       
       const eventsData = await response.json();
@@ -175,12 +175,12 @@ test.describe('API Endpoints Tests', () => {
 
     test('GET /api/v1/events/{event_id} - Specific event', async ({ page }) => {
       // First get a list of events to find an ID
-      const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events?limit=1');
+      const eventsResponse = await page.request.get('http://localhost:8006/api/v1/events?limit=1');
       const eventsData = await eventsResponse.json();
       
       if (eventsData.length > 0) {
         const eventId = eventsData[0].id;
-        const response = await page.request.get(`http://localhost:8003/api/v1/events/${eventId}`);
+        const response = await page.request.get(`http://localhost:8006/api/v1/events/${eventId}`);
         
         if (response.status() === 200) {
           const eventData = await response.json();
@@ -198,7 +198,7 @@ test.describe('API Endpoints Tests', () => {
         limit: 10
       };
       
-      const response = await page.request.post('http://localhost:8003/api/v1/events/search', {
+      const response = await page.request.post('http://localhost:8006/api/v1/events/search', {
         data: searchPayload
       });
       
@@ -210,7 +210,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/events/stats - Event statistics', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events/stats');
+      const response = await page.request.get('http://localhost:8006/api/v1/events/stats');
       expect(response.status()).toBe(200);
       
       const statsData = await response.json();
@@ -218,7 +218,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/events/stats with period parameter', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events/stats?period=24h');
+      const response = await page.request.get('http://localhost:8006/api/v1/events/stats?period=24h');
       expect(response.status()).toBe(200);
       
       const statsData = await response.json();
@@ -226,7 +226,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/events/entities - Active entities', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events/entities');
+      const response = await page.request.get('http://localhost:8006/api/v1/events/entities');
       expect(response.status()).toBe(200);
       
       const entitiesData = await response.json();
@@ -234,7 +234,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/events/entities with limit', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events/entities?limit=20');
+      const response = await page.request.get('http://localhost:8006/api/v1/events/entities?limit=20');
       expect(response.status()).toBe(200);
       
       const entitiesData = await response.json();
@@ -243,7 +243,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('GET /api/v1/events/types - Event types', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events/types');
+      const response = await page.request.get('http://localhost:8006/api/v1/events/types');
       expect(response.status()).toBe(200);
       
       const typesData = await response.json();
@@ -444,17 +444,17 @@ test.describe('API Endpoints Tests', () => {
   test.describe('API Error Handling', () => {
     
     test('404 error handling', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/nonexistent');
+      const response = await page.request.get('http://localhost:8004/api/v1/nonexistent');
       expect(response.status()).toBe(404);
     });
 
     test('Invalid parameter handling', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events?limit=invalid');
+      const response = await page.request.get('http://localhost:8006/api/v1/events?limit=invalid');
       expect(response.status()).toBe(422); // Unprocessable Entity
     });
 
     test('Large limit parameter handling', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events?limit=10000');
+      const response = await page.request.get('http://localhost:8006/api/v1/events?limit=10000');
       expect(response.status()).toBe(200);
       
       const eventsData = await response.json();
@@ -462,38 +462,32 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('JSON parsing error detection for all endpoints', async ({ page }) => {
-      const endpoints = [
-        '/api/v1/health',
-        '/api/v1/stats',
-        '/api/v1/events?limit=10',
-        '/api/v1/config',
-        '/api/v1/events/entities',
-        '/api/v1/events/types'
-      ];
+      // Admin API (8004): health, stats, config; Data API (8006): events
+      const adminEndpoints = ['/api/v1/health', '/api/v1/stats', '/api/v1/config'];
+      const dataApiEndpoints = ['/api/v1/events?limit=10', '/api/v1/events/entities', '/api/v1/events/types'];
       
-      for (const endpoint of endpoints) {
-        const response = await page.request.get(`http://localhost:8003${endpoint}`);
-        
+      const checkEndpoint = async (url: string, endpoint: string) => {
+        const response = await page.request.get(url);
         if (response.status() === 200) {
-          // Verify Content-Type is JSON
           const contentType = response.headers()['content-type'];
           expect(contentType).toContain('application/json');
-          
-          // Verify response doesn't contain HTML
           const responseText = await response.text();
           expect(responseText).not.toContain('<!DOCTYPE');
           expect(responseText).not.toContain('<html');
-          expect(responseText).not.toContain('<body');
-          
-          // Verify response can be parsed as JSON
           try {
             const data = JSON.parse(responseText);
             expect(data).toBeDefined();
             expect(typeof data).toBe('object');
-          } catch (error) {
-            throw new Error(`JSON parsing failed for ${endpoint}: ${error.message}`);
+          } catch (error: unknown) {
+            throw new Error(`JSON parsing failed for ${endpoint}: ${(error as Error).message}`);
           }
         }
+      };
+      for (const endpoint of adminEndpoints) {
+        await checkEndpoint(`http://localhost:8004${endpoint}`, endpoint);
+      }
+      for (const endpoint of dataApiEndpoints) {
+        await checkEndpoint(`http://localhost:8006${endpoint}`, endpoint);
       }
     });
   });
@@ -502,7 +496,7 @@ test.describe('API Endpoints Tests', () => {
     
     test('Health endpoint response time', async ({ page }) => {
       const startTime = Date.now();
-      const response = await page.request.get('http://localhost:8003/api/v1/health');
+      const response = await page.request.get('http://localhost:8004/api/v1/health');
       const endTime = Date.now();
       
       expect(response.status()).toBe(200);
@@ -511,7 +505,7 @@ test.describe('API Endpoints Tests', () => {
 
     test('Stats endpoint response time', async ({ page }) => {
       const startTime = Date.now();
-      const response = await page.request.get('http://localhost:8003/api/v1/stats');
+      const response = await page.request.get('http://localhost:8004/api/v1/stats');
       const endTime = Date.now();
       
       expect(response.status()).toBe(200);
@@ -520,7 +514,7 @@ test.describe('API Endpoints Tests', () => {
 
     test('Events endpoint response time', async ({ page }) => {
       const startTime = Date.now();
-      const response = await page.request.get('http://localhost:8003/api/v1/events?limit=100');
+      const response = await page.request.get('http://localhost:8006/api/v1/events?limit=100');
       const endTime = Date.now();
       
       expect(response.status()).toBe(200);
@@ -531,7 +525,7 @@ test.describe('API Endpoints Tests', () => {
   test.describe('API Data Validation', () => {
     
     test('Health data structure validation', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/health');
+      const response = await page.request.get('http://localhost:8004/api/v1/health');
       
       // Validate response is JSON
       expect(response.status()).toBe(200);
@@ -557,7 +551,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('Events data structure validation', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/events?limit=5');
+      const response = await page.request.get('http://localhost:8006/api/v1/events?limit=5');
       
       // Validate response is JSON
       expect(response.status()).toBe(200);
@@ -590,7 +584,7 @@ test.describe('API Endpoints Tests', () => {
     });
 
     test('Statistics data validation', async ({ page }) => {
-      const response = await page.request.get('http://localhost:8003/api/v1/stats');
+      const response = await page.request.get('http://localhost:8004/api/v1/stats');
       
       // Validate response is JSON
       expect(response.status()).toBe(200);
@@ -621,7 +615,7 @@ test.describe('API Endpoints Tests', () => {
     
     test('Multiple concurrent health requests', async ({ page }) => {
       const promises = Array.from({ length: 10 }, () => 
-        page.request.get('http://localhost:8003/api/v1/health')
+        page.request.get('http://localhost:8004/api/v1/health')
       );
       
       const responses = await Promise.all(promises);
@@ -633,7 +627,7 @@ test.describe('API Endpoints Tests', () => {
 
     test('Multiple concurrent stats requests', async ({ page }) => {
       const promises = Array.from({ length: 5 }, () => 
-        page.request.get('http://localhost:8003/api/v1/stats')
+        page.request.get('http://localhost:8004/api/v1/stats')
       );
       
       const responses = await Promise.all(promises);

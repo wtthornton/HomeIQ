@@ -2,7 +2,7 @@
 # This script runs comprehensive smoke tests to validate system health
 
 param(
-    [string]$AdminUrl = "http://localhost:8003",
+    [string]$AdminUrl = "http://localhost:8004",
     [switch]$Verbose,
     [switch]$JsonOutput,
     [int]$Timeout = 30
@@ -55,7 +55,6 @@ if (-not (Test-Path "tests/smoke_tests.py")) {
 
 # Build command arguments
 $args = @("tests/smoke_tests.py")
-$args += "--admin-url", $AdminUrl
 $args += "--timeout", $Timeout
 
 if ($Verbose) {
@@ -68,7 +67,7 @@ if ($JsonOutput) {
 
 # Run smoke tests
 Write-Status "Running comprehensive smoke tests..."
-Write-Status "Admin API URL: $AdminUrl"
+Write-Status "Admin API (reference): $AdminUrl - smoke_tests.py tests all services directly"
 Write-Status "Timeout: ${Timeout}s"
 
 try {

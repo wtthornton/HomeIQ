@@ -1,14 +1,14 @@
 # HomeIQ Deployment Pipeline Documentation
 
-**Last Updated:** December 27, 2025  
+**Last Updated:** February 7, 2026  
 **Status:** Active  
-**Version:** 2.0
+**Version:** 2.1
 
 ---
 
 ## Overview
 
-The HomeIQ deployment pipeline is a comprehensive CI/CD system that automates the build, test, validation, and deployment of 30+ microservices to production. The pipeline implements 2025 best practices including quality gates, automated rollback, deployment tracking, and comprehensive notifications.
+The HomeIQ deployment pipeline is a comprehensive CI/CD system that automates the build, test, validation, and deployment of 47+ microservices to production. The pipeline implements 2025 best practices including quality gates, automated rollback, deployment tracking, and comprehensive notifications.
 
 ## Pipeline Architecture
 
@@ -477,8 +477,8 @@ See `infrastructure/env.example` for all environment variables.
 ## References
 
 - [Deployment Runbook](./DEPLOYMENT_RUNBOOK.md) - Step-by-step deployment procedures
-- [Architecture Documentation](../architecture/deployment-architecture.md) - Deployment architecture
-- [Troubleshooting Guide](../TROUBLESHOOTING_GUIDE.md) - Common issues and solutions
+- [Architecture Documentation](../architecture/event-flow-architecture.md) - Event flow and architecture
+- [Documentation Index](../README.md) - All docs and correct paths
 
 ---
 

@@ -30,7 +30,7 @@ test.describe('Integration Tests', () => {
     expect(influxHealthResponse.status()).toBe(200);
     
     // Step 3: Verify admin API can retrieve data
-    const adminStatsResponse = await page.request.get('http://localhost:8003/api/v1/stats');
+    const adminStatsResponse = await page.request.get('http://localhost:8004/api/v1/stats');
     expect(adminStatsResponse.status()).toBe(200);
     
     const statsData = await adminStatsResponse.json();
@@ -64,7 +64,7 @@ test.describe('Integration Tests', () => {
     expect(wsHealthData.dependencies?.influxdb).toBe('healthy');
     
     // Step 3: Verify admin API depends on all services
-    const adminHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+    const adminHealthResponse = await page.request.get('http://localhost:8004/api/v1/health');
     expect(adminHealthResponse.status()).toBe(200);
     
     const adminHealthData = await adminHealthResponse.json();
@@ -76,7 +76,7 @@ test.describe('Integration Tests', () => {
     await page.waitForSelector('[data-testid="dashboard"]', { timeout: 15000 });
     
     // Get initial event count
-    const initialEventsResponse = await page.request.get('http://localhost:8003/api/v1/events/recent?limit=10');
+    const initialEventsResponse = await page.request.get('http://localhost:8006/api/v1/events?limit=10');
     const initialEvents = await initialEventsResponse.json();
     const initialCount = initialEvents.length;
     
@@ -84,7 +84,7 @@ test.describe('Integration Tests', () => {
     await page.waitForTimeout(10000);
     
     // Check if new events appeared
-    const updatedEventsResponse = await page.request.get('http://localhost:8003/api/v1/events/recent?limit=10');
+    const updatedEventsResponse = await page.request.get('http://localhost:8006/api/v1/events?limit=10');
     const updatedEvents = await updatedEventsResponse.json();
     const updatedCount = updatedEvents.length;
     
@@ -136,7 +136,7 @@ test.describe('Integration Tests', () => {
     // Test that admin API aggregates information from all services
     
     // Test health endpoint
-    const healthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+    const healthResponse = await page.request.get('http://localhost:8004/api/v1/health');
     expect(healthResponse.status()).toBe(200);
     
     const healthData = await healthResponse.json();
@@ -145,7 +145,7 @@ test.describe('Integration Tests', () => {
     expect(healthData).toHaveProperty('dependencies');
     
     // Test statistics endpoint
-    const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');
+    const statsResponse = await page.request.get('http://localhost:8004/api/v1/stats');
     expect(statsResponse.status()).toBe(200);
     
     const statsData = await statsResponse.json();
@@ -155,14 +155,14 @@ test.describe('Integration Tests', () => {
     expect(statsData).toHaveProperty('services');
     
     // Test events endpoint
-    const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events/recent?limit=10');
+    const eventsResponse = await page.request.get('http://localhost:8006/api/v1/events?limit=10');
     expect(eventsResponse.status()).toBe(200);
     
     const eventsData = await eventsResponse.json();
     expect(Array.isArray(eventsData)).toBe(true);
     
     // Test configuration endpoint
-    const configResponse = await page.request.get('http://localhost:8003/api/v1/config');
+    const configResponse = await page.request.get('http://localhost:8004/api/v1/config');
     expect(configResponse.status()).toBe(200);
     
     const configData = await configResponse.json();
@@ -187,7 +187,7 @@ test.describe('Integration Tests', () => {
     // Note: enrichment-pipeline is deprecated in Epic 31 (direct InfluxDB writes)
     
     // Check that admin API reports the error
-    const adminHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+    const adminHealthResponse = await page.request.get('http://localhost:8004/api/v1/health');
     expect(adminHealthResponse.status()).toBe(200);
     
     const adminHealthData = await adminHealthResponse.json();
@@ -208,14 +208,14 @@ test.describe('Integration Tests', () => {
     // Test configuration management integration
     
     // Get current configuration
-    const configResponse = await page.request.get('http://localhost:8003/api/v1/config');
+    const configResponse = await page.request.get('http://localhost:8004/api/v1/config');
     expect(configResponse.status()).toBe(200);
     
     const configData = await configResponse.json();
     const originalConfig = { ...configData };
     
     // Update configuration through admin API
-    const updateResponse = await page.request.put('http://localhost:8003/api/v1/config', {
+    const updateResponse = await page.request.put('http://localhost:8004/api/v1/config', {
       data: {
         ...configData,
         refresh_interval: 60000 // Change refresh interval
@@ -224,13 +224,13 @@ test.describe('Integration Tests', () => {
     
     if (updateResponse.status() === 200) {
       // Verify configuration was updated
-      const updatedConfigResponse = await page.request.get('http://localhost:8003/api/v1/config');
+      const updatedConfigResponse = await page.request.get('http://localhost:8004/api/v1/config');
       const updatedConfigData = await updatedConfigResponse.json();
       
       expect(updatedConfigData.refresh_interval).toBe(60000);
       
       // Restore original configuration
-      await page.request.put('http://localhost:8003/api/v1/config', {
+      await page.request.put('http://localhost:8004/api/v1/config', {
         data: originalConfig
       });
     }

@@ -1,6 +1,6 @@
 # HomeIQ Services Ranked by Importance
 
-**Last Updated:** February 6, 2026
+**Last Updated:** February 7, 2026
 **Purpose:** Comprehensive ranking of all services by criticality to system operation
 
 ---
@@ -296,9 +296,25 @@ Home Assistant (192.168.1.86:8123)
 | 8024 | ha-setup-service | 2 |
 | 8028 | device-intelligence-service | 3 |
 | 8029 | automation-miner | 5 |
-| 8037 | energy-forecasting | 3 |
+| 8037 | yaml-validation-service | 5 |
+| 8042 | energy-forecasting | 3 |
+| 8043 | activity-recognition | 6 |
 | 8080 | data-retention | 2 |
 | 8086 | InfluxDB | 1 |
+
+### Docker deployment (host ports)
+
+In `docker-compose.yml`, some services use a different **host** port to avoid conflicts (internal container port in parentheses):
+
+| Host port | Service | Container port | Note |
+|-----------|---------|----------------|------|
+| 8042 | energy-forecasting | 8037 | 8037 used by yaml-validation-service |
+| 8043 | activity-recognition | 8036 | 8036 used by ai-automation-service-new |
+| 8125 | ha-simulator | 8123 | Profile `development` only |
+
+**Optional / profile services:**
+
+- **ha-simulator** (8125) and **model-prep** (one-shot): start with `docker compose --profile development up -d` or by service name.
 
 ---
 
@@ -312,4 +328,4 @@ Home Assistant (192.168.1.86:8123)
 ---
 
 **Maintained by:** HomeIQ DevOps Team
-**Last Updated:** February 6, 2026
+**Last Updated:** February 7, 2026

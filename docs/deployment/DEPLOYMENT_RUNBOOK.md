@@ -1,8 +1,8 @@
 # HomeIQ Deployment Runbook
 
-**Last Updated:** February 6, 2026
+**Last Updated:** February 7, 2026
 **Status:** Active
-**Version:** 2.2
+**Version:** 2.3
 
 ---
 
@@ -20,7 +20,7 @@ This runbook provides step-by-step instructions for deploying HomeIQ to producti
 
 HomeIQ is an AI-powered Home Assistant intelligence platform that captures, enriches, and stores Home Assistant events with multi-source data enrichment, providing real-time monitoring, advanced analytics, conversational AI automation, and production-ready deployment capabilities.
 
-**Deployment Model:** Single NUC deployment - all 46+ microservices run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
+**Deployment Model:** Single NUC deployment - all 47+ microservices run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
 
 For complete service ranking and deployment priority, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
 
@@ -70,7 +70,7 @@ For complete service ranking and deployment priority, see **[Services Ranked by 
 
 ### Services Deployed
 
-HomeIQ deploys **46+ microservices** organized into **7 tiers by criticality** (see [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)). Below are the key service categories:
+HomeIQ deploys **47+ microservices** organized into **7 tiers by criticality** (see [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)). Below are the key service categories:
 
 #### 🗄️ Infrastructure Services
 
@@ -433,14 +433,48 @@ HomeIQ deploys **46+ microservices** organized into **7 tiers by criticality** (
   - Device recommendations
   - Compatibility checking
 
+**38. activity-recognition (Port 8043 → 8036)**
+- **Purpose:** User activity detection from sensor patterns
+- **Why Deployed:** Tier 6 device management - infers user activity from event patterns
+- **Features:**
+  - ONNX-based activity recognition
+  - Data API integration for sensor data
+- **Dependencies:** data-api
+- **Note:** Host port 8043 (container 8036) to avoid conflict with ai-automation-service-new
+
+**39. energy-forecasting (Port 8042 → 8037)**
+- **Purpose:** 7-day energy consumption predictions
+- **Why Deployed:** Tier 3 AI/ML - forecasting for energy optimization
+- **Features:**
+  - PyTorch-based forecasting models
+  - InfluxDB integration for historical data
+- **Dependencies:** influxdb
+- **Note:** Host port 8042 (container 8037) to avoid conflict with yaml-validation-service
+
+**40. ha-simulator (Port 8125 → 8123)**
+- **Purpose:** Home Assistant simulator for development and testing
+- **Why Deployed:** Tier 7 - isolated test environment without real HA
+- **Features:**
+  - Simulated HA API and WebSocket
+  - Configurable test scenarios
+- **Profile:** development (start with `docker compose --profile development up -d`)
+
+**41. model-prep (one-shot, no port)**
+- **Purpose:** Pre-download and cache ML models for AI services
+- **Why Deployed:** Reduces service startup time; ensures models available before AI services start
+- **Features:**
+  - Downloads models to shared volume (`ai_automation_models`)
+  - Run manually or with profile: `docker compose run model-prep` or `--profile development`
+- **Profile:** development
+
 #### 🧪 Test Services (Optional)
 
-**38. home-assistant-test (Port 8124 → 8123)**
+**42. home-assistant-test (Port 8124 → 8123)**
 - **Purpose:** Test Home Assistant instance
 - **Why Deployed:** Provides isolated test environment for development
 - **Profile:** test (excluded from production)
 
-**39. websocket-ingestion-test (Port 8002 → 8001)**
+**43. websocket-ingestion-test (Port 8002 → 8001)**
 - **Purpose:** Test WebSocket ingestion service
 - **Why Deployed:** Tests WebSocket ingestion with test Home Assistant
 - **Profile:** test (excluded from production)
@@ -879,7 +913,7 @@ bash scripts/deployment/health-check.sh
 - Use full container restart (`down/up`) after route changes, not just `restart`
 - Test route order after deployment
 
-**See:** `implementation/SYNERGIES_API_FIX_COMPLETE.md` for complete fix details
+**See:** `docs/README.md` for documentation index; implementation notes go in `implementation/` when created.
 
 ### Nginx Proxy Issues (Dashboard)
 

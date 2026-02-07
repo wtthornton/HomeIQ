@@ -1,6 +1,6 @@
 # HomeIQ Rebuild and Deployment Plan
 
-**Date:** February 4, 2026
+**Date:** February 7, 2026
 **Status:** ✅ Phase 0 Complete | 📋 Phase 1 Ready
 **Current State:** 44/45 services running (websocket-ingestion fixed)
 **Progress:** 16.7% (1/6 phases complete)
@@ -25,7 +25,7 @@
 
 ### Overview
 
-This comprehensive plan outlines the strategy to rebuild and redeploy the entire HomeIQ platform, consisting of 48 microservices (45 Python backend services, 2 Node.js frontend applications, plus InfluxDB and Jaeger infrastructure).
+This comprehensive plan outlines the strategy to rebuild and redeploy the entire HomeIQ platform, consisting of 47+ microservices (Python backend services, 2 Node.js frontend applications, plus InfluxDB and Jaeger infrastructure). All services including activity-recognition, energy-forecasting, ha-simulator, and model-prep are in docker-compose (see SERVICES_RANKED_BY_IMPORTANCE.md for ports)..
 
 ### Key Objectives
 
@@ -1954,6 +1954,6 @@ open http://localhost:16686
 
 For questions or clarifications about this plan, please refer to:
 - [Library Upgrade Summary](c:\cursor\HomeIQ\docs\planning\upgrade-summary.md)
-- [Deployment Guide](c:\cursor\HomeIQ\docs\DEPLOYMENT_GUIDE.md)
+- [Deployment Runbook](../deployment/DEPLOYMENT_RUNBOOK.md)
 - [Docker Compose Configuration](c:\cursor\HomeIQ\docker-compose.yml)
 - [Deployment Script](c:\cursor\HomeIQ\scripts\deploy.sh)

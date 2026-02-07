@@ -47,7 +47,7 @@ class SmokeTestRunner:
                 'critical': True
             },
             'admin-api': {
-                'url': 'http://localhost:8003/api/v1/health',
+                'url': 'http://localhost:8004/api/v1/health',
                 'method': 'GET',
                 'expected_status': 200,
                 'critical': True

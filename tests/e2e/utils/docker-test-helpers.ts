@@ -128,8 +128,8 @@ export class DockerTestHelpers {
     const services = [
       { name: 'InfluxDB', url: 'http://localhost:8086/health' },
       { name: 'WebSocket Ingestion', url: 'http://localhost:8001/health' },
-      { name: 'Enrichment Pipeline', url: 'http://localhost:8002/health' },
-      { name: 'Admin API', url: 'http://localhost:8003/api/v1/health' },
+      { name: 'Data API', url: 'http://localhost:8006/health' },
+      { name: 'Admin API', url: 'http://localhost:8004/api/v1/health' },
       { name: 'Data Retention', url: 'http://localhost:8080/health' },
       { name: 'Health Dashboard', url: 'http://localhost:3000' }
     ];
@@ -152,7 +152,7 @@ export class DockerTestHelpers {
     const containerMap: { [key: string]: string } = {
       'influxdb': 'homeiq-influxdb',
       'websocket': 'homeiq-websocket',
-      'enrichment': 'homeiq-enrichment',
+      // Epic 31: enrichment-pipeline deprecated
       'admin': 'homeiq-admin',
       'dashboard': 'homeiq-dashboard',
       'retention': 'homeiq-data-retention'
@@ -178,7 +178,7 @@ export class DockerTestHelpers {
     const containerMap: { [key: string]: string } = {
       'influxdb': 'homeiq-influxdb',
       'websocket': 'homeiq-websocket',
-      'enrichment': 'homeiq-enrichment',
+      // Epic 31: enrichment-pipeline deprecated
       'admin': 'homeiq-admin',
       'dashboard': 'homeiq-dashboard',
       'retention': 'homeiq-data-retention'
@@ -220,8 +220,8 @@ export class DockerTestHelpers {
     const services = [
       { name: 'InfluxDB', url: 'http://localhost:8086/health' },
       { name: 'WebSocket Ingestion', url: 'http://localhost:8001/health' },
-      { name: 'Enrichment Pipeline', url: 'http://localhost:8002/health' },
-      { name: 'Admin API', url: 'http://localhost:8003/api/v1/health' },
+      { name: 'Data API', url: 'http://localhost:8006/health' },
+      { name: 'Admin API', url: 'http://localhost:8004/api/v1/health' },
       { name: 'Data Retention', url: 'http://localhost:8080/health' }
     ];
     

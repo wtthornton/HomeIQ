@@ -20,7 +20,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
         'http://localhost:8086/health',  // InfluxDB
         'http://localhost:8001/health',  // WebSocket Ingestion
         'http://localhost:8002/health',  // Enrichment Pipeline
-        'http://localhost:8003/api/v1/health',  // Admin API
+        'http://localhost:8004/api/v1/health',  // Admin API
         'http://localhost:8080/health'   // Data Retention
       ];
       
@@ -56,7 +56,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
           await page.waitForTimeout(5000);
           
           // Step 5: Verify event appears in admin API
-          const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events?limit=10');
+          const eventsResponse = await page.request.get('http://localhost:8006/api/v1/events?limit=10');
           expect(eventsResponse.status()).toBe(200);
           
           const eventsData = await eventsResponse.json();
@@ -103,7 +103,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
       expect(enrichData.status).toBe('healthy');
       
       // 4. Admin API aggregates all service health
-      const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       expect(adminResponse.status()).toBe(200);
       const adminData = await adminResponse.json();
       expect(adminData.overall_status).toBe('healthy');
@@ -119,7 +119,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
       await page.waitForSelector('[data-testid="dashboard"]', { timeout: 15000 });
       
       // Get initial system state
-      const initialHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const initialHealthResponse = await page.request.get('http://localhost:8004/api/v1/health');
       const initialHealthData = await initialHealthResponse.json();
       const initialTimestamp = initialHealthData.timestamp;
       
@@ -127,7 +127,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
       await page.waitForTimeout(15000);
       
       // Get updated system state
-      const updatedHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const updatedHealthResponse = await page.request.get('http://localhost:8004/api/v1/health');
       const updatedHealthData = await updatedHealthResponse.json();
       const updatedTimestamp = updatedHealthData.timestamp;
       
@@ -151,7 +151,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
         expect(weatherData.status).toBe('healthy');
         
         // Verify weather enrichment is enabled in admin API
-        const adminHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+        const adminHealthResponse = await page.request.get('http://localhost:8004/api/v1/health');
         const adminHealthData = await adminHealthResponse.json();
         
         expect(adminHealthData.ingestion_service.weather_enrichment.enabled).toBe(true);
@@ -197,7 +197,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
     test('High-volume concurrent API requests', async ({ page }) => {
       // Test concurrent health check requests
       const healthRequests = Array.from({ length: 50 }, () => 
-        page.request.get('http://localhost:8003/api/v1/health')
+        page.request.get('http://localhost:8004/api/v1/health')
       );
       
       const startTime = Date.now();
@@ -219,7 +219,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
     test('Large dataset query performance', async ({ page }) => {
       // Test large event queries
       const startTime = Date.now();
-      const response = await page.request.get('http://localhost:8003/api/v1/events?limit=1000');
+      const response = await page.request.get('http://localhost:8006/api/v1/events?limit=1000');
       const endTime = Date.now();
       
       expect(response.status()).toBe(200);
@@ -240,7 +240,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
       const requestCount = 100;
       
       for (let i = 0; i < requestCount; i++) {
-        const response = await page.request.get('http://localhost:8003/api/v1/health');
+        const response = await page.request.get('http://localhost:8004/api/v1/health');
         expect(response.status()).toBe(200);
         
         // Small delay between requests
@@ -261,7 +261,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
       console.log(`Completed ${requestCount} requests in ${totalTime}ms`);
       
       // Verify final system health
-      const finalHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const finalHealthResponse = await page.request.get('http://localhost:8004/api/v1/health');
       expect(finalHealthResponse.status()).toBe(200);
     });
 
@@ -311,7 +311,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
       
       // Perform multiple API requests while WebSocket is connected
       for (let i = 0; i < 30; i++) {
-        const response = await page.request.get('http://localhost:8003/api/v1/health');
+        const response = await page.request.get('http://localhost:8004/api/v1/health');
         expect(response.status()).toBe(200);
         
         // Check WebSocket status
@@ -330,7 +330,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
     
     test('Service restart recovery', async ({ page }) => {
       // Get initial system state
-      const initialHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const initialHealthResponse = await page.request.get('http://localhost:8004/api/v1/health');
       const initialHealthData = await initialHealthResponse.json();
       expect(initialHealthData.overall_status).toBe('healthy');
       
@@ -343,7 +343,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
         await page.waitForTimeout(5000);
         
         // Verify service is down
-        const downResponse = await page.request.get('http://localhost:8003/api/v1/health');
+        const downResponse = await page.request.get('http://localhost:8004/api/v1/health');
         expect(downResponse.status()).toBeGreaterThanOrEqual(500);
         
         // Restart service
@@ -354,7 +354,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
         await page.waitForTimeout(10000);
         
         // Verify service is healthy again
-        const recoveryResponse = await page.request.get('http://localhost:8003/api/v1/health');
+        const recoveryResponse = await page.request.get('http://localhost:8004/api/v1/health');
         expect(recoveryResponse.status()).toBe(200);
         
         const recoveryData = await recoveryResponse.json();
@@ -417,7 +417,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
       }
       
       // Check that admin API reports degraded status
-      const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (adminResponse.status() === 200) {
         const adminData = await adminResponse.json();
         expect(['degraded', 'unhealthy']).toContain(adminData.overall_status);
@@ -430,7 +430,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
       await page.waitForTimeout(10000);
       
       // Verify system recovers
-      const recoveryResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const recoveryResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (recoveryResponse.status() === 200) {
         const recoveryData = await recoveryResponse.json();
         expect(recoveryData.overall_status).toBe('healthy');
@@ -439,7 +439,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
 
     test('Configuration change propagation', async ({ page }) => {
       // Get current configuration
-      const configResponse = await page.request.get('http://localhost:8003/api/v1/config');
+      const configResponse = await page.request.get('http://localhost:8004/api/v1/config');
       expect(configResponse.status()).toBe(200);
       
       const configData = await configResponse.json();
@@ -451,19 +451,19 @@ test.describe('Enhanced Integration and Performance Tests', () => {
         refresh_interval: 60000
       };
       
-      const updateResponse = await page.request.put('http://localhost:8003/api/v1/config', {
+      const updateResponse = await page.request.put('http://localhost:8004/api/v1/config', {
         data: updatedConfig
       });
       
       if (updateResponse.status() === 200) {
         // Verify configuration was updated
-        const verifyResponse = await page.request.get('http://localhost:8003/api/v1/config');
+        const verifyResponse = await page.request.get('http://localhost:8004/api/v1/config');
         const verifyData = await verifyResponse.json();
         
         expect(verifyData.refresh_interval).toBe(60000);
         
         // Restore original configuration
-        await page.request.put('http://localhost:8003/api/v1/config', {
+        await page.request.put('http://localhost:8004/api/v1/config', {
           data: originalConfig
         });
       }
@@ -474,7 +474,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
     
     test('Event data consistency across services', async ({ page }) => {
       // Get events from admin API
-      const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events?limit=10');
+      const eventsResponse = await page.request.get('http://localhost:8006/api/v1/events?limit=10');
       expect(eventsResponse.status()).toBe(200);
       
       const eventsData = await eventsResponse.json();
@@ -500,12 +500,12 @@ test.describe('Enhanced Integration and Performance Tests', () => {
 
     test('Statistics accuracy and consistency', async ({ page }) => {
       // Get statistics multiple times and verify consistency
-      const stats1 = await page.request.get('http://localhost:8003/api/v1/stats');
+      const stats1 = await page.request.get('http://localhost:8004/api/v1/stats');
       expect(stats1.status()).toBe(200);
       
       await page.waitForTimeout(2000);
       
-      const stats2 = await page.request.get('http://localhost:8003/api/v1/stats');
+      const stats2 = await page.request.get('http://localhost:8004/api/v1/stats');
       expect(stats2.status()).toBe(200);
       
       const statsData1 = await stats1.json();
@@ -533,7 +533,7 @@ test.describe('Enhanced Integration and Performance Tests', () => {
         { name: 'InfluxDB', url: 'http://localhost:8086/health' },
         { name: 'WebSocket Ingestion', url: 'http://localhost:8001/health' },
         { name: 'Enrichment Pipeline', url: 'http://localhost:8002/health' },
-        { name: 'Admin API', url: 'http://localhost:8003/api/v1/health' },
+        { name: 'Admin API', url: 'http://localhost:8004/api/v1/health' },
         { name: 'Data Retention', url: 'http://localhost:8080/health' }
       ];
       

@@ -61,10 +61,10 @@ Write-Status "Docker Compose file found"
 
 # Check if required containers are running
 Write-Host "Checking Docker containers..." -ForegroundColor Cyan
+# Epic 31: enrichment-pipeline deprecated, admin-api on 8004
 $RequiredContainers = @(
     "homeiq-influxdb",
     "homeiq-websocket",
-    "homeiq-enrichment",
     "homeiq-admin",
     "homeiq-dashboard"
 )
@@ -89,8 +89,8 @@ Start-Sleep -Seconds 10
 $Services = @(
     @{Name="InfluxDB"; Url="http://localhost:8086/health"},
     @{Name="WebSocket"; Url="http://localhost:8001/health"},
-    @{Name="Enrichment"; Url="http://localhost:8002/health"},
-    @{Name="Admin API"; Url="http://localhost:8003/api/v1/health"},
+    @{Name="Data API"; Url="http://localhost:8006/health"},
+    @{Name="Admin API"; Url="http://localhost:8004/api/v1/health"},
     @{Name="Dashboard"; Url="http://localhost:3000"}
 )
 
@@ -211,7 +211,7 @@ $SummaryContent = @"
 - **InfluxDB**: http://localhost:8086
 - **WebSocket Ingestion**: http://localhost:8001
 - **Enrichment Pipeline**: http://localhost:8002
-- **Admin API**: http://localhost:8003
+- **Admin API**: http://localhost:8004
 - **Health Dashboard**: http://localhost:3000
 - **Data Retention**: http://localhost:8080
 

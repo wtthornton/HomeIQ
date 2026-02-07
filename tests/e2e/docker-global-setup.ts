@@ -42,7 +42,7 @@ async function globalSetup(config: FullConfig) {
     const services = [
       { name: 'InfluxDB', url: 'http://localhost:8086/health' },
       { name: 'WebSocket Ingestion', url: 'http://localhost:8001/health' },
-      { name: 'Admin API', url: 'http://localhost:8003/health', optional: true }, // Use /health instead of /api/v1/health
+      { name: 'Admin API', url: 'http://localhost:8004/health', optional: true }, // Use /health instead of /api/v1/health
       { name: 'Data Retention', url: 'http://localhost:8080/health', optional: true }
     ];
     
@@ -109,7 +109,7 @@ async function globalSetup(config: FullConfig) {
     
     // Test basic API endpoints (with timeout and error handling)
     try {
-      const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats', { timeout: 10000 });
+      const statsResponse = await page.request.get('http://localhost:8004/api/v1/stats', { timeout: 10000 });
       if (statsResponse.status() === 200) {
         console.log('✓ Admin API statistics endpoint is working');
       }
@@ -118,7 +118,7 @@ async function globalSetup(config: FullConfig) {
     }
     
     try {
-      const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events?limit=10', { timeout: 10000 });
+      const eventsResponse = await page.request.get('http://localhost:8006/api/v1/events?limit=10', { timeout: 10000 });
       if (eventsResponse.status() === 200) {
         console.log('✓ Admin API events endpoint is working');
       }

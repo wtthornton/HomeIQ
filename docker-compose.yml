@@ -1157,7 +1157,7 @@ services:
       - HA_AI_AGENT_URL=http://ha-ai-agent-service:8030
       - WEATHER_API_URL=http://weather-api:8009
       # SPORTS_DATA_URL removed - sports data now accessed via data-api service (port 8006)
-      # See: implementation/sports-architecture-simplification-summary.md
+      # See: docs/deployment/DEPLOYMENT_RUNBOOK.md and services/SERVICES_RANKED_BY_IMPORTANCE.md
       - CARBON_INTENSITY_URL=http://carbon-intensity:8010
       - DATA_API_URL=http://data-api:8006
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -2302,6 +2302,157 @@ services:
         max-file: "3"
         labels: "service=automation-linter,environment=production"
 
+  # Activity Recognition Service - Tier 6: User activity detection from sensor patterns
+  activity-recognition:
+    build:
+      context: ./services/activity-recognition
+      dockerfile: Dockerfile
+    container_name: homeiq-activity-recognition
+    restart: unless-stopped
+    ports:
+      - "8043:8036"  # External 8043 (8036 used by ai-automation-service-new)
+    env_file:
+      - .env
+    environment:
+      - PORT=8036
+      - HOST=0.0.0.0
+      - MODEL_PATH=${ACTIVITY_MODEL_PATH:-/app/models/activity_lstm.onnx}
+      - DATA_API_URL=http://data-api:8006
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - activity_recognition_models:/app/models
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8036/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=activity-recognition,environment=production"
+
+  # Energy Forecasting Service - Tier 3: 7-day energy consumption predictions
+  energy-forecasting:
+    build:
+      context: ./services/energy-forecasting
+      dockerfile: Dockerfile
+    container_name: homeiq-energy-forecasting
+    restart: unless-stopped
+    ports:
+      - "8042:8037"  # External 8042 (8037 used by yaml-validation-service)
+    env_file:
+      - .env
+    environment:
+      - PORT=8037
+      - HOST=0.0.0.0
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - MODEL_PATH=${ENERGY_MODEL_PATH:-/app/models/energy_forecaster}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - energy_forecasting_models:/app/models
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8037/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=energy-forecasting,environment=production"
+
+  # HA Simulator - Development/testing only (Tier 7)
+  ha-simulator:
+    build:
+      context: .
+      dockerfile: services/ha-simulator/Dockerfile
+    container_name: homeiq-ha-simulator
+    restart: unless-stopped
+    ports:
+      - "8125:8123"  # 8124 used by home-assistant-test profile
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    networks:
+      - homeiq-network
+    profiles:
+      - development
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ha-simulator,environment=development"
+
+  # Model Prep - One-shot model download/cache (Tier 7, run manually or with profile)
+  model-prep:
+    build:
+      context: .
+      dockerfile: services/model-prep/Dockerfile
+    container_name: homeiq-model-prep
+    restart: "no"
+    environment:
+      - HF_HOME=/app/models
+      - TRANSFORMERS_CACHE=/app/models
+    volumes:
+      - ai_automation_models:/app/models
+    networks:
+      - homeiq-network
+    profiles:
+      - development
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=model-prep,environment=development"
+
 volumes:
   influxdb_data:
   influxdb_config:
@@ -2322,6 +2473,8 @@ volumes:
   blueprint_suggestions_data:  # Blueprint Suggestion Service data
   rule_recommendation_models:  # Rule Recommendation ML Service models
   api_automation_edge_data:  # API Automation Edge Service data
+  activity_recognition_models:  # Activity Recognition Service ONNX models
+  energy_forecasting_models:  # Energy Forecasting Service model cache
 
 networks:
   homeiq-network:
