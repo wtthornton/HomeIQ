@@ -54,6 +54,8 @@ curl http://localhost:3000           # Health Dashboard
 
 ## Running Tests
 
+**All Playwright tests run against the deployed Docker stack with no mocked API data.** Use `docker-deployment.config.ts` to run the full E2E suite (legacy specs, health-dashboard, ai-automation-ui, api-integration) against `http://localhost:3000` (health dashboard) and `http://localhost:3001` (AI automation UI when applicable). Ensure `docker-compose up` is running before executing tests.
+
 ### Quick Start
 
 Run all tests with the automated test runner:
@@ -81,6 +83,15 @@ npx playwright test tests/e2e/integration.spec.ts --config=tests/e2e/docker-depl
 
 # Performance tests
 npx playwright test tests/e2e/performance.spec.ts --config=tests/e2e/docker-deployment.config.ts
+
+# Health Dashboard (all tabs and components; no mocks)
+npx playwright test tests/e2e/health-dashboard/ --config=tests/e2e/docker-deployment.config.ts
+
+# AI Automation UI (all pages and workflows; no mocks)
+npx playwright test tests/e2e/ai-automation-ui/ --config=tests/e2e/docker-deployment.config.ts
+
+# API integration (direct Admin API)
+npx playwright test tests/e2e/api-integration/ --config=tests/e2e/docker-deployment.config.ts
 ```
 
 ### Cross-Browser Testing

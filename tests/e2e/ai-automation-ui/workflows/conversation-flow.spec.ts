@@ -1,16 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
-import { mockApiEndpoints } from '../../../shared/helpers/api-helpers';
-import { automationMocks } from '../fixtures/api-mocks';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
+/** Tests run against deployed Docker (no API mocks). */
 test.describe('AI Automation UI - Conversation Flow Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/conversations/, response: automationMocks['/api/conversations'] },
-      { pattern: /\/api\/chat/, response: automationMocks['/api/chat'] },
-    ]);
     await page.goto('/ha-agent');
     await waitForLoadingComplete(page);
   });

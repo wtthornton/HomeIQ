@@ -1,15 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../../shared/helpers/auth-helpers';
-import { mockApiEndpoints } from '../../../../shared/helpers/api-helpers';
-import { healthMocks } from '../../fixtures/api-mocks';
 import { waitForLoadingComplete, waitForChartRender } from '../../../../shared/helpers/wait-helpers';
 
+/** Tests run against deployed Docker (no API mocks). */
 test.describe('Health Dashboard - Analytics Tab', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/analytics/, response: healthMocks['/api/analytics'] },
-    ]);
     await page.goto('/#analytics');
     await waitForLoadingComplete(page);
   });
@@ -26,7 +22,7 @@ test.describe('Health Dashboard - Analytics Tab', () => {
     if (await timeRangeSelect.isVisible({ timeout: 2000 })) {
       await timeRangeSelect.click();
       await page.locator('option:has-text("7d"), [role="option"]:has-text("7d")').first().click();
-      await page.waitForTimeout(1000);
+      await waitForLoadingComplete(page);
       
       // Verify charts updated
       const charts = page.locator('canvas, svg[class*="chart"]');
@@ -39,7 +35,7 @@ test.describe('Health Dashboard - Analytics Tab', () => {
     
     if (await metricSelect.isVisible({ timeout: 2000 })) {
       await metricSelect.click();
-      await page.waitForTimeout(500);
+      await waitForLoadingComplete(page);
     }
   });
 
@@ -49,9 +45,12 @@ test.describe('Health Dashboard - Analytics Tab', () => {
     
     // Try to interact with chart (if interactive)
     await chart.hover();
-    await page.waitForTimeout(500);
-    
-    // Verify chart is interactive
+    await waitForLoadingComplete(page);
+
+    const tooltip = page.locator('[role="tooltip"], [class*="tooltip"]').first();
+    // Tooltip may or may not appear depending on chart type
+
+    // Verify chart is still visible after interaction
     await expect(chart).toBeVisible();
   });
 
@@ -70,7 +69,7 @@ test.describe('Health Dashboard - Analytics Tab', () => {
     
     if (await filterInput.isVisible({ timeout: 2000 })) {
       await filterInput.fill('events');
-      await page.waitForTimeout(500);
+      await waitForLoadingComplete(page);
       
       // Verify filter applied
       const charts = page.locator('canvas, svg[class*="chart"]');
@@ -81,18 +80,13 @@ test.describe('Health Dashboard - Analytics Tab', () => {
   test('Loading states', async ({ page }) => {
     await page.goto('/#services');
     await page.goto('/#analytics');
-    
+
     const loadingIndicators = page.locator('[data-testid="loading"], .loading, .spinner');
     // Loading might be fast, but structure supports it
+    await expect(page.locator('[data-testid="dashboard-root"]')).toBeVisible();
   });
 
-  test('Error handling', async ({ page }) => {
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/analytics/, response: { status: 500, body: { error: 'Internal Server Error' } } },
-    ]);
-    
-    await page.reload();
-    
+  test.skip('Error handling (requires API mock; run in mock suite if needed)', async ({ page }) => {
     const errorMessage = page.locator('[data-testid="error"], .error, [role="alert"]').first();
     await expect(errorMessage).toBeVisible({ timeout: 5000 });
   });

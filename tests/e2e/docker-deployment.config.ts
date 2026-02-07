@@ -58,8 +58,28 @@ export default defineConfig({
     }
   },
 
-  /* Configure projects for major browsers */
+  /* Configure projects: 3000 = health-dashboard + legacy + api-integration; 3001 = ai-automation-ui only */
   projects: [
+    /* AI Automation UI runs on port 3001 in Docker */
+    {
+      name: 'docker-ai-ui-chromium',
+      testMatch: ['**/ai-automation-ui/**/*.spec.ts'],
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://localhost:3001',
+        launchOptions: {
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process'
+          ]
+        }
+      },
+    },
     {
       name: 'docker-chromium',
       use: { 
@@ -130,7 +150,7 @@ export default defineConfig({
   /* Output directory for test artifacts */
   outputDir: 'test-results/',
   
-  /* Test match patterns */
+  /* Test match patterns: legacy + health-dashboard + api-integration (baseURL 3000). AI automation UI runs in separate project with baseURL 3001. */
   testMatch: [
     '**/system-health.spec.ts',
     '**/dashboard-functionality.spec.ts',
@@ -145,7 +165,9 @@ export default defineConfig({
     '**/dashboard-data-loading.spec.ts',
     '**/error-handling-comprehensive.spec.ts',
     '**/user-journey-complete.spec.ts',
-    '**/cross-service-integration.spec.ts'
+    '**/cross-service-integration.spec.ts',
+    '**/health-dashboard/**/*.spec.ts',
+    '**/api-integration/**/*.spec.ts'
   ],
   
   /* Test ignore patterns */

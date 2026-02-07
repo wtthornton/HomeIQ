@@ -18,6 +18,8 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   color = 'default',
   className = ''
 }) => {
+  const testId = 'loading-spinner';
+
   const sizeClasses = {
     sm: 'w-2 h-2',
     md: 'w-3 h-3',
@@ -34,7 +36,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   // Pulse variant - animated growing circle
   if (variant === 'pulse') {
     return (
-      <div className={`inline-flex items-center justify-center ${className}`}>
+      <div data-testid={testId} aria-label="Loading" className={`inline-flex items-center justify-center ${className}`}>
         <div className={`${sizeClasses[size]} rounded-full ${colorClasses[color]} animate-pulse`}></div>
       </div>
     );
@@ -43,7 +45,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   // Dots variant - three bouncing dots
   if (variant === 'dots') {
     return (
-      <div className={`inline-flex items-center space-x-1 ${className}`}>
+      <div data-testid={testId} aria-label="Loading" className={`inline-flex items-center space-x-1 ${className}`}>
         <div className={`${sizeClasses[size]} ${colorClasses[color]} rounded-full animate-bounce`} style={{ animationDelay: '0ms' }}></div>
         <div className={`${sizeClasses[size]} ${colorClasses[color]} rounded-full animate-bounce`} style={{ animationDelay: '150ms' }}></div>
         <div className={`${sizeClasses[size]} ${colorClasses[color]} rounded-full animate-bounce`} style={{ animationDelay: '300ms' }}></div>
@@ -54,7 +56,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   // Spinner variant - rotating circle
   if (variant === 'spinner') {
     return (
-      <div className={`inline-flex items-center justify-center ${className}`}>
+      <div data-testid={testId} aria-label="Loading" className={`inline-flex items-center justify-center ${className}`}>
         <svg
           className={`animate-spin ${sizeClasses[size] === 'w-2 h-2' ? 'w-4 h-4' : sizeClasses[size] === 'w-3 h-3' ? 'w-6 h-6' : 'w-8 h-8'}`}
           fill="none"
@@ -82,7 +84,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   // Bars variant - animated bars
   if (variant === 'bars') {
     return (
-      <div className={`inline-flex items-end space-x-1 ${className}`}>
+      <div data-testid={testId} aria-label="Loading" className={`inline-flex items-end space-x-1 ${className}`}>
         <div className={`${colorClasses[color]} rounded-sm`} style={{ width: '3px', height: '8px', animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0ms' }}></div>
         <div className={`${colorClasses[color]} rounded-sm`} style={{ width: '3px', height: '12px', animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '200ms' }}></div>
         <div className={`${colorClasses[color]} rounded-sm`} style={{ width: '3px', height: '10px', animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '400ms' }}></div>

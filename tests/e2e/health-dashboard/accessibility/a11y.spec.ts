@@ -45,18 +45,21 @@ test.describe('Health Dashboard - Accessibility', () => {
 
   test('Focus indicators', async ({ page }) => {
     await page.keyboard.press('Tab');
-    
+
     const focusedElement = page.locator(':focus');
     const styles = await focusedElement.evaluate((el) => {
       const computed = window.getComputedStyle(el);
       return {
         outline: computed.outline,
         outlineWidth: computed.outlineWidth,
+        boxShadow: computed.boxShadow,
       };
     });
-    
-    // Verify focus indicator exists
-    expect(styles.outlineWidth).not.toBe('0px');
+
+    // Verify focus indicator exists (Tailwind uses box-shadow via ring-* or outline)
+    const hasOutline = styles.outlineWidth !== '0px';
+    const hasBoxShadow = styles.boxShadow !== 'none' && styles.boxShadow !== '';
+    expect(hasOutline || hasBoxShadow).toBe(true);
   });
 
   test('Alt text for images', async ({ page }) => {

@@ -1,15 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
-import { mockApiEndpoints } from '../../../shared/helpers/api-helpers';
-import { automationMocks } from '../fixtures/api-mocks';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
+/** Tests run against deployed Docker (no API mocks). AI automation UI and backend on 3001/8018. */
 test.describe('AI Automation UI - Navigation', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/suggestions/, response: automationMocks['/api/suggestions'] },
-    ]);
     await page.goto('/');
     await waitForLoadingComplete(page);
   });
@@ -29,6 +25,27 @@ test.describe('AI Automation UI - Navigation', () => {
     for (const route of routes) {
       await page.goto(route.path);
       await waitForLoadingComplete(page);
+      await expect(page.locator('body')).toBeVisible();
+    }
+  });
+
+  test('P4.1 Navigate to all AI automation pages (Dashboard, Ask AI, Deployed, Patterns, Settings, Discovery, Synergies, Proactive, Blueprint, Admin)', async ({ page }) => {
+    const routes = [
+      { path: '/', name: 'Dashboard' },
+      { path: '/ha-agent', name: 'Ask AI / HA Agent' },
+      { path: '/deployed', name: 'Deployed' },
+      { path: '/patterns', name: 'Patterns' },
+      { path: '/settings', name: 'Settings' },
+      { path: '/discovery', name: 'Discovery' },
+      { path: '/synergies', name: 'Synergies' },
+      { path: '/proactive', name: 'Proactive' },
+      { path: '/blueprint-suggestions', name: 'Blueprint' },
+      { path: '/admin', name: 'Admin' },
+    ];
+    for (const route of routes) {
+      await page.goto(route.path);
+      await waitForLoadingComplete(page);
+      if (route.path !== '/') expect(page.url()).toContain(route.path);
       await expect(page.locator('body')).toBeVisible();
     }
   });

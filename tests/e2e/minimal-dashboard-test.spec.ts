@@ -39,8 +39,8 @@ test.describe('Minimal Dashboard Test', () => {
   });
 
   test('API endpoints return valid JSON', async ({ page }) => {
-    // Test health endpoint
-    const response = await page.request.get('http://localhost:3000/api/v1/health');
+    // Test admin-api health endpoint (Epic 31: dashboard does not proxy /api)
+    const response = await page.request.get('http://localhost:8004/api/v1/health');
     expect(response.status()).toBe(200);
     
     // Verify Content-Type is JSON

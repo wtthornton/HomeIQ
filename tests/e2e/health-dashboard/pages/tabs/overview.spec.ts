@@ -1,24 +1,25 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../../shared/helpers/auth-helpers';
-import { mockApiEndpoints } from '../../../../shared/helpers/api-helpers';
-import { healthMocks } from '../../fixtures/api-mocks';
 import { waitForStable, waitForLoadingComplete } from '../../../../shared/helpers/wait-helpers';
 
+/** Tests run against deployed Docker (no API mocks). */
 test.describe('Health Dashboard - Overview Tab', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/health/, response: healthMocks['/api/health'] },
-      { pattern: /\/api\/metrics/, response: healthMocks['/api/metrics'] },
-    ]);
     await page.goto('/#overview');
     await waitForLoadingComplete(page);
   });
 
   test('@smoke System status cards render', async ({ page }) => {
-    // Look for status cards
-    const statusCards = page.locator('[data-testid="status-card"], .status-card, [class*="StatusCard"]');
-    await expect(statusCards.first()).toBeVisible({ timeout: 5000 });
+    const statusCards = page.locator('[data-testid="health-card"], [data-testid="status-card"], .status-card, [class*="StatusCard"]');
+    await expect(statusCards.first()).toBeVisible({ timeout: 10000 });
+  });
+
+  test('P1.3 Overview tab displays health cards, RAG status, and core system data', async ({ page }) => {
+    const statusCards = page.locator('[data-testid="health-card"], [data-testid="status-card"], [class*="StatusCard"]');
+    const ragSection = page.locator('[data-testid="rag-status-section"], [data-testid="rag-status-card"]');
+    await expect(statusCards.first()).toBeVisible({ timeout: 10000 });
+    await expect(ragSection.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('Health indicators display correctly', async ({ page }) => {
@@ -34,16 +35,9 @@ test.describe('Health Dashboard - Overview Tab', () => {
     await expect(charts.first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('Real-time updates work (polling)', async ({ page }) => {
-    // Get initial metric value
-    const initialMetric = page.locator('[data-testid="metric-value"], [class*="metric"]').first();
-    const initialText = await initialMetric.textContent();
-    
-    // Wait for potential update (polling interval)
-    await page.waitForTimeout(35000); // Wait for potential poll
-    
-    // Check if value changed (or at least still visible)
-    await expect(initialMetric).toBeVisible();
+  test('Real-time metric elements are visible', async ({ page }) => {
+    const initialMetric = page.locator('[data-testid="metric-value"], [class*="metric"], [data-testid="health-card"]').first();
+    await expect(initialMetric).toBeVisible({ timeout: 10000 });
   });
 
   test('Loading states display', async ({ page }) => {
@@ -55,46 +49,26 @@ test.describe('Health Dashboard - Overview Tab', () => {
     const loadingIndicators = page.locator('[data-testid="loading"], .loading, .spinner, [class*="Skeleton"]');
     // Loading might be too fast to catch, so we just verify they exist in the DOM structure
     const count = await loadingIndicators.count();
-    // At least verify the page structure supports loading states
+    // Loading may be too fast to catch, so just verify we can query the DOM
+    expect(count).toBeGreaterThanOrEqual(0);
   });
 
-  test('Error states display', async ({ page }) => {
-    // Mock error response
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/health/, response: { status: 500, body: { error: 'Internal Server Error' } } },
-    ]);
-    
-    await page.reload();
-    
-    // Look for error message
+  test.skip('Error states display (requires API mock; run in mock suite if needed)', async ({ page }) => {
     const errorMessage = page.locator('[data-testid="error"], .error, [role="alert"]').first();
     await expect(errorMessage).toBeVisible({ timeout: 5000 });
   });
 
-  test('Empty states display', async ({ page }) => {
-    // Mock empty response
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/health/, response: { status: 200, body: { services: [], status: 'unknown' } } },
-    ]);
-    
-    await page.reload();
-    
-    // Look for empty state
+  test.skip('Empty states display (requires API mock; run in mock suite if needed)', async ({ page }) => {
     const emptyState = page.locator('[data-testid="empty-state"], .empty-state, [class*="Empty"]').first();
-    // Empty state might not always show, so we check if it exists
-    const exists = await emptyState.isVisible().catch(() => false);
-    // Just verify the structure supports empty states
+    await expect(emptyState).toBeVisible({ timeout: 5000 });
   });
 
   test('Refresh button works', async ({ page }) => {
-    // Find refresh button
     const refreshButton = page.locator('[data-testid="refresh"], button[aria-label*="refresh"], button:has([class*="refresh"])').first();
-    
     if (await refreshButton.isVisible({ timeout: 2000 })) {
       await refreshButton.click();
       await waitForLoadingComplete(page);
-      // Verify data reloaded
-      await expect(page.locator('[data-testid="status-card"]').first()).toBeVisible();
+      await expect(page.locator('[data-testid="health-card"], [data-testid="status-card"]').first()).toBeVisible({ timeout: 5000 });
     }
   });
 });

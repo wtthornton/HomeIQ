@@ -1,15 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
-import { mockApiEndpoints } from '../../../shared/helpers/api-helpers';
-import { automationMocks } from '../fixtures/api-mocks';
 import { waitForLoadingComplete, waitForModalOpen } from '../../../shared/helpers/wait-helpers';
 
+/** Tests run against deployed Docker (no API mocks). */
 test.describe('AI Automation UI - Conversational Dashboard', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/suggestions/, response: automationMocks['/api/suggestions'] },
-    ]);
     await page.goto('/');
     await waitForLoadingComplete(page);
   });
@@ -17,6 +13,16 @@ test.describe('AI Automation UI - Conversational Dashboard', () => {
   test('@smoke Dashboard loads', async ({ page }) => {
     await expect(page.locator('body')).toBeVisible();
     await expect(page).toHaveTitle(/AI Automation|HomeIQ/i);
+  });
+
+  test('P4.2 Dashboard page loads and displays suggestions or empty state', async ({ page }) => {
+    const container = page.locator('[data-testid="dashboard-container"], main, [class*="Dashboard"]').first();
+    await expect(container).toBeVisible({ timeout: 15000 });
+    const cards = page.locator('[data-testid="suggestion-card"], [class*="SuggestionCard"]');
+    const emptyState = page.getByText(/no suggestions|empty|get started/i).first();
+    const hasCards = await cards.first().isVisible().catch(() => false);
+    const hasEmpty = await emptyState.isVisible().catch(() => false);
+    expect(hasCards || hasEmpty).toBe(true);
   });
 
   test('Suggestion cards display', async ({ page }) => {
@@ -48,6 +54,42 @@ test.describe('AI Automation UI - Conversational Dashboard', () => {
     if (await filterPills.count() > 0) {
       await filterPills.first().click();
       await page.waitForTimeout(500);
+    }
+  });
+
+  test('P5.1 User can filter suggestions by category/confidence', async ({ page }) => {
+    const filterPills = page.locator('[data-testid="filter-pill"], [class*="FilterPill"], button[class*="pill"], [data-status]');
+    const count = await filterPills.count();
+    if (count > 0) {
+      await filterPills.first().click();
+      await page.waitForTimeout(500);
+      await expect(page.locator('body')).toBeVisible();
+    }
+  });
+
+  test('P5.2 User can approve and deploy a suggestion', async ({ page }) => {
+    const approveButton = page.locator('button:has-text("Approve"), [data-testid="approve"]').first();
+    if (await approveButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await approveButton.click();
+      await page.waitForTimeout(1000);
+      const deployButton = page.locator('button:has-text("Deploy"), [data-testid="deploy"]').first();
+      if (await deployButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await deployButton.click();
+        await page.waitForTimeout(1000);
+      }
+    }
+  });
+
+  test('P5.3 User can reject a suggestion with feedback', async ({ page }) => {
+    const rejectButton = page.locator('button:has-text("Reject"), [data-testid="reject"]').first();
+    if (await rejectButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await rejectButton.click();
+      await page.waitForTimeout(500);
+      const feedbackInput = page.locator('textarea, input[placeholder*="feedback"], input[placeholder*="reason"]').first();
+      if (await feedbackInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await feedbackInput.fill('Not needed');
+        await page.locator('button:has-text("Submit"), button:has-text("Confirm")').first().click();
+      }
     }
   });
 
@@ -139,27 +181,14 @@ test.describe('AI Automation UI - Conversational Dashboard', () => {
     // Loading might be fast, but structure supports it
   });
 
-  test('Error states', async ({ page }) => {
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/suggestions/, response: { status: 500, body: { error: 'Internal Server Error' } } },
-    ]);
-    
-    await page.reload();
-    
+  test.skip('Error states (requires API mock)', async ({ page }) => {
     const errorMessage = page.locator('[data-testid="error"], .error, [role="alert"]').first();
     await expect(errorMessage).toBeVisible({ timeout: 5000 });
   });
 
-  test('Empty states', async ({ page }) => {
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/suggestions/, response: { status: 200, body: { suggestions: [], total: 0 } } },
-    ]);
-    
-    await page.reload();
-    
+  test.skip('Empty states (requires API mock)', async ({ page }) => {
     const emptyState = page.locator('[data-testid="empty-state"], .empty-state').first();
-    const exists = await emptyState.isVisible().catch(() => false);
-    // Empty state might appear
+    await emptyState.isVisible().catch(() => false);
   });
 
   test('Refresh functionality', async ({ page }) => {

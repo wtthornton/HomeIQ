@@ -14,6 +14,11 @@ test.describe('AI Automation UI - Discovery Page', () => {
     await expect(deviceExplorer).toBeVisible({ timeout: 5000 });
   });
 
+  test('P4.7 Discovery page loads and displays device explorer or content', async ({ page }) => {
+    const content = page.locator('[data-testid="device-explorer"], [class*="DeviceExplorer"], [class*="Discovery"], main').first();
+    await expect(content).toBeVisible({ timeout: 8000 });
+  });
+
   test('Device list displays', async ({ page }) => {
     const deviceList = page.locator('[data-testid="device-list"], [class*="DeviceList"]').first();
     await expect(deviceList).toBeVisible({ timeout: 5000 });
