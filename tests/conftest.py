@@ -29,18 +29,19 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 
 
 @pytest.fixture(autouse=True)
-async def cleanup_after_test():
+def cleanup_after_test():
     """
     ✅ Context7 Best Practice: Auto cleanup after each test
     
     Automatically runs after every test to ensure clean state.
-    Waits for pending async tasks to complete.
+    Sync fixture so it works for both sync and async tests (avoids
+    PytestRemovedIn9Warning when sync tests depend on async fixtures).
     
     Reference: /pytest-dev/pytest - conftest.py patterns
     """
     yield
-    # Cleanup code runs here after test completes
-    await asyncio.sleep(0)  # Let pending tasks complete
+    # Cleanup code runs here after test completes (sync; async tests
+    # can use their own event loop for pending task cleanup if needed)
 
 
 @pytest.fixture(autouse=True)
