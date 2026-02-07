@@ -14,12 +14,19 @@ test.describe('Health Dashboard - Logs Tab', () => {
     await expect(logViewer).toBeVisible({ timeout: 5000 });
   });
 
+  test('P3.2 Logs tab loads and displays log viewer or empty state', async ({ page }) => {
+    await expect(page).toHaveURL(/#logs/);
+    const logViewer = page.locator('[data-testid="log-viewer"], [class*="LogViewer"], pre, [class*="log"], [class*="Waiting for logs"]').first();
+    await expect(logViewer).toBeVisible({ timeout: 8000 });
+  });
+
   test('Log filtering works', async ({ page }) => {
     const filterInput = page.locator('input, select, [data-testid="filter"]').first();
     
     if (await filterInput.isVisible({ timeout: 2000 })) {
       await filterInput.fill('error');
-      await page.waitForTimeout(500);
+      await waitForLoadingComplete(page);
+      await expect(page.locator('[data-testid="dashboard-root"]')).toBeVisible();
     }
   });
 
@@ -28,7 +35,8 @@ test.describe('Health Dashboard - Logs Tab', () => {
     
     if (await searchInput.isVisible({ timeout: 2000 })) {
       await searchInput.fill('websocket');
-      await page.waitForTimeout(500);
+      await waitForLoadingComplete(page);
+      await expect(page.locator('[data-testid="dashboard-root"]')).toBeVisible();
     }
   });
 
@@ -37,7 +45,7 @@ test.describe('Health Dashboard - Logs Tab', () => {
     
     if (await levelFilter.isVisible({ timeout: 2000 })) {
       await levelFilter.click();
-      await page.waitForTimeout(500);
+      await waitForLoadingComplete(page);
     }
   });
 
@@ -49,10 +57,14 @@ test.describe('Health Dashboard - Logs Tab', () => {
 
   test('Log export', async ({ page }) => {
     const exportButton = page.locator('button:has-text("Export"), button[aria-label*="export"]').first();
-    
+
     if (await exportButton.isVisible({ timeout: 2000 })) {
       const downloadPromise = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
       await exportButton.click();
+      const download = await downloadPromise;
+      if (download) {
+        expect(download.suggestedFilename()).toBeTruthy();
+      }
     }
   });
 });

@@ -139,3 +139,20 @@ export const mockAnalyticsData = {
   ],
   timeRange: '24h',
 };
+
+export const mockSynergies = [
+  {
+    id: 'syn-1',
+    name: 'Light + Motion',
+    confidence: 0.85,
+    devices: ['light.living_room', 'binary_sensor.motion'],
+    description: 'Lights turn on when motion detected',
+  },
+  {
+    id: 'syn-2',
+    name: 'Thermostat + Presence',
+    confidence: 0.72,
+    devices: ['climate.thermostat', 'device_tracker.person'],
+    description: 'Temperature adjusts when someone arrives',
+  },
+];

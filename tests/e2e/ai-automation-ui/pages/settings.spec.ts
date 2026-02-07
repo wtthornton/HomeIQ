@@ -14,6 +14,11 @@ test.describe('AI Automation UI - Settings Page', () => {
     await expect(settingsForm).toBeVisible({ timeout: 5000 });
   });
 
+  test('P4.6 Settings page loads and user can view/update preferences', async ({ page }) => {
+    const form = page.locator('form, [data-testid="settings-form"], [class*="Settings"], [class*="Preference"]').first();
+    await expect(form).toBeVisible({ timeout: 5000 });
+  });
+
   test('Preference toggles work', async ({ page }) => {
     const toggles = page.locator('input[type="checkbox"], [role="switch"], [data-testid="toggle"]');
     

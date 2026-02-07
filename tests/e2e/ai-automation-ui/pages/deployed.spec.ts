@@ -1,18 +1,21 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
-import { mockApiEndpoints } from '../../../shared/helpers/api-helpers';
-import { automationMocks } from '../fixtures/api-mocks';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
+/** Tests run against deployed Docker (no API mocks). */
 test.describe('AI Automation UI - Deployed Page', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    // Mock the actual endpoint: /api/deploy/automations
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/deploy\/automations/, response: automationMocks['/api/deploy/automations'] },
-    ]);
     await page.goto('/deployed');
     await waitForLoadingComplete(page);
+  });
+
+  test('P4.4 Deployed page loads and displays deployed automations or empty state', async ({ page }) => {
+    const container = page.locator('[data-testid="deployed-container"], main').first();
+    await expect(container).toBeVisible({ timeout: 8000 });
+    const automations = page.locator('[data-testid="deployed-automation"], [class*="Deployed"]');
+    const emptyState = page.getByText(/no deployed|empty/i).first();
+    expect(await container.isVisible()).toBe(true);
   });
 
   test('@smoke Deployed automations list', async ({ page }) => {

@@ -1,15 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
-import { mockApiEndpoints } from '../../../shared/helpers/api-helpers';
-import { automationMocks } from '../fixtures/api-mocks';
 import { waitForLoadingComplete, waitForModalOpen, waitForChartRender } from '../../../shared/helpers/wait-helpers';
 
+/** Tests run against deployed Docker (no API mocks). */
 test.describe('AI Automation UI - Patterns Page', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/patterns/, response: automationMocks['/api/patterns'] },
-    ]);
     await page.goto('/patterns');
     await waitForLoadingComplete(page);
   });
@@ -17,6 +13,11 @@ test.describe('AI Automation UI - Patterns Page', () => {
   test('@smoke Pattern list loads', async ({ page }) => {
     const patternList = page.locator('[data-testid="pattern-list"], [class*="PatternList"]').first();
     await expect(patternList).toBeVisible({ timeout: 5000 });
+  });
+
+  test('P4.5 Patterns page loads and displays pattern charts or list', async ({ page }) => {
+    const content = page.locator('[data-testid="pattern-list"], [class*="Pattern"], canvas, svg').first();
+    await expect(content).toBeVisible({ timeout: 8000 });
   });
 
   test('Pattern charts render', async ({ page }) => {

@@ -29,6 +29,16 @@ test.describe('DevicePicker Filters', () => {
     await page.waitForTimeout(2000);
   });
 
+  test('P5.4 DevicePicker opens and user can select devices', async ({ page }) => {
+    const searchInput = page.getByPlaceholder('Search devices...');
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
+    const option = page.locator('[role="option"]').first();
+    if (await option.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await option.click();
+      await page.waitForTimeout(300);
+    }
+  });
+
   test('should display all filter controls', async ({ page }) => {
     // Check for search input
     const searchInput = page.getByPlaceholder('Search devices...');

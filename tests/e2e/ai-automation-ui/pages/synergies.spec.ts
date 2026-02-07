@@ -1,15 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
-import { mockApiEndpoints } from '../../../shared/helpers/api-helpers';
-import { automationMocks } from '../fixtures/api-mocks';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
+/** Tests run against deployed Docker (no API mocks). */
 test.describe('AI Automation UI - Synergies Page', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await mockApiEndpoints(page, [
-      { pattern: /\/api\/synergies/, response: automationMocks['/api/synergies'] },
-    ]);
     await page.goto('/synergies');
     await waitForLoadingComplete(page);
   });
@@ -17,6 +13,11 @@ test.describe('AI Automation UI - Synergies Page', () => {
   test('@smoke Synergy list displays', async ({ page }) => {
     const synergyList = page.locator('[data-testid="synergy-list"], [class*="SynergyList"]').first();
     await expect(synergyList).toBeVisible({ timeout: 5000 });
+  });
+
+  test('P4.8 Synergies page loads and displays synergy data or empty state', async ({ page }) => {
+    const content = page.locator('[data-testid="synergy-list"], [class*="Synergy"], svg, main').first();
+    await expect(content).toBeVisible({ timeout: 8000 });
   });
 
   test('Network graph renders', async ({ page }) => {
