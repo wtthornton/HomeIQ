@@ -76,10 +76,10 @@ When documenting new API endpoints:
 
 - See [API_REFERENCE.md](./API_REFERENCE.md) for complete documentation
 - Check [Architecture docs](../architecture/) for system design
-- Review [Deployment Guide](../DEPLOYMENT_GUIDE.md) for setup
+- Review [Deployment Runbook](../deployment/DEPLOYMENT_RUNBOOK.md) for setup
 
 ---
 
-**Last Updated:** October 20, 2025  
-**Consolidation By:** Documentation Cleanup Project (Option 3 - Hybrid Approach)
+**Last Updated:** February 7, 2026  
+**Consolidation By:** Documentation Cleanup Project (Option 3 - Hybrid Approach). See API_REFERENCE.md for Activity Recognition (8043), Energy Forecasting (8042), and full port list.
 

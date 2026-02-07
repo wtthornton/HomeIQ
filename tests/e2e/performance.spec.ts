@@ -30,7 +30,7 @@ test.describe('Performance Tests', () => {
       'http://localhost:8086/health',
       'http://localhost:8001/health',
       'http://localhost:8002/health',
-      'http://localhost:8003/api/v1/health',
+      'http://localhost:8004/api/v1/health',
       'http://localhost:8080/health'
     ];
     
@@ -58,7 +58,7 @@ test.describe('Performance Tests', () => {
     // Make multiple concurrent requests to statistics endpoint
     for (let i = 0; i < concurrentRequests; i++) {
       promises.push(
-        page.request.get('http://localhost:8003/api/v1/stats')
+        page.request.get('http://localhost:8004/api/v1/stats')
           .then(response => {
             expect(response.status()).toBe(200);
             return response.json();
@@ -87,7 +87,7 @@ test.describe('Performance Tests', () => {
     for (const pageSize of pageSizes) {
       const startTime = Date.now();
       
-      const response = await page.request.get(`http://localhost:8003/api/v1/events/recent?limit=${pageSize}`);
+      const response = await page.request.get(`http://localhost:8006/api/v1/events?limit=${pageSize}`);
       expect(response.status()).toBe(200);
       
       const data = await response.json();
@@ -195,7 +195,7 @@ test.describe('Performance Tests', () => {
     for (const limit of largeLimits) {
       const startTime = Date.now();
       
-      const response = await page.request.get(`http://localhost:8003/api/v1/events/recent?limit=${limit}`);
+      const response = await page.request.get(`http://localhost:8006/api/v1/events?limit=${limit}`);
       expect(response.status()).toBe(200);
       
       const data = await response.json();
@@ -336,11 +336,11 @@ test.describe('Performance Tests', () => {
     // Test different query patterns and their performance
     
     const queries = [
-      'http://localhost:8003/api/v1/events/recent?limit=10',
-      'http://localhost:8003/api/v1/events/recent?limit=50&offset=0',
-      'http://localhost:8003/api/v1/events/recent?limit=100&entity_id=sensor.temperature',
-      'http://localhost:8003/api/v1/stats?time_range=1h',
-      'http://localhost:8003/api/v1/stats?time_range=24h'
+      'http://localhost:8006/api/v1/events?limit=10',
+      'http://localhost:8006/api/v1/events?limit=50&offset=0',
+      'http://localhost:8006/api/v1/events?limit=100&entity_id=sensor.temperature',
+      'http://localhost:8004/api/v1/stats?time_range=1h',
+      'http://localhost:8004/api/v1/stats?time_range=24h'
     ];
     
     for (const query of queries) {

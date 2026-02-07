@@ -11,7 +11,7 @@ test.describe('Cross-Service Integration Tests', () => {
     const services = [
       'http://localhost:8086/health',  // InfluxDB
       'http://localhost:8001/health',  // WebSocket Ingestion (direct InfluxDB writes)
-      'http://localhost:8003/api/v1/health',  // Admin API
+      'http://localhost:8004/api/v1/health',  // Admin API
       'http://localhost:8080/health',   // Data Retention
       'http://localhost:8041/health'    // API Automation Edge (Epic C1)
     ];
@@ -26,7 +26,7 @@ test.describe('Cross-Service Integration Tests', () => {
     
     test('End-to-end data flow from ingestion to dashboard display', async ({ page }) => {
       // Step 1: Verify all services are healthy
-      const healthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const healthResponse = await page.request.get('http://localhost:8004/api/v1/health');
       expect(healthResponse.status()).toBe(200);
       
       const healthData = await healthResponse.json();
@@ -78,7 +78,7 @@ test.describe('Cross-Service Integration Tests', () => {
       expect(wsData.status).toBe('healthy');
       
       // 3. Admin API aggregates all service health (Epic 31: enrichment-pipeline removed)
-      const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       expect(adminResponse.status()).toBe(200);
       const adminData = await adminResponse.json();
       expect(adminData.overall_status).toBe('healthy');
@@ -91,7 +91,7 @@ test.describe('Cross-Service Integration Tests', () => {
 
     test('Real-time data synchronization across services', async ({ page }) => {
       // Step 1: Get initial system state
-      const initialHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const initialHealthResponse = await page.request.get('http://localhost:8004/api/v1/health');
       const initialHealthData = await initialHealthResponse.json();
       const initialTimestamp = initialHealthData.timestamp;
       
@@ -103,7 +103,7 @@ test.describe('Cross-Service Integration Tests', () => {
       await page.waitForTimeout(15000);
       
       // Step 4: Get updated system state
-      const updatedHealthResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const updatedHealthResponse = await page.request.get('http://localhost:8004/api/v1/health');
       const updatedHealthData = await updatedHealthResponse.json();
       const updatedTimestamp = updatedHealthData.timestamp;
       
@@ -126,7 +126,7 @@ test.describe('Cross-Service Integration Tests', () => {
       expect(wsData.status).toBe('healthy');
       
       // Step 2: Verify Admin API reports WebSocket status
-      const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       expect(adminResponse.status()).toBe(200);
       const adminData = await adminResponse.json();
       
@@ -147,7 +147,7 @@ test.describe('Cross-Service Integration Tests', () => {
       expect(enrichData.status).toBe('healthy');
       
       // Step 2: Verify Admin API reports enrichment status
-      const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       expect(adminResponse.status()).toBe(200);
       const adminData = await adminResponse.json();
       
@@ -221,7 +221,7 @@ test.describe('Cross-Service Integration Tests', () => {
       expect(enrichResponse.status()).toBe(200);
       
       // Step 4: Verify Admin API reports InfluxDB connection
-      const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       expect(adminResponse.status()).toBe(200);
       const adminData = await adminResponse.json();
       
@@ -235,7 +235,7 @@ test.describe('Cross-Service Integration Tests', () => {
     
     test('Event data consistency between services', async ({ page }) => {
       // Step 1: Get events from Admin API
-      const eventsResponse = await page.request.get('http://localhost:8003/api/v1/events?limit=10');
+      const eventsResponse = await page.request.get('http://localhost:8006/api/v1/events?limit=10');
       expect(eventsResponse.status()).toBe(200);
       const eventsData = await eventsResponse.json();
       
@@ -260,7 +260,7 @@ test.describe('Cross-Service Integration Tests', () => {
 
     test('Statistics consistency across service endpoints', async ({ page }) => {
       // Step 1: Get statistics from Admin API
-      const statsResponse = await page.request.get('http://localhost:8003/api/v1/stats');
+      const statsResponse = await page.request.get('http://localhost:8004/api/v1/stats');
       expect(statsResponse.status()).toBe(200);
       const statsData = await statsResponse.json();
       
@@ -285,7 +285,7 @@ test.describe('Cross-Service Integration Tests', () => {
         { name: 'InfluxDB', url: 'http://localhost:8086/health' },
         { name: 'WebSocket Ingestion', url: 'http://localhost:8001/health' },
         { name: 'Enrichment Pipeline', url: 'http://localhost:8002/health' },
-        { name: 'Admin API', url: 'http://localhost:8003/api/v1/health' },
+        { name: 'Admin API', url: 'http://localhost:8004/api/v1/health' },
         { name: 'Data Retention', url: 'http://localhost:8080/health' },
         { name: 'API Automation Edge', url: 'http://localhost:8041/health' }
       ];
@@ -350,7 +350,7 @@ test.describe('Cross-Service Integration Tests', () => {
       }
       
       // Step 4: Check that admin API reports degraded status
-      const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (adminResponse.status() === 200) {
         const adminData = await adminResponse.json();
         expect(['degraded', 'unhealthy']).toContain(adminData.overall_status);
@@ -363,7 +363,7 @@ test.describe('Cross-Service Integration Tests', () => {
       await page.waitForTimeout(10000);
       
       // Step 7: Verify system recovers
-      const recoveryResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const recoveryResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (recoveryResponse.status() === 200) {
         const recoveryData = await recoveryResponse.json();
         expect(recoveryData.overall_status).toBe('healthy');
@@ -378,7 +378,7 @@ test.describe('Cross-Service Integration Tests', () => {
       await page.waitForTimeout(5000);
       
       // Step 3: Check that admin API reports degraded status
-      const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (adminResponse.status() === 200) {
         const adminData = await adminResponse.json();
         expect(['degraded', 'unhealthy']).toContain(adminData.overall_status);
@@ -394,7 +394,7 @@ test.describe('Cross-Service Integration Tests', () => {
       await page.waitForTimeout(10000);
       
       // Step 6: Verify system recovers
-      const recoveryResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const recoveryResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (recoveryResponse.status() === 200) {
         const recoveryData = await recoveryResponse.json();
         expect(recoveryData.overall_status).toBe('healthy');
@@ -410,7 +410,7 @@ test.describe('Cross-Service Integration Tests', () => {
       await page.waitForTimeout(5000);
       
       // Step 3: Check that admin API reports degraded status
-      const adminResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (adminResponse.status() === 200) {
         const adminData = await adminResponse.json();
         expect(['degraded', 'unhealthy']).toContain(adminData.overall_status);
@@ -426,7 +426,7 @@ test.describe('Cross-Service Integration Tests', () => {
       await page.waitForTimeout(10000);
       
       // Step 6: Verify system recovers
-      const recoveryResponse = await page.request.get('http://localhost:8003/api/v1/health');
+      const recoveryResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (recoveryResponse.status() === 200) {
         const recoveryData = await recoveryResponse.json();
         expect(recoveryData.overall_status).toBe('healthy');
@@ -439,7 +439,7 @@ test.describe('Cross-Service Integration Tests', () => {
     
     test('Configuration changes propagate across services', async ({ page }) => {
       // Step 1: Get current configuration
-      const configResponse = await page.request.get('http://localhost:8003/api/v1/config');
+      const configResponse = await page.request.get('http://localhost:8004/api/v1/config');
       expect(configResponse.status()).toBe(200);
       
       const configData = await configResponse.json();
@@ -451,19 +451,19 @@ test.describe('Cross-Service Integration Tests', () => {
         refresh_interval: 60000
       };
       
-      const updateResponse = await page.request.put('http://localhost:8003/api/v1/config', {
+      const updateResponse = await page.request.put('http://localhost:8004/api/v1/config', {
         data: updatedConfig
       });
       
       if (updateResponse.status() === 200) {
         // Step 3: Verify configuration was updated
-        const verifyResponse = await page.request.get('http://localhost:8003/api/v1/config');
+        const verifyResponse = await page.request.get('http://localhost:8004/api/v1/config');
         const verifyData = await verifyResponse.json();
         
         expect(verifyData.refresh_interval).toBe(60000);
         
         // Step 4: Restore original configuration
-        await page.request.put('http://localhost:8003/api/v1/config', {
+        await page.request.put('http://localhost:8004/api/v1/config', {
           data: originalConfig
         });
       }
@@ -471,7 +471,7 @@ test.describe('Cross-Service Integration Tests', () => {
 
     test('Service-specific configuration validation', async ({ page }) => {
       // Step 1: Test InfluxDB configuration
-      const influxConfigResponse = await page.request.get('http://localhost:8003/api/v1/config');
+      const influxConfigResponse = await page.request.get('http://localhost:8004/api/v1/config');
       expect(influxConfigResponse.status()).toBe(200);
       
       const configData = await influxConfigResponse.json();

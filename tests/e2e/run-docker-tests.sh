@@ -59,10 +59,10 @@ print_status "Docker Compose file found"
 
 # Check if required containers are running
 echo "Checking Docker containers..."
+# Epic 31: enrichment-pipeline deprecated
 REQUIRED_CONTAINERS=(
     "homeiq-influxdb"
     "homeiq-websocket"
-    "homeiq-enrichment"
     "homeiq-admin"
     "homeiq-dashboard"
 )
@@ -86,8 +86,8 @@ sleep 10
 SERVICES=(
     "InfluxDB:http://localhost:8086/health"
     "WebSocket:http://localhost:8001/health"
-    "Enrichment:http://localhost:8002/health"
-    "Admin API:http://localhost:8003/api/v1/health"
+    "Data API:http://localhost:8006/health"
+    "Admin API:http://localhost:8004/api/v1/health"
     "Dashboard:http://localhost:3000"
 )
 
@@ -272,7 +272,7 @@ cat > "$REPORTS_DIR/test-summary.md" << EOF
 - **InfluxDB**: http://localhost:8086
 - **WebSocket Ingestion**: http://localhost:8001
 - **Enrichment Pipeline**: http://localhost:8002
-- **Admin API**: http://localhost:8003
+- **Admin API**: http://localhost:8004
 - **Health Dashboard**: http://localhost:3000
 - **Data Retention**: http://localhost:8080
 

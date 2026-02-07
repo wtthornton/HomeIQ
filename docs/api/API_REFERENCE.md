@@ -1,6 +1,6 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** January 2026 (Blueprint-First Architecture)  
+**Last Updated:** February 2026 (Docker: activity-recognition, energy-forecasting)  
 **API Version:** v4.9  
 **Status:** ✅ Production Ready  
 **Recent Updates:** Blueprint-First Architecture (January 2026) - Blueprint Index Service, Blueprint Opportunity Engine, Blueprint Deployer, Blueprint-enriched synergies; Epic AI-24 Device Mapping Library (January 2025), Device mapping API endpoints, Plugin-based device handlers, Epic AI-6 Blueprint-Enhanced Suggestion Intelligence (December 2025), Preference API endpoints, Pattern validation, Preference-aware ranking
@@ -56,6 +56,8 @@ The HA Ingestor is an **API-first platform** designed for Home Automation data m
 | **Dashboard** | 3000 | `http://localhost:3000` | Frontend (nginx proxy to APIs) |
 | **AI Automation UI** | 3001 | `http://localhost:3001` | Conversational automation UI |
 | **InfluxDB** | 8086 | `http://localhost:8086` | Time-series database |
+| **Activity Recognition** | 8043 | `http://localhost:8043` | User activity detection from sensor patterns (Tier 6) |
+| **Energy Forecasting** | 8042 | `http://localhost:8042` | 7-day energy consumption predictions (Tier 3) |
 
 ---
 
@@ -2667,7 +2669,7 @@ setInterval(updateDashboard, 5000);
 ---
 
 **Document Version:** 4.9  
-**Last Updated:** January 2026 (Blueprint-First Architecture)  
+**Last Updated:** February 2026 (Docker: activity-recognition, energy-forecasting)  
 **Status:** ✅ Production Ready  
 **Maintained By:** HA Ingestor Team
 

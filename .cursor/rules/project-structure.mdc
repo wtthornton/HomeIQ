@@ -30,10 +30,12 @@ services/{service-name}/
 ```
 
 ### Documentation (`docs/`)
+- **`docs/README.md`** - **Documentation index** – lists existing paths; use for correct references.
 - **`docs/architecture/`** - System architecture documentation
-- **`docs/prd/`** - Product requirements and epics
-- **`docs/stories/`** - User stories
+- **`docs/deployment/`** - Deployment runbook, pipeline, nginx (use instead of `docs/DEPLOYMENT_GUIDE.md`)
+- **`docs/planning/`** - Phase reports, rebuild guides, upgrade plans (epic/planning docs)
 - **`docs/workflows/`** - Workflow documentation (Simple Mode outputs)
+- **`docs/prd/`** - Optional; if absent, use `docs/planning/` or root **`stories/`** for epics.
 
 ### TappsCodingAgents Config (`.tapps-agents/`)
 - **`config.yaml`** - Framework configuration

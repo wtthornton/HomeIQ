@@ -1,6 +1,6 @@
 # Nginx Proxy Configuration Guide
 
-**Last Updated:** December 29, 2025  
+**Last Updated:** February 7, 2026  
 **Status:** Active  
 **Version:** 1.0
 
