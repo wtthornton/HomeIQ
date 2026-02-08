@@ -83,8 +83,8 @@ async function globalSetup(config: FullConfig) {
     
     // Optional: if ai-automation-ui project will run, ensure 3001 is up
     try {
-      const aiUiResponse = await page.goto('http://localhost:3001', { waitUntil: 'domcontentloaded', timeout: 5000 });
-      if (aiUiResponse?.status() === 200) {
+      const aiUiResp = await page.request.get('http://localhost:3001', { timeout: 5000 });
+      if (aiUiResp.status() === 200) {
         console.log('✓ AI Automation UI (3001) is accessible');
       }
     } catch {
@@ -94,9 +94,9 @@ async function globalSetup(config: FullConfig) {
     // Wait for the health dashboard to be accessible
     // Use domcontentloaded instead of networkidle for faster, more reliable loading
     // Some API calls may still be in flight, but the DOM is ready
-    await page.goto('http://localhost:3000', { 
-      waitUntil: 'domcontentloaded', 
-      timeout: 60000 
+    await page.goto('http://localhost:3000', {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000
     });
     
     // Wait a bit for React to hydrate and render
