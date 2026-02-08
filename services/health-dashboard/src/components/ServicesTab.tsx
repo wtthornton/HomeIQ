@@ -410,7 +410,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
           <h3 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           🏗️ Core Services ({coreServices.length})
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-in-list">
+          <div data-testid="service-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-in-list">
             {coreServices.map((service, index) => (
               <div key={service.service} style={{ animationDelay: `${index * 0.05}s` }}>
                 <ServiceCard
@@ -445,7 +445,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
           <h3 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           🌐 External Data Services ({externalServices.length})
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-in-list">
+          <div data-testid="service-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-in-list">
             {externalServices.map((service, index) => (
               <div key={service.service} style={{ animationDelay: `${index * 0.05}s` }}>
                 <ServiceCard

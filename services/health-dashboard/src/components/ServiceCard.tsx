@@ -72,7 +72,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
   };
 
   return (
-    <Card variant={getCardVariant(service.status)} hover>
+    <Card variant={getCardVariant(service.status)} hover data-testid="service-card">
       {/* Header - Compact */}
       <CardHeader>
         <div className="flex items-start justify-between gap-2">

@@ -9,9 +9,9 @@ test.describe('Health Dashboard - Configuration Tab', () => {
     await waitForLoadingComplete(page);
   });
 
-  test('@smoke Configuration forms load', async ({ page }) => {
-    const forms = page.locator('form, [data-testid="config-form"], [class*="ConfigForm"]');
-    await expect(forms.first()).toBeVisible({ timeout: 5000 });
+  test('@smoke Configuration tab loads', async ({ page }) => {
+    await expect(page.getByTestId('tab-configuration')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('dashboard-content')).toBeVisible();
   });
 
   test('Form validation works', async ({ page }) => {

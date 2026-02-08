@@ -126,14 +126,8 @@ export default defineConfig({
     }
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'echo "Using existing Docker deployment at http://localhost:3000"',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true,
-    timeout: 120 * 1000,
-    ignoreHTTPSErrors: true
-  },
+  /* Use existing Docker deployment - globalSetup validates services. No webServer needed. */
+  webServer: undefined,
 
   /* Global setup and teardown for Docker environment */
   globalSetup: require.resolve('./docker-global-setup.ts'),

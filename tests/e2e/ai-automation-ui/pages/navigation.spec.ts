@@ -29,7 +29,7 @@ test.describe('AI Automation UI - Navigation', () => {
     }
   });
 
-  test('P4.1 Navigate to all AI automation pages (Dashboard, Ask AI, Deployed, Patterns, Settings, Discovery, Synergies, Proactive, Blueprint, Admin)', async ({ page }) => {
+  test('P4.1 Navigate to all AI automation pages (Dashboard, Ask AI, Deployed, Patterns, Settings, Discovery, Synergies, Proactive, Blueprint, Name Enhancement, Admin)', async ({ page }) => {
     const routes = [
       { path: '/', name: 'Dashboard' },
       { path: '/ha-agent', name: 'Ask AI / HA Agent' },
@@ -40,6 +40,7 @@ test.describe('AI Automation UI - Navigation', () => {
       { path: '/synergies', name: 'Synergies' },
       { path: '/proactive', name: 'Proactive' },
       { path: '/blueprint-suggestions', name: 'Blueprint' },
+      { path: '/name-enhancement', name: 'Name Enhancement' },
       { path: '/admin', name: 'Admin' },
     ];
     for (const route of routes) {
