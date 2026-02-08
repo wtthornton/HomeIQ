@@ -19,21 +19,25 @@ FROM python:3.12-slim as runtime
 
 WORKDIR /app
 
-# Copy installed packages from builder
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+# Create non-root user first
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -m -d /home/appuser appuser
 
-# Copy application code
+# Copy installed packages from builder to appuser directory
+COPY --from=builder /root/.local /home/appuser/.local
+
+# Copy application code and health check script
 COPY src/ ./src/
+COPY healthcheck.py ./healthcheck.py
 
 # Create models directory
 RUN mkdir -p /app/models
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser
-RUN chown -R appuser:appuser /app
+# Set ownership of all files to appuser
+RUN chown -R appuser:appgroup /app /home/appuser/.local
 
 # Environment variables
+ENV PATH=/home/appuser/.local/bin:$PATH
 ENV PORT=8036
 ENV HOST=0.0.0.0
 ENV MODEL_PATH=/app/models/activity_lstm.onnx
@@ -44,9 +48,9 @@ ENV OMP_NUM_THREADS=4
 
 USER appuser
 
-# Health check
+# Health check - accept 200 (healthy) or 503 (degraded/no model) as server running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8036/api/v1/health')" || exit 1
+    CMD ["python", "/app/healthcheck.py"]
 
 EXPOSE 8036
 

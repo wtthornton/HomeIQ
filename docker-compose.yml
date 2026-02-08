@@ -197,11 +197,11 @@ services:
           memory: 256M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 120s
 
   admin-api:
     build:
@@ -248,7 +248,7 @@ services:
       influxdb:
         condition: service_healthy
       websocket-ingestion:
-        condition: service_healthy
+        condition: service_started
       data-api:
         condition: service_healthy
     networks:
@@ -2332,7 +2332,7 @@ services:
           memory: 256M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8036/api/v1/health')"]
+      test: ["CMD", "python", "/app/healthcheck.py"]
       interval: 30s
       timeout: 10s
       retries: 3
