@@ -48,12 +48,8 @@ export default defineConfig({
 
   globalSetup: require.resolve('./docker-global-setup.ts'),
 
-  webServer: {
-    command: 'echo "Using existing Docker deployment"',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true,
-    timeout: 5000,
-  },
+  /* No webServer - use existing Docker deployment; globalSetup validates. */
+  webServer: undefined,
 
   timeout: 45 * 1000,
   expect: { timeout: 10000 },

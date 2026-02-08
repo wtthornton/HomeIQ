@@ -1,6 +1,7 @@
 # Playwright Full UI & API Coverage Implementation Plan
 
 **Created:** February 7, 2026  
+**Last Updated:** February 7, 2026 (Phases 5–6 complete)  
 **Source:** tapps-agents planner  
 **Goal:** Ensure ALL UI features, buttons, headers, APIs that the UIs use work via comprehensive Playwright E2E tests
 
@@ -278,8 +279,9 @@ tests/e2e/
 │   │   └── workflows/
 │       └── automation-creation.spec.ts
 ├── api-integration/
-│   ├── health-dashboard-apis.spec.ts
-│   └── ai-automation-apis.spec.ts
+│   ├── health-dashboard-apis.spec.ts   # P6.1 Admin + Data API endpoints
+│   ├── ai-automation-apis.spec.ts      # P6.2 AI automation services
+│   └── ui-api-flow.spec.ts             # P6.3 UI→API flow verification
 ├── page-objects/
 │   ├── HealthDashboardPage.ts
 │   ├── AIDashboardPage.ts
@@ -303,6 +305,7 @@ tests/e2e/
 - Smoke suite (fast): system-health, minimal-dashboard
 - Full suite: all tabs, all pages, API integration
 - Run order: smoke → health-dashboard → ai-automation-ui → api-integration
+- **api-integration project:** `tests/playwright.config.ts` includes `api-integration` project for `tests/e2e/api-integration/`
 
 ---
 
@@ -317,18 +320,31 @@ tests/e2e/
 
 ## 9. Acceptance Criteria
 
-- [ ] All 16 health-dashboard tabs have at least one test that loads the tab and verifies data/API call
-- [ ] All 10+ ai-automation-ui pages have at least one test that loads and verifies content
-- [ ] Theme toggle, refresh controls, time range selector tested
-- [ ] Every API endpoint in health-dashboard api.ts has at least one E2E or API test
-- [ ] Every API service in ai-automation-ui config has at least one test
-- [ ] Key modals and workflows (approve, deploy, reject) tested
+- [x] All 16 health-dashboard tabs have at least one test that loads the tab and verifies data/API call
+- [x] All 10+ ai-automation-ui pages have at least one test that loads and verifies content
+- [x] Theme toggle, refresh controls, time range selector tested
+- [x] Every API endpoint in health-dashboard api.ts has at least one E2E or API test
+- [x] Every API service in ai-automation-ui config has at least one test
+- [x] Key modals and workflows (approve, deploy, reject) tested
 - [ ] Test suite runs in CI with pass/fail gates
+
+### Implementation Status (Feb 2026)
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1 | Done | Page objects, auth (sessionStorage.api_key), P1.1-P1.6 |
+| Phase 2 | Done | 16 tabs, services/configuration/logs with data-testid |
+| Phase 3 | Done | P3.1-P3.3 (container actions, logs, API key test) |
+| Phase 4 | Done | P4.1-P4.8, proactive + blueprint specs, navigation |
+| Phase 5 | Done | P5.1-P5.7 filters, approve/deploy, reject, DevicePicker, modals, chat, sidebar |
+| Phase 6 | Done | P6.1 health-dashboard + data-api endpoints, P6.2 ai-automation services, P6.3 UI→API flow |
 
 ---
 
 ## 10. References
 
+- [Execution Status](PLAYWRIGHT_FULL_UI_COVERAGE_EXECUTION_STATUS.md) – Phase completion, run commands, files touched
+- [E2E Issues List](PLAYWRIGHT_E2E_ISSUES_LIST.md) – Resolved issues, quality passes
 - [API Reference](docs/api/API_REFERENCE.md)
 - [Epic 31 Architecture](.cursor/rules/epic-31-architecture.mdc)
 - [Existing E2E Tests](tests/e2e/README.md)

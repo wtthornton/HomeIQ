@@ -1,7 +1,8 @@
 # Playwright Full UI Coverage – Execution Status
 
 **Plan:** [PLAYWRIGHT_FULL_UI_COVERAGE_IMPLEMENTATION_PLAN.md](./PLAYWRIGHT_FULL_UI_COVERAGE_IMPLEMENTATION_PLAN.md)  
-**Executed:** February 7, 2026 (tapps-agents / Simple Mode workflow)
+**Executed:** February 7, 2026 (tapps-agents / Simple Mode workflow)  
+**Phases 5–6:** February 7, 2026
 
 ---
 
@@ -27,9 +28,14 @@
 - All 16 tab specs already exist (overview, setup, services, dependencies, devices, events, logs, sports, data-sources, energy, analytics, alerts, hygiene, validation, **synergies**, configuration)
 
 ### Phase 6: API integration matrix
-- **health-dashboard-apis.spec.ts**: `tests/e2e/api-integration/health-dashboard-apis.spec.ts`
-  - P6.1 direct request tests for: `/api/v1/health`, `/api/v1/health/services`, `/api/v1/stats`, `/api/v1/stats?period=1h`, `/api/v1/alerts/active`, `/api/v1/docker/containers`, `/api/v1/docker/api-keys`, `/api/v1/real-time-metrics`, `/api/v1/events`
-  - Uses `ADMIN_API_BASE_URL` or `http://localhost:8004`
+- **health-dashboard-apis.spec.ts** (`tests/e2e/api-integration/health-dashboard-apis.spec.ts`)
+  - P6.1 Admin API (8004): health, health/services, stats, alerts, docker, api-keys, real-time-metrics
+  - P6.1 Data API (8006): events, devices, entities, integrations, energy/statistics, hygiene/issues, sports/games/live
+  - Uses `ADMIN_API_BASE_URL`, `DATA_API_BASE_URL` env vars
+- **ai-automation-apis.spec.ts** (`tests/e2e/api-integration/ai-automation-apis.spec.ts`) – **Added Phase 5–6**
+  - P6.2 direct request tests for: AI Automation (8018), Device Intelligence (8028), Admin (8004), Data (8006), HA AI Agent (8030), Blueprint Suggestions (8039)
+- **ui-api-flow.spec.ts** (`tests/e2e/api-integration/ui-api-flow.spec.ts`) – **Added Phase 5–6**
+  - P6.3 Health dashboard Services tab loads; AI Automation dashboard loads
 
 ---
 
@@ -76,9 +82,11 @@
 - **Step 2:** AI Automation UI URL – Confirmed: ai-automation-ui container is on port 3001. Added project `docker-ai-ui-chromium` with baseURL 3001 and testMatch for `**/ai-automation-ui/**/*.spec.ts`; root testMatch no longer includes ai-automation-ui so default projects use 3000 only.
 - **Step 3:** Health-dashboard + api-integration only run – 179 tests, 48 passed, 8 skipped (partial run before timeout). API integration failures for `/api/v1/stats`, `/api/v1/stats?period=1h`, `/api/v1/alerts/active`, `/api/v1/events` addressed by allowing 404/503 and asserting JSON only when `res.ok`.
 
-## Deferred
+## Phase 5–6 Complete (Feb 2026)
 
-- **Phase 6 (ai-automation-apis.spec.ts):** Not added; existing api-endpoints and ai-automation specs cover many AI automation APIs. A dedicated `ai-automation-apis.spec.ts` can be added later using the plan’s endpoint list.
+- **ai-automation-apis.spec.ts** added – P6.2 covers all 6 ai-automation-ui services (8018, 8028, 8004, 8006, 8030, 8039)
+- **ui-api-flow.spec.ts** added - P6.3 verifies Health Dashboard and AI Automation UI load
+- **api-integration project** added to tests/playwright.config.tsng api-endpoints and ai-automation specs cover many AI automation APIs. A dedicated `ai-automation-apis.spec.ts` can be added later using the plan’s endpoint list.
 
 ---
 
@@ -106,18 +114,28 @@
 | `tests/e2e/ai-automation-ui/pages/synergies.spec.ts` | Updated (P4.8) |
 | `tests/e2e/ai-automation-ui/components/modals.spec.ts` | Updated (P5.5) |
 | `tests/e2e/ai-automation-ui/components/chat-interface.spec.ts` | Updated (P5.6) |
-| `tests/e2e/ai-automation-ui/device-picker-filters.spec.ts` | Updated (P5.4) |
+| `tests/e2e/ai-automation-ui/device-picker-filters.spec.ts` | Updated (P5.4, auth, baseURL) |
+| `tests/e2e/api-integration/ai-automation-apis.spec.ts` | Added (P6.2) |
+| `tests/e2e/api-integration/ui-api-flow.spec.ts` | Added (P6.3) |
+| `tests/e2e/api-integration/health-dashboard-apis.spec.ts` | Expanded (Data API endpoints) |
+| `tests/playwright.config.ts` | Added api-integration project |
 
 ---
 
 ## How to run
 
 ```powershell
-# Health dashboard (Phase 1–2)
-npx playwright test tests/e2e/health-dashboard/pages/dashboard.spec.ts --config=tests/e2e/health-dashboard/playwright.config.ts --project=chromium
+# From project root
+cd tests
 
-# API integration (Phase 6) – requires Admin API on 8004
-npx playwright test tests/e2e/api-integration/health-dashboard-apis.spec.ts
+# Health dashboard (Phase 1–3)
+npx playwright test e2e/health-dashboard/pages/dashboard.spec.ts --project=health-dashboard-chromium
+
+# AI Automation UI (Phase 4–5)
+npx playwright test e2e/ai-automation-ui/ --project=ai-automation-ui-chromium
+
+# API integration (Phase 6) – requires services (Admin 8004, Data 8006, etc.)
+npx playwright test e2e/api-integration/ --project=api-integration
 ```
 
-Use `tests/playwright.config.ts` when running the full e2e suite with multi-project (health-dashboard + ai-automation).
+Use `tests/playwright.config.ts` for the full e2e suite (health-dashboard, ai-automation-ui, api-integration projects).

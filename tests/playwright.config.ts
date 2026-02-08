@@ -109,6 +109,11 @@ export default defineConfig({
         baseURL: 'http://localhost:3001',
       },
     },
+    {
+      name: 'api-integration',
+      testDir: './e2e/api-integration',
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
   
   /* Global setup and teardown */

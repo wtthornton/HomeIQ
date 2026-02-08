@@ -161,7 +161,7 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div data-testid="log-viewer" className="space-y-4">
       {/* Controls */}
       <div className={'card-base p-4'}>
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">

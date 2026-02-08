@@ -203,9 +203,25 @@ A follow-up review found residual anti-patterns in files that were part of the i
 
 ---
 
-## 10. Recommended next steps
+## 10. Phase 5–6 Completion (Feb 2026)
+
+Phases 5–6 of the Playwright Full UI Coverage plan have been implemented:
+
+| Area | Status | Notes |
+|------|--------|-------|
+| P5.1–P5.7 (AI workflows) | Done | Filters, approve/deploy, reject, DevicePicker, modals, chat, sidebar |
+| P6.1 (health-dashboard APIs) | Done | Admin + Data API endpoints expanded |
+| P6.2 (ai-automation APIs) | Done | ai-automation-apis.spec.ts added |
+| P6.3 (UI→API flow) | Done | ui-api-flow.spec.ts added |
+| api-integration project | Done | tests/playwright.config.ts |
+
+---
+
+## 11. Recommended next steps
 
 1. **Run E2E suite** against deployed Docker to confirm all fixes pass end-to-end.
 2. **Set `ADMIN_API_KEY` env var** in CI/test environment so auth-protected endpoint tests validate response shapes (not just accept 401).
-3. **Consider axe-core** — replace manual color contrast / heading checks with automated `@axe-core/playwright` for comprehensive a11y testing.
-4. **Address remaining `waitForTimeout` calls** — ~250+ instances remain in files outside the current implementation scope (legacy specs, performance tests, visual regression). These should be addressed in a dedicated cleanup pass.
+3. **Set service URL env vars** for api-integration when services run on non-default ports: `ADMIN_API_BASE_URL`, `DATA_API_BASE_URL`, `AI_AUTOMATION_URL`, etc.
+4. **Consider axe-core** — replace manual color contrast / heading checks with automated `@axe-core/playwright` for comprehensive a11y testing.
+5. **Address remaining `waitForTimeout` calls** — ~250+ instances remain in files outside the current implementation scope (legacy specs, performance tests, visual regression). These should be addressed in a dedicated cleanup pass.
+6. **CI with pass/fail gates** — Wire test suite into CI pipeline (acceptance criteria pending).

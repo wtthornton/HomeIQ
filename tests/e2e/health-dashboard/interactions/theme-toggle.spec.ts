@@ -8,7 +8,7 @@ test.describe('Health Dashboard - Theme Toggle Interaction', () => {
   });
 
   test('Light/dark mode switching', async ({ page }) => {
-    const darkModeToggle = page.locator('[data-testid="dark-mode-toggle"], button[aria-label*="dark"], button:has-text("Dark")').first();
+    const darkModeToggle = page.getByTestId('theme-toggle').or(page.locator('[data-testid="dark-mode-toggle"], button[aria-label*="dark"]')).first();
     
     if (await darkModeToggle.isVisible({ timeout: 2000 })) {
       const initialClass = await page.locator('html').getAttribute('class');
@@ -29,7 +29,7 @@ test.describe('Health Dashboard - Theme Toggle Interaction', () => {
   });
 
   test('Theme preference persists', async ({ page }) => {
-    const darkModeToggle = page.locator('[data-testid="dark-mode-toggle"], button[aria-label*="dark"]').first();
+    const darkModeToggle = page.getByTestId('theme-toggle').or(page.locator('[data-testid="dark-mode-toggle"]')).first();
     
     if (await darkModeToggle.isVisible({ timeout: 2000 })) {
       await darkModeToggle.click();
