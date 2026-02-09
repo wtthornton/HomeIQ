@@ -86,7 +86,7 @@
 
 - **ai-automation-apis.spec.ts** added – P6.2 covers all 6 ai-automation-ui services (8018, 8028, 8004, 8006, 8030, 8039)
 - **ui-api-flow.spec.ts** added - P6.3 verifies Health Dashboard and AI Automation UI load
-- **api-integration project** added to tests/playwright.config.tsng api-endpoints and ai-automation specs cover many AI automation APIs. A dedicated `ai-automation-apis.spec.ts` can be added later using the plan’s endpoint list.
+- **api-integration project** added to tests/playwright.config.ts
 
 ---
 

@@ -41,6 +41,7 @@ class TriggerSpec(BaseModel):
     to: str | None = Field(None, description="Target state for state triggers")
     from_state: str | None = Field(None, alias="from", description="Source state for state triggers")
     at: str | None = Field(None, description="Time for time triggers (HH:MM:SS)")
+    seconds: str | int | None = Field(None, description="Seconds pattern for time_pattern triggers (e.g., '/1' for every second)")
     minutes: str | int | None = Field(None, description="Minutes pattern for time_pattern triggers")
     hours: str | int | None = Field(None, description="Hours pattern for time_pattern triggers")
     days: str | int | None = Field(None, description="Days pattern for time_pattern triggers")
@@ -58,6 +59,7 @@ class ConditionSpec(BaseModel):
     state: str | None = Field(None, description="State value for state conditions")
     above: float | None = Field(None, description="Above value for numeric_state conditions")
     below: float | None = Field(None, description="Below value for numeric_state conditions")
+    value_template: str | None = Field(None, description="Jinja2 template for condition: template")
     # Additional condition fields can be added as needed
     extra: dict[str, Any] = Field(default_factory=dict, description="Additional condition-specific fields")
 
@@ -69,9 +71,14 @@ class ActionSpec(BaseModel):
     delay: str | None = Field(None, description="Delay duration (e.g., '00:00:05')")
     target: dict[str, Any] | None = Field(None, description="Target specification (entity_id, area_id, device_id)")
     data: dict[str, Any] = Field(default_factory=dict, description="Service data")
+    # Variables action - defines variables for use in subsequent actions
+    variables: dict[str, Any] | None = Field(None, description="Variables to set for use in subsequent actions")
     # Advanced action types
     choose: list[dict[str, Any]] | None = Field(None, description="Choose action (list of conditions/sequences)")
-    repeat: dict[str, Any] | None = Field(None, description="Repeat action")
+    repeat: dict[str, Any] | None = Field(
+        None,
+        description="Repeat action. Supports 'count', 'for_each' (list), 'until' (list of conditions with template)",
+    )
     parallel: list[dict[str, Any]] | None = Field(None, description="Parallel actions")
     sequence: list[dict[str, Any]] | None = Field(None, description="Sequence actions")
     # Error handling
@@ -80,16 +87,23 @@ class ActionSpec(BaseModel):
     # Additional action fields
     extra: dict[str, Any] = Field(default_factory=dict, description="Additional action-specific fields")
 
-    @field_validator("service", "scene", "delay", mode="before")
+    @field_validator("service", "scene", "delay", "variables", mode="before")
     @classmethod
     def validate_action_type(cls, v, info):
         """Ensure at least one action type is specified."""
-        if info.data.get("service") or info.data.get("scene") or info.data.get("delay"):
+        field_name = info.field_name
+        current_field_has_value = bool(v)
+        has_service = info.data.get("service") if field_name != "service" else current_field_has_value
+        has_scene = info.data.get("scene") if field_name != "scene" else current_field_has_value
+        has_delay = info.data.get("delay") if field_name != "delay" else current_field_has_value
+        has_variables = info.data.get("variables") if field_name != "variables" else current_field_has_value
+        if has_service or has_scene or has_delay or has_variables:
             return v
-        # Allow advanced actions (choose, repeat, parallel, sequence)
         if info.data.get("choose") or info.data.get("repeat") or info.data.get("parallel") or info.data.get("sequence"):
             return v
-        raise ValueError("Action must have at least one of: service, scene, delay, choose, repeat, parallel, or sequence")
+        raise ValueError(
+            "Action must have at least one of: service, scene, delay, variables, choose, repeat, parallel, or sequence"
+        )
 
 
 class AutomationSpec(BaseModel):

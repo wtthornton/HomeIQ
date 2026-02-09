@@ -33,7 +33,9 @@
 | Path | Description |
 |------|-------------|
 | [docs/planning/](planning/) | Phase reports, rebuild guides, upgrade plans, deployment checklist |
-| [docs/implementation/](implementation/) | Automation linter implementation notes |
+| [stories/epic-homeiq-automation-improvements.md](../stories/epic-homeiq-automation-improvements.md) | Epic: HomeIQ automation platform improvements (schema, patterns, validation, RAG) |
+| [implementation/](../implementation/) | Implementation notes; Playwright E2E plan, execution status, issues list |
+| [implementation/PHASE4_AUTOMATION_API_DOCUMENTATION.md](../implementation/PHASE4_AUTOMATION_API_DOCUMENTATION.md) | Automation validation API, deploy response fields, RAG reference |
 
 ### Services and ports
 | Path | Description |
@@ -62,7 +64,7 @@
 - `docs/TROUBLESHOOTING_GUIDE.md` → use **tools/cli/docs/TROUBLESHOOTING.md** if applicable
 - `docs/architecture/deployment-architecture.md` → use **docs/deployment/** or **docs/architecture/event-flow-architecture.md**
 - `docs/architecture/index.md`, `source-tree.md`, `BLUEPRINT_ARCHITECTURE.md`, `data-models.md` → not present
-- `implementation/*.md` → **implementation/** is empty; create files there if needed
+- `docs/implementation/` → use **implementation/** (project root) for Playwright E2E plan, execution status, issues
 
 ---
 

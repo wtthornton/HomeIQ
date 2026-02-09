@@ -11,6 +11,7 @@ from . import pattern_router
 from . import synergy_router
 from . import analysis_router
 from . import preference_router
+from . import automation_yaml_validate_router
 
 __all__ = [
     "health_router",
@@ -20,5 +21,6 @@ __all__ = [
     "synergy_router",
     "analysis_router",
     "preference_router",
+    "automation_yaml_validate_router",
 ]
 

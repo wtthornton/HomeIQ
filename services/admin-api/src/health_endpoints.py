@@ -59,21 +59,22 @@ class HealthEndpoints:
         self.router = APIRouter()
         self.start_time = datetime.now()
         self.alert_manager = get_alert_manager("admin-api")
+        # Docker Compose service names (not container_name) for DNS resolution
         self.service_urls = {
-            "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://homeiq-websocket:8001"),
-            "ai-automation-service": os.getenv("AI_AUTOMATION_URL", "http://ai-automation-service:8018"),
-            "influxdb": os.getenv("INFLUXDB_URL", "http://homeiq-influxdb:8086"),
-            "weather-api": os.getenv("WEATHER_SERVICE_URL", "http://homeiq-weather-api:8009"),
-            "sports-api": os.getenv("SPORTS_API_URL", "http://homeiq-sports-api:8005"),
-            # Data source services - Fixed to use Docker container names
-            "carbon-intensity-service": os.getenv("CARBON_INTENSITY_URL", "http://homeiq-carbon-intensity:8010"),
-            "electricity-pricing-service": os.getenv("ELECTRICITY_PRICING_URL", "http://homeiq-electricity-pricing:8011"),
-            "air-quality-service": os.getenv("AIR_QUALITY_URL", "http://homeiq-air-quality:8012"),
-            "calendar-service": os.getenv("CALENDAR_URL", "http://homeiq-calendar:8013"),
-            "smart-meter-service": os.getenv("SMART_METER_URL", "http://homeiq-smart-meter:8014"),
+            "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://websocket-ingestion:8001"),
+            "ai-automation-service": os.getenv("AI_AUTOMATION_URL", "http://ai-automation-service-new:8025"),
+            "influxdb": os.getenv("INFLUXDB_URL", "http://influxdb:8086"),
+            "weather-api": os.getenv("WEATHER_SERVICE_URL", "http://weather-api:8009"),
+            "sports-api": os.getenv("SPORTS_API_URL", "http://sports-api:8005"),
+            # Data source services - Docker Compose service names
+            "carbon-intensity-service": os.getenv("CARBON_INTENSITY_URL", "http://carbon-intensity:8010"),
+            "electricity-pricing-service": os.getenv("ELECTRICITY_PRICING_URL", "http://electricity-pricing:8011"),
+            "air-quality-service": os.getenv("AIR_QUALITY_URL", "http://air-quality:8012"),
+            "calendar-service": os.getenv("CALENDAR_URL", "http://calendar:8013"),
+            "smart-meter-service": os.getenv("SMART_METER_URL", "http://smart-meter:8014"),
             # ML & Blueprint services
-            "blueprint-index": os.getenv("BLUEPRINT_INDEX_URL", "http://homeiq-blueprint-index:8031"),
-            "rule-recommendation-ml": os.getenv("RULE_RECOMMENDATION_URL", "http://homeiq-rule-recommendation-ml:8035")
+            "blueprint-index": os.getenv("BLUEPRINT_INDEX_URL", "http://blueprint-index:8031"),
+            "rule-recommendation-ml": os.getenv("RULE_RECOMMENDATION_URL", "http://rule-recommendation-ml:8035")
         }
 
         self._add_routes()

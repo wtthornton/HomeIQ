@@ -125,11 +125,31 @@ class HomeAssistantClient:
             
             result = response.json()
             logger.info(f"✅ Automation deployed: {automation_id}")
-            return {
+
+            # Post-deploy verification: fetch state and warn if unavailable (Story 3)
+            entity_id = (
+                automation_id
+                if str(automation_id).startswith("automation.")
+                else f"automation.{automation_id}"
+            )
+            state_data = await self.get_state(entity_id)
+            response_data: dict[str, Any] = {
                 "automation_id": automation_id,
                 "status": "deployed",
-                "data": result
+                "data": result,
             }
+            if state_data:
+                response_data["state"] = state_data.get("state")
+                response_data["attributes"] = state_data.get("attributes", {})
+                if state_data.get("state") == "unavailable":
+                    response_data["verification_warning"] = (
+                        "Automation was deployed but state is 'unavailable'. "
+                        "Home Assistant may have failed to load it. Check HA logs for errors."
+                    )
+                    logger.warning(
+                        f"Post-deploy verification: automation {automation_id} is unavailable"
+                    )
+            return response_data
         except httpx.HTTPStatusError as e:
             logger.error(f"Failed to deploy automation: {e.response.status_code} - {e.response.text}")
             raise

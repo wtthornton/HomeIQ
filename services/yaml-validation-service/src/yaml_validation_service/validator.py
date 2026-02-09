@@ -248,10 +248,16 @@ class ValidationPipeline:
                 if not isinstance(action, dict):
                     errors.append(f"Action {i} must be a dictionary")
                 elif "service" not in action and "scene" not in action and "delay" not in action:
-                    # Check for advanced actions
-                    if "choose" not in action and "repeat" not in action and "parallel" not in action and "sequence" not in action:
+                    # Check for advanced actions (variables, choose, repeat, parallel, sequence)
+                    if (
+                        "variables" not in action
+                        and "choose" not in action
+                        and "repeat" not in action
+                        and "parallel" not in action
+                        and "sequence" not in action
+                    ):
                         errors.append(
-                            f"Action {i} must have 'service', 'scene', 'delay', or advanced action type "
+                            f"Action {i} must have 'service', 'scene', 'delay', 'variables', or advanced action type "
                             "(2025.10+ format requires 'service:' field in actions, e.g., service: light.turn_on)"
                         )
                 # Validate target structure for service actions

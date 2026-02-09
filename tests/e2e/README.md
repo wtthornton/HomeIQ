@@ -90,9 +90,16 @@ npx playwright test tests/e2e/health-dashboard/ --config=tests/e2e/docker-deploy
 # AI Automation UI (all pages and workflows; no mocks)
 npx playwright test tests/e2e/ai-automation-ui/ --config=tests/e2e/docker-deployment.config.ts
 
-# API integration (direct Admin API)
+# API integration (Phase 6 – Admin, Data, AI Automation APIs, UI→API flow)
 npx playwright test tests/e2e/api-integration/ --config=tests/e2e/docker-deployment.config.ts
 ```
+
+**API Integration specs (Phase 5–6):**
+- **health-dashboard-apis.spec.ts** – P6.1 Admin API (8004) and Data API (8006) endpoints
+- **ai-automation-apis.spec.ts** – P6.2 AI automation services (8018, 8028, 8004, 8006, 8030, 8039)
+- **ui-api-flow.spec.ts** – P6.3 Health Dashboard and AI Automation UI load verification
+
+Use `ADMIN_API_BASE_URL`, `DATA_API_BASE_URL` env vars for custom service URLs.
 
 ### Cross-Browser Testing
 

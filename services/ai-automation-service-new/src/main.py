@@ -66,6 +66,7 @@ from .api import (
     automation_lifecycle_router,
     automation_plan_router,
     automation_validate_router,
+    automation_yaml_validate_router,
     health_router,
     pattern_router,
     preference_router,
@@ -368,6 +369,7 @@ app.include_router(preference_router.router, tags=["preferences"])
 # Hybrid Flow routers: Intent → Plan → Validate → Compile → Lifecycle
 app.include_router(automation_plan_router.router, tags=["automation"])
 app.include_router(automation_validate_router.router, tags=["automation"])
+app.include_router(automation_yaml_validate_router.router, tags=["automation"])
 app.include_router(automation_compile_router.router, tags=["automation"])
 app.include_router(automation_lifecycle_router.router, tags=["automation"])
 

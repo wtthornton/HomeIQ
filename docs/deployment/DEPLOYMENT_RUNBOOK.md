@@ -924,6 +924,14 @@ bash scripts/deployment/health-check.sh
    - **Check:** `docker logs homeiq-dashboard | grep -i error`
    - **Solution:** Verify service names and ports match docker-compose.yml
 
+**Dashboard showing "HTTP 502: Bad Gateway" for Enhanced Health, Statistics, and Health:**
+- **Cause:** Admin API (port 8004) is unreachable from the health-dashboard container, or dependency URLs in admin-api used wrong hostnames (e.g. `homeiq-influxdb` instead of `influxdb`).
+- **Fix:** Ensure core stack is up and admin-api can resolve dependencies:
+  1. Start core services in order: `influxdb` → `websocket-ingestion` → `data-api` → `admin-api` → `health-dashboard`.
+  2. Admin-api must have `INFLUXDB_URL`, `WEBSOCKET_INGESTION_URL`, and `DATA_API_URL` set to Docker service names (`http://influxdb:8086`, `http://websocket-ingestion:8001`, `http://data-api:8006`).
+  3. From host, verify: `Invoke-RestMethod -Uri "http://localhost:8004/health"` and `Invoke-RestMethod -Uri "http://localhost:3000/api/v1/health"`.
+- **Script:** Run `.\scripts\verify-core-stack.ps1` to bring up and verify the core pipeline (Epic 31: ingestion → InfluxDB → data-api → admin-api → dashboard).
+
 2. **"host not found in upstream" Error**
    - **Cause:** Nginx tries to resolve hostname at startup, but service isn't running
    - **Solution:** Use variable-based proxy_pass with resolver for optional services:

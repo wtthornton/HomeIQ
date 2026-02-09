@@ -55,13 +55,23 @@ class AIAutomationValidationStrategy(ValidationStrategy):
             validate_safety=True,
         )
 
-        # Convert consolidated validation result to expected format
-        errors = [err.get("message", "") for err in result.get("errors", [])]
-        warnings = [warn.get("message", "") for warn in result.get("warnings", [])]
+        # Unified endpoint returns errors/warnings as list[str]; support legacy dict format
+        raw_errors = result.get("errors", [])
+        raw_warnings = result.get("warnings", [])
+        errors = [
+            err.get("message", str(err)) if isinstance(err, dict) else str(err)
+            for err in raw_errors
+        ]
+        warnings = [
+            w.get("message", str(w)) if isinstance(w, dict) else str(w)
+            for w in raw_warnings
+        ]
 
         return ValidationResult(
             valid=result.get("valid", False),
             errors=errors,
             warnings=warnings,
+            score=result.get("score", 0.0),
             fixed_yaml=result.get("fixed_yaml"),
+            fixes_applied=result.get("fixes_applied"),
         )

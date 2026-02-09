@@ -97,10 +97,12 @@
       "Bash(git -C \"c:\\\\cursor\\\\HomeIQ\" diff -- services/rag-service/)",
       "Bash(git -C \"c:\\\\cursor\\\\HomeIQ\" diff -- services/ai-query-service/)",
       "Bash(git status:*)",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(npx playwright test:*)"
     ],
     "deny": [],
     "ask": [],
+    "defaultMode": "bypassPermissions",
     "additionalDirectories": [
       "c:\\cursor\\HomeIQ",
       "C:\\cursor\\HomeIQ\\.git\\hooks"

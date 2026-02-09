@@ -104,6 +104,8 @@ class AutomationRenderer:
             result["from"] = trigger.from_state
         if trigger.at is not None:
             result["at"] = trigger.at
+        if trigger.seconds is not None:
+            result["seconds"] = trigger.seconds
         if trigger.minutes is not None:
             result["minutes"] = trigger.minutes
         if trigger.hours is not None:
@@ -129,7 +131,9 @@ class AutomationRenderer:
             result["above"] = condition.above
         if condition.below is not None:
             result["below"] = condition.below
-        
+        if condition.value_template is not None:
+            result["value_template"] = condition.value_template
+
         # Additional fields
         if condition.extra:
             result.update(condition.extra)
@@ -147,7 +151,11 @@ class AutomationRenderer:
             result["scene"] = action.scene
         if action.delay:
             result["delay"] = action.delay
-        
+
+        # Variables action
+        if action.variables:
+            result["variables"] = action.variables
+
         # Target
         if action.target:
             result["target"] = action.target

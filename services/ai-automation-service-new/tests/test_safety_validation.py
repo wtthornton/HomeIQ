@@ -178,6 +178,32 @@ action:
         assert result["success"] is True
         mock_yaml_service.validate_entities.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_deploy_response_includes_state_last_triggered_verification_warning(
+        self,
+        deployment_service: DeploymentService,
+        approved_suggestion: Suggestion,
+        mock_yaml_service,
+        mock_ha_client
+    ):
+        """Phase 4.1: Deploy response includes state, last_triggered, verification_warning when present."""
+        mock_yaml_service.validate_entities = AsyncMock(return_value=(True, []))
+        mock_ha_client.deploy_automation = AsyncMock(return_value={
+            "status": "deployed",
+            "automation_id": "automation.test_123",
+            "state": "on",
+            "attributes": {"last_triggered": "2026-02-09T12:00:00.000Z"},
+            "verification_warning": "Automation was deployed but state is 'unavailable'.",
+        })
+
+        result = await deployment_service.deploy_suggestion(approved_suggestion.id)
+
+        assert result["success"] is True
+        data = result["data"]
+        assert data["state"] == "on"
+        assert data["last_triggered"] == "2026-02-09T12:00:00.000Z"
+        assert data["verification_warning"] == "Automation was deployed but state is 'unavailable'."
+
 
 @pytest.mark.unit
 class TestStatusValidation:

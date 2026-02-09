@@ -125,10 +125,13 @@ export const Deployed: React.FC = () => {
         
         const result = await api.redeploySuggestion(suggestion.id);
         
-        toast.success(
-          `✅ Re-deployed successfully!\nNew YAML generated with latest improvements.\nSafety score: ${result.yaml_validation.safety_score}/100`,
-          { id: `redeploy-${automationId}`, duration: 6000 }
-        );
+        let msg = `✅ Re-deployed successfully!\nNew YAML generated with latest improvements.\nSafety score: ${result.yaml_validation?.safety_score ?? '—'}/100`;
+        const deployData = result.data ?? result;
+        if (deployData?.state) msg += `\nStatus: ${deployData.state}`;
+        if (deployData?.last_triggered) msg += `\nLast triggered: ${deployData.last_triggered}`;
+        if (deployData?.verification_warning) msg += `\n⚠️ ${deployData.verification_warning}`;
+        
+        toast.success(msg, { id: `redeploy-${automationId}`, duration: 6000 });
       } else {
         // No database record - use automation_id-based re-deploy
         toast.loading('🔄 Regenerating YAML using self-correction...', { id: `redeploy-${automationId}` });
@@ -140,10 +143,14 @@ export const Deployed: React.FC = () => {
           const errorCount = validation.errors.length;
           const warningCount = validation.warnings.length;
           
-          toast.success(
-            `✅ Re-deployed successfully!\nYAML regenerated via ${result.data.yaml_source}.\nSimilarity: ${(result.data.similarity * 100).toFixed(1)}%\n${errorCount > 0 ? `⚠️ ${errorCount} validation error(s)` : ''}${warningCount > 0 ? ` ${warningCount} warning(s)` : ''}`,
-            { id: `redeploy-${automationId}`, duration: 6000 }
-          );
+          let msg = `✅ Re-deployed successfully!\nYAML regenerated via ${result.data.yaml_source}.\nSimilarity: ${(result.data.similarity * 100).toFixed(1)}%`;
+          if (errorCount > 0) msg += `\n⚠️ ${errorCount} validation error(s)`;
+          if (warningCount > 0) msg += ` ${warningCount} warning(s)`;
+          if (result.data?.state) msg += `\nStatus: ${result.data.state}`;
+          if (result.data?.last_triggered) msg += `\nLast triggered: ${result.data.last_triggered}`;
+          if (result.data?.verification_warning) msg += `\n⚠️ ${result.data.verification_warning}`;
+          
+          toast.success(msg, { id: `redeploy-${automationId}`, duration: 6000 });
         } else {
           throw new Error(result.message || 'Re-deploy failed');
         }

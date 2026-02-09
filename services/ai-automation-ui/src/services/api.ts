@@ -770,15 +770,34 @@ export const api = {
     return fetchJSON(`${API_BASE_URL}/v1/ask-ai/entities/search?${queryParams}`);
   },
 
+  /**
+   * Validate automation YAML via unified endpoint (Phase 2.2).
+   * Uses POST /api/v1/automations/validate (schema + entity + service checks).
+   */
   async validateYAML(data: {
     yaml: string;
     validate_entities?: boolean;
     validate_safety?: boolean;
     context?: any;
-  }): Promise<any> {
-    return fetchJSON(`${API_BASE_URL}/v1/yaml/validate`, {
+  }): Promise<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    score?: number;
+    fixed_yaml?: string;
+    fixes_applied?: string[];
+    entity_validation?: { performed: boolean; passed: boolean; errors: string[] };
+    service_validation?: { performed: boolean; passed: boolean; errors: string[] };
+    stages?: Record<string, boolean>;
+  }> {
+    return fetchJSON(`${API_BASE_URL}/v1/automations/validate`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        yaml_content: data.yaml,
+        normalize: true,
+        validate_entities: data.validate_entities ?? true,
+        validate_services: data.validate_safety ?? true,
+      }),
     });
   },
 

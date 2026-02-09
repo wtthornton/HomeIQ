@@ -160,14 +160,30 @@ class DeploymentService:
             
             logger.info(f"Successfully deployed suggestion {suggestion_id} as {automation_id}")
             
+            # Story 7: Include state, last_triggered, verification_warning for deploy feedback UI
+            data: dict[str, Any] = {
+                "suggestion_id": suggestion_id,
+                "automation_id": automation_id,
+                "status": "deployed"
+            }
+            if deployment_result.get("state"):
+                data["state"] = deployment_result["state"]
+            if deployment_result.get("attributes"):
+                attrs = deployment_result["attributes"]
+                if attrs.get("last_triggered"):
+                    data["last_triggered"] = attrs["last_triggered"]
+            if deployment_result.get("verification_warning"):
+                data["verification_warning"] = deployment_result["verification_warning"]
+                logger.warning(
+                    "Deploy verification: automation %s unavailable - %s",
+                    automation_id,
+                    deployment_result["verification_warning"],
+                )
+            
             return {
                 "success": True,
                 "message": "Automation deployed successfully",
-                "data": {
-                    "suggestion_id": suggestion_id,
-                    "automation_id": automation_id,
-                    "status": "deployed"
-                }
+                "data": data
             }
             
         except DeploymentError:

@@ -40,6 +40,7 @@ class ContextBuilder:
         self._entity_attributes_service = None
         self._device_state_context_service = None
         self._automation_patterns_service = None
+        self._automation_rag_service = None
         # Phase 3: Context prioritization and filtering services
         self._context_prioritization_service = None
         self._context_filtering_service = None
@@ -97,6 +98,8 @@ class ContextBuilder:
             settings=self.settings,
             context_builder=self
         )
+        from .automation_rag_service import AutomationRAGService
+        self._automation_rag_service = AutomationRAGService()
         # Phase 3: Initialize prioritization and filtering services
         self._context_prioritization_service = ContextPrioritizationService()
         self._context_filtering_service = ContextFilteringService()

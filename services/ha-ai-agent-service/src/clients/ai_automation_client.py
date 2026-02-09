@@ -47,45 +47,47 @@ class AIAutomationClient:
         context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
-        Validate Home Assistant automation YAML.
+        Validate Home Assistant automation YAML via unified endpoint.
+
+        Phase 2.2: Uses POST /api/v1/automations/validate (schema + entity + service checks).
 
         Args:
             yaml_content: YAML string to validate
             validate_entities: Whether to validate entities exist in HA (default: True)
-            validate_safety: Whether to run safety validation (default: True)
-            context: Optional context (validated entities, etc.)
+            validate_safety: Whether to run safety validation (default: True, maps to validate_services)
+            context: Optional context (unused by unified endpoint, kept for compatibility)
 
         Returns:
             Dictionary with validation results:
             - valid: bool - Whether validation passed
-            - errors: list[dict] - List of error objects
-            - warnings: list[dict] - List of warning objects
-            - stages: dict[str, bool] - Validation stage results
-            - entity_results: list[dict] - Entity validation details
-            - safety_score: int | None - Safety score (0-100)
+            - errors: list[str] - List of error messages
+            - warnings: list[str] - List of warning messages
+            - score: float - Quality score (0-100)
             - fixed_yaml: str | None - Auto-fixed YAML if available
-            - summary: str - Validation summary message
+            - fixes_applied: list[str] - Fixes applied
 
         Raises:
             httpx.HTTPError: If API request fails
         """
         try:
             payload = {
-                "yaml": yaml_content,
+                "yaml_content": yaml_content,
+                "normalize": True,
                 "validate_entities": validate_entities,
-                "validate_safety": validate_safety
+                "validate_services": validate_safety,
             }
-            if context:
-                payload["context"] = context
 
-            logger.debug(f"Validating YAML via AI Automation Service (entities={validate_entities}, safety={validate_safety})")
+            logger.debug(
+                f"Validating YAML via AI Automation Service unified endpoint "
+                f"(entities={validate_entities}, services={validate_safety})"
+            )
 
             headers = {}
             if self.api_key:
                 headers["X-HomeIQ-API-Key"] = self.api_key
 
             response = await self.client.post(
-                f"{self.base_url}/api/v1/yaml/validate",
+                f"{self.base_url}/api/v1/automations/validate",
                 json=payload,
                 headers=headers
             )

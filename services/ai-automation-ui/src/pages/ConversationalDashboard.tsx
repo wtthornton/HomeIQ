@@ -419,10 +419,20 @@ export const ConversationalDashboard: React.FC = () => {
         )
       );
 
-      // Build success message
-      let successMsg = `✅ Re-deployed successfully!\nSafety score: ${result.yaml_validation.safety_score}/100`;
+      // Build success message (Story 7: include deploy feedback when present)
+      let successMsg = `✅ Re-deployed successfully!\nSafety score: ${result.yaml_validation?.safety_score ?? '—'}/100`;
       if (categoryChanged) {
         successMsg += `\nCategory updated: ${oldSuggestion.category} → ${result.category}`;
+      }
+      const deployData = result.data ?? result;
+      if (deployData?.state) {
+        successMsg += `\nStatus: ${deployData.state}`;
+      }
+      if (deployData?.last_triggered) {
+        successMsg += `\nLast triggered: ${deployData.last_triggered}`;
+      }
+      if (deployData?.verification_warning) {
+        successMsg += `\n⚠️ ${deployData.verification_warning}`;
       }
 
       toast.success(successMsg, { id: `redeploy-${id}`, duration: 6000 });

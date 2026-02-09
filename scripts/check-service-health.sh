@@ -54,7 +54,7 @@ done
 declare -A SERVICES
 SERVICES[websocket-ingestion]="http://localhost:8001/health|true"
 SERVICES[data-api]="http://localhost:8006/health|true"
-SERVICES[admin-api]="http://localhost:8003/api/v1/health|true"
+SERVICES[admin-api]="http://localhost:8004/api/v1/health|true"
 SERVICES[influxdb]="http://localhost:8086/health|true"
 SERVICES[health-dashboard]="http://localhost:3000|true"
 SERVICES[ai-automation-service]="http://localhost:8024/health|false"

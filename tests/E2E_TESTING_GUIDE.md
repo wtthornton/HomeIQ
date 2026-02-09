@@ -42,10 +42,14 @@ tests/e2e/
 │   ├── components/      # Component tests
 │   ├── interactions/    # User interaction tests
 │   └── accessibility/   # A11y tests
-└── ai-automation-ui/
-    ├── pages/           # Page-level tests
-    ├── components/      # Component tests
-    └── workflows/       # End-to-end workflows
+├── ai-automation-ui/
+│   ├── pages/           # Page-level tests
+│   ├── components/      # Component tests
+│   └── workflows/       # End-to-end workflows
+└── api-integration/     # Phase 6 – direct API and UI→API flow tests
+    ├── health-dashboard-apis.spec.ts   # Admin API, Data API
+    ├── ai-automation-apis.spec.ts      # AI automation services
+    └── ui-api-flow.spec.ts             # UI load verification
 ```
 
 ### Test File Naming

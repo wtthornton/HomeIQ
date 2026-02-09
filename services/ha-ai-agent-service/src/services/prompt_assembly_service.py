@@ -227,6 +227,25 @@ class PromptAssemblyService:
                                     f"[Automation Patterns] Conversation {conversation_id}: "
                                     f"Injected {len(patterns_context.split('\\n')) - 1} automation patterns"
                                 )
+
+                        # Story 5: Inject RAG context for sports/team tracker prompts
+                        if hasattr(self.context_builder, '_automation_rag_service') and \
+                           self.context_builder._automation_rag_service:
+                            try:
+                                rag_context = await self.context_builder._automation_rag_service.get_automation_context(
+                                    user_message
+                                )
+                                if rag_context and rag_context.strip():
+                                    system_prompt = f"{system_prompt}\n{rag_context}"
+                                    logger.info(
+                                        f"[Automation RAG] Conversation {conversation_id}: "
+                                        f"Injected Super Bowl/Team Tracker corpus"
+                                    )
+                            except Exception as rag_e:
+                                logger.debug(
+                                    f"[Automation RAG] Conversation {conversation_id}: "
+                                    f"Failed to inject RAG context: {rag_e}"
+                                )
                     except Exception as e:
                         # Graceful degradation: log error but don't fail
                         logger.debug(

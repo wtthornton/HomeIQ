@@ -256,13 +256,23 @@ async def deploy_compiled_automation(
 
         logger.info(f"Deployed automation {ha_automation_id} from compiled artifact {compiled_id}")
 
-        return {
+        result: dict[str, Any] = {
             "deployment_id": deployment_id,
             "compiled_id": compiled_id,
             "ha_automation_id": ha_automation_id,
             "status": "deployed",
-            "version": 1
+            "version": 1,
         }
+        # Story 7: Include state and last_triggered in deploy response
+        if deployment_result.get("state"):
+            result["state"] = deployment_result["state"]
+        if deployment_result.get("attributes"):
+            attrs = deployment_result["attributes"]
+            if attrs.get("last_triggered"):
+                result["last_triggered"] = attrs["last_triggered"]
+        if deployment_result.get("verification_warning"):
+            result["verification_warning"] = deployment_result["verification_warning"]
+        return result
 
     except Exception as e:
         logger.error(f"Failed to deploy compiled automation: {e}", exc_info=True)

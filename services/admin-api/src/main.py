@@ -339,9 +339,10 @@ class AdminAPIService:
                 uptime_seconds = time.time() - _start_time
 
                 # Perform actual dependency health checks concurrently
-                influxdb_url = os.getenv("INFLUXDB_URL", "http://homeiq-influxdb:8086")
-                websocket_url = os.getenv("WEBSOCKET_INGESTION_URL", "http://homeiq-websocket:8001")
-                data_api_url = os.getenv("DATA_API_URL", "http://homeiq-data-api:8006")
+                # Use Docker Compose service names when env not set (influxdb, websocket-ingestion, data-api)
+                influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+                websocket_url = os.getenv("WEBSOCKET_INGESTION_URL", "http://websocket-ingestion:8001")
+                data_api_url = os.getenv("DATA_API_URL", "http://data-api:8006")
 
                 dep_checks = await asyncio.gather(
                     _check_dependency("InfluxDB", influxdb_url),
