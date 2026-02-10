@@ -41,6 +41,8 @@ class ContextBuilder:
         self._device_state_context_service = None
         self._automation_patterns_service = None
         self._automation_rag_service = None
+        # Reusable Pattern Framework: RAG Context Registry for multi-domain context assembly
+        self._rag_registry = None
         # Phase 3: Context prioritization and filtering services
         self._context_prioritization_service = None
         self._context_filtering_service = None
@@ -99,7 +101,27 @@ class ContextBuilder:
             context_builder=self
         )
         from .automation_rag_service import AutomationRAGService
+        from .energy_rag_service import EnergyRAGService
+        from .blueprint_rag_service import BlueprintRAGService
+        from .device_setup_rag_service import DeviceSetupRAGService
+        from .security_rag_service import SecurityRAGService
+        from .comfort_rag_service import ComfortRAGService
+        from .scene_script_rag_service import SceneScriptRAGService
+        from .device_capability_rag_service import DeviceCapabilityRAGService
+        from shared.patterns import RAGContextRegistry
         self._automation_rag_service = AutomationRAGService()
+        # Reusable Pattern Framework: Initialize RAG registry and register services
+        self._rag_registry = RAGContextRegistry()
+        self._rag_registry.register(self._automation_rag_service)
+        # Epic: High-Value Domain Extensions — register new RAG services
+        self._rag_registry.register(EnergyRAGService())
+        self._rag_registry.register(BlueprintRAGService())
+        self._rag_registry.register(DeviceSetupRAGService())
+        # Epic: Platform-Wide Pattern Rollout — register Phase 4 RAG services
+        self._rag_registry.register(SecurityRAGService())
+        self._rag_registry.register(ComfortRAGService())
+        self._rag_registry.register(SceneScriptRAGService())
+        self._rag_registry.register(DeviceCapabilityRAGService())
         # Phase 3: Initialize prioritization and filtering services
         self._context_prioritization_service = ContextPrioritizationService()
         self._context_filtering_service = ContextFilteringService()

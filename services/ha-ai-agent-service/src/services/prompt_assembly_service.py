@@ -228,22 +228,23 @@ class PromptAssemblyService:
                                     f"Injected {len(patterns_context.split('\\n')) - 1} automation patterns"
                                 )
 
-                        # Story 5: Inject RAG context for sports/team tracker prompts
-                        if hasattr(self.context_builder, '_automation_rag_service') and \
-                           self.context_builder._automation_rag_service:
+                        # Reusable Pattern Framework: Inject RAG context via registry
+                        # Runs all registered RAG services (sports, energy, etc.)
+                        if hasattr(self.context_builder, '_rag_registry') and \
+                           self.context_builder._rag_registry:
                             try:
-                                rag_context = await self.context_builder._automation_rag_service.get_automation_context(
+                                rag_context = await self.context_builder._rag_registry.get_merged_context(
                                     user_message
                                 )
                                 if rag_context and rag_context.strip():
                                     system_prompt = f"{system_prompt}\n{rag_context}"
                                     logger.info(
-                                        f"[Automation RAG] Conversation {conversation_id}: "
-                                        f"Injected Super Bowl/Team Tracker corpus"
+                                        f"[RAG Registry] Conversation {conversation_id}: "
+                                        f"Injected RAG context from registry"
                                     )
                             except Exception as rag_e:
                                 logger.debug(
-                                    f"[Automation RAG] Conversation {conversation_id}: "
+                                    f"[RAG Registry] Conversation {conversation_id}: "
                                     f"Failed to inject RAG context: {rag_e}"
                                 )
                     except Exception as e:

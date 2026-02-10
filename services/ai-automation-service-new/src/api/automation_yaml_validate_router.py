@@ -2,11 +2,15 @@
 Unified Automation YAML Validation API
 
 Epic: HomeIQ Automation Improvements, Story 4
+Epic: Reusable Pattern Framework, Story 3 (refactored to use UnifiedValidationRouter)
+
 Single endpoint that orchestrates yaml-validation-service and returns
 unified result with entity_validation and service_validation.
 """
 
 import logging
+import sys
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,10 +20,26 @@ from ..api.dependencies import get_yaml_validation_client
 from ..api.error_handlers import handle_route_errors
 from ..clients.yaml_validation_client import YAMLValidationClient
 
+# Ensure shared modules are importable
+_project_root = str(Path(__file__).resolve().parents[4])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+from shared.patterns import (
+    UnifiedValidationRouter,
+    ValidationRequest,
+    ValidationResponse,
+    categorize_errors,
+)
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/automations", tags=["automation", "validation"])
 
+
+# --- Backward-compatible response models ---
+# These preserve the existing API contract while the internal logic
+# now uses the shared UnifiedValidationRouter pattern.
 
 class ValidateYAMLRequest(BaseModel):
     """Request to validate automation YAML."""
@@ -55,18 +75,44 @@ class ValidateYAMLResponse(BaseModel):
     fixes_applied: list[str] = Field(default_factory=list)
 
 
-def _categorize_errors(errors: list[str]) -> tuple[list[str], list[str]]:
-    """Split errors into entity-related and service-related."""
-    entity_errors: list[str] = []
-    service_errors: list[str] = []
-    entity_keywords = ("entity", "Entity", "invalid entity", "entity_id")
-    service_keywords = ("service", "Service", "invalid service")
-    for e in errors:
-        if any(kw in e for kw in entity_keywords):
-            entity_errors.append(e)
-        elif any(kw in e for kw in service_keywords):
-            service_errors.append(e)
-    return entity_errors, service_errors
+# --- Concrete validation router using shared pattern ---
+
+class AutomationYAMLValidationRouter(UnifiedValidationRouter):
+    """
+    Automation YAML validation using the UnifiedValidationRouter pattern.
+
+    Orchestrates yaml-validation-service and categorizes errors
+    into entity and service validation subsections.
+    """
+
+    domain = "automation"
+
+    error_categories = {
+        "entity": ("entity", "Entity", "invalid entity", "entity_id"),
+        "service": ("service", "Service", "invalid service"),
+    }
+
+    def __init__(self, yaml_client: YAMLValidationClient) -> None:
+        self.yaml_client = yaml_client
+
+    async def run_validation(
+        self,
+        request: ValidationRequest,
+        **kwargs: Any,
+    ) -> ValidationResponse:
+        """Orchestrate yaml-validation-service and return unified response."""
+        result = await self.yaml_client.validate_yaml(
+            yaml_content=request.content,
+            normalize=request.normalize,
+            validate_entities=request.validate_entities,
+            validate_services=request.validate_services,
+        )
+        return self.build_response(result, request)
+
+
+# Singleton-ish: created per-request via dependency injection
+def _build_router(yaml_client: YAMLValidationClient) -> AutomationYAMLValidationRouter:
+    return AutomationYAMLValidationRouter(yaml_client)
 
 
 @router.post("/validate", response_model=ValidateYAMLResponse)
@@ -82,12 +128,15 @@ async def validate_automation_yaml(
     and returns structured result with entity_validation and service_validation.
     """
     try:
-        result = await yaml_client.validate_yaml(
-            yaml_content=request.yaml_content,
+        # Use the shared UnifiedValidationRouter pattern
+        validation_router = _build_router(yaml_client)
+        unified_request = ValidationRequest(
+            content=request.yaml_content,
             normalize=request.normalize,
             validate_entities=request.validate_entities,
-            validate_services=request.validate_services
+            validate_services=request.validate_services,
         )
+        response = await validation_router.run_validation(unified_request)
     except Exception as e:
         logger.error(f"YAML validation failed: {e}", exc_info=True)
         raise HTTPException(
@@ -95,28 +144,28 @@ async def validate_automation_yaml(
             detail=f"Validation service error: {str(e)}"
         ) from e
 
-    errors = result.get("errors", [])
-    entity_errors, service_errors = _categorize_errors(errors)
-    valid = result.get("valid", False)
+    if not response.valid and response.errors:
+        logger.warning("Validation returned invalid: %s", response.errors[:3])
 
-    if not valid and errors:
-        logger.warning("Validation returned invalid: %s", errors[:3])
+    # Map shared ValidationResponse → backward-compatible ValidateYAMLResponse
+    entity_sub = response.subsections.get("entity_validation")
+    service_sub = response.subsections.get("service_validation")
 
     return ValidateYAMLResponse(
-        valid=valid,
-        errors=errors,
-        warnings=result.get("warnings", []),
+        valid=response.valid,
+        errors=response.errors,
+        warnings=response.warnings,
         entity_validation=EntityValidationResult(
-            performed=request.validate_entities,
-            passed=len(entity_errors) == 0,
-            errors=entity_errors
+            performed=entity_sub.performed if entity_sub else request.validate_entities,
+            passed=entity_sub.passed if entity_sub else True,
+            errors=entity_sub.errors if entity_sub else [],
         ),
         service_validation=ServiceValidationResult(
-            performed=request.validate_services,
-            passed=len(service_errors) == 0,
-            errors=service_errors
+            performed=service_sub.performed if service_sub else request.validate_services,
+            passed=service_sub.passed if service_sub else True,
+            errors=service_sub.errors if service_sub else [],
         ),
-        score=result.get("score", 0.0),
-        fixed_yaml=result.get("fixed_yaml"),
-        fixes_applied=result.get("fixes_applied", [])
+        score=response.score,
+        fixed_yaml=response.fixed_content,
+        fixes_applied=response.fixes_applied,
     )

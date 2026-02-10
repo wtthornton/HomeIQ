@@ -1,6 +1,6 @@
 # HomeIQ Documentation Index
 
-**Last Updated:** February 7, 2026  
+**Last Updated:** February 9, 2026
 **Purpose:** Single index of existing docs so Cursor rules and Docker references point to correct paths.
 
 ---
@@ -34,8 +34,13 @@
 |------|-------------|
 | [docs/planning/](planning/) | Phase reports, rebuild guides, upgrade plans, deployment checklist |
 | [stories/epic-homeiq-automation-improvements.md](../stories/epic-homeiq-automation-improvements.md) | Epic: HomeIQ automation platform improvements (schema, patterns, validation, RAG) |
+| [stories/epic-reusable-pattern-framework.md](../stories/epic-reusable-pattern-framework.md) | Epic: Reusable Pattern Framework — Phase 2 (shared abstractions) |
+| [stories/epic-high-value-domain-extensions.md](../stories/epic-high-value-domain-extensions.md) | Epic: High-Value Domain Extensions — Phase 3 (Energy, Blueprint, DeviceSetup) |
+| [stories/epic-platform-wide-pattern-rollout.md](../stories/epic-platform-wide-pattern-rollout.md) | Epic: Platform-Wide Pattern Rollout — Phase 4 (Security, Comfort, Scenes, Device Intelligence) |
+| [shared/patterns/README.md](../shared/patterns/README.md) | Reusable patterns documentation — 8 RAG domains, 5 validation endpoints, 5 verifiers |
 | [implementation/](../implementation/) | Implementation notes; Playwright E2E plan, execution status, issues list |
 | [implementation/PHASE4_AUTOMATION_API_DOCUMENTATION.md](../implementation/PHASE4_AUTOMATION_API_DOCUMENTATION.md) | Automation validation API, deploy response fields, RAG reference |
+| [docs/planning/automation-architecture-reusable-patterns-prd.md](planning/automation-architecture-reusable-patterns-prd.md) | PRD: Automation architecture and reusable patterns across HomeIQ (all 4 phases complete) |
 
 ### Services and ports
 | Path | Description |
