@@ -13,9 +13,12 @@ from typing import Any
 
 import yaml
 
-_project_root = str(Path(__file__).resolve().parents[4])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
+try:
+    _project_root = str(Path(__file__).resolve().parents[4])
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+except IndexError:
+    pass  # Docker: PYTHONPATH already includes /app
 
 logger = logging.getLogger(__name__)
 
