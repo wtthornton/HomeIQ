@@ -12,6 +12,10 @@ from . import synergy_router
 from . import analysis_router
 from . import preference_router
 from . import automation_yaml_validate_router
+from . import blueprint_validate_router
+from . import setup_validate_router
+from . import scene_validate_router
+from . import script_validate_router
 
 __all__ = [
     "health_router",
@@ -22,5 +26,9 @@ __all__ = [
     "analysis_router",
     "preference_router",
     "automation_yaml_validate_router",
+    "blueprint_validate_router",
+    "setup_validate_router",
+    "scene_validate_router",
+    "script_validate_router",
 ]
 

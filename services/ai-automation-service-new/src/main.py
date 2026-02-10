@@ -67,9 +67,13 @@ from .api import (
     automation_plan_router,
     automation_validate_router,
     automation_yaml_validate_router,
+    blueprint_validate_router,
     health_router,
     pattern_router,
     preference_router,
+    scene_validate_router,
+    script_validate_router,
+    setup_validate_router,
     suggestion_router,
     deployment_router,
     synergy_router,
@@ -372,6 +376,12 @@ app.include_router(automation_validate_router.router, tags=["automation"])
 app.include_router(automation_yaml_validate_router.router, tags=["automation"])
 app.include_router(automation_compile_router.router, tags=["automation"])
 app.include_router(automation_lifecycle_router.router, tags=["automation"])
+
+# Phase 2-4 validation routers (Reusable Pattern Framework)
+app.include_router(blueprint_validate_router.router)
+app.include_router(setup_validate_router.router)
+app.include_router(scene_validate_router.router)
+app.include_router(script_validate_router.router)
 
 @app.get("/")
 async def root() -> dict[str, str]:
