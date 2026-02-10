@@ -1,11 +1,12 @@
 /**
  * useAnalyticsData Hook
- * 
+ *
  * Custom hook for fetching and managing analytics data
  * Extracted from AnalyticsPanel to reduce complexity
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { dataApi } from '../services/api';
 import type { AnalyticsData } from '../mocks/analyticsMock';
 
 export type TimeRange = '1h' | '6h' | '24h' | '7d';
@@ -20,19 +21,19 @@ interface UseAnalyticsDataReturn {
 
 /**
  * Fetch and manage analytics data from the data-api service
- * 
+ *
  * @param timeRange - Time range for analytics (1h, 6h, 24h, 7d)
  * @param options - Optional configuration
  * @returns Analytics data, loading state, error state, and refetch function
- * 
+ *
  * @example
  * ```tsx
  * const { data, loading, error, refetch } = useAnalyticsData('1h');
- * 
+ *
  * if (loading) return <LoadingState />;
  * if (error) return <ErrorState message={error} />;
  * if (!data) return null;
- * 
+ *
  * return <AnalyticsDisplay data={data} onRefresh={refetch} />;
  * ```
  */
@@ -48,24 +49,13 @@ export function useAnalyticsData(
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   /**
-   * Fetch analytics data from the API
+   * Fetch analytics data from the API using the shared DataApiClient
+   * which handles authentication (session key, VITE_API_KEY fallback)
    */
   const fetchAnalytics = useCallback(async (): Promise<void> => {
     try {
-      // Fetch real analytics data from data-api
-      const response = await fetch(`/api/v1/analytics?range=${timeRange}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const responseData = await response.json();
-      
+      const responseData = await dataApi.getAnalytics(timeRange);
+
       setData(responseData);
       setError(null);
       setLastUpdate(new Date());
@@ -80,7 +70,7 @@ export function useAnalyticsData(
   // Initial fetch and auto-refresh
   useEffect(() => {
     fetchAnalytics();
-    
+
     if (autoRefresh) {
       const interval = setInterval(fetchAnalytics, refreshInterval);
       return () => clearInterval(interval);
@@ -95,4 +85,3 @@ export function useAnalyticsData(
     refetch: fetchAnalytics
   };
 }
-

@@ -616,6 +616,11 @@ class DataApiClient extends BaseApiClient {
     return this.fetchWithErrorHandling<any>(`/api/v1/ha/game-status/${encodedTeam}`);
   }
 
+  // Analytics endpoint
+  async getAnalytics(range: '1h' | '6h' | '24h' | '7d' = '1h'): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`/api/v1/analytics?range=${range}`);
+  }
+
   async getGameTimeline(gameId: string, league?: string): Promise<any> {
     const queryParams = new URLSearchParams();
     if (league) queryParams.append('league', league);

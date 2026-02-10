@@ -123,6 +123,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ darkMode }): JSX
           metric={analytics.eventsPerMinute}
           darkMode={darkMode}
           icon="📨"
+          color={darkMode ? '#3B82F6' : '#2563EB'}
         />
 
         {/* API Response Time */}
@@ -132,6 +133,8 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ darkMode }): JSX
           darkMode={darkMode}
           icon="⏱️"
           unit="ms"
+          color={darkMode ? '#F59E0B' : '#D97706'}
+          lowerIsBetter
         />
 
         {/* Database Latency */}
@@ -141,6 +144,8 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ darkMode }): JSX
           darkMode={darkMode}
           icon="💾"
           unit="ms"
+          color={darkMode ? '#A78BFA' : '#7C3AED'}
+          lowerIsBetter
         />
 
         {/* Error Rate */}
@@ -150,6 +155,8 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ darkMode }): JSX
           darkMode={darkMode}
           icon="⚠️"
           unit="%"
+          color={darkMode ? '#F87171' : '#DC2626'}
+          lowerIsBetter
         />
       </div>
     </div>
@@ -175,6 +182,8 @@ interface MetricCardProps {
   darkMode: boolean;
   icon: string;
   unit?: string;
+  color: string;
+  lowerIsBetter?: boolean;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({
@@ -182,10 +191,16 @@ const MetricCard: React.FC<MetricCardProps> = ({
   metric,
   darkMode,
   icon,
-  unit = ''
+  unit = '',
+  color,
+  lowerIsBetter = false
 }): JSX.Element => {
   const trendIcon = getTrendIcon(metric.trend);
-  const trendColor = getTrendColor(metric.trend, darkMode);
+  // For metrics where lower is better (latency, error rate), invert the color logic
+  const effectiveTrend = lowerIsBetter
+    ? (metric.trend === 'up' ? 'down' : metric.trend === 'down' ? 'up' : 'stable')
+    : metric.trend;
+  const trendColor = getTrendColor(effectiveTrend, darkMode);
 
   return (
     <div className={`rounded-lg shadow-md p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
@@ -208,13 +223,14 @@ const MetricCard: React.FC<MetricCardProps> = ({
       <div className="mb-4" style={{ height: '120px' }}>
         <MiniChart
           data={metric.data}
-          darkMode={darkMode}
-          trend={metric.trend}
+          color={color}
+          className="w-full h-full"
+          ariaLabel={`${title} chart`}
         />
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-700">
+      <div className={`grid grid-cols-3 gap-4 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
         <div>
           <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Peak</p>
           <p className={`text-sm font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>

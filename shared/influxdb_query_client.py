@@ -38,6 +38,9 @@ class InfluxDBQueryClient:
         self.error_count = 0
         self.avg_query_time_ms = 0.0
         self.is_connected = False
+
+        # Optional per-query latency callback (set by consumers like data-api)
+        self.query_latency_callback = None
     
     async def connect(self) -> bool:
         """
@@ -344,6 +347,13 @@ from(bucket: "{self.bucket}")
                 for record in table.records:
                     data.append(record.values)
             
+            # Notify latency callback if registered
+            if self.query_latency_callback is not None:
+                try:
+                    self.query_latency_callback(query_time)
+                except Exception:
+                    pass  # Never let callback errors break queries
+
             logger.debug(f"Query returned {len(data)} records in {query_time:.2f}ms")
             return data
             

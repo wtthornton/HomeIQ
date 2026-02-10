@@ -14,6 +14,7 @@ import logging
 import os
 import secrets
 import sys
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
@@ -88,6 +89,9 @@ from .metrics_endpoints import create_metrics_router
 # Story 13.4: Sports & HA Automation (Epic 12 Integration)
 from .sports_endpoints import router as sports_router
 from .sports_influxdb_writer import get_sports_writer
+
+# Real-time metrics buffer for analytics
+from .metrics_state import metrics_buffer
 
 load_dotenv()
 
@@ -175,6 +179,8 @@ class DataAPIService:
         # Connect to InfluxDB FIRST (before webhook detector)
         try:
             logger.info("Connecting to InfluxDB...")
+            # Wire per-query latency callback for analytics metrics
+            self.influxdb_client.query_latency_callback = metrics_buffer.record_db_query
             connected = await self.influxdb_client.connect()
             if connected:
                 logger.info("InfluxDB connection established successfully")
@@ -302,6 +308,26 @@ app.add_middleware(
 @app.middleware("http")
 async def apply_rate_limit(request, call_next):
     return await rate_limit_middleware(request, call_next, data_api_service.rate_limiter)
+
+
+# Metrics collection middleware — records response time and errors
+@app.middleware("http")
+async def collect_metrics(request, call_next):
+    # Skip health checks to avoid inflating metrics
+    if request.url.path == "/health":
+        return await call_next(request)
+
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+
+    data_api_service.total_requests += 1
+    is_error = response.status_code >= 400
+    if is_error:
+        data_api_service.failed_requests += 1
+    metrics_buffer.record_request(elapsed_ms, is_error)
+
+    return response
 
 
 # CRIT-06: Auth dependency for sensitive routes
@@ -491,11 +517,7 @@ else:
     # Fallback to local error handlers with request tracking
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request, exc: HTTPException):
-        """Handle HTTP exceptions and track error metrics"""
-        data_api_service.total_requests += 1
-        if exc.status_code >= 400:
-            data_api_service.failed_requests += 1
-
+        """Handle HTTP exceptions (request counting handled by metrics middleware)"""
         return JSONResponse(
             status_code=exc.status_code,
             content=ErrorResponse(
@@ -506,10 +528,7 @@ else:
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request, exc: Exception):
-        """Handle general exceptions and track error metrics"""
-        data_api_service.total_requests += 1
-        data_api_service.failed_requests += 1
-
+        """Handle general exceptions (request counting handled by metrics middleware)"""
         logger.error(f"Unhandled exception: {exc}", exc_info=True)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
