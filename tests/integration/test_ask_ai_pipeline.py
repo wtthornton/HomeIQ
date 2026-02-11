@@ -1,5 +1,5 @@
 """
-Ask AI Pipeline Test Harness — Reusable E2E Testing, Scoring & Debugging
+Ask AI Pipeline Test Harness --Reusable E2E Testing, Scoring & Debugging
 
 A comprehensive test harness for the Ask AI automation creation pipeline.
 Uses the Hybrid Flow: Plan -> Evaluate -> Clarification -> Compile -> YAML
@@ -204,7 +204,7 @@ class AskAITestHarness:
     """
     Reusable test harness for the Ask AI automation creation pipeline.
 
-    Not tied to pytest — can be used from CLI, other tests, or scripts.
+    Not tied to pytest --can be used from CLI, other tests, or scripts.
     Instantiate with an httpx.AsyncClient and call ``run(prompt)``.
     """
 
@@ -240,7 +240,7 @@ class AskAITestHarness:
         """
         Run the full Hybrid Flow pipeline for *prompt* and return a structured result.
 
-        Pipeline: Plan → Evaluate → Clarification → Compile → Validate → Analyse → Deploy
+        Pipeline: Plan -> Evaluate -> Clarification -> Compile -> Validate -> Analyse -> Deploy
 
         Args:
             prompt: Natural language automation request.
@@ -378,7 +378,7 @@ class AskAITestHarness:
     ) -> tuple[int, dict | None, float]:
         """
         Make an HTTP call, record it, and return (status, body, duration_ms).
-        Never raises — returns (0, None, duration) on connection error.
+        Never raises --returns (0, None, duration) on connection error.
         """
         start = time.perf_counter()
         status = 0
@@ -397,13 +397,13 @@ class AskAITestHarness:
                 body = {"_raw": resp.text[:2000]}
         except httpx.TimeoutException as exc:
             error = f"Timeout: {exc}"
-            logger.warning(f"API call timeout: {method} {url} — {exc}")
+            logger.warning(f"API call timeout: {method} {url} --{exc}")
         except httpx.ConnectError as exc:
             error = f"Connection refused: {exc}"
-            logger.warning(f"API connection error: {method} {url} — {exc}")
+            logger.warning(f"API connection error: {method} {url} --{exc}")
         except Exception as exc:
             error = f"Unexpected error: {exc}"
-            logger.warning(f"API call error: {method} {url} — {exc}")
+            logger.warning(f"API call error: {method} {url} --{exc}")
 
         duration_ms = (time.perf_counter() - start) * 1000
         self._debug.api_calls.append(
@@ -509,7 +509,7 @@ class AskAITestHarness:
 
             elif status == 500 and body:
                 # The plan endpoint may 500 on DB save but still have generated
-                # the plan data in the error message — extract what we can
+                # the plan data in the error message --extract what we can
                 detail = str(body.get("detail", ""))
                 step.status = StepStatus.FAIL
                 step.errors.append(f"API returned 500: {_truncate(body)}")
@@ -517,7 +517,7 @@ class AskAITestHarness:
                 # Check if it's a known DB migration issue
                 if "no such table" in detail.lower():
                     step.warnings.append(
-                        "DB table missing — plan endpoint needs migration. "
+                        "DB table missing --plan endpoint needs migration. "
                         "The LLM may have generated the plan but it could not be saved."
                     )
             elif status == 0:
@@ -805,7 +805,7 @@ class AskAITestHarness:
                     self._debug.validation_warnings = warnings
                     step.warnings.extend(warnings[:5])
 
-                # Validation score (0-100 → 0-10 contribution)
+                # Validation score (0-100 -> 0-10 contribution)
                 val_score = body.get("score", 0)
                 if isinstance(val_score, (int, float)) and val_score > 0:
                     score += min(10, round(val_score / 10))
@@ -831,7 +831,7 @@ class AskAITestHarness:
                 step.status = StepStatus.ERROR
                 step.errors.append("Could not connect to validation API")
             else:
-                # Validation endpoint may not be deployed — treat as warning
+                # Validation endpoint may not be deployed --treat as warning
                 step.status = StepStatus.FAIL
                 step.errors.append(f"Validation API returned {status}: {_truncate(body)}")
         except Exception as exc:
@@ -923,7 +923,7 @@ class AskAITestHarness:
             score += 15
             step.details.append("Has condition(s)")
         else:
-            score += 8  # Partial credit — simple automations often have no conditions
+            score += 8  # Partial credit --simple automations often have no conditions
             step.warnings.append("No conditions in YAML (may be intentional)")
 
         step.score = score
@@ -1162,22 +1162,50 @@ class PipelineReportFormatter:
         StepStatus.ERROR: "[ERR!]",
     }
 
-    W = 72  # Report width
+    W = 72  # Report width (standard)
+    DW = 100  # Diagnostic width (wider for full data)
 
     @classmethod
-    def format_report(cls, result: PipelineResult, verbose: bool = False) -> str:
+    def format_report(
+        cls,
+        result: PipelineResult,
+        verbose: bool = False,
+        diagnostic: bool = False,
+    ) -> str:
+        """
+        Format a pipeline result as an ASCII report.
+
+        Modes:
+            default:    Summary with scores, steps, issues, warnings.
+            verbose:    + YAML, API timings, quality report.
+            diagnostic: Full forensic output --every API request/response body,
+                        prompt-vs-plan analysis, YAML deep inspection, entity
+                        resolution audit, validation details, and an action
+                        items summary. Use this for debugging the pipeline.
+        """
+        # Diagnostic implies verbose
+        if diagnostic:
+            verbose = True
+        w = cls.DW if diagnostic else cls.W
+
         lines: list[str] = []
-        w = cls.W
 
         lines.append("+" + "=" * (w - 2) + "+")
-        lines.append(cls._row("ASK AI PIPELINE TEST RESULTS", w))
+        title = "ASK AI PIPELINE - DIAGNOSTIC REPORT" if diagnostic else "ASK AI PIPELINE TEST RESULTS"
+        lines.append(cls._row(title, w))
         lines.append("+" + "=" * (w - 2) + "+")
 
-        # Prompt (wrap if long)
-        prompt_display = result.prompt[:w - 16]
-        if len(result.prompt) > w - 16:
-            prompt_display += "..."
-        lines.append(cls._row(f'Prompt: "{prompt_display}"', w))
+        # Prompt (full in diagnostic mode)
+        if diagnostic:
+            lines.append(cls._row("PROMPT (full):", w))
+            for chunk in cls._wrap(result.prompt, w - 6):
+                lines.append(cls._row(f"  {chunk}", w))
+        else:
+            prompt_display = result.prompt[:w - 16]
+            if len(result.prompt) > w - 16:
+                prompt_display += "..."
+            lines.append(cls._row(f'Prompt: "{prompt_display}"', w))
+
         lines.append(cls._row(
             f"Overall Score: {result.score.overall}/100   "
             f"Success: {'YES' if result.success else 'NO'}",
@@ -1190,7 +1218,7 @@ class PipelineReportFormatter:
         ))
         lines.append("+" + "-" * (w - 2) + "+")
 
-        # Score dimensions
+        # ── Score dimensions ──────────────────────────────────────────
         lines.append(cls._row("SCORES", w))
         for dim_name in [
             "entity_extraction", "suggestion_quality", "yaml_validity",
@@ -1199,24 +1227,39 @@ class PipelineReportFormatter:
             dim: ScoreDimension = getattr(result.score, dim_name)
             label = dim_name.replace("_", " ").title()
             lines.append(cls._row(f"  {label:.<30s} {dim.score:>3d}/100", w))
+            if diagnostic:
+                for d in dim.details:
+                    lines.append(cls._row(f"      + {d[:w - 12]}", w))
+                for i in dim.issues:
+                    lines.append(cls._row(f"      ! {i[:w - 12]}", w))
         lines.append("+" + "-" * (w - 2) + "+")
 
-        # Steps
+        # ── Steps ─────────────────────────────────────────────────────
         lines.append(cls._row("STEPS", w))
         for step in result.steps:
             icon = cls.STEP_ICONS.get(step.status, "[????]")
             name = step.name.value
             if step.status == StepStatus.SKIP:
-                lines.append(cls._row(f"  {icon} {name}", w))
+                reason = step.warnings[0] if step.warnings else ""
+                lines.append(cls._row(f"  {icon} {name}  ({reason})", w))
             else:
                 dur = f"({step.duration_ms / 1000:.1f}s)" if step.duration_ms else ""
                 sc = f"Score: {step.score}" if step.score is not None else ""
                 lines.append(cls._row(
                     f"  {icon} {name:<24s} {dur:>7s}  {sc}", w
                 ))
+            if diagnostic and step.status != StepStatus.SKIP:
+                for d in step.details:
+                    lines.append(cls._row(f"         + {d[:w - 16]}", w))
+                for i in step.issues:
+                    lines.append(cls._row(f"         ! {i[:w - 16]}", w))
+                for e in step.errors:
+                    lines.append(cls._row(f"         X {e[:w - 16]}", w))
+                for wr in step.warnings:
+                    lines.append(cls._row(f"         ~ {wr[:w - 16]}", w))
         lines.append("+" + "-" * (w - 2) + "+")
 
-        # Entities
+        # ── Entities ──────────────────────────────────────────────────
         if result.debug.extracted_entities:
             lines.append(cls._row("ENTITIES", w))
             for e in result.debug.extracted_entities[:15]:
@@ -1234,48 +1277,52 @@ class PipelineReportFormatter:
                 ))
             lines.append("+" + "-" * (w - 2) + "+")
 
-        # Entity Mapping (from YAML generation quality report)
+        # ── Entity Mapping ────────────────────────────────────────────
         if result.debug.entity_mapping:
             lines.append(cls._row("ENTITY MAPPING (device -> entity_id)", w))
             for device, eid in result.debug.entity_mapping.items():
                 lines.append(cls._row(f"  {device} -> {eid}", w))
             lines.append("+" + "-" * (w - 2) + "+")
 
-        # Issues
+        # ── Issues ────────────────────────────────────────────────────
         all_issues: list[str] = []
         for step in result.steps:
-            for issue in getattr(step, "issues", []):
+            for issue in step.issues:
                 all_issues.append(f"({step.name.value}) {issue}")
             for err in step.errors:
                 all_issues.append(f"({step.name.value}) ERROR: {err}")
         if all_issues:
             lines.append(cls._row("ISSUES", w))
-            for issue in all_issues[:20]:
-                lines.append(cls._row(f"  (!) {issue[:w - 10]}", w))
+            for issue in all_issues[:30]:
+                # No truncation in diagnostic mode
+                limit = w - 10 if not diagnostic else w - 10
+                for chunk in cls._wrap(f"(!) {issue}", limit):
+                    lines.append(cls._row(f"  {chunk}", w))
             lines.append("+" + "-" * (w - 2) + "+")
 
-        # Warnings
+        # ── Warnings ─────────────────────────────────────────────────
         all_warnings: list[str] = []
         for step in result.steps:
             for warn in step.warnings:
                 all_warnings.append(f"({step.name.value}) {warn}")
         if all_warnings:
             lines.append(cls._row("WARNINGS", w))
-            for warn in all_warnings[:10]:
-                lines.append(cls._row(f"  (~) {warn[:w - 10]}", w))
+            for warn in all_warnings[:15]:
+                for chunk in cls._wrap(f"(~) {warn}", w - 10):
+                    lines.append(cls._row(f"  {chunk}", w))
             lines.append("+" + "-" * (w - 2) + "+")
 
-        # Verbose sections
+        # ── Verbose sections ──────────────────────────────────────────
         if verbose:
             # Generated YAML
             if result.debug.generated_yaml:
                 lines.append(cls._row("GENERATED YAML", w))
                 yaml_lines = result.debug.generated_yaml.split("\n")
-                for yl in yaml_lines[:80]:
+                for yl in yaml_lines[:120]:
                     lines.append(cls._row(f"  {yl[:w - 6]}", w))
-                if len(yaml_lines) > 80:
+                if len(yaml_lines) > 120:
                     lines.append(cls._row(
-                        f"  ... ({len(yaml_lines) - 80} more lines)", w
+                        f"  ... ({len(yaml_lines) - 120} more lines)", w
                     ))
                 lines.append("+" + "-" * (w - 2) + "+")
 
@@ -1302,14 +1349,421 @@ class PipelineReportFormatter:
                     lines.append(cls._row(f"  {status:>6s}  {name}", w))
                 lines.append("+" + "-" * (w - 2) + "+")
 
+        # ── Diagnostic-only sections ──────────────────────────────────
+        if diagnostic:
+            # --- PLAN RESPONSE ANALYSIS ---
+            plan_step = next(
+                (s for s in result.steps if s.name == StepName.INTENT_PLAN), None
+            )
+            if plan_step and plan_step.data:
+                lines.append(cls._row("PLAN RESPONSE (full)", w))
+                lines.append(cls._row(
+                    f"  template_id: {plan_step.data.get('template_id', 'N/A')}", w
+                ))
+                lines.append(cls._row(
+                    f"  template_version: {plan_step.data.get('template_version', 'N/A')}", w
+                ))
+                lines.append(cls._row(
+                    f"  plan_id: {plan_step.data.get('plan_id', 'N/A')}", w
+                ))
+                lines.append(cls._row(
+                    f"  confidence: {plan_step.data.get('confidence', 'N/A')}", w
+                ))
+                lines.append(cls._row(
+                    f"  safety_class: {plan_step.data.get('safety_class', 'N/A')}", w
+                ))
+                clarifications = plan_step.data.get("clarifications_needed", [])
+                lines.append(cls._row(
+                    f"  clarifications_needed: {len(clarifications)}", w
+                ))
+                lines.append(cls._row(
+                    f"  conversation_id: {plan_step.data.get('conversation_id', 'N/A')}", w
+                ))
+                lines.append(cls._row("  parameters:", w))
+                params = plan_step.data.get("parameters", {})
+                for pk, pv in params.items():
+                    lines.append(cls._row(f"    {pk}: {pv!r}", w))
+                lines.append(cls._row("  explanation:", w))
+                explanation = plan_step.data.get("explanation", "")
+                for chunk in cls._wrap(explanation, w - 10):
+                    lines.append(cls._row(f"    {chunk}", w))
+                lines.append("+" + "-" * (w - 2) + "+")
+
+            # --- PROMPT vs PLAN ANALYSIS ---
+            lines.append(cls._row("PROMPT vs PLAN ANALYSIS", w))
+            cls._analyze_prompt_vs_plan(lines, result, w)
+            lines.append("+" + "-" * (w - 2) + "+")
+
+            # --- YAML DEEP INSPECTION ---
+            if result.debug.parsed_yaml:
+                lines.append(cls._row("YAML DEEP INSPECTION", w))
+                cls._inspect_yaml(lines, result, w)
+                lines.append("+" + "-" * (w - 2) + "+")
+
+            # --- VALIDATION DETAIL ---
+            if result.debug.validation_errors or result.debug.validation_warnings:
+                lines.append(cls._row("VALIDATION DETAIL", w))
+                if result.debug.validation_errors:
+                    lines.append(cls._row("  Errors:", w))
+                    for i, err in enumerate(result.debug.validation_errors, 1):
+                        for chunk in cls._wrap(f"{i}. {err}", w - 10):
+                            lines.append(cls._row(f"    {chunk}", w))
+                if result.debug.validation_warnings:
+                    lines.append(cls._row("  Warnings:", w))
+                    for i, wrn in enumerate(result.debug.validation_warnings, 1):
+                        for chunk in cls._wrap(f"{i}. {wrn}", w - 10):
+                            lines.append(cls._row(f"    {chunk}", w))
+                lines.append("+" + "-" * (w - 2) + "+")
+
+            # --- FULL API REQUEST/RESPONSE BODIES ---
+            lines.append(cls._row("API REQUEST/RESPONSE BODIES", w))
+            for idx, call in enumerate(result.debug.api_calls, 1):
+                lines.append(cls._row(f"  --- Call {idx}: {call.method} {call.url} ---", w))
+                lines.append(cls._row(f"  Status: {call.response_status}  Duration: {call.duration_ms:.0f}ms", w))
+                if call.request_body:
+                    lines.append(cls._row("  Request:", w))
+                    req_str = json.dumps(call.request_body, indent=2, default=str)
+                    for rl in req_str.split("\n")[:40]:
+                        lines.append(cls._row(f"    {rl[:w - 10]}", w))
+                if call.response_body:
+                    lines.append(cls._row("  Response:", w))
+                    resp_str = json.dumps(call.response_body, indent=2, default=str)
+                    resp_lines = resp_str.split("\n")
+                    for rl in resp_lines[:60]:
+                        lines.append(cls._row(f"    {rl[:w - 10]}", w))
+                    if len(resp_lines) > 60:
+                        lines.append(cls._row(f"    ... ({len(resp_lines) - 60} more lines)", w))
+                lines.append(cls._row("", w))
+            lines.append("+" + "-" * (w - 2) + "+")
+
+            # --- ACTION ITEMS ---
+            lines.append(cls._row("FINDINGS & ACTION ITEMS", w))
+            cls._build_action_items(lines, result, w)
+            lines.append("+" + "-" * (w - 2) + "+")
+
         lines.append("+" + "=" * (w - 2) + "+")
         return "\n".join(lines)
+
+    @classmethod
+    def _analyze_prompt_vs_plan(
+        cls, lines: list[str], result: PipelineResult, w: int
+    ) -> None:
+        """Compare what the user asked for vs what the plan produced."""
+        prompt_lower = result.prompt.lower()
+
+        # Extract intent keywords from prompt
+        intent_keywords: list[str] = []
+        keyword_map = {
+            "time/schedule": ["every hour", "at midnight", "every day", "schedule",
+                              "at night", "in the morning", "top of", "hourly",
+                              "daily", "weekly"],
+            "flash/blink": ["flash", "blink", "strobe", "flicker", "pulse"],
+            "color": ["color", "rgb", "random color", "red", "blue", "green",
+                       "warm", "cool", "colorful"],
+            "brightness": ["bright", "dim", "brightness", "percent"],
+            "count/repeat": ["times", "count", "repeat", "number of"],
+            "duration": ["seconds", "secs", "minutes", "for 10", "for 5",
+                          "for 30", "duration"],
+            "presence/zone": ["leave", "arrive", "home", "away", "enter",
+                               "presence", "zone"],
+            "temperature": ["degrees", "thermostat", "temperature", "heat",
+                             "cool", "hvac"],
+            "light": ["light", "lamp", "bulb", "hue", "wled", "led"],
+            "group/all": ["all lights", "all devices", "everything",
+                           "each light", "every light"],
+            "conditional": ["if", "when", "only when", "unless", "based on",
+                             "depending", "24 hour", "hour clock", "am", "pm"],
+        }
+
+        for category, keywords in keyword_map.items():
+            matches = [k for k in keywords if k in prompt_lower]
+            if matches:
+                intent_keywords.append(f"{category} ({', '.join(matches)})")
+
+        lines.append(cls._row("  Detected intent keywords:", w))
+        if intent_keywords:
+            for ik in intent_keywords:
+                lines.append(cls._row(f"    - {ik}", w))
+        else:
+            lines.append(cls._row("    (none detected)", w))
+
+        # Check what the plan captured
+        plan_step = next(
+            (s for s in result.steps if s.name == StepName.INTENT_PLAN), None
+        )
+        if plan_step and plan_step.data:
+            template_id = plan_step.data.get("template_id", "")
+            params = plan_step.data.get("parameters", {})
+            param_str = json.dumps(params, default=str).lower()
+
+            lines.append(cls._row(f"  Template selected: {template_id}", w))
+            lines.append(cls._row(f"  Parameters: {list(params.keys())}", w))
+
+            # Gap analysis
+            gaps: list[str] = []
+            if any("flash" in k or "blink" in k for k in intent_keywords):
+                if "flash" not in param_str and "blink" not in param_str:
+                    gaps.append("Flash/blink intent detected but not in parameters")
+            if any("color" in k for k in intent_keywords):
+                if "color" not in param_str and "rgb" not in param_str:
+                    gaps.append("Color intent detected but not in parameters")
+            if any("count" in k or "repeat" in k for k in intent_keywords):
+                if "count" not in param_str and "repeat" not in param_str and "times" not in param_str:
+                    gaps.append("Count/repeat intent detected but not in parameters")
+            if any("duration" in k for k in intent_keywords):
+                if "duration" not in param_str and "second" not in param_str:
+                    gaps.append("Duration intent detected but not in parameters")
+            if any("conditional" in k for k in intent_keywords):
+                if "condition" not in param_str and "hour" not in param_str:
+                    gaps.append("Conditional/time-based logic detected but not in parameters")
+            if any("time" in k or "schedule" in k for k in intent_keywords):
+                if "schedule" not in param_str and "cron" not in param_str and "time" not in template_id:
+                    gaps.append("Schedule intent detected but template may not be schedule-based")
+            if any("presence" in k or "zone" in k for k in intent_keywords):
+                if "presence" not in param_str and "zone" not in param_str and "presence" not in template_id:
+                    gaps.append("Presence intent detected but not captured in plan")
+            if any("group" in k or "all" in k for k in intent_keywords):
+                if "group" not in param_str and "all" not in param_str:
+                    gaps.append("Group/all-devices intent detected but not in parameters")
+            if any("temperature" in k for k in intent_keywords):
+                if "temperature" not in param_str and "degree" not in param_str:
+                    gaps.append("Temperature value detected in prompt but not in parameters")
+
+            if gaps:
+                lines.append(cls._row("  GAPS (prompt intent not captured in plan):", w))
+                for g in gaps:
+                    lines.append(cls._row(f"    >> {g}", w))
+            else:
+                lines.append(cls._row("  No obvious gaps between prompt and plan.", w))
+        else:
+            lines.append(cls._row("  (No plan data available)", w))
+
+    @classmethod
+    def _inspect_yaml(
+        cls, lines: list[str], result: PipelineResult, w: int
+    ) -> None:
+        """Deep inspection of generated YAML structure."""
+        parsed = result.debug.parsed_yaml
+        if not parsed or not isinstance(parsed, dict):
+            lines.append(cls._row("  (No parseable YAML)", w))
+            return
+
+        # Top-level keys
+        lines.append(cls._row(f"  Top-level keys: {list(parsed.keys())}", w))
+        lines.append(cls._row(f"  mode: {parsed.get('mode', 'N/A')}", w))
+        lines.append(cls._row(f"  alias: {parsed.get('alias', 'N/A')}", w))
+        lines.append(cls._row(f"  description: {str(parsed.get('description', 'N/A'))[:w-20]}", w))
+
+        # Trigger analysis
+        trigger = parsed.get("trigger") or parsed.get("triggers")
+        if trigger:
+            triggers_list = trigger if isinstance(trigger, list) else [trigger]
+            lines.append(cls._row(f"  Triggers ({len(triggers_list)}):", w))
+            for i, t in enumerate(triggers_list):
+                if isinstance(t, dict):
+                    platform = t.get("platform", "unknown")
+                    lines.append(cls._row(f"    [{i}] platform: {platform}", w))
+                    for tk, tv in t.items():
+                        if tk != "platform":
+                            lines.append(cls._row(f"        {tk}: {tv!r}", w))
+                else:
+                    lines.append(cls._row(f"    [{i}] {t!r}", w))
+        else:
+            lines.append(cls._row("  Triggers: MISSING", w))
+
+        # Action analysis
+        action = parsed.get("action") or parsed.get("actions")
+        if action:
+            actions_list = action if isinstance(action, list) else [action]
+            lines.append(cls._row(f"  Actions ({len(actions_list)}):", w))
+            for i, a in enumerate(actions_list):
+                if isinstance(a, dict):
+                    service = a.get("service", a.get("action", "unknown"))
+                    lines.append(cls._row(f"    [{i}] service: {service}", w))
+                    target = a.get("target", {})
+                    if target:
+                        lines.append(cls._row(f"        target: {target}", w))
+                    data = a.get("data", {})
+                    if data:
+                        lines.append(cls._row(f"        data: {data}", w))
+                else:
+                    lines.append(cls._row(f"    [{i}] {a!r}", w))
+        else:
+            lines.append(cls._row("  Actions: MISSING", w))
+
+        # Condition analysis
+        condition = parsed.get("condition") or parsed.get("conditions")
+        if condition:
+            conds_list = condition if isinstance(condition, list) else [condition]
+            lines.append(cls._row(f"  Conditions ({len(conds_list)}):", w))
+            for i, c in enumerate(conds_list):
+                if isinstance(c, dict):
+                    cond_type = c.get("condition", "unknown")
+                    lines.append(cls._row(f"    [{i}] type: {cond_type}", w))
+                    for ck, cv in c.items():
+                        if ck != "condition":
+                            lines.append(cls._row(f"        {ck}: {cv!r}", w))
+                else:
+                    lines.append(cls._row(f"    [{i}] {c!r}", w))
+        else:
+            lines.append(cls._row("  Conditions: none", w))
+
+        # Unresolved placeholders
+        yaml_str = result.debug.generated_yaml or ""
+        placeholders = re.findall(r"\{\{[^}]+\}\}", yaml_str)
+        if placeholders:
+            unique_ph = sorted(set(placeholders))
+            lines.append(cls._row(f"  Unresolved placeholders ({len(unique_ph)}):", w))
+            for ph in unique_ph:
+                lines.append(cls._row(f"    {ph}", w))
+
+        # Entity references
+        entity_refs = re.findall(
+            r"\b(" + "|".join(KNOWN_DOMAINS) + r")\.\w+",
+            yaml_str.lower(),
+        )
+        if entity_refs:
+            unique_refs = sorted(set(entity_refs))
+            lines.append(cls._row(f"  Entity references ({len(unique_refs)}):", w))
+            for er in unique_refs:
+                lines.append(cls._row(f"    {er}", w))
+        else:
+            lines.append(cls._row("  Entity references: NONE (uses placeholders only)", w))
+
+    @classmethod
+    def _build_action_items(
+        cls, lines: list[str], result: PipelineResult, w: int
+    ) -> None:
+        """Build categorized action items from all findings."""
+        findings: list[tuple[str, str, str]] = []  # (severity, category, finding)
+
+        # --- Plan quality ---
+        plan_step = next(
+            (s for s in result.steps if s.name == StepName.INTENT_PLAN), None
+        )
+        if plan_step:
+            if plan_step.status == StepStatus.FAIL:
+                findings.append(("CRITICAL", "Plan", f"Plan endpoint failed: {plan_step.errors}"))
+            elif plan_step.status == StepStatus.ERROR:
+                findings.append(("CRITICAL", "Plan", f"Plan endpoint unreachable: {plan_step.errors}"))
+            elif plan_step.data:
+                conf = plan_step.data.get("confidence", 0)
+                if conf < 0.5:
+                    findings.append(("MEDIUM", "Plan", f"Low confidence ({conf}) --LLM unsure about template"))
+
+        # --- Plan-vs-prompt gaps ---
+        prompt_lower = result.prompt.lower()
+        if plan_step and plan_step.data:
+            params = plan_step.data.get("parameters", {})
+            param_str = json.dumps(params, default=str).lower()
+            template_id = plan_step.data.get("template_id", "")
+
+            if "flash" in prompt_lower and "flash" not in param_str:
+                findings.append(("HIGH", "Template", "Flash intent lost --template doesn't support flash parameters"))
+            if ("every hour" in prompt_lower or "top of" in prompt_lower) and "hour" not in param_str:
+                findings.append(("HIGH", "Template", "Hourly schedule intent not captured in parameters"))
+            if ("number of times" in prompt_lower or "times of the hour" in prompt_lower) and "count" not in param_str:
+                findings.append(("HIGH", "Template", "Dynamic count (based on hour) not captured --needs Jinja2 template logic"))
+            if "24 hour" in prompt_lower and "24" not in param_str:
+                findings.append(("HIGH", "Template", "24-hour clock logic not captured in parameters"))
+
+            # Check for overly simple templates
+            param_count = len(params)
+            prompt_word_count = len(result.prompt.split())
+            if prompt_word_count > 20 and param_count <= 3:
+                findings.append(("MEDIUM", "Template",
+                    f"Complex prompt ({prompt_word_count} words) mapped to simple template "
+                    f"'{template_id}' with only {param_count} parameters"))
+
+        # --- Compile quality ---
+        compile_step = next(
+            (s for s in result.steps if s.name == StepName.YAML_COMPILE), None
+        )
+        if compile_step and compile_step.status == StepStatus.FAIL:
+            findings.append(("CRITICAL", "Compile", f"YAML compilation failed: {compile_step.errors}"))
+
+        # --- Validation issues ---
+        if result.debug.validation_errors:
+            for err in result.debug.validation_errors:
+                severity = "HIGH" if "must be" in err.lower() else "MEDIUM"
+                findings.append((severity, "Validation", err))
+
+        # --- YAML placeholders ---
+        yaml_str = result.debug.generated_yaml or ""
+        placeholders = set(re.findall(r"\{\{[^}]+\}\}", yaml_str))
+        if placeholders:
+            findings.append(("HIGH", "YAML",
+                f"Unresolved placeholders ({len(placeholders)}): {', '.join(sorted(placeholders))} "
+                "— compile step should resolve these to real entity/area IDs"))
+
+        # --- Invalid entities ---
+        if result.debug.validation_warnings:
+            for wrn in result.debug.validation_warnings:
+                if "invalid entity" in wrn.lower() or "unknown" in wrn.lower():
+                    findings.append(("MEDIUM", "Entities", wrn))
+
+        # --- Trigger/action format ---
+        if result.debug.parsed_yaml:
+            trigger = result.debug.parsed_yaml.get("trigger")
+            action = result.debug.parsed_yaml.get("action")
+            if trigger and not isinstance(trigger, list):
+                findings.append(("HIGH", "YAML Format",
+                    "trigger is a dict --HA 2024.x+ requires trigger to be a list"))
+            if action and not isinstance(action, list):
+                findings.append(("HIGH", "YAML Format",
+                    "action is a dict --HA 2024.x+ requires action to be a list"))
+
+        # --- Data as string instead of dict ---
+        if result.debug.parsed_yaml:
+            actions = result.debug.parsed_yaml.get("action") or result.debug.parsed_yaml.get("actions")
+            if actions:
+                a_list = actions if isinstance(actions, list) else [actions]
+                for a in a_list:
+                    if isinstance(a, dict) and isinstance(a.get("data"), str):
+                        findings.append(("HIGH", "YAML Format",
+                            f"action.data is a string '{a['data'][:60]}' --must be a YAML mapping"))
+
+        # --- Missing action items if no findings ---
+        if not findings:
+            lines.append(cls._row("  No issues found --pipeline working correctly!", w))
+            return
+
+        # Sort by severity
+        severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+        findings.sort(key=lambda f: severity_order.get(f[0], 99))
+
+        # Group by category
+        prev_severity = ""
+        for i, (severity, category, finding) in enumerate(findings, 1):
+            if severity != prev_severity:
+                lines.append(cls._row(f"  [{severity}]", w))
+                prev_severity = severity
+            for chunk in cls._wrap(f"{i}. [{category}] {finding}", w - 10):
+                lines.append(cls._row(f"    {chunk}", w))
 
     @staticmethod
     def _row(text: str, width: int) -> str:
         """Left-align text inside box borders."""
         inner = width - 4  # "| " + content + " |"
         return f"| {text:<{inner}s} |"
+
+    @staticmethod
+    def _wrap(text: str, max_width: int) -> list[str]:
+        """Simple word-wrap for long text."""
+        if len(text) <= max_width:
+            return [text]
+        chunks = []
+        while text:
+            if len(text) <= max_width:
+                chunks.append(text)
+                break
+            # Find last space before max_width
+            cut = text.rfind(" ", 0, max_width)
+            if cut <= 0:
+                cut = max_width
+            chunks.append(text[:cut])
+            text = text[cut:].lstrip()
+        return chunks
 
 
 # =========================================================================
@@ -1434,7 +1888,7 @@ class TestAskAIPipeline:
         prompt: str,
         description: str,
     ):
-        """Negative tests — harness must not crash, result must be returned."""
+        """Negative tests --harness must not crash, result must be returned."""
         result = await harness.run(prompt=prompt, deploy=False)
         report = PipelineReportFormatter.format_report(result)
         logger.info("\n" + report)
@@ -1492,6 +1946,10 @@ async def _cli_main() -> int:
     )
     parser.add_argument("--deploy", action="store_true", help="Enable deployment step")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    parser.add_argument(
+        "--diag", action="store_true",
+        help="Full diagnostic report --API bodies, prompt-vs-plan analysis, YAML inspection, action items",
+    )
     parser.add_argument("--base-url", default=None, help="API base URL override")
     parser.add_argument("--api-key", default=None, help="API key override")
     parser.add_argument(
@@ -1505,6 +1963,11 @@ async def _cli_main() -> int:
         nargs="*",
         default=None,
         help='Expected HA domains (e.g. light climate)',
+    )
+    parser.add_argument(
+        "--output", "-o",
+        default=None,
+        help="Save report to file (e.g. reports/office-lights.txt)",
     )
 
     args = parser.parse_args()
@@ -1522,10 +1985,25 @@ async def _cli_main() -> int:
         )
 
     if args.json_output:
-        print(json.dumps(asdict(result), indent=2, default=str))
+        output = json.dumps(asdict(result), indent=2, default=str)
     else:
-        report = PipelineReportFormatter.format_report(result, verbose=args.verbose)
-        print(report)
+        output = PipelineReportFormatter.format_report(
+            result, verbose=args.verbose, diagnostic=args.diag,
+        )
+
+    # Save to file if --output specified
+    if args.output:
+        from pathlib import Path
+        out_path = Path(args.output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(output, encoding="utf-8")
+        print(f"Report saved to: {out_path.resolve()}")
+    else:
+        # Ensure output is ASCII-safe for Windows cp1252 terminals
+        try:
+            print(output)
+        except UnicodeEncodeError:
+            print(output.encode("ascii", errors="replace").decode("ascii"))
 
     if args.min_score and result.score.overall < args.min_score:
         print(
