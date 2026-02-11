@@ -1,11 +1,12 @@
 """
 OpenAI Client Service
-Epic AI-20 Story AI20.1: OpenAI Client Integration with 2025 best practices
+Epic AI-20 Story AI20.1: OpenAI Client Integration
 
 Provides async OpenAI API client with:
+- GPT-5.2 reasoning model support (reasoning_effort parameter)
 - Retry logic with exponential backoff
 - Rate limiting handling (429 errors)
-- Token counting and budget management
+- Token counting and budget management (including reasoning tokens)
 - Error handling for API failures
 """
 
@@ -46,13 +47,14 @@ class OpenAITokenBudgetExceededError(OpenAIError):
 
 class OpenAIClient:
     """
-    OpenAI API client with 2025 best practices.
+    OpenAI API client with GPT-5.2 reasoning model support.
 
     Features:
+    - GPT-5.2 reasoning (thinking) model with configurable effort
     - Async operations
     - Retry logic with exponential backoff
     - Rate limiting handling
-    - Token counting and budget management
+    - Token counting and budget management (including reasoning tokens)
     - Comprehensive error handling
     """
 
@@ -75,9 +77,11 @@ class OpenAIClient:
         self.model = settings.openai_model
         self.max_tokens = settings.openai_max_tokens
         self.temperature = settings.openai_temperature
+        self.reasoning_effort = getattr(settings, "openai_reasoning_effort", "high")
 
         # Token tracking
         self.total_tokens_used = 0
+        self.total_reasoning_tokens = 0
         self.total_requests = 0
         self.total_errors = 0
 
@@ -120,7 +124,7 @@ class OpenAIClient:
         logger.info(
             f"[OpenAI API] Sending {len(messages)} messages to OpenAI. "
             f"System message: {len(system_content)} chars, "
-            f"Contains 'CRITICAL': {'CRITICAL' in system_content}, "
+            f"Contains 'YAML Deployment Assistant': {'YAML Deployment Assistant' in system_content}, "
             f"Contains 'HOME ASSISTANT CONTEXT': {'HOME ASSISTANT CONTEXT' in system_content}, "
             f"Tools: {len(tools) if tools else 0}"
         )
@@ -136,16 +140,18 @@ class OpenAIClient:
         async def _make_request():
             """Internal function to make API request with retry logic"""
             # Prepare request parameters
-            # GPT-5.1 and newer models use max_completion_tokens instead of max_tokens
             request_params: dict[str, Any] = {
                 "model": self.model,
                 "messages": messages,
                 "temperature": temperature or self.temperature,
             }
-            
-            # Use max_completion_tokens for GPT-5.1, max_tokens for older models
+
+            # GPT-5.x models use max_completion_tokens (includes reasoning tokens)
             if self.model.startswith("gpt-5"):
                 request_params["max_completion_tokens"] = max_tokens or self.max_tokens
+                # Enable reasoning for GPT-5.2+ thinking models
+                if self.reasoning_effort and not self.model.startswith("gpt-5.1"):
+                    request_params["reasoning_effort"] = self.reasoning_effort
             else:
                 request_params["max_tokens"] = max_tokens or self.max_tokens
 
@@ -164,13 +170,23 @@ class OpenAIClient:
                 # Make API call
                 response = await self.client.chat.completions.create(**request_params)
 
-                # Track token usage
+                # Track token usage (including reasoning tokens for GPT-5.2)
                 if response.usage:
                     self.total_tokens_used += response.usage.total_tokens
+                    reasoning_tokens = getattr(
+                        response.usage, "completion_tokens_details", None
+                    )
+                    reasoning_count = (
+                        getattr(reasoning_tokens, "reasoning_tokens", 0)
+                        if reasoning_tokens else 0
+                    )
+                    if reasoning_count:
+                        self.total_reasoning_tokens += reasoning_count
                     logger.info(
                         f"OpenAI API response: {response.usage.total_tokens} tokens "
                         f"(prompt: {response.usage.prompt_tokens}, "
-                        f"completion: {response.usage.completion_tokens})"
+                        f"completion: {response.usage.completion_tokens}"
+                        f"{f', reasoning: {reasoning_count}' if reasoning_count else ''})"
                     )
 
                 return response
@@ -229,6 +245,7 @@ class OpenAIClient:
         """
         return {
             "total_tokens_used": self.total_tokens_used,
+            "total_reasoning_tokens": self.total_reasoning_tokens,
             "total_requests": self.total_requests,
             "total_errors": self.total_errors,
             "average_tokens_per_request": (
@@ -241,6 +258,7 @@ class OpenAIClient:
     def reset_stats(self) -> None:
         """Reset token usage statistics."""
         self.total_tokens_used = 0
+        self.total_reasoning_tokens = 0
         self.total_requests = 0
         self.total_errors = 0
         logger.info("OpenAI client statistics reset")

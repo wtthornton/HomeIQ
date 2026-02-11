@@ -67,23 +67,27 @@ class Settings(BaseSettings):
     # OpenAI Configuration
     openai_api_key: SecretStr | None = Field(
         default=None,
-        description="OpenAI API key for GPT-5.1 (better quality and 50% cost savings vs GPT-4o)"
+        description="OpenAI API key for GPT-5.2 reasoning model"
     )
     openai_model: str = Field(
-        default="gpt-5.1",
-        description="OpenAI model to use (gpt-5.1 recommended - better quality and 50% cost savings vs GPT-4o)"
+        default="gpt-5.2",
+        description="OpenAI model to use (gpt-5.2 with reasoning for highest quality YAML generation)"
     )
     openai_max_tokens: int = Field(
-        default=2048,
-        description="Maximum tokens for OpenAI responses (GPT-5.1 generates concise YAML)"
+        default=16384,
+        description="Maximum completion tokens (includes reasoning tokens — GPT-5.2 needs headroom for thinking + output)"
     )
     openai_temperature: float = Field(
-        default=0.5,
-        description="Temperature for OpenAI responses (0.0-2.0). GPT-5.1 benefits from 0.4-0.6 for YAML generation"
+        default=1.0,
+        description="Temperature for OpenAI responses. Reasoning models work best at 1.0; reasoning handles consistency"
+    )
+    openai_reasoning_effort: str = Field(
+        default="high",
+        description="Reasoning effort for GPT-5.2 thinking model: low, medium, high. Higher = better quality, more tokens"
     )
     openai_timeout: int = Field(
-        default=30,
-        description="OpenAI API timeout in seconds"
+        default=90,
+        description="OpenAI API timeout in seconds (reasoning models need more time)"
     )
     openai_max_retries: int = Field(
         default=3,
