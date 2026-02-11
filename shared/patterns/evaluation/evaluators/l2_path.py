@@ -221,12 +221,28 @@ class ToolSequenceValidatorEvaluator(PathEvaluator):
         """Evaluate whether any natural-language exception condition
         applies to the current session.
 
-        Uses LLM judge when exception descriptions are free-text.
+        Story 4.3: Checks structured metadata first for deterministic
+        results.  Falls back to LLM judge only for unrecognized
+        exception descriptions.
         """
         if not exceptions:
             return False
 
-        # Build a prompt to check if any exception applies
+        mode = session.metadata.get("execution_mode", "deploy")
+
+        # Deterministic exception checks based on metadata
+        for exc_text in exceptions:
+            exc_lower = exc_text.lower()
+            if "dry-run" in exc_lower and mode in ("preview", "dry_run"):
+                return True
+            if "external source" in exc_lower and mode == "external":
+                return True
+            if "manual" in exc_lower and session.metadata.get(
+                "user_requested"
+            ):
+                return True
+
+        # Fall back to LLM judge for unrecognized exceptions
         user_input = " ".join(m.content for m in session.user_messages)
         exception_list = "\n".join(f"- {exc}" for exc in exceptions)
 

@@ -35,6 +35,14 @@ class EvaluationRegistry:
         report = await registry.evaluate(session)
     """
 
+    # Deploy-dependent evaluators that correctly score 0% in preview mode.
+    # Skipping them in preview avoids dragging the L4 average down.
+    _DEPLOY_ONLY_EVALUATORS = frozenset({
+        "validation_before_deploy",
+        "post_deploy_verification",
+        "audit_trail_complete",
+    })
+
     def __init__(
         self,
         llm_judge: LLMJudge | None = None,
@@ -84,7 +92,18 @@ class EvaluationRegistry:
                 f"Agent '{agent_name}' not registered. "
                 f"Registered: {self.registered_agents}"
             )
-        return await entry.engine.score(session, entry.evaluators)
+
+        evaluators = entry.evaluators
+
+        # Enhancement A: skip deploy-dependent evaluators in preview mode
+        # so they don't drag L4 average down with correct-but-irrelevant 0%s.
+        if session.metadata.get("execution_mode") == "preview":
+            evaluators = [
+                e for e in evaluators
+                if e.name not in self._DEPLOY_ONLY_EVALUATORS
+            ]
+
+        return await entry.engine.score(session, evaluators)
 
     async def evaluate_batch(
         self,
@@ -161,22 +180,40 @@ class EvaluationRegistry:
                 )
             )
 
+        # Story 3.4: Template appropriateness evaluator (always included)
+        from .evaluators.l2_template_match import (
+            TemplateAppropriatenessEvaluator,
+        )
+
+        evals.append(
+            TemplateAppropriatenessEvaluator(llm_judge=self._judge)
+        )
+
         return evals
 
     def _build_l3_evaluators(
         self, config: AgentEvalConfig
     ) -> list[BaseEvaluator]:
         """Build L3 Details evaluators from config parameter_rules."""
-        if not config.parameter_rules and not config.tools:
-            return []
+        evals: list[BaseEvaluator] = []
 
-        from .evaluators.l3_details import ToolParameterAccuracyEvaluator
+        if config.parameter_rules or config.tools:
+            from .evaluators.l3_details import ToolParameterAccuracyEvaluator
 
-        return [
-            ToolParameterAccuracyEvaluator(
-                config=config, llm_judge=self._judge
+            evals.append(
+                ToolParameterAccuracyEvaluator(
+                    config=config, llm_judge=self._judge
+                )
             )
-        ]
+
+        # Story 3.4: HA-specific deterministic evaluators (always included)
+        from .evaluators.l3_yaml_completeness import YAMLCompletenessEvaluator
+        from .evaluators.l3_entity_resolution import EntityResolutionEvaluator
+
+        evals.append(YAMLCompletenessEvaluator())
+        evals.append(EntityResolutionEvaluator())
+
+        return evals
 
     def _build_l4_evaluators(
         self, config: AgentEvalConfig

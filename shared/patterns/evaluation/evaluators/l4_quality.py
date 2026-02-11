@@ -365,7 +365,12 @@ class SystemPromptRuleEvaluator(QualityEvaluator):
         )
 
     def _check_response(self, session: SessionTrace) -> EvaluationResult:
-        """Rule-based response check — regex or keyword on response text."""
+        """Rule-based response check — regex or keyword on response text.
+
+        Story 1.4: Also checks ``metadata["generated_yaml"]`` when present
+        so that the ``yaml_safety_check`` rule still scans the actual YAML
+        even after Story 1.3 moved it out of agent responses.
+        """
         pattern = self._rule.pattern
         if not pattern:
             return self._result(
@@ -374,11 +379,21 @@ class SystemPromptRuleEvaluator(QualityEvaluator):
                 explanation=f"Rule '{self._rule.name}': no pattern to check",
             )
 
-        # Check all agent responses
-        violations = 0
-        total = len(session.agent_responses)
+        texts_to_check: list[str] = []
+
+        # Check generated YAML if available (preferred source for safety)
+        generated_yaml = session.metadata.get("generated_yaml", "")
+        if generated_yaml:
+            texts_to_check.append(generated_yaml)
+
+        # Also check agent responses (catches any YAML that leaks through)
         for resp in session.agent_responses:
-            if re.search(pattern, resp.content, re.MULTILINE):
+            texts_to_check.append(resp.content)
+
+        violations = 0
+        total = len(texts_to_check)
+        for text in texts_to_check:
+            if re.search(pattern, text, re.MULTILINE):
                 violations += 1
 
         if violations == 0:
@@ -394,7 +409,7 @@ class SystemPromptRuleEvaluator(QualityEvaluator):
             label="Fail",
             explanation=(
                 f"Rule '{self._rule.name}': pattern matched in "
-                f"{violations}/{total} responses"
+                f"{violations}/{total} texts checked"
             ),
             passed=False,
         )

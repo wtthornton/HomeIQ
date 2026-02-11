@@ -103,8 +103,16 @@ async def create_plan(
             db=db
         )
         
+        # Coerce clarifications_needed: LLM sometimes returns list[str]
+        # instead of list[dict], which fails Pydantic validation.
+        raw_clarifications = plan.get("clarifications_needed", [])
+        plan["clarifications_needed"] = [
+            c if isinstance(c, dict) else {"question": c}
+            for c in raw_clarifications
+        ]
+
         return PlanResponse(**plan)
-        
+
     except ValueError as e:
         logger.error(f"Invalid plan creation request: {e}")
         raise HTTPException(status_code=400, detail=str(e))

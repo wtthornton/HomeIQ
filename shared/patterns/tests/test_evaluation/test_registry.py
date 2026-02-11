@@ -16,7 +16,16 @@ from shared.patterns.evaluation.evaluators.l2_path import (
     ToolSelectionAccuracyEvaluator,
     ToolSequenceValidatorEvaluator,
 )
+from shared.patterns.evaluation.evaluators.l2_template_match import (
+    TemplateAppropriatenessEvaluator,
+)
 from shared.patterns.evaluation.evaluators.l3_details import ToolParameterAccuracyEvaluator
+from shared.patterns.evaluation.evaluators.l3_entity_resolution import (
+    EntityResolutionEvaluator,
+)
+from shared.patterns.evaluation.evaluators.l3_yaml_completeness import (
+    YAMLCompletenessEvaluator,
+)
 from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
 from shared.patterns.evaluation.models import (
     AgentResponse,
@@ -131,9 +140,10 @@ class TestEvaluationRegistry:
         registry.register_agent(config)
         evaluators = registry.get_evaluators("test-agent")
 
-        # Should have: L1 (goal), L2 (selection + sequence), L3 (params),
+        # Should have: L1 (goal), L2 (selection + sequence + template_match),
+        # L3 (params + yaml_completeness + entity_resolution),
         # L4 (correctness + faithfulness + coherence), L5 (harm + stereo + refusal)
-        assert len(evaluators) == 10
+        assert len(evaluators) == 13
 
     def test_get_evaluators_unknown_agent(self):
         judge = LLMJudge(provider=MockProvider())
@@ -152,18 +162,25 @@ class TestEvaluationRegistry:
         assert GoalSuccessRateEvaluator in evaluator_types
         assert ToolSelectionAccuracyEvaluator in evaluator_types
         assert ToolSequenceValidatorEvaluator in evaluator_types
+        assert TemplateAppropriatenessEvaluator in evaluator_types
         assert ToolParameterAccuracyEvaluator in evaluator_types
+        assert YAMLCompletenessEvaluator in evaluator_types
+        assert EntityResolutionEvaluator in evaluator_types
 
-    def test_minimal_config_has_only_goal(self):
-        """A config with no tools/paths/rubrics should still get L1."""
+    def test_minimal_config_has_goal_and_deterministic_l3(self):
+        """A config with no tools/paths/rubrics gets L1 + always-on L3 evaluators."""
         judge = LLMJudge(provider=MockProvider())
         registry = EvaluationRegistry(llm_judge=judge)
         config = AgentEvalConfig(agent_name="minimal")
         registry.register_agent(config)
 
         evaluators = registry.get_evaluators("minimal")
-        assert len(evaluators) == 1
-        assert isinstance(evaluators[0], GoalSuccessRateEvaluator)
+        # L1 (goal) + L3 (yaml_completeness + entity_resolution)
+        assert len(evaluators) == 3
+        names = {e.name for e in evaluators}
+        assert "goal_success_rate" in names
+        assert "yaml_completeness" in names
+        assert "entity_resolution" in names
 
     def test_tools_only_gets_l2_l3(self):
         judge = LLMJudge(provider=MockProvider())
@@ -257,3 +274,139 @@ class TestEvaluationRegistry:
         assert "correctness" in names
         # unknown_rubric should be skipped with a warning
         assert "unknown_rubric" not in names
+
+
+# =====================================================================
+# Enhancement A: Preview-mode evaluator skipping
+# =====================================================================
+
+
+class TestPreviewModeSkipping:
+    """Deploy-dependent evaluators should be skipped in preview mode."""
+
+    @staticmethod
+    def _make_config_with_deploy_rules() -> AgentEvalConfig:
+        """Config that includes system_prompt_rules with deploy-dependent names."""
+        from shared.patterns.evaluation.config import PromptRule
+
+        return AgentEvalConfig(
+            agent_name="test-agent",
+            tools=[
+                ToolDef(name="create_plan"),
+                ToolDef(name="validate_plan"),
+                ToolDef(name="compile_yaml"),
+            ],
+            paths=[
+                PathRule(
+                    name="preview_path",
+                    sequence=["create_plan", "validate_plan", "compile_yaml"],
+                ),
+            ],
+            quality_rubrics=["correctness"],
+            system_prompt_rules=[
+                PromptRule(
+                    name="validation_before_deploy",
+                    description="Validate before deploying",
+                    check_type="path_validation",
+                    tool_sequence=["validate_plan"],
+                ),
+                PromptRule(
+                    name="post_deploy_verification",
+                    description="Verify after deploy",
+                    check_type="path_validation",
+                    tool_sequence=["verify_deployment"],
+                ),
+                PromptRule(
+                    name="audit_trail_complete",
+                    description="Audit trail present",
+                    check_type="llm_judge",
+                ),
+                PromptRule(
+                    name="no_direct_yaml_from_llm",
+                    description="No raw YAML in response",
+                    check_type="llm_judge",
+                ),
+            ],
+        )
+
+    @pytest.mark.asyncio
+    async def test_preview_mode_skips_deploy_evaluators(self):
+        provider = MockProvider('{"label": "Yes", "explanation": "OK."}')
+        judge = LLMJudge(provider=provider)
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = self._make_config_with_deploy_rules()
+        registry.register_agent(config)
+
+        session = SessionTrace(
+            agent_name="test-agent",
+            user_messages=[UserMessage(content="turn on lights")],
+            agent_responses=[AgentResponse(content="Done.")],
+            tool_calls=[
+                ToolCall(tool_name="create_plan", sequence_index=0),
+                ToolCall(tool_name="validate_plan", sequence_index=1),
+                ToolCall(tool_name="compile_yaml", sequence_index=2),
+            ],
+            metadata={"execution_mode": "preview"},
+        )
+        report = await registry.evaluate(session)
+        result_names = {r.evaluator_name for r in report.results}
+
+        # Deploy-dependent evaluators should be excluded
+        assert "validation_before_deploy" not in result_names
+        assert "post_deploy_verification" not in result_names
+        assert "audit_trail_complete" not in result_names
+
+        # Non-deploy evaluators should still run
+        assert "no_direct_yaml_from_llm" in result_names
+        assert "correctness" in result_names
+
+    @pytest.mark.asyncio
+    async def test_deploy_mode_includes_all_evaluators(self):
+        provider = MockProvider('{"label": "Yes", "explanation": "OK."}')
+        judge = LLMJudge(provider=provider)
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = self._make_config_with_deploy_rules()
+        registry.register_agent(config)
+
+        session = SessionTrace(
+            agent_name="test-agent",
+            user_messages=[UserMessage(content="turn on lights")],
+            agent_responses=[AgentResponse(content="Done.")],
+            tool_calls=[
+                ToolCall(tool_name="create_plan", sequence_index=0),
+                ToolCall(tool_name="validate_plan", sequence_index=1),
+                ToolCall(tool_name="compile_yaml", sequence_index=2),
+            ],
+            metadata={"execution_mode": "deploy"},
+        )
+        report = await registry.evaluate(session)
+        result_names = {r.evaluator_name for r in report.results}
+
+        # All evaluators should run in deploy mode
+        assert "validation_before_deploy" in result_names
+        assert "post_deploy_verification" in result_names
+        assert "audit_trail_complete" in result_names
+
+    @pytest.mark.asyncio
+    async def test_no_mode_includes_all_evaluators(self):
+        provider = MockProvider('{"label": "Yes", "explanation": "OK."}')
+        judge = LLMJudge(provider=provider)
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = self._make_config_with_deploy_rules()
+        registry.register_agent(config)
+
+        session = SessionTrace(
+            agent_name="test-agent",
+            user_messages=[UserMessage(content="turn on lights")],
+            agent_responses=[AgentResponse(content="Done.")],
+            tool_calls=[
+                ToolCall(tool_name="create_plan", sequence_index=0),
+            ],
+        )
+        report = await registry.evaluate(session)
+        result_names = {r.evaluator_name for r in report.results}
+
+        # Without execution_mode, all evaluators should run
+        assert "validation_before_deploy" in result_names
+        assert "post_deploy_verification" in result_names
+        assert "audit_trail_complete" in result_names

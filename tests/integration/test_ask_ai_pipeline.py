@@ -12,11 +12,17 @@ Services:
 Provides multi-dimensional scoring, detailed diagnostics, and structured results
 that can be consumed by pytest, CLI, or other test files.
 
+Agent Evaluation (Pattern D):
+    With --evaluate / -e, runs the L1-L5 Evaluation Pyramid against each pipeline
+    run using shared/patterns/evaluation. Evaluates: Outcome, Path (tool sequence),
+    Details (parameters), Quality (correctness, faithfulness, coherence), and Safety.
+
 Usage:
     # CLI
     python test_ask_ai_pipeline.py "turn on the office lights" --verbose
     python test_ask_ai_pipeline.py "party mode" --deploy --min-score 60
     python test_ask_ai_pipeline.py "set thermostat" --json > result.json
+    python test_ask_ai_pipeline.py "turn on lights" --evaluate -v
 
     # Pytest
     pytest test_ask_ai_pipeline.py -v -s --log-cli-level=INFO
@@ -24,7 +30,7 @@ Usage:
     # Import from other tests
     from tests.integration.test_ask_ai_pipeline import AskAITestHarness
     harness = AskAITestHarness(client)
-    result = await harness.run("turn on the office lights")
+    result = await harness.run("turn on the office lights", evaluate=True)
 """
 
 from __future__ import annotations
@@ -46,6 +52,34 @@ import httpx
 import pytest
 import pytest_asyncio
 import yaml
+
+# -- Agent Evaluation Framework (Pattern D) integration --
+# Lazy-imported to avoid hard dependency; only used when --evaluate is passed.
+_EVAL_AVAILABLE = False
+try:
+    from pathlib import Path as _Path
+
+    _project_root = str(_Path(__file__).resolve().parents[2])
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+
+    from shared.patterns.evaluation import (
+        AgentResponse as EvalAgentResponse,
+        ConfigLoader as EvalConfigLoader,
+        EvalLevel,
+        EvaluationRegistry,
+        EvaluationReport,
+        EvaluationResult,
+        LLMJudge,
+        OpenAIProvider,
+        SessionTrace,
+        ToolCall as EvalToolCall,
+        UserMessage as EvalUserMessage,
+    )
+
+    _EVAL_AVAILABLE = True
+except (ImportError, IndexError):
+    pass  # Evaluation framework not available; --evaluate will warn
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -186,6 +220,18 @@ class PipelineDebugData:
 
 
 @dataclass
+class AgentEvalSummary:
+    """Summary of L1-L5 agent evaluation results (Pattern D)."""
+    available: bool = False
+    overall_score: float = 0.0
+    level_scores: dict[str, float] = field(default_factory=dict)
+    results: list[dict] = field(default_factory=list)
+    alerts: list[str] = field(default_factory=list)
+    markdown: str = ""
+    error: str | None = None
+
+
+@dataclass
 class PipelineResult:
     """Complete result of a pipeline test run."""
     prompt: str
@@ -196,6 +242,336 @@ class PipelineResult:
     summary: str
     duration_ms: float
     timestamp: str
+    evaluation: AgentEvalSummary = field(default_factory=AgentEvalSummary)
+
+
+# =========================================================================
+# Agent Evaluation Framework Integration (Pattern D)
+# =========================================================================
+
+# Path to ai-automation-service evaluation config (relative to project root)
+_EVAL_CONFIG_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "shared", "patterns", "evaluation", "configs", "ai_automation_service.yaml",
+)
+
+
+class SessionTraceBuilder:
+    """
+    Converts a PipelineResult into an evaluation-framework SessionTrace.
+
+    Maps the hybrid flow pipeline steps to the tool-call model expected by
+    the 5-level evaluation pyramid:
+      - User prompt  -> UserMessage
+      - API calls    -> ToolCall (create_plan, validate_plan, compile_yaml, etc.)
+      - Final YAML   -> AgentResponse
+    """
+
+    AGENT_NAME = "ai-automation-service"
+
+    # Map pipeline API endpoints to evaluation config tool names
+    _ENDPOINT_TO_TOOL: dict[str, str] = {
+        "/automation/plan": "create_plan",
+        "/automation/validate": "validate_plan",
+        "/automation/compile": "compile_yaml",
+        "/api/v1/automations/validate": "validate_yaml",
+        "/api/deploy/automation/deploy": "deploy_automation",
+    }
+
+    @classmethod
+    def build(cls, result: "PipelineResult") -> "SessionTrace":
+        """Build a SessionTrace from a completed pipeline run."""
+        if not _EVAL_AVAILABLE:
+            raise RuntimeError("Evaluation framework not available")
+
+        trace = SessionTrace(
+            agent_name=cls.AGENT_NAME,
+            model="gpt-4o-mini",  # The LLM used in the plan step
+        )
+
+        # 1. User message = the original prompt
+        trace.user_messages.append(
+            EvalUserMessage(content=result.prompt, turn_index=0)
+        )
+
+        # 2. Tool calls = API calls mapped to config tool names
+        for idx, api_call in enumerate(result.debug.api_calls):
+            tool_name = cls._resolve_tool_name(api_call.url)
+            trace.tool_calls.append(
+                EvalToolCall(
+                    tool_name=tool_name,
+                    parameters=api_call.request_body or {},
+                    result={
+                        "status": api_call.response_status,
+                        "body": api_call.response_body,
+                    },
+                    sequence_index=idx,
+                    turn_index=0,
+                    latency_ms=api_call.duration_ms,
+                )
+            )
+
+        # 3. Agent response = plan description (NOT the YAML)
+        # Story 1.3: YAML goes into metadata to avoid tripping the
+        # no_direct_yaml_from_llm LLM judge evaluator.
+        plan_step = next(
+            (s for s in result.steps if s.name == StepName.INTENT_PLAN), None
+        )
+        template_id = (
+            plan_step.data.get("template_id", "unknown")
+            if plan_step and plan_step.data
+            else "unknown"
+        )
+        params = (
+            plan_step.data.get("parameters", {})
+            if plan_step and plan_step.data
+            else {}
+        )
+        confidence = (
+            plan_step.data.get("confidence", 0)
+            if plan_step and plan_step.data
+            else 0
+        )
+
+        response_parts = [
+            f"Selected template: {template_id} (confidence: {confidence:.2f})",
+            f"Pipeline score: {result.score.overall}/100",
+            result.summary,
+        ]
+
+        agent_response_text = "\n\n".join(response_parts)
+        trace.agent_responses.append(
+            EvalAgentResponse(
+                content=agent_response_text,
+                turn_index=0,
+                tool_calls_in_turn=list(trace.tool_calls),
+            )
+        )
+
+        # 4. Metadata for evaluators to inspect
+        yaml_str = result.debug.generated_yaml or ""
+        placeholders = re.findall(r"\{\{[^}]+\}\}", yaml_str)
+
+        trace.metadata = {
+            "pipeline_score": result.score.overall,
+            "pipeline_success": result.success,
+            "template_id": cls._extract_template_id(result),
+            "yaml_valid": cls._yaml_is_valid(result),
+            "step_results": {
+                s.name.value: s.status.value for s in result.steps
+            },
+            # Story 1.1: execution_mode lets evaluators distinguish
+            # preview from deploy runs deterministically.
+            "execution_mode": (
+                "deploy"
+                if any(
+                    tc.tool_name == "deploy_automation"
+                    for tc in trace.tool_calls
+                )
+                else "preview"
+            ),
+            # Story 1.3: YAML in metadata for yaml_safety_check
+            "generated_yaml": yaml_str,
+            # Story 2.2: YAML quality signals
+            "yaml_errors": result.debug.validation_errors,
+            "yaml_warnings": result.debug.validation_warnings,
+            "unresolved_placeholders": sorted(set(placeholders)),
+            "resolved_context": result.debug.resolved_context,
+            "entity_resolution_success": bool(result.debug.resolved_context),
+        }
+
+        # Fallback: when data-api isn't available (test mode), use plan
+        # parameters as resolved context so entity_resolution scores fairly.
+        if not result.debug.resolved_context and plan_step and plan_step.data:
+            plan_params = plan_step.data.get("parameters", {})
+            entity_keys = {
+                k: v for k, v in plan_params.items()
+                if isinstance(v, str) and (
+                    "." in v  # entity_id format: domain.name
+                    or k.endswith("_entity")
+                    or k.endswith("_id")
+                )
+            }
+            if entity_keys:
+                trace.metadata["resolved_context"] = entity_keys
+                trace.metadata["entity_resolution_success"] = True
+
+        # Story 2.1: Plan quality signals (requires plan_step from Story 1.3)
+        if plan_step and plan_step.data:
+            trace.metadata.update({
+                "plan_confidence": plan_step.data.get("confidence", 0),
+                "safety_class": plan_step.data.get("safety_class", ""),
+                "template_version": plan_step.data.get("template_version"),
+                "parameter_count": len(plan_step.data.get("parameters", {})),
+                "clarifications_needed": len(
+                    plan_step.data.get("clarifications_needed", [])
+                ),
+                "explanation": plan_step.data.get("explanation", ""),
+            })
+
+        # Story 2.3: Deployment audit data (only when deploy steps ran)
+        deploy_step = next(
+            (s for s in result.steps if s.name == StepName.DEPLOYMENT), None
+        )
+        if deploy_step and deploy_step.data:
+            trace.metadata["deployment_audit"] = {
+                "automation_id": deploy_step.data.get("ha_automation_id"),
+                "deployment_id": deploy_step.data.get("deployment_id"),
+                "status": deploy_step.data.get("status"),
+                "approved_by": "test-pipeline-user",
+                "source": "pipeline-test",
+            }
+
+        return trace
+
+    @classmethod
+    def _resolve_tool_name(cls, url: str) -> str:
+        """Map an API URL to the evaluation config tool name."""
+        for endpoint_suffix, tool_name in cls._ENDPOINT_TO_TOOL.items():
+            if endpoint_suffix in url:
+                return tool_name
+        # Fallback: use the last path segment
+        path = url.split("?")[0].rstrip("/")
+        return path.rsplit("/", 1)[-1] if "/" in path else "unknown"
+
+    @staticmethod
+    def _extract_template_id(result: "PipelineResult") -> str:
+        plan_step = next(
+            (s for s in result.steps if s.name == StepName.INTENT_PLAN), None
+        )
+        if plan_step and plan_step.data:
+            return plan_step.data.get("template_id", "")
+        return ""
+
+    @staticmethod
+    def _yaml_is_valid(result: "PipelineResult") -> bool:
+        val_step = next(
+            (s for s in result.steps if s.name == StepName.YAML_VALIDATION), None
+        )
+        if val_step and val_step.data:
+            return val_step.data.get("valid", False)
+        return False
+
+
+class AgentEvaluationRunner:
+    """
+    Runs the L1-L5 evaluation framework against a pipeline result.
+
+    The LLM-judged evaluators (L1 Outcome, L4 Quality, L5 Safety) require
+    an OpenAI API key. Set OPENAI_API_KEY or pass api_key to the constructor.
+    Non-LLM evaluators (L2 Path, L3 Details) work without an API key.
+
+    Usage::
+
+        runner = AgentEvaluationRunner()
+        eval_summary = await runner.evaluate(pipeline_result)
+    """
+
+    def __init__(self, config_path: str | None = None, api_key: str | None = None):
+        if not _EVAL_AVAILABLE:
+            raise RuntimeError(
+                "Evaluation framework not available. "
+                "Install shared.patterns.evaluation or check PYTHONPATH."
+            )
+        self._config_path = config_path or _EVAL_CONFIG_PATH
+        self._api_key = api_key or os.environ.get("OPENAI_API_KEY") or self._load_dotenv_key()
+        self._registry: EvaluationRegistry | None = None
+
+    @staticmethod
+    def _load_dotenv_key() -> str | None:
+        """Load OPENAI_API_KEY from project .env file if not in environment."""
+        env_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            ".env",
+        )
+        try:
+            with open(env_path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("OPENAI_API_KEY=") and not line.startswith("#"):
+                        return line.split("=", 1)[1].strip()
+        except FileNotFoundError:
+            pass
+        return None
+
+    def _ensure_registry(self) -> EvaluationRegistry:
+        """Lazy-init the registry with LLMJudge and agent config."""
+        if self._registry is not None:
+            return self._registry
+
+        # Use OpenAI by default (same model as the agent config)
+        provider = OpenAIProvider(model="gpt-4o-mini", api_key=self._api_key)
+        llm_judge = LLMJudge(provider=provider)
+        self._registry = EvaluationRegistry(llm_judge=llm_judge)
+        self._registry.register_from_yaml(self._config_path)
+
+        has_key = bool(self._api_key)
+        logger.info(
+            "Evaluation registry loaded: %s evaluators for '%s' (LLM key: %s)",
+            len(self._registry.get_evaluators(SessionTraceBuilder.AGENT_NAME)),
+            SessionTraceBuilder.AGENT_NAME,
+            "set" if has_key else "NOT SET -- L1/L4/L5 will score 0",
+        )
+        return self._registry
+
+    async def evaluate(self, result: "PipelineResult") -> AgentEvalSummary:
+        """Run L1-L5 evaluation and return a summary."""
+        summary = AgentEvalSummary()
+
+        try:
+            registry = self._ensure_registry()
+            trace = SessionTraceBuilder.build(result)
+            report: EvaluationReport = await registry.evaluate(trace)
+
+            summary.available = True
+
+            # Aggregate per-level scores
+            for level in EvalLevel:
+                level_summary = report.summary_matrix.levels.get(level)
+                if level_summary and level_summary.metrics:
+                    avg_score = sum(
+                        m.score for m in level_summary.metrics.values()
+                    ) / len(level_summary.metrics)
+                    summary.level_scores[level.value] = round(avg_score, 3)
+
+            # Overall = average of all level scores
+            if summary.level_scores:
+                summary.overall_score = round(
+                    sum(summary.level_scores.values()) / len(summary.level_scores), 3
+                )
+
+            # Individual results for the report
+            for r in report.results:
+                summary.results.append({
+                    "evaluator": r.evaluator_name,
+                    "level": r.level.value,
+                    "score": round(r.score, 3),
+                    "label": r.label,
+                    "passed": r.passed,
+                    "explanation": r.explanation[:200] if r.explanation else "",
+                })
+
+            # Alerts (scores below threshold)
+            for r in report.results:
+                if not r.passed:
+                    summary.alerts.append(
+                        f"[{r.level.value}] {r.evaluator_name}: "
+                        f"{r.score:.2f} ({r.label})"
+                    )
+
+            summary.markdown = report.to_markdown()
+
+        except FileNotFoundError:
+            summary.error = f"Evaluation config not found: {self._config_path}"
+            logger.warning(summary.error)
+        except KeyError as exc:
+            summary.error = f"Evaluation registry error: {exc}"
+            logger.warning(summary.error)
+        except Exception as exc:
+            summary.error = f"Evaluation failed: {exc}"
+            logger.warning(summary.error, exc_info=True)
+
+        return summary
 
 
 # =========================================================================
@@ -235,6 +611,8 @@ class AskAITestHarness:
         self,
         prompt: str,
         deploy: bool = False,
+        evaluate: bool = False,
+        eval_api_key: str | None = None,
         clarification_strategy: str = "first_option",
         expected_entities: list[str] | None = None,
         expected_domains: list[str] | None = None,
@@ -247,6 +625,8 @@ class AskAITestHarness:
         Args:
             prompt: Natural language automation request.
             deploy: If True, deploy to HA then clean up.
+            evaluate: If True, run L1-L5 agent evaluation (Pattern D).
+            eval_api_key: OpenAI API key for LLM-judged evaluators. Falls back to OPENAI_API_KEY env.
             clarification_strategy: "first_option" or "skip".
             expected_entities: Optional list of entity names/ids to look for.
             expected_domains: Optional list of HA domains (e.g. ["light"]).
@@ -366,7 +746,7 @@ class AskAITestHarness:
         )
         summary = self._build_summary(prompt, score, duration_ms)
 
-        return PipelineResult(
+        pipeline_result = PipelineResult(
             prompt=prompt,
             success=success,
             score=score,
@@ -376,6 +756,53 @@ class AskAITestHarness:
             duration_ms=round(duration_ms, 1),
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
+
+        # --- Optional: L1-L5 Agent Evaluation (Pattern D) ---
+        if evaluate:
+            if _EVAL_AVAILABLE:
+                try:
+                    runner = AgentEvaluationRunner(api_key=eval_api_key)
+                    pipeline_result.evaluation = await runner.evaluate(pipeline_result)
+                    if pipeline_result.evaluation.available:
+                        logger.info(
+                            "Agent Evaluation: %.1f%% overall (%d evaluators)",
+                            pipeline_result.evaluation.overall_score * 100,
+                            len(pipeline_result.evaluation.results),
+                        )
+                except Exception as exc:
+                    pipeline_result.evaluation = AgentEvalSummary(
+                        error=f"Evaluation runner failed: {exc}"
+                    )
+                    logger.warning("Agent evaluation failed: %s", exc)
+            else:
+                pipeline_result.evaluation = AgentEvalSummary(
+                    error="Evaluation framework not installed (shared.patterns.evaluation)"
+                )
+
+        # Story 5.1: Append evaluation results to JSONL history file
+        if evaluate and pipeline_result.evaluation.available:
+            try:
+                history_path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "reports", "eval-history.jsonl",
+                )
+                entry = {
+                    "timestamp": pipeline_result.timestamp,
+                    "prompt": pipeline_result.prompt[:100],
+                    "pipeline_score": pipeline_result.score.overall,
+                    "eval_overall": pipeline_result.evaluation.overall_score,
+                    "eval_levels": pipeline_result.evaluation.level_scores,
+                    "alerts": len(pipeline_result.evaluation.alerts),
+                    "deploy": deploy,
+                }
+                os.makedirs(os.path.dirname(history_path), exist_ok=True)
+                with open(history_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(entry, default=str) + "\n")
+                logger.debug("Eval history appended to %s", history_path)
+            except Exception as exc:
+                logger.warning("Failed to write eval history: %s", exc)
+
+        return pipeline_result
 
     # ------------------------------------------------------------------
     # Central API helper
@@ -1472,6 +1899,14 @@ class PipelineReportFormatter:
                     lines.append(cls._row(f"  {status:>6s}  {name}", w))
                 lines.append("+" + "-" * (w - 2) + "+")
 
+            # Agent evaluation (compact in verbose mode, full in diagnostic)
+            if not diagnostic and result.evaluation.available:
+                cls._format_evaluation_section(lines, result.evaluation, w, full=False)
+            elif not diagnostic and result.evaluation.error:
+                lines.append(cls._row("AGENT EVALUATION", w))
+                lines.append(cls._row(f"  Error: {result.evaluation.error}", w))
+                lines.append("+" + "-" * (w - 2) + "+")
+
         # ── Diagnostic-only sections ──────────────────────────────────
         if diagnostic:
             # --- PLAN RESPONSE ANALYSIS ---
@@ -1591,6 +2026,10 @@ class PipelineReportFormatter:
                         lines.append(cls._row(f"    ... ({len(resp_lines) - 60} more lines)", w))
                 lines.append(cls._row("", w))
             lines.append("+" + "-" * (w - 2) + "+")
+
+            # --- AGENT EVALUATION (Pattern D: L1-L5) ---
+            if result.evaluation.available:
+                cls._format_evaluation_section(lines, result.evaluation, w, full=True)
 
             # --- ACTION ITEMS ---
             lines.append(cls._row("FINDINGS & ACTION ITEMS", w))
@@ -1897,6 +2336,60 @@ class PipelineReportFormatter:
             for chunk in cls._wrap(f"{i}. [{category}] {finding}", w - 10):
                 lines.append(cls._row(f"    {chunk}", w))
 
+    @classmethod
+    def _format_evaluation_section(
+        cls, lines: list[str], evaluation: AgentEvalSummary, w: int, full: bool
+    ) -> None:
+        """Render the L1-L5 agent evaluation results."""
+        lines.append(cls._row("AGENT EVALUATION (Pattern D: L1-L5)", w))
+        lines.append(cls._row(
+            f"  Overall: {evaluation.overall_score * 100:.1f}%   "
+            f"Evaluators: {len(evaluation.results)}",
+            w,
+        ))
+        lines.append(cls._row("", w))
+
+        # Level scores summary
+        level_labels = {
+            "L1_OUTCOME": "L1 Outcome",
+            "L2_PATH": "L2 Path",
+            "L3_DETAILS": "L3 Details",
+            "L4_QUALITY": "L4 Quality",
+            "L5_SAFETY": "L5 Safety",
+        }
+        for level_key, label in level_labels.items():
+            score = evaluation.level_scores.get(level_key)
+            if score is not None:
+                bar_len = round(score * 20)
+                bar = "#" * bar_len + "." * (20 - bar_len)
+                lines.append(cls._row(
+                    f"  {label:<14s} [{bar}] {score * 100:5.1f}%", w
+                ))
+
+        if full:
+            # Individual evaluator results
+            lines.append(cls._row("", w))
+            lines.append(cls._row("  Evaluator Results:", w))
+            for r in evaluation.results:
+                passed_icon = "PASS" if r["passed"] else "FAIL"
+                lines.append(cls._row(
+                    f"    {r['level']:<12s} {r['evaluator']:<30s} "
+                    f"{r['score'] * 100:5.1f}%  [{passed_icon}]",
+                    w,
+                ))
+                if r.get("explanation"):
+                    for chunk in cls._wrap(f"      {r['explanation']}", w - 12):
+                        lines.append(cls._row(f"      {chunk[:w - 12]}", w))
+
+        # Alerts
+        if evaluation.alerts:
+            lines.append(cls._row("", w))
+            lines.append(cls._row("  Alerts (below threshold):", w))
+            for alert in evaluation.alerts:
+                lines.append(cls._row(f"    (!) {alert}", w))
+
+        lines.append("+" + "-" * (w - 2) + "+")
+
     @staticmethod
     def _row(text: str, width: int) -> str:
         """Left-align text inside box borders."""
@@ -2092,6 +2585,8 @@ async def _cli_main() -> int:
             '  python test_ask_ai_pipeline.py "turn on office lights" -v\n'
             '  python test_ask_ai_pipeline.py "party mode" --deploy --min-score 60\n'
             '  python test_ask_ai_pipeline.py "set thermostat" --json > result.json\n'
+            '  python test_ask_ai_pipeline.py "turn on lights" --evaluate -v\n'
+            '  python test_ask_ai_pipeline.py "turn on lights" -e --diag\n'
         ),
     )
     parser.add_argument(
@@ -2105,6 +2600,15 @@ async def _cli_main() -> int:
     parser.add_argument(
         "--diag", action="store_true",
         help="Full diagnostic report --API bodies, prompt-vs-plan analysis, YAML inspection, action items",
+    )
+    parser.add_argument(
+        "--evaluate", "-e", action="store_true",
+        help="Run L1-L5 agent evaluation (Pattern D) using the evaluation framework",
+    )
+    parser.add_argument(
+        "--eval-api-key",
+        default=None,
+        help="OpenAI API key for LLM-judged evaluators (L1/L4/L5). Falls back to OPENAI_API_KEY env var.",
     )
     parser.add_argument("--base-url", default=None, help="API base URL override")
     parser.add_argument("--api-key", default=None, help="API key override")
@@ -2125,6 +2629,11 @@ async def _cli_main() -> int:
         default=None,
         help="Save report to file (e.g. reports/office-lights.txt)",
     )
+    # Story 5.2: CI gating on evaluation score
+    parser.add_argument(
+        "--min-eval-score", type=float, default=0.0,
+        help="Minimum evaluation score (0.0-1.0) to pass. Exit 1 if below.",
+    )
 
     args = parser.parse_args()
 
@@ -2137,6 +2646,8 @@ async def _cli_main() -> int:
         result = await harness.run(
             prompt=args.prompt,
             deploy=args.deploy,
+            evaluate=args.evaluate,
+            eval_api_key=args.eval_api_key,
             expected_domains=args.expected_domains,
         )
 
@@ -2166,6 +2677,15 @@ async def _cli_main() -> int:
             f"\nFAILED: Score {result.score.overall} < minimum {args.min_score}"
         )
         return 1
+
+    # Story 5.2: CI gating on evaluation score
+    if args.min_eval_score and result.evaluation.available:
+        if result.evaluation.overall_score < args.min_eval_score:
+            print(
+                f"\nEVAL FAILED: {result.evaluation.overall_score:.2f} "
+                f"< {args.min_eval_score}"
+            )
+            return 1
 
     return 0 if result.success else 1
 
