@@ -36,21 +36,25 @@
   "safety_class": "low",
   "forbidden_targets": [],
   "compilation_mapping": {
-    "trigger": {
-      "platform": "time",
-      "at": "{{time}}"
-    },
-    "condition": null,
-    "action": {
-      "service": "light.turn_on",
-      "target": {
-        "area_id": "{{matched_area_id}}"
-      },
-      "data": {
-        "brightness_pct": "{{brightness_pct}}",
-        "color_temp": "{{color_temp}}"
+    "trigger": [
+      {
+        "platform": "time",
+        "at": "{{time}}"
       }
-    },
+    ],
+    "condition": null,
+    "action": [
+      {
+        "service": "light.turn_on",
+        "target": {
+          "area_id": "{{matched_area_id}}"
+        },
+        "data": {
+          "brightness_pct": "{{brightness_pct}}",
+          "color_temp": "{{color_temp}}"
+        }
+      }
+    ],
     "alias_template": "{{target_area}} Lights On at {{time}}",
     "description_template": "Turn on {{target_area}} lights at {{time}}"
   },

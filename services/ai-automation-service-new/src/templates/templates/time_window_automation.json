@@ -60,24 +60,30 @@
   "safety_class": "low",
   "forbidden_targets": [],
   "compilation_mapping": {
-    "trigger": {
-      "platform": "{{trigger_type}}",
-      "entity_id": "{{trigger_entity}}",
-      "to": "{{trigger_state}}"
-    },
-    "condition": {
-      "condition": "time",
-      "after": "{{time_window_after}}",
-      "before": "{{time_window_before}}"
-    },
-    "action": {
-      "service": "{{action_service}}",
-      "target": {
-        "entity_id": "{{target_entity}}",
-        "area_id": "{{target_area}}"
-      },
-      "data": "{{action_data}}"
-    },
+    "trigger": [
+      {
+        "platform": "{{trigger_type}}",
+        "entity_id": "{{trigger_entity}}",
+        "to": "{{trigger_state}}"
+      }
+    ],
+    "condition": [
+      {
+        "condition": "time",
+        "after": "{{time_window_after}}",
+        "before": "{{time_window_before}}"
+      }
+    ],
+    "action": [
+      {
+        "service": "{{action_service}}",
+        "target": {
+          "entity_id": "{{target_entity}}",
+          "area_id": "{{target_area}}"
+        },
+        "data": "{{action_data}}"
+      }
+    ],
     "alias_template": "Time Window: {{time_window_after}}-{{time_window_before}}",
     "description_template": "{{action_service}} when triggered, only between {{time_window_after}} and {{time_window_before}}"
   },

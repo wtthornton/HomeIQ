@@ -35,19 +35,23 @@
   "safety_class": "low",
   "forbidden_targets": [],
   "compilation_mapping": {
-    "trigger": {
-      "platform": "time_pattern",
-      "minutes": "{{schedule_pattern}}"
-    },
+    "trigger": [
+      {
+        "platform": "time_pattern",
+        "minutes": "{{schedule_pattern}}"
+      }
+    ],
     "condition": null,
-    "action": {
-      "service": "{{action_service}}",
-      "target": {
-        "entity_id": "{{target_entity}}",
-        "area_id": "{{target_area}}"
-      },
-      "data": "{{action_data}}"
-    },
+    "action": [
+      {
+        "service": "{{action_service}}",
+        "target": {
+          "entity_id": "{{target_entity}}",
+          "area_id": "{{target_area}}"
+        },
+        "data": "{{action_data}}"
+      }
+    ],
     "alias_template": "Scheduled: {{action_service}}",
     "description_template": "Execute {{action_service}} on schedule {{schedule_pattern}}"
   },

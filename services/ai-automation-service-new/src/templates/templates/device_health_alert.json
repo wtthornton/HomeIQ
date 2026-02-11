@@ -34,19 +34,23 @@
   "safety_class": "low",
   "forbidden_targets": [],
   "compilation_mapping": {
-    "trigger": {
-      "platform": "numeric_state",
-      "entity_id": "{{device_entity}}",
-      "below": "{{health_threshold}}"
-    },
-    "condition": null,
-    "action": {
-      "service": "notify.{{notification_target}}",
-      "data": {
-        "title": "Device Health Alert",
-        "message": "{{alert_message}}Device {{device_entity}} health is below {{health_threshold}}%"
+    "trigger": [
+      {
+        "platform": "numeric_state",
+        "entity_id": "{{device_entity}}",
+        "below": "{{health_threshold}}"
       }
-    },
+    ],
+    "condition": null,
+    "action": [
+      {
+        "service": "notify.{{notification_target}}",
+        "data": {
+          "title": "Device Health Alert",
+          "message": "{{alert_message}}Device {{device_entity}} health is below {{health_threshold}}%"
+        }
+      }
+    ],
     "alias_template": "{{device_entity}} Health Alert",
     "description_template": "Alert when {{device_entity}} health drops below {{health_threshold}}%"
   },

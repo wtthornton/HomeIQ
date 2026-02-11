@@ -59,9 +59,15 @@ class RequiredCapabilities(BaseModel):
 
 class TemplateCompilationMapping(BaseModel):
     """Compilation mapping from template parameters to HA automation structure."""
-    trigger: dict[str, Any] = Field(description="Trigger configuration with parameter placeholders")
-    condition: dict[str, Any] | None = Field(default=None, description="Condition configuration")
-    action: dict[str, Any] = Field(description="Action configuration with parameter placeholders")
+    trigger: list[dict[str, Any]] | dict[str, Any] = Field(
+        description="Trigger configuration with parameter placeholders (list for HA 2024.x+)"
+    )
+    condition: list[dict[str, Any]] | dict[str, Any] | None = Field(
+        default=None, description="Condition configuration (list for HA 2024.x+)"
+    )
+    action: list[dict[str, Any]] | dict[str, Any] = Field(
+        description="Action configuration with parameter placeholders (list for HA 2024.x+)"
+    )
     alias_template: Optional[str] = Field(default=None, description="Alias template with placeholders")
     description_template: Optional[str] = Field(default=None, description="Description template")
 

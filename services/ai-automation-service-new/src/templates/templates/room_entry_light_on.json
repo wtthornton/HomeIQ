@@ -41,25 +41,31 @@
   "safety_class": "low",
   "forbidden_targets": [],
   "compilation_mapping": {
-    "trigger": {
-      "platform": "state",
-      "entity_id": "{{presence_sensor_entity}}",
-      "to": "on"
-    },
-    "condition": {
-      "condition": "time",
-      "after": "{{time_window.after}}",
-      "before": "{{time_window.before}}"
-    },
-    "action": {
-      "service": "light.turn_on",
-      "target": {
-        "area_id": "{{matched_room_id}}"
-      },
-      "data": {
-        "brightness_pct": "{{brightness_pct}}"
+    "trigger": [
+      {
+        "platform": "state",
+        "entity_id": "{{presence_sensor_entity}}",
+        "to": "on"
       }
-    },
+    ],
+    "condition": [
+      {
+        "condition": "time",
+        "after": "{{time_window.after}}",
+        "before": "{{time_window.before}}"
+      }
+    ],
+    "action": [
+      {
+        "service": "light.turn_on",
+        "target": {
+          "area_id": "{{matched_room_id}}"
+        },
+        "data": {
+          "brightness_pct": "{{brightness_pct}}"
+        }
+      }
+    ],
     "alias_template": "{{room_type}} Entry Lights",
     "description_template": "Turn on {{room_type}} lights when presence is detected"
   },

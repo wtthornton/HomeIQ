@@ -61,12 +61,14 @@
   "safety_class": "low",
   "forbidden_targets": [],
   "compilation_mapping": {
-    "trigger": {
-      "platform": "{{trigger_type}}",
-      "entity_id": "{{trigger_entity}}",
-      "at": "{{trigger_time}}",
-      "to": "{{trigger_state}}"
-    },
+    "trigger": [
+      {
+        "platform": "{{trigger_type}}",
+        "entity_id": "{{trigger_entity}}",
+        "at": "{{trigger_time}}",
+        "to": "{{trigger_state}}"
+      }
+    ],
     "condition": null,
     "action": [
       {

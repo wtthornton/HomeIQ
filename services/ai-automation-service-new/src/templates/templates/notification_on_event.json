@@ -36,19 +36,23 @@
   "safety_class": "low",
   "forbidden_targets": [],
   "compilation_mapping": {
-    "trigger": {
-      "platform": "state",
-      "entity_id": "{{trigger_entity}}",
-      "to": "{{trigger_state}}"
-    },
-    "condition": null,
-    "action": {
-      "service": "notify.{{notification_target}}",
-      "data": {
-        "title": "{{notification_title}}",
-        "message": "{{notification_message}}"
+    "trigger": [
+      {
+        "platform": "state",
+        "entity_id": "{{trigger_entity}}",
+        "to": "{{trigger_state}}"
       }
-    },
+    ],
+    "condition": null,
+    "action": [
+      {
+        "service": "notify.{{notification_target}}",
+        "data": {
+          "title": "{{notification_title}}",
+          "message": "{{notification_message}}"
+        }
+      }
+    ],
     "alias_template": "Notify: {{notification_title}}",
     "description_template": "Send notification when {{trigger_entity}} changes to {{trigger_state}}"
   },

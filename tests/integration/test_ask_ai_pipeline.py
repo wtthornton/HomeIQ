@@ -90,6 +90,7 @@ class StepName(str, Enum):
     INTENT_PLAN = "Intent Plan"
     PLAN_EVALUATION = "Plan Evaluation"
     CLARIFICATION = "Clarification"
+    PLAN_VALIDATION = "Plan Validation"
     YAML_COMPILE = "YAML Compile"
     YAML_VALIDATION = "YAML Validation"
     YAML_CONTENT_ANALYSIS = "YAML Content Analysis"
@@ -179,6 +180,7 @@ class PipelineDebugData:
     entity_mapping: dict[str, str] = field(default_factory=dict)
     clarification_questions: list[dict] = field(default_factory=list)
     clarification_answers: list[dict] = field(default_factory=list)
+    resolved_context: dict[str, Any] = field(default_factory=dict)
     deployment_result: dict | None = None
     automation_id: str | None = None
 
@@ -283,10 +285,19 @@ class AskAITestHarness:
             else:
                 self._skip_step(StepName.CLARIFICATION, "Plan creation failed")
 
+            # --- Step 3.5: Plan Validation (resolve context) ---
+            resolved_context: dict | None = None
+            if plan_data:
+                validate_result = await self._step_plan_validation(plan_data)
+                if validate_result:
+                    resolved_context = validate_result.get("resolved_context", {})
+            else:
+                self._skip_step(StepName.PLAN_VALIDATION, "No plan available")
+
             # --- Step 4: YAML Compile (deterministic, no LLM) ---
             yaml_content: str | None = None
             if plan_data:
-                compile_data = await self._step_yaml_compile(plan_data)
+                compile_data = await self._step_yaml_compile(plan_data, resolved_context)
                 if compile_data:
                     yaml_content = compile_data.get("yaml")
                     compiled_id = compile_data.get("compiled_id")
@@ -679,10 +690,109 @@ class AskAITestHarness:
         return body
 
     # ------------------------------------------------------------------
+    # Step 3.5: Plan Validation (resolves context: room -> area_id, etc.)
+    # ------------------------------------------------------------------
+
+    async def _step_plan_validation(self, plan_data: dict) -> dict | None:
+        """
+        Call POST /automation/validate to resolve context.
+
+        This step resolves room_type -> area_id, finds presence/motion sensors,
+        and returns resolved_context that the compile step needs to substitute
+        {{placeholders}} with real entity/area IDs.
+        """
+        step = StepResult(name=StepName.PLAN_VALIDATION, status=StepStatus.PASS)
+        start = time.perf_counter()
+        score = 0
+
+        plan_id = plan_data.get("plan_id", "unknown")
+        template_id = plan_data.get("template_id", "")
+        template_version = plan_data.get("template_version", 1)
+        parameters = plan_data.get("parameters", {})
+
+        url = f"{self.hybrid_url}/validate"
+        payload = {
+            "plan_id": plan_id,
+            "template_id": template_id,
+            "template_version": template_version,
+            "parameters": parameters,
+        }
+        status, body, call_ms = await self._api_call("POST", url, payload)
+
+        try:
+            if status == 200 and body:
+                score += 30
+                step.details.append(f"API returned 200 ({call_ms:.0f}ms)")
+
+                is_valid = body.get("valid", False)
+                if is_valid:
+                    score += 25
+                    step.details.append("Validation: VALID")
+                else:
+                    step.warnings.append("Validation: INVALID (may still have resolved context)")
+
+                # Validation errors from template schema
+                v_errors = body.get("validation_errors", [])
+                if v_errors:
+                    for ve in v_errors:
+                        field_name = ve.get("field", "unknown")
+                        msg = ve.get("message", "unknown")
+                        step.warnings.append(f"Param error: {field_name} - {msg}")
+                else:
+                    score += 15
+                    step.details.append("No parameter validation errors")
+
+                # Resolved context -- the key output
+                resolved = body.get("resolved_context", {})
+                if resolved:
+                    score += 20
+                    self._debug.resolved_context = resolved
+                    step.details.append(f"Resolved context: {len(resolved)} keys")
+                    for rk, rv in resolved.items():
+                        step.details.append(f"  {rk}: {rv!r}")
+                else:
+                    score += 5  # Partial credit -- some templates need no context
+                    step.warnings.append("Empty resolved_context (template may not need external context)")
+
+                # Safety
+                safety = body.get("safety", {})
+                if safety:
+                    allowed = safety.get("allowed", True)
+                    requires_confirm = safety.get("requires_confirmation", False)
+                    if allowed:
+                        score += 10
+                        step.details.append("Safety: allowed")
+                    else:
+                        step.issues.append("Safety: NOT allowed")
+                    if requires_confirm:
+                        step.warnings.append("Safety: requires user confirmation")
+
+                step.data = {
+                    "valid": is_valid,
+                    "validation_errors": v_errors,
+                    "resolved_context": resolved,
+                    "safety": safety,
+                }
+            elif status == 0:
+                step.status = StepStatus.ERROR
+                step.errors.append("Could not connect to API")
+            else:
+                step.status = StepStatus.FAIL
+                step.errors.append(f"API returned {status}: {_truncate(body)}")
+        except Exception as exc:
+            step.status = StepStatus.ERROR
+            step.errors.append(f"Exception: {exc}")
+
+        step.score = score
+        step.duration_ms = (time.perf_counter() - start) * 1000
+        self._add_step(step)
+        return body if step.status == StepStatus.PASS else None
+
+    # ------------------------------------------------------------------
     # Step 4: YAML Compile (deterministic)
     # ------------------------------------------------------------------
 
-    async def _step_yaml_compile(self, plan_data: dict) -> dict | None:
+    async def _step_yaml_compile(self, plan_data: dict, resolved_context: dict | None = None) -> dict | None:
         step = StepResult(name=StepName.YAML_COMPILE, status=StepStatus.PASS)
         start = time.perf_counter()
         score = 0
@@ -698,7 +808,7 @@ class AskAITestHarness:
             "template_id": template_id,
             "template_version": template_version,
             "parameters": parameters,
-            "resolved_context": {},
+            "resolved_context": resolved_context or {},
         }
         status, body, call_ms = await self._api_call("POST", url, payload)
 
@@ -1081,7 +1191,20 @@ class AskAITestHarness:
         ps = PipelineScore()
 
         # Map steps to dimensions (Hybrid Flow)
-        ps.entity_extraction = self._dim_from_step(StepName.PLAN_EVALUATION)
+        # Entity extraction = blend of plan evaluation + plan validation (context resolution)
+        eval_dim = self._dim_from_step(StepName.PLAN_EVALUATION)
+        ctx_dim = self._dim_from_step(StepName.PLAN_VALIDATION)
+        if ctx_dim.score > 0:
+            # Weighted: 40% evaluation + 60% context resolution (entities are the key deliverable)
+            blended_score = round(eval_dim.score * 0.4 + ctx_dim.score * 0.6)
+            ps.entity_extraction = ScoreDimension(
+                score=blended_score,
+                details=eval_dim.details + ctx_dim.details,
+                issues=eval_dim.issues + ctx_dim.issues,
+            )
+        else:
+            ps.entity_extraction = eval_dim
+
         ps.suggestion_quality = self._dim_from_step(StepName.INTENT_PLAN)
 
         # YAML validity = average of compile + validation
@@ -1387,6 +1510,39 @@ class PipelineReportFormatter:
                 explanation = plan_step.data.get("explanation", "")
                 for chunk in cls._wrap(explanation, w - 10):
                     lines.append(cls._row(f"    {chunk}", w))
+                lines.append("+" + "-" * (w - 2) + "+")
+
+            # --- CONTEXT RESOLUTION ---
+            validate_step = next(
+                (s for s in result.steps if s.name == StepName.PLAN_VALIDATION), None
+            )
+            if validate_step and validate_step.data:
+                lines.append(cls._row("CONTEXT RESOLUTION", w))
+                vd = validate_step.data
+                lines.append(cls._row(f"  valid: {vd.get('valid', 'N/A')}", w))
+                resolved = vd.get("resolved_context", {})
+                if resolved:
+                    lines.append(cls._row(f"  resolved_context ({len(resolved)} keys):", w))
+                    for rk, rv in resolved.items():
+                        lines.append(cls._row(f"    {rk}: {rv!r}", w))
+                else:
+                    lines.append(cls._row("  resolved_context: (empty)", w))
+                v_errs = vd.get("validation_errors", [])
+                if v_errs:
+                    lines.append(cls._row(f"  parameter_errors ({len(v_errs)}):", w))
+                    for ve in v_errs:
+                        lines.append(cls._row(
+                            f"    {ve.get('field','?')}: {ve.get('message','?')}", w
+                        ))
+                safety = vd.get("safety", {})
+                if safety:
+                    lines.append(cls._row(f"  safety: allowed={safety.get('allowed', '?')}, "
+                                          f"confirm={safety.get('requires_confirmation', '?')}", w))
+                lines.append("+" + "-" * (w - 2) + "+")
+            elif result.debug.resolved_context:
+                lines.append(cls._row("CONTEXT RESOLUTION", w))
+                for rk, rv in result.debug.resolved_context.items():
+                    lines.append(cls._row(f"  {rk}: {rv!r}", w))
                 lines.append("+" + "-" * (w - 2) + "+")
 
             # --- PROMPT vs PLAN ANALYSIS ---
