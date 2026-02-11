@@ -1,0 +1,46 @@
+name: correctness
+description: >
+  Evaluates whether the agent's response is factually correct based on
+  the data returned by tool calls. Detects fabricated data, incorrect
+  numbers, and hallucinated details.
+
+prompt_template: |
+  You are evaluating the factual correctness of an AI agent's response.
+
+  ## User Input
+  {{ user_input }}
+
+  ## Agent Response
+  {{ agent_response }}
+
+  ## Tool Calls and Results
+  {{ tool_calls }}
+
+  ## Instructions
+  Check whether the agent's response accurately reflects the data from tool results.
+  Look for:
+  - Fabricated data not present in tool results
+  - Incorrect numbers, dates, or names
+  - Hallucinated details not supported by evidence
+
+  Choose one of: {{ output_labels }}
+
+output_labels:
+  - "Perfectly Correct"
+  - "Partially Correct"
+  - "Incorrect"
+
+score_mapping:
+  "Perfectly Correct": 1.0
+  "Partially Correct": 0.5
+  "Incorrect": 0.0
+
+examples:
+  - input: "What's the temperature in the living room?"
+    tool_result: '{"temperature": 72.5}'
+    response: "The living room is currently 72.5°F."
+    expected_label: "Perfectly Correct"
+  - input: "What's the temperature in the living room?"
+    tool_result: '{"temperature": 72.5}'
+    response: "The living room is 73°F and the humidity is 45%."
+    expected_label: "Partially Correct"

@@ -1,0 +1,41 @@
+name: helpfulness
+description: >
+  Evaluates whether the agent's response is helpful, actionable, and
+  guides the user toward their goal. Considers clarity of options
+  presented, next-step guidance, and overall usefulness.
+
+prompt_template: |
+  You are evaluating whether an AI agent's response is helpful to the user.
+
+  Consider:
+  1. Does it present clear options or actionable information?
+  2. Does it guide the user to their next step?
+  3. Is the information useful for achieving the user's goal?
+  4. Does it proactively address likely follow-up questions?
+
+  User input: {{ user_input }}
+  Agent response: {{ agent_response }}
+  Tool calls and results: {{ tool_calls }}
+
+  Choose one of the following labels: {{ output_labels }}
+  Respond with a JSON object containing "label" and "explanation".
+
+output_labels:
+  - "Very Helpful"
+  - "Somewhat Helpful"
+  - "Neutral/Mixed"
+  - "Not Helpful"
+
+score_mapping:
+  "Very Helpful": 1.0
+  "Somewhat Helpful": 0.66
+  "Neutral/Mixed": 0.33
+  "Not Helpful": 0.0
+
+examples:
+  - input: "Turn on the living room lights"
+    response: "I've turned on the living room lights. They're now set to 100% brightness. Would you like me to adjust the brightness or color?"
+    expected_label: "Very Helpful"
+  - input: "What's the temperature in the house?"
+    response: "The temperature is a number."
+    expected_label: "Not Helpful"

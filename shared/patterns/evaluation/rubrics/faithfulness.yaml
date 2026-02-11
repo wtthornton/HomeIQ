@@ -1,0 +1,45 @@
+name: faithfulness
+description: >
+  Evaluates whether the agent's response stays true to the conversation
+  context. Detects hallucinated user preferences and fabricated prior
+  statements.
+
+prompt_template: |
+  You are evaluating the faithfulness of an AI agent's response to the conversation context.
+
+  ## User Input
+  {{ user_input }}
+
+  ## Agent Response
+  {{ agent_response }}
+
+  ## Tool Calls and Results
+  {{ tool_calls }}
+
+  ## Instructions
+  Check whether the response is faithful to the conversation:
+  - Does it stay within the scope of information provided?
+  - Does it avoid hallucinating user preferences not mentioned?
+  - Does it avoid fabricating prior conversation that didn't happen?
+
+  Choose one of: {{ output_labels }}
+
+output_labels:
+  - "Completely Yes"
+  - "Generally Yes"
+  - "Generally No"
+  - "Completely No"
+
+score_mapping:
+  "Completely Yes": 1.0
+  "Generally Yes": 0.75
+  "Generally No": 0.25
+  "Completely No": 0.0
+
+examples:
+  - input: "Turn on the living room lights"
+    response: "I've turned on the living room lights for you."
+    expected_label: "Completely Yes"
+  - input: "Turn on the living room lights"
+    response: "I've turned on the living room lights. Last time you asked me to set them to 50% brightness, so I did that again."
+    expected_label: "Generally No"

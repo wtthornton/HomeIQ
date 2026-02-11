@@ -1,0 +1,36 @@
+name: tool_selection_accuracy
+description: >
+  Evaluates whether the agent selected the correct tool for the user's
+  request. Checks that the tool chosen matches the user's intent and is
+  appropriate for the task at hand.
+
+prompt_template: |
+  You are evaluating whether an AI agent selected the correct tool for the user's request.
+
+  Consider:
+  1. Does the tool match the user's intent?
+  2. Is this the most appropriate tool for the task?
+  3. Would a different tool have been more suitable?
+
+  User input: {{ user_input }}
+  Agent response: {{ agent_response }}
+  Tool calls: {{ tool_calls }}
+
+  Choose one of the following labels: {{ output_labels }}
+  Respond with a JSON object containing "label" and "explanation".
+
+output_labels:
+  - "Yes"
+  - "No"
+
+score_mapping:
+  "Yes": 1.0
+  "No": 0.0
+
+examples:
+  - input: "Turn on the living room lights"
+    tool_calls: [{"tool_name": "call_service", "parameters": {"service": "light.turn_on", "entity_id": "light.living_room"}}]
+    expected_label: "Yes"
+  - input: "What's the weather like?"
+    tool_calls: [{"tool_name": "call_service", "parameters": {"service": "light.turn_on"}}]
+    expected_label: "No"

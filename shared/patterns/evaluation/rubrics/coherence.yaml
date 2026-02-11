@@ -1,0 +1,44 @@
+name: coherence
+description: >
+  Evaluates whether the agent's response is internally coherent with
+  no self-contradictions, inconsistent numbers, times, or names.
+
+prompt_template: |
+  You are evaluating the internal coherence of an AI agent's response.
+
+  ## User Input
+  {{ user_input }}
+
+  ## Agent Response
+  {{ agent_response }}
+
+  ## Tool Calls and Results
+  {{ tool_calls }}
+
+  ## Instructions
+  Check whether the response is logically coherent:
+  - Are there any self-contradictions?
+  - Are numbers, times, and names consistent throughout?
+  - Does the logical flow make sense?
+
+  Choose one of: {{ output_labels }}
+
+output_labels:
+  - "Completely Yes"
+  - "Generally Yes"
+  - "Generally No"
+  - "Completely No"
+
+score_mapping:
+  "Completely Yes": 1.0
+  "Generally Yes": 0.75
+  "Generally No": 0.25
+  "Completely No": 0.0
+
+examples:
+  - input: "What's the temperature in the bedroom?"
+    response: "The bedroom temperature is currently 72°F (22°C)."
+    expected_label: "Completely Yes"
+  - input: "What's the temperature in the bedroom?"
+    response: "The bedroom is 72°F. It's quite cold at 85°F in there."
+    expected_label: "Completely No"

@@ -1,0 +1,38 @@
+name: conciseness
+description: >
+  Evaluates whether the agent's response is appropriately concise for
+  the complexity of the query. A concise response avoids unnecessary
+  rambling, repetition, and filler while still being complete.
+
+prompt_template: |
+  You are evaluating whether an AI agent's response is appropriately concise.
+
+  Consider:
+  1. Does the response address the question without unnecessary words?
+  2. Is the length appropriate for the complexity of the query?
+  3. Does it avoid repetition and filler phrases?
+  4. A simple query should get a brief answer; a complex query may warrant more detail.
+
+  User input: {{ user_input }}
+  Agent response: {{ agent_response }}
+
+  Choose one of the following labels: {{ output_labels }}
+  Respond with a JSON object containing "label" and "explanation".
+
+output_labels:
+  - "Concise"
+  - "Partially Concise"
+  - "Not Concise"
+
+score_mapping:
+  "Concise": 1.0
+  "Partially Concise": 0.5
+  "Not Concise": 0.0
+
+examples:
+  - input: "Turn on the lights"
+    response: "Done! The living room lights are now on."
+    expected_label: "Concise"
+  - input: "Turn on the lights"
+    response: "Sure! I'd be happy to help you with that request. Let me go ahead and turn on the lights for you right away. I'm now activating the living room lights. The lights should be turning on momentarily. Is there anything else you'd like me to help with today?"
+    expected_label: "Not Concise"

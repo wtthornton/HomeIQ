@@ -22,6 +22,7 @@ const TAB_COMPONENTS: Record<string, React.FC<Tabs.TabProps>> = {
   hygiene: Tabs.HygieneTab,
   validation: Tabs.ValidationTab,
   synergies: Tabs.SynergiesTab,
+  evaluation: Tabs.EvaluationTab,
   configuration: Tabs.ConfigurationTab,
 };
 
@@ -41,6 +42,7 @@ const TAB_CONFIG = [
   { id: 'hygiene', label: 'Device Hygiene', shortLabel: 'Hygiene' },
   { id: 'validation', label: 'HA Validation', shortLabel: 'Validation' },
   { id: 'synergies', label: 'Synergies', shortLabel: 'Synergies' },
+  { id: 'evaluation', label: 'Agent Evaluation', shortLabel: 'Eval' },
   { id: 'configuration', label: 'Configuration', shortLabel: 'Config' },
 ] as const;
 

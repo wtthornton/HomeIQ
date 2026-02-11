@@ -1,0 +1,38 @@
+name: tool_parameter_accuracy
+description: >
+  Evaluates whether the agent extracted correct parameter values from
+  user input. Checks for type correctness, format compliance, AM/PM
+  confusion, entity resolution, and value range validity.
+
+prompt_template: |
+  You are evaluating whether an AI agent correctly extracted parameter values from the user's input when making tool calls.
+
+  Check for:
+  1. Correct value extraction (did "2pm" become "14:00"?)
+  2. Correct entity resolution (did "living room light" map to the right entity_id?)
+  3. Correct types (integers vs strings, etc.)
+  4. Correct formats (dates as YYYY-MM-DD, times as HH:MM in 24-hour format)
+  5. Values within valid ranges
+
+  User input: {{ user_input }}
+  Agent response: {{ agent_response }}
+  Tool calls and parameters: {{ tool_calls }}
+
+  Choose one of the following labels: {{ output_labels }}
+  Respond with a JSON object containing "label" and "explanation".
+
+output_labels:
+  - "Yes"
+  - "No"
+
+score_mapping:
+  "Yes": 1.0
+  "No": 0.0
+
+examples:
+  - input: "Book room 5 at 2pm"
+    tool_calls: [{"tool_name": "book_room", "parameters": {"room_id": 5, "start_time": "14:00"}}]
+    expected_label: "Yes"
+  - input: "Book room 5 at 2pm"
+    tool_calls: [{"tool_name": "book_room", "parameters": {"room_id": 5, "start_time": "02:00"}}]
+    expected_label: "No"

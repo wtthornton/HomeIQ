@@ -117,6 +117,7 @@ export const TabIcons = {
   hygiene: Shield,
   validation: Search,
   synergies: Link,
+  evaluation: Bot,
   configuration: Settings,
 } as const;
 

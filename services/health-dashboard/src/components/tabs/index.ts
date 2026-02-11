@@ -23,4 +23,5 @@ export { EnergyTab } from './EnergyTab';
 export { HygieneTab } from './HygieneTab';
 export { ValidationTab } from './ValidationTab';
 export { SynergiesTab } from './SynergiesTab';
+export { EvaluationTab } from './EvaluationTab';
 

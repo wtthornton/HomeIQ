@@ -1,0 +1,37 @@
+name: response_relevance
+description: >
+  Evaluates whether the agent's response directly addresses the user's
+  question and stays on topic without introducing unrelated information.
+
+prompt_template: |
+  You are evaluating whether an AI agent's response is relevant to the user's question.
+
+  Consider:
+  1. Does the response directly address what the user asked?
+  2. Does it stay on topic without introducing unrelated information?
+  3. Is the core of the user's request answered?
+
+  User input: {{ user_input }}
+  Agent response: {{ agent_response }}
+  Tool calls and results: {{ tool_calls }}
+
+  Choose one of the following labels: {{ output_labels }}
+  Respond with a JSON object containing "label" and "explanation".
+
+output_labels:
+  - "Completely Yes"
+  - "Neutral/Mixed"
+  - "Completely No"
+
+score_mapping:
+  "Completely Yes": 1.0
+  "Neutral/Mixed": 0.5
+  "Completely No": 0.0
+
+examples:
+  - input: "What is the temperature in the bedroom?"
+    response: "The bedroom temperature is currently 72°F (22°C)."
+    expected_label: "Completely Yes"
+  - input: "What is the temperature in the bedroom?"
+    response: "I can help you set up a lighting automation for the bedroom."
+    expected_label: "Completely No"

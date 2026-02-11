@@ -1,0 +1,230 @@
+# Proactive Agent — Evaluation Configuration
+# Agent: Context-Aware Proactive Suggestion Service (port 8031)
+# Purpose: Generates automation suggestions based on weather, sports, energy, and historical patterns
+
+agent_name: proactive-agent
+model: gpt-4o-mini
+description: >
+  Proactive Agent — analyzes weather, sports, energy/carbon, and historical
+  patterns to generate context-aware automation suggestions for users.
+  Uses AI-powered generation with template fallback.
+
+# -- Tools / stages available to the agent --
+tools:
+  - name: fetch_context
+    description: >
+      Fetch context data from 4 parallel sources: weather, sports,
+      energy/carbon intensity, and historical usage patterns.
+    parameters:
+      - name: context_types
+        type: list
+        required: false
+        description: Types of context to fetch (weather, sports, energy, historical)
+        valid_values: [weather, sports, energy, historical]
+    required_params: []
+
+  - name: analyze_context
+    description: >
+      Analyze fetched context data to identify automation opportunities.
+      Produces insights like high-temp alerts, upcoming games, low-carbon windows.
+    parameters:
+      - name: context_data
+        type: object
+        required: true
+        description: Raw context data from fetch_context
+      - name: analysis_type
+        type: string
+        required: false
+        description: Type of analysis to perform
+        valid_values: [full, weather_only, sports_only, energy_only]
+    required_params: [context_data]
+
+  - name: generate_prompt
+    description: >
+      Generate suggestion text from analyzed context using AI (GPT-4o-mini)
+      or template fallback. Includes device validation.
+    parameters:
+      - name: analysis_result
+        type: object
+        required: true
+        description: Analyzed context with insights
+      - name: device_inventory
+        type: list
+        required: true
+        description: Validated device inventory from HA AI Agent
+      - name: template_type
+        type: string
+        required: false
+        description: Which generation mode to use
+        valid_values: [ai, template]
+    required_params: [analysis_result, device_inventory]
+
+  - name: create_suggestion
+    description: >
+      Create and store a suggestion with quality scoring, duplicate detection,
+      and status tracking. Stored as 'pending' until user sends.
+    parameters:
+      - name: prompt
+        type: string
+        required: true
+        description: Generated suggestion text
+      - name: context_type
+        type: string
+        required: true
+        description: Source context type
+        valid_values: [weather, sports, energy, historical]
+      - name: quality_score
+        type: float
+        required: true
+        description: Quality score from 0.0 to 1.0
+      - name: context_metadata
+        type: object
+        required: false
+        description: Full context analysis for traceability
+    required_params: [prompt, context_type, quality_score]
+
+  - name: send_to_ha_agent
+    description: >
+      Send an approved suggestion to the HA AI Agent service for
+      automation creation. Includes automation_hints for the agent.
+    parameters:
+      - name: suggestion_id
+        type: string
+        required: true
+        description: ID of the suggestion to send
+      - name: conversation_id
+        type: string
+        required: false
+        description: Conversation ID for traceability
+    required_params: [suggestion_id]
+
+# -- Expected tool call sequences --
+paths:
+  - name: context_before_suggestion
+    description: >
+      Full pipeline: context must be fetched and analyzed before generating
+      suggestions. Never create suggestions without fresh context.
+    sequence: [fetch_context, analyze_context, generate_prompt, create_suggestion]
+    exceptions:
+      - "Manual sample suggestion created for testing via /sample endpoint"
+
+  - name: suggestion_before_send
+    description: >
+      A suggestion must exist (pending status) before it can be sent
+      to the HA AI Agent service.
+    sequence: [create_suggestion, send_to_ha_agent]
+    exceptions: []
+
+# -- Parameter extraction rules --
+parameter_rules:
+  - tool: create_suggestion
+    param: quality_score
+    extraction_type: exact
+    format: "0.0-1.0"
+    description: Must be a float between 0.0 and 1.0
+
+  - tool: create_suggestion
+    param: context_type
+    extraction_type: exact
+    valid_values: [weather, sports, energy, historical]
+
+  - tool: generate_prompt
+    param: template_type
+    extraction_type: exact
+    valid_values: [ai, template]
+
+# -- System prompt rules --
+system_prompt_rules:
+  - name: suggestion_relevance
+    description: >
+      Generated suggestions must be relevant to the current context data
+      (weather conditions, upcoming sports events, energy prices, etc.).
+      Suggestions should not be generic or disconnected from context.
+    check_type: llm_judge
+    severity: critical
+    labels: [Pass, Partial, Fail]
+
+  - name: no_duplicate_suggestions
+    description: >
+      Agent must not generate suggestions that duplicate automations the
+      user already has. 24-hour deduplication window enforced.
+    check_type: llm_judge
+    severity: warning
+    labels: [Pass, Fail]
+
+  - name: device_validation
+    description: >
+      Suggestions must only reference devices that exist in the user's
+      actual device inventory. No hallucinated device names or types.
+    check_type: llm_judge
+    severity: critical
+    labels: [Pass, Fail]
+
+  - name: no_hardcoded_times
+    description: >
+      Sports-related suggestions must NOT use hardcoded times. Must use
+      relative timing (e.g., "30 minutes before game") or sensor state
+      triggers (PRE→IN, IN→POST), never fixed-time triggers.
+    check_type: response_check
+    severity: warning
+    pattern: "\\b([01]?\\d|2[0-3]):[0-5]\\d\\s*(AM|PM|am|pm)\\b"
+
+  - name: quality_threshold_met
+    description: >
+      Only suggestions with quality_score >= 0.6 should be stored.
+      Low-quality suggestions should be filtered out.
+    check_type: llm_judge
+    severity: warning
+    labels: [Pass, Fail]
+
+# -- Quality rubrics to apply --
+quality_rubrics:
+  - correctness
+  - faithfulness
+  - coherence
+  - helpfulness
+  - conciseness
+  - response_relevance
+
+# -- Safety rubrics to apply --
+safety_rubrics:
+  - harmfulness
+  - stereotyping
+
+# -- Score thresholds --
+thresholds:
+  goal_success_rate: 0.80
+  tool_selection_accuracy: 0.85
+  tool_parameter_accuracy: 0.80
+  correctness: 0.85
+  suggestion_relevance: 0.85
+  device_validation: 0.95
+  no_duplicate_suggestions: 0.90
+  harmfulness: 1.00
+
+# -- Priority matrix --
+priority_matrix:
+  - priority: P0
+    level: L5_SAFETY
+    metric: harmfulness
+    frequency: every_session
+  - priority: P0
+    level: L4_QUALITY
+    metric: device_validation
+    frequency: every_session
+  - priority: P1
+    level: L1_OUTCOME
+    metric: goal_success_rate
+    frequency: every_session
+  - priority: P1
+    level: L4_QUALITY
+    metric: suggestion_relevance
+    frequency: every_session
+  - priority: P2
+    level: L2_PATH
+    metric: tool_selection_accuracy
+    frequency: hourly
+  - priority: P2
+    level: L3_DETAILS
+    metric: tool_parameter_accuracy
+    frequency: hourly

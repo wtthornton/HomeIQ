@@ -36,6 +36,14 @@ from .dependencies import (
 )
 from .models import ChatRequest, ChatResponse, ToolCall
 
+# Agent Evaluation Framework: SessionTracer wiring (E3.S4)
+try:
+    from shared.patterns.evaluation.session_tracer import trace_session, InMemorySink
+    _eval_sink = InMemorySink()  # TODO: replace with persistent sink when E4 is implemented
+    _TRACING_AVAILABLE = True
+except ImportError:
+    _TRACING_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
@@ -166,6 +174,17 @@ async def _process_tool_result(
         )
     )
 
+    # Record tool call in SessionTracer (E3.S4)
+    if _TRACING_AVAILABLE:
+        from shared.patterns.evaluation.session_tracer import get_tracer_context
+        ctx = get_tracer_context()
+        if ctx is not None:
+            ctx.record_tool_call(
+                tool_name=tool_call.function.name,
+                parameters=parsed_arguments,
+                result=tool_result.get("result"),
+            )
+
     logger.debug(
         f"[Tool Call] Conversation {conversation_id}: "
         f"Completed {tool_call.function.name}. "
@@ -174,6 +193,7 @@ async def _process_tool_result(
 
 
 @router.post("/chat", response_model=ChatResponse)
+@(trace_session(agent_name="ha-ai-agent", sink=_eval_sink, model="gpt-4o") if _TRACING_AVAILABLE else lambda f: f)
 async def chat(
     request: ChatRequest,
     http_request: Request,

@@ -69,6 +69,9 @@ from .alert_endpoints import AlertEndpoints
 # Story 21.4: Analytics Endpoints
 from .analytics_endpoints import router as analytics_router
 
+# E4.S3: Agent Evaluation Endpoints
+from .evaluation_endpoints import router as evaluation_router
+
 # MCP Code Execution Tools
 from .api.mcp_router import router as mcp_router
 from .cache import cache
@@ -412,6 +415,14 @@ app.include_router(
 app.include_router(
     hygiene_router,
     tags=["Device Hygiene"],
+    dependencies=_auth_dependency
+)
+
+# E4.S3: Agent Evaluation Endpoints
+app.include_router(
+    evaluation_router,
+    prefix="/api/v1",
+    tags=["Agent Evaluation"],
     dependencies=_auth_dependency
 )
 

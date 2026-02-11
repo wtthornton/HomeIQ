@@ -1,0 +1,45 @@
+name: goal_success_rate
+description: >
+  Evaluates whether the user achieved their goal in the session.
+  Considers user intent, agent actions taken, and final outcome.
+
+prompt_template: |
+  You are evaluating whether an AI agent successfully helped a user achieve their goal.
+
+  ## User Input
+  {{ user_input }}
+
+  ## Agent Response
+  {{ agent_response }}
+
+  ## Tool Calls Made
+  {{ tool_calls }}
+
+  ## Instructions
+  Consider:
+  1. What was the user's intent or goal?
+  2. Did the agent take appropriate actions (tool calls)?
+  3. Was the final outcome what the user wanted?
+
+  Choose one of: {{ output_labels }}
+
+output_labels:
+  - "Yes"
+  - "Partial"
+  - "No"
+
+score_mapping:
+  "Yes": 1.0
+  "Partial": 0.5
+  "No": 0.0
+
+examples:
+  - input: "Turn on the living room lights"
+    response: "I've turned on the living room lights for you."
+    expected_label: "Yes"
+  - input: "Turn on the living room lights"
+    response: "I found 3 light entities but I'm not sure which one you mean."
+    expected_label: "Partial"
+  - input: "Turn on the living room lights"
+    response: "I'm sorry, I can't help with that."
+    expected_label: "No"

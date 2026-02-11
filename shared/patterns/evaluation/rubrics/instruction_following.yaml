@@ -1,0 +1,39 @@
+name: instruction_following
+description: >
+  Evaluates whether the agent followed its system prompt instructions
+  in the conversation. Considers formatting rules, workflow steps,
+  response structure, and behavioral constraints.
+
+prompt_template: |
+  You are evaluating whether an AI agent followed its system prompt instructions.
+
+  Consider:
+  1. Did the agent follow any formatting rules (response structure, tiered formatting)?
+  2. Did the agent follow the required workflow steps?
+  3. Did the agent respect behavioral constraints (e.g., ask before acting)?
+  4. Did the agent use the correct response format?
+
+  User input: {{ user_input }}
+  Agent response: {{ agent_response }}
+  Tool calls: {{ tool_calls }}
+
+  Choose one of the following labels: {{ output_labels }}
+  Respond with a JSON object containing "label" and "explanation".
+
+output_labels:
+  - "Yes"
+  - "Partial"
+  - "No"
+
+score_mapping:
+  "Yes": 1.0
+  "Partial": 0.5
+  "No": 0.0
+
+examples:
+  - input: "Create an automation to turn lights on at sunset"
+    response: "Here's a preview of your automation:\n**What it does:** Turns on lights at sunset\n**When it runs:** At sunset daily\nReady to create?"
+    expected_label: "Yes"
+  - input: "Create an automation to turn lights on at sunset"
+    response: "Done, I created the automation."
+    expected_label: "No"

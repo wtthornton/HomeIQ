@@ -1,0 +1,259 @@
+"""
+Tests for E1.S7: EvaluationRegistry + Pipeline
+"""
+
+import pytest
+
+from shared.patterns.evaluation.config import (
+    AgentEvalConfig,
+    ParamDef,
+    ParamRule,
+    PathRule,
+    ToolDef,
+)
+from shared.patterns.evaluation.evaluators.l1_outcome import GoalSuccessRateEvaluator
+from shared.patterns.evaluation.evaluators.l2_path import (
+    ToolSelectionAccuracyEvaluator,
+    ToolSequenceValidatorEvaluator,
+)
+from shared.patterns.evaluation.evaluators.l3_details import ToolParameterAccuracyEvaluator
+from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from shared.patterns.evaluation.models import (
+    AgentResponse,
+    EvalLevel,
+    SessionTrace,
+    ToolCall,
+    UserMessage,
+)
+from shared.patterns.evaluation.registry import EvaluationRegistry
+
+
+class MockProvider(LLMProvider):
+    def __init__(self, response: str = ""):
+        self._response = response
+
+    async def complete(self, prompt: str) -> str:
+        return self._response
+
+
+def _make_full_config() -> AgentEvalConfig:
+    return AgentEvalConfig(
+        agent_name="test-agent",
+        model="gpt-4o",
+        tools=[
+            ToolDef(
+                name="search_rooms",
+                description="Search for rooms",
+                parameters=[
+                    ParamDef(name="date", type="string", format="YYYY-MM-DD"),
+                ],
+                required_params=["date"],
+            ),
+            ToolDef(
+                name="book_room",
+                description="Book a room",
+                parameters=[
+                    ParamDef(name="room_id", type="integer", required=True),
+                    ParamDef(name="start_time", type="string", format="HH:MM"),
+                ],
+                required_params=["room_id", "start_time"],
+            ),
+        ],
+        paths=[
+            PathRule(
+                name="standard_booking",
+                sequence=["search_rooms", "book_room"],
+            ),
+        ],
+        parameter_rules=[
+            ParamRule(tool="book_room", param="room_id", extraction_type="exact"),
+        ],
+        quality_rubrics=["correctness", "faithfulness", "coherence"],
+        safety_rubrics=["harmfulness", "stereotyping", "refusal"],
+        thresholds={
+            "goal_success_rate": 0.80,
+            "correctness": 0.85,
+            "harmfulness": 1.00,
+        },
+    )
+
+
+def _make_session() -> SessionTrace:
+    return SessionTrace(
+        agent_name="test-agent",
+        user_messages=[UserMessage(content="Search for rooms tomorrow and book room 3 at 2pm")],
+        agent_responses=[AgentResponse(content="I found rooms and booked room 3 at 14:00.")],
+        tool_calls=[
+            ToolCall(
+                tool_name="search_rooms",
+                parameters={"date": "2026-03-15"},
+                result={"rooms": [{"id": 3, "name": "Room 3"}]},
+                sequence_index=0,
+            ),
+            ToolCall(
+                tool_name="book_room",
+                parameters={"room_id": 3, "start_time": "14:00"},
+                result={"success": True},
+                sequence_index=1,
+            ),
+        ],
+    )
+
+
+class TestEvaluationRegistry:
+    def test_register_agent(self):
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = _make_full_config()
+
+        registry.register_agent(config)
+        assert "test-agent" in registry.registered_agents
+
+    def test_register_multiple_agents(self):
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+
+        config1 = AgentEvalConfig(agent_name="agent-1")
+        config2 = AgentEvalConfig(agent_name="agent-2")
+
+        registry.register_agent(config1)
+        registry.register_agent(config2)
+
+        assert len(registry.registered_agents) == 2
+        assert "agent-1" in registry.registered_agents
+        assert "agent-2" in registry.registered_agents
+
+    def test_get_evaluators(self):
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = _make_full_config()
+
+        registry.register_agent(config)
+        evaluators = registry.get_evaluators("test-agent")
+
+        # Should have: L1 (goal), L2 (selection + sequence), L3 (params),
+        # L4 (correctness + faithfulness + coherence), L5 (harm + stereo + refusal)
+        assert len(evaluators) == 10
+
+    def test_get_evaluators_unknown_agent(self):
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+        with pytest.raises(KeyError, match="not registered"):
+            registry.get_evaluators("unknown")
+
+    def test_evaluator_types(self):
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = _make_full_config()
+        registry.register_agent(config)
+        evaluators = registry.get_evaluators("test-agent")
+
+        evaluator_types = {type(e) for e in evaluators}
+        assert GoalSuccessRateEvaluator in evaluator_types
+        assert ToolSelectionAccuracyEvaluator in evaluator_types
+        assert ToolSequenceValidatorEvaluator in evaluator_types
+        assert ToolParameterAccuracyEvaluator in evaluator_types
+
+    def test_minimal_config_has_only_goal(self):
+        """A config with no tools/paths/rubrics should still get L1."""
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = AgentEvalConfig(agent_name="minimal")
+        registry.register_agent(config)
+
+        evaluators = registry.get_evaluators("minimal")
+        assert len(evaluators) == 1
+        assert isinstance(evaluators[0], GoalSuccessRateEvaluator)
+
+    def test_tools_only_gets_l2_l3(self):
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = AgentEvalConfig(
+            agent_name="tools-only",
+            tools=[ToolDef(name="search")],
+        )
+        registry.register_agent(config)
+
+        evaluators = registry.get_evaluators("tools-only")
+        names = {e.name for e in evaluators}
+        assert "goal_success_rate" in names
+        assert "tool_selection_accuracy" in names
+        assert "tool_parameter_accuracy" in names
+
+    @pytest.mark.asyncio
+    async def test_evaluate_session(self):
+        provider = MockProvider('{"label": "Yes", "explanation": "All good."}')
+        judge = LLMJudge(provider=provider)
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = _make_full_config()
+        registry.register_agent(config)
+
+        session = _make_session()
+        report = await registry.evaluate(session)
+
+        assert report.session_id == session.session_id
+        assert report.agent_name == "test-agent"
+        assert len(report.results) > 0
+
+    @pytest.mark.asyncio
+    async def test_evaluate_unknown_agent(self):
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+
+        session = SessionTrace(agent_name="unknown")
+        with pytest.raises(KeyError, match="not registered"):
+            await registry.evaluate(session)
+
+    @pytest.mark.asyncio
+    async def test_evaluate_batch(self):
+        provider = MockProvider('{"label": "Yes", "explanation": "All good."}')
+        judge = LLMJudge(provider=provider)
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = _make_full_config()
+        registry.register_agent(config)
+
+        sessions = [_make_session(), _make_session()]
+        batch = await registry.evaluate_batch(sessions)
+
+        assert batch.sessions_evaluated == 2
+        assert len(batch.reports) == 2
+
+    @pytest.mark.asyncio
+    async def test_evaluate_batch_empty(self):
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+        batch = await registry.evaluate_batch([])
+        assert batch.sessions_evaluated == 0
+
+    @pytest.mark.asyncio
+    async def test_evaluate_report_has_results_per_level(self):
+        provider = MockProvider('{"label": "Yes", "explanation": "OK."}')
+        judge = LLMJudge(provider=provider)
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = _make_full_config()
+        registry.register_agent(config)
+
+        session = _make_session()
+        report = await registry.evaluate(session)
+
+        # Check that results span multiple levels
+        levels_seen = {r.level for r in report.results}
+        assert EvalLevel.OUTCOME in levels_seen
+        assert EvalLevel.PATH in levels_seen
+        assert EvalLevel.DETAILS in levels_seen
+        assert EvalLevel.QUALITY in levels_seen
+        assert EvalLevel.SAFETY in levels_seen
+
+    def test_unknown_quality_rubric_skipped(self):
+        judge = LLMJudge(provider=MockProvider())
+        registry = EvaluationRegistry(llm_judge=judge)
+        config = AgentEvalConfig(
+            agent_name="test",
+            quality_rubrics=["correctness", "unknown_rubric"],
+        )
+        registry.register_agent(config)
+        evaluators = registry.get_evaluators("test")
+        names = {e.name for e in evaluators}
+        assert "correctness" in names
+        # unknown_rubric should be skipped with a warning
+        assert "unknown_rubric" not in names
