@@ -4,7 +4,7 @@
 #
 # Usage: ./scripts/phase1-monitor-rebuild.sh [state-file]
 #
-# Author: TappsCodingAgents Framework with Context7 MCP
+# Author: AI quality tools Framework with Context7 MCP
 # Date: 2026-02-04
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

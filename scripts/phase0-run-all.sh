@@ -10,7 +10,7 @@
 #   --auto-fix       Auto-fix websocket health check issue
 #   --skip-backup    Skip backup step (not recommended)
 #
-# Author: TappsCodingAgents - Simple Mode Orchestrator
+# Author: AI quality tools - Simple Mode Orchestrator
 # Date: 2026-02-04
 
 set -euo pipefail

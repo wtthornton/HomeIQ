@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-All recommendations from `PATTERNS_SYNERGIES_IMPROVEMENT_RECOMMENDATIONS.md` have been successfully implemented and comprehensively tested using @simple-mode and tapps-agents.
+All recommendations from `PATTERNS_SYNERGIES_IMPROVEMENT_RECOMMENDATIONS.md` have been successfully implemented and comprehensively tested using workflow and ai-tools.
 
 ---
 

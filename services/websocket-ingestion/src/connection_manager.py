@@ -349,8 +349,12 @@ class ConnectionManager:
 
     async def _listen_loop(self):
         """Loop for listening to WebSocket messages"""
-        current_state = self.state_machine.get_state()
-        while current_state == ConnectionState.CONNECTED and self.client and self.client.is_connected:
+        while True:
+            current_state = self.state_machine.get_state()
+            if current_state != ConnectionState.CONNECTED or not self.client or not self.client.is_connected:
+                logger.info("Listen loop exiting: connection no longer active")
+                break
+
             try:
                 await self.client.listen()
             except asyncio.CancelledError:
@@ -360,20 +364,21 @@ class ConnectionManager:
                 if self.on_error:
                     await self.on_error(f"Listen error: {e}")
 
-                # If we lose connection, transition to reconnecting
+            # listen() returned — the WebSocket connection is lost.
+            # Transition to reconnecting so we don't spin.
+            logger.warning("listen() returned — WebSocket connection lost, initiating reconnect")
+            try:
+                self.state_machine.transition(ConnectionState.RECONNECTING)
+            except InvalidStateTransition:
                 try:
-                    self.state_machine.transition(ConnectionState.RECONNECTING)
+                    self.state_machine.transition(ConnectionState.FAILED)
                 except InvalidStateTransition:
-                    try:
-                        self.state_machine.transition(ConnectionState.FAILED)
-                    except InvalidStateTransition:
-                        pass
+                    pass
 
-                # Start reconnection if not already reconnecting
-                current_state = self.state_machine.get_state()
-                if current_state in [ConnectionState.RECONNECTING, ConnectionState.FAILED]:
-                    self.reconnect_task = asyncio.create_task(self._reconnect_loop())
-                break
+            current_state = self.state_machine.get_state()
+            if current_state in [ConnectionState.RECONNECTING, ConnectionState.FAILED]:
+                self.reconnect_task = asyncio.create_task(self._reconnect_loop())
+            break
 
     def _calculate_delay(self) -> float:
         """Calculate delay for next reconnection attempt with exponential backoff and jitter"""
@@ -444,6 +449,51 @@ class ConnectionManager:
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
 
+    async def _run_initial_discovery(self):
+        """
+        Run initial discovery after a short delay to ensure the listen loop is active.
+
+        The listen loop must be running to route WebSocket responses (device_registry/list,
+        entity_registry/list) back to the discovery service's pending Futures.
+        This method is scheduled as a task from _on_connect so it runs after
+        connect() starts the listen_task.
+        """
+        try:
+            # Brief yield to let the listen loop start processing messages
+            await asyncio.sleep(2)
+
+            logger.info("🔍 Running initial device and entity discovery...")
+
+            websocket_for_discovery = None
+            if self.client and self.client.websocket:
+                websocket_for_discovery = self.client.websocket
+                logger.info("📡 Using WebSocket for discovery (listen loop active)")
+            else:
+                logger.warning("⚠️  WebSocket not available - discovery will be limited")
+
+            await self.discovery_service.discover_all(websocket=websocket_for_discovery, store=True)
+
+            # Subscribe to registry update events for real-time updates
+            if self.client and self.client.websocket:
+                logger.info("📡 Subscribing to registry update events...")
+                await self.discovery_service.subscribe_to_device_registry_events(self.client.websocket)
+                await self.discovery_service.subscribe_to_entity_registry_events(self.client.websocket)
+            else:
+                logger.warning("⚠️  WebSocket not available - skipping registry event subscriptions")
+
+            # Start periodic discovery refresh task
+            if not self.periodic_discovery_task or self.periodic_discovery_task.done():
+                logger.info(f"🔄 Starting periodic discovery refresh (every {self.discovery_refresh_interval/60:.1f} minutes)...")
+                self.periodic_discovery_task = asyncio.create_task(self._periodic_discovery_refresh())
+
+        except Exception as e:
+            logger.error(f"❌ Initial discovery failed (non-fatal): {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Still start periodic refresh even if initial discovery fails
+            if not self.periodic_discovery_task or self.periodic_discovery_task.done():
+                self.periodic_discovery_task = asyncio.create_task(self._periodic_discovery_refresh())
+
     async def _periodic_discovery_refresh(self):
         """
         Periodically refresh the discovery cache to keep device/area mappings up-to-date.
@@ -508,39 +558,11 @@ class ConnectionManager:
         logger.info("⏳ Preparing to subscribe to events...")
         await self._subscribe_to_events()
 
-        # Discover devices and entities
-        # CRITICAL: Device discovery requires WebSocket (HA has no HTTP API for device registry)
-        # We need to pass WebSocket for device discovery to work, including Zigbee identification
-        logger.info("🔍 Starting device and entity discovery...")
-        try:
-            # Pass WebSocket if available (required for device discovery and Zigbee identification)
-            # Note: This may cause concurrency issues with event listening, but device discovery
-            # completes quickly and is necessary for proper device identification
-            websocket_for_discovery = None
-            if self.client and self.client.websocket:
-                websocket_for_discovery = self.client.websocket
-                logger.info("📡 Using WebSocket for device discovery (required for device registry)")
-            else:
-                logger.warning("⚠️  WebSocket not available - device discovery will be limited")
-            
-            await self.discovery_service.discover_all(websocket=websocket_for_discovery)
-
-            # Subscribe to registry update events (still requires WebSocket for real-time updates)
-            if self.client and self.client.websocket:
-                logger.info("📡 Subscribing to registry update events...")
-                await self.discovery_service.subscribe_to_device_registry_events(self.client.websocket)
-                await self.discovery_service.subscribe_to_entity_registry_events(self.client.websocket)
-            else:
-                logger.warning("⚠️  WebSocket not available - skipping registry event subscriptions")
-
-            # Start periodic discovery refresh task
-            if not self.periodic_discovery_task or self.periodic_discovery_task.done():
-                logger.info(f"🔄 Starting periodic discovery refresh (every {self.discovery_refresh_interval/60:.1f} minutes)...")
-                self.periodic_discovery_task = asyncio.create_task(self._periodic_discovery_refresh())
-        except Exception as e:
-            logger.error(f"❌ Discovery failed (non-fatal): {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+        # Schedule discovery as a deferred task so the listen loop is running first.
+        # The listen loop (started in connect() after _on_connect returns) is required
+        # to route WebSocket responses back to discovery's pending Futures.
+        logger.info("🔍 Scheduling device and entity discovery (deferred until listen loop is active)...")
+        asyncio.create_task(self._run_initial_discovery())
 
         if self.on_connect:
             logger.info("📞 Calling external on_connect callback")

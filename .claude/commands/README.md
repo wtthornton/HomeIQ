@@ -1,6 +1,5 @@
 # Claude Desktop Commands
 
-This directory contains Claude Desktop commands that work alongside Cursor Skills. These commands provide the same functionality in both Claude Desktop and Cursor IDE.
 
 ## Quick Start
 
@@ -18,7 +17,7 @@ Use commands in Claude Desktop by typing `@command-name`:
 
 | Command | Description | Cursor Equivalent |
 |---------|-------------|-------------------|
-| `@review` | Full code review with scoring | `@reviewer *review` |
+| `@review` | Full code review with scoring |
 | `@score` | Quick quality scoring | `@reviewer *score` |
 | `@implement` | Generate code from description | `@implementer *implement` |
 | `@test` | Generate and run tests | `@tester *test` |
@@ -46,8 +45,8 @@ Use commands in Claude Desktop by typing `@command-name`:
 
 | Command | Description | Cursor Equivalent |
 |---------|-------------|-------------------|
-| `@build` | Complete feature workflow | `@simple-mode *build` |
-| `@fix` | Fix bugs with debugging | `@simple-mode *fix` |
+| `@build` | Complete feature workflow |
+| `@fix` | Fix bugs with debugging |
 
 ## Usage Examples
 
@@ -97,13 +96,9 @@ Use commands in Claude Desktop by typing `@command-name`:
 @library-docs pytest fixtures
 ```
 
-## Integration with Cursor Skills
 
-These commands are designed to work alongside Cursor Skills:
 
 - **Claude Desktop**: Use `@command-name` (these commands)
-- **Cursor IDE**: Use `@agent-name *command` (Cursor Skills)
-- **CLI**: Use `tapps-agents <agent> <command>` (terminal)
 
 All three interfaces provide the same functionality, so you can use whichever is most convenient for your workflow.
 
@@ -136,21 +131,13 @@ See individual command files for detailed usage:
 
 ## Configuration
 
-Commands use the same configuration as Cursor Skills:
-- `.tapps-agents/config.yaml` - Project configuration
-- `.tapps-agents/kb/context7-cache` - Library documentation cache
 
 ## Troubleshooting
 
 If a command doesn't work:
-1. Check that TappsCodingAgents is installed: `pip list | grep tapps-agents`
-2. Verify configuration: Check `.tapps-agents/config.yaml`
 3. Check command syntax: See individual command files
-4. Try CLI equivalent: `tapps-agents <agent> <command>`
 
 ## Related Documentation
 
-- **Cursor Skills**: See `.claude/skills/` for Cursor Skills
-- **CLI Reference**: See `docs/TAPPS_AGENTS_COMMAND_REFERENCE.md`
 - **Quick Reference**: See `.cursor/rules/quick-reference.mdc`
 

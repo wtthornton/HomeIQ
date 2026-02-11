@@ -382,9 +382,9 @@ See [Implementation Plan](./automation-linter-implementation-plan.md#phase-1-har
 
 ## Team Recognition
 
-**Implementation:** Claude Code + TappsCodingAgents
+**Implementation:** Claude Code + AI quality tools
 **Duration:** Single session (2026-02-03)
-**Tools Used:** @implementer skill, tapps-agents framework
+**Tools Used:** @implementer skill, ai-tools framework
 **Approach:** Systematic, test-driven, documentation-first
 
 ---

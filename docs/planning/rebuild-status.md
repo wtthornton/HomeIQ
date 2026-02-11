@@ -310,7 +310,7 @@
 ## 📞 Contacts & Resources
 
 ### Key Stakeholders
-- **Project Lead:** TappsCodingAgents
+- **Project Lead:** AI quality tools
 - **Technical Lead:** Claude Code (Sonnet 4.5)
 - **Deployment Owner:** TBD
 

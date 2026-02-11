@@ -351,3 +351,36 @@ export async function getPromptBreakdown(
   return fetchJSON<PromptBreakdown>(url);
 }
 
+/**
+ * Validate automation YAML (Epic 51, Story 51.9)
+ * Uses HA AI Agent Service validation chain (graceful fallback when validation services unavailable).
+ */
+export interface ValidateYAMLResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  score: number;
+  fixed_yaml?: string;
+  fixes_applied?: string[];
+  strategy_used?: string;
+  services_unavailable?: string[];
+}
+
+export async function validateYAML(
+  yamlContent: string,
+  options?: {
+    normalize?: boolean;
+    validateEntities?: boolean;
+    validateServices?: boolean;
+  }
+): Promise<ValidateYAMLResult> {
+  return fetchJSON<ValidateYAMLResult>(`${BASE_URL}/v1/validation/validate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      yaml_content: yamlContent,
+      normalize: options?.normalize ?? true,
+      validate_entities: options?.validateEntities ?? true,
+      validate_services: options?.validateServices ?? false,
+    }),
+  });
+}

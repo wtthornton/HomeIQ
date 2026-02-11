@@ -250,6 +250,14 @@ class HomeAssistantWebSocketClient:
             logger.error(f"Error listening for messages: {e}")
             if self.on_error:
                 await self.on_error(f"Listen error: {e}")
+        finally:
+            # Mark as disconnected when the listen loop exits for any reason
+            # (connection lost, close message, error). This prevents the caller
+            # from spinning in a tight loop calling listen() on a dead socket.
+            if self.is_connected:
+                logger.warning("WebSocket listen loop exited — marking connection as closed")
+                self.is_connected = False
+                self.is_authenticated = False
 
     async def reconnect(self) -> bool:
         """

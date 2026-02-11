@@ -140,7 +140,6 @@ function Execute-Phase2 {
         "docs\MULTIPLE_INSTALLATIONS_WARNING.md",
         "docs\QUICK_FIX_AI_AGENT_CRASHES.md",
         "docs\requirements.md",
-        "docs\TAPPS_AGENTS_CONTEXT7_AUTO_ENHANCEMENT.md"
     )
     foreach ($doc in $otherDocs) {
         if (Test-Path $doc) {

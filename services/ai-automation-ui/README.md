@@ -110,6 +110,16 @@ The main interface displays suggestions in a card-based layout with status tabs:
 
 ## Architecture
 
+### API clients (`src/services/`)
+
+| Client | Purpose | Backend / URL |
+|--------|--------|----------------|
+| **api.ts** | Main AI Automation backend | Patterns, synergies, suggestions, deploy; `VITE_API_URL` or `/api` (proxied) |
+| **api-v2.ts** | V2 conversation API | Start/send/stream conversation, get suggestions; same base as `api.ts`. Also re-exposes `validateYAML` from haAiAgentApi for Automation Preview. |
+| **haAiAgentApi.ts** | HA AI Agent Service | Chat, conversations, tool execution, **YAML validation**; `config/api.ts` `HA_AI_AGENT` (e.g. port 8030) |
+
+All HA AI Agent calls (including validation) use `API_CONFIG.HA_AI_AGENT` in `src/config/api.ts` so the base URL is configured in one place.
+
 ### Status States (Story AI1.23)
 
 ```

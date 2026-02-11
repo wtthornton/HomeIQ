@@ -47,7 +47,5 @@ Create a REST endpoint for products in src/api/products.py
 
 ## Integration
 
-- **Cursor**: Use `@implementer *implement "<desc>" <file>` (Cursor Skill)
 - **Claude Desktop**: Use `@implement "<desc>" <file>` (this command)
-- **CLI**: Use `tapps-agents implementer implement "<desc>" <file>`
 

@@ -48,7 +48,6 @@ See [project-structure.mdc](mdc:.cursor/rules/project-structure.mdc) for complet
 - Include functional and non-functional requirements
 - Define acceptance criteria clearly
 - Include user stories and epics
-- Reference TappsCodingAgents workflow outputs
 
 ### Architecture Documentation
 - Document system components and interactions

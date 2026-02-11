@@ -414,6 +414,7 @@ class DeviceSynergyDetector:
         self._entity_cache = None
         self._entity_cache_timestamp = None
         self._automation_cache = None
+        self._sibling_index: dict[str, str] = {}  # entity_id → device_id for sibling detection
         self._cache_ttl = timedelta(hours=6)  # 6-hour cache TTL
 
         # Initialize synergy cache (Phase 1)
@@ -1100,7 +1101,12 @@ class DeviceSynergyDetector:
         
         if len(devices) < 2:
             return None
-        
+
+        # Skip sibling entities (same device, e.g. Hue scene + its lights)
+        if self._are_sibling_entities(devices[0], devices[1]):
+            logger.debug(f"   ⏭️ Skipping sibling pattern: {devices[0]} ↔ {devices[1]}")
+            return None
+
         # Look up area from entities
         area = self._lookup_area_from_entities(devices[:2], entities)
         
@@ -1340,10 +1346,58 @@ class DeviceSynergyDetector:
             logger.error(f"Failed to fetch devices: {e}")
             return []
 
+    def _build_sibling_index(self, entities: list[dict[str, Any]]) -> dict[str, str]:
+        """
+        Build entity_id → device_id lookup for sibling detection.
+
+        Entities sharing the same device_id are siblings (e.g., a Hue scene
+        and the lights it controls belong to the same Hue Room device).
+
+        Args:
+            entities: List of entity dictionaries from data-api
+
+        Returns:
+            Dict mapping entity_id to device_id (only for entities with real device links)
+        """
+        index: dict[str, str] = {}
+        for entity in entities:
+            eid = entity.get('entity_id', '')
+            did = entity.get('device_id', '')
+            # Skip if device_id is missing or equals entity_id (no real device link)
+            if eid and did and eid != did:
+                index[eid] = did
+        return index
+
+    def _are_sibling_entities(
+        self,
+        entity_id1: str,
+        entity_id2: str,
+        sibling_index: dict[str, str] | None = None
+    ) -> bool:
+        """
+        Check if two entities share the same device (siblings).
+
+        Sibling entities belong to the same physical device and should not
+        be suggested as synergy opportunities (e.g., a Hue scene + the lights
+        it controls are all entities on the same Hue Room device).
+
+        Args:
+            entity_id1: First entity ID
+            entity_id2: Second entity ID
+            sibling_index: Optional entity→device lookup (uses cached index if None)
+
+        Returns:
+            True if entities share the same device_id
+        """
+        idx = sibling_index if sibling_index is not None else self._sibling_index
+        did1 = idx.get(entity_id1)
+        did2 = idx.get(entity_id2)
+        return bool(did1 and did2 and did1 == did2)
+
     async def _get_entities(self) -> list[dict[str, Any]]:
         """Fetch all entities from data-api with caching (6-hour TTL)."""
         # Check cache validity
-        if (self._entity_cache is not None and 
+        if (self._entity_cache is not None and
             self._entity_cache_timestamp is not None and
             datetime.now(timezone.utc) - self._entity_cache_timestamp < self._cache_ttl):
             logger.info("✅ Using cached entity data")
@@ -1353,7 +1407,9 @@ class DeviceSynergyDetector:
             logger.info("📥 Loading entity data from data-api...")
             self._entity_cache = await self.data_api.fetch_entities()
             self._entity_cache_timestamp = datetime.now(timezone.utc)
-            logger.info(f"✅ Loaded {len(self._entity_cache)} entities (cached for 6 hours)")
+            # Rebuild sibling index on cache refresh
+            self._sibling_index = self._build_sibling_index(self._entity_cache)
+            logger.info(f"✅ Loaded {len(self._entity_cache)} entities (cached for 6 hours, {len(self._sibling_index)} with device links)")
             return self._entity_cache
         except Exception as e:
             logger.error(f"Failed to fetch entities: {e}")
@@ -1387,6 +1443,7 @@ class DeviceSynergyDetector:
                 entities_without_area.append(entity)
 
         pairs = []
+        sibling_filtered_count = 0
 
         # Find pairs within each area
         for area, area_entities in entities_by_area.items():
@@ -1394,6 +1451,11 @@ class DeviceSynergyDetector:
                 for entity2 in area_entities[i+1:]:
                     # Don't pair entity with itself
                     if entity1['entity_id'] == entity2['entity_id']:
+                        continue
+
+                    # Skip sibling entities (same device, e.g. Hue scene + its lights)
+                    if self._are_sibling_entities(entity1['entity_id'], entity2['entity_id']):
+                        sibling_filtered_count += 1
                         continue
 
                     domain1 = entity1['entity_id'].split('.')[0]
@@ -1444,6 +1506,11 @@ class DeviceSynergyDetector:
                             if entity1['entity_id'] == entity2['entity_id']:
                                 continue
 
+                            # Skip sibling entities (same device)
+                            if self._are_sibling_entities(entity1['entity_id'], entity2['entity_id']):
+                                sibling_filtered_count += 1
+                                continue
+
                             pairs.append({
                                 'entity1': entity1,
                                 'entity2': entity2,
@@ -1454,6 +1521,9 @@ class DeviceSynergyDetector:
                             processed_pairs += 1
 
             logger.info(f"   → Created {processed_pairs} pairs from entities without area (filtered by compatible domains)")
+
+        if sibling_filtered_count > 0:
+            logger.info(f"   ⏭️ Filtered {sibling_filtered_count} sibling entity pairs (same device_id)")
 
         return pairs
 

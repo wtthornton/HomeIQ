@@ -251,16 +251,18 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
 
   const handleToggleDetails = useCallback((eventId: string) => {
     console.log(`[EventStreamViewer] handleToggleDetails called with eventId: ${eventId}`);
-    setExpandedEvent(prev => {
-      const next = prev === eventId ? null : eventId;
-      console.log(`[EventStreamViewer] Expanded event changed: prev=${prev}, next=${next}`);
-      if (next === eventId) {
-        console.log(`[EventStreamViewer] Calling ensureEventDetails for: ${eventId}`);
-        void ensureEventDetails(eventId);
-      }
-      return next;
-    });
-  }, [ensureEventDetails]);
+    setExpandedEvent(prev => prev === eventId ? null : eventId);
+  }, []);
+
+  // Fetch event details when an event is expanded
+  // Must be in useEffect (not inside setExpandedEvent updater) because React 18
+  // batching defers nested setState updaters, causing shouldFetch to stay false
+  useEffect(() => {
+    if (expandedEvent) {
+      console.log(`[EventStreamViewer] Expanded event changed, fetching details for: ${expandedEvent}`);
+      void ensureEventDetails(expandedEvent);
+    }
+  }, [expandedEvent, ensureEventDetails]);
 
   const handleRetry = useCallback((eventId: string) => {
     setDetailState(prev => ({

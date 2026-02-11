@@ -1,7 +1,7 @@
 # Logic Issues Analysis - Synergy Detection
 
 **Date:** January 6, 2025  
-**Analysis Method:** Code review using tapps-agents + manual inspection
+**Analysis Method:** Code review using ai-tools + manual inspection
 
 ## Critical Issue Found: Patterns Not Used During Detection
 

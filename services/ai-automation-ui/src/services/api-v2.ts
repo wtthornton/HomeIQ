@@ -1,11 +1,12 @@
 /**
  * API v2 Service for AI Automation Backend
- * 
+ *
  * TypeScript client for v2 conversation API endpoints.
  * Provides type-safe access to conversation, automation, and action APIs.
+ * YAML validation is delegated to haAiAgentApi (single source for HA Agent URL).
  */
 
-// Removed unused import
+import { validateYAML as validateYAMLFromHaAgent } from './haAiAgentApi';
 
 // Use relative path - nginx will proxy to ai-automation-service
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -460,43 +461,17 @@ export const apiV2 = {
 
   /**
    * Validate automation YAML (Epic 51, Story 51.9)
-   * 
-   * Uses HA AI Agent Service validation endpoint which provides graceful fallback
-   * when validation services are unavailable (validation chain pattern).
+   * Delegates to HA AI Agent Service via haAiAgentApi (single source for HA Agent URL).
    */
   async validateYAML(yamlContent: string, options?: {
     normalize?: boolean;
     validateEntities?: boolean;
     validateServices?: boolean;
-  }): Promise<{
-    valid: boolean;
-    errors: string[];
-    warnings: string[];
-    score: number;
-    fixed_yaml?: string;
-    fixes_applied?: string[];
-    strategy_used?: string;
-    services_unavailable?: string[];
-  }> {
-    // Call HA AI Agent Service validation endpoint (uses validation chain with fallback)
-    const haAgentUrl = import.meta.env.VITE_HA_AGENT_SERVICE_URL || 'http://localhost:7242';
-    return fetchJSON<{
-      valid: boolean;
-      errors: string[];
-      warnings: string[];
-      score: number;
-      fixed_yaml?: string;
-      fixes_applied?: string[];
-      strategy_used?: string;
-      services_unavailable?: string[];
-    }>(`${haAgentUrl}/api/v1/validation/validate`, {
-      method: 'POST',
-      body: JSON.stringify({
-        yaml_content: yamlContent,
-        normalize: options?.normalize ?? true,
-        validate_entities: options?.validateEntities ?? true,
-        validate_services: options?.validateServices ?? false,
-      }),
+  }) {
+    return validateYAMLFromHaAgent(yamlContent, {
+      normalize: options?.normalize,
+      validateEntities: options?.validateEntities,
+      validateServices: options?.validateServices,
     });
   },
 };

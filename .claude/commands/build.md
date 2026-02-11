@@ -61,9 +61,7 @@ Executes a complete 7-step workflow:
 
 ## Integration
 
-- **Cursor**: Use `@simple-mode *build "<desc>"` (Cursor Skill)
 - **Claude Desktop**: Use `@build "<desc>"` (this command)
-- **CLI**: Use `tapps-agents simple-mode full --prompt "<desc>" --auto`
 
 ## Documentation Created
 

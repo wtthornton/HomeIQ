@@ -1,7 +1,7 @@
 # Playwright Full UI Coverage – Execution Status
 
 **Plan:** [PLAYWRIGHT_FULL_UI_COVERAGE_IMPLEMENTATION_PLAN.md](./PLAYWRIGHT_FULL_UI_COVERAGE_IMPLEMENTATION_PLAN.md)  
-**Executed:** February 7, 2026 (tapps-agents / Simple Mode workflow)  
+**Executed:** February 7, 2026 (ai-tools / Simple Mode workflow)  
 **Phases 5–6:** February 7, 2026
 
 ---

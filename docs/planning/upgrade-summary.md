@@ -9,7 +9,7 @@
 
 A comprehensive analysis of 45+ Python microservices and 2 Node.js/React applications has been completed, identifying upgrade paths to the latest stable, production-ready versions with full compatibility assurance.
 
-**Scope Note:** This plan covers only third-party open-source libraries from PyPI (Python) and npm (Node.js). Internal tapps-agents components are explicitly excluded and will be updated separately.
+**Scope Note:** This plan covers only third-party open-source libraries from PyPI (Python) and npm (Node.js). Internal ai-tools components are explicitly excluded and will be updated separately.
 
 ---
 

@@ -5,27 +5,7 @@ description: Overview of all available Cursor rules
 
 # Cursor Rules Overview
 
-This project uses **TappsCodingAgents** for AI-assisted development with comprehensive workflow orchestration, code quality enforcement, and automated testing.
-
-## 🚀 Quick Start
-
-**Use Simple Mode for all development tasks:**
-```
-@simple-mode *build "Create a user authentication feature"
-@simple-mode *review src/api/auth.py
-@simple-mode *fix src/buggy.py "Fix the error"
-@simple-mode *test src/api/auth.py
-```
-
 ## Available Rules
-
-### TappsCodingAgents Rules
-- **simple-mode.mdc** - Primary interface for all development (RECOMMENDED)
-- **tapps-agents-command-guide.mdc** - Complete command reference for AI agents
-- **tapps-agents-workflow-selection.mdc** - Workflow selection guide
-- **agent-capabilities.mdc** - All 13 workflow agents documentation
-- **quick-reference.mdc** - Quick command reference
-- **workflow-presets.mdc** - Workflow preset documentation
 
 ### Project Rules
 - **project-structure.mdc** - Project structure and file organization guidelines
@@ -37,56 +17,9 @@ This project uses **TappsCodingAgents** for AI-assisted development with compreh
 - **epic-31-architecture.mdc** - Current architecture patterns (Epic 31)
 - **deployment.mdc** - Docker service deployment guidelines and best practices
 
-### Support Rules
-- **simple-mode-tool-invocation.mdc** - Tool invocation helper
-- **project-profiling.mdc** - Project profiling system
-- **context7.mdc** - Context7 auto-invoke rules
-
-## TappsCodingAgents: 13 Workflow Agents
-
-| Agent | Purpose |
-|-------|---------|
-| `@enhancer` | Prompt enhancement (7-stage pipeline) |
-| `@planner` | User story creation and sprint planning |
-| `@architect` | System architecture design |
-| `@designer` | API and data model design |
-| `@implementer` | Code generation and refactoring |
-| `@reviewer` | Code review with 5-metric scoring |
-| `@tester` | Test generation and execution |
-| `@debugger` | Error analysis and debugging |
-| `@improver` | Code improvement suggestions |
-| `@analyst` | Requirements gathering |
-| `@documenter` | Documentation generation |
-| `@ops` | Security scanning and deployment |
-| `@orchestrator` | YAML workflow coordination |
-
-## Simple Mode Commands
-
-| Command | Description | Workflow |
-|---------|-------------|----------|
-| `*build {description}` | Build new features | enhancer → planner → architect → designer → implementer → reviewer → tester |
-| `*review {file}` | Review code quality | reviewer → improver |
-| `*fix {file} {description}` | Fix bugs/errors | debugger → implementer → tester |
-| `*test {file}` | Generate tests | tester |
-| `*full {description}` | Full SDLC workflow | All 9 steps including security |
-| `*epic {file}` | Execute Epic document | All stories in dependency order |
-
-## Quality Requirements
-
-**All code MUST meet these thresholds:**
-- Overall quality score: ≥ 70 (≥ 80 for critical services)
-- Security score: ≥ 7.0/10
-- Maintainability score: ≥ 7.0/10
-- Test coverage: ≥ 80%
-
-## Rule Types
-
 ### Always Apply Rules
 Rules with `alwaysApply: true` are automatically applied to every request:
 - **README.mdc** - This overview
-- **simple-mode.mdc** - Simple Mode orchestrator
-- **tapps-agents-command-guide.mdc** - AI agent command guide
-- **tapps-agents-workflow-selection.mdc** - Workflow selection
 - **epic-31-architecture.mdc** - Current architecture patterns
 - **powershell-commands.mdc** - Windows command guidelines
 
@@ -99,43 +32,6 @@ Rules with `globs` apply only to matching file types:
 
 ## Best Practices
 
-1. **Use Simple Mode** - `@simple-mode *build` for features, `*review` for quality, `*fix` for bugs
-2. **Always Review Code** - Run `@simple-mode *review` or `reviewer score` before commits
-3. **Generate Tests** - Use `@simple-mode *test` for new code
-4. **Check Quality Scores** - Ensure code meets thresholds (70+ overall)
-5. **Know the Architecture** - Understand Epic 31 patterns (direct InfluxDB writes)
-6. **Use PowerShell Correctly** - Use `Invoke-RestMethod`, not `curl`
-
-## CLI Commands
-
-```bash
-# Quick quality check
-python -m tapps_agents.cli reviewer score {file}
-
-# Full code review
-python -m tapps_agents.cli reviewer review {file}
-
-# Generate tests
-python -m tapps_agents.cli tester test {file}
-
-# Run workflow
-python -m tapps_agents.cli workflow rapid --prompt "{description}" --auto
-```
-
-## Getting Help
-
-```bash
-# General help
-python -m tapps_agents.cli --help
-
-# Agent-specific help
-python -m tapps_agents.cli reviewer help
-python -m tapps_agents.cli simple-mode status
-```
-
-## Related Documentation
-
-- [Simple Mode Guide](mdc:.cursor/rules/simple-mode.mdc) - Complete Simple Mode documentation
-- [Agent Capabilities](mdc:.cursor/rules/agent-capabilities.mdc) - All 13 workflow agents
-- [Command Guide](mdc:.cursor/rules/tapps-agents-command-guide.mdc) - Complete command reference
-- [Quick Reference](mdc:.cursor/rules/quick-reference.mdc) - Quick command reference
+1. **Know the Architecture** - Understand Epic 31 patterns (direct InfluxDB writes)
+2. **Use PowerShell Correctly** - Use `Invoke-RestMethod`, not `curl`
+3. **Follow Project Structure** - Place files in correct directories per project-structure.mdc

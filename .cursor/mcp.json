@@ -21,6 +21,14 @@
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": ""
       }
+    },
+    "tapps-mcp": {
+      "command": "uv",
+      "args": ["--directory", "C:\\cursor\\TappMCP", "run", "--no-sync", "tapps-mcp", "serve"],
+      "env": {
+        "TAPPS_MCP_PROJECT_ROOT": "C:\\cursor\\HomeIQ",
+        "TAPPS_MCP_CONTEXT7_API_KEY": "ctx7sk-534b7c8b-6e58-4019-8206-a084b4939e1e"
+      }
     }
   }
 }

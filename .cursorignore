@@ -20,24 +20,7 @@ coverage.xml
 
 # Reports & generated outputs
 reports/
-.tapps-agents/kb/
-.tapps-agents/cache/
-.tapps-agents/reports/
-.tapps-agents/worktrees/
-.tapps-agents/workflow-state/
-.tapps-agents/sessions/
-.tapps-agents/progress/
 
 # Misc generated/test artifacts in this repo
 MagicMock/
 fixed-code/
-tapps_agents.egg-info/
-
-
-# Agent customizations (project-specific, gitignored by default)
-.tapps-agents/customizations/
-
-# TappsCodingAgents generated artifacts (auto-added)
-.tapps-agents/backups/
-.tapps-agents/archives/
-.tapps-agents/artifacts/

@@ -1,7 +1,7 @@
 # Phase 1: Automated Batch Rebuild System
 
 **Created:** February 4, 2026
-**Framework:** TappsCodingAgents with Context7 MCP
+**Framework:** AI quality tools with Context7 MCP
 **Target:** 40 HomeIQ Services
 
 ---
@@ -425,4 +425,4 @@ Orchestrator (phase1-batch-rebuild.sh)
 
 **Version:** 1.0.0
 **Status:** ✅ Ready for Use
-**Framework:** TappsCodingAgents with Context7 MCP
+**Framework:** AI quality tools with Context7 MCP

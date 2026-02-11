@@ -13,7 +13,7 @@
 #   --fix      Apply automatic fix (update health check configuration)
 #   --monitor  Monitor service for 30 minutes after fix
 #
-# Author: TappsCodingAgents - Debugger
+# Author: AI quality tools - Debugger
 # Date: 2026-02-04
 
 set -euo pipefail

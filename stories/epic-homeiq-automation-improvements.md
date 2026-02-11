@@ -4,7 +4,7 @@ priority: high
 status: complete
 estimated_duration: 3-4 weeks
 risk_level: low
-source: tapps-agents planner (HomeIQ improvement suggestions)
+source: ai-tools planner (HomeIQ improvement suggestions)
 ---
 
 # Epic: HomeIQ Automation Platform Improvements

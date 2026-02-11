@@ -15,6 +15,9 @@ import { apiV2 } from '../../services/api-v2';
 import toast from 'react-hot-toast';
 import { DebugTab } from './DebugTab';
 
+/** Only send debug telemetry when explicitly configured (avoids connection to 7242 in tests/default). */
+const DEBUG_INGEST_BASE = import.meta.env.VITE_DEBUG_INGEST_URL as string | undefined;
+
 interface AutomationPreviewProps {
   automationYaml: string;
   alias?: string;
@@ -110,7 +113,7 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
       
       setIsValidating(true);
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:110',message:'validateYAML started',data:{cleanYamlLength:cleanYaml.length,cleanYamlPreview:cleanYaml.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
+      if (DEBUG_INGEST_BASE) { fetch(`${DEBUG_INGEST_BASE}/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:110',message:'validateYAML started',data:{cleanYamlLength:cleanYaml.length,cleanYamlPreview:cleanYaml.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{}); }
       // #endregion
       try {
         const result = await apiV2.validateYAML(cleanYaml, {
@@ -119,7 +122,7 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
           validateServices: false,
         });
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:118',message:'Validation succeeded',data:{valid:result.valid,score:result.score,errorsCount:result.errors.length,warningsCount:result.warnings.length,hasFixedYaml:!!result.fixed_yaml},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        if (DEBUG_INGEST_BASE) { fetch(`${DEBUG_INGEST_BASE}/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:118',message:'Validation succeeded',data:{valid:result.valid,score:result.score,errorsCount:result.errors.length,warningsCount:result.warnings.length,hasFixedYaml:!!result.fixed_yaml},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{}); }
         // #endregion
         setValidationResult(result);
         
@@ -130,7 +133,7 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
       } catch (error) {
         console.error('Failed to validate YAML:', error);
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:129',message:'Validation error caught',data:{errorType:error?.constructor?.name,errorMessage:error instanceof Error ? error.message : String(error),errorName:error instanceof Error ? error.name : 'unknown',hasStack:error instanceof Error ? !!error.stack : false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,D'})}).catch(()=>{});
+        if (DEBUG_INGEST_BASE) { fetch(`${DEBUG_INGEST_BASE}/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:129',message:'Validation error caught',data:{errorType:error?.constructor?.name,errorMessage:error instanceof Error ? error.message : String(error),errorName:error instanceof Error ? error.name : 'unknown',hasStack:error instanceof Error ? !!error.stack : false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,D'})}).catch(()=>{}); }
         // #endregion
         // Extract error message for better user feedback
         let errorMessage = 'Failed to validate automation YAML';
@@ -168,7 +171,7 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
           isNetworkError,
         };
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:152',message:'Setting error validation result',data:{valid:errorResult.valid,isNetworkError:errorResult.isNetworkError,errorsCount:errorResult.errors.length,warningsCount:errorResult.warnings.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        if (DEBUG_INGEST_BASE) { fetch(`${DEBUG_INGEST_BASE}/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:152',message:'Setting error validation result',data:{valid:errorResult.valid,isNetworkError:errorResult.isNetworkError,errorsCount:errorResult.errors.length,warningsCount:errorResult.warnings.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{}); }
         // #endregion
         setValidationResult(errorResult);
       } finally {
@@ -513,7 +516,7 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
                 <button
                   onClick={() => {
                     // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:476',message:'Create button clicked',data:{isCreating,hasAlias:!!parsedAutomation.alias,validationValid:validationResult?.valid,isNetworkError:validationResult?.isNetworkError,isValidating},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                    if (DEBUG_INGEST_BASE) { fetch(`${DEBUG_INGEST_BASE}/ingest/c118a7ab-8e77-4e17-97b9-a6f65423f981`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AutomationPreview.tsx:476',message:'Create button clicked',data:{isCreating,hasAlias:!!parsedAutomation.alias,validationValid:validationResult?.valid,isNetworkError:validationResult?.isNetworkError,isValidating},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{}); }
                     // #endregion
                     handleCreateAutomation();
                   }}

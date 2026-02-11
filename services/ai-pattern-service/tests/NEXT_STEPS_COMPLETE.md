@@ -5,7 +5,7 @@
 
 ## Summary
 
-Using @simple-mode and tapps-agents, we've successfully created comprehensive unit tests for all new services and verified the implementation.
+Using workflow and ai-tools, we've successfully created comprehensive unit tests for all new services and verified the implementation.
 
 ---
 

@@ -5,12 +5,10 @@ description: Project structure and file organization guidelines
 
 # HomeIQ Project Structure Guide
 
-This project uses **TappsCodingAgents** for AI-assisted development with structured documentation and quality enforcement.
 
 ## Core Structure
 
 - **`.cursor/rules/`** - Cursor IDE rules for AI agent guidance
-- **`.tapps-agents/`** - TappsCodingAgents configuration and cache
 - **`docs/`** - Project documentation (architecture, PRD, stories)
 - **`services/`** - Microservices (30+ services)
 - **`implementation/`** - Implementation notes and status reports
@@ -37,7 +35,6 @@ services/{service-name}/
 - **`docs/workflows/`** - Workflow documentation (Simple Mode outputs)
 - **`docs/prd/`** - Optional; if absent, use `docs/planning/` or root **`stories/`** for epics.
 
-### TappsCodingAgents Config (`.tapps-agents/`)
 - **`config.yaml`** - Framework configuration
 - **`project-profile.yaml`** - Auto-detected project profile
 - **`kb/`** - Knowledge base cache (Context7)
@@ -154,10 +151,8 @@ Archiving completed work?
 └─ Superseded documentation? → docs/archive/{quarter}/
 ```
 
-## TappsCodingAgents Integration
 
 ### Simple Mode Workflow Outputs
-When using `@simple-mode *build`, outputs go to:
 - `docs/workflows/simple-mode/step1-enhanced-prompt.md`
 - `docs/workflows/simple-mode/step2-user-stories.md`
 - `docs/workflows/simple-mode/step3-architecture.md`

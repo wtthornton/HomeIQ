@@ -61,7 +61,5 @@ Check the quality of src/utils/helpers.py
 ## Integration
 
 This command works with:
-- **Cursor**: Use `@reviewer *review <file>` (Cursor Skill)
 - **Claude Desktop**: Use `@review <file>` (this command)
-- **CLI**: Use `tapps-agents reviewer review <file>`
 

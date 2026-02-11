@@ -59,7 +59,5 @@ Plan the implementation of user registration
 
 ## Integration
 
-- **Cursor**: Use `@planner *plan "<desc>"` (Cursor Skill)
 - **Claude Desktop**: Use `@plan "<desc>"` (this command)
-- **CLI**: Use `tapps-agents planner plan "<desc>"`
 

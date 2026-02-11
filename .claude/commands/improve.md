@@ -47,7 +47,5 @@ Enhance code quality in src/models/user.py
 
 ## Integration
 
-- **Cursor**: Use `@improver *improve <file> "<instructions>"` (Cursor Skill)
 - **Claude Desktop**: Use `@improve <file> "<instructions>"` (this command)
-- **CLI**: Use `tapps-agents improver improve <file> "<instructions>"`
 

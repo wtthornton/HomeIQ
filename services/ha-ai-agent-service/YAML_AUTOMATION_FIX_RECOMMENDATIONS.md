@@ -2,7 +2,7 @@
 
 **Generated:** 2026-01-02  
 **Source:** Office motion-based dimming lights automation  
-**Review Tool:** TappsCodingAgents Reviewer Agent  
+**Review Tool:** AI quality tools Reviewer Agent  
 **Overall Score:** 83/100 (Quality Gate: Failed - Security threshold not met)
 
 ---
@@ -515,7 +515,7 @@ action:
 
 ## Quality Metrics
 
-**TappsCodingAgents Review Scores:**
+**AI quality tools Review Scores:**
 - Overall Score: 83/100 ✅ (Passes threshold: 70)
 - Complexity: 5.0/10 ✅ (Below threshold: 5.0)
 - Security: 8.0/10 ⚠️ (Below threshold: 8.5)

@@ -117,6 +117,30 @@ context_synergies = await detector.detect_context_aware_synergies(entities)
 **High-Power Domains:**
 - `climate`, `water_heater`, `dryer`, `washer`, `dishwasher`, `ev_charger`
 
+## Sibling Entity Filtering (February 2026)
+
+### Problem
+Co-occurrence patterns and device pair detection were generating false synergy suggestions between entities that belong to the **same physical device**. For example, a Hue Room device exposes both `scene.garage_natural_light_7` and `light.hue_lightstrip_outdoor_1` — activating the scene triggers the light, so they always co-occur. This created noise in the synergies UI.
+
+### Solution: Device-Based Sibling Detection
+Instead of relying on name matching or domain heuristics, the system uses the `device_id` field from the data-api entity registry. Entities sharing the same `device_id` are **sibling entities** — they belong to the same hardware device and should not be paired as synergy opportunities.
+
+**How it works:**
+1. When entities are loaded from data-api, a **sibling index** (`entity_id → device_id`) is built and cached
+2. Before creating any device pair (in `_find_device_pairs_by_area`) or converting a co-occurrence pattern to a synergy (in `_pattern_to_synergy`), the system checks if the two entities share the same `device_id`
+3. Sibling pairs are silently filtered out with an INFO log showing the count
+
+**Key methods in `synergy_detector.py`:**
+- `_build_sibling_index(entities)` — Builds `{entity_id: device_id}` lookup, skipping entities where `device_id` matches `entity_id` (no real device link)
+- `_are_sibling_entities(entity_id1, entity_id2)` — Returns `True` if both entities map to the same `device_id`
+
+**Coverage:**
+This filter works across all integrations — Hue scenes/lights, WLED segments, Z-Wave multi-channel devices, Shelly device groups, or any integration where a single device exposes multiple entities.
+
+**Filter locations:**
+- `_find_device_pairs_by_area()` — Both area-based and no-area pairing loops
+- `_pattern_to_synergy()` — Co-occurrence pattern conversion
+
 ## Integration
 
 ### Current State
@@ -154,7 +178,7 @@ class DeviceSynergyDetector:
 - `test_scene_detection.py` - 14 tests
 - `test_context_detection.py` - 17 tests
 - `test_new_synergy_types.py` - 12 tests (integration)
-- `test_synergy_detector.py` - 5 tests (placeholder)
+- `test_synergy_detector.py` - 55 tests (42 core + 13 sibling filtering)
 
 ### Test Coverage
 - **Total Tests:** 66 passing

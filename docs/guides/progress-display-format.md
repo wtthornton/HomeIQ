@@ -460,28 +460,28 @@ def save_status_snapshot(phases: list[dict], filename: str = "status.txt"):
 
 ---
 
-## Comparison to TappsCodingAgents
+## Comparison to AI quality tools
 
-### **Is This Part of TappsCodingAgents?**
+### **Is This Part of AI quality tools?**
 
-**No** - This is a **display formatting technique**, not a TappsCodingAgents feature.
+**No** - This is a **display formatting technique**, not a AI quality tools feature.
 
-| Aspect | TappsCodingAgents | This Format |
+| Aspect | AI quality tools | This Format |
 |--------|-------------------|-------------|
 | **What it is** | Agent orchestration framework | Visual status display technique |
 | **Purpose** | Coordinate skills, manage workflows | Present status information clearly |
 | **Technology** | Python framework with agents | Plain text + markdown + emojis |
-| **Dependencies** | tapps-agents package | None (standard text) |
-| **Usage** | `@simple-mode`, `@planner`, etc. | Copy-paste, shell scripts, markdown |
+| **Dependencies** | ai-tools package | None (standard text) |
+| **Usage** | `workflow`, `@planner`, etc. | Copy-paste, shell scripts, markdown |
 
 ### **How They Complement Each Other**
 
-- **TappsCodingAgents:** Executes the work (planning, coding, testing)
+- **AI quality tools:** Executes the work (planning, coding, testing)
 - **Progress Display:** Shows the status of that work visually
 
 **Example Integration:**
 ```python
-# TappsCodingAgents generates the status data
+# AI quality tools generates the status data
 status = simple_mode.get_workflow_status()
 
 # Progress display formats it for humans

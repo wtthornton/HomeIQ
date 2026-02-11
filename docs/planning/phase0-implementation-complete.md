@@ -2,7 +2,7 @@
 
 **Date:** February 4, 2026
 **Status:** ✅ IMPLEMENTED - Ready for Execution
-**Implemented By:** TappsCodingAgents (Simple Mode Orchestrator)
+**Implemented By:** AI quality tools (Simple Mode Orchestrator)
 
 ---
 
@@ -480,15 +480,15 @@ cd monitoring
 
 ## Credits
 
-**Implemented By:** TappsCodingAgents
-- **Orchestrator:** Simple Mode (@simple-mode)
+**Implemented By:** AI quality tools
+- **Orchestrator:** Simple Mode (workflow)
 - **Planner:** Planner Agent (@planner)
 - **Implementer:** Implementer Agent (@implementer)
 - **Debugger:** Debugger Agent (@debugger)
 
 **Date:** February 4, 2026
 
-**Framework:** TappsCodingAgents Multi-Agent System
+**Framework:** AI quality tools Multi-Agent System
 
 ---
 

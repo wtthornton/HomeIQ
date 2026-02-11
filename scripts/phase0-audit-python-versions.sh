@@ -9,7 +9,7 @@
 # Options:
 #   --detailed    Include Dockerfile analysis and upgrade recommendations
 #
-# Author: TappsCodingAgents - Implementer
+# Author: AI quality tools - Implementer
 # Date: 2026-02-04
 
 set -euo pipefail

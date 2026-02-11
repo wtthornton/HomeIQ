@@ -47,7 +47,5 @@ Analyze why the API is returning 500 errors
 
 ## Integration
 
-- **Cursor**: Use `@debugger *debug "<error>" --file <file>` (Cursor Skill)
 - **Claude Desktop**: Use `@debug "<error>" --file <file>` (this command)
-- **CLI**: Use `tapps-agents debugger debug "<error>" --file <file>`
 

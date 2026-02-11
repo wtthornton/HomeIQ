@@ -48,7 +48,5 @@ Create tests for the authentication module
 
 ## Integration
 
-- **Cursor**: Use `@tester *test <file>` (Cursor Skill)
 - **Claude Desktop**: Use `@test <file>` (this command)
-- **CLI**: Use `tapps-agents tester test <file>`
 

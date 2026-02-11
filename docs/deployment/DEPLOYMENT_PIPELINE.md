@@ -243,12 +243,12 @@ trivy image <image-name> --severity CRITICAL,HIGH
 - Overall quality score ≥ 70
 - Critical services ≥ 80
 
-**Tool:** TappsCodingAgents reviewer
+**Tool:** AI quality tools reviewer
 
 **Commands:**
 ```bash
 # Code quality check
-python -m tapps_agents.cli reviewer score <file>
+python -m ai_tools.cli reviewer score <file>
 ```
 
 **Failure:** Deployment blocked

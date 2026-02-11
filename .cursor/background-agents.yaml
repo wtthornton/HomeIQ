@@ -1,8 +1,5 @@
 agents: []
 global:
-  context7_cache: .tapps-agents/kb/context7-cache
-  output_directory: .tapps-agents/reports
-  worktree_base: .tapps-agents/worktrees
   progress_reporting: true
   result_delivery:
   - file

@@ -48,7 +48,5 @@ Audit the security of the authentication module
 
 ## Integration
 
-- **Cursor**: Use `@reviewer *security-scan <file>` (Cursor Skill)
 - **Claude Desktop**: Use `@security-scan <file>` (this command)
-- **CLI**: Use `tapps-agents reviewer security-scan <file>`
 

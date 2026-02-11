@@ -51,11 +51,9 @@ Look up SQLAlchemy query documentation
 
 - **Cursor**: Use `@reviewer *docs <library> [topic]` (Cursor Skill)
 - **Claude Desktop**: Use `@library-docs <library> [topic]` (this command)
-- **CLI**: Use `tapps-agents reviewer docs <library> [topic]`
 
 ## Context7 Setup
 
-Requires Context7 API key in `.tapps-agents/config.yaml`:
 ```yaml
 context7:
   enabled: true

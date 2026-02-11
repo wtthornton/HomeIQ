@@ -19,7 +19,7 @@ The AI Pattern Service is a microservice extracted from ai-automation-service (E
 - **Scheduled Pattern Analysis** - Automated pattern detection running on configurable cron schedule (default: 3 AM daily)
 - **Time-of-Day Pattern Detection** - Identifies recurring automation patterns based on time
 - **Co-occurrence Pattern Detection** - Discovers devices that are frequently used together
-- **Synergy Detection** - Multi-hop device relationship discovery with confidence scoring
+- **Synergy Detection** - Multi-hop device relationship discovery with confidence scoring and sibling entity filtering
 - **Community Pattern Mining** - Integration with automation-miner service for community insights
 - **MQTT Notifications** - Optional notifications for pattern detection events
 - **Incremental Updates** - Enable/disable incremental pattern analysis
@@ -38,9 +38,14 @@ The AI Pattern Service is a microservice extracted from ai-automation-service (E
 - **Enhanced API Endpoints** - Synergy router with XAI explanations and RL feedback endpoints
 - **Community Pattern Router** - API endpoints for community pattern sharing and discovery
 
-### 2026 Enhancements - Blueprint-First Architecture
+### 2026 Enhancements
 
-The Blueprint-First Architecture (January 2026) shifts HomeIQ from using blueprints for validation to proactively recommending and deploying community blueprints.
+**Sibling Entity Filtering (February 2026):**
+- **Sibling Detection** - Filters false synergy suggestions between entities on the same device (e.g., Hue scene + its lights). Uses `device_id` from entity registry for structural detection across all integrations.
+
+**Blueprint-First Architecture (January 2026):**
+
+The Blueprint-First Architecture shifts HomeIQ from using blueprints for validation to proactively recommending and deploying community blueprints.
 
 **New Modules:**
 - `src/blueprint_opportunity/` - Blueprint Opportunity Engine

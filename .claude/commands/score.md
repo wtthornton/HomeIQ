@@ -54,7 +54,5 @@ Quick score summary:
 
 ## Integration
 
-- **Cursor**: Use `@reviewer *score <file>` (Cursor Skill)
 - **Claude Desktop**: Use `@score <file>` (this command)
-- **CLI**: Use `tapps-agents reviewer score <file>`
 

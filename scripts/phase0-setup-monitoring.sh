@@ -10,7 +10,7 @@
 #   --start    Start monitoring services
 #   --stop     Stop monitoring services
 #
-# Author: TappsCodingAgents - Implementer
+# Author: AI quality tools - Implementer
 # Date: 2026-02-04
 
 set -euo pipefail

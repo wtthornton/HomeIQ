@@ -2,7 +2,7 @@
 
 **Created:** February 7, 2026  
 **Last Updated:** February 7, 2026 (Phases 5–6 complete)  
-**Source:** tapps-agents planner  
+**Source:** ai-tools planner  
 **Goal:** Ensure ALL UI features, buttons, headers, APIs that the UIs use work via comprehensive Playwright E2E tests
 
 ---

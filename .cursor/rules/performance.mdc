@@ -13,7 +13,6 @@ alwaysApply: false
 
 ## When to Delegate
 
-- Use `@simple-mode *build` for features; `*fix` for bugs; `*review` for quality—avoids ad-hoc context bloat
 - Prefer targeted agents (`@reviewer *score`, `@tester *test`) over loading many skills at once
 - For large codebases, narrow scope (file, module) before inviting broad search
 
@@ -25,5 +24,4 @@ alwaysApply: false
 
 ## References
 
-- `tapps_agents/core/doctor.py` - run `tapps-agents doctor` to check MCP and tool setup
 - `.cursor/mcp.json` and project MCP configuration for `disabledMcpServers` and enabled servers

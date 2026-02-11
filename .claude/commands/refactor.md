@@ -49,7 +49,5 @@ Improve the code structure in src/models/user.py
 
 ## Integration
 
-- **Cursor**: Use `@implementer *refactor <file> "<instructions>"` (Cursor Skill)
 - **Claude Desktop**: Use `@refactor <file> "<instructions>"` (this command)
-- **CLI**: Use `tapps-agents implementer refactor <file> "<instructions>"`
 

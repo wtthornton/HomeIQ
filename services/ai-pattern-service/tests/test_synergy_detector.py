@@ -988,6 +988,224 @@ class TestDeviceSynergyDetector:
     async def test_detect_4_device_chains_empty(self, detector):
         """Test 4-chain detection with empty 3-chains."""
         chains = await detector._detect_4_device_chains([], [], [], [])
-        
+
         assert chains == []
+
+    # ==================== Sibling Entity Filtering Tests ====================
+
+    @pytest.mark.unit
+    def test_build_sibling_index_basic(self, detector):
+        """Test building sibling index from entities with real device links."""
+        entities = [
+            {"entity_id": "light.hue_strip_1", "device_id": "hue_room_garage"},
+            {"entity_id": "scene.garage_natural", "device_id": "hue_room_garage"},
+            {"entity_id": "light.kitchen", "device_id": "kitchen_light_device"},
+        ]
+
+        index = detector._build_sibling_index(entities)
+
+        assert index["light.hue_strip_1"] == "hue_room_garage"
+        assert index["scene.garage_natural"] == "hue_room_garage"
+        assert index["light.kitchen"] == "kitchen_light_device"
+        assert len(index) == 3
+
+    @pytest.mark.unit
+    def test_build_sibling_index_skips_self_referencing(self, detector):
+        """Test that entities where device_id == entity_id are excluded."""
+        entities = [
+            {"entity_id": "light.office_lamp", "device_id": "light.office_lamp"},  # Self-ref
+            {"entity_id": "light.hue_strip", "device_id": "hue_device_1"},  # Real link
+        ]
+
+        index = detector._build_sibling_index(entities)
+
+        assert "light.office_lamp" not in index
+        assert index["light.hue_strip"] == "hue_device_1"
+
+    @pytest.mark.unit
+    def test_build_sibling_index_skips_missing_fields(self, detector):
+        """Test that entities with missing device_id are excluded."""
+        entities = [
+            {"entity_id": "light.no_device"},
+            {"entity_id": "light.empty_device", "device_id": ""},
+            {"entity_id": "", "device_id": "some_device"},
+        ]
+
+        index = detector._build_sibling_index(entities)
+
+        assert len(index) == 0
+
+    @pytest.mark.unit
+    def test_are_sibling_entities_same_device(self, detector):
+        """Test siblings detected when sharing same device_id."""
+        detector._sibling_index = {
+            "light.hue_strip_1": "hue_room_garage",
+            "scene.garage_natural": "hue_room_garage",
+        }
+
+        assert detector._are_sibling_entities(
+            "light.hue_strip_1", "scene.garage_natural"
+        ) is True
+
+    @pytest.mark.unit
+    def test_are_sibling_entities_different_device(self, detector):
+        """Test non-siblings with different device_ids."""
+        detector._sibling_index = {
+            "binary_sensor.motion_kitchen": "motion_device_1",
+            "light.kitchen": "kitchen_light_device",
+        }
+
+        assert detector._are_sibling_entities(
+            "binary_sensor.motion_kitchen", "light.kitchen"
+        ) is False
+
+    @pytest.mark.unit
+    def test_are_sibling_entities_missing_device_id(self, detector):
+        """Test returns False when entities have no device link."""
+        detector._sibling_index = {
+            "light.hue_strip_1": "hue_room_garage",
+        }
+
+        # One entity not in index
+        assert detector._are_sibling_entities(
+            "light.hue_strip_1", "light.unknown"
+        ) is False
+
+        # Neither entity in index
+        assert detector._are_sibling_entities(
+            "light.unknown_1", "light.unknown_2"
+        ) is False
+
+    @pytest.mark.unit
+    def test_are_sibling_entities_with_explicit_index(self, detector):
+        """Test passing explicit sibling index overrides cached one."""
+        detector._sibling_index = {}  # Empty cached index
+
+        explicit_index = {
+            "light.a": "device_x",
+            "scene.b": "device_x",
+        }
+
+        assert detector._are_sibling_entities("light.a", "scene.b", explicit_index) is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_find_device_pairs_filters_siblings(self, detector):
+        """Test that _find_device_pairs_by_area skips sibling entity pairs."""
+        entities = [
+            {
+                "entity_id": "light.hue_strip_1",
+                "device_id": "hue_room_garage",
+                "area_id": "garage",
+            },
+            {
+                "entity_id": "scene.garage_natural",
+                "device_id": "hue_room_garage",
+                "area_id": "garage",
+            },
+            {
+                "entity_id": "binary_sensor.motion_garage",
+                "device_id": "motion_device_1",
+                "area_id": "garage",
+            },
+        ]
+
+        # Build sibling index from these entities
+        detector._sibling_index = detector._build_sibling_index(entities)
+
+        pairs = detector._find_device_pairs_by_area([], entities)
+
+        # Should have pairs for motion+light and motion+scene, but NOT light+scene (siblings)
+        pair_entity_ids = [
+            (p['entity1']['entity_id'], p['entity2']['entity_id'])
+            for p in pairs
+        ]
+
+        assert ("light.hue_strip_1", "scene.garage_natural") not in pair_entity_ids
+        assert ("scene.garage_natural", "light.hue_strip_1") not in pair_entity_ids
+
+        # Non-sibling pairs should still be present
+        assert len(pairs) == 2  # motion+light and motion+scene
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_find_device_pairs_keeps_non_siblings(self, detector):
+        """Test that non-sibling pairs in same area are preserved."""
+        entities = [
+            {
+                "entity_id": "binary_sensor.motion_kitchen",
+                "device_id": "motion_sensor_1",
+                "area_id": "kitchen",
+                "device_class": "motion",
+            },
+            {
+                "entity_id": "light.kitchen",
+                "device_id": "kitchen_light_device",
+                "area_id": "kitchen",
+            },
+        ]
+
+        detector._sibling_index = detector._build_sibling_index(entities)
+
+        pairs = detector._find_device_pairs_by_area([], entities)
+
+        assert len(pairs) == 1
+        assert pairs[0]['entity1']['entity_id'] == "binary_sensor.motion_kitchen"
+        assert pairs[0]['entity2']['entity_id'] == "light.kitchen"
+
+    @pytest.mark.unit
+    def test_pattern_to_synergy_filters_siblings(self, detector):
+        """Test that _pattern_to_synergy returns None for sibling patterns."""
+        detector._sibling_index = {
+            "light.hue_strip_1": "hue_room_garage",
+            "scene.garage_natural": "hue_room_garage",
+        }
+
+        pattern = {
+            "pattern_type": "co_occurrence",
+            "device_id": "light.hue_strip_1+scene.garage_natural",
+            "confidence": 0.95,
+        }
+
+        result = detector._pattern_to_synergy(pattern, entities=[])
+
+        assert result is None
+
+    @pytest.mark.unit
+    def test_pattern_to_synergy_keeps_non_siblings(self, detector):
+        """Test that _pattern_to_synergy creates synergy for non-sibling patterns."""
+        detector._sibling_index = {
+            "binary_sensor.motion_kitchen": "motion_sensor_1",
+            "light.kitchen": "kitchen_light_device",
+        }
+
+        pattern = {
+            "pattern_type": "co_occurrence",
+            "device_id": "binary_sensor.motion_kitchen+light.kitchen",
+            "confidence": 0.85,
+        }
+
+        result = detector._pattern_to_synergy(pattern, entities=[])
+
+        assert result is not None
+        assert result['synergy_type'] == 'device_pair'
+        assert result['trigger_entity'] == 'binary_sensor.motion_kitchen'
+        assert result['action_entity'] == 'light.kitchen'
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_get_entities_builds_sibling_index(self, detector):
+        """Test that _get_entities rebuilds sibling index on cache refresh."""
+        entities = [
+            {"entity_id": "light.hue_1", "device_id": "hue_device"},
+            {"entity_id": "scene.hue_scene", "device_id": "hue_device"},
+        ]
+        detector.data_api.fetch_entities = AsyncMock(return_value=entities)
+
+        await detector._get_entities()
+
+        assert detector._sibling_index == {
+            "light.hue_1": "hue_device",
+            "scene.hue_scene": "hue_device",
+        }
 

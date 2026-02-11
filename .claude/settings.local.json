@@ -98,14 +98,16 @@
       "Bash(git -C \"c:\\\\cursor\\\\HomeIQ\" diff -- services/ai-query-service/)",
       "Bash(git status:*)",
       "Bash(powershell -Command:*)",
-      "Bash(npx playwright test:*)"
+      "Bash(npx playwright test:*)",
+      "WebFetch(domain:docs.claude.com)"
     ],
     "deny": [],
     "ask": [],
     "defaultMode": "bypassPermissions",
     "additionalDirectories": [
       "c:\\cursor\\HomeIQ",
-      "C:\\cursor\\HomeIQ\\.git\\hooks"
+      "C:\\cursor\\HomeIQ\\.git\\hooks",
+      "c:\\cursor\\HomeIQ\\shared"
     ]
   }
 }

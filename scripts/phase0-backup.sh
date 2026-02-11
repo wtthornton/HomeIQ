@@ -7,7 +7,7 @@
 #
 # Usage: ./scripts/phase0-backup.sh
 #
-# Author: TappsCodingAgents - Implementer
+# Author: AI quality tools - Implementer
 # Date: 2026-02-04
 
 set -euo pipefail  # Exit on error, undefined variables, and pipe failures

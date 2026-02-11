@@ -62,7 +62,5 @@ Design the component structure for user management
 
 ## Integration
 
-- **Cursor**: Use `@architect *design "<desc>"` (Cursor Skill)
 - **Claude Desktop**: Use `@design "<desc>"` (this command)
-- **CLI**: Use `tapps-agents architect design "<desc>"`
 

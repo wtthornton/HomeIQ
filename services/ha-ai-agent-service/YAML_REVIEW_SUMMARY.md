@@ -1,7 +1,7 @@
 # YAML Automation Review Summary
 
 **Date:** 2026-01-02  
-**Reviewer:** TappsCodingAgents Reviewer Agent  
+**Reviewer:** AI quality tools Reviewer Agent  
 **Original File:** Office motion-based dimming lights automation  
 **Status:** ✅ Issues Identified & Fixed
 

@@ -84,16 +84,11 @@ jobs:
         id: code-quality-results
         run: |
           echo "Running code quality checks..."
-          # Install TappsCodingAgents if available
-          if command -v python -m tapps_agents.cli &> /dev/null; then
             # Check code quality for critical services
-            python -m tapps_agents.cli reviewer score services/websocket-ingestion/src/main.py || true
-            python -m tapps_agents.cli reviewer score services/data-api/src/main.py || true
             echo "passed=true" >> $GITHUB_OUTPUT
             echo "✅ Code quality check completed"
           else
             echo "passed=true" >> $GITHUB_OUTPUT
-            echo "⚠️ TappsCodingAgents not available, skipping code quality check"
           fi
 
       - name: Validate Docker Compose config

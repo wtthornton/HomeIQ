@@ -77,13 +77,13 @@ pytest -m e2e tests/test_e2e_patterns_synergies.py::TestE2EPatternEndpoints -v
 pytest -m e2e tests/test_e2e_patterns_synergies.py::TestE2ESynergyEndpoints -v
 ```
 
-### Method 3: Using tapps-agents Commands
+### Method 3: Using ai-tools Commands
 ```bash
 # Review e2e tests
-python -m tapps_agents.cli reviewer review tests/test_e2e_patterns_synergies.py
+python -m ai_tools.cli reviewer review tests/test_e2e_patterns_synergies.py
 
 # Score e2e tests
-python -m tapps_agents.cli reviewer score tests/test_e2e_patterns_synergies.py
+python -m ai_tools.cli reviewer score tests/test_e2e_patterns_synergies.py
 
 # Run e2e tests with coverage
 pytest -m e2e --cov=src --cov-report=html

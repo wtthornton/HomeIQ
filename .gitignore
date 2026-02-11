@@ -144,7 +144,6 @@ ha_events.log
 *.backup
 *.bak
 .env.backup*
-.beads.bak/
 
 # Temporary data files
 conversation_data.json
@@ -160,15 +159,8 @@ embedding_test_env/
 embedding_tests/
 embedding_test_output.log
 
-# BMAD Agent Customizations (user-specific, update-safe)
-
 # Cursor backup files
 .cursor/background-agents.backup.*.yaml
-
-# TappsCodingAgents (local development tool, user-specific data)
-# Exclude all .tapps-agents directories (root and service-level)
-.tapps-agents/
-**/.tapps-agents/
 
 # Windows reserved names
 nul
@@ -208,10 +200,6 @@ services/*/data/**/adapter_config.json
 # Keep README and training_run.json for documentation
 !services/*/data/**/README.md
 !services/*/data/**/training_run.json
-
-# TappsCodingAgents (local development tool, not part of repo)
-TappsCodingAgents/
-
 
 tests/playwright-report/
 

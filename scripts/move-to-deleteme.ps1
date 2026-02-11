@@ -250,7 +250,7 @@ function Execute-Phase5 {
         "automation_actions.yaml",
         "automation_from_ha.json",
         "debug_automation_error.py",
-        "debug_automation_with_tapps.py"
+        "debug_automation.py"
     )
     
     foreach ($file in $otherFiles) {

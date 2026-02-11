@@ -15,7 +15,7 @@ This plan outlines a phased approach to upgrade all dependencies in the HomeIQ p
 - Ensure compatibility between dependent libraries
 - Minimize breaking changes through careful sequencing
 
-**Important:** This plan covers only third-party open-source dependencies (PyPI/npm packages). Internal tapps-agents framework components are excluded and will be updated separately.
+**Important:** This plan covers only third-party open-source dependencies (PyPI/npm packages). Internal ai-tools framework components are excluded and will be updated separately.
 
 ---
 

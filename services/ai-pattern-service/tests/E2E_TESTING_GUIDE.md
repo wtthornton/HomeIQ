@@ -126,13 +126,13 @@ pytest -m e2e -v
 # Expected: All tests pass
 ```
 
-### Using tapps-agents for Verification
+### Using ai-tools for Verification
 ```bash
 # Review e2e tests
-python -m tapps_agents.cli reviewer review tests/test_e2e_patterns_synergies.py
+python -m ai_tools.cli reviewer review tests/test_e2e_patterns_synergies.py
 
 # Score e2e tests
-python -m tapps_agents.cli reviewer score tests/test_e2e_patterns_synergies.py
+python -m ai_tools.cli reviewer score tests/test_e2e_patterns_synergies.py
 
 # Run e2e tests with coverage
 pytest -m e2e --cov=src --cov-report=html

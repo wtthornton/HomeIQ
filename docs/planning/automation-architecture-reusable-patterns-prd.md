@@ -74,7 +74,7 @@ User Prompt ("Super Bowl lights when Seahawks score")
 
 | Artifact | Path | Purpose |
 |----------|------|---------|
-| Schema | `shared/yaml_validation_service/schema.py` | TriggerSpec, ConditionSpec, ActionSpec (variables, repeat, time_pattern, value_template) |
+| Canonical Automation Schema | `shared/yaml_validation_service/schema.py` | Canonical AutomationSpec: TriggerSpec, ConditionSpec, ActionSpec (variables, repeat, time_pattern, value_template) |
 | RAG Corpus | `services/ha-ai-agent-service/src/data/superbowl_guide_excerpts.md` | Sports/Team Tracker patterns |
 | Team Tracker Reference | `implementation/teamtracker_automation_reference_guide.md` | All leagues, all attributes |
 | Super Bowl Guide | `implementation/superbowl_teamtracker_lights_guide.md` | Example patterns |
@@ -358,7 +358,7 @@ User Prompt ("Super Bowl lights when Seahawks score")
                     │ • SceneVerifier                │
                     │ • ScriptVerifier               │
                     │ • TaskExecutionVerifier        │
-                    │ • SportsBluprintGenerator      │
+                    │ • SportsBlueprintGenerator     │
                     └──────────────┬────────────────┘
                                    │
          ┌─────────────────────────┼─────────────────────────┐

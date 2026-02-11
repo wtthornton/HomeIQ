@@ -48,7 +48,5 @@ Executes a complete fix workflow:
 
 ## Integration
 
-- **Cursor**: Use `@simple-mode *fix <file> "<desc>"` (Cursor Skill)
 - **Claude Desktop**: Use `@fix <file> "<desc>"` (this command)
-- **CLI**: Use `tapps-agents simple-mode fix --file <file> --prompt "<desc>"`
 

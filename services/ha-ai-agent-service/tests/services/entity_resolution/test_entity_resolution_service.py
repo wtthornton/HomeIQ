@@ -137,7 +137,7 @@ class TestEntityResolutionService:
         assert result.error is not None
         assert "entity data" in result.error.lower() or "data_api_client" in result.error.lower()
 
-    # --- Switch LED pattern matching (SWITCH_LED_RESOLUTION_TAPPS_REVIEW.md) ---
+    # --- Switch LED pattern matching (SWITCH_LED_RESOLUTION_REVIEW.md) ---
 
     def test__extract_pattern_keywords_switch_led(self, mock_data_api_client):
         """_extract_pattern_keywords('switch led') -> {'switch_led'}."""

@@ -3,7 +3,7 @@
 **Date:** February 7, 2026
 **Status:** Ready for Execution
 **Target:** 42+ Services (includes activity-recognition, model-prep; all in Docker—see SERVICES_RANKED_BY_IMPORTANCE.md for ports)
-**Framework:** TappsCodingAgents with Context7 MCP
+**Framework:** AI quality tools with Context7 MCP
 
 ---
 
@@ -761,5 +761,5 @@ find logs/phase1_builds/ -name "*.log" -exec grep -l "ERROR" {} \;
 
 **Document Version:** 1.0.0
 **Last Updated:** February 4, 2026
-**Framework:** TappsCodingAgents with Context7 MCP
+**Framework:** AI quality tools with Context7 MCP
 **Status:** ✅ Ready for Execution

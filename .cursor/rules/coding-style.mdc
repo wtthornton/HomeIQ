@@ -27,5 +27,4 @@ Guidelines for consistency and maintainability.
 
 ## References
 
-- `tapps_agents/experts/knowledge/code-quality-analysis/` - code-metrics, complexity-analysis, static-analysis-patterns, technical-debt-patterns, quality-gates
 - Use `@reviewer *lint` and `@reviewer *review` for enforcement

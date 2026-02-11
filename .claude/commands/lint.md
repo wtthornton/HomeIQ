@@ -46,7 +46,5 @@ Run linting on the authentication module
 
 ## Integration
 
-- **Cursor**: Use `@reviewer *lint <file>` (Cursor Skill)
 - **Claude Desktop**: Use `@lint <file>` (this command)
-- **CLI**: Use `tapps-agents reviewer lint <file>`
 

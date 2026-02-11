@@ -410,7 +410,6 @@ workflow:
         - Include recommendations for next steps:
           * Review master validation summary
           * Prioritize services needing immediate attention
-          * Create improvement plans per service using TappsCodingAgents workflows
           * Track validation status over time (run periodically)
           * Use validation reports for architecture decision documentation
       requires:

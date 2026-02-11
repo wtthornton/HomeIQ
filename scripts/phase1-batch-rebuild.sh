@@ -16,7 +16,7 @@
 #   --rollback-on-fail  Automatically rollback batch on any failure
 #   --continue          Continue from last failed batch
 #
-# Author: TappsCodingAgents Framework with Context7 MCP
+# Author: AI quality tools Framework with Context7 MCP
 # Date: 2026-02-04
 
 set -euo pipefail

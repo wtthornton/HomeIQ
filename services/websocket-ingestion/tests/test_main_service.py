@@ -2,7 +2,7 @@
 Unit Tests for WebSocket Ingestion Service Main Application
 
 Target: 80% test coverage for main.py
-Following data-api test patterns and TappsCodingAgents best practices
+Following data-api test patterns and best practices
 """
 
 import os

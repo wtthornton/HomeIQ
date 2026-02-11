@@ -236,196 +236,122 @@ class DiscoveryService:
             logger.error(traceback.format_exc())
             return []
 
-    async def discover_entities(self, websocket: ClientWebSocketResponse | None = None) -> list[dict[str, Any]]:
+    async def _discover_entities_http(self) -> list[dict[str, Any]]:
         """
-        Discover all entities from Home Assistant entity registry
-        
-        Uses HTTP API to avoid WebSocket concurrency issues.
-        
-        Args:
-            websocket: Optional WebSocket client (deprecated, kept for backward compatibility)
-            
+        Discover entities via HTTP States API (fallback when WebSocket not available)
+
+        WARNING: The /api/states endpoint does NOT return entity registry metadata
+        (device_id, area_id, name, name_by_user, original_name, unique_id, etc.).
+        Entities discovered via this method will have device_id=None, meaning they
+        won't appear when querying entities by device. Use WebSocket entity registry
+        as the primary method whenever possible.
+
         Returns:
-            List of entity dictionaries
-            
-        Raises:
-            Exception: If command fails or response is invalid
+            List of entity dictionaries (minimal: entity_id + platform only)
         """
         try:
             import os
 
             import aiohttp
 
-            logger.info("=" * 80)
-            logger.info("🔌 DISCOVERING ENTITIES (via HTTP API)")
-            logger.info("=" * 80)
-
-            # Use HTTP States API to fetch entities (avoids WebSocket concurrency issues)
-            # Note: Entity registry listing is WebSocket-only, but states API returns all entities
-            # States API provides entity_id which is sufficient for basic entity discovery
             ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
             ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
 
             if not ha_token:
-                logger.error("❌ No HA token available for entity discovery")
+                logger.warning("⚠️  No HA token available for HTTP entity discovery")
                 return []
 
-            # Normalize URL (ensure http:// not ws://)
             ha_url = ha_url.replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
-
-            logger.info(f"🔗 Connecting to Home Assistant at: {ha_url}")
-            logger.info(f"🔑 Using token: ***{ha_token[-4:]}" if ha_token else "❌ No token!")
 
             headers = {
                 "Authorization": f"Bearer {ha_token}",
                 "Content-Type": "application/json"
             }
 
-            # Epic 50 Story 50.2: Use configurable SSL verification (default: enabled)
-            # For internal/local networks, SSL can be disabled via SSL_VERIFY=false
             ssl_verify = os.getenv('SSL_VERIFY', 'true').lower() in ('true', '1', 'yes', 'on')
-            # For Home Assistant connections, use SSL verification unless explicitly disabled
-            # Internal service calls (data-api) can disable SSL separately
             connector = aiohttp.TCPConnector(ssl=ssl_verify)
             async with aiohttp.ClientSession(connector=connector) as session:
-                # Use /api/states endpoint (HTTP) instead of entity registry (WebSocket-only)
-                # States API returns all entities with current states, which includes entity_id
                 logger.info(f"📡 Fetching entities from States API: {ha_url}/api/states")
                 async with session.get(
                     f"{ha_url}/api/states",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
-                    logger.info(f"📥 Response status: {response.status}")
                     if response.status != 200:
                         error_text = await response.text()
-                        logger.error(f"❌ HTTP States API endpoint failed: HTTP {response.status} - {error_text}")
-                        logger.error("Entity discovery failed - States API is required for HTTP-based discovery")
+                        logger.error(f"❌ HTTP States API failed: HTTP {response.status} - {error_text[:200]}")
                         return []
 
                     states = await response.json()
-                    logger.info(f"📦 Response type: {type(states)}, length: {len(states) if isinstance(states, list) else 'N/A'}")
-
-                    # Convert states to entity registry format
-                    # States API returns array of state objects, each with entity_id
                     entities = []
                     for state in states:
                         entity_id = state.get("entity_id")
                         if entity_id:
-                            # Extract domain from entity_id (format: domain.entity_name)
                             domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
                             entities.append({
                                 "entity_id": entity_id,
-                                "platform": domain,  # Use domain as platform identifier
-                                # States API doesn't provide full registry metadata,
-                                # but entity_id is sufficient for basic entity discovery
-                                # Full metadata can be obtained from entity registry events over time
+                                "platform": domain,
+                                # NOTE: States API does NOT provide device_id, area_id,
+                                # name, name_by_user, original_name, unique_id, etc.
                             })
 
-                    entity_count = len(entities)
-                    logger.info(f"✅ Discovered {entity_count} entities via States API")
-
-                    # Epic 23.2: Build entity → device and entity → area mapping caches
-                    for entity in entities:
-                        entity_id = entity.get("entity_id")
-                        if entity_id:
-                            # Store entity → device mapping
-                            device_id = entity.get("device_id")
-                            if device_id:
-                                self.entity_to_device[entity_id] = device_id
-
-                            # Store entity → area mapping (direct assignment)
-                            area_id = entity.get("area_id")
-                            if area_id:
-                                self.entity_to_area[entity_id] = area_id
-
-                    logger.info(f"🔗 Cached {len(self.entity_to_device)} entity → device mappings")
-                    logger.info(f"📍 Cached {len(self.entity_to_area)} entity → area mappings (direct)")
-
-                    # Update cache timestamp
-                    self._cache_timestamp = time.time()
-
-                    # Log sample entity if available
-                    if entities:
-                        sample = entities[0]
-                        entity_id = sample.get('entity_id', 'Unknown')
-                        domain = entity_id.split('.')[0] if '.' in entity_id else 'Unknown'
-                        logger.info(f"🔌 Sample entity: {entity_id} "
-                                  f"(platform: {sample.get('platform', 'Unknown')}, "
-                                  f"domain: {domain})")
-                        # Log name fields to verify they're present
-                        logger.info(f"   name: {sample.get('name')}, "
-                                  f"name_by_user: {sample.get('name_by_user')}, "
-                                  f"original_name: {sample.get('original_name')}")
-
+                    logger.info(f"✅ Retrieved {len(entities)} entities via HTTP States API")
+                    logger.warning("⚠️  HTTP States API does not provide device_id - entities won't link to devices")
                     return entities
 
         except Exception as e:
-            logger.error(f"❌ HTTP entity discovery failed with exception: {e}")
+            logger.error(f"❌ Error discovering entities via HTTP API: {e}")
             import traceback
-            logger.error(f"Exception traceback: {traceback.format_exc()}")
-            # Fallback to WebSocket if available
-            if websocket:
-                logger.info("🔄 Attempting WebSocket fallback for entity discovery...")
-                try:
-                    entities = await self._discover_entities_websocket(websocket)
-                    if entities:
-                        logger.info(f"✅ Entity discovery succeeded via WebSocket fallback: {len(entities)} entities")
-                    else:
-                        logger.error("❌ WebSocket fallback returned empty result - entity discovery failed")
-                    return entities
-                except Exception as ws_error:
-                    logger.error(f"❌ WebSocket fallback also failed: {ws_error}")
-                    logger.error("Entity discovery completely failed - both HTTP and WebSocket methods failed")
-                    logger.error(f"WebSocket error traceback: {traceback.format_exc()}")
-                    return []
-            else:
-                logger.error(f"❌ Error discovering entities and no WebSocket available: {e}")
-                logger.error("This indicates a configuration issue - check HA_HTTP_URL and HA_TOKEN, or ensure WebSocket is available")
-                return []
+            logger.error(traceback.format_exc())
+            return []
 
-    async def _discover_entities_websocket(self, websocket: ClientWebSocketResponse) -> list[dict[str, Any]]:
+    async def discover_entities(self, websocket: ClientWebSocketResponse | None = None, connection_manager=None) -> list[dict[str, Any]]:
         """
-        Discover entities via WebSocket (fallback method)
-        
+        Discover all entities from Home Assistant entity registry
+
+        Tries WebSocket entity registry first (provides complete metadata including
+        device_id, area_id, names), then falls back to HTTP States API.
+
         Args:
-            websocket: Connected WebSocket client
-            
+            websocket: Optional WebSocket client (preferred method)
+            connection_manager: Connection manager for sending messages (preferred over raw websocket)
+
         Returns:
             List of entity dictionaries
         """
         try:
-            message_id = await self._get_next_id()
-            logger.info("🔌 Discovering entities via WebSocket (fallback)...")
+            logger.info("=" * 80)
+            logger.info("🔌 DISCOVERING ENTITIES")
+            logger.info("=" * 80)
 
-            # Send entity registry list command
-            await websocket.send_json({
-                "id": message_id,
-                "type": "config/entity_registry/list"
-            })
+            # Try WebSocket entity registry first (preferred - has complete metadata including device_id)
+            entities = []
+            if connection_manager or websocket:
+                logger.info("Using WebSocket entity registry for entity discovery (has device_id, names, etc.)")
+                entities = await self._discover_entities_websocket(websocket, connection_manager)
+                if not entities:
+                    logger.warning("WebSocket entity discovery returned empty - trying HTTP States API fallback")
 
-            # Wait for response
-            response = await self._wait_for_response(websocket, message_id, timeout=10.0)
+            # Fallback to HTTP States API if WebSocket not available or failed
+            if not entities:
+                logger.info("Attempting HTTP States API for entity discovery (fallback - no device_id)")
+                entities = await self._discover_entities_http()
 
-            if not response or not response.get("success"):
-                error_msg = response.get("error", {}).get("message", "Unknown error") if response else "No response"
-                logger.error(f"❌ Entity registry WebSocket command failed: {error_msg}")
+            if not entities:
+                logger.warning("⚠️  Both WebSocket and HTTP API failed - no entities discovered")
                 return []
 
-            entities = response.get("result", [])
             entity_count = len(entities)
-            logger.info(f"✅ Discovered {entity_count} entities via WebSocket")
+            logger.info(f"✅ Discovered {entity_count} entities")
 
             # Epic 23.2: Build entity → device and entity → area mapping caches
             for entity in entities:
                 entity_id = entity.get("entity_id")
                 if entity_id:
-                    # Store entity → device mapping
                     device_id = entity.get("device_id")
                     if device_id:
                         self.entity_to_device[entity_id] = device_id
 
-                    # Store entity → area mapping (direct assignment)
                     area_id = entity.get("area_id")
                     if area_id:
                         self.entity_to_area[entity_id] = area_id
@@ -436,6 +362,73 @@ class DiscoveryService:
             # Update cache timestamp
             self._cache_timestamp = time.time()
 
+            # Log sample entity if available
+            if entities:
+                sample = entities[0]
+                entity_id = sample.get('entity_id', 'Unknown')
+                domain = entity_id.split('.')[0] if '.' in entity_id else 'Unknown'
+                logger.info(f"🔌 Sample entity: {entity_id} "
+                          f"(platform: {sample.get('platform', 'Unknown')}, "
+                          f"device_id: {sample.get('device_id', 'None')}, "
+                          f"domain: {domain})")
+                logger.info(f"   name: {sample.get('name')}, "
+                          f"name_by_user: {sample.get('name_by_user')}, "
+                          f"original_name: {sample.get('original_name')}")
+
+            return entities
+
+        except Exception as e:
+            logger.error(f"❌ Error discovering entities: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
+
+    async def _discover_entities_websocket(self, websocket: ClientWebSocketResponse | None = None, connection_manager=None) -> list[dict[str, Any]]:
+        """
+        Discover entities via WebSocket entity registry (primary method)
+
+        Uses config/entity_registry/list which returns complete metadata:
+        device_id, area_id, name, name_by_user, original_name, unique_id, etc.
+
+        Args:
+            websocket: Connected WebSocket client (optional, for backward compatibility)
+            connection_manager: Connection manager for sending messages (preferred)
+
+        Returns:
+            List of entity dictionaries with full registry metadata
+        """
+        try:
+            message_id = await self._get_next_id()
+            logger.info("🔌 Discovering entities via WebSocket entity registry...")
+
+            # Use connection manager if available (preferred method)
+            if connection_manager:
+                message = {
+                    "id": message_id,
+                    "type": "config/entity_registry/list"
+                }
+                if not await connection_manager.send_message(message):
+                    logger.error("❌ Failed to send entity registry command via connection manager")
+                    return []
+            elif websocket:
+                await websocket.send_json({
+                    "id": message_id,
+                    "type": "config/entity_registry/list"
+                })
+            else:
+                logger.error("❌ No websocket or connection manager provided")
+                return []
+
+            # Wait for response
+            response = await self._wait_for_response(websocket, message_id, timeout=10.0)
+
+            if not response or not response.get("success"):
+                error_msg = response.get("error", {}).get("message", "Unknown error") if response else "No response"
+                logger.error(f"❌ Entity registry WebSocket command failed: {error_msg}")
+                return []
+
+            entities = response.get("result", [])
+            logger.info(f"✅ Discovered {len(entities)} entities via WebSocket entity registry")
             return entities
 
         except Exception as e:
@@ -611,13 +604,14 @@ class DiscoveryService:
     async def discover_all(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None, store: bool = True) -> dict[str, Any]:
         """
         Discover all devices, entities, config entries, and services
-        
-        Uses HTTP API for devices and entities to avoid WebSocket concurrency issues.
-        
+
+        Uses WebSocket registry commands first (full metadata), HTTP API as fallback.
+
         Args:
-            websocket: Optional WebSocket client (deprecated, kept for backward compatibility)
+            websocket: Optional WebSocket client
+            connection_manager: Connection manager for sending messages (preferred)
             store: Whether to store results in SQLite via data-api (default: True)
-            
+
         Returns:
             Dictionary with 'devices', 'entities', 'config_entries', and 'services' keys
         """
@@ -625,11 +619,11 @@ class DiscoveryService:
         logger.info("🚀 STARTING COMPLETE HOME ASSISTANT DISCOVERY")
         logger.info("=" * 80)
 
-        # Use HTTP API for devices and entities (avoids WebSocket concurrency issues)
-        devices_data = await self.discover_devices(websocket)
-        entities_data = await self.discover_entities(websocket)
+        # Discover devices and entities (WebSocket first, HTTP fallback)
+        devices_data = await self.discover_devices(websocket, connection_manager)
+        entities_data = await self.discover_entities(websocket, connection_manager)
         # Discover config entries to resolve integration names from config_entry_ids
-        config_entries_data = await self.discover_config_entries(websocket) if websocket else []
+        config_entries_data = await self.discover_config_entries(websocket, connection_manager) if (websocket or connection_manager) else []
 
         # Discover services from HA Services API (Epic 2025) - already uses HTTP API
         services_data = await self.discover_services(websocket)
