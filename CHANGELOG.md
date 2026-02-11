@@ -34,6 +34,36 @@
 
 ### Added
 
+- **feat(ai-agent): upgrade to GPT-5.2 reasoning model with 2026 prompt best practices** (28fe64c) - wtthornton
+- **feat(evaluation): complete Agent Evaluation Framework (Pattern D) — all 34 stories** (34b5a8e) - wtthornton
+- **feat(analytics): replace mock metrics with real in-memory instrumentation** (7f8fbed) - wtthornton
+- **register Phase 2-4 validation routers in ai-automation-service** (304cdef) - wtthornton
+- **Reusable Pattern Framework — Phases 2-4 complete** (149107c) - wtthornton
+- **feat(docker): add missing services to compose; align docs and Cursor refs** (d19b1fb) - wtthornton
+- **Add service tier ranking and clean up documentation** (f7a887a) - wtthornton
+- **Add diagnostics, backups, and migration artifacts to .gitignore** (263d12c) - wtthornton
+- **Add --no-prompt flag for automated Phase D execution** (cfa9233) - wtthornton
+- **Add --skip-tests flag to MQTT migration script** (b8da908) - wtthornton
+- **Add --skip-tests flag to all migration scripts** (612fc8e) - wtthornton
+
+### Fixed
+
+- **fix(dashboard): use variable-based proxy_pass for dynamic DNS resolution** (343ff71) - wtthornton
+- **fix(docker): wrap sys.path manipulation in try/except for Docker compatibility** (cd48db8) - wtthornton
+- **fix(docker): resolve 5 container startup failures across stack** (0087706) - wtthornton
+- **fix(e2e): use request API for AI UI health check in global setup** (59be938) - wtthornton
+- **fix(e2e): expand and harden Playwright E2E test suite** (f9ef943) - wtthornton
+- **fix(e2e): comprehensive Playwright test quality pass — fix 43+ issues across all specs** (15eb6be) - wtthornton
+- **unit test fixes for conftest, ask_ai test button, and context7** (48a52f5) - wtthornton
+- **add is_blueprint column migration for automation-miner** (45fa46e) - wtthornton
+- **Fix blueprint-suggestion-service: create tests directory and migrate** (59827f0) - wtthornton
+- **Fix data-retention InfluxDB write_api usage** (43b4664) - wtthornton
+- **Fix energy-forecasting InfluxDB API to use new influxdb3-python** (e969324) - wtthornton
+- **Fix orchestrator script references after rename** (2d89316) - wtthornton
+
+
+### Added
+
 - **feat(synergy): sibling entity filtering for device pair synergies** — Filters out false synergy suggestions between entities belonging to the same device (e.g., Hue scenes and the lights they control). Uses `device_id` from entity registry for structural detection instead of name heuristics. Covers both area-based pair detection and co-occurrence pattern conversion. 13 new tests added.
 - **register Phase 2-4 validation routers in ai-automation-service** (304cdef) - wtthornton
 - **Reusable Pattern Framework — Phases 2-4 complete** (149107c) - wtthornton
