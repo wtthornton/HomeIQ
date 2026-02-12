@@ -381,12 +381,16 @@ class SystemPromptRuleEvaluator(QualityEvaluator):
 
         texts_to_check: list[str] = []
 
-        # Check generated YAML if available (preferred source for safety)
-        generated_yaml = session.metadata.get("generated_yaml", "")
-        if generated_yaml:
-            texts_to_check.append(generated_yaml)
+        # Only scan generated_yaml metadata for safety-related rules
+        # (e.g. yaml_safety_check). Other response_check rules should
+        # only inspect agent response text — generated_yaml is produced
+        # by the deterministic compile step, not by the LLM.
+        if self._rule.name == "yaml_safety_check":
+            generated_yaml = session.metadata.get("generated_yaml", "")
+            if generated_yaml:
+                texts_to_check.append(generated_yaml)
 
-        # Also check agent responses (catches any YAML that leaks through)
+        # Check agent responses
         for resp in session.agent_responses:
             texts_to_check.append(resp.content)
 
