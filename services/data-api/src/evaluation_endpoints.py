@@ -13,6 +13,7 @@ Endpoints:
   GET  /evaluations/{agent}/trends   — score trends over time
   GET  /evaluations/{agent}/alerts   — active threshold violations
   POST /evaluations/{agent}/trigger  — manual evaluation trigger
+  POST /evaluations/{agent}/results  — direct result submission (Story 5.4)
   POST /evaluations/{agent}/alerts/{alert_id}/acknowledge — ack alert
 """
 
@@ -325,6 +326,98 @@ async def trigger_evaluation(agent_name: str):
         total_evaluations=report.total_evaluations,
         alerts_triggered=len(report.alerts),
         timestamp=report.timestamp.isoformat(),
+    )
+
+
+class SubmitResultsRequest(BaseModel):
+    """Request body for direct evaluation result submission."""
+    session_id: str = ""
+    timestamp: str = ""
+    results: list[dict[str, Any]] = Field(default_factory=list)
+    aggregate_scores: dict[str, float] = Field(default_factory=dict)
+
+
+class SubmitResultsResponse(BaseModel):
+    agent_name: str
+    run_id: int
+    results_stored: int
+    timestamp: str
+
+
+@router.post(
+    "/evaluations/{agent_name}/results",
+    response_model=SubmitResultsResponse,
+)
+async def submit_evaluation_results(
+    agent_name: str,
+    body: SubmitResultsRequest,
+):
+    """
+    Submit pre-computed evaluation results directly to storage.
+
+    Used by the test harness (Story 5.4) to store evaluation results
+    without going through the scheduler. The test harness runs evaluators
+    locally and POSTs the results for dashboard trending.
+    """
+    from shared.patterns.evaluation.models import (
+        BatchReport,
+        EvalLevel,
+        EvaluationReport,
+        EvaluationResult,
+    )
+
+    ts_str = body.timestamp or datetime.now(timezone.utc).isoformat()
+
+    # Reconstruct EvaluationResult objects from dicts
+    eval_results: list[EvaluationResult] = []
+    for r in body.results:
+        level_str = r.get("level", "L1_OUTCOME")
+        try:
+            level = EvalLevel(level_str)
+        except ValueError:
+            level = EvalLevel.OUTCOME
+        eval_results.append(
+            EvaluationResult(
+                evaluator_name=r.get("evaluator", r.get("evaluator_name", "")),
+                level=level,
+                score=float(r.get("score", 0.0)),
+                label=r.get("label", ""),
+                explanation=r.get("explanation", ""),
+                passed=r.get("passed", True),
+            )
+        )
+
+    # Build a BatchReport wrapping the single session
+    report = BatchReport(
+        agent_name=agent_name,
+        sessions_evaluated=1,
+        total_evaluations=len(eval_results),
+        reports=[
+            EvaluationReport(
+                session_id=body.session_id,
+                agent_name=agent_name,
+                results=eval_results,
+            )
+        ],
+        aggregate_scores=body.aggregate_scores,
+    )
+
+    # Store in InfluxDB + SQLite
+    store = await _get_store()
+    run_id = await store.store_batch_report(report)
+
+    logger.info(
+        "Stored %d evaluation results for '%s' (run_id=%d)",
+        len(eval_results),
+        agent_name,
+        run_id,
+    )
+
+    return SubmitResultsResponse(
+        agent_name=agent_name,
+        run_id=run_id,
+        results_stored=len(eval_results),
+        timestamp=ts_str,
     )
 
 

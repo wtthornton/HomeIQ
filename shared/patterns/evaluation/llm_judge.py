@@ -119,6 +119,7 @@ class AnthropicProvider(LLMProvider):
         response = await client.messages.create(
             model=self.model,
             max_tokens=1024,
+            temperature=0.0,
             messages=[{"role": "user", "content": prompt}],
         )
         return response.content[0].text if response.content else ""

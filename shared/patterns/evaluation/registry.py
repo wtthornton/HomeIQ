@@ -147,10 +147,24 @@ class EvaluationRegistry:
     def _build_l1_evaluators(
         self, config: AgentEvalConfig
     ) -> list[BaseEvaluator]:
-        """Build L1 Outcome evaluators."""
+        """Build L1 Outcome evaluators.
+
+        Enables ``metadata_success_signals`` when the agent config has
+        pipeline-related tools (create_plan, compile_yaml), indicating
+        a structured pipeline that writes concrete outcome metadata.
+        """
         from .evaluators.l1_outcome import GoalSuccessRateEvaluator
 
-        return [GoalSuccessRateEvaluator(llm_judge=self._judge)]
+        # Auto-detect pipeline agents that emit metadata success signals
+        tool_names = {t.name for t in config.tools} if config.tools else set()
+        use_metadata = bool(tool_names & {"create_plan", "compile_yaml"})
+
+        return [
+            GoalSuccessRateEvaluator(
+                llm_judge=self._judge,
+                metadata_success_signals=use_metadata,
+            )
+        ]
 
     def _build_l2_evaluators(
         self, config: AgentEvalConfig

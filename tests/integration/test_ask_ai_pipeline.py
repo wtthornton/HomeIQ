@@ -514,11 +514,13 @@ class AgentEvaluationRunner:
     async def evaluate(self, result: "PipelineResult") -> AgentEvalSummary:
         """Run L1-L5 evaluation and return a summary."""
         summary = AgentEvalSummary()
+        self._last_report: EvaluationReport | None = None
 
         try:
             registry = self._ensure_registry()
             trace = SessionTraceBuilder.build(result)
             report: EvaluationReport = await registry.evaluate(trace)
+            self._last_report = report
 
             summary.available = True
 
@@ -569,6 +571,57 @@ class AgentEvaluationRunner:
             logger.warning(summary.error, exc_info=True)
 
         return summary
+
+    async def submit_to_data_api(
+        self,
+        summary: AgentEvalSummary,
+        timestamp: str = "",
+    ) -> bool:
+        """
+        Story 5.4: POST evaluation results to data-api for dashboard trending.
+
+        Sends results to ``POST /api/v1/evaluations/{agent}/results``.
+        Returns True if submission succeeded, False otherwise.
+        Fails silently — data-api unavailability should never break tests.
+        """
+        data_api_url = os.environ.get("DATA_API_URL", "http://localhost:8006")
+        agent_name = SessionTraceBuilder.AGENT_NAME
+
+        # Build aggregate scores from level_scores
+        aggregate: dict[str, float] = {}
+        for r in summary.results:
+            aggregate[r["evaluator"]] = r["score"]
+
+        body = {
+            "session_id": (
+                self._last_report.session_id if self._last_report else ""
+            ),
+            "timestamp": timestamp or datetime.now(timezone.utc).isoformat(),
+            "results": summary.results,
+            "aggregate_scores": aggregate,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    f"{data_api_url}/api/v1/evaluations/{agent_name}/results",
+                    json=body,
+                )
+                if resp.status_code == 200:
+                    logger.info(
+                        "Evaluation results submitted to data-api (run_id=%s)",
+                        resp.json().get("run_id"),
+                    )
+                    return True
+                logger.warning(
+                    "data-api returned %d: %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
+        except Exception as exc:
+            logger.debug("Could not submit to data-api: %s", exc)
+
+        return False
 
 
 # =========================================================================
@@ -755,11 +808,12 @@ class AskAITestHarness:
         )
 
         # --- Optional: L1-L5 Agent Evaluation (Pattern D) ---
+        eval_runner: AgentEvaluationRunner | None = None
         if evaluate:
             if _EVAL_AVAILABLE:
                 try:
-                    runner = AgentEvaluationRunner(api_key=eval_api_key)
-                    pipeline_result.evaluation = await runner.evaluate(pipeline_result)
+                    eval_runner = AgentEvaluationRunner(api_key=eval_api_key)
+                    pipeline_result.evaluation = await eval_runner.evaluate(pipeline_result)
                     if pipeline_result.evaluation.available:
                         logger.info(
                             "Agent Evaluation: %.1f%% overall (%d evaluators)",
@@ -798,6 +852,13 @@ class AskAITestHarness:
                 logger.debug("Eval history appended to %s", history_path)
             except Exception as exc:
                 logger.warning("Failed to write eval history: %s", exc)
+
+        # Story 5.4: Submit evaluation results to data-api for dashboard trending
+        if evaluate and pipeline_result.evaluation.available and eval_runner:
+            await eval_runner.submit_to_data_api(
+                pipeline_result.evaluation,
+                timestamp=pipeline_result.timestamp,
+            )
 
         return pipeline_result
 

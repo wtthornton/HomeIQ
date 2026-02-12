@@ -2,9 +2,12 @@ name: goal_success_rate
 description: >
   Evaluates whether the user achieved their goal in the session.
   Considers user intent, agent actions taken, and final outcome.
+  For Home Assistant automation pipelines, focuses on whether a valid
+  automation plan was produced and compiled.
 
 prompt_template: |
-  You are evaluating whether an AI agent successfully helped a user achieve their goal.
+  You are evaluating whether an AI agent successfully helped a user
+  create a Home Assistant automation.
 
   ## User Input
   {{ user_input }}
@@ -15,11 +18,27 @@ prompt_template: |
   ## Tool Calls Made
   {{ tool_calls }}
 
-  ## Instructions
-  Consider:
-  1. What was the user's intent or goal?
-  2. Did the agent take appropriate actions (tool calls)?
-  3. Was the final outcome what the user wanted?
+  ## Evaluation Criteria
+
+  Choose **Yes** if ALL of these are true:
+  - The agent selected an appropriate automation template
+  - A plan was created with relevant parameters
+  - The pipeline completed without errors
+  - In preview mode: valid YAML was generated (even with placeholder entities like {{target_entity}} — placeholders are expected without live data-api)
+
+  Choose **Partial** if:
+  - The pipeline ran but produced invalid YAML or an inappropriate template
+  - The agent addressed the request but missed key aspects of the user's intent
+
+  Choose **No** if:
+  - The pipeline failed with an error
+  - No automation plan was produced
+  - The agent completely misunderstood the user's intent
+
+  IMPORTANT: In preview/dry-run mode, placeholder entities (e.g.
+  {{matched_room_id}}, {{presence_sensor_entity}}) are EXPECTED and
+  should NOT count against goal success. They are resolved at deploy
+  time via data-api.
 
   Choose one of: {{ output_labels }}
 
@@ -35,7 +54,10 @@ score_mapping:
 
 examples:
   - input: "Turn on the living room lights"
-    response: "I've turned on the living room lights for you."
+    response: "Selected template: room_entry_light_on (confidence: 0.95)\n\nPipeline score: 99/100"
+    expected_label: "Yes"
+  - input: "When I leave home turn off everything"
+    response: "Selected template: state_based_automation (confidence: 0.90)\n\nPipeline score: 97/100"
     expected_label: "Yes"
   - input: "Turn on the living room lights"
     response: "I found 3 light entities but I'm not sure which one you mean."

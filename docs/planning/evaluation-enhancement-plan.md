@@ -1,6 +1,6 @@
 # Evaluation Enhancement Plan
 
-> **Status: IMPLEMENTED** — All phases (1-5) implemented Feb 2026. Only Story 5.4 (data-api wiring) remains unimplemented.
+> **Status: COMPLETE** — All phases (1-5) fully implemented Feb 2026, including Story 5.4 data-api wiring.
 
 **Purpose:** Improve the L1-L5 Agent Evaluation Framework integration with the Ask AI Pipeline Test Harness to produce accurate, actionable scores and establish a continuous test-evaluate-enhance-retest loop.
 
@@ -706,28 +706,21 @@ python tests/integration/eval_regression_check.py --threshold 0.10
 
 ---
 
-### Story 5.4 — Wire evaluation results to data-api REST endpoints ⏳ NOT YET IMPLEMENTED
+### Story 5.4 — Wire evaluation results to data-api REST endpoints ✅ DONE
 
 **Purpose:** Store evaluation results in the existing evaluation infrastructure (InfluxDB + SQLite) for dashboard trending.
 
-**File:** `tests/integration/test_ask_ai_pipeline.py` — `AgentEvaluationRunner`
+**Implementation:**
 
-**Changes:** After running evaluation, POST results to data-api:
+1. **New endpoint:** `POST /api/v1/evaluations/{agent_name}/results` in `services/data-api/src/evaluation_endpoints.py` — accepts pre-computed evaluation results directly from the test harness (bypasses scheduler). Accepts `SubmitResultsRequest` with `session_id`, `results[]`, and `aggregate_scores`, wraps in a `BatchReport`, and stores via `EvaluationStore.store_batch_report()`.
 
-```python
-# Optional: store in data-api if available
-data_api_url = os.environ.get("DATA_API_URL", "http://localhost:8006")
-try:
-    await client.post(
-        f"{data_api_url}/api/v1/evaluations/ai-automation-service/trigger",
-        json={"session_trace": trace.to_dict()},
-    )
-except Exception:
-    pass  # Data-api not available, skip storage
-```
+2. **`AgentEvaluationRunner.submit_to_data_api()`** in `tests/integration/test_ask_ai_pipeline.py` — new method that POSTs evaluation results to the data-api endpoint. Fails silently if data-api is unavailable (test harness should never break due to data-api).
+
+3. **Harness wiring:** After evaluation runs and JSONL history is written, the harness calls `eval_runner.submit_to_data_api()` to store results for dashboard trending.
 
 **Endpoints available on data-api (port 8006)** — verified in `services/data-api/src/evaluation_endpoints.py`, router mounted with `prefix="/api/v1"` in `main.py` line 424:
 - `POST /api/v1/evaluations/{agent_name}/trigger` — manual evaluation trigger (line 289)
+- `POST /api/v1/evaluations/{agent_name}/results` — direct result submission (Story 5.4)
 - `GET /api/v1/evaluations/{agent_name}/history` — paginated historical results (line 201)
 - `GET /api/v1/evaluations/{agent_name}/trends` — score trends over time (line 230)
 - `GET /api/v1/evaluations/{agent_name}/alerts` — active threshold violations (line 245)
@@ -744,11 +737,11 @@ except Exception:
 | **Phase 3** | 3.1-3.4 | ✅ DONE | +3 HA-specific evaluators (18 total) | Depends on Phase 2 (metadata fields) |
 | **Phase 4** | 4.1-4.3 | ✅ DONE | +1 rubric, deterministic exceptions | Depends on Phase 1 (execution_mode) |
 | **Phase 5** | 5.1-5.3 | ✅ DONE | History tracking, CI gating, regression detection | Independent |
-| **Phase 5** | 5.4 | ⏳ TODO | Wire eval results to data-api REST endpoints | Requires data-api running |
+| **Phase 5** | 5.4 | ✅ DONE | Wire eval results to data-api REST endpoints | Requires data-api running |
 
 **Total: 20 evaluator instances, ~90-93% preview score (with Phases 1+4), full regression detection pipeline.**
 
-**Remaining work:** Only Story 5.4 (data-api wiring) is unimplemented. This is optional for local testing but needed for dashboard trending.
+**All phases complete.** Phase 5 fully implemented including data-api wiring (Story 5.4).
 
 > **Note on 95% target:** Reaching 95%+ in preview mode requires addressing the three deploy-dependent evaluators that score 0% (`validation_before_deploy`, `post_deploy_verification`, `audit_trail_complete`). Options:
 > 1. Skip/N/A these evaluators when `execution_mode == "preview"` (simplest, most accurate)
