@@ -48,9 +48,8 @@
       },
       {
         "id": "motion_off",
-        "platform": "state",
-        "entity_id": "{{motion_sensor_entities}}",
-        "to": "off",
+        "platform": "template",
+        "value_template": "{{motion_all_off_template}}",
         "for": "{{motion_timeout_for}}"
       }
     ],

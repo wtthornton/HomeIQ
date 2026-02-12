@@ -254,8 +254,18 @@ async def deploy_compiled_automation(
     ha_client = get_ha_client()
 
     try:
+        # Inject existing automation ID into YAML for update-vs-create
+        deploy_yaml = compiled_artifact.yaml
+        if ha_automation_id:
+            import yaml as _yaml
+            auto_data = _yaml.safe_load(deploy_yaml)
+            if isinstance(auto_data, dict):
+                auto_data["id"] = ha_automation_id
+                deploy_yaml = _yaml.dump(auto_data, default_flow_style=False, sort_keys=False)
+                logger.info(f"Updating existing automation {ha_automation_id}")
+
         # Deploy YAML to HA
-        deployment_result = await ha_client.deploy_automation(compiled_artifact.yaml)
+        deployment_result = await ha_client.deploy_automation(deploy_yaml)
 
         # Use HA-returned ID if we didn't have one from lookup
         final_ha_id = ha_automation_id or deployment_result.get("automation_id") or deployment_result.get("entity_id")

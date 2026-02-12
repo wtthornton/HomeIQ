@@ -398,12 +398,18 @@ class YAMLCompiler:
 
         return None
     
+    # HA Jinja functions that should NOT be treated as unresolved placeholders
+    _HA_JINJA_FUNCS = re.compile(
+        r'is_state\(|states\(|state_attr\(|now\(\)|utcnow\(\)|as_timestamp\('
+    )
+
     def _strip_unresolved(self, obj: Any, template: Template | None = None) -> Any:
         """Remove or reject keys whose values still contain {{...}} placeholders.
 
         Required placeholders raise CompilationError.
         Optional placeholders are silently stripped.
         Empty containers left after stripping are also removed.
+        Values containing HA Jinja functions (is_state, states, etc.) are kept.
         """
         _PH = re.compile(r'\{\{([^}]+)\}\}')
 
@@ -426,6 +432,10 @@ class YAMLCompiler:
                 if isinstance(v, str):
                     match = pattern.search(v)
                     if match:
+                        # Skip HA Jinja expressions (is_state, states, etc.)
+                        if self._HA_JINJA_FUNCS.search(v):
+                            cleaned[k] = v
+                            continue
                         # Extract base param name (handle nested like time_window.after)
                         param_name = match.group(1).strip().split('.')[0]
                         if param_name in required_params:

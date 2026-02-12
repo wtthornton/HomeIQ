@@ -223,15 +223,17 @@ IMPORTANT: When selecting a template, verify the target area has the required se
             if not self.openai_client.client:
                 raise ValueError("OpenAI client not initialized")
             
-            response = await self.openai_client.client.chat.completions.create(
+            plan_kwargs = dict(
                 model=self.openai_client.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                response_format={"type": "json_object"},  # Force JSON output
-                temperature=0.3  # Lower temperature for more consistent template selection
+                response_format={"type": "json_object"},
             )
+            if self.openai_client.supports_temperature:
+                plan_kwargs["temperature"] = 0.3
+            response = await self.openai_client.client.chat.completions.create(**plan_kwargs)
             
             plan_data = json.loads(response.choices[0].message.content)
             
@@ -313,29 +315,32 @@ IMPORTANT: When selecting a template, verify the target area has the required se
 
                 entities = await self.data_api_client.fetch_entities_in_area(area_id)
 
-                # Count by domain
+                # Count by domain and collect key sensor entity IDs
                 domain_counts: dict[str, int] = {}
-                has_motion = False
-                has_presence = False
+                motion_ids: list[str] = []
+                presence_ids: list[str] = []
+                light_ids: list[str] = []
                 for entity in entities:
                     entity_id = entity.get("entity_id", "")
                     domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
                     domain_counts[domain] = domain_counts.get(domain, 0) + 1
 
                     device_class = entity.get("device_class", "")
+                    state = entity.get("state", "")
                     if device_class == "motion":
-                        has_motion = True
-                    if device_class == "presence":
-                        has_presence = True
+                        motion_ids.append(entity_id)
+                    if device_class in ("presence", "occupancy"):
+                        presence_ids.append(entity_id)
+                    if domain == "light" and state != "unavailable":
+                        light_ids.append(entity_id)
 
                 parts = [f"{d} ({c})" for d, c in sorted(domain_counts.items())]
                 sensor_note = ""
-                if not has_motion and not has_presence:
+                if not motion_ids and not presence_ids:
                     sensor_note = " -- NO motion/presence sensors"
-                elif has_motion:
-                    sensor_note = " -- has motion sensor"
-                elif has_presence:
-                    sensor_note = " -- has presence sensor"
+                else:
+                    sensor_ids = motion_ids + presence_ids
+                    sensor_note = f" -- motion/presence sensors: {', '.join(sensor_ids)}"
 
                 lines.append(f"  - {area_name}: {', '.join(parts)}{sensor_note}")
 

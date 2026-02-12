@@ -118,6 +118,12 @@ class OpenAIClient:
                 f"(fine-tuned={self.is_fine_tuned})"
             )
         
+        # Models that don't support custom temperature (reasoning models)
+        _NO_TEMP_PREFIXES = ("o1", "o3", "gpt-5")
+        self.supports_temperature = not any(
+            self.model.startswith(p) for p in _NO_TEMP_PREFIXES
+        )
+
         # Usage tracking
         self.total_tokens_used = 0
         self.total_cost_usd = 0.0
@@ -175,7 +181,7 @@ class OpenAIClient:
 {entity_context_section}"""
         
         try:
-            response = await self.client.chat.completions.create(
+            kwargs: dict[str, Any] = dict(
                 model=self.model,
                 messages=[
                     {
@@ -187,9 +193,11 @@ class OpenAIClient:
                         "content": prompt
                     }
                 ],
-                temperature=temperature,
-                max_tokens=max_tokens
+                max_tokens=max_tokens,
             )
+            if self.supports_temperature:
+                kwargs["temperature"] = temperature
+            response = await self.client.chat.completions.create(**kwargs)
             
             # Track usage
             if response.usage:
@@ -327,7 +335,7 @@ Return ONLY valid JSON matching this schema:
 Return ONLY the JSON object, no explanations or markdown code blocks."""
         
         try:
-            response = await self.client.chat.completions.create(
+            kwargs: dict[str, Any] = dict(
                 model=self.model,
                 messages=[
                     {
@@ -339,18 +347,20 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
                         "content": prompt
                     }
                 ],
-                temperature=temperature,
                 max_tokens=max_tokens,
-                response_format={"type": "json_object"}  # Force JSON output
+                response_format={"type": "json_object"},
             )
-            
+            if self.supports_temperature:
+                kwargs["temperature"] = temperature
+            response = await self.client.chat.completions.create(**kwargs)
+
             # Track usage
             if response.usage:
                 self.total_tokens_used += response.usage.total_tokens
-            
+
             # Extract JSON from response
             json_content = response.choices[0].message.content or "{}"
-            
+
             # Parse JSON
             plan_dict = json.loads(json_content)
             
@@ -451,7 +461,7 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
             logger.warning("Using fallback prompt - PromptBuilder not available")
         
         try:
-            response = await self.client.chat.completions.create(
+            kwargs: dict[str, Any] = dict(
                 model=self.model,
                 messages=[
                     {
@@ -463,18 +473,20 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
                         "content": prompt
                     }
                 ],
-                temperature=temperature,
                 max_tokens=max_tokens,
-                response_format={"type": "json_object"}  # Force JSON output
+                response_format={"type": "json_object"},
             )
-            
+            if self.supports_temperature:
+                kwargs["temperature"] = temperature
+            response = await self.client.chat.completions.create(**kwargs)
+
             # Track usage
             if response.usage:
                 self.total_tokens_used += response.usage.total_tokens
-            
+
             # Extract JSON from response
             json_content = response.choices[0].message.content or "{}"
-            
+
             # Parse JSON
             automation_json = json.loads(json_content)
             
@@ -515,7 +527,7 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
         prompt = f"Generate a brief, user-friendly description for this automation pattern: {pattern_data}"
         
         try:
-            response = await self.client.chat.completions.create(
+            kwargs: dict[str, Any] = dict(
                 model=self.model,
                 messages=[
                     {
@@ -527,9 +539,11 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
                         "content": prompt
                     }
                 ],
-                temperature=temperature,
-                max_tokens=max_tokens
+                max_tokens=max_tokens,
             )
+            if self.supports_temperature:
+                kwargs["temperature"] = temperature
+            response = await self.client.chat.completions.create(**kwargs)
             
             # Track usage
             if response.usage:

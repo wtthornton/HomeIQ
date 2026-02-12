@@ -277,8 +277,40 @@ class TemplateValidator:
 
                 motion_sensors = [
                     e["entity_id"] for e in area_entities
-                    if e.get("device_class") == "motion"
+                    if e.get("device_class") in ("motion", "occupancy")
                 ]
+
+                # Fallback: if area-based lookup found no motion sensors,
+                # search all binary_sensors by name pattern (data-api may
+                # have area_id=null for sensors not yet mapped to an area).
+                if not motion_sensors:
+                    logger.info(
+                        f"No motion sensors found via area lookup for '{area_id}', "
+                        "falling back to name-based search"
+                    )
+                    try:
+                        all_entities = await self.data_api_client.fetch_entities(limit=2000)
+                        area_lower = area_id.lower()
+                        motion_sensors = [
+                            e["entity_id"] for e in all_entities
+                            if (
+                                e.get("domain") == "binary_sensor"
+                                and area_lower in e.get("entity_id", "").lower()
+                                and (
+                                    e.get("device_class") in ("motion", "occupancy")
+                                    or "motion" in e.get("entity_id", "").lower()
+                                    or "presence" in e.get("entity_id", "").lower()
+                                    or "occupancy" in e.get("entity_id", "").lower()
+                                )
+                            )
+                        ]
+                        if motion_sensors:
+                            logger.info(
+                                f"Name-based fallback found {len(motion_sensors)} "
+                                f"motion sensors for '{area_id}': {motion_sensors}"
+                            )
+                    except Exception as fallback_exc:
+                        logger.warning(f"Name-based motion sensor fallback failed: {fallback_exc}")
 
                 # Filter out sensors that are unavailable/unknown in HA
                 if motion_sensors and self.ha_client:
@@ -287,7 +319,6 @@ class TemplateValidator:
                         try:
                             state = await self.ha_client.get_state(entity_id)
                             if state is None:
-                                # Could not reach HA or entity not found — keep it
                                 logger.warning(
                                     f"Could not get state for {entity_id}, keeping by default"
                                 )
@@ -308,7 +339,22 @@ class TemplateValidator:
                         motion_sensors = active_sensors
 
                 if motion_sensors:
+                    # ON trigger: all sensors (OR — any one triggers lights on)
                     resolved["motion_sensor_entities"] = motion_sensors
+
+                    # OFF trigger: template that requires ALL sensors off (AND)
+                    # e.g. {{ is_state('sensor.a', 'off') and is_state('sensor.b', 'off') }}
+                    all_off_parts = [
+                        f"is_state('{eid}', 'off')"
+                        for eid in motion_sensors
+                    ]
+                    resolved["motion_all_off_template"] = (
+                        "{{ " + "\n   and ".join(all_off_parts) + " }}"
+                    )
+                    logger.info(
+                        f"Resolved {len(motion_sensors)} motion sensors for '{area_id}': "
+                        f"{motion_sensors}"
+                    )
                 else:
                     logger.warning(f"No active motion sensors found in area '{area_id}'")
 
