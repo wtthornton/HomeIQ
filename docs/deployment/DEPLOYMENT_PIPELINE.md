@@ -276,7 +276,7 @@ docker compose config --quiet
 - URL: `https://homeiq.example.com`
 
 **Trigger:**
-- Push to `main` branch
+- Push to `main` or `master` branch (both trigger deployment; repo may use either as default)
 - Tag push (`v*`)
 - Manual workflow dispatch
 
@@ -295,7 +295,7 @@ docker compose config --quiet
 
 ### Automated Deployment (Recommended)
 
-1. **Push to main branch** or **create tag**
+1. **Push to default branch (main or master)** or **create tag**
 2. **Quality gates run automatically**
 3. **If gates pass, deployment starts**
 4. **Services are built and deployed**

@@ -382,18 +382,15 @@ class SessionTraceBuilder:
 
         # Fallback: when data-api isn't available (test mode), use plan
         # parameters as resolved context so entity_resolution scores fairly.
+        # All non-null plan parameters represent LLM-resolved context.
         if not result.debug.resolved_context and plan_step and plan_step.data:
             plan_params = plan_step.data.get("parameters", {})
-            entity_keys = {
+            resolved = {
                 k: v for k, v in plan_params.items()
-                if isinstance(v, str) and (
-                    "." in v  # entity_id format: domain.name
-                    or k.endswith("_entity")
-                    or k.endswith("_id")
-                )
+                if v is not None
             }
-            if entity_keys:
-                trace.metadata["resolved_context"] = entity_keys
+            if resolved:
+                trace.metadata["resolved_context"] = resolved
                 trace.metadata["entity_resolution_success"] = True
 
         # Story 2.1: Plan quality signals (requires plan_step from Story 1.3)

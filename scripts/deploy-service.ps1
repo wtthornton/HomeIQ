@@ -120,8 +120,12 @@ function Wait-ForHealthy {
         }
         
         if ($Verbose) {
-            $state = if ($status) { $status.State } else { "not found" }
-            $health = if ($status) { $status.Health } else { "unknown" }
+            $state = "not found"
+            $health = "unknown"
+            if ($status) {
+                $state = $status.State
+                $health = $status.Health
+            }
             Write-Host "  Status: $state, Health: $health ($elapsed/$MaxWaitSeconds seconds)" -ForegroundColor Gray
         }
     }
@@ -273,10 +277,9 @@ function Show-ServiceStatus {
         if ($status) {
             $state = $status.State
             $health = $status.Health
-            $uptime = if ($status.Status) { 
-                $status.Status -replace '.*Up ', '' 
-            } else { 
-                "unknown" 
+            $uptime = "unknown"
+            if ($status.Status) { 
+                $uptime = $status.Status -replace '.*Up ', '' 
             }
             
             $stateColor = switch ($state) {
@@ -309,7 +312,7 @@ function Show-ServiceStatus {
 Write-Step "HomeIQ Service Deployment Script"
 Write-Host ""
 Write-Info "Configuration:"
-Write-Host "  Services:    $($ServiceName -join ', ')"
+Write-Host ("  Services:    " + ($ServiceName -join ", "))
 Write-Host "  Action:      $Action"
 Write-Host "  Wait Healthy: $WaitForHealthy"
 Write-Host "  Check Logs:  $CheckLogs"

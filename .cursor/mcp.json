@@ -2,32 +2,46 @@
   "mcpServers": {
     "Context7": {
       "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"],
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
       "env": {
         "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
       }
     },
     "Playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ]
     },
     "FileSystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\cursor\\HomeIQ"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\cursor\\HomeIQ"
+      ]
     },
     "GitHub": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": ""
       }
     },
     "tapps-mcp": {
-      "command": "uv",
-      "args": ["--directory", "C:\\cursor\\TappMCP", "run", "--no-sync", "tapps-mcp", "serve"],
+      "command": "C:\\Users\\tappt\\AppData\\Roaming\\uv\\tools\\tapps-mcp\\Scripts\\tapps-mcp.exe",
+      "args": [
+        "serve"
+      ],
       "env": {
-        "TAPPS_MCP_PROJECT_ROOT": "C:\\cursor\\HomeIQ",
-        "TAPPS_MCP_CONTEXT7_API_KEY": "ctx7sk-534b7c8b-6e58-4019-8206-a084b4939e1e"
+        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
       }
     }
   }

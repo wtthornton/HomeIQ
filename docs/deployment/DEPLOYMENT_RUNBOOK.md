@@ -561,7 +561,7 @@ influxdb (direct writes)
 
 **Use GitHub Actions workflow for automated deployments:**
 
-1. **Push to main branch** or **create a tag** (`v*`)
+1. **Push to default branch (main or master)** or **create a tag** (`v*`)
 2. **Quality gates run automatically:**
    - Tests must pass
    - Security scans must pass (no CRITICAL/HIGH vulnerabilities)

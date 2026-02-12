@@ -242,12 +242,12 @@ system_prompt_rules:
 
   - name: no_direct_yaml_from_llm
     description: >
-      The LLM must NEVER output raw YAML. It should only produce
-      structured plans (template_id + parameters). YAML generation
-      is deterministic via the compile_yaml step.
-    check_type: llm_judge
+      The LLM must NEVER output raw YAML in its response text. It should
+      only produce structured plans (template_id + parameters). YAML
+      generation is deterministic via the compile_yaml step.
+    check_type: response_check
     severity: critical
-    labels: [Pass, Fail]
+    pattern: "^(trigger:|action:|automation:|  - platform:)"
 
   - name: yaml_safety_check
     description: >

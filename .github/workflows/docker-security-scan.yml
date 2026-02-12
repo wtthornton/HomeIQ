@@ -2,12 +2,12 @@ name: Docker Security Scan
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, master, develop ]
     paths:
       - 'services/**/Dockerfile'
       - '.github/workflows/docker-security-scan.yml'
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, master, develop ]
     paths:
       - 'services/**/Dockerfile'
       - '.github/workflows/docker-security-scan.yml'

@@ -2,7 +2,7 @@ name: Docker Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
     paths:
       - 'services/**'
       - 'docker-compose.yml'
@@ -19,7 +19,7 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
     environment:
       name: production
       url: https://homeiq.example.com
