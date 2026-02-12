@@ -1,12 +1,36 @@
 # Evaluation Sweep Results & Recommendations
 
-> **Date:** 2026-02-11
+> **Date:** 2026-02-11 (v1), 2026-02-12 (v4)
 > **Framework version:** 20 evaluators (17 active in preview mode, 3 deploy-only skipped)
 > **Mode:** Preview (deploy=false)
 
 ---
 
-## Sweep Results
+## Sweep v4 Results (2026-02-12) — Post-Fix
+
+Fixes applied: R1 (word boundary), R2 (no_direct_yaml), R3 (entity resolution mock),
+R4 (thermostat schema coercion), L1 stability (metadata signals), L4 scoped YAML scanning,
+R5 (preview exception keyword).
+
+| # | Prompt | Pipeline | Eval | v1 Eval | Delta |
+|---|--------|----------|------|---------|-------|
+| 1 | turn on the office lights | 99/100 | **96.2%** | 88.8% | +7.4% |
+| 2 | turn off all lights at midnight | 97/100 | **95.9%** | 87.6% | +8.3% |
+| 3 | make it look like a party in the office | 97/100 | **94.6%** | 87.6% | +7.0% |
+| 4 | when I leave home turn off everything | 97/100 | **95.9%** | 69.7% | +26.2% |
+| 5 | set the thermostat to 72 degrees | 97/100 | **94.5%** | 37.2% | +57.3% |
+
+**Average (all 5):** 95.4% (was 74.2%, **+21.2%**)
+**All prompts pass.** No pipeline failures.
+
+### Key Improvements
+- **"leave home" (+26.2%):** L1 metadata signals eliminated LLM judge variance; R1 word-boundary fix resolved template_appropriateness false negative
+- **"thermostat" (+57.3%):** R4 schema coercion fixed 400 error; pipeline now completes successfully with clarification step
+- **All prompts:** R2 no_direct_yaml false positive resolved, L4 scoped scanning, deterministic L1
+
+---
+
+## Sweep v1 Results (2026-02-11) — Baseline
 
 | # | Prompt | Pipeline | Eval | L1 | L2 | L3 | L4 | L5 | Alerts |
 |---|--------|----------|------|-----|-----|-----|-----|-----|--------|
@@ -88,7 +112,7 @@ All working prompts score **100%**. Thermostat scores 50% (`refusal: 0.00` — t
 
 ## Recommendations (Priority Ordered)
 
-### R1. Fix `TemplateAppropriatenessEvaluator` substring matching [HIGH — +3.8% avg]
+### R1. ~~Fix `TemplateAppropriatenessEvaluator` substring matching~~ ✅ DONE [HIGH — +3.8% avg]
 
 **Problem:** Keyword matching uses simple `kw in prompt` substring check. `"every"` matches inside `"everything"`, `"entry"` could match inside `"sentry"`, etc.
 
@@ -108,7 +132,7 @@ import re
 
 ---
 
-### R2. Fix `no_direct_yaml_from_llm` false positive [HIGH — +6.25% avg on L4]
+### R2. ~~Fix `no_direct_yaml_from_llm` false positive~~ ✅ DONE [HIGH — +6.25% avg on L4]
 
 **Problem:** The LLM judge for `no_direct_yaml_from_llm` sees `Parameters: {"entity_id": "light.office", ...}` in the agent response and flags it as structured data/YAML output.
 
@@ -138,7 +162,7 @@ Switch `no_direct_yaml_from_llm` from `check_type: llm_judge` to `check_type: re
 
 ---
 
-### R3. Improve entity resolution in test mode [MEDIUM — +8% on L3]
+### R3. ~~Improve entity resolution in test mode~~ ✅ DONE [MEDIUM — +8% on L3]
 
 **Problem:** `entity_resolution` scores 0.30 on every working prompt because `resolved_context` is always empty in test mode. The pipeline has no area/entity data without data-api.
 
@@ -166,7 +190,7 @@ Connect the test harness to data-api so entity resolution actually works end-to-
 
 ---
 
-### R4. Fix thermostat `clarifications_needed` schema [MEDIUM — specific prompt fix]
+### R4. ~~Fix thermostat `clarifications_needed` schema~~ ✅ DONE [MEDIUM — specific prompt fix]
 
 **Problem:** The `/automation/plan` endpoint returns 400 for "set the thermostat to 72 degrees" because the LLM returned `clarifications_needed` as a list of strings instead of a list of dicts:
 
@@ -193,7 +217,7 @@ coerced = [
 
 ---
 
-### R5. Tune `tool_sequence_validator` for preview mode [LOW — already at 0.60]
+### R5. ~~Tune `tool_sequence_validator` for preview mode~~ ✅ DONE [LOW — already at 0.60]
 
 The validator scores 60% (3/5 rules pass) in preview mode. The 2 failing rules are `validate_before_deploy` and `verify_after_deploy` which have exceptions for dry-run mode. Story 4.3's deterministic check matches on `"dry-run"` in the exception text, but the actual exception text might not contain that exact substring.
 
@@ -203,7 +227,7 @@ The validator scores 60% (3/5 rules pass) in preview mode. The 2 failing rules a
 
 ---
 
-### R6. Add `condition` bonus to YAML completeness [LOW — +0.05 on L3]
+### R6. ~~Add `condition` bonus to YAML completeness~~ ✅ DONE (was already implemented) [LOW — +0.05 on L3]
 
 Enhancement B from the original plan: many HA automations use `condition` blocks. Add an optional 0.1 bonus (capped at 1.0) when `condition` is present and the template defines conditions.
 
@@ -213,38 +237,34 @@ Enhancement B from the original plan: many HA automations use `condition` blocks
 
 ---
 
-## Score Projections After Fixes
+## Score Projections After Fixes → Actual Results
 
-| Fix | Current Avg | Projected Avg | Delta |
-|-----|------------|---------------|-------|
-| Baseline (top 3) | 88.0% | — | — |
-| + R1 (word boundary) | — | 88.0% | +0% (top 3 unaffected) |
-| + R2 (no_yaml false positive) | — | 93.2% | +5.2% |
-| + R3 (entity resolution) | — | 95.6% | +2.4% |
-| **All R1-R3** | 88.0% | **~95-96%** | **+7-8%** |
+| Fix | Projected Avg | Actual Avg (v4) | Notes |
+|-----|---------------|-----------------|-------|
+| Baseline (v1) | — | 74.2% | — |
+| + R1 (word boundary) | 88.0% | — | Merged with other fixes |
+| + R2 (no_yaml false positive) | 93.2% | — | Merged with other fixes |
+| + R3 (entity resolution) | 95.6% | — | Merged with other fixes |
+| **All R1-R6 + L1 stability** | **~95-96%** | **95.4%** | **Projection was accurate** |
 
-| Fix | "leave home" | Projected |
-|-----|-------------|-----------|
-| + R1 (word boundary) | 69.7% | ~88% |
-| + R1 + R2 | — | ~93% |
-| + R1 + R2 + R3 | — | ~95% |
-
-| Fix | "thermostat" | Projected |
-|-----|-------------|-----------|
-| + R4 (schema fix) | 37.2% | ~85% |
-| + R4 + R2 + R3 | — | ~93% |
+| Prompt | v1 | Projected | Actual v4 |
+|--------|-----|-----------|-----------|
+| leave home | 69.7% | ~95% | 95.9% |
+| thermostat | 37.2% | ~93% | 94.5% |
 
 ---
 
-## Implementation Priority
+## Implementation Priority — All Complete ✅
 
-| Priority | Fix | Effort | Impact | Recommendation |
-|----------|-----|--------|--------|----------------|
-| **P0** | R1 — Word boundary matching | 15 min | Fixes false negative | Do first |
-| **P0** | R2 — no_direct_yaml false positive | 15 min | +6.25% on L4 | Do first |
-| **P1** | R4 — Thermostat schema coercion | 30 min | Fixes broken prompt | Pipeline fix |
-| **P1** | R3 — Entity resolution mock | 30 min | +8% on L3 | Choose Option A |
-| **P2** | R5 — Sequence validator tuning | 15 min | +4% on L2 | Config check |
-| **P2** | R6 — Condition bonus | 10 min | +0.5% on L3 | Minor polish |
+| Priority | Fix | Status | Actual Impact |
+|----------|-----|--------|---------------|
+| **P0** | R1 — Word boundary matching | ✅ Done | Fixed "leave home" false negative |
+| **P0** | R2 — no_direct_yaml false positive | ✅ Done | +6.25% on L4 |
+| **P1** | R4 — Thermostat schema coercion | ✅ Done | Fixed 37.2% → 94.5% |
+| **P1** | R3 — Entity resolution mock | ✅ Done | L3 improvement |
+| **P2** | R5 — Sequence validator tuning | ✅ Done | Added "preview" keyword |
+| **P2** | R6 — Condition bonus | ✅ Done | Already implemented |
+| **+** | L1 Stability — Metadata signals | ✅ Done | Deterministic pre-screen |
+| **+** | L4 Scoped YAML scanning | ✅ Done | yaml_safety_check only |
 
-**Recommended implementation order:** R1 + R2 together (quick wins, biggest per-effort impact), then R4, then R3.
+**All 6 recommendations implemented. Average improved 74.2% → 95.4% (+21.2%).**

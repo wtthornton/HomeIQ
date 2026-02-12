@@ -233,7 +233,10 @@ class ToolSequenceValidatorEvaluator(PathEvaluator):
         # Deterministic exception checks based on metadata
         for exc_text in exceptions:
             exc_lower = exc_text.lower()
-            if "dry-run" in exc_lower and mode in ("preview", "dry_run"):
+            if (
+                ("dry-run" in exc_lower or "preview" in exc_lower)
+                and mode in ("preview", "dry_run")
+            ):
                 return True
             if "external source" in exc_lower and mode == "external":
                 return True
