@@ -4,6 +4,39 @@
 
 ### Added
 
+- **feat(automation): multi-sensor OR/AND motion trigger + gpt-5-mini compat** (4d3e1c1) - wtthornton
+- **add automation-trace-service for HA trace + logbook ingestion** (dbba879) - wtthornton
+- **feat(automation): YAML compiler + template validator live state filtering** (0fcbb86) - wtthornton
+- **feat(deploy): deploy pipeline root cause fixes — 5/5 prompt deploy target** (cd5dd14) - wtthornton
+- **feat(eval): L1 judge stability + Story 5.4 data-api integration** (9715cf9) - wtthornton
+- **feat(tests): add diagnostic mode, --output flag, and Unicode fixes to pipeline harness** (1beec0e) - wtthornton
+- **feat(tests): add reusable Ask AI pipeline test harness with scoring & diagnostics** (061ac7d) - wtthornton
+- **feat(ai-agent): upgrade to GPT-5.2 reasoning model with 2026 prompt best practices** (28fe64c) - wtthornton
+- **feat(evaluation): complete Agent Evaluation Framework (Pattern D) — all 34 stories** (34b5a8e) - wtthornton
+- **feat(analytics): replace mock metrics with real in-memory instrumentation** (7f8fbed) - wtthornton
+- **register Phase 2-4 validation routers in ai-automation-service** (304cdef) - wtthornton
+- **Reusable Pattern Framework — Phases 2-4 complete** (149107c) - wtthornton
+- **feat(docker): add missing services to compose; align docs and Cursor refs** (d19b1fb) - wtthornton
+
+### Fixed
+
+- **fix(deploy): end-to-end automation deployment to Home Assistant** (c57e268) - wtthornton
+- **fix(eval): R5 preview exception keyword + sweep v4 results (74.2% → 95.4%)** (fa6fb67) - wtthornton
+- **fix(eval): scope generated_yaml scanning to yaml_safety_check rule only** (8ac75e4) - wtthornton
+- **fix(ci): add master branch to deployment workflow triggers** (8346da4) - wtthornton
+- **fix(eval): evaluation sweep fixes — word boundaries, false positives, schema coercion** (3db7436) - wtthornton
+- **fix(templates): HA 2024.x+ compliance — trigger/action/condition as lists** (e41d9d8) - wtthornton
+- **fix(dashboard): use variable-based proxy_pass for dynamic DNS resolution** (343ff71) - wtthornton
+- **fix(docker): wrap sys.path manipulation in try/except for Docker compatibility** (cd48db8) - wtthornton
+- **fix(docker): resolve 5 container startup failures across stack** (0087706) - wtthornton
+- **fix(e2e): use request API for AI UI health check in global setup** (59be938) - wtthornton
+- **fix(e2e): expand and harden Playwright E2E test suite** (f9ef943) - wtthornton
+- **fix(e2e): comprehensive Playwright test quality pass — fix 43+ issues across all specs** (15eb6be) - wtthornton
+- **unit test fixes for conftest, ask_ai test button, and context7** (48a52f5) - wtthornton
+
+
+### Added
+
 - **feat(automation): YAML compiler + template validator live state filtering** (0fcbb86) - wtthornton
 - **feat(deploy): deploy pipeline root cause fixes — 5/5 prompt deploy target** (cd5dd14) - wtthornton
 - **feat(eval): L1 judge stability + Story 5.4 data-api integration** (9715cf9) - wtthornton
