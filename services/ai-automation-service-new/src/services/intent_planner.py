@@ -92,7 +92,15 @@ class IntentPlanner:
                         for param_name, param in template.parameter_schema.items()
                     }
                 })
-        
+
+        # Pre-filter templates that can't work in the target area
+        template_descriptions = await self._filter_templates_by_capabilities(
+            template_descriptions, context
+        )
+
+        # Build entity summary for hardware-aware selection
+        entity_summary = await self._build_entity_summary()
+
         # Build system prompt for template selection
         system_prompt = f"""You are an automation planning assistant. Your job is to select the best template and fill in parameters based on user requests.
 
@@ -101,27 +109,110 @@ Available Templates:
 
 Rules:
 1. Select the template_id that best matches the user's intent
-2. Fill in parameters based on user text and context
+2. Fill in ALL parameters (both required and optional) based on user text and context
 3. Set confidence score (0.0-1.0) based on how well the template matches
 4. If clarification is needed, add questions to clarifications_needed array
 5. NEVER output YAML - only structured plan with template_id and parameters
 6. Set safety_class based on devices involved (low/medium/high/critical)
 
+Parameter Filling Rules:
+- ALWAYS provide a value for every parameter defined in the template schema
+- NEVER return null for any parameter — use the template's default value or a sensible fallback
+- For target_entity: use "all" when the user says "all lights", "everything", or does not specify a specific entity
+- For target_area: use the area/room name from the user's request (e.g., "office")
+- For time_window: default to {{"after": "06:00:00", "before": "23:00:00"}} if not specified
+- For action_data: use {{}} (empty object) if no extra data is needed
+- For brightness_pct: default to 100 if not specified
+- For color_temp: omit from parameters if user does not mention color temperature
+
+Template Selection for Scheduled Actions:
+- For fixed-time requests ("at midnight", "at 7pm", "every day at 9am") -> use scheduled_task_at
+- For interval requests ("every 15 minutes", "every hour") -> use scheduled_task_interval
+
 Output Format (JSON):
 {{
-  "template_id": "room_entry_light_on",
+  "template_id": "time_based_light_on",
   "template_version": 1,
   "parameters": {{
-    "room_type": "office",
-    "brightness_pct": 100,
-    "time_window": {{"after": "08:00", "before": "18:00"}}
+    "target_area": "office",
+    "time": "19:00:00",
+    "brightness_pct": 100
   }},
-  "confidence": 0.92,
+  "confidence": 0.95,
   "clarifications_needed": [],
   "safety_class": "low",
-  "explanation": "Office entry detected via presence; user wants lights on during work hours."
+  "explanation": "User wants office lights on at 7pm. Using time_based_light_on for area-based time triggers."
+}}
+
+Examples:
+
+Example 1 — Fixed time schedule:
+User: "turn off all lights at midnight"
+Plan:
+{{
+  "template_id": "scheduled_task_at",
+  "template_version": 1,
+  "parameters": {{
+    "schedule_pattern": "00:00:00",
+    "action_service": "light.turn_off",
+    "target_entity": "all",
+    "action_data": {{}}
+  }},
+  "confidence": 0.95,
+  "clarifications_needed": [],
+  "safety_class": "low",
+  "explanation": "User wants all lights turned off at midnight. Using scheduled_task_at for fixed-time trigger."
+}}
+
+Example 2 — Time-based light control:
+User: "turn on office lights at 7pm"
+Plan:
+{{
+  "template_id": "time_based_light_on",
+  "template_version": 1,
+  "parameters": {{
+    "target_area": "office",
+    "time": "19:00:00",
+    "brightness_pct": 100
+  }},
+  "confidence": 0.95,
+  "clarifications_needed": [],
+  "safety_class": "low",
+  "explanation": "User wants office lights on at 7pm. Using time_based_light_on for area-based time triggers."
+}}
+
+Example 3 — Ambiguous request with clarification:
+User: "make it cooler"
+Plan:
+{{
+  "template_id": "temperature_control",
+  "template_version": 1,
+  "parameters": {{
+    "sensor_entity": "sensor.living_room_temperature",
+    "target_temperature": 20.0,
+    "hvac_entity": "climate.living_room",
+    "hvac_mode": "cool"
+  }},
+  "confidence": 0.6,
+  "clarifications_needed": [
+    {{"question": "Which room should I adjust the temperature in?"}},
+    {{"question": "What temperature would you like?"}}
+  ],
+  "safety_class": "medium",
+  "explanation": "User wants cooling but didn't specify room or target temp. Providing defaults with clarification requests."
 }}"""
-        
+
+        # Append entity summary for hardware-aware template selection
+        if entity_summary:
+            system_prompt += f"""
+
+{entity_summary}
+
+IMPORTANT: When selecting a template, verify the target area has the required sensors/devices.
+- room_entry_light_on requires a motion or presence sensor in the area. If the area has NO motion/presence sensors, use time_based_light_on or scene_activation instead.
+- motion_dim_off requires a motion sensor in the area.
+- temperature_control requires a temperature sensor and climate device in the area."""
+
         # Build user prompt with context
         user_prompt = f"User request: {user_text}"
         if context:
@@ -198,3 +289,123 @@ Output Format (JSON):
         except Exception as e:
             logger.error(f"Failed to create plan: {e}", exc_info=True)
             raise
+
+    async def _build_entity_summary(self) -> str:
+        """Build compact entity summary per area for the LLM prompt.
+
+        Returns a string like:
+          Available entities per area:
+          - office: light (3), scene (2) -- NO motion/presence sensors
+          - living_room: light (5), binary_sensor (1) -- has motion sensor
+        """
+        if not self.data_api_client:
+            return ""
+
+        try:
+            areas = await self.data_api_client.fetch_areas()
+            if not areas:
+                return ""
+
+            lines = ["Available entities per area:"]
+            for area in areas:
+                area_id = area.get("area_id", "")
+                area_name = area.get("name", area_id)
+
+                entities = await self.data_api_client.fetch_entities_in_area(area_id)
+
+                # Count by domain
+                domain_counts: dict[str, int] = {}
+                has_motion = False
+                has_presence = False
+                for entity in entities:
+                    entity_id = entity.get("entity_id", "")
+                    domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
+                    domain_counts[domain] = domain_counts.get(domain, 0) + 1
+
+                    device_class = entity.get("device_class", "")
+                    if device_class == "motion":
+                        has_motion = True
+                    if device_class == "presence":
+                        has_presence = True
+
+                parts = [f"{d} ({c})" for d, c in sorted(domain_counts.items())]
+                sensor_note = ""
+                if not has_motion and not has_presence:
+                    sensor_note = " -- NO motion/presence sensors"
+                elif has_motion:
+                    sensor_note = " -- has motion sensor"
+                elif has_presence:
+                    sensor_note = " -- has presence sensor"
+
+                lines.append(f"  - {area_name}: {', '.join(parts)}{sensor_note}")
+
+            return "\n".join(lines)
+        except Exception as e:
+            logger.warning(f"Failed to build entity summary: {e}")
+            return ""
+
+    async def _filter_templates_by_capabilities(
+        self,
+        templates: list[dict[str, Any]],
+        context: dict[str, Any] | None
+    ) -> list[dict[str, Any]]:
+        """Filter out templates whose required capabilities cannot be met.
+
+        If we can identify the target area from context, check that
+        the area has the required sensor types. Gracefully returns all
+        templates on failure.
+        """
+        if not self.data_api_client or not context:
+            return templates
+
+        # Try to identify target area from context
+        target_area = (
+            context.get("room") or context.get("area") or context.get("target_area")
+        )
+        if not target_area:
+            return templates
+
+        try:
+            areas = await self.data_api_client.fetch_areas()
+            area_id = None
+            for area in areas:
+                if target_area.lower() in area.get("name", "").lower():
+                    area_id = area.get("area_id")
+                    break
+
+            if not area_id:
+                return templates
+
+            entities = await self.data_api_client.fetch_entities_in_area(area_id)
+
+            # Build set of available device classes
+            available_device_classes = set()
+            for entity in entities:
+                device_class = entity.get("device_class", "")
+                if device_class:
+                    available_device_classes.add(device_class)
+
+            # Filter templates
+            filtered = []
+            for t in templates:
+                required_sensors = t.get("required_capabilities", {}).get("sensors", [])
+
+                if required_sensors:
+                    sensors_available = any(
+                        s in available_device_classes for s in required_sensors
+                    )
+                    if not sensors_available:
+                        logger.info(
+                            f"Filtering out template '{t['template_id']}': "
+                            f"requires sensors {required_sensors} but area '{target_area}' "
+                            f"has device classes {available_device_classes}"
+                        )
+                        continue
+
+                filtered.append(t)
+
+            # Fallback to all if none match
+            return filtered if filtered else templates
+        except Exception as e:
+            logger.warning(f"Failed to filter templates by capabilities: {e}")
+            return templates

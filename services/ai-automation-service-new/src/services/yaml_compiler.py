@@ -125,10 +125,11 @@ class YAMLCompiler:
             automation["condition"] = condition
 
         # Strip unresolved {{placeholders}} — HA rejects them
-        automation = self._strip_unresolved(automation)
+        # Required placeholders raise CompilationError; optional ones are stripped
+        automation = self._strip_unresolved(automation, template)
 
         # Remove incomplete trigger/condition/action entries
-        automation = self._remove_incomplete_entries(automation)
+        automation = self._remove_incomplete_entries(automation, template)
 
         # Generate YAML
         yaml_content = yaml.dump(automation, default_flow_style=False, sort_keys=False)
@@ -150,27 +151,34 @@ class YAMLCompiler:
         # Generate compiled_id
         compiled_id = f"c_{uuid.uuid4().hex[:8]}"
         
+        # Extract area_id from resolved context for update-vs-create lookup
+        area_id = resolved_context.get("matched_area_id")
+
         # Create compiled artifact
         compiled_artifact = CompiledArtifact(
             compiled_id=compiled_id,
             plan_id=plan_id,
+            template_id=template_id,
+            area_id=area_id,
             yaml=yaml_content,
             human_summary=human_summary,
             diff_summary=diff_summary,
             risk_notes=risk_notes
         )
-        
+
         # Store in database if session provided
         if db:
             db.add(compiled_artifact)
             await db.commit()
             await db.refresh(compiled_artifact)
-        
+
         logger.info(f"Compiled automation {compiled_id} from plan {plan_id}")
-        
+
         return {
             "compiled_id": compiled_id,
             "plan_id": plan_id,
+            "template_id": template_id,
+            "area_id": area_id,
             "yaml": yaml_content,
             "human_summary": human_summary,
             "diff_summary": diff_summary,
@@ -331,21 +339,44 @@ class YAMLCompiler:
         
         return result
     
-    def _strip_unresolved(self, obj: Any) -> Any:
-        """Remove keys whose values still contain {{...}} placeholders.
+    def _strip_unresolved(self, obj: Any, template: Template | None = None) -> Any:
+        """Remove or reject keys whose values still contain {{...}} placeholders.
 
-        Works recursively on dicts and lists.  Empty containers left
-        after stripping are also removed.
+        Required placeholders raise CompilationError.
+        Optional placeholders are silently stripped.
+        Empty containers left after stripping are also removed.
         """
-        _PH = re.compile(r'\{\{[^}]+\}\}')
+        _PH = re.compile(r'\{\{([^}]+)\}\}')
 
+        # Build set of required parameter names from the template schema
+        required_params: set[str] = set()
+        if template:
+            for param_name, param_schema in template.parameter_schema.items():
+                if param_schema.required:
+                    required_params.add(param_name)
+
+        return self._strip_unresolved_recursive(obj, _PH, required_params)
+
+    def _strip_unresolved_recursive(
+        self, obj: Any, pattern: re.Pattern, required_params: set[str]
+    ) -> Any:
+        """Recursive implementation of placeholder stripping."""
         if isinstance(obj, dict):
             cleaned = {}
             for k, v in obj.items():
-                if isinstance(v, str) and _PH.search(v):
-                    logger.debug(f"Stripping unresolved placeholder: {k}={v!r}")
-                    continue
-                stripped = self._strip_unresolved(v)
+                if isinstance(v, str):
+                    match = pattern.search(v)
+                    if match:
+                        # Extract base param name (handle nested like time_window.after)
+                        param_name = match.group(1).strip().split('.')[0]
+                        if param_name in required_params:
+                            raise CompilationError(
+                                f"Cannot compile: required parameter '{param_name}' "
+                                f"is unresolved (key='{k}', value='{v}')"
+                            )
+                        logger.debug(f"Stripping optional unresolved placeholder: {k}={v!r}")
+                        continue
+                stripped = self._strip_unresolved_recursive(v, pattern, required_params)
                 # Drop empty dicts/lists produced by stripping
                 if isinstance(stripped, dict) and not stripped:
                     continue
@@ -357,23 +388,34 @@ class YAMLCompiler:
         if isinstance(obj, list):
             result = []
             for item in obj:
-                stripped = self._strip_unresolved(item)
+                stripped = self._strip_unresolved_recursive(item, pattern, required_params)
                 if isinstance(stripped, dict) and not stripped:
                     continue
-                if isinstance(stripped, str) and _PH.search(stripped):
-                    continue
+                if isinstance(stripped, str):
+                    match = pattern.search(stripped)
+                    if match:
+                        param_name = match.group(1).strip().split('.')[0]
+                        if param_name in required_params:
+                            raise CompilationError(
+                                f"Cannot compile: required parameter '{param_name}' is unresolved"
+                            )
+                        continue
                 result.append(stripped)
             return result
 
         return obj
 
-    @staticmethod
-    def _remove_incomplete_entries(automation: dict[str, Any]) -> dict[str, Any]:
+    def _remove_incomplete_entries(
+        self, automation: dict[str, Any], template: Template | None = None
+    ) -> dict[str, Any]:
         """Remove trigger/condition/action items that are structurally incomplete.
 
         HA requires triggers to have more than just ``platform``, and
         conditions to have more than just ``condition``.  If stripping
         left only the type key, drop the entire entry.
+
+        Raises CompilationError if ALL trigger entries are incomplete
+        (triggers are always required for a valid automation).
         """
         # Keys that are just type identifiers, not meaningful on their own
         type_only_keys = {"trigger": {"platform"}, "condition": {"condition"}}
@@ -389,6 +431,13 @@ class YAMLCompiler:
             if cleaned:
                 automation[section] = cleaned
             else:
+                if section == "trigger":
+                    template_name = template.template_id if template else "unknown"
+                    raise CompilationError(
+                        f"All trigger entries are incomplete after compilation. "
+                        f"Template '{template_name}' cannot produce valid YAML "
+                        f"for the given parameters."
+                    )
                 automation.pop(section, None)
 
         return automation

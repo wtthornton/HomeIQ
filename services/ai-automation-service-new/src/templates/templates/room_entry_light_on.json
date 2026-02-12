@@ -23,6 +23,7 @@
     "time_window": {
       "type": "object",
       "required": false,
+      "default": {"after": "06:00:00", "before": "23:00:00"},
       "properties": {
         "after": {
           "type": "string",

@@ -192,6 +192,10 @@ class DeployCompiledRequest(BaseModel):
     approved_by: str | None = None
     ui_source: str | None = None
     audit_data: dict[str, Any] | None = None
+    ha_automation_id: str | None = Field(
+        None,
+        description="Existing HA automation ID to update. If provided, updates instead of creating new."
+    )
 
 
 @router.post("/automation/deploy")
@@ -204,6 +208,8 @@ async def deploy_compiled_automation(
     Deploy a compiled automation artifact to Home Assistant.
 
     Hybrid Flow Implementation: Deploys from compiled_id (template-based flow).
+    Supports update-or-create: if an existing deployment matches the same
+    template + area, it updates instead of creating a duplicate.
     """
     import uuid
     from datetime import datetime, timezone
@@ -218,6 +224,31 @@ async def deploy_compiled_automation(
     if not compiled_artifact:
         raise HTTPException(status_code=404, detail=f"Compiled artifact '{compiled_id}' not found")
 
+    # Determine ha_automation_id: explicit > lookup by template+area > new from HA
+    ha_automation_id = payload.ha_automation_id
+    existing_deployment = None
+
+    if not ha_automation_id and getattr(compiled_artifact, 'template_id', None) and getattr(compiled_artifact, 'area_id', None):
+        # Look up existing deployment for same template + area
+        lookup_query = (
+            select(Deployment)
+            .where(
+                Deployment.template_id == compiled_artifact.template_id,
+                Deployment.area_id == compiled_artifact.area_id,
+                Deployment.status == "deployed"
+            )
+            .order_by(Deployment.deployed_at.desc())
+            .limit(1)
+        )
+        lookup_result = await db.execute(lookup_query)
+        existing_deployment = lookup_result.scalar_one_or_none()
+        if existing_deployment:
+            ha_automation_id = existing_deployment.ha_automation_id
+            logger.info(
+                f"Found existing deployment for template={compiled_artifact.template_id}, "
+                f"area={compiled_artifact.area_id}: {ha_automation_id}"
+            )
+
     # Deploy to HA using existing deployment service
     from ..api.dependencies import get_ha_client
     ha_client = get_ha_client()
@@ -226,52 +257,67 @@ async def deploy_compiled_automation(
         # Deploy YAML to HA
         deployment_result = await ha_client.deploy_automation(compiled_artifact.yaml)
 
-        # Extract automation ID from deployment result
-        ha_automation_id = deployment_result.get("automation_id") or deployment_result.get("entity_id")
-        if not ha_automation_id:
+        # Use HA-returned ID if we didn't have one from lookup
+        final_ha_id = ha_automation_id or deployment_result.get("automation_id") or deployment_result.get("entity_id")
+        if not final_ha_id:
             raise HTTPException(status_code=500, detail="Failed to extract automation ID from deployment")
+
+        # Compute version number
+        version = 1
+        if existing_deployment:
+            version = existing_deployment.version + 1
 
         # Create deployment record
         deployment_id = f"d_{uuid.uuid4().hex[:8]}"
         deployment = Deployment(
             deployment_id=deployment_id,
             compiled_id=compiled_id,
-            ha_automation_id=ha_automation_id,
+            ha_automation_id=final_ha_id,
+            template_id=getattr(compiled_artifact, 'template_id', None),
+            area_id=getattr(compiled_artifact, 'area_id', None),
             status="deployed",
-            version=1,
+            version=version,
             approved_by=payload.approved_by,
             ui_source=payload.ui_source or "api",
             deployed_at=datetime.now(timezone.utc),
             audit_data=payload.audit_data or {
                 "compiled_id": compiled_id,
                 "plan_id": compiled_artifact.plan_id,
-                "deployed_at": datetime.now(timezone.utc).isoformat()
+                "deployed_at": datetime.now(timezone.utc).isoformat(),
+                "is_update": existing_deployment is not None,
+                "previous_deployment_id": existing_deployment.deployment_id if existing_deployment else None
             }
         )
 
         db.add(deployment)
+
+        # Mark previous deployment as superseded
+        if existing_deployment:
+            existing_deployment.status = "superseded"
+
         await db.commit()
         await db.refresh(deployment)
 
-        logger.info(f"Deployed automation {ha_automation_id} from compiled artifact {compiled_id}")
+        logger.info(f"Deployed automation {final_ha_id} from compiled artifact {compiled_id} (version={version})")
 
-        result: dict[str, Any] = {
+        deploy_result: dict[str, Any] = {
             "deployment_id": deployment_id,
             "compiled_id": compiled_id,
-            "ha_automation_id": ha_automation_id,
+            "ha_automation_id": final_ha_id,
             "status": "deployed",
-            "version": 1,
+            "version": version,
+            "is_update": existing_deployment is not None,
         }
         # Story 7: Include state and last_triggered in deploy response
         if deployment_result.get("state"):
-            result["state"] = deployment_result["state"]
+            deploy_result["state"] = deployment_result["state"]
         if deployment_result.get("attributes"):
             attrs = deployment_result["attributes"]
             if attrs.get("last_triggered"):
-                result["last_triggered"] = attrs["last_triggered"]
+                deploy_result["last_triggered"] = attrs["last_triggered"]
         if deployment_result.get("verification_warning"):
-            result["verification_warning"] = deployment_result["verification_warning"]
-        return result
+            deploy_result["verification_warning"] = deployment_result["verification_warning"]
+        return deploy_result
 
     except HTTPException:
         raise

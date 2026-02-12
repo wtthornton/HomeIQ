@@ -1,7 +1,7 @@
 {
-  "template_id": "scheduled_task",
+  "template_id": "scheduled_task_interval",
   "version": 1,
-  "description": "Execute action on a schedule (cron pattern)",
+  "description": "Execute action on an interval schedule (every N minutes)",
   "required_capabilities": {
     "services": []
   },
@@ -9,7 +9,7 @@
     "schedule_pattern": {
       "type": "string",
       "required": true,
-      "description": "Cron pattern or time pattern (e.g., '/15' for every 15 minutes, '07:00:00' for specific time)"
+      "description": "Interval pattern (e.g., '/15' for every 15 minutes, '/5' for every 5 minutes)"
     },
     "action_service": {
       "type": "string",
@@ -19,6 +19,7 @@
     "target_entity": {
       "type": "string",
       "required": false,
+      "default": "all",
       "description": "Target entity ID"
     },
     "target_area": {
@@ -29,6 +30,7 @@
     "action_data": {
       "type": "object",
       "required": false,
+      "default": {},
       "description": "Additional action data"
     }
   },
@@ -52,7 +54,7 @@
         "data": "{{action_data}}"
       }
     ],
-    "alias_template": "Scheduled: {{action_service}}",
+    "alias_template": "Scheduled: {{action_service}} every {{schedule_pattern}} min",
     "description_template": "Execute {{action_service}} on schedule {{schedule_pattern}}"
   },
   "examples": [

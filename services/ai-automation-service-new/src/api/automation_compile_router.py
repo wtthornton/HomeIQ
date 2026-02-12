@@ -96,7 +96,11 @@ async def compile_plan(
         
     except CompilationError as e:
         logger.error(f"Compilation error: {e}")
-        raise HTTPException(status_code=400, detail="Compilation error. Check server logs for details.")
+        raise HTTPException(status_code=422, detail={
+            "error": "compilation_incomplete",
+            "message": str(e),
+            "suggestion": "Check that all required parameters are provided and the target area has the necessary devices."
+        })
     except Exception as e:
         logger.error(f"Failed to compile plan: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to compile plan. Check server logs for details.")

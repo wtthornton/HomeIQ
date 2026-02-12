@@ -55,6 +55,7 @@
     "action_data": {
       "type": "object",
       "required": false,
+      "default": {},
       "description": "Action data"
     }
   },

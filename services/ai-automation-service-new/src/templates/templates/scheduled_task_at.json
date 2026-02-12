@@ -1,31 +1,26 @@
 {
-  "template_id": "state_based_automation",
+  "template_id": "scheduled_task_at",
   "version": 1,
-  "description": "Generic state-based automation (state change triggers action)",
+  "description": "Execute action at a specific time (e.g., midnight, 7am)",
   "required_capabilities": {
-    "sensors": [],
-    "devices": [],
     "services": []
   },
   "parameter_schema": {
-    "trigger_entity": {
+    "schedule_pattern": {
       "type": "string",
       "required": true,
-      "description": "Entity ID that triggers the automation"
-    },
-    "trigger_state": {
-      "type": "string",
-      "required": true,
-      "description": "State value that triggers (e.g., 'on', 'off', 'open', 'closed')"
+      "format": "HH:MM:SS",
+      "description": "Time to trigger (e.g., '00:00:00' for midnight, '07:00:00' for 7am)"
     },
     "action_service": {
       "type": "string",
       "required": true,
-      "description": "Service to call (e.g., 'light.turn_on')"
+      "description": "Service to call (e.g., 'light.turn_off')"
     },
     "target_entity": {
       "type": "string",
       "required": false,
+      "default": "all",
       "description": "Target entity ID"
     },
     "target_area": {
@@ -45,9 +40,8 @@
   "compilation_mapping": {
     "trigger": [
       {
-        "platform": "state",
-        "entity_id": "{{trigger_entity}}",
-        "to": "{{trigger_state}}"
+        "platform": "time",
+        "at": "{{schedule_pattern}}"
       }
     ],
     "condition": null,
@@ -61,15 +55,19 @@
         "data": "{{action_data}}"
       }
     ],
-    "alias_template": "{{trigger_entity}} → {{action_service}}",
-    "description_template": "When {{trigger_entity}} changes to {{trigger_state}}, call {{action_service}}"
+    "alias_template": "Scheduled: {{action_service}} at {{schedule_pattern}}",
+    "description_template": "Execute {{action_service}} at {{schedule_pattern}}"
   },
   "examples": [
     {
-      "trigger_entity": "binary_sensor.door_sensor",
-      "trigger_state": "on",
+      "schedule_pattern": "00:00:00",
+      "action_service": "light.turn_off",
+      "target_entity": "all"
+    },
+    {
+      "schedule_pattern": "07:00:00",
       "action_service": "light.turn_on",
-      "target_area": "entryway",
+      "target_area": "office",
       "action_data": {
         "brightness_pct": 100
       }

@@ -105,6 +105,8 @@ class CompiledArtifact(Base):
     
     compiled_id = Column(String, primary_key=True, index=True)
     plan_id = Column(String, ForeignKey("plans.plan_id"), nullable=False, index=True)
+    template_id = Column(String, nullable=True, index=True)  # Template used for compilation
+    area_id = Column(String, nullable=True, index=True)  # Target area for update-vs-create lookup
     yaml = Column(Text, nullable=False)  # Generated HA automation YAML
     human_summary = Column(Text, nullable=False)  # Human-readable summary
     diff_summary = Column(JSON, nullable=True)  # Array of change descriptions
@@ -115,15 +117,17 @@ class CompiledArtifact(Base):
 class Deployment(Base):
     """
     Deployment record - tracks automation deployment to Home Assistant
-    
+
     Hybrid Flow Implementation: Full audit trail for deployments
     """
     __tablename__ = "deployments"
-    
+
     deployment_id = Column(String, primary_key=True, index=True)
     compiled_id = Column(String, ForeignKey("compiled_artifacts.compiled_id"), nullable=False, index=True)
     ha_automation_id = Column(String, nullable=False, index=True)  # HA automation entity ID
-    status = Column(String, nullable=False, index=True)  # deployed, failed, rolled_back
+    template_id = Column(String, nullable=True, index=True)  # Template for update-vs-create lookup
+    area_id = Column(String, nullable=True, index=True)  # Area for update-vs-create lookup
+    status = Column(String, nullable=False, index=True)  # deployed, failed, rolled_back, superseded
     version = Column(Integer, nullable=False, default=1)  # Deployment version
     approved_by = Column(String, nullable=True)  # User/API key who approved
     ui_source = Column(String, nullable=True)  # UI source (ha-agent, automation-ui, etc.)
