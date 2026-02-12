@@ -37,6 +37,9 @@ The system prompt is organized into the following sections:
 - **Reliability**: initial_state, availability checks, error handling, max_exceeded
 - **Mode Selection**: single, restart, queued, parallel
 - **Target Optimization**: area_id/device_id preferences
+- **Group vs Individual Entity Decision**: When to use area targets vs specific entity lists
+- **Motion/Presence Sensor Resolution (MANDATORY)**: When user requests motion-based automation for an area, ALWAYS include ALL motion/presence/occupancy sensors in that area. Never use a single sensor — multiple sensors provide full area coverage. See MOTION/PRESENCE SENSORS context section.
+- **Zigbee Switch LED Indicators**: Entity resolution for LED indicator sensors vs switch entities
 - **Organization**: descriptions, tags, friendly names
 - **Device Capabilities**: numeric ranges, enum values, health scores
 
@@ -147,11 +150,14 @@ The system prompt follows these best practices:
 
 ## Token Budget
 
-- **Base System Prompt**: ~500 tokens
-- **Tier 1 Context**: ~1500-2000 tokens (includes entity attributes)
-- **Complete Prompt**: ~2000-2500 tokens
+- **Base System Prompt**: ~12,000 tokens (~45K characters) — includes all automation guidelines, entity resolution rules, and safety instructions
+- **Tier 1 Context**: ~1500-2000 tokens (entity inventory, areas, services, capabilities, entity attributes)
+- **Motion/Presence Sensor Context**: Variable (live state per area, ~200-500 tokens)
+- **Complete Prompt**: ~14,000-15,000 tokens
 
-The system prompt is designed to be cached (90% discount on repeated calls) and the context is cached with TTL-based expiration.
+The system prompt is designed to be cached (90% discount on repeated calls with OpenAI prompt caching) and the dynamic context is cached with TTL-based expiration.
+
+> **Note:** The large system prompt (~45K chars) contributes to GPT-5.2-Codex reasoning time (~60s). Future optimization may trim sections dynamically based on user intent.
 
 ## Customization
 

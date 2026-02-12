@@ -16,20 +16,25 @@ logger = logging.getLogger(__name__)
 class DataAPIClient:
     """Client for fetching entities and devices from Data API"""
 
-    def __init__(self, base_url: str = "http://data-api:8006"):
+    def __init__(self, base_url: str = "http://data-api:8006", api_key: str | None = None):
         """
         Initialize Data API client.
 
         Args:
             base_url: Base URL for Data API (default: http://data-api:8006)
+            api_key: Optional API key for Bearer auth
         """
         self.base_url = base_url.rstrip('/')
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         self.client = httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+            headers=headers
         )
-        logger.info(f"Data API client initialized with base_url={self.base_url}")
+        logger.info(f"Data API client initialized with base_url={self.base_url}, auth={'yes' if api_key else 'no'}")
 
     @retry(
         stop=stop_after_attempt(3),

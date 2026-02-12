@@ -147,7 +147,10 @@ async def lifespan(_app: FastAPI) -> None:
             access_token=settings.ha_token.get_secret_value(),
             timeout=settings.ha_timeout
         )
-        data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        data_api_client = DataAPIClient(
+            base_url=settings.data_api_url,
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None
+        )
         
         # Initialize AI Automation Service client for consolidated YAML validation
         from .clients.ai_automation_client import AIAutomationClient

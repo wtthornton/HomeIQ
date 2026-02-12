@@ -1,7 +1,7 @@
 # Deployment Guide
 
 **Service:** HA AI Agent Service  
-**Last Updated:** January 2025
+**Last Updated:** February 2026
 
 This guide covers deployment of the HA AI Agent Service using Docker and docker-compose.
 
@@ -32,6 +32,9 @@ HA_TOKEN=your-home-assistant-token
 
 # OpenAI Configuration
 OPENAI_API_KEY=your-openai-api-key
+
+# Data API Authentication
+API_KEY=your-shared-api-key  # Used by DATA_API_KEY for Bearer auth
 
 # Logging
 LOG_LEVEL=INFO
@@ -91,6 +94,9 @@ ha-ai-agent-service:
     - HA_URL=${HA_HTTP_URL:-http://homeassistant:8123}
     - HA_TOKEN=${HA_TOKEN:-}
     - DATA_API_URL=http://data-api:8006
+    - DATA_API_KEY=${API_KEY:-}
+    - AI_AUTOMATION_SERVICE_URL=http://ai-automation-service-new:8036
+    - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
     - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
     - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -127,6 +133,7 @@ ha-ai-agent-service:
 HA_HTTP_URL=http://your-ha-instance:8123
 HA_TOKEN=your-long-lived-access-token
 OPENAI_API_KEY=your-openai-api-key
+API_KEY=your-shared-api-key  # Used by DATA_API_KEY for Bearer auth
 
 # Optional
 OPENAI_MODEL=gpt-5.2-codex
@@ -194,12 +201,21 @@ docker-compose logs -f ha-ai-agent-service
 ### Required Services
 
 1. **data-api** (Port 8006)
-   - Used for entity queries
+   - Used for entity and device queries
    - Must be healthy before starting
+   - Requires Bearer auth via `DATA_API_KEY`
 
 2. **device-intelligence-service** (Port 8028)
    - Used for capability patterns
    - Optional (service can operate without it)
+
+3. **ai-automation-service-new** (Port 8036)
+   - Used for Hybrid Flow automation generation
+   - Optional (enabled via `USE_HYBRID_FLOW=true`)
+
+4. **yaml-validation-service** (Port 8037)
+   - Used for YAML validation and normalization
+   - Optional
 
 ### Network Configuration
 
@@ -211,7 +227,9 @@ networks:
 ```
 
 Internal service URLs:
-- `http://data-api:8006`
+- `http://data-api:8006` (Bearer auth required)
+- `http://ai-automation-service-new:8036`
+- `http://yaml-validation-service:8037`
 - `http://device-intelligence-service:8028`
 - `http://homeassistant:8123` (external or via network)
 
@@ -288,7 +306,7 @@ curl http://localhost:8028/health
 
 3. **Check environment variables:**
 ```bash
-docker exec homeiq-ha-ai-agent-service env | grep -E "HA_|OPENAI_|DATA_API"
+docker exec homeiq-ha-ai-agent-service env | grep -E "HA_|OPENAI_|DATA_API|AI_AUTOMATION|YAML_VALIDATION"
 ```
 
 ### Service Unhealthy
@@ -320,7 +338,12 @@ docker exec homeiq-ha-ai-agent-service ls -la /app/data/
    - Check API key validity
    - Verify network access to OpenAI
 
-3. **Internal Services:**
+3. **Data API (401 Unauthorized):**
+   - Verify `DATA_API_KEY` is set in container environment
+   - Ensure it matches `API_KEY` in `.env` file
+   - Check logs for `auth=yes` on startup: `Data API client initialized with base_url=..., auth=yes`
+
+4. **Internal Services:**
    - Verify services are on same Docker network
    - Check service URLs match docker-compose names
 

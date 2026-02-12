@@ -1112,8 +1112,9 @@ services:
       - DATA_API_URL=http://data-api:8006
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.2-codex}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
       - AI_AUTOMATION_API_KEY=${API_KEY:-}
+      - DATA_API_KEY=${API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       data-api:
@@ -1509,6 +1510,7 @@ services:
       - .env
     environment:
       - DATA_API_URL=http://data-api:8006
+      - DATA_API_KEY=${API_KEY:-}
       - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - SERVICE_PORT=8037

@@ -1824,9 +1824,10 @@ Get entities from Data API.
 
 ## HA AI Agent Service
 
-**Base URL:** `http://ha-ai-agent-service:8030`  
-**Status:** ✅ Complete (Epic AI-19)  
-**Purpose:** Tier 1 Context Injection for Home Assistant AI Agent
+**Base URL:** `http://ha-ai-agent-service:8030`
+**Status:** ✅ Complete (Epic AI-19, AI-20)
+**Purpose:** Conversational AI Agent for Home Assistant automation creation
+**Authentication:** Data API calls require Bearer auth via `DATA_API_KEY`
 
 ### Overview
 
@@ -1875,6 +1876,7 @@ Retrieve Tier 1 context formatted for OpenAI agent.
 3. Available Services Summary - Services by domain with common parameters (10 min cache TTL)
 4. Device Capability Patterns - Capability examples from device intelligence (15 min cache TTL)
 5. Helpers & Scenes Summary - Available helpers and scenes for reusable components (10 min cache TTL)
+6. Motion/Presence Sensor Context - Binary sensors grouped by area with live HA state, device_class detection, and multi-sensor instructions
 
 **Status Codes:**
 - `200 OK` - Context retrieved successfully
@@ -1960,8 +1962,10 @@ Context components are cached in SQLite database (`ha_ai_agent.db`) with TTL-bas
 ### Dependencies
 
 The service depends on:
-- **Home Assistant REST API** - For areas, services, and entity states
-- **Data API Service** (Port 8006) - For entity queries
+- **Home Assistant REST API** - For areas, services, live entity states (motion sensor state)
+- **Data API Service** (Port 8006) - For entity and device queries (Bearer auth via `DATA_API_KEY`)
+- **AI Automation Service** (Port 8036) - For Hybrid Flow automation generation (optional, enabled via `USE_HYBRID_FLOW`)
+- **YAML Validation Service** (Port 8037) - For YAML validation and normalization (optional)
 - **Device Intelligence Service** (Port 8028) - For device capability patterns
 
 If dependencies are unavailable, the service will return context with unavailable sections marked.

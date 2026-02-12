@@ -45,7 +45,7 @@ class DevicesSummaryService:
             ha_url=settings.ha_url,
             access_token=settings.ha_token.get_secret_value()
         )
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
         # Phase 1.2: Device Intelligence Client for device relationships/context
         self.device_intelligence_client = DeviceIntelligenceClient(settings)
         # Device Intelligence Service URL (optional - for Zigbee2MQTT data)

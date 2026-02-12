@@ -43,7 +43,7 @@ class DeviceStateContextService:
             ha_url=settings.ha_url,
             access_token=settings.ha_token.get_secret_value()
         )
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
         self._cache_ttl = 45  # 45 seconds (states change frequently)
 
     def _get_cache_key(self, entity_ids: list[str]) -> str:

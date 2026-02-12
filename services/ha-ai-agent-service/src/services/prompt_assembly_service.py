@@ -50,7 +50,7 @@ class PromptAssemblyService:
         self.model = settings.openai_model
         self.max_input_tokens = MAX_INPUT_TOKENS
         # Initialize EntityResolutionService and DataAPIClient for entity extraction
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
         self.entity_resolution_service = EntityResolutionService(
             data_api_client=self.data_api_client
         )

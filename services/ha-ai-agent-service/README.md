@@ -7,7 +7,7 @@
 
 ## Overview
 
-The HA AI Agent Service is a full-featured conversational AI agent that enables natural language interaction with Home Assistant. Users can describe automations in plain English, and the agent creates Home Assistant automations using OpenAI's GPT-4o/GPT-4o-mini models with function calling capabilities.
+The HA AI Agent Service is a full-featured conversational AI agent that enables natural language interaction with Home Assistant. Users can describe automations in plain English, and the agent creates Home Assistant automations using OpenAI's GPT-5.2-Codex reasoning model with function calling capabilities.
 
 ### Key Features
 
@@ -47,6 +47,8 @@ This epic implemented the foundational context injection system with the followi
    - Device capability patterns (cached 15 min)
    - Helpers & scenes summary (cached 10 min)
    - Entity attributes (effect lists, presets, themes) (cached 5 min)
+   - **Motion/presence sensor context** with live HA state, area grouping, and multi-sensor resolution
+   - Trigger platform reference with multi-entity patterns
 
 2. **Conversation Service** - Manages conversation state:
    - Conversation creation and persistence
@@ -171,14 +173,18 @@ This epic implemented the foundational context injection system with the followi
 
 **External Services:**
 - `DATA_API_URL` - Data API service URL (default: `http://data-api:8006`)
+- `DATA_API_KEY` - Bearer token for Data API authentication (required if Data API uses auth)
+- `AI_AUTOMATION_SERVICE_URL` - AI Automation Service URL (default: `http://ai-automation-service-new:8036`)
+- `YAML_VALIDATION_SERVICE_URL` - YAML Validation Service URL (default: `http://yaml-validation-service:8037`)
 - `DEVICE_INTELLIGENCE_URL` - Device Intelligence Service URL (default: `http://device-intelligence-service:8019`)
 - `DEVICE_INTELLIGENCE_ENABLED` - Enable device intelligence (default: `true`)
 
 **OpenAI:**
 - `OPENAI_MODEL` - Model to use: `gpt-5.2-codex` (default), `gpt-5.2`, or `gpt-5-mini` for cost
-- `OPENAI_MAX_TOKENS` - Maximum tokens for responses (default: `4096`)
-- `OPENAI_TEMPERATURE` - Temperature 0.0-2.0 (default: `0.7`)
-- `OPENAI_TIMEOUT` - API timeout in seconds (default: `30`)
+- `OPENAI_MAX_TOKENS` - Maximum completion tokens (default: `16384`, includes reasoning tokens)
+- `OPENAI_TEMPERATURE` - Temperature 0.0-2.0 (default: `1.0` for reasoning models)
+- `OPENAI_REASONING_EFFORT` - Reasoning effort: `low`, `medium`, `high` (default), `xhigh`
+- `OPENAI_TIMEOUT` - API timeout in seconds (default: `90`, reasoning models need more time)
 - `OPENAI_MAX_RETRIES` - Maximum retry attempts (default: `3`)
 
 **Database:**
@@ -248,9 +254,11 @@ python -m uvicorn src.main:app --host 0.0.0.0 --port 8030 --reload
 
 ## Dependencies
 
-- `data-api` (Port 8006) - Entity and device queries
+- `data-api` (Port 8006) - Entity and device queries (Bearer auth via `DATA_API_KEY`)
+- `ai-automation-service-new` (Port 8036) - Hybrid Flow automation generation
+- `yaml-validation-service` (Port 8037) - YAML validation and normalization
 - `device-intelligence-service` (Port 8028) - Device capability discovery
-- Home Assistant REST API - Areas, services, sun info
+- Home Assistant REST API - Areas, services, sun info, live entity states
 
 ## Database
 
@@ -308,7 +316,9 @@ See [Test Documentation](tests/README.md) for comprehensive testing guide.
 - **Context Building (first call)**: < 500ms ✅
 - **System Prompt Retrieval**: < 10ms ✅
 - **Complete Prompt Building**: < 100ms ✅
-- **Chat Response Time**: < 3 seconds ✅ (includes OpenAI API call + tool execution)
+- **Chat Response Time**: ~60s typical (GPT-5.2-Codex reasoning model with ~45K char system prompt; ~91% is OpenAI API time)
 - **Token Budget**: 16,000 input tokens (with automatic history truncation)
 - **Rate Limiting**: 100 requests/minute per IP address
+
+> **Note:** Chat response time is dominated by OpenAI reasoning model latency (~60s). The system prompt is ~45K characters (~12K tokens) including full context injection. Future optimization options include prompt trimming, streaming responses, and context caching.
 

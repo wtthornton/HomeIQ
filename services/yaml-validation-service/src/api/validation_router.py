@@ -51,7 +51,8 @@ async def validate_yaml(request: ValidationRequest) -> ValidationResponse:
         # Initialize clients
         data_api_client = None
         if request.validate_entities and settings.enable_entity_validation:
-            data_api_client = DataAPIClient(base_url=settings.data_api_url)
+            api_key = settings.data_api_key or settings.api_key
+            data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=api_key)
         
         ha_client = None  # TODO: Initialize HA client if validate_services
         

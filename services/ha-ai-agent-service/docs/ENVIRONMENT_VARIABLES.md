@@ -1,7 +1,7 @@
 # Environment Variables
 
 **Service:** HA AI Agent Service  
-**Last Updated:** January 2025
+**Last Updated:** February 2026
 
 This document describes all environment variables used by the HA AI Agent Service. All variables are optional and have defaults unless marked as **Required**.
 
@@ -65,6 +65,49 @@ The service uses Pydantic Settings to load configuration from environment variab
 - **Example:** `http://data-api:8006` (Docker network) or `http://localhost:8006` (local)
 - **Required:** No (if Data API is available)
 
+### `DATA_API_KEY`
+- **Type:** String (SecretStr)
+- **Default:** `None`
+- **Description:** Bearer token for Data API authentication. When set, all requests to Data API include `Authorization: Bearer <key>` header.
+- **Example:** Uses shared `API_KEY` from `.env` via `DATA_API_KEY=${API_KEY:-}`
+- **Required:** Yes (if Data API requires authentication)
+- **Security:** Store securely, never commit to git
+
+## AI Automation Service Configuration
+
+### `AI_AUTOMATION_SERVICE_URL`
+- **Type:** String (URL)
+- **Default:** `http://ai-automation-service-new:8036`
+- **Description:** AI Automation Service URL for Hybrid Flow automation generation
+- **Required:** No
+
+### `AI_AUTOMATION_API_KEY`
+- **Type:** String (SecretStr)
+- **Default:** `None`
+- **Description:** API key for AI Automation Service (required for patterns/synergies endpoints)
+- **Required:** No
+- **Security:** Store securely, never commit to git
+
+### `USE_HYBRID_FLOW`
+- **Type:** Boolean
+- **Default:** `true`
+- **Description:** Use Hybrid Flow (template-based) for automation generation. Preferred path for better YAML quality.
+- **Required:** No
+
+## YAML Validation Service Configuration
+
+### `YAML_VALIDATION_SERVICE_URL`
+- **Type:** String (URL)
+- **Default:** `http://yaml-validation-service:8037`
+- **Description:** YAML Validation Service URL for comprehensive YAML validation (Epic 51)
+- **Required:** No
+
+### `YAML_VALIDATION_API_KEY`
+- **Type:** String (SecretStr)
+- **Default:** `None`
+- **Description:** API key for YAML Validation Service
+- **Required:** No
+
 ## Device Intelligence Service Configuration
 
 ### `DEVICE_INTELLIGENCE_URL`
@@ -100,23 +143,30 @@ The service uses Pydantic Settings to load configuration from environment variab
 
 ### `OPENAI_MAX_TOKENS`
 - **Type:** Integer
-- **Default:** `4096`
-- **Description:** Maximum tokens for OpenAI responses
-- **Range:** 1-8192 (model-dependent)
+- **Default:** `16384`
+- **Description:** Maximum completion tokens (includes reasoning tokens — GPT-5.2-Codex needs headroom for thinking + output)
+- **Range:** 1-65536 (model-dependent)
 - **Required:** No
 
 ### `OPENAI_TEMPERATURE`
 - **Type:** Float
-- **Default:** `0.7`
-- **Description:** Temperature for OpenAI responses (controls randomness)
+- **Default:** `1.0`
+- **Description:** Temperature for OpenAI responses. Reasoning models work best at 1.0; reasoning handles consistency.
 - **Range:** 0.0-2.0
 - **Required:** No
-- **Note:** Lower values (0.0-0.3) = more deterministic, Higher values (0.7-2.0) = more creative
+- **Note:** Reasoning models (GPT-5.2-Codex) should use 1.0; non-reasoning models use 0.0-0.7
+
+### `OPENAI_REASONING_EFFORT`
+- **Type:** String
+- **Default:** `high`
+- **Description:** Reasoning effort for GPT-5.2-Codex. Higher = better quality, more tokens.
+- **Options:** `low`, `medium`, `high`, `xhigh`
+- **Required:** No
 
 ### `OPENAI_TIMEOUT`
 - **Type:** Integer (seconds)
-- **Default:** `30`
-- **Description:** OpenAI API timeout
+- **Default:** `90`
+- **Description:** OpenAI API timeout (reasoning models need more time than standard models)
 - **Required:** No
 
 ### `OPENAI_MAX_RETRIES`
@@ -212,6 +262,9 @@ HA_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGc...
 OPENAI_API_KEY=sk-proj-...
 OPENAI_MODEL=gpt-5.2-codex
 
+# Data API Authentication
+API_KEY=your-shared-api-key  # Used by DATA_API_KEY
+
 # Service Configuration
 LOG_LEVEL=INFO
 SERVICE_PORT=8030
@@ -235,6 +288,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=gpt-5.2-codex
       - DATA_API_URL=http://data-api:8006
+      - DATA_API_KEY=${API_KEY:-}
+      - AI_AUTOMATION_SERVICE_URL=http://ai-automation-service-new:8036
+      - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
       - LOG_LEVEL=INFO
       - DATABASE_URL=sqlite+aiosqlite:///./data/ha_ai_agent.db
@@ -245,6 +301,9 @@ services:
 ⚠️ **Never commit sensitive values to git:**
 - `HA_TOKEN` - Home Assistant access token
 - `OPENAI_API_KEY` - OpenAI API key
+- `DATA_API_KEY` / `API_KEY` - Data API Bearer token
+- `AI_AUTOMATION_API_KEY` - AI Automation Service key
+- `YAML_VALIDATION_API_KEY` - YAML Validation Service key
 
 ✅ **Best Practices:**
 - Use environment variables or secrets management

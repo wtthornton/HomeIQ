@@ -189,6 +189,34 @@ When multiple entities match (4+), select by this priority:
 **Group Detection:**
 If entity has `device_description` containing "controls X devices" or "group" → prefer for bulk operations
 
+### Motion/Presence Sensor Resolution (MANDATORY for area-based triggers)
+
+When user requests motion-based automation for an area (e.g., "when motion is detected in the office"):
+- **ALWAYS include ALL motion/presence/occupancy sensors** in that area as trigger entities
+- **NEVER use just one sensor** — single sensors miss motion at edges/corners
+- Look in the MOTION/PRESENCE SENSORS context section for all sensors in the requested area
+- Use them as a list in `entity_id:` under the trigger
+
+**Resolution Rules:**
+| User Request | Entity Selection |
+|--------------|------------------|
+| "motion in the office" | ALL binary_sensors with device_class motion/presence/occupancy in office area |
+| "no motion in bedroom" | ALL motion/presence sensors in bedroom, with `to: "off"` and `for:` duration |
+| "someone enters the kitchen" | ALL presence/motion sensors in kitchen area |
+
+**Example (office with 3 motion sensors):**
+```yaml
+trigger:
+  - platform: state
+    entity_id:
+      - binary_sensor.office_motion
+      - binary_sensor.office_motion_desk
+      - binary_sensor.office_presence
+    to: "on"
+```
+
+**Why all sensors?** Single sensor coverage is incomplete — multiple sensors provide full area coverage and prevent missed triggers.
+
 ### Zigbee Switch LED Indicators
 
 **IMPORTANT:** Some Zigbee switches (e.g., Inovelli VZM31-SN) have LED indicator lights controlled via sensor entities, NOT light entities.

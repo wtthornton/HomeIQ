@@ -213,6 +213,11 @@ IMPORTANT: When selecting a template, verify the target area has the required se
 - motion_dim_off requires a motion sensor in the area.
 - temperature_control requires a temperature sensor and climate device in the area."""
 
+        # Inject sports / team tracker sensor context for entity resolution
+        sports_context = await self._build_sports_entity_context(user_text)
+        if sports_context:
+            system_prompt += f"\n\n{sports_context}"
+
         # Build user prompt with context
         user_prompt = f"User request: {user_text}"
         if context:
@@ -347,6 +352,105 @@ IMPORTANT: When selecting a template, verify the target area has the required se
             return "\n".join(lines)
         except Exception as e:
             logger.warning(f"Failed to build entity summary: {e}")
+            return ""
+
+    # Common team name → abbreviation mappings for NHL, NFL, NBA, MLB, MLS
+    _TEAM_KEYWORDS: dict[str, list[str]] = {
+        # NHL
+        "vgk": ["golden knights", "vegas golden knights", "vgk", "knights"],
+        "dal": ["dallas stars", "stars"],
+        "sea": ["seattle kraken", "kraken"],
+        "col": ["colorado avalanche", "avalanche", "avs"],
+        "edm": ["edmonton oilers", "oilers"],
+        "wpg": ["winnipeg jets", "jets"],
+        "min": ["minnesota wild", "wild"],
+        "van": ["vancouver canucks", "canucks"],
+        "cgy": ["calgary flames", "flames"],
+        "lak": ["los angeles kings", "la kings", "kings"],
+        "ana": ["anaheim ducks", "ducks"],
+        "sjs": ["san jose sharks", "sharks"],
+        # NFL
+        "kc": ["kansas city chiefs", "chiefs"],
+        "lv": ["las vegas raiders", "raiders"],
+        "ne": ["new england patriots", "patriots", "pats"],
+        "phi": ["philadelphia eagles", "eagles"],
+        "buf": ["buffalo bills", "bills"],
+        "sf": ["san francisco 49ers", "49ers", "niners"],
+        # NBA
+        "lal": ["los angeles lakers", "lakers"],
+        "gsw": ["golden state warriors", "warriors"],
+        "bos": ["boston celtics", "celtics"],
+        # MLB
+        "nyy": ["new york yankees", "yankees"],
+        "lad": ["los angeles dodgers", "dodgers"],
+    }
+
+    async def _build_sports_entity_context(self, user_text: str) -> str:
+        """Build sports entity context for the LLM when sports-related keywords detected.
+
+        Queries data-api for all team_tracker sensors and builds a mapping of
+        team names/abbreviations to actual HA entity IDs so GPT uses real sensors
+        instead of hallucinating entity IDs.
+
+        Returns an empty string if no sports intent detected or no sensors found.
+        """
+        if not self.data_api_client:
+            return ""
+
+        text_lower = user_text.lower()
+
+        # Quick sports intent detection
+        sports_keywords = [
+            "team", "score", "game", "match", "goal",
+            "hockey", "football", "basketball", "baseball", "soccer",
+            "nhl", "nfl", "nba", "mlb", "mls",
+            "win", "lose", "start", "halftime", "quarter",
+            "touchdown", "home run",
+        ]
+        # Also check team name keywords
+        team_name_hit = False
+        for _abbr, names in self._TEAM_KEYWORDS.items():
+            for name in names:
+                if name in text_lower:
+                    team_name_hit = True
+                    break
+            if team_name_hit:
+                break
+
+        if not team_name_hit and not any(kw in text_lower for kw in sports_keywords):
+            return ""
+
+        try:
+            entities = await self.data_api_client.fetch_entities()
+            team_sensors = [
+                e for e in entities
+                if "team_tracker" in e.get("entity_id", "")
+                and e.get("entity_id", "").startswith("sensor.")
+            ]
+
+            if not team_sensors:
+                return ""
+
+            lines = [
+                "Sports Team Tracker Sensors (use ONLY these entity IDs for sports automations):",
+            ]
+            for sensor in team_sensors:
+                entity_id = sensor.get("entity_id", "")
+                # Extract abbreviation from entity_id (e.g., sensor.vgk_team_tracker → vgk)
+                abbr = entity_id.replace("sensor.", "").replace("_team_tracker", "").lower()
+                # Find known team names for this abbreviation
+                known_names = self._TEAM_KEYWORDS.get(abbr, [])
+                name_str = f" ({', '.join(known_names)})" if known_names else ""
+                lines.append(f"  - {entity_id}: abbreviation={abbr.upper()}{name_str}")
+
+            lines.append("")
+            lines.append("Team Tracker sensor states: PRE (pre-game), IN (in-progress), POST (game over), BYE, NOT_FOUND")
+            lines.append("Key attributes: team_score, opponent_score, team_name, opponent_name, team_abbr, team_colors")
+            lines.append("CRITICAL: For state triggers on team_tracker sensors, use 'platform: state' with 'to:' — do NOT include 'at:' field (that is for time triggers only).")
+
+            return "\n".join(lines)
+        except Exception as e:
+            logger.warning(f"Failed to build sports entity context: {e}")
             return ""
 
     async def _filter_templates_by_capabilities(

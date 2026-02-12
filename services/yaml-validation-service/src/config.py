@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     
     # Data API Configuration
     data_api_url: str = "http://data-api:8006"
+    data_api_key: str | None = None
+    api_key: str | None = None  # Fallback: shared API_KEY from .env
     
     # Home Assistant Configuration (optional, for service validation)
     ha_url: str | None = None

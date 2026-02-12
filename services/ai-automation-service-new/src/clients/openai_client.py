@@ -262,14 +262,16 @@ class OpenAIClient:
                 "description": {"type": "string", "description": "What this automation does"},
                 "trigger": {
                     "type": "array",
+                    "description": "List of triggers. 'at' is ONLY for platform:'time'. For platform:'state', use 'to'/'from'/'entity_id' (never 'at').",
                     "items": {
                         "type": "object",
                         "properties": {
                             "platform": {"type": "string"},
                             "entity_id": {"type": ["string", "array"]},
-                            "at": {"type": "string"},
                             "to": {"type": "string"},
-                            "from": {"type": "string"}
+                            "from": {"type": "string"},
+                            "at": {"type": "string", "description": "ONLY for platform:'time' triggers. Do NOT use with state/event triggers."},
+                            "attribute": {"type": "string"}
                         },
                         "required": ["platform"]
                     }

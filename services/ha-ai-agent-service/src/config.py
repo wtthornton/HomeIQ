@@ -30,6 +30,10 @@ class Settings(BaseSettings):
         default="http://data-api:8006",
         description="Data API service URL"
     )
+    data_api_key: SecretStr | None = Field(
+        default=None,
+        description="API key for Data API (Bearer auth)"
+    )
 
     # AI Automation Service Configuration
     ai_automation_service_url: str = Field(

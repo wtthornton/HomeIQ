@@ -35,7 +35,7 @@ class CapabilityPatternsService:
         self.settings = settings
         self.context_builder = context_builder
         self.device_intelligence_client = DeviceIntelligenceClient(settings)
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
         self._cache_key = "capability_patterns"
         self._cache_ttl = 900  # 15 minutes
 

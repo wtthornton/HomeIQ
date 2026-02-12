@@ -128,13 +128,28 @@ class YAMLNormalizer:
         else:
             return value
 
+    # Fields that are only valid for specific trigger platforms
+    _PLATFORM_INVALID_FIELDS: dict[str, set[str]] = {
+        "state": {"at"},       # 'at' is only valid for 'time' triggers
+        "event": {"at"},
+        "numeric_state": {"at"},
+        "template": {"at"},
+        "webhook": {"at"},
+        "zone": {"at"},
+        "device": {"at"},
+        "tag": {"at"},
+        "geo_location": {"at"},
+        "sun": {"at"},
+        "mqtt": {"at"},
+    }
+
     def _normalize_trigger_item(self, item: dict[str, Any], fixes_applied: list[str]) -> dict[str, Any]:
         """Normalize a trigger item."""
         if not isinstance(item, dict):
             return item
-        
+
         result: dict[str, Any] = {}
-        
+
         for key, value in item.items():
             # Fix trigger: field → platform:
             if key == "trigger":
@@ -145,7 +160,20 @@ class YAMLNormalizer:
                     result[key] = value
             else:
                 result[key] = self._normalize_value(value, fixes_applied, f"trigger.{key}")
-        
+
+        # Strip fields invalid for this trigger platform
+        platform = result.get("platform", "")
+        invalid_fields = self._PLATFORM_INVALID_FIELDS.get(platform, set())
+        for field in invalid_fields:
+            if field in result:
+                # Only strip if value is empty or clearly wrong
+                val = result[field]
+                if val is None or val == "" or val == "''":
+                    del result[field]
+                    fixes_applied.append(
+                        f"Fixed: removed invalid '{field}' from '{platform}' trigger"
+                    )
+
         return result
 
     def _normalize_action_item(self, item: dict[str, Any], fixes_applied: list[str]) -> dict[str, Any]:

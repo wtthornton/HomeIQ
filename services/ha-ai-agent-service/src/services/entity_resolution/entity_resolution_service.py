@@ -208,7 +208,7 @@ class EntityResolutionService:
         filtered = []
 
         for entity in entities:
-            entity_area = entity.get("area_id", "").lower().replace(" ", "_")
+            entity_area = (entity.get("area_id") or "").lower().replace(" ", "_")
             if entity_area == area_id_normalized:
                 filtered.append(entity)
 

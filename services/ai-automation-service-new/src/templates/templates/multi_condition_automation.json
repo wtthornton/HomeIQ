@@ -116,7 +116,7 @@
         "data": "{{action_data}}"
       }
     ],
-    "alias_template": "Multi-Condition Automation",
+    "alias_template": "{{trigger_entity}} → {{action_service}}",
     "description_template": "Automation with {{condition_logic}} conditions"
   },
   "examples": [

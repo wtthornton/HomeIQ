@@ -39,7 +39,8 @@ class DeviceSuggestionService:
         """
         self.settings = settings
         self.data_api_client = DataAPIClient(
-            base_url=settings.data_api_url or "http://data-api:8006"
+            base_url=settings.data_api_url or "http://data-api:8006",
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None
         )
         # HTTP client for other services
         self.http_client = httpx.AsyncClient(

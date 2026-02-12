@@ -41,7 +41,7 @@ class EnhancedContextBuilder:
             ha_url=settings.ha_url,
             access_token=settings.ha_token.get_secret_value()
         )
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
     
     async def close(self):
         """Close client connections."""
@@ -182,79 +182,121 @@ class EnhancedContextBuilder:
     async def build_binary_sensor_context(self) -> str:
         """
         Build context specifically for binary sensors (motion, presence, occupancy).
-        
+
         Critical for automation triggers based on presence/motion.
         """
         try:
             entities = await self.data_api_client.fetch_entities(limit=10000)
             if not entities:
                 return "BINARY_SENSORS: No sensors found"
-            
+
             # Fetch device registry for area resolution
             devices = await self.ha_client.get_device_registry()
             device_area_map = {
                 d.get("id"): d.get("area_id")
                 for d in devices if d.get("id") and d.get("area_id")
             }
-            
+
             # Fetch areas for friendly names
             areas = await self.ha_client.get_area_registry()
             area_name_map = {
                 a.get("area_id"): a.get("name", a.get("area_id", ""))
                 for a in areas if a.get("area_id")
             }
-            
+
+            # Fetch live states from HA for accurate state reporting
+            state_map: dict[str, str] = {}
+            try:
+                states = await self.ha_client.get_states()
+                state_map = {
+                    s.get("entity_id"): s.get("state", "unknown")
+                    for s in states
+                    if s.get("entity_id", "").startswith("binary_sensor.")
+                }
+            except Exception as e:
+                logger.warning(f"Could not fetch live states for binary sensors: {e}")
+
             # Filter and group binary sensors
             sensor_by_area: dict[str, list[dict]] = defaultdict(list)
-            
+
             for entity in entities:
                 if entity.get("domain") != "binary_sensor":
                     continue
-                
+
                 entity_id = entity.get("entity_id", "")
-                attributes = entity.get("attributes", {})
-                device_class = attributes.get("device_class", "")
-                
+                attributes = entity.get("attributes", {}) or {}
+                # Check device_class at top level (data-api format) AND in attributes (HA state format)
+                device_class = entity.get("device_class") or attributes.get("device_class", "")
+
                 # Only include motion/presence/occupancy sensors
                 if device_class not in ["motion", "presence", "occupancy", "door", "window"]:
-                    # Also check entity_id patterns
-                    if not any(kw in entity_id.lower() for kw in ["motion", "presence", "occupancy"]):
+                    # Also check entity_id patterns (including common presence sensor models)
+                    if not any(kw in entity_id.lower() for kw in ["motion", "presence", "occupancy", "fp2", "fp300"]):
                         continue
-                
-                # Resolve area
+
+                # Resolve area: entity → device → name-based fallback
                 area_id = entity.get("area_id")
                 if not area_id:
                     device_id = entity.get("device_id")
                     if device_id:
                         area_id = device_area_map.get(device_id)
+                if not area_id:
+                    # Fallback: infer area from entity_id if it contains a known area name
+                    entity_name = entity_id.split(".", 1)[-1] if "." in entity_id else entity_id
+                    for known_area_id in area_name_map:
+                        if known_area_id in entity_name.lower():
+                            area_id = known_area_id
+                            break
                 area_id = area_id or "unassigned"
-                
+
+                # Use live state from HA (fallback to data-api state)
+                live_state = state_map.get(entity_id) or entity.get("state") or "unknown"
+
+                # Skip unavailable/unknown sensors — they can't trigger automations
+                if live_state in ("unavailable", "unknown"):
+                    continue
+
                 sensor_by_area[area_id].append({
                     "entity_id": entity_id,
                     "friendly_name": entity.get("friendly_name") or entity.get("name") or entity_id,
-                    "device_class": device_class,
-                    "state": entity.get("state", "unknown"),
+                    "device_class": device_class or "motion",
+                    "state": live_state,
                 })
-            
-            # Format output
+
+            # Format output with explicit per-area instructions
             parts = ["MOTION/PRESENCE SENSORS:"]
-            parts.append("(Use these for presence-based triggers)")
+            parts.append("(MANDATORY: Use ALL sensors listed for each area in trigger entity_id list)")
             parts.append("")
-            
+
             for area_id in sorted(sensor_by_area.keys()):
+                if area_id == "unassigned":
+                    continue  # Show unassigned at the end
                 area_name = area_name_map.get(area_id, area_id.replace("_", " ").title())
                 sensors = sensor_by_area[area_id]
-                
-                parts.append(f"{area_name}:")
+
+                # Build entity_id list for easy copy
+                sensor_ids = [s["entity_id"] for s in sensors]
+
+                parts.append(f"{area_name} (area_id: {area_id}) — use ALL {len(sensors)} sensors:")
                 for sensor in sensors:
-                    device_class = sensor["device_class"] or "motion"
                     parts.append(
                         f"  - {sensor['entity_id']} "
-                        f"[{device_class}] "
+                        f"[{sensor['device_class']}] "
                         f"(state: {sensor['state']})"
                     )
                 parts.append("")
-            
+
+            # Show unassigned last
+            if "unassigned" in sensor_by_area:
+                parts.append("Unassigned (no area):")
+                for sensor in sensor_by_area["unassigned"]:
+                    parts.append(
+                        f"  - {sensor['entity_id']} "
+                        f"[{sensor['device_class']}] "
+                        f"(state: {sensor['state']})"
+                    )
+                parts.append("")
+
             if not sensor_by_area:
                 parts.append("No motion/presence sensors found.")
             
@@ -342,16 +384,22 @@ class EnhancedContextBuilder:
         return """TRIGGER PLATFORMS REFERENCE:
 (Common triggers for automations)
 
-State Change (motion/presence):
+State Change (motion/presence — ALWAYS use ALL sensors in the area):
   - platform: state
-    entity_id: binary_sensor.office_motion
-    to: "on"  # Triggered when someone enters
+    entity_id:
+      - binary_sensor.office_motion
+      - binary_sensor.office_motion_desk
+      - binary_sensor.office_presence
+    to: "on"  # Any sensor detecting motion triggers
 
-State Change with Delay (leave detection):
+State Change with Delay (leave detection — ALL sensors must be off):
   - platform: state
-    entity_id: binary_sensor.office_motion
+    entity_id:
+      - binary_sensor.office_motion
+      - binary_sensor.office_motion_desk
+      - binary_sensor.office_presence
     to: "off"
-    for: "00:05:00"  # 5 minutes of no motion
+    for: "00:05:00"  # All sensors off for 5 minutes
 
 Time-based:
   - platform: time

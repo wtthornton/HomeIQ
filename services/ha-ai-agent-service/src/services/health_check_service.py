@@ -40,7 +40,7 @@ class HealthCheckService:
             access_token=settings.ha_token.get_secret_value(),
             timeout=5  # Short timeout for health checks
         )
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url)
+        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
         self.device_intelligence_client = DeviceIntelligenceClient(settings)
 
     async def check_database(self) -> dict[str, Any]:
