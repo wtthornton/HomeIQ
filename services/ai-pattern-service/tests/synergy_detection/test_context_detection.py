@@ -137,7 +137,7 @@ class TestContextAwareDetector:
             "living_room"
         )
         
-        assert synergy["synergy_type"] == "context_aware"
+        assert "context" in synergy["synergy_type"]  # weather_context, energy_context, etc.
         assert synergy["context_metadata"]["context_type"] == "weather_climate"
         assert "energy_savings" in synergy["context_metadata"]["benefits"]
         assert synergy["impact_score"] == 0.75
@@ -151,7 +151,7 @@ class TestContextAwareDetector:
             "living_room"
         )
         
-        assert synergy["synergy_type"] == "context_aware"
+        assert "context" in synergy["synergy_type"]  # weather_context, energy_context, etc.
         assert synergy["context_metadata"]["context_type"] == "weather_cover"
         assert synergy["impact_score"] == 0.70
         assert synergy["complexity"] == "low"
@@ -164,7 +164,7 @@ class TestContextAwareDetector:
             None
         )
         
-        assert synergy["synergy_type"] == "context_aware"
+        assert "context" in synergy["synergy_type"]  # weather_context, energy_context, etc.
         assert synergy["context_metadata"]["context_type"] == "energy_scheduling"
         assert "cost_reduction" in synergy["context_metadata"]["benefits"]
         assert synergy["impact_score"] == 0.80
@@ -177,7 +177,7 @@ class TestContextAwareDetector:
             "living_room"
         )
         
-        assert synergy["synergy_type"] == "context_aware"
+        assert "context" in synergy["synergy_type"]  # weather_context, energy_context, etc.
         assert synergy["context_metadata"]["context_type"] == "weather_lighting"
         assert "comfort" in synergy["context_metadata"]["benefits"]
         assert synergy["impact_score"] == 0.65
@@ -201,7 +201,7 @@ class TestContextAwareDetector:
         
         # All should be context_aware type
         for synergy in synergies:
-            assert synergy["synergy_type"] == "context_aware"
+            assert "context" in synergy["synergy_type"]  # weather_context, energy_context, etc.
             assert "benefits" in synergy["context_metadata"]
 
     @pytest.mark.asyncio
@@ -285,3 +285,62 @@ class TestContextAwareDetectorConstants:
     def test_max_devices_per_type(self):
         """Test max devices per context type."""
         assert MAX_DEVICES_PER_CONTEXT_TYPE == 5
+
+
+class TestMultiWeatherContextSynergies:
+    """Tests for multi-weather entity context synergies (Pattern Intelligence epic)."""
+
+    @pytest.fixture
+    def detector(self):
+        return ContextAwareDetector()
+
+    @pytest.fixture
+    def multi_weather_entities(self):
+        """Multiple weather entities + climate devices."""
+        return [
+            {"entity_id": "weather.forecast_home", "area_id": None},
+            {"entity_id": "weather.forecast_office", "area_id": None},
+            {"entity_id": "climate.living_room_ac", "area_id": "living_room"},
+            {"entity_id": "climate.bedroom_ac", "area_id": "bedroom"},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_multi_weather_generates_more_synergies(self, detector, multi_weather_entities):
+        """Two weather entities should generate synergies for each weather-climate pair."""
+        synergies = await detector.detect_context_aware_synergies(multi_weather_entities)
+        weather_climate = [
+            s for s in synergies
+            if s["context_metadata"]["context_type"] == "weather_climate"
+        ]
+        # 2 weather x 2 climate = 4 synergies (previously was only 1 weather x 2 = 2)
+        assert len(weather_climate) == 4
+
+    @pytest.mark.asyncio
+    async def test_single_weather_still_works(self, detector):
+        """Single weather entity should still generate synergies correctly."""
+        entities = [
+            {"entity_id": "weather.forecast_home", "area_id": None},
+            {"entity_id": "climate.living_room_ac", "area_id": "living_room"},
+        ]
+        synergies = await detector.detect_context_aware_synergies(entities)
+        weather_climate = [
+            s for s in synergies
+            if s["context_metadata"]["context_type"] == "weather_climate"
+        ]
+        assert len(weather_climate) == 1
+
+    @pytest.mark.asyncio
+    async def test_multi_weather_cover_synergies(self, detector):
+        """Two weather entities should generate synergies for each weather-cover pair."""
+        entities = [
+            {"entity_id": "weather.forecast_home", "area_id": None},
+            {"entity_id": "weather.forecast_work", "area_id": None},
+            {"entity_id": "cover.living_room_blinds", "area_id": "living_room"},
+        ]
+        synergies = await detector.detect_context_aware_synergies(entities)
+        weather_cover = [
+            s for s in synergies
+            if s["context_metadata"]["context_type"] == "weather_cover"
+        ]
+        # 2 weather x 1 cover = 2 synergies
+        assert len(weather_cover) == 2

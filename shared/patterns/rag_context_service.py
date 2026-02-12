@@ -15,6 +15,7 @@ Usage:
 """
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Sequence
@@ -34,27 +35,69 @@ class RAGContextService(ABC):
     Subclasses may override:
         - load_corpus(): For dynamic corpus assembly
         - format_context(): For custom context formatting
+        - score_relevance(): For custom relevance scoring
     """
 
     name: str = ""
     keywords: Sequence[str] = ()
     corpus_path: Path | None = None
+    min_score: float = 0.1  # Minimum relevance score to trigger context injection
 
     def __init__(self) -> None:
         self._corpus_cache: str | None = None
+
+    def score_relevance(self, prompt: str) -> float:
+        """
+        Score how relevant this domain is to the given prompt (0.0 - 1.0).
+
+        Scoring rules:
+        - Whole-word keyword match: 1.0 weight
+        - Substring-only match: 0.3 weight
+        - Multi-word keywords (2+ words) get 1.5x multiplier
+        - Normalized by factor of 3.0 (so 3 whole-word matches = score 1.0)
+
+        Override for custom relevance scoring logic.
+
+        Args:
+            prompt: User message to score
+
+        Returns:
+            Relevance score between 0.0 and 1.0
+        """
+        lower = prompt.lower()
+        total_weight = 0.0
+
+        for kw in self.keywords:
+            kw_lower = kw.lower()
+            if kw_lower not in lower:
+                continue
+
+            # Check for whole-word match using word boundaries
+            pattern = r'\b' + re.escape(kw_lower) + r'\b'
+            is_whole_word = bool(re.search(pattern, lower))
+
+            base_weight = 1.0 if is_whole_word else 0.3
+            # Multi-word keywords are more specific, give 1.5x
+            if ' ' in kw_lower:
+                base_weight *= 1.5
+
+            total_weight += base_weight
+
+        return round(min(1.0, total_weight / 3.0), 2)
 
     def detect_intent(self, prompt: str) -> bool:
         """
         Check if the user prompt matches this domain's keywords.
 
+        Uses score_relevance() internally — returns True if score >= min_score.
+
         Args:
             prompt: User message to check
 
         Returns:
-            True if any keyword is found in the prompt
+            True if relevance score meets or exceeds min_score
         """
-        lower = prompt.lower()
-        return any(kw in lower for kw in self.keywords)
+        return self.score_relevance(prompt) >= self.min_score
 
     def load_corpus(self) -> str:
         """

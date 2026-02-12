@@ -122,6 +122,59 @@ def categorize_errors(
     return result
 
 
+# --- Error-to-Domain Mapping for RAG Feedback ---
+
+# Maps error patterns to RAG domain names for corpus selection
+ERROR_DOMAIN_MAP: dict[str, list[tuple[str, ...]]] = {
+    "device_capability": (
+        ("entity_id", "not found", "unknown entity", "invalid entity",
+         "entity does not exist", "no such entity"),
+    ),
+    "automation": (
+        ("service", "invalid service", "service not found",
+         "unknown service", "service call"),
+    ),
+    "comfort": (
+        ("brightness", "color_temp", "temperature", "hvac",
+         "climate", "thermostat"),
+    ),
+    "energy": (
+        ("power", "energy", "kwh", "battery", "solar", "charge"),
+    ),
+    "security": (
+        ("alarm", "lock", "camera", "motion sensor", "arm", "disarm"),
+    ),
+}
+
+
+def get_error_domain_hints(errors: list[str]) -> list[str]:
+    """
+    Map validation error patterns to RAG domain names.
+
+    When validation fails, this identifies which RAG domains are relevant
+    so their corpus can be proactively injected on retry.
+
+    Args:
+        errors: List of validation error messages
+
+    Returns:
+        List of RAG domain names that should be injected
+    """
+    if not errors:
+        return []
+
+    domains: set[str] = set()
+    error_text = " ".join(errors).lower()
+
+    for domain, keyword_groups in ERROR_DOMAIN_MAP.items():
+        for keywords in keyword_groups:
+            if any(kw.lower() in error_text for kw in keywords):
+                domains.add(domain)
+                break
+
+    return sorted(domains)
+
+
 # --- Base Router Template ---
 
 class UnifiedValidationRouter(ABC):

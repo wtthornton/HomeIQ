@@ -22,9 +22,9 @@ from shared.patterns import RAGContextService
 logger = logging.getLogger(__name__)
 
 COMFORT_KEYWORDS = (
-    # HVAC
-    "thermostat", "hvac", "heat", "heating", "cool", "cooling", "air conditioning",
-    "ac", "furnace", "boiler",
+    # HVAC — "cool" replaced with multi-word to avoid "cool app" false positive
+    "thermostat", "hvac", "heat", "heating", "cool down", "cooling", "cooling mode",
+    "air conditioning", "ac", "furnace", "boiler",
     # Climate control
     "climate", "temperature", "humidity", "setpoint", "set point",
     "fan", "fan speed", "ventilation",

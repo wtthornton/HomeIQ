@@ -25,12 +25,12 @@ SECURITY_KEYWORDS = (
     # Devices
     "camera", "alarm", "lock", "doorbell", "siren", "keypad",
     "alarm_control_panel",
-    # Sensors
-    "motion", "motion sensor", "occupancy", "presence", "person",
+    # Sensors — "motion" replaced with multi-word to avoid "motion pictures" false positive
+    "motion sensor", "motion detected", "motion alert", "occupancy", "presence", "person",
     "door sensor", "window sensor", "glass break",
     # Actions
     "arm", "disarm", "alert", "notify", "intrusion", "break-in",
-    "security alert", "motion alert",
+    "security alert",
     # Geofencing / presence
     "geofence", "geofencing", "away mode", "away", "nobody home",
     "everyone left", "arrive home", "leave home",
@@ -48,6 +48,7 @@ class SecurityRAGService(RAGContextService):
 
     name = "security"
     keywords = SECURITY_KEYWORDS
+    min_score = 0.2  # Higher threshold to reduce false positives
     corpus_path = Path(__file__).parent.parent / "data" / "security_automation_patterns.md"
 
     def __init__(self) -> None:

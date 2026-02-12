@@ -29,9 +29,9 @@ ENERGY_KEYWORDS = (
     # Solar
     "solar", "pv", "photovoltaic", "solar panel", "solar production",
     "solar export", "net metering", "feed-in",
-    # Battery / storage
-    "battery", "powerwall", "energy storage", "charge", "discharge",
-    "state of charge", "soc",
+    # Battery / storage — "charge" replaced with multi-word to avoid "charge your phone" false positive
+    "battery", "powerwall", "energy storage", "charge the ev", "charging session",
+    "discharge", "state of charge", "soc",
     # EV charging
     "ev charging", "ev charger", "electric vehicle", "charger", "wallbox",
     # Energy metrics

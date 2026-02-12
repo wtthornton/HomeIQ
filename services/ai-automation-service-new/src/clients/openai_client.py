@@ -123,6 +123,15 @@ class OpenAIClient:
         self.supports_temperature = not any(
             self.model.startswith(p) for p in _NO_TEMP_PREFIXES
         )
+        
+        # Models that support reasoning_effort parameter (GPT-5.2+ codex)
+        self.is_reasoning_model = (
+            "codex" in self.model.lower() or 
+            self.model.startswith("gpt-5.2") or
+            self.model.startswith("o1") or
+            self.model.startswith("o3")
+        )
+        self.reasoning_effort = getattr(settings, "openai_reasoning_effort", "high") if self.is_reasoning_model else None
 
         # Usage tracking
         self.total_tokens_used = 0
@@ -193,8 +202,14 @@ class OpenAIClient:
                         "content": prompt
                     }
                 ],
-                max_tokens=max_tokens,
             )
+            # Reasoning models use max_completion_tokens, others use max_tokens
+            if self.is_reasoning_model:
+                kwargs["max_completion_tokens"] = max_tokens
+                if self.reasoning_effort:
+                    kwargs["reasoning_effort"] = self.reasoning_effort
+            else:
+                kwargs["max_tokens"] = max_tokens
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
             response = await self.client.chat.completions.create(**kwargs)
@@ -349,9 +364,16 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
                         "content": prompt
                     }
                 ],
-                max_tokens=max_tokens,
-                response_format={"type": "json_object"},
             )
+            # Reasoning models use max_completion_tokens, others use max_tokens
+            if self.is_reasoning_model:
+                kwargs["max_completion_tokens"] = max_tokens
+                if self.reasoning_effort:
+                    kwargs["reasoning_effort"] = self.reasoning_effort
+                # Note: reasoning models may not support response_format
+            else:
+                kwargs["max_tokens"] = max_tokens
+                kwargs["response_format"] = {"type": "json_object"}
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
             response = await self.client.chat.completions.create(**kwargs)
@@ -362,6 +384,11 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
 
             # Extract JSON from response
             json_content = response.choices[0].message.content or "{}"
+            
+            # Clean up JSON (remove markdown code blocks if present from reasoning models)
+            if json_content.startswith("```"):
+                lines = json_content.split("\n")
+                json_content = "\n".join(lines[1:-1])
 
             # Parse JSON
             plan_dict = json.loads(json_content)
@@ -475,9 +502,16 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
                         "content": prompt
                     }
                 ],
-                max_tokens=max_tokens,
-                response_format={"type": "json_object"},
             )
+            # Reasoning models use max_completion_tokens, others use max_tokens
+            if self.is_reasoning_model:
+                kwargs["max_completion_tokens"] = max_tokens
+                if self.reasoning_effort:
+                    kwargs["reasoning_effort"] = self.reasoning_effort
+                # Note: reasoning models may not support response_format
+            else:
+                kwargs["max_tokens"] = max_tokens
+                kwargs["response_format"] = {"type": "json_object"}
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
             response = await self.client.chat.completions.create(**kwargs)
@@ -488,6 +522,11 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
 
             # Extract JSON from response
             json_content = response.choices[0].message.content or "{}"
+            
+            # Clean up JSON (remove markdown code blocks if present from reasoning models)
+            if json_content.startswith("```"):
+                lines = json_content.split("\n")
+                json_content = "\n".join(lines[1:-1])
 
             # Parse JSON
             automation_json = json.loads(json_content)
@@ -541,8 +580,14 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
                         "content": prompt
                     }
                 ],
-                max_tokens=max_tokens,
             )
+            # Reasoning models use max_completion_tokens, others use max_tokens
+            if self.is_reasoning_model:
+                kwargs["max_completion_tokens"] = max_tokens
+                if self.reasoning_effort:
+                    kwargs["reasoning_effort"] = self.reasoning_effort
+            else:
+                kwargs["max_tokens"] = max_tokens
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
             response = await self.client.chat.completions.create(**kwargs)

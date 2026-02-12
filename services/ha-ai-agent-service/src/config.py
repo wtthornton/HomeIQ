@@ -71,27 +71,27 @@ class Settings(BaseSettings):
     # OpenAI Configuration
     openai_api_key: SecretStr | None = Field(
         default=None,
-        description="OpenAI API key for GPT-5.2-Codex reasoning model"
+        description="OpenAI API key"
     )
     openai_model: str = Field(
-        default="gpt-5.2-codex",
-        description="OpenAI model to use (gpt-5.2-codex for agentic coding and highest quality YAML generation)"
+        default="gpt-5-mini",
+        description="OpenAI model to use (gpt-5-mini for production, gpt-5.2-codex for YAML generation pending approval)"
     )
     openai_max_tokens: int = Field(
-        default=16384,
-        description="Maximum completion tokens (includes reasoning tokens — GPT-5.2-Codex needs headroom for thinking + output)"
+        default=8192,
+        description="Maximum completion tokens"
     )
     openai_temperature: float = Field(
-        default=1.0,
-        description="Temperature for OpenAI responses. Reasoning models work best at 1.0; reasoning handles consistency"
+        default=0.7,
+        description="Temperature for OpenAI responses"
     )
-    openai_reasoning_effort: str = Field(
-        default="high",
-        description="Reasoning effort for GPT-5.2-Codex: low, medium, high, xhigh. Higher = better quality, more tokens"
+    openai_reasoning_effort: str | None = Field(
+        default=None,
+        description="Reasoning effort for reasoning models (low, medium, high, xhigh). None for non-reasoning models."
     )
     openai_timeout: int = Field(
-        default=90,
-        description="OpenAI API timeout in seconds (reasoning models need more time)"
+        default=60,
+        description="OpenAI API timeout in seconds"
     )
     openai_max_retries: int = Field(
         default=3,
@@ -115,8 +115,8 @@ class Settings(BaseSettings):
     capability_patterns_cache_ttl: int = 900  # 15 minutes
     sun_info_cache_ttl: int = 3600  # 1 hour
 
-    # Token Budget
-    max_context_tokens: int = 1500  # Maximum tokens for initial context
+    # Token Budget (increased for richer entity context and better suggestions)
+    max_context_tokens: int = 3000  # Maximum tokens for initial context (was 1500)
 
     # Logging
     log_level: str = Field(default="INFO", description="Logging level")

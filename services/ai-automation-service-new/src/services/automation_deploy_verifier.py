@@ -59,16 +59,26 @@ class AutomationDeployVerifier(PostActionVerifier):
             else f"automation.{automation_id}"
         )
 
+        expected = action_result.get("expected_state")
+
         state_data = await self._get_state(entity_id)
         if not state_data:
             return VerificationResult(
                 success=True,
                 state=None,
                 metadata={"entity_id": entity_id},
+                expected_state=expected,
             )
 
         warnings = self.map_warnings(state_data)
         state = state_data.get("state")
+
+        # Attribute-aware verification when expected state is provided
+        verified_attributes: dict = {}
+        if expected and isinstance(expected, dict):
+            attr_warnings = self.verify_state_match(state_data, expected, entity_id)
+            warnings.extend(attr_warnings)
+            verified_attributes = state_data.get("attributes", {})
 
         return VerificationResult(
             success=state != "unavailable",
@@ -78,6 +88,8 @@ class AutomationDeployVerifier(PostActionVerifier):
                 "entity_id": entity_id,
                 "attributes": state_data.get("attributes", {}),
             },
+            verified_attributes=verified_attributes,
+            expected_state=expected,
         )
 
     def map_warnings(self, state_data: dict[str, Any] | None) -> list[VerificationWarning]:

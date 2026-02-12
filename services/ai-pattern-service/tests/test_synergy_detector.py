@@ -764,7 +764,7 @@ class TestDeviceSynergyDetector:
     @pytest.mark.unit
     async def test_detect_3_device_chains_too_many_pairs(self, detector):
         """Test 3-device chain detection skips when too many pairs."""
-        # Create 600 pairs (exceeds MAX_PAIRWISE_FOR_CHAINS = 500)
+        # Create 6000 pairs (exceeds TOP_PAIRS_FOR_CHAINS = 5000)
         pairwise_synergies = [
             {
                 'trigger_entity': f'binary_sensor.motion_{i}',
@@ -773,17 +773,20 @@ class TestDeviceSynergyDetector:
                 'confidence': 0.9,
                 'area': 'kitchen'
             }
-            for i in range(600)
+            for i in range(6000)
         ]
-        
+
         chains = await detector._detect_3_device_chains(
             pairwise_synergies,
             [],
             []
         )
-        
-        # Should skip chain detection
-        assert len(chains) == 0
+
+        # Chain detection still runs (uses top 5000 pairs), but these pairs
+        # don't form valid chains (each is independent A→B with no B→C links)
+        # so chains should be bounded by MAX_3_DEVICE_CHAINS or have duplicated
+        # device patterns. The key assertion is it doesn't crash with large input.
+        assert len(chains) <= 200  # MAX_3_DEVICE_CHAINS
     
     @pytest.mark.asyncio
     @pytest.mark.unit

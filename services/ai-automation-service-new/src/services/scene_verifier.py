@@ -55,11 +55,36 @@ class SceneVerifier(PostActionVerifier):
         warnings = self.map_warnings(state_data)
         state = state_data.get("state")
 
+        # Verify individual entity states if expected_entities provided
+        expected_entities = action_result.get("expected_entities")
+        verified_attributes: dict = {}
+        if expected_entities and isinstance(expected_entities, list):
+            for expected in expected_entities:
+                target_id = expected.get("entity_id")
+                if not target_id:
+                    continue
+                target_state = await self._get_state(target_id)
+                if target_state is None:
+                    warnings.append(
+                        VerificationWarning(
+                            message=f"Scene target '{target_id}' not found after activation.",
+                            entity_id=target_id,
+                            severity="warning",
+                            guidance="Verify the entity exists and is available.",
+                        )
+                    )
+                    continue
+                attr_warnings = self.verify_state_match(target_state, expected, target_id)
+                warnings.extend(attr_warnings)
+                verified_attributes[target_id] = target_state.get("attributes", {})
+
         return VerificationResult(
             success=state != "unavailable",
             state=state,
             warnings=warnings,
             metadata={"entity_id": entity_id},
+            verified_attributes=verified_attributes,
+            expected_state={"expected_entities": expected_entities} if expected_entities else None,
         )
 
     def map_warnings(self, state_data: dict[str, Any] | None) -> list[VerificationWarning]:

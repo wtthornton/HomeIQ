@@ -1635,7 +1635,9 @@ services:
       - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
+      - OPENAI_MODEL=gpt-5.2-codex
+      - OPENAI_REASONING_EFFORT=high
+      - OPENAI_TIMEOUT=90
       - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_automation.db
       - SERVICE_PORT=8025
       - LOG_LEVEL=${LOG_LEVEL:-INFO}

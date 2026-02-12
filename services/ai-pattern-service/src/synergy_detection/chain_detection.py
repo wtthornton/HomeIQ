@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 # Configuration constants
-TOP_PAIRS_FOR_CHAINS = 1000  # Use top N pairs by quality for chain detection
+TOP_PAIRS_FOR_CHAINS = 5000  # Use top N pairs by quality for chain detection (raised from 1000 to improve chain discovery rate)
 MAX_3_DEVICE_CHAINS = 200  # Maximum 3-device chains to detect
 MAX_4_DEVICE_CHAINS = 100  # Maximum 4-device chains to detect
 

@@ -20,10 +20,12 @@ from .unified_validation_router import (
     ValidationResponse,
     ValidationSubsection,
     categorize_errors,
+    get_error_domain_hints,
 )
 from .post_action_verifier import (
     PostActionVerifier,
     VerificationResult,
+    VerificationResultStore,
     VerificationWarning,
 )
 
@@ -36,7 +38,9 @@ __all__ = [
     "ValidationResponse",
     "ValidationSubsection",
     "categorize_errors",
+    "get_error_domain_hints",
     "PostActionVerifier",
     "VerificationResult",
+    "VerificationResultStore",
     "VerificationWarning",
 ]

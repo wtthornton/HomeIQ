@@ -3,10 +3,9 @@ OpenAI Client Service
 Epic AI-20 Story AI20.1: OpenAI Client Integration
 
 Provides async OpenAI API client with:
-- GPT-5.2 reasoning model support (reasoning_effort parameter)
 - Retry logic with exponential backoff
 - Rate limiting handling (429 errors)
-- Token counting and budget management (including reasoning tokens)
+- Token counting and budget management
 - Error handling for API failures
 """
 
@@ -47,14 +46,13 @@ class OpenAITokenBudgetExceededError(OpenAIError):
 
 class OpenAIClient:
     """
-    OpenAI API client with GPT-5.2 reasoning model support.
+    OpenAI API client with async support.
 
     Features:
-    - GPT-5.2 reasoning (thinking) model with configurable effort
     - Async operations
     - Retry logic with exponential backoff
     - Rate limiting handling
-    - Token counting and budget management (including reasoning tokens)
+    - Token counting and budget management
     - Comprehensive error handling
     """
 
@@ -131,29 +129,46 @@ class OpenAIClient:
         
         self.total_requests += 1
 
+        # Use settings from config (set via environment variables)
+        effective_model = self.model
+        effective_reasoning = self.reasoning_effort
+        effective_max_tokens = max_tokens or self.max_tokens
+        effective_temperature = temperature or self.temperature
+
         @retry(
             retry=retry_if_exception_type((OpenAIRateLimitError, Exception)),
             stop=stop_after_attempt(self.settings.openai_max_retries),
             wait=wait_exponential(multiplier=1, min=2, max=10),
             reraise=True,
         )
-        async def _make_request():
+        async def _make_request(
+            model: str = effective_model,
+            reasoning_effort: str | None = effective_reasoning,
+            req_max_tokens: int = effective_max_tokens,
+            req_temperature: float = effective_temperature,
+        ):
             """Internal function to make API request with retry logic"""
             # Prepare request parameters
             request_params: dict[str, Any] = {
-                "model": self.model,
+                "model": model,
                 "messages": messages,
-                "temperature": temperature or self.temperature,
             }
 
             # GPT-5.x models use max_completion_tokens (includes reasoning tokens)
-            if self.model.startswith("gpt-5"):
-                request_params["max_completion_tokens"] = max_tokens or self.max_tokens
-                # Enable reasoning for GPT-5.2+ thinking models
-                if self.reasoning_effort and not self.model.startswith("gpt-5.1"):
-                    request_params["reasoning_effort"] = self.reasoning_effort
+            # Reasoning models (gpt-5-mini, gpt-5.2+) do NOT support temperature
+            if model.startswith("gpt-5"):
+                request_params["max_completion_tokens"] = req_max_tokens
+                is_reasoning_model = "mini" in model or model >= "gpt-5.2"
+                if is_reasoning_model:
+                    # Reasoning models don't support temperature (only default 1)
+                    if reasoning_effort and not model.startswith("gpt-5.1"):
+                        request_params["reasoning_effort"] = reasoning_effort
+                else:
+                    # Non-reasoning GPT-5.x models support temperature
+                    request_params["temperature"] = req_temperature
             else:
-                request_params["max_tokens"] = max_tokens or self.max_tokens
+                request_params["max_tokens"] = req_max_tokens
+                request_params["temperature"] = req_temperature
 
             # Add tools if provided
             if tools:
@@ -162,7 +177,8 @@ class OpenAIClient:
                     request_params["tool_choice"] = tool_choice
 
             logger.debug(
-                f"OpenAI API request: model={self.model}, "
+                f"OpenAI API request: model={model}, "
+                f"reasoning_effort={reasoning_effort}, "
                 f"messages={len(messages)}, tools={len(tools) if tools else 0}"
             )
 
@@ -211,7 +227,7 @@ class OpenAIClient:
         try:
             return await _make_request()
         except (OpenAIRateLimitError, OpenAITokenBudgetExceededError, OpenAIError):
-            # Only count error once after all retries exhausted
+            # Count error after all retries exhausted
             self.total_errors += 1
             raise
 

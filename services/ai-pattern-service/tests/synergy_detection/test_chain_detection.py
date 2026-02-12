@@ -299,8 +299,8 @@ class TestChainDetectorConstants:
     """Test configuration constants."""
 
     def test_top_pairs_constant(self):
-        """Test TOP_PAIRS_FOR_CHAINS constant."""
-        assert TOP_PAIRS_FOR_CHAINS == 1000
+        """Test TOP_PAIRS_FOR_CHAINS constant (raised in Pattern Intelligence epic)."""
+        assert TOP_PAIRS_FOR_CHAINS == 5000
 
     def test_max_chains_reasonable(self):
         """Test that max chain limits are reasonable."""

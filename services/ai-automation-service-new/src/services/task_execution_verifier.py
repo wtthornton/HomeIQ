@@ -106,6 +106,8 @@ class TaskExecutionVerifier(PostActionVerifier):
                 )
 
         # Verify entity state if expected
+        verified_attributes: dict = {}
+        expected_dict: dict | None = None
         if entity_id and expected_state:
             state_data = await self._get_state(entity_id)
             if state_data is None:
@@ -117,19 +119,23 @@ class TaskExecutionVerifier(PostActionVerifier):
                         guidance="Verify the entity exists and is available.",
                     )
                 )
-            elif state_data.get("state") != expected_state:
-                actual = state_data.get("state")
-                warnings.append(
-                    VerificationWarning(
-                        message=(
-                            f"Entity '{entity_id}' is '{actual}' but expected '{expected_state}' "
-                            f"after task execution."
-                        ),
-                        entity_id=entity_id,
-                        severity="warning",
-                        guidance="The action may not have taken effect. Check HA logs.",
-                    )
+            else:
+                # Build expected dict: support both string and dict forms
+                if isinstance(expected_state, dict):
+                    expected_dict = expected_state
+                else:
+                    expected_dict = {"state": expected_state}
+
+                # Also check any expected_attributes from the action_result
+                expected_attrs = action_result.get("expected_attributes", {})
+                if expected_attrs and isinstance(expected_attrs, dict):
+                    expected_dict.update(expected_attrs)
+
+                attr_warnings = self.verify_state_match(
+                    state_data, expected_dict, entity_id
                 )
+                warnings.extend(attr_warnings)
+                verified_attributes = state_data.get("attributes", {})
 
         success = len(warnings) == 0
 
@@ -144,6 +150,8 @@ class TaskExecutionVerifier(PostActionVerifier):
                     for w in warnings
                 ),
             },
+            verified_attributes=verified_attributes,
+            expected_state=expected_dict,
         )
 
     def map_warnings(self, state_data: dict[str, Any] | None) -> list[VerificationWarning]:

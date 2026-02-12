@@ -344,6 +344,12 @@ async def chat(
         # Get tool schemas
         tools = get_tool_schemas()
 
+        # Use model from settings (configured via OPENAI_MODEL env var)
+        logger.info(
+            f"[Chat] Conversation {conversation_id}: "
+            f"Using model={settings.openai_model}"
+        )
+
         # Loop to handle multiple rounds of tool calls
         # OpenAI function calling requires looping until agent stops making tool calls
         # 2025 Pattern: Rebuild messages array each iteration with base history + tool context
@@ -614,7 +620,8 @@ async def chat(
             conversation_id=conversation_id,
             tool_calls=tool_calls,
             metadata={
-                "model": settings.openai_model,
+                "model": model_config.model,
+                "reasoning_effort": model_config.reasoning_effort,
                 "tokens_used": total_tokens,
                 "response_time_ms": response_time_ms,
                 "token_breakdown": token_counts,

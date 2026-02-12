@@ -42,8 +42,8 @@ SPORTS_KEYWORDS = (
     # Events
     "super bowl", "superbowl", "game day", "kickoff", "playoff", "playoffs",
     "championship", "finals",
-    # Game flow
-    "score", "game over", "winner", "quarter", "period", "halftime",
+    # Game flow — "score" replaced with multi-word to avoid "credit score" false positive
+    "scores a", "game over", "winner", "quarter", "period", "halftime",
     "possession", "when team scores", "when my team scores",
     # Sport-specific scoring
     "touchdown", "field goal", "goal", "home run", "run", "basket",
@@ -64,6 +64,7 @@ class AutomationRAGService(RAGContextService):
 
     name = "Sports/Team Tracker"
     keywords = SPORTS_KEYWORDS
+    min_score = 0.3  # Higher threshold — large keyword list needs specificity
     corpus_path = Path(__file__).parent.parent / "data" / "superbowl_guide_excerpts.md"
 
     def __init__(self) -> None:

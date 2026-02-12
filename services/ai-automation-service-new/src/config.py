@@ -22,8 +22,9 @@ class Settings(BaseSettings):
     
     # OpenAI Configuration
     openai_api_key: str | None = None
-    openai_model: str = "gpt-5-mini"  # Better intent/template quality than gpt-4o-mini (see implementation/OPENAI_MODEL_RESEARCH_2026.md)
-    openai_timeout: float = 30.0  # Timeout for OpenAI API calls (seconds)
+    openai_model: str = "gpt-5.2-codex"  # Reasoning model for high-quality YAML generation
+    openai_timeout: float = 90.0  # Reasoning models need more time
+    openai_reasoning_effort: str = "high"  # Reasoning effort: low, medium, high, xhigh
     
     # Device Intelligence Service
     device_intelligence_url: str = "http://device-intelligence-service:8023"

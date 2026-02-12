@@ -224,11 +224,68 @@ class TestSceneDetectorConstants:
         assert "sensor" not in ACTIONABLE_DOMAINS
 
     def test_min_devices_thresholds(self):
-        """Test minimum device thresholds."""
-        assert MIN_DEVICES_FOR_AREA_SCENE == 3
-        assert MIN_DEVICES_FOR_DOMAIN_SCENE == 5
+        """Test minimum device thresholds (lowered in Pattern Intelligence epic)."""
+        assert MIN_DEVICES_FOR_AREA_SCENE == 2
+        assert MIN_DEVICES_FOR_DOMAIN_SCENE == 3
         assert MIN_DEVICES_FOR_DOMAIN_SCENE > MIN_DEVICES_FOR_AREA_SCENE
 
     def test_max_synergies(self):
         """Test max synergies limit."""
         assert MAX_SCENE_SYNERGIES == 50
+
+
+class TestSceneDetectorLoweredThresholds:
+    """Tests for lowered scene detection thresholds (Pattern Intelligence epic)."""
+
+    @pytest.fixture
+    def detector(self):
+        return SceneDetector()
+
+    @pytest.fixture
+    def two_device_area_entities(self):
+        """Two actionable devices in the same area — should now trigger a scene."""
+        return [
+            {"entity_id": "light.kitchen_main", "area_id": "kitchen"},
+            {"entity_id": "fan.kitchen_exhaust", "area_id": "kitchen"},
+        ]
+
+    @pytest.fixture
+    def three_domain_entities(self):
+        """Three devices of the same domain — should now trigger a domain scene."""
+        return [
+            {"entity_id": "light.a", "area_id": None},
+            {"entity_id": "light.b", "area_id": None},
+            {"entity_id": "light.c", "area_id": None},
+        ]
+
+    @pytest.fixture
+    def single_device_area_entities(self):
+        """Only one actionable device per area — should NOT trigger."""
+        return [
+            {"entity_id": "light.bathroom", "area_id": "bathroom"},
+            {"entity_id": "light.garage", "area_id": "garage"},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_two_device_area_triggers_scene(self, detector, two_device_area_entities):
+        """Two devices in the same area should generate a scene synergy (threshold lowered to 2)."""
+        synergies = await detector.detect_scene_based_synergies(two_device_area_entities)
+        assert len(synergies) >= 1
+        assert synergies[0]["synergy_type"] == "scene_based"
+        assert synergies[0]["area"] == "kitchen"
+        assert synergies[0]["context_metadata"]["scene_type"] == "area_based"
+
+    @pytest.mark.asyncio
+    async def test_three_domain_devices_triggers_domain_scene(self, detector, three_domain_entities):
+        """Three devices of the same domain should generate a domain scene (threshold lowered to 3)."""
+        synergies = await detector.detect_scene_based_synergies(three_domain_entities)
+        domain_scenes = [s for s in synergies if s["context_metadata"]["scene_type"] == "domain_based"]
+        assert len(domain_scenes) >= 1
+        assert domain_scenes[0]["context_metadata"]["domain"] == "light"
+
+    @pytest.mark.asyncio
+    async def test_single_device_per_area_no_scene(self, detector, single_device_area_entities):
+        """A single device per area should NOT trigger any area scene."""
+        synergies = await detector.detect_scene_based_synergies(single_device_area_entities)
+        area_scenes = [s for s in synergies if s.get("context_metadata", {}).get("scene_type") == "area_based"]
+        assert len(area_scenes) == 0

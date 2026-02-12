@@ -293,17 +293,19 @@ class DeviceSynergyDetector:
         influxdb_client: Optional[Any] = None,
         min_confidence: float = 0.7,
         same_area_required: bool = True,
-        enrichment_fetcher: Optional[Any] = None
+        enrichment_fetcher: Optional[Any] = None,
+        verification_store: Optional[Any] = None,
     ) -> None:
         """
         Initialize synergy detector.
-        
+
         Args:
             data_api_client: Client for querying devices from data-api
             ha_client: Optional HA client for checking existing automations
             influxdb_client: Optional InfluxDB client for usage statistics (Story AI3.2)
             min_confidence: Minimum confidence threshold (0.0-1.0)
             same_area_required: Whether devices must be in same area
+            verification_store: Optional VerificationResultStore for feedback loop
         """
         self.data_api = data_api_client
         self.ha_client = ha_client
@@ -311,6 +313,7 @@ class DeviceSynergyDetector:
         self.min_confidence = min_confidence
         self.same_area_required = same_area_required
         self.enrichment_fetcher = enrichment_fetcher  # 2025 Enhancement: Multi-modal context
+        self.verification_store = verification_store  # Story 6: Verification feedback
         
         # Initialize 2025 enhancements
         if MULTIMODAL_AVAILABLE:
@@ -480,6 +483,63 @@ class DeviceSynergyDetector:
             )
             return True
 
+    async def _apply_verification_feedback(
+        self,
+        synergies: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """
+        Apply verification feedback to adjust synergy confidence/impact.
+
+        Story 6: Verified-working pairs get boosted, failing pairs get penalized.
+        - 3+ successes in 7 days → confidence +0.15, impact +0.10
+        - 2+ failures in 24 hours → confidence -0.2, flag recent_failures=True
+        - No history → no change
+
+        Args:
+            synergies: List of synergies to adjust
+
+        Returns:
+            Synergies with adjusted confidence/impact scores
+        """
+        if not self.verification_store:
+            return synergies
+
+        for synergy in synergies:
+            trigger = synergy.get("trigger_entity", "")
+            action = synergy.get("action_entity", "")
+            if not trigger or not action:
+                continue
+
+            try:
+                # Check successes (7 days)
+                successes = await self.verification_store.query_successes(
+                    [trigger, action], lookback_hours=168
+                )
+                if len(successes) >= 3:
+                    synergy["confidence"] = min(
+                        1.0, synergy.get("confidence", 0.7) + 0.15
+                    )
+                    synergy["impact_score"] = min(
+                        1.0, synergy.get("impact_score", 0.5) + 0.10
+                    )
+                    synergy["verification_boosted"] = True
+
+                # Check failures (24 hours) — for each entity
+                for eid in (trigger, action):
+                    failures = await self.verification_store.query_failures(
+                        eid, lookback_hours=24
+                    )
+                    if len(failures) >= 2:
+                        synergy["confidence"] = max(
+                            0.0, synergy.get("confidence", 0.7) - 0.2
+                        )
+                        synergy["recent_failures"] = True
+                        break
+            except Exception as e:
+                logger.debug(f"Verification feedback failed for {trigger}/{action}: {e}")
+
+        return synergies
+
     async def _rank_and_filter_synergies(
         self,
         synergies: list[dict[str, Any]],
@@ -564,12 +624,27 @@ class DeviceSynergyDetector:
                 logger.warning(f"Blueprint enrichment failed: {e}")
                 # Continue without blueprint enrichment
         
-        # Filter by confidence threshold
+        # Story 6: Apply verification feedback (boost/penalize based on history)
+        if self.verification_store:
+            ranked_synergies = await self._apply_verification_feedback(ranked_synergies)
+
+        # Filter by confidence threshold (with lower floor for high-value synergy types)
+        # Context, scene, and schedule synergies represent higher-quality intelligence
+        # than simple device pairs, so they use a reduced confidence floor (0.6 vs 0.7)
+        high_value_types = {
+            'weather_context', 'energy_context', 'sports_context',
+            'calendar_context', 'carbon_context',
+            'scene_based', 'schedule_based',
+        }
         filtered_synergies = [
             s for s in ranked_synergies
-            if s['confidence'] >= self.min_confidence
+            if s['confidence'] >= (
+                self.min_confidence - 0.1
+                if s.get('synergy_type') in high_value_types
+                else self.min_confidence
+            )
         ]
-        
+
         return filtered_synergies
     
     async def _enrich_with_blueprints(

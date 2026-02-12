@@ -5,10 +5,14 @@ Generates automation enhancements using:
 - LLM for small/medium/large enhancements
 - Patterns API for advanced enhancements
 - Synergies API for fun/crazy enhancements
+- LRU caching for repeated prompts (cost optimization)
 """
 import asyncio
+import hashlib
 import logging
 import re
+import time
+from functools import lru_cache
 from typing import Any
 
 import yaml
@@ -19,6 +23,45 @@ from ..clients.synergies_client import SynergiesClient
 from ..config import Settings
 
 logger = logging.getLogger(__name__)
+
+
+# Cache for enhancement results (prompt hash -> (timestamp, result))
+# TTL: 30 minutes for prompt enhancements (prompts don't change often)
+_enhancement_cache: dict[str, tuple[float, list[Any]]] = {}
+_CACHE_TTL_SECONDS = 1800  # 30 minutes
+_MAX_CACHE_SIZE = 100  # Maximum cached entries
+
+
+def _get_prompt_hash(prompt: str, mode: str = "default") -> str:
+    """Generate a cache key from prompt and mode."""
+    content = f"{mode}:{prompt.strip().lower()}"
+    return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+
+def _get_cached_enhancement(cache_key: str) -> list[Any] | None:
+    """Get cached enhancement if still valid."""
+    if cache_key in _enhancement_cache:
+        timestamp, result = _enhancement_cache[cache_key]
+        if time.time() - timestamp < _CACHE_TTL_SECONDS:
+            logger.debug(f"[Cache] HIT for enhancement key {cache_key[:8]}...")
+            return result
+        else:
+            # Expired, remove it
+            del _enhancement_cache[cache_key]
+            logger.debug(f"[Cache] EXPIRED for enhancement key {cache_key[:8]}...")
+    return None
+
+
+def _set_cached_enhancement(cache_key: str, result: list[Any]) -> None:
+    """Cache an enhancement result."""
+    # Evict oldest entries if cache is full
+    if len(_enhancement_cache) >= _MAX_CACHE_SIZE:
+        oldest_key = min(_enhancement_cache.keys(), key=lambda k: _enhancement_cache[k][0])
+        del _enhancement_cache[oldest_key]
+        logger.debug(f"[Cache] EVICTED oldest entry to make room")
+    
+    _enhancement_cache[cache_key] = (time.time(), result)
+    logger.debug(f"[Cache] STORED enhancement key {cache_key[:8]}... (cache size: {len(_enhancement_cache)})")
 
 
 class Enhancement:
@@ -99,6 +142,8 @@ class AutomationEnhancementService:
         4: Pattern-driven (advanced)
         5: Synergy-driven (fun/crazy)
 
+        Uses caching for identical prompt+YAML combinations.
+
         Args:
             automation_yaml: Original automation YAML
             original_prompt: User's original request
@@ -108,6 +153,15 @@ class AutomationEnhancementService:
         Returns:
             List of 5 Enhancement objects (may be fewer if some fail)
         """
+        # Check cache first (key based on prompt and YAML)
+        cache_key = _get_prompt_hash(f"{original_prompt}:{automation_yaml[:200]}", "yaml_enhancement")
+        cached_result = _get_cached_enhancement(cache_key)
+        if cached_result:
+            logger.info(
+                f"[Enhancement] Using cached YAML enhancements for: {original_prompt[:50]}..."
+            )
+            return cached_result
+        
         enhancements = []
         
         # 1-3: LLM-based enhancements (with timeout)
@@ -167,7 +221,13 @@ class AutomationEnhancementService:
         while len(enhancements) < 3:
             enhancements.append(self._create_fallback_enhancement(automation_yaml, len(enhancements) + 1))
         
-        return enhancements[:5]  # Return up to 5
+        result = enhancements[:5]  # Return up to 5
+        
+        # Cache the result
+        _set_cached_enhancement(cache_key, result)
+        logger.info(f"[Enhancement] Generated and cached {len(result)} YAML enhancements")
+        
+        return result
     
     async def generate_prompt_enhancements(
         self,
@@ -183,6 +243,8 @@ class AutomationEnhancementService:
         context-aware. Returns enhanced prompt suggestions that can be used to
         generate better automations.
         
+        Uses LRU caching to avoid regenerating identical prompt enhancements.
+        
         Args:
             original_prompt: User's original request
             creativity_level: Creativity level ("conservative", "balanced", "creative")
@@ -192,6 +254,15 @@ class AutomationEnhancementService:
         Returns:
             List of 5 Enhancement objects with enhanced prompts (stored in enhanced_yaml field)
         """
+        # Check cache first (key based on prompt and creativity level)
+        cache_key = _get_prompt_hash(original_prompt, f"prompt_{creativity_level}")
+        cached_result = _get_cached_enhancement(cache_key)
+        if cached_result:
+            logger.info(
+                f"[Enhancement] Using cached prompt enhancements for: {original_prompt[:50]}..."
+            )
+            return cached_result
+        
         try:
             # For creative/balanced levels, try to use patterns and synergies
             use_patterns_synergies = creativity_level in ("balanced", "creative")
@@ -344,11 +415,19 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
                     original_prompt, len(enhancements) + 1
                 ))
             
-            return enhancements[:5]
+            result = enhancements[:5]
+            
+            # Cache the result for future requests
+            _set_cached_enhancement(cache_key, result)
+            logger.info(
+                f"[Enhancement] Generated and cached {len(result)} prompt enhancements"
+            )
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error generating prompt enhancements: {e}", exc_info=True)
-            # Return fallback enhancements
+            # Return fallback enhancements (don't cache fallbacks)
             return [
                 self._create_fallback_prompt_enhancement(original_prompt, 1),
                 self._create_fallback_prompt_enhancement(original_prompt, 2),

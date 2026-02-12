@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 # Configuration constants
 MAX_SCENE_SYNERGIES = 50  # Maximum scene-based synergies to generate
-MIN_DEVICES_FOR_AREA_SCENE = 3  # Minimum devices to suggest area-based scene
-MIN_DEVICES_FOR_DOMAIN_SCENE = 5  # Minimum devices to suggest domain-based scene
+MIN_DEVICES_FOR_AREA_SCENE = 2  # Minimum devices to suggest area-based scene (lowered from 3: 2 devices in same area is a valid scene)
+MIN_DEVICES_FOR_DOMAIN_SCENE = 3  # Minimum devices to suggest domain-based scene (lowered from 5: 3 lights is enough for an "All Lights" scene)
 MAX_DEVICES_PER_SCENE = 10  # Maximum devices to include in a scene suggestion
 MAX_DEVICES_PER_CONTEXT_TYPE = 5  # Maximum devices per context type (for activity scenes)
 

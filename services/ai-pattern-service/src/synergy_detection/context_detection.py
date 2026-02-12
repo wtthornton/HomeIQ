@@ -614,25 +614,27 @@ class ContextAwareDetector:
             f"{len(calendar_entities)} calendar entities"
         )
         
-        # Weather + Climate synergies
+        # Weather + Climate synergies (iterate all weather entities, not just first)
         if weather_entities and climate_devices:
-            weather_id = weather_entities[0].get('entity_id')
-            for climate in climate_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
-                if len(synergies) >= self.max_synergies:
-                    break
-                area = self._get_area([climate], entities)
-                synergy = self._create_weather_climate_synergy(weather_id, climate, area)
-                synergies.append(synergy)
-        
-        # Weather + Cover synergies
+            for weather in weather_entities[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                weather_id = weather.get('entity_id')
+                for climate in climate_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                    if len(synergies) >= self.max_synergies:
+                        break
+                    area = self._get_area([climate], entities)
+                    synergy = self._create_weather_climate_synergy(weather_id, climate, area)
+                    synergies.append(synergy)
+
+        # Weather + Cover synergies (iterate all weather entities, not just first)
         if weather_entities and cover_devices:
-            weather_id = weather_entities[0].get('entity_id')
-            for cover in cover_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
-                if len(synergies) >= self.max_synergies:
-                    break
-                area = self._get_area([cover], entities)
-                synergy = self._create_weather_cover_synergy(weather_id, cover, area)
-                synergies.append(synergy)
+            for weather in weather_entities[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                weather_id = weather.get('entity_id')
+                for cover in cover_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                    if len(synergies) >= self.max_synergies:
+                        break
+                    area = self._get_area([cover], entities)
+                    synergy = self._create_weather_cover_synergy(weather_id, cover, area)
+                    synergies.append(synergy)
         
         # Energy + High-power device synergies
         if energy_sensors and high_power_devices:
@@ -644,15 +646,16 @@ class ContextAwareDetector:
                 synergy = self._create_energy_scheduling_synergy(energy_id, device, area)
                 synergies.append(synergy)
         
-        # Weather + Light synergies
+        # Weather + Light synergies (iterate all weather entities, not just first)
         if weather_entities and light_devices and len(synergies) < self.max_synergies:
-            weather_id = weather_entities[0].get('entity_id')
-            for light in light_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
-                if len(synergies) >= self.max_synergies:
-                    break
-                area = self._get_area([light], entities)
-                synergy = self._create_weather_lighting_synergy(weather_id, light, area)
-                synergies.append(synergy)
+            for weather in weather_entities[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                weather_id = weather.get('entity_id')
+                for light in light_devices[:MAX_DEVICES_PER_CONTEXT_TYPE]:
+                    if len(synergies) >= self.max_synergies:
+                        break
+                    area = self._get_area([light], entities)
+                    synergy = self._create_weather_lighting_synergy(weather_id, light, area)
+                    synergies.append(synergy)
         
         # Sports + Lighting synergies
         if sports_entities and light_devices and len(synergies) < self.max_synergies:

@@ -21,17 +21,21 @@ from .rag_context_service import RAGContextService
 
 logger = logging.getLogger(__name__)
 
+# Default token budget (in estimated tokens; 1 token ≈ 4 chars)
+DEFAULT_TOKEN_BUDGET = 8000
+
 
 class RAGContextRegistry:
     """
     Manages multiple RAGContextService instances and assembles
     matching contexts for a given prompt.
 
-    Context injection order is deterministic (registration order).
+    Contexts are ranked by relevance score and subject to a token budget.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, max_token_budget: int = DEFAULT_TOKEN_BUDGET) -> None:
         self._services: list[RAGContextService] = []
+        self.max_token_budget = max_token_budget
 
     def register(self, service: RAGContextService) -> None:
         """
@@ -65,32 +69,72 @@ class RAGContextRegistry:
         """Return registered services (read-only)."""
         return tuple(self._services)
 
-    async def get_all_context(self, prompt: str) -> list[str]:
+    async def get_scored_context(
+        self, prompt: str
+    ) -> list[tuple[str, float, str]]:
         """
-        Run all registered services and return matching contexts.
-
-        Contexts are returned in registration order.
+        Score all services and return matching contexts ranked by relevance.
 
         Args:
             prompt: User message
 
         Returns:
-            List of formatted context strings from matching services
+            List of (service_name, score, formatted_context) tuples,
+            sorted by score descending. Only includes services that matched.
         """
-        contexts: list[str] = []
+        results: list[tuple[str, float, str]] = []
         for service in self._services:
             try:
-                context = await service.get_context(prompt)
-                if context:
-                    contexts.append(context)
-                    logger.debug(
-                        f"RAG match: {service.name} "
-                        f"({len(context)} chars)"
-                    )
-            except Exception as e:
-                logger.warning(
-                    f"RAG service {service.name} failed: {e}"
+                score = service.score_relevance(prompt)
+                if score < service.min_score:
+                    continue
+                corpus = service.load_corpus()
+                if not corpus:
+                    continue
+                context = service.format_context(corpus)
+                results.append((service.name, score, context))
+                logger.debug(
+                    f"RAG scored: {service.name} "
+                    f"(score={score:.2f}, {len(context)} chars)"
                 )
+            except Exception as e:
+                logger.warning(f"RAG service {service.name} failed: {e}")
+
+        # Sort by score descending
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results
+
+    async def get_all_context(self, prompt: str) -> list[str]:
+        """
+        Run all registered services and return matching contexts.
+
+        Contexts are ranked by relevance score and trimmed to fit
+        within the token budget (chars/4 estimate).
+
+        Args:
+            prompt: User message
+
+        Returns:
+            List of formatted context strings from matching services,
+            ordered by relevance score (highest first)
+        """
+        scored = await self.get_scored_context(prompt)
+
+        budget_chars = self.max_token_budget * 4
+        used_chars = 0
+        contexts: list[str] = []
+
+        for name, score, context in scored:
+            context_len = len(context)
+            if used_chars + context_len > budget_chars and contexts:
+                logger.info(
+                    f"RAG budget exceeded: skipping {name} "
+                    f"({context_len} chars, {used_chars}/{budget_chars} used)"
+                )
+                break
+            contexts.append(context)
+            used_chars += context_len
+
         return contexts
 
     async def get_merged_context(self, prompt: str) -> str:
@@ -105,3 +149,31 @@ class RAGContextRegistry:
         """
         contexts = await self.get_all_context(prompt)
         return "\n".join(contexts)
+
+    async def get_context_for_domains(
+        self, domains: list[str]
+    ) -> list[str]:
+        """
+        Load context for specific domains by name, bypassing keyword detection.
+
+        Useful when validation errors or other signals indicate which
+        domains are relevant regardless of prompt content.
+
+        Args:
+            domains: List of service names to load context for
+
+        Returns:
+            List of formatted context strings for the requested domains
+        """
+        contexts: list[str] = []
+        domain_set = set(domains)
+        for service in self._services:
+            if service.name not in domain_set:
+                continue
+            try:
+                corpus = service.load_corpus()
+                if corpus:
+                    contexts.append(service.format_context(corpus))
+            except Exception as e:
+                logger.warning(f"RAG service {service.name} failed: {e}")
+        return contexts
