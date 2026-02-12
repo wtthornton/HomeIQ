@@ -195,9 +195,8 @@ class DeployCompiledRequest(BaseModel):
 
 
 @router.post("/automation/deploy")
-@handle_route_errors("deploy compiled automation")
 async def deploy_compiled_automation(
-    request: DeployCompiledRequest,
+    payload: DeployCompiledRequest,
     db: DatabaseSession,
     deployment_svc: DeploymentService = Depends(get_deployment_service)
 ) -> dict[str, Any]:
@@ -209,7 +208,7 @@ async def deploy_compiled_automation(
     import uuid
     from datetime import datetime, timezone
 
-    compiled_id = request.compiled_id
+    compiled_id = payload.compiled_id
 
     # Get compiled artifact
     query = select(CompiledArtifact).where(CompiledArtifact.compiled_id == compiled_id)
@@ -240,10 +239,10 @@ async def deploy_compiled_automation(
             ha_automation_id=ha_automation_id,
             status="deployed",
             version=1,
-            approved_by=request.approved_by,
-            ui_source=request.ui_source or "api",
+            approved_by=payload.approved_by,
+            ui_source=payload.ui_source or "api",
             deployed_at=datetime.now(timezone.utc),
-            audit_data=request.audit_data or {
+            audit_data=payload.audit_data or {
                 "compiled_id": compiled_id,
                 "plan_id": compiled_artifact.plan_id,
                 "deployed_at": datetime.now(timezone.utc).isoformat()
@@ -274,6 +273,8 @@ async def deploy_compiled_automation(
             result["verification_warning"] = deployment_result["verification_warning"]
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to deploy compiled automation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to deploy automation. Check server logs for details.")

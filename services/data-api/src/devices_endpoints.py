@@ -851,6 +851,38 @@ async def get_device_for_entity(
         ) from e
 
 
+@router.get("/api/areas")
+async def list_areas(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    List all distinct areas from the entity registry.
+
+    Returns area_id and name for each area. Used by template_validator
+    to resolve room_type → area_id during automation compilation.
+    """
+    try:
+        result = await db.execute(
+            select(Entity.area_id)
+            .where(Entity.area_id.isnot(None))
+            .where(Entity.area_id != "")
+            .distinct()
+            .order_by(Entity.area_id)
+        )
+        area_ids = [row[0] for row in result.all()]
+        areas = [
+            {"area_id": aid, "name": aid.replace("_", " ").title()}
+            for aid in area_ids
+        ]
+        return {"areas": areas, "count": len(areas)}
+    except Exception as e:
+        logger.error(f"Error listing areas: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list areas: {str(e)}"
+        ) from e
+
+
 @router.get("/api/entities/by-area/{area_id}")
 async def get_entities_in_area(
     area_id: str,

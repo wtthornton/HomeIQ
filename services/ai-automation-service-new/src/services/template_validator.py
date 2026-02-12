@@ -203,32 +203,22 @@ class TemplateValidator:
         if "room_type" in parameters:
             room_type = parameters["room_type"]
             try:
-                # Query data-api for areas using proper client method
-                # Note: DataAPIClient doesn't have fetch_areas, so we use direct HTTP call
-                # This should be added to DataAPIClient in future
-                import httpx
-                async with httpx.AsyncClient() as client:
-                    areas_response = await client.get(
-                        f"{self.data_api_client.base_url}/api/areas",
-                        timeout=10.0
-                    )
-                    areas_response.raise_for_status()
-                    areas_data = areas_response.json()
-                
+                areas = await self.data_api_client.fetch_areas()
+
                 # Find matching area
                 matching_area = None
-                for area in areas_data.get("areas", []):
+                for area in areas:
                     area_name = area.get("name", "").lower()
                     if room_type.lower() in area_name or area_name in room_type.lower():
                         matching_area = area
                         break
-                
+
                 if matching_area:
                     resolved["matched_room_id"] = matching_area.get("area_id")
                     resolved["matched_area_id"] = matching_area.get("area_id")
                 else:
                     logger.warning(f"Could not resolve room_type '{room_type}' to area_id")
-                    
+
             except Exception as e:
                 logger.warning(f"Failed to resolve room_type: {e}")
         
@@ -237,16 +227,9 @@ class TemplateValidator:
             target_area = parameters["target_area"]
             if "matched_area_id" not in resolved:
                 try:
-                    import httpx
-                    async with httpx.AsyncClient() as client:
-                        areas_response = await client.get(
-                            f"{self.data_api_client.base_url}/api/areas",
-                            timeout=10.0
-                        )
-                        areas_response.raise_for_status()
-                        areas_data = areas_response.json()
-                    
-                    for area in areas_data.get("areas", []):
+                    areas = await self.data_api_client.fetch_areas()
+
+                    for area in areas:
                         if target_area.lower() in area.get("name", "").lower():
                             resolved["matched_area_id"] = area.get("area_id")
                             break
@@ -257,21 +240,20 @@ class TemplateValidator:
         if template.template_id == "room_entry_light_on" and "matched_room_id" in resolved:
             area_id = resolved["matched_room_id"]
             try:
-                # Query entities in this area using DataAPIClient
-                entities = await self.data_api_client.fetch_entities(limit=1000)
-                entities_data = {"entities": entities}
-                
+                # Query entities in this specific area
+                area_entities = await self.data_api_client.fetch_entities_in_area(area_id)
+
                 # Find presence/motion sensors
                 presence_sensors = [
-                    e["entity_id"] for e in entities_data.get("entities", [])
+                    e["entity_id"] for e in area_entities
                     if e.get("device_class") in ["presence", "motion"]
                     and e.get("domain") == "binary_sensor"
                 ]
-                
+
                 if presence_sensors:
                     resolved["presence_sensor_entity"] = presence_sensors[0]
                     resolved["presence_sensor_entities"] = presence_sensors
-                    
+
             except Exception as e:
                 logger.warning(f"Failed to resolve presence sensors: {e}")
         
@@ -281,26 +263,19 @@ class TemplateValidator:
                 area_id = resolved["matched_area_id"]
             else:
                 area_id = parameters.get("target_area")
-            
+
             try:
-                # Query entities using DataAPIClient
-                entities = await self.data_api_client.fetch_entities(limit=1000)
-                # Filter by area_id and device_class
-                entities_data = {
-                    "entities": [
-                        e for e in entities
-                        if e.get("area_id") == area_id and e.get("device_class") == "motion"
-                    ]
-                }
-                
+                # Query entities in this specific area
+                area_entities = await self.data_api_client.fetch_entities_in_area(area_id)
+
                 motion_sensors = [
-                    e["entity_id"] for e in entities_data.get("entities", [])
+                    e["entity_id"] for e in area_entities
                     if e.get("device_class") == "motion"
                 ]
-                
+
                 if motion_sensors:
                     resolved["motion_sensor_entities"] = motion_sensors
-                    
+
             except Exception as e:
                 logger.warning(f"Failed to resolve motion sensors: {e}")
         

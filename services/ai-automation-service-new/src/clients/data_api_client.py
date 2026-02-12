@@ -43,25 +43,33 @@ class DataAPIClient:
     - Type hints throughout
     """
 
-    def __init__(self, base_url: str | None = None):
+    def __init__(self, base_url: str | None = None, api_key: str | None = None):
         """
         Initialize Data API client.
-        
+
         Args:
             base_url: Base URL for Data API (defaults to settings.data_api_url)
+            api_key: API key for Bearer auth (defaults to settings.api_key)
         """
         self.base_url = (base_url or settings.data_api_url).rstrip('/')
-        
+
+        # Build default headers with Bearer auth
+        default_headers = {}
+        key = api_key or settings.api_key
+        if key:
+            default_headers["Authorization"] = f"Bearer {key}"
+
         # Create async HTTP client with connection pooling
         self.client = httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,
+            headers=default_headers,
             limits=httpx.Limits(
                 max_keepalive_connections=5,
                 max_connections=10
             ),
         )
-        
+
         logger.info(f"Data API client initialized with base_url={self.base_url}")
 
     @retry(
@@ -111,7 +119,7 @@ class DataAPIClient:
         
         # Events endpoint uses /api/v1/events (with v1 prefix)
         url = f"{self.base_url}/api/v1/events"
-        headers = {"X-Internal-Service": "true"}
+        headers = {}
         
         try:
             logger.debug(f"Fetching events from {url} with params: {params}")
@@ -156,7 +164,7 @@ class DataAPIClient:
         """
         # Devices endpoint uses /api/devices (no v1 prefix)
         url = f"{self.base_url}/api/devices"
-        headers = {"X-Internal-Service": "true"}
+        headers = {}
         params = {"limit": limit}
         
         try:
@@ -195,7 +203,7 @@ class DataAPIClient:
         """
         # Entities endpoint uses /api/entities (no v1 prefix)
         url = f"{self.base_url}/api/entities"
-        headers = {"X-Internal-Service": "true"}
+        headers = {}
         params = {"limit": limit}
         
         try:
@@ -233,7 +241,7 @@ class DataAPIClient:
             httpx.HTTPError: If API request fails
         """
         url = f"{self.base_url}/api/entities/{entity_id}"
-        headers = {"X-Internal-Service": "true"}
+        headers = {}
         try:
             response = await self.client.get(url, headers=headers)
             if response.status_code == 404:
@@ -244,6 +252,32 @@ class DataAPIClient:
             logger.error(f"Failed to fetch entity {entity_id} from Data API: {e}")
             raise
 
+    async def fetch_areas(self) -> list[dict[str, Any]]:
+        """Fetch distinct areas from Data API."""
+        url = f"{self.base_url}/api/areas"
+        headers = {}
+        try:
+            response = await self.client.get(url, headers=headers, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("areas", [])
+        except Exception as e:
+            logger.warning(f"Failed to fetch areas from Data API: {e}")
+            return []
+
+    async def fetch_entities_in_area(self, area_id: str) -> list[dict[str, Any]]:
+        """Fetch entities in a specific area from Data API."""
+        url = f"{self.base_url}/api/entities/by-area/{area_id}"
+        headers = {}
+        try:
+            response = await self.client.get(url, headers=headers, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("entities", [])
+        except Exception as e:
+            logger.warning(f"Failed to fetch entities in area {area_id}: {e}")
+            return []
+
     async def health_check(self) -> bool:
         """
         Check if Data API service is healthy.
@@ -253,7 +287,7 @@ class DataAPIClient:
         """
         try:
             url = f"{self.base_url}/health"
-            headers = {"X-Internal-Service": "true"}
+            headers = {}
             response = await self.client.get(url, headers=headers, timeout=5.0)
             return response.status_code == 200
         except Exception as e:

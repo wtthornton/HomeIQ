@@ -123,7 +123,13 @@ class YAMLCompiler:
         
         if condition:
             automation["condition"] = condition
-        
+
+        # Strip unresolved {{placeholders}} — HA rejects them
+        automation = self._strip_unresolved(automation)
+
+        # Remove incomplete trigger/condition/action entries
+        automation = self._remove_incomplete_entries(automation)
+
         # Generate YAML
         yaml_content = yaml.dump(automation, default_flow_style=False, sort_keys=False)
         
@@ -325,6 +331,68 @@ class YAMLCompiler:
         
         return result
     
+    def _strip_unresolved(self, obj: Any) -> Any:
+        """Remove keys whose values still contain {{...}} placeholders.
+
+        Works recursively on dicts and lists.  Empty containers left
+        after stripping are also removed.
+        """
+        _PH = re.compile(r'\{\{[^}]+\}\}')
+
+        if isinstance(obj, dict):
+            cleaned = {}
+            for k, v in obj.items():
+                if isinstance(v, str) and _PH.search(v):
+                    logger.debug(f"Stripping unresolved placeholder: {k}={v!r}")
+                    continue
+                stripped = self._strip_unresolved(v)
+                # Drop empty dicts/lists produced by stripping
+                if isinstance(stripped, dict) and not stripped:
+                    continue
+                if isinstance(stripped, list) and not stripped:
+                    continue
+                cleaned[k] = stripped
+            return cleaned
+
+        if isinstance(obj, list):
+            result = []
+            for item in obj:
+                stripped = self._strip_unresolved(item)
+                if isinstance(stripped, dict) and not stripped:
+                    continue
+                if isinstance(stripped, str) and _PH.search(stripped):
+                    continue
+                result.append(stripped)
+            return result
+
+        return obj
+
+    @staticmethod
+    def _remove_incomplete_entries(automation: dict[str, Any]) -> dict[str, Any]:
+        """Remove trigger/condition/action items that are structurally incomplete.
+
+        HA requires triggers to have more than just ``platform``, and
+        conditions to have more than just ``condition``.  If stripping
+        left only the type key, drop the entire entry.
+        """
+        # Keys that are just type identifiers, not meaningful on their own
+        type_only_keys = {"trigger": {"platform"}, "condition": {"condition"}}
+
+        for section, min_keys in type_only_keys.items():
+            items = automation.get(section)
+            if not isinstance(items, list):
+                continue
+            cleaned = [
+                item for item in items
+                if not isinstance(item, dict) or set(item.keys()) != min_keys
+            ]
+            if cleaned:
+                automation[section] = cleaned
+            else:
+                automation.pop(section, None)
+
+        return automation
+
     def _generate_human_summary(
         self,
         template: Template,
