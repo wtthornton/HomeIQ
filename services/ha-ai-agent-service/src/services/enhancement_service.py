@@ -300,7 +300,7 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
                     {"role": "system", "content": "You are an expert at enhancing Home Assistant automation prompts. Always return valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7,
+                temperature=1.0,  # Reasoning models (GPT-5.2-Codex) only support temperature=1.0
                 response_format={"type": "json_object"}
             )
             
@@ -446,7 +446,7 @@ Ensure all YAML is valid and maintains the original automation's intent."""
                     {"role": "system", "content": "You are an expert at enhancing Home Assistant automations. Always return valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7,
+                temperature=1.0,  # Reasoning models (GPT-5.2-Codex) only support temperature=1.0
                 response_format={"type": "json_object"}
             )
             
@@ -671,7 +671,7 @@ Return ONLY the enhanced YAML, no explanations."""
                     {"role": "system", "content": "You are an expert at enhancing Home Assistant automations with patterns. Return only valid YAML."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.5
+                temperature=1.0  # Reasoning models only support 1.0
             )
             
             enhanced_yaml = response.choices[0].message.content or automation_yaml
@@ -718,7 +718,7 @@ Return ONLY the enhanced YAML, no explanations."""
                     {"role": "system", "content": "You are an expert at creating fun, creative Home Assistant automations with synergies. Return only valid YAML."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.8  # Higher temperature for creativity
+                temperature=1.0  # Reasoning models only support 1.0
             )
             
             enhanced_yaml = response.choices[0].message.content or automation_yaml
@@ -755,7 +755,7 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
                     {"role": "system", "content": "You are an expert at creating advanced Home Assistant automations. Return valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.6,
+                temperature=1.0,  # Reasoning models only support 1.0
                 response_format={"type": "json_object"}
             )
             
@@ -797,7 +797,7 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
                     {"role": "system", "content": "You are an expert at creating fun, creative Home Assistant automations. Return valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.9,  # High temperature for creativity
+                temperature=1.0,  # Reasoning models only support 1.0
                 response_format={"type": "json_object"}
             )
             
@@ -873,7 +873,7 @@ Return JSON with:
                     {"role": "system", "content": "You are an expert at enhancing Home Assistant automation prompts with patterns. Always return valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.6,
+                temperature=1.0,  # Reasoning models only support 1.0
                 response_format={"type": "json_object"}
             )
             
@@ -932,7 +932,7 @@ Return JSON with:
                     {"role": "system", "content": "You are an expert at creating fun, creative Home Assistant automation prompts with synergies. Always return valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.8,  # Higher temperature for creativity
+                temperature=1.0,  # Reasoning models only support 1.0
                 response_format={"type": "json_object"}
             )
             

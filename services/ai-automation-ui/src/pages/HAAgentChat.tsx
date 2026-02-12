@@ -622,11 +622,12 @@ export const HAAgentChat: React.FC = () => {
         inputRef.current?.focus();
       }, 100);
     } else {
-      // YAML enhancement: Apply YAML to preview (existing behavior)
+      // YAML enhancement: Apply YAML to preview and open the preview modal
       setPreviewAutomationYaml(enhancement.enhanced_yaml);
       if (enhancement.title) {
         setPreviewAutomationAlias(enhancement.title);
       }
+      setAutomationPreviewOpen(true);
       toast.success(`Enhancement applied: ${enhancement.title}`, { icon: '✅' });
     }
   };

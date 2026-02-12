@@ -176,6 +176,15 @@ export const api = {
     priority?: string;
     yaml_validation: { syntax_valid: boolean; safety_score: number; issues: any[] };
     ready_to_deploy: boolean;
+    data?: {
+      state?: string;
+      last_triggered?: string;
+      verification_warning?: string;
+      [key: string]: any;
+    };
+    state?: string;
+    last_triggered?: string;
+    verification_warning?: string;
   }> {
     // Re-deploy uses the same approve endpoint - it regenerates YAML and deploys
     return fetchJSON(`${API_BASE_URL}/v1/suggestions/suggestion-${id}/approve`, {
@@ -197,6 +206,9 @@ export const api = {
         errors: string[];
         warnings: string[];
       };
+      state?: string;
+      last_triggered?: string;
+      verification_warning?: string;
     };
   }> {
     // Re-deploy automation by automation_id (works for automations without suggestion records)
