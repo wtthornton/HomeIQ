@@ -71,7 +71,7 @@ All errors follow FastAPI standard error response format:
 **Solutions:**
 - Wait and retry (exponential backoff automatic)
 - Check OpenAI API usage limits
-- Use lower-cost model (gpt-4o-mini)
+- Use lower-cost model (gpt-5-mini)
 
 **Recovery:**
 - Automatic retry with exponential backoff (3 attempts)

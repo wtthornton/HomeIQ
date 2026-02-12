@@ -129,7 +129,7 @@ HA_TOKEN=your-long-lived-access-token
 OPENAI_API_KEY=your-openai-api-key
 
 # Optional
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5.2-codex
 LOG_LEVEL=INFO
 CONVERSATION_TTL_DAYS=30
 ```

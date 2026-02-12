@@ -58,10 +58,12 @@ def get_template_validator(
     template_library: TemplateLibrary = Depends(get_template_library)
 ) -> TemplateValidator:
     """Get template validator instance."""
-    data_api_client = DataAPIClient(base_url=settings.data_api_url)
+    from .dependencies import get_data_api_client, get_ha_client
+
     return TemplateValidator(
         template_library=template_library,
-        data_api_client=data_api_client
+        data_api_client=get_data_api_client(),
+        ha_client=get_ha_client(),
     )
 
 

@@ -9,6 +9,7 @@ import logging
 from typing import Any
 
 from ..clients.data_api_client import DataAPIClient
+from ..clients.ha_client import HomeAssistantClient
 from ..templates.template_library import TemplateLibrary
 from ..templates.template_schema import SafetyClass, Template
 
@@ -31,20 +32,26 @@ class TemplateValidator:
     - Safety checks (device types, forbidden targets)
     """
     
+    # Entity states that indicate the sensor is not operational
+    _INACTIVE_STATES = {"unavailable", "unknown"}
+
     def __init__(
         self,
         template_library: TemplateLibrary,
-        data_api_client: DataAPIClient
+        data_api_client: DataAPIClient,
+        ha_client: HomeAssistantClient | None = None,
     ):
         """
         Initialize template validator.
-        
+
         Args:
             template_library: Template library for template lookups
             data_api_client: Data API client for entity/device lookups
+            ha_client: Optional HA client for live state checks
         """
         self.template_library = template_library
         self.data_api_client = data_api_client
+        self.ha_client = ha_client
     
     async def validate_plan(
         self,
@@ -273,12 +280,47 @@ class TemplateValidator:
                     if e.get("device_class") == "motion"
                 ]
 
+                # Filter out sensors that are unavailable/unknown in HA
+                if motion_sensors and self.ha_client:
+                    active_sensors = []
+                    for entity_id in motion_sensors:
+                        try:
+                            state = await self.ha_client.get_state(entity_id)
+                            if state is None:
+                                # Could not reach HA or entity not found — keep it
+                                logger.warning(
+                                    f"Could not get state for {entity_id}, keeping by default"
+                                )
+                                active_sensors.append(entity_id)
+                            elif state.get("state") in self._INACTIVE_STATES:
+                                logger.info(
+                                    f"Excluding inactive sensor {entity_id} "
+                                    f"(state={state.get('state')})"
+                                )
+                            else:
+                                active_sensors.append(entity_id)
+                        except Exception as exc:
+                            logger.warning(
+                                f"Error checking state for {entity_id}: {exc}, keeping"
+                            )
+                            active_sensors.append(entity_id)
+                    if active_sensors:
+                        motion_sensors = active_sensors
+
                 if motion_sensors:
                     resolved["motion_sensor_entities"] = motion_sensors
+                else:
+                    logger.warning(f"No active motion sensors found in area '{area_id}'")
 
             except Exception as e:
                 logger.warning(f"Failed to resolve motion sensors: {e}")
-        
+
+            # Pre-compute zero-padded timeout duration for HA "for:" field
+            timeout_s = parameters.get("motion_timeout_seconds", 60)
+            mins, secs = divmod(int(timeout_s), 60)
+            hours, mins = divmod(mins, 60)
+            resolved["motion_timeout_for"] = f"{hours:02d}:{mins:02d}:{secs:02d}"
+
         return resolved
     
     def _check_safety(

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     
     # OpenAI Configuration
     openai_api_key: str | None = None
-    openai_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-5-mini"  # Better entity extraction than gpt-4o-mini (see implementation/OPENAI_MODEL_RESEARCH_2026.md)
     openai_timeout: float = 30.0  # Timeout for OpenAI API calls (seconds)
     
     # Query Service Performance Settings

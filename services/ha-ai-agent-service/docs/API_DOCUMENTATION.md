@@ -53,7 +53,7 @@ Main endpoint for interacting with the AI agent. Accepts user messages and retur
     }
   ],
   "metadata": {
-    "model": "gpt-4o-mini",
+    "model": "gpt-5.2-codex",
     "tokens_used": 1234,
     "response_time_ms": 2345,
     "token_breakdown": {
@@ -296,7 +296,7 @@ Comprehensive health check endpoint that verifies all dependencies in a single c
     "openai": {
       "status": "healthy",
       "message": "OpenAI API key configured",
-      "model": "gpt-4o-mini"
+      "model": "gpt-5.2-codex"
     },
     "context_builder": {
       "status": "healthy",

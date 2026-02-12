@@ -175,7 +175,7 @@ This epic implemented the foundational context injection system with the followi
 - `DEVICE_INTELLIGENCE_ENABLED` - Enable device intelligence (default: `true`)
 
 **OpenAI:**
-- `OPENAI_MODEL` - Model to use: `gpt-4o` or `gpt-4o-mini` (default: `gpt-4o-mini`)
+- `OPENAI_MODEL` - Model to use: `gpt-5.2-codex` (default), `gpt-5.2`, or `gpt-5-mini` for cost
 - `OPENAI_MAX_TOKENS` - Maximum tokens for responses (default: `4096`)
 - `OPENAI_TEMPERATURE` - Temperature 0.0-2.0 (default: `0.7`)
 - `OPENAI_TIMEOUT` - API timeout in seconds (default: `30`)

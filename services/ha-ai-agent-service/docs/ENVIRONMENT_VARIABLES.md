@@ -85,18 +85,18 @@ The service uses Pydantic Settings to load configuration from environment variab
 ### `OPENAI_API_KEY` ⚠️ **Required for Chat Features**
 - **Type:** String
 - **Default:** `None`
-- **Description:** OpenAI API key for GPT-4o/GPT-4o-mini
+- **Description:** OpenAI API key for GPT-5.2-Codex / GPT-5.2
 - **Example:** `sk-proj-...`
 - **Required:** Yes (for chat functionality)
 - **Security:** Store securely, never commit to git
 
 ### `OPENAI_MODEL`
 - **Type:** String
-- **Default:** `gpt-4o-mini`
-- **Description:** OpenAI model to use
-- **Options:** `gpt-4o`, `gpt-4o-mini`
+- **Default:** `gpt-5.2-codex`
+- **Description:** OpenAI model for chat and YAML generation (reasoning model)
+- **Options:** `gpt-5.2-codex` (recommended), `gpt-5.2`, `gpt-5-mini` (cost)
 - **Required:** No
-- **Recommendation:** Use `gpt-4o-mini` for cost efficiency, `gpt-4o` for better quality
+- **Recommendation:** Use `gpt-5.2-codex` for best quality; `gpt-5-mini` for lower cost
 
 ### `OPENAI_MAX_TOKENS`
 - **Type:** Integer
@@ -210,7 +210,7 @@ HA_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGc...
 
 # OpenAI Configuration
 OPENAI_API_KEY=sk-proj-...
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5.2-codex
 
 # Service Configuration
 LOG_LEVEL=INFO
@@ -233,7 +233,7 @@ services:
       - HA_URL=http://homeassistant:8123
       - HA_TOKEN=${HA_TOKEN}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=gpt-4o-mini
+      - OPENAI_MODEL=gpt-5.2-codex
       - DATA_API_URL=http://data-api:8006
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
       - LOG_LEVEL=INFO

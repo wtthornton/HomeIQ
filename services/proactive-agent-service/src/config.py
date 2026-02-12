@@ -56,8 +56,8 @@ class Settings(BaseSettings):
         description="OpenAI API key for prompt generation"
     )
     openai_model: str = Field(
-        default="gpt-4o-mini",
-        description="OpenAI model for prompt generation"
+        default="gpt-5-mini",
+        description="OpenAI model for prompt generation (gpt-5-mini for better quality; see implementation/OPENAI_MODEL_RESEARCH_2026.md)"
     )
     openai_timeout: int = Field(
         default=30,

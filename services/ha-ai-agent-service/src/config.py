@@ -67,15 +67,15 @@ class Settings(BaseSettings):
     # OpenAI Configuration
     openai_api_key: SecretStr | None = Field(
         default=None,
-        description="OpenAI API key for GPT-5.2 reasoning model"
+        description="OpenAI API key for GPT-5.2-Codex reasoning model"
     )
     openai_model: str = Field(
-        default="gpt-5.2",
-        description="OpenAI model to use (gpt-5.2 with reasoning for highest quality YAML generation)"
+        default="gpt-5.2-codex",
+        description="OpenAI model to use (gpt-5.2-codex for agentic coding and highest quality YAML generation)"
     )
     openai_max_tokens: int = Field(
         default=16384,
-        description="Maximum completion tokens (includes reasoning tokens — GPT-5.2 needs headroom for thinking + output)"
+        description="Maximum completion tokens (includes reasoning tokens — GPT-5.2-Codex needs headroom for thinking + output)"
     )
     openai_temperature: float = Field(
         default=1.0,
@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     )
     openai_reasoning_effort: str = Field(
         default="high",
-        description="Reasoning effort for GPT-5.2 thinking model: low, medium, high. Higher = better quality, more tokens"
+        description="Reasoning effort for GPT-5.2-Codex: low, medium, high, xhigh. Higher = better quality, more tokens"
     )
     openai_timeout: int = Field(
         default=90,

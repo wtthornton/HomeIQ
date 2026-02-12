@@ -59,6 +59,7 @@ class RequiredCapabilities(BaseModel):
 
 class TemplateCompilationMapping(BaseModel):
     """Compilation mapping from template parameters to HA automation structure."""
+    mode: Optional[str] = Field(default=None, description="HA automation mode (single, restart, queued, parallel)")
     trigger: list[dict[str, Any]] | dict[str, Any] = Field(
         description="Trigger configuration with parameter placeholders (list for HA 2024.x+)"
     )

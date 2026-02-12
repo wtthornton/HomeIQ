@@ -50,7 +50,7 @@ Comprehensive health check that verifies all dependencies in a single API call.
     "openai": {
       "status": "healthy",
       "message": "OpenAI API key configured",
-      "model": "gpt-4o-mini"
+      "model": "gpt-5.2-codex"
     },
     "context_builder": {
       "status": "healthy",

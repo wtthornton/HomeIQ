@@ -134,7 +134,7 @@ This document describes performance targets, benchmarks, and optimization strate
 **Current:**
 - Retry with exponential backoff
 - Token budget management
-- Model selection (gpt-4o-mini for cost)
+- Model selection (gpt-5-mini for cost; gpt-5.2-codex for quality)
 
 **Optimization Opportunities:**
 - Request queuing for high volume

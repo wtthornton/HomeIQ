@@ -111,12 +111,15 @@ class YAMLCompiler:
             all_params
         )
         
+        # Use mode from template compilation_mapping, default to "single"
+        mode = template.compilation_mapping.mode or "single"
+
         # Build HA automation structure
         automation = {
             "alias": alias,
             "description": description,
             "initial_state": True,  # Required field for HA 2025.10+
-            "mode": "single",  # Default mode
+            "mode": mode,
             "trigger": trigger,
             "action": action
         }
@@ -314,30 +317,86 @@ class YAMLCompiler:
         self,
         template: str,
         params: dict[str, Any]
-    ) -> str:
+    ) -> Any:
         """
         Compile template string with parameter substitution.
-        
-        Supports {{param_name}} syntax for parameter substitution.
+
+        Supports:
+        - {{param_name}} — simple substitution
+        - {{param[0]}} — array indexing
+        - {{ceil(255 / param)}} — math expressions (ceil, floor, round, //, %)
+
+        If the entire template is a single placeholder and resolves to a
+        non-string (e.g. list), the native type is returned so YAML
+        serialization produces the correct structure.
         """
-        result = template
-        
-        # Find all {{param}} patterns
         pattern = r'\{\{([^}]+)\}\}'
         matches = re.findall(pattern, template)
-        
+
+        if not matches:
+            return template
+
+        # Single-placeholder optimisation: return native type when the whole
+        # string is just "{{expr}}" (preserves lists, ints, etc.)
+        single_placeholder = re.fullmatch(pattern, template.strip())
+
         for match in matches:
-            param_name = match.strip()
-            param_value = params.get(param_name)
-            
-            if param_value is not None:
-                # Replace {{param}} with value
-                result = result.replace(f"{{{{{param_name}}}}}", str(param_value))
+            expr = match.strip()
+            resolved = self._resolve_expression(expr, params)
+
+            if resolved is not None:
+                # If the whole template is this one placeholder, return the
+                # native value directly (list stays list, int stays int).
+                if single_placeholder and match == single_placeholder.group(1):
+                    return resolved
+                # Otherwise, splice the string representation into the result
+                template = template.replace(f"{{{{{match}}}}}", str(resolved))
             else:
-                # Parameter not found - leave as is or raise error?
-                logger.warning(f"Parameter '{param_name}' not found in params, leaving placeholder")
-        
-        return result
+                logger.warning(
+                    f"Parameter '{expr}' not found in params, leaving placeholder"
+                )
+
+        return template
+
+    def _resolve_expression(
+        self, expr: str, params: dict[str, Any]
+    ) -> Any:
+        """Resolve a template expression against params.
+
+        Handles:
+        - Simple lookup: ``motion_sensor_entities``
+        - Array index:   ``motion_sensor_entities[0]``
+        - Math:          ``ceil(255 / dim_step)``, ``timeout // 60``
+        """
+        import math as _math
+
+        # 1. Simple param lookup
+        if expr in params:
+            return params[expr]
+
+        # 2. Array indexing — e.g. "motion_sensor_entities[0]"
+        idx_match = re.match(r'^(\w+)\[(\d+)\]$', expr)
+        if idx_match:
+            name, idx = idx_match.group(1), int(idx_match.group(2))
+            arr = params.get(name)
+            if isinstance(arr, list) and idx < len(arr):
+                return arr[idx]
+
+        # 3. Math expression — safe eval with only math + params
+        try:
+            safe_ns: dict[str, Any] = {
+                "ceil": _math.ceil,
+                "floor": _math.floor,
+                "round": round,
+                "min": min,
+                "max": max,
+            }
+            safe_ns.update({k: v for k, v in params.items() if isinstance(v, (int, float))})
+            return eval(expr, {"__builtins__": {}}, safe_ns)  # noqa: S307
+        except Exception:
+            pass
+
+        return None
     
     def _strip_unresolved(self, obj: Any, template: Template | None = None) -> Any:
         """Remove or reject keys whose values still contain {{...}} placeholders.

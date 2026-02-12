@@ -1,6 +1,6 @@
 {
   "template_id": "motion_dim_off",
-  "version": 1,
+  "version": 2,
   "description": "Turn lights on with motion, dim off after no motion",
   "required_capabilities": {
     "sensors": ["motion"],
@@ -17,7 +17,7 @@
       "type": "integer",
       "min": 30,
       "max": 3600,
-      "default": 300,
+      "default": 60,
       "description": "Seconds of no motion before dimming off"
     },
     "brightness_on": {
@@ -38,17 +38,20 @@
   "safety_class": "low",
   "forbidden_targets": [],
   "compilation_mapping": {
+    "mode": "restart",
     "trigger": [
       {
+        "id": "motion_on",
         "platform": "state",
         "entity_id": "{{motion_sensor_entities}}",
         "to": "on"
       },
       {
+        "id": "motion_off",
         "platform": "state",
         "entity_id": "{{motion_sensor_entities}}",
         "to": "off",
-        "for": "00:{{motion_timeout_seconds // 60}}:{{motion_timeout_seconds % 60}}"
+        "for": "{{motion_timeout_for}}"
       }
     ],
     "condition": null,
@@ -58,14 +61,8 @@
           {
             "conditions": [
               {
-                "condition": "or",
-                "conditions": [
-                  {
-                    "condition": "state",
-                    "entity_id": "{{motion_sensor_entities[0]}}",
-                    "state": "on"
-                  }
-                ]
+                "condition": "trigger",
+                "id": "motion_on"
               }
             ],
             "sequence": [
@@ -83,14 +80,8 @@
           {
             "conditions": [
               {
-                "condition": "and",
-                "conditions": [
-                  {
-                    "condition": "state",
-                    "entity_id": "{{motion_sensor_entities[0]}}",
-                    "state": "off"
-                  }
-                ]
+                "condition": "trigger",
+                "id": "motion_off"
               }
             ],
             "sequence": [
@@ -104,7 +95,7 @@
                         "area_id": "{{matched_area_id}}"
                       },
                       "data": {
-                        "brightness_step": "-{{dim_step}}",
+                        "brightness_step": "{{0 - dim_step}}",
                         "transition": 2
                       }
                     },
@@ -131,7 +122,7 @@
   "examples": [
     {
       "target_area": "office",
-      "motion_timeout_seconds": 300,
+      "motion_timeout_seconds": 60,
       "brightness_on": 255,
       "dim_step": 40
     }
