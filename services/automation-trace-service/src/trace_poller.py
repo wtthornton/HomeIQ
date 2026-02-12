@@ -87,6 +87,8 @@ class TracePoller:
 
         # 3. For each automation, find new traces and fetch full detail
         new_count = 0
+        execution_batch: list[dict[str, Any]] = []
+
         for item_id, traces in traces_by_automation.items():
             new_traces = self.dedup.filter_new(item_id, traces)
 
@@ -95,11 +97,11 @@ class TracePoller:
                 try:
                     full_trace = await self.ha.get_trace(item_id, run_id)
                     if full_trace:
-                        # Determine automation_id (entity_id) from automations list
                         automation_entity_id = self._find_entity_id(item_id, automations)
-
                         await self.writer.write_trace(automation_entity_id, full_trace)
-                        await self._post_execution_to_data_api(automation_entity_id, full_trace)
+                        execution_batch.append(
+                            self._build_execution_record(automation_entity_id, full_trace)
+                        )
                         new_count += 1
                 except Exception:
                     logger.exception("Failed to process trace %s/%s", item_id, run_id)
@@ -115,7 +117,11 @@ class TracePoller:
         else:
             logger.debug("No new traces (poll #%d)", self.poll_count)
 
-        # 4. Sync automation registry to data-api
+        # 4. Batch-POST all executions to data-api in a single request
+        if execution_batch:
+            await self._post_executions_batch(execution_batch)
+
+        # 5. Sync automation registry to data-api
         await self._sync_automation_registry(automations)
 
     # ------------------------------------------------------------------
@@ -127,49 +133,52 @@ class TracePoller:
             self._http_session = aiohttp.ClientSession()
         return self._http_session
 
-    async def _post_execution_to_data_api(self, automation_id: str, trace: dict[str, Any]):
-        """POST execution record to data-api /internal/automations/executions/bulk_upsert."""
+    def _build_execution_record(self, automation_id: str, trace: dict[str, Any]) -> dict[str, Any]:
+        """Build execution dict from a full trace (for batching)."""
+        ts_start = trace.get("timestamp", {}).get("start")
+        ts_finish = trace.get("timestamp", {}).get("finish")
+        duration = 0.0
+        if ts_start and ts_finish:
+            s = datetime.fromisoformat(ts_start)
+            f = datetime.fromisoformat(ts_finish)
+            duration = (f - s).total_seconds()
+
+        trigger_desc = trace.get("trigger") or ""
+        trace_steps = trace.get("trace", {})
+        step_count = sum(len(v) for v in trace_steps.values()) if isinstance(trace_steps, dict) else 0
+
+        return {
+            "automation_id": automation_id,
+            "run_id": trace.get("run_id", ""),
+            "started_at": ts_start,
+            "finished_at": ts_finish,
+            "duration_seconds": duration,
+            "execution_result": trace.get("script_execution", "unknown"),
+            "trigger_type": self._extract_trigger_type(trigger_desc),
+            "trigger_entity": self._extract_trigger_entity(trigger_desc),
+            "error_message": trace.get("error") or "",
+            "step_count": step_count,
+            "last_step": trace.get("last_step", ""),
+            "context_id": trace.get("context", {}).get("id", ""),
+        }
+
+    async def _post_executions_batch(self, executions: list[dict[str, Any]]):
+        """POST all execution records in a single batch request."""
         try:
             session = await self._ensure_http_session()
-
-            ts_start = trace.get("timestamp", {}).get("start")
-            ts_finish = trace.get("timestamp", {}).get("finish")
-            duration = 0.0
-            if ts_start and ts_finish:
-                s = datetime.fromisoformat(ts_start)
-                f = datetime.fromisoformat(ts_finish)
-                duration = (f - s).total_seconds()
-
-            trigger_desc = trace.get("trigger", "")
-            trace_steps = trace.get("trace", {})
-            step_count = sum(len(v) for v in trace_steps.values()) if isinstance(trace_steps, dict) else 0
-
-            execution = {
-                "automation_id": automation_id,
-                "run_id": trace.get("run_id", ""),
-                "started_at": ts_start,
-                "finished_at": ts_finish,
-                "duration_seconds": duration,
-                "execution_result": trace.get("script_execution", "unknown"),
-                "trigger_type": self._extract_trigger_type(trigger_desc),
-                "trigger_entity": self._extract_trigger_entity(trigger_desc),
-                "error_message": trace.get("error") or "",
-                "step_count": step_count,
-                "last_step": trace.get("last_step", ""),
-                "context_id": trace.get("context", {}).get("id", ""),
-            }
-
             url = f"{config.DATA_API_URL}/internal/automations/executions/bulk_upsert"
             headers = {"Content-Type": "application/json"}
             if config.DATA_API_API_KEY:
                 headers["Authorization"] = f"Bearer {config.DATA_API_API_KEY}"
 
-            async with session.post(url, json=[execution], headers=headers) as resp:
+            async with session.post(url, json=executions, headers=headers) as resp:
                 if resp.status >= 400:
                     body = await resp.text()
-                    logger.warning("data-api execution upsert failed (%d): %s", resp.status, body[:200])
+                    logger.warning("data-api execution batch upsert failed (%d): %s", resp.status, body[:200])
+                else:
+                    logger.info("Batch upserted %d executions to data-api", len(executions))
         except Exception:
-            logger.debug("Failed to POST execution to data-api", exc_info=True)
+            logger.debug("Failed to POST execution batch to data-api", exc_info=True)
 
     async def _sync_automation_registry(self, automations: list[dict[str, Any]]):
         """Sync automation entity list to data-api /internal/automations/bulk_upsert."""

@@ -41,8 +41,9 @@ class InfluxDBTraceWriter:
                 database=config.INFLUXDB_BUCKET,
                 org=config.INFLUXDB_ORG,
             )
-            # Test connection
-            await asyncio.to_thread(self.client.query, "SELECT 1")
+            # Verify with a write-path ping (InfluxDB 2.x doesn't support Arrow Flight queries)
+            test_point = Point("automation_traces").tag("automation_id", "_healthcheck").field("run_id", "test").time(datetime.now(timezone.utc))
+            await asyncio.to_thread(self.client.write, test_point)
             logger.info("InfluxDB connection verified at %s", config.INFLUXDB_URL)
             return True
         except Exception:
@@ -83,7 +84,7 @@ class InfluxDBTraceWriter:
                 duration_seconds = (finish_dt - start_dt).total_seconds()
 
             # Extract trigger info
-            trigger_desc = trace.get("trigger", "")
+            trigger_desc = trace.get("trigger") or ""
             trigger_type = self._extract_trigger_type(trigger_desc)
             trigger_entity = self._extract_trigger_entity(trigger_desc)
 
