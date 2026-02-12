@@ -69,6 +69,10 @@ from .alert_endpoints import AlertEndpoints
 # Story 21.4: Analytics Endpoints
 from .analytics_endpoints import router as analytics_router
 
+# Automation Trace: Internal + analytics endpoints
+from .automation_analytics_endpoints import router as automation_analytics_router
+from .automation_internal_endpoints import router as automation_internal_router
+
 # E4.S3: Agent Evaluation Endpoints
 from .evaluation_endpoints import router as evaluation_router
 
@@ -431,6 +435,20 @@ app.include_router(
     mcp_router,
     tags=["MCP Tools"],
     dependencies=_auth_dependency
+)
+
+# Automation Trace: Internal endpoints (no auth — called by automation-trace-service)
+app.include_router(
+    automation_internal_router,
+    tags=["Automation Trace (Internal)"],
+)
+
+# Automation Trace: Analytics endpoints
+app.include_router(
+    automation_analytics_router,
+    prefix="/api/v1",
+    tags=["Automation Analytics"],
+    dependencies=_auth_dependency,
 )
 
 

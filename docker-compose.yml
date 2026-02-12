@@ -1112,6 +1112,7 @@ services:
       - DATA_API_URL=http://data-api:8006
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.2-codex}
       - AI_AUTOMATION_API_KEY=${API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
@@ -1162,6 +1163,7 @@ services:
       - CARBON_INTENSITY_URL=http://carbon-intensity:8010
       - DATA_API_URL=http://data-api:8006
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
       - SCHEDULER_TIME=${SCHEDULER_TIME:-03:00}
@@ -1416,7 +1418,7 @@ services:
       - HA_URL=${HA_HTTP_URL:-}
       - HA_TOKEN=${HA_TOKEN:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8023
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - QUERY_TIMEOUT=${QUERY_TIMEOUT:-5.0}
@@ -1631,6 +1633,7 @@ services:
       - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
       - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_automation.db
       - SERVICE_PORT=8025
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -2453,6 +2456,59 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=model-prep,environment=development"
+
+  # Automation Trace Service - Ingests HA automation traces + logbook
+  automation-trace-service:
+    build:
+      context: .
+      dockerfile: services/automation-trace-service/Dockerfile
+    container_name: homeiq-automation-trace-service
+    restart: unless-stopped
+    ports:
+      - "8044:8020"
+    env_file:
+      - .env
+    environment:
+      - SERVICE_PORT=8020
+      - HA_WS_URL=${HA_WS_URL:-ws://homeassistant:8123}
+      - HA_HTTP_URL=${HA_HTTP_URL:-http://homeassistant:8123}
+      - HA_TOKEN=${HA_TOKEN}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - DATA_API_URL=http://data-api:8006
+      - DATA_API_API_KEY=${DATA_API_API_KEY:-}
+      - TRACE_POLL_INTERVAL_SECONDS=${TRACE_POLL_INTERVAL_SECONDS:-120}
+      - LOGBOOK_POLL_INTERVAL_SECONDS=${LOGBOOK_POLL_INTERVAL_SECONDS:-300}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      data-api:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=automation-trace-service,environment=production"
 
 volumes:
   influxdb_data:
