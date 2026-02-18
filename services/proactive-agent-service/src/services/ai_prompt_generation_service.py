@@ -328,7 +328,21 @@ class AIPromptGenerationService:
 - Patterns detected: {len(detected)}
 - Insights: {', '.join(patterns.get('insights', [])[:3])}
 """)
-        
+
+        # Activity context (Story 2.2)
+        activity = context_analysis.get("activity", {})
+        if activity.get("available"):
+            current = activity.get("current", {})
+            act_name = current.get("activity", "unknown")
+            conf = current.get("confidence", 0)
+            recent = activity.get("recent", [])
+            recent_activities = [r.get("activity") for r in recent[:5] if r.get("activity")]
+            parts.append(f"""### Household Activity
+- Current: {act_name} (confidence {conf:.2f})
+- Recent: {', '.join(recent_activities) if recent_activities else 'N/A'}
+- Consider suggesting automations that improve comfort for current activity (e.g. kitchen/mealtime when cooking, dimming when relaxing)
+""")
+
         # Home context from HA AI Agent (areas, automations - NOT devices, those are above)
         if home_context.get("available"):
             tier1 = home_context.get("tier1_context", "")
@@ -343,7 +357,7 @@ class AIPromptGenerationService:
         # Summary
         summary = context_analysis.get("summary", {})
         parts.append(f"""### Context Summary
-- Data sources available: {summary.get('available_sources', 0)}/{summary.get('total_sources', 4)}
+- Data sources available: {summary.get('available_sources', 0)}/{summary.get('total_sources', 5)}
 - Total insights: {summary.get('total_insights', 0)}
 - Device count: {device_inventory.get('total_devices', 0) if device_inventory else 'unknown'}
 """)

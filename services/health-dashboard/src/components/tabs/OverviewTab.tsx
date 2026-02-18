@@ -6,6 +6,7 @@ import { useAlerts } from '../../hooks/useAlerts';
 import { usePerformanceHistory } from '../../hooks/usePerformanceHistory';
 import { useDevices } from '../../hooks/useDevices';
 import { useRAGStatus } from '../../hooks/useRAGStatus';
+import { useActivity } from '../../hooks/useActivity';
 import { SkeletonCard } from '../skeletons';
 import { SystemStatusHero } from '../SystemStatusHero';
 import { CoreSystemCard } from '../CoreSystemCard';
@@ -156,6 +157,9 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   
   // Devices & Integrations data (for HA Integration section)
   const { devices, entities, integrations, loading: devicesLoading } = useDevices();
+
+  // Current activity (Story 2.3)
+  const { activity, loading: activityLoading, error: activityError, isStale: activityStale, refresh: refreshActivity } = useActivity(120000);
   
   // Fetch events stats for RAG modal (event types, unique entities)
   useEffect(() => {
@@ -580,6 +584,72 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
                 })}
               />
             </>
+          )}
+        </div>
+      </div>
+
+      {/* Current Activity Card (Story 2.3) */}
+      <div className="mb-8" data-testid="activity-section">
+        <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          🏃 Current Household Activity
+        </h2>
+        <div className={`rounded-lg shadow p-6 border ${
+          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
+          {activityLoading && !activity ? (
+            <div className="flex items-center gap-3">
+              <div className={`animate-pulse w-12 h-12 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+              <div>
+                <div className={`h-5 w-32 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} />
+                <div className={`h-4 w-24 rounded mt-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} />
+              </div>
+            </div>
+          ) : activityError || !activity ? (
+            <div className={`flex items-center gap-3 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <span className="text-2xl">—</span>
+              <div>
+                <p className="font-medium">Activity unavailable</p>
+                <p className="text-sm mt-1">{activityError || 'No activity data yet. Activity writer runs every 5–15 min.'}</p>
+                <button
+                  onClick={() => refreshActivity()}
+                  className={`mt-2 px-3 py-1 rounded text-sm font-medium ${
+                    darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <span className="text-4xl">🏃</span>
+                <div>
+                  <p className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {activity.activity.replace(/_/g, ' ')}
+                  </p>
+                  <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {Math.round(activity.confidence * 100)}% confidence
+                  </p>
+                  <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`} title={activity.timestamp}>
+                    Updated {new Date(activity.timestamp).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              {activityStale && (
+                <span className={`px-2 py-1 rounded text-xs ${darkMode ? 'bg-yellow-900/30 text-yellow-200' : 'bg-yellow-100 text-yellow-800'}`}>
+                  Data may be stale
+                </span>
+              )}
+              <button
+                onClick={() => refreshActivity()}
+                className={`px-3 py-1 rounded text-sm font-medium ${
+                  darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                Refresh
+              </button>
+            </div>
           )}
         </div>
       </div>

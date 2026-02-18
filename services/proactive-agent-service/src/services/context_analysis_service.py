@@ -68,12 +68,13 @@ class ContextAnalysisService:
         """
         logger.info("Starting comprehensive context analysis")
 
-        # Analyze all contexts in parallel
+        # Analyze all contexts in parallel (Story 2.2: add activity)
         results = await asyncio.gather(
             self.analyze_weather(),
             self.analyze_sports(),
             self.analyze_energy(),
             self.analyze_historical_patterns(),
+            self.analyze_activity(),
             return_exceptions=True,
         )
 
@@ -94,10 +95,15 @@ class ContextAnalysisService:
             "available": False, "error": str(results[3]),
             "events": [], "patterns": [], "insights": [],
         }
+        activity_analysis = results[4] if not isinstance(results[4], BaseException) else {
+            "available": False, "error": str(results[4]),
+            "current": None, "recent": [], "insights": [],
+        }
 
         # Aggregate and correlate
         summary = self._create_summary(
-            weather_analysis, sports_analysis, energy_analysis, historical_analysis
+            weather_analysis, sports_analysis, energy_analysis,
+            historical_analysis, activity_analysis,
         )
 
         result = {
@@ -105,6 +111,7 @@ class ContextAnalysisService:
             "sports": sports_analysis,
             "energy": energy_analysis,
             "historical_patterns": historical_analysis,
+            "activity": activity_analysis,
             "summary": summary,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
@@ -384,6 +391,54 @@ class ContextAnalysisService:
                 "insights": [f"Unable to fetch historical data: {str(e)}"],
             }
 
+    async def analyze_activity(self, hours: int = 1) -> dict[str, Any]:
+        """
+        Analyze current and recent household activity (Story 2.2).
+
+        Fetches from data-api GET /api/v1/activity and /api/v1/activity/history.
+        Graceful degradation: returns available=False on timeout/failure.
+        """
+        logger.debug("Analyzing activity context")
+        try:
+            current = await self.data_api_client.get_activity()
+            recent = await self.data_api_client.get_activity_history(hours=hours)
+            if not current and not recent:
+                return {
+                    "available": False,
+                    "current": None,
+                    "recent": [],
+                    "insights": [],
+                }
+            insights = []
+            if current:
+                activity = current.get("activity", "unknown")
+                confidence = current.get("confidence", 0)
+                insights.append(
+                    f"Household currently in '{activity}' (confidence {confidence:.2f})"
+                )
+            if recent and len(recent) > 1:
+                activities = [r.get("activity") for r in recent if r.get("activity")]
+                unique = list(dict.fromkeys(activities))[:3]
+                if unique:
+                    insights.append(
+                        f"Recent activities: {', '.join(unique)} - consider suggesting automations for these"
+                    )
+            return {
+                "available": True,
+                "current": current,
+                "recent": recent,
+                "insights": insights,
+            }
+        except Exception as e:
+            logger.debug("Activity analysis failed: %s", e)
+            return {
+                "available": False,
+                "error": str(e),
+                "current": None,
+                "recent": [],
+                "insights": [],
+            }
+
     def _analyze_weather_trends(self, forecast: list[dict[str, Any]]) -> dict[str, Any] | None:
         """
         Analyze weather forecast trends.
@@ -564,6 +619,7 @@ class ContextAnalysisService:
         sports: dict[str, Any],
         energy: dict[str, Any],
         historical: dict[str, Any],
+        activity: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Create aggregated summary of all context analyses.
@@ -573,16 +629,19 @@ class ContextAnalysisService:
             sports: Sports analysis results
             energy: Energy analysis results
             historical: Historical pattern analysis results
+            activity: Activity analysis results (Story 2.2)
 
         Returns:
             Summary dictionary
         """
+        activity = activity or {}
         available_sources = sum(
             [
                 weather.get("available", False),
                 sports.get("available", False),
                 energy.get("available", False),
                 historical.get("available", False),
+                activity.get("available", False),
             ]
         )
 
@@ -591,16 +650,18 @@ class ContextAnalysisService:
         all_insights.extend(sports.get("insights", []))
         all_insights.extend(energy.get("insights", []))
         all_insights.extend(historical.get("insights", []))
+        all_insights.extend(activity.get("insights", []))
 
         return {
             "available_sources": available_sources,
-            "total_sources": 4,
+            "total_sources": 5,
             "total_insights": len(all_insights),
             "insights": all_insights,
             "has_weather": weather.get("available", False),
             "has_sports": sports.get("available", False),
             "has_energy": energy.get("available", False),
             "has_historical": historical.get("available", False),
+            "has_activity": activity.get("available", False),
         }
 
     async def close(self):

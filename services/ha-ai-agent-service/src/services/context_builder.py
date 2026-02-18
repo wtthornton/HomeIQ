@@ -48,6 +48,8 @@ class ContextBuilder:
         self._context_filtering_service = None
         # Enhanced context builder for area-focused entity context
         self._enhanced_context_builder = None
+        # Epic Activity Recognition: Activity context for Tier 1
+        self._activity_context_service = None
 
     async def initialize(self) -> None:
         """Initialize context builder and all services"""
@@ -128,6 +130,12 @@ class ContextBuilder:
         # Enhanced context builder for area-focused entity context
         from .enhanced_context_builder import EnhancedContextBuilder
         self._enhanced_context_builder = EnhancedContextBuilder(settings=self.settings)
+        # Epic Activity Recognition: Activity context (Story 2.1)
+        from .activity_context_service import ActivityContextService
+        self._activity_context_service = ActivityContextService(
+            settings=self.settings,
+            context_builder=self,
+        )
         self._initialized = True
         logger.info("✅ Context builder initialized with all services")
 
@@ -175,6 +183,15 @@ class ContextBuilder:
 
         logger.debug(f"Building Tier 1 context (devices, areas, services, etc.) - skip_truncation={skip_truncation}")
         context_parts = ["HOME ASSISTANT CONTEXT:\n"]
+
+        # Epic Activity Recognition (Story 2.1): Current household activity
+        try:
+            if self._activity_context_service:
+                activity_line = await self._activity_context_service.get_activity_context_line()
+                if activity_line:
+                    context_parts.append(f"{activity_line}\n")
+        except Exception as e:
+            logger.debug("Activity context unavailable: %s", e)
 
         # Devices Summary - Device details with manufacturer, model, and area
         try:

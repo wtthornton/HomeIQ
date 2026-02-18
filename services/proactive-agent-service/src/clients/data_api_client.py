@@ -93,6 +93,43 @@ class DataAPIClient:
             logger.warning(f"Error fetching events: {str(e)}", exc_info=True)
             return []  # Graceful degradation
 
+    async def get_activity(self) -> dict[str, Any] | None:
+        """
+        Get current activity from data-api (GET /api/v1/activity).
+        Returns None on timeout, 404, 503, or error (graceful degradation).
+        Timeout: 5s to avoid blocking scheduler.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"{self.base_url}/api/v1/activity")
+                if response.status_code in (404, 503):
+                    return None
+                if response.status_code != 200:
+                    return None
+                return response.json()
+        except Exception as e:
+            logger.debug("Activity fetch failed: %s", e)
+            return None
+
+    async def get_activity_history(self, hours: int = 1) -> list[dict[str, Any]]:
+        """
+        Get activity history (GET /api/v1/activity/history?hours=N).
+        Returns [] on failure (graceful degradation).
+        """
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(
+                    f"{self.base_url}/api/v1/activity/history",
+                    params={"hours": hours},
+                )
+                if response.status_code != 200:
+                    return []
+                data = response.json()
+                return data if isinstance(data, list) else []
+        except Exception as e:
+            logger.debug("Activity history fetch failed: %s", e)
+            return []
+
     async def get_patterns(
         self,
         pattern_type: str | None = None,

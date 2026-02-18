@@ -87,6 +87,7 @@ from .devices_endpoints import router as devices_router
 from .energy_endpoints import router as energy_router
 
 # Import endpoint routers (Stories 13.2-13.4)
+from .activity_endpoints import router as activity_router
 from .events_endpoints import EventsEndpoints
 from .ha_automation_endpoints import router as ha_automation_router
 from .ha_automation_endpoints import start_webhook_detector, stop_webhook_detector
@@ -344,6 +345,13 @@ _auth_dependency = [Depends(data_api_service.auth_manager.get_current_user)]
 
 # Register endpoint routers (Stories 13.2-13.3)
 # Story 13.2: Events & Devices
+# Epic Activity Recognition Phase 1: Activity endpoints
+app.include_router(
+    activity_router,
+    prefix="/api/v1",
+    dependencies=_auth_dependency,
+)
+
 events_endpoints = EventsEndpoints()
 app.include_router(
     events_endpoints.router,

@@ -468,6 +468,24 @@ class DataApiClient extends BaseApiClient {
     return this.fetchWithErrorHandling<any>(`/api/v1/events/stats?period=${period}`);
   }
 
+  // Activity endpoints (Story 2.3 - Epic Activity Recognition)
+  async getCurrentActivity(): Promise<{ activity: string; activity_id: number; confidence: number; timestamp: string } | null> {
+    try {
+      return await this.fetchWithErrorHandling<any>('/api/v1/activity');
+    } catch {
+      return null;
+    }
+  }
+
+  async getActivityHistory(hours: number = 24, limit: number = 100): Promise<any[]> {
+    try {
+      const url = `/api/v1/activity/history?hours=${hours}&limit=${limit}`;
+      return await this.fetchWithErrorHandling<any[]>(url);
+    } catch {
+      return [];
+    }
+  }
+
   // Energy Correlation endpoints (Phase 4)
   async getEnergyStatistics(hours: number = 24): Promise<any> {
     return this.fetchWithErrorHandling<any>(`/api/v1/energy/statistics?hours=${hours}`);

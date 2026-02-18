@@ -2353,6 +2353,60 @@ services:
         max-file: "3"
         labels: "service=activity-recognition,environment=production"
 
+  # Activity Writer Service - Epic Activity Recognition Phase 1: Periodic activity prediction pipeline
+  activity-writer:
+    build:
+      context: .
+      dockerfile: services/activity-writer/Dockerfile
+    container_name: homeiq-activity-writer
+    restart: unless-stopped
+    ports:
+      - "8035:8035"
+    env_file:
+      - .env
+    environment:
+      - SERVICE_PORT=8035
+      - ACTIVITY_WRITER_INTERVAL_SECONDS=${ACTIVITY_WRITER_INTERVAL_SECONDS:-300}
+      - DATA_API_URL=http://data-api:8006
+      - DATA_API_API_KEY=${API_KEY:-}
+      - ACTIVITY_RECOGNITION_URL=http://activity-recognition:8036
+      - ACTIVITY_RECOGNITION_TIMEOUT=30
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - HOME_ID=${HOME_ID:-default}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      data-api:
+        condition: service_healthy
+      activity-recognition:
+        condition: service_started
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: '0.5'
+        reservations:
+          memory: 96M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=activity-writer,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8035/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   # Energy Forecasting Service - Tier 3: 7-day energy consumption predictions
   energy-forecasting:
     build:

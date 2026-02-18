@@ -79,7 +79,8 @@ function Get-ServiceDescription {
         "proactive-agent-service" = "Proactive Agent Service"
     }
     
-    return $serviceDescriptions[$Service] ?? $Service
+    if ($null -ne $serviceDescriptions[$Service]) { return $serviceDescriptions[$Service] }
+    return $Service
 }
 
 # Function to check if service exists in docker-compose
@@ -106,7 +107,7 @@ function Wait-ForHealthy {
         [int]$IntervalSeconds = 5
     )
     
-    Write-Info "⏳ Waiting for $Service to be healthy (max $MaxWaitSeconds seconds)..."
+    Write-Info "Waiting for $Service to be healthy (max $MaxWaitSeconds seconds)..."
     
     $elapsed = 0
     while ($elapsed -lt $MaxWaitSeconds) {
@@ -115,7 +116,7 @@ function Wait-ForHealthy {
         
         $status = Get-ServiceStatus -Service $Service
         if ($status -and $status.Health -eq "healthy") {
-            Write-Success "✓ $Service is healthy!"
+            Write-Success "OK: $Service is healthy!"
             return $true
         }
         
@@ -126,11 +127,11 @@ function Wait-ForHealthy {
                 $state = $status.State
                 $health = $status.Health
             }
-            Write-Host "  Status: $state, Health: $health ($elapsed/$MaxWaitSeconds seconds)" -ForegroundColor Gray
+            Write-Host "  Status: $state, Health: $health - $elapsed/$MaxWaitSeconds seconds" -ForegroundColor Gray
         }
     }
     
-    Write-Warning "⚠ $Service did not become healthy within $MaxWaitSeconds seconds"
+    Write-Warning "WARN: $Service did not become healthy within $MaxWaitSeconds seconds"
     return $false
 }
 
@@ -142,7 +143,7 @@ function Rebuild-Service {
         [bool]$UseCache = $true
     )
     
-    Write-Info "🔨 Rebuilding $Description..."
+    Write-Info "Rebuilding $Description..."
     
     $buildArgs = @($Service)
     if (-not $UseCache -or $NoCache) {
@@ -168,7 +169,7 @@ function Restart-Service {
         [string]$Description
     )
     
-    Write-Info "🔄 Restarting $Description..."
+    Write-Info "Restarting $Description..."
     
     docker-compose restart $Service
     
@@ -188,7 +189,7 @@ function Stop-Service {
         [string]$Description
     )
     
-    Write-Info "🛑 Stopping $Description..."
+    Write-Info "Stopping $Description..."
     
     docker-compose stop $Service
     
@@ -208,7 +209,7 @@ function Start-Service {
         [string]$Description
     )
     
-    Write-Info "🚀 Starting $Description..."
+    Write-Info "Starting $Description..."
     
     docker-compose up -d $Service
     
@@ -256,7 +257,7 @@ function Show-ServiceLogs {
         [int]$Lines = 50
     )
     
-    Write-Info "📋 Showing last $Lines lines of logs for $Service..."
+    Write-Info "Showing last $Lines lines of logs for $Service..."
     Write-Host ""
     
     docker-compose logs --tail $Lines $Service
@@ -268,7 +269,7 @@ function Show-ServiceLogs {
 function Show-ServiceStatus {
     param([string[]]$Services)
     
-    Write-Info "📊 Service Status:"
+    Write-Info "Service Status:"
     Write-Host ""
     
     foreach ($service in $Services) {
@@ -279,7 +280,7 @@ function Show-ServiceStatus {
             $health = $status.Health
             $uptime = "unknown"
             if ($status.Status) { 
-                $uptime = $status.Status -replace '.*Up ', '' 
+                $uptime = $status.Status -replace ".*Up ", "" 
             }
             
             $stateColor = switch ($state) {
@@ -394,9 +395,9 @@ $failed = ($deploymentResults.Values | Where-Object { $_ -eq $false }).Count
 
 Write-Host ""
 if ($failed -eq 0) {
-    Write-Success "✅ All services deployed successfully ($successful/$validServices.Count)"
+    Write-Success "All services deployed successfully - $successful of $($validServices.Count)"
 } else {
-    Write-Warning "⚠ Some services failed to deploy ($successful succeeded, $failed failed)"
+    Write-Warning "Some services failed to deploy - $successful succeeded, $failed failed"
     Write-Host ""
     Write-Error "Failed services:"
     foreach ($service in $deploymentResults.Keys) {
@@ -430,10 +431,10 @@ foreach ($service in $validServices) {
     if ($serviceUrls.ContainsKey($service)) {
         if (-not $hasUrls) {
             Write-Host ""
-            Write-Info "Service URLs:"
+            Write-Info 'Service URLs:'
             $hasUrls = $true
         }
-        Write-Host "  $($service): $($serviceUrls[$service])" -ForegroundColor Gray
+        Write-Host ('  ' + $service + ': ' + $serviceUrls[$service]) -ForegroundColor Gray
     }
 }
 
