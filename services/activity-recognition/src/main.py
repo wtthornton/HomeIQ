@@ -15,7 +15,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.routes import router, load_model
+from .api.routes import load_model, router
 
 # Configure structured logging
 structlog.configure(
@@ -44,7 +44,7 @@ logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler."""
     # Startup
     logger.info("Starting Activity Recognition Service...")
@@ -58,10 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         else:
             logger.warning("Failed to load ONNX model", path=str(model_path))
     else:
-        logger.info(
-            "No ONNX model found. Train a model and export to ONNX.",
-            path=str(model_path)
-        )
+        logger.info("No ONNX model found. Train a model and export to ONNX.", path=str(model_path))
 
     yield
 
@@ -109,9 +106,13 @@ async def root() -> dict[str, str]:
 if __name__ == "__main__":
     import uvicorn
 
+    try:
+        port = int(os.getenv("PORT", "8036"))
+    except (TypeError, ValueError):
+        port = 8036
     uvicorn.run(
         "src.main:app",
         host=os.getenv("HOST", "0.0.0.0"),
-        port=int(os.getenv("PORT", "8036")),
+        port=port,
         reload=os.getenv("DEBUG", "false").lower() == "true",
     )

@@ -1,10 +1,22 @@
 """Health check script - exits 0 if service is running (200 or 503 degraded)."""
-import urllib.request
-import urllib.error
+
 import sys
+import urllib.error
+import urllib.request
+
+_PORT = 8036
+_TIMEOUT = 5
 
 try:
-    urllib.request.urlopen("http://localhost:8036/api/v1/health")
+    port = int(__import__("os").environ.get("ACTIVITY_RECOGNITION_PORT", _PORT))
+except (TypeError, ValueError):
+    port = _PORT
+
+try:
+    urllib.request.urlopen(
+        f"http://localhost:{port}/api/v1/health",
+        timeout=_TIMEOUT,
+    )
     sys.exit(0)
 except urllib.error.HTTPError as e:
     # 503 = degraded (no model loaded) but service is running

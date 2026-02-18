@@ -13,8 +13,8 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import polars as pl
 import numpy as np
+import polars as pl
 
 logger = logging.getLogger(__name__)
 
@@ -49,19 +49,19 @@ SENSOR_TYPES = {
 class SensorDataLoader:
     """
     Load and preprocess sensor datasets for activity recognition.
-    
+
     Supports:
     - Smart* Data Set (UMass Trace Repository)
     - REFIT Smart Home Dataset (Edinburgh Research)
     - Generic CSV sensor data
-    
+
     Features:
     - Polars-based processing for performance
     - Sequence creation for LSTM training
     - Activity label mapping
     - Feature engineering for sensor data
     """
-    
+
     def __init__(
         self,
         data_dir: Path | None = None,
@@ -70,7 +70,7 @@ class SensorDataLoader:
     ) -> None:
         """
         Initialize the sensor data loader.
-        
+
         Args:
             data_dir: Directory containing sensor data files
             sequence_length: Number of time steps per sequence
@@ -79,211 +79,213 @@ class SensorDataLoader:
         self.data_dir = Path(data_dir) if data_dir else Path("./data/sensors")
         self.sequence_length = sequence_length
         self.step_size = step_size
-    
+
     def load_smart_star(self, path: Path | None = None) -> pl.DataFrame:
         """
         Load Smart* dataset from UMass.
-        
+
         The Smart* dataset contains:
         - Energy consumption data
         - Motion sensor data
         - Environmental sensors
         - Activity labels
-        
+
         Args:
             path: Path to Smart* data directory
-            
+
         Returns:
             Polars DataFrame with sensor data
         """
         data_path = path or self.data_dir / "smart_star"
-        
+
         if not data_path.exists():
             logger.warning(f"Smart* data directory not found: {data_path}")
             return self._create_synthetic_data()
-        
+
         logger.info(f"Loading Smart* dataset from {data_path}")
-        
+
         # Smart* data is typically in CSV format
         # Structure varies by home, so we handle multiple formats
         all_data = []
         csv_files = list(data_path.glob("*.csv"))
-        
+
         for csv_file in csv_files:
             df = self._load_csv_file(csv_file, source_file=csv_file.stem)
             if df is not None:
                 all_data.append(df)
-        
+
         if not all_data:
             logger.warning("No CSV files found, using synthetic data")
             return self._create_synthetic_data()
-        
+
         # Combine all data
         combined = pl.concat(all_data, how="diagonal")
-        
+
         # Standardize column names
         combined = self._standardize_columns(combined)
-        
+
         logger.info(f"Loaded {len(combined):,} rows from Smart* dataset")
-        
+
         return combined
-    
-    def _load_csv_file(self, csv_file: Path, house_id: str | None = None, source_file: str | None = None) -> pl.DataFrame | None:
+
+    def _load_csv_file(
+        self, csv_file: Path, house_id: str | None = None, source_file: str | None = None
+    ) -> pl.DataFrame | None:
         """
         Load a CSV file and add metadata columns.
-        
+
         Args:
             csv_file: Path to CSV file
             house_id: Optional house ID to add as column
             source_file: Optional source file name to add as column
-            
+
         Returns:
             DataFrame if loaded successfully, None otherwise
         """
         try:
             df = pl.read_csv(csv_file)
             columns_to_add = []
-            
+
             if house_id:
                 columns_to_add.append(pl.lit(house_id).alias("house_id"))
             if source_file:
                 columns_to_add.append(pl.lit(source_file).alias("source_file"))
             elif not house_id:
                 columns_to_add.append(pl.lit(csv_file.stem).alias("source_file"))
-            
+
             if columns_to_add:
                 df = df.with_columns(columns_to_add)
-            
+
             return df
         except Exception as e:
             logger.warning(f"Failed to load {csv_file}: {e}")
             return None
-    
+
     def load_refit(self, path: Path | None = None) -> pl.DataFrame:
         """
         Load REFIT Smart Home dataset.
-        
+
         The REFIT dataset contains:
         - Aggregate and appliance-level power consumption
         - Activity labels from 20 UK homes
         - Pre and post smart home installation data
-        
+
         Args:
             path: Path to REFIT data directory
-            
+
         Returns:
             Polars DataFrame with sensor data
         """
         data_path = path or self.data_dir / "refit"
-        
+
         if not data_path.exists():
             logger.warning(f"REFIT data directory not found: {data_path}")
             return self._create_synthetic_data()
-        
+
         logger.info(f"Loading REFIT dataset from {data_path}")
-        
+
         all_data = []
-        
+
         # REFIT has data per house (House_1, House_2, etc.)
         house_dirs = [d for d in sorted(data_path.glob("House_*")) if d.is_dir()]
-        
+
         for house_dir in house_dirs:
             csv_files = list(house_dir.glob("*.csv"))
             for csv_file in csv_files:
                 df = self._load_csv_file(csv_file, house_id=house_dir.name)
                 if df is not None:
                     all_data.append(df)
-        
+
         if not all_data:
             logger.warning("No REFIT data found, using synthetic data")
             return self._create_synthetic_data()
-        
+
         combined = pl.concat(all_data, how="diagonal")
         combined = self._standardize_columns(combined)
-        
+
         logger.info(f"Loaded {len(combined):,} rows from REFIT dataset")
-        
+
         return combined
-    
+
     def load_generic_csv(self, path: Path) -> pl.DataFrame:
         """
         Load generic CSV sensor data.
-        
+
         Expected columns:
         - timestamp: DateTime column
         - motion, door, temperature, etc.: Sensor values
         - activity_label (optional): Activity classification
-        
+
         Args:
             path: Path to CSV file
-            
+
         Returns:
             Polars DataFrame with sensor data
         """
         logger.info(f"Loading sensor data from {path}")
-        
+
         df = pl.read_csv(path)
         df = self._standardize_columns(df)
-        
+
         logger.info(f"Loaded {len(df):,} rows from {path}")
-        
+
         return df
-    
+
     def _map_column_name(self, col_name: str) -> str | None:
         """
         Map a column name to a standard name.
-        
+
         Args:
             col_name: Original column name
-            
+
         Returns:
             Standard column name if mapping exists, None otherwise
         """
         col_lower = col_name.lower()
-        
-        # Column name mappings
+
+        # Column name mappings (alias -> standard name)
         column_mappings: dict[str, str] = {
-            **{col: "timestamp" for col in ["timestamp", "time", "datetime", "date_time", "ts"]},
-            **{col: "motion" for col in ["motion", "pir", "motion_sensor", "movement"]},
-            **{col: "door" for col in ["door", "door_sensor", "contact", "entry"]},
-            **{col: "temperature" for col in ["temperature", "temp", "ambient_temp"]},
-            **{col: "humidity" for col in ["humidity", "rh", "relative_humidity"]},
-            **{col: "power" for col in ["power", "watts", "active_power", "aggregate"]},
-            **{col: "energy" for col in ["energy", "kwh", "consumption"]},
-            **{col: "activity_label" for col in ["activity", "activity_label", "label", "state"]},
+            **dict.fromkeys(["timestamp", "time", "datetime", "date_time", "ts"], "timestamp"),
+            **dict.fromkeys(["motion", "pir", "motion_sensor", "movement"], "motion"),
+            **dict.fromkeys(["door", "door_sensor", "contact", "entry"], "door"),
+            **dict.fromkeys(["temperature", "temp", "ambient_temp"], "temperature"),
+            **dict.fromkeys(["humidity", "rh", "relative_humidity"], "humidity"),
+            **dict.fromkeys(["power", "watts", "active_power", "aggregate"], "power"),
+            **dict.fromkeys(["energy", "kwh", "consumption"], "energy"),
+            **dict.fromkeys(["activity", "activity_label", "label", "state"], "activity_label"),
         }
-        
+
         return column_mappings.get(col_lower)
-    
+
     def _standardize_columns(self, df: pl.DataFrame) -> pl.DataFrame:
         """
         Standardize column names and types.
-        
+
         Maps various column naming conventions to standard names.
         """
         columns = df.columns
         rename_map: dict[str, str] = {}
-        
+
         for col in columns:
             standard_name = self._map_column_name(col)
             if standard_name:
                 rename_map[col] = standard_name
-        
+
         if rename_map:
             df = df.rename(rename_map)
-        
+
         # Parse timestamp if present
         if "timestamp" in df.columns:
             try:
-                df = df.with_columns([
-                    pl.col("timestamp").str.to_datetime().alias("timestamp")
-                ])
+                df = df.with_columns([pl.col("timestamp").str.to_datetime().alias("timestamp")])
             except Exception as e:
                 logger.debug(f"Could not parse timestamp column: {e}")
-        
+
         return df
-    
-    def _generate_activity_labels(self, hour_of_day: np.ndarray, n_samples: int, rng: np.random.Generator) -> np.ndarray:
+
+    def _generate_activity_labels(
+        self, hour_of_day: np.ndarray, n_samples: int, rng: np.random.Generator
+    ) -> np.ndarray:
         """
         Generate activity labels based on hour of day.
 
@@ -322,15 +324,15 @@ class SensorDataLoader:
         activity_label[noise_mask] = rng.integers(0, 10, noise_mask.sum())
 
         return activity_label
-    
+
     def _create_synthetic_data(self, n_samples: int = 10000) -> pl.DataFrame:
         """
         Create synthetic sensor data for testing.
-        
+
         Generates realistic sensor patterns with activity labels.
         """
         logger.info(f"Creating synthetic sensor data ({n_samples:,} samples)")
-        
+
         rng = np.random.default_rng(42)
 
         # Generate timestamps (1 minute intervals)
@@ -344,16 +346,15 @@ class SensorDataLoader:
         motion_prob = np.where(
             (hour_of_day >= 7) & (hour_of_day <= 22),
             0.3,  # Day
-            0.05  # Night
+            0.05,  # Night
         )
         motion = rng.binomial(1, motion_prob)
 
         # Door: Peaks at morning/evening
         door_prob = np.where(
-            (hour_of_day == 7) | (hour_of_day == 8) |
-            (hour_of_day == 17) | (hour_of_day == 18),
+            (hour_of_day == 7) | (hour_of_day == 8) | (hour_of_day == 17) | (hour_of_day == 18),
             0.2,
-            0.02
+            0.02,
         )
         door = rng.binomial(1, door_prob)
 
@@ -364,28 +365,26 @@ class SensorDataLoader:
         humidity = 50 - 5 * np.sin(2 * np.pi * hour_of_day / 24) + rng.normal(0, 2, n_samples)
 
         # Power: Higher during waking hours
-        power_base = np.where(
-            (hour_of_day >= 6) & (hour_of_day <= 23),
-            500,
-            100
-        )
+        power_base = np.where((hour_of_day >= 6) & (hour_of_day <= 23), 500, 100)
         power = power_base + rng.exponential(100, n_samples)
-        
+
         # Activity labels based on time of day
         activity_label = self._generate_activity_labels(hour_of_day, n_samples, rng)
-        
-        df = pl.DataFrame({
-            "timestamp": timestamps,
-            "motion": motion,
-            "door": door,
-            "temperature": temperature,
-            "humidity": humidity,
-            "power": power,
-            "activity_label": activity_label,
-        })
-        
+
+        df = pl.DataFrame(
+            {
+                "timestamp": timestamps,
+                "motion": motion,
+                "door": door,
+                "temperature": temperature,
+                "humidity": humidity,
+                "power": power,
+                "activity_label": activity_label,
+            }
+        )
+
         return df
-    
+
     def create_sequences(
         self,
         df: pl.DataFrame,
@@ -394,12 +393,12 @@ class SensorDataLoader:
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Create sequences for LSTM training.
-        
+
         Args:
             df: DataFrame with sensor data
             feature_cols: Columns to use as features
             label_col: Column containing activity labels
-            
+
         Returns:
             Tuple of (X, y) where:
             - X: Shape (n_sequences, sequence_length, n_features)
@@ -408,47 +407,65 @@ class SensorDataLoader:
         if feature_cols is None:
             # Default feature columns
             feature_cols = [
-                col for col in df.columns
-                if col not in ["timestamp", "activity_label", "source_file", "house_id", "appliance"]
+                col
+                for col in df.columns
+                if col
+                not in ["timestamp", "activity_label", "source_file", "house_id", "appliance"]
             ]
-        
+
         logger.info(f"Creating sequences with features: {feature_cols}")
-        
+
         # Sort by timestamp
         if "timestamp" in df.columns:
             df = df.sort("timestamp")
-        
+
         # Extract feature matrix
         features = df.select(feature_cols).to_numpy()
-        
+
         # Extract labels
         if label_col in df.columns:
             labels = df.select(label_col).to_numpy().flatten()
         else:
             labels = np.zeros(len(df), dtype=int)
-        
+
         # Create sequences using sliding window
         n_samples = len(features)
-        n_sequences = (n_samples - self.sequence_length) // self.step_size + 1
-        
+        n_sequences = max(
+            0,
+            (n_samples - self.sequence_length) // self.step_size + 1,
+        )
+        if n_sequences == 0:
+            logger.warning(
+                "Not enough samples for sequence length %s (have %s)",
+                self.sequence_length,
+                n_samples,
+            )
+            return (
+                np.zeros(
+                    (0, self.sequence_length, len(feature_cols)),
+                    dtype=np.float32,
+                ),
+                np.zeros(0, dtype=int),
+            )
+
         X = np.zeros((n_sequences, self.sequence_length, len(feature_cols)))
         y = np.zeros(n_sequences, dtype=int)
-        
+
         for i in range(n_sequences):
             start_idx = i * self.step_size
             end_idx = start_idx + self.sequence_length
-            
+
             X[i] = features[start_idx:end_idx]
             y[i] = labels[end_idx - 1]  # Label is the last time step
-        
+
         logger.info(f"Created {n_sequences:,} sequences of shape {X.shape}")
-        
+
         return X, y
-    
+
     def create_time_features(self, df: pl.DataFrame) -> pl.DataFrame:
         """
         Create time-based features from timestamp.
-        
+
         Adds:
         - hour_of_day (0-23)
         - day_of_week (0-6)
@@ -457,21 +474,25 @@ class SensorDataLoader:
         """
         if "timestamp" not in df.columns:
             return df
-        
-        df = df.with_columns([
-            pl.col("timestamp").dt.hour().alias("hour_of_day"),
-            pl.col("timestamp").dt.weekday().alias("day_of_week"),
-            (pl.col("timestamp").dt.weekday() >= 5).cast(pl.Int32).alias("is_weekend"),
-        ])
-        
+
+        df = df.with_columns(
+            [
+                pl.col("timestamp").dt.hour().alias("hour_of_day"),
+                pl.col("timestamp").dt.weekday().alias("day_of_week"),
+                (pl.col("timestamp").dt.weekday() >= 5).cast(pl.Int32).alias("is_weekend"),
+            ]
+        )
+
         # Cyclical encoding for hour
-        df = df.with_columns([
-            (np.sin(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_sin"),
-            (np.cos(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_cos"),
-        ])
-        
+        df = df.with_columns(
+            [
+                (np.sin(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_sin"),
+                (np.cos(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_cos"),
+            ]
+        )
+
         return df
-    
+
     def normalize_features(
         self,
         df: pl.DataFrame,
@@ -479,25 +500,25 @@ class SensorDataLoader:
     ) -> tuple[pl.DataFrame, dict[str, tuple[float, float]]]:
         """
         Normalize continuous features to [0, 1] range.
-        
+
         Returns:
             Tuple of (normalized_df, normalization_params)
         """
         params = {}
-        
+
         for col in feature_cols:
             if col in df.columns:
                 min_val = df.select(pl.col(col).min()).item()
                 max_val = df.select(pl.col(col).max()).item()
-                
+
                 if max_val > min_val:
-                    df = df.with_columns([
-                        ((pl.col(col) - min_val) / (max_val - min_val)).alias(col)
-                    ])
+                    df = df.with_columns(
+                        [((pl.col(col) - min_val) / (max_val - min_val)).alias(col)]
+                    )
                     params[col] = (min_val, max_val)
-        
+
         return df, params
-    
+
     def split_by_time(
         self,
         df: pl.DataFrame,
@@ -506,60 +527,56 @@ class SensorDataLoader:
     ) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
         """
         Split data chronologically (no data leakage).
-        
+
         Args:
             df: DataFrame to split
             train_ratio: Ratio for training set
             val_ratio: Ratio for validation set
-            
+
         Returns:
             Tuple of (train_df, val_df, test_df)
         """
         if "timestamp" in df.columns:
             df = df.sort("timestamp")
-        
+
         n = len(df)
         train_end = int(n * train_ratio)
         val_end = int(n * (train_ratio + val_ratio))
-        
+
         train_df = df[:train_end]
         val_df = df[train_end:val_end]
         test_df = df[val_end:]
-        
+
         logger.info(
-            f"Split data: train={len(train_df):,}, "
-            f"val={len(val_df):,}, test={len(test_df):,}"
+            f"Split data: train={len(train_df):,}, val={len(val_df):,}, test={len(test_df):,}"
         )
-        
+
         return train_df, val_df, test_df
-    
+
     def get_activity_distribution(self, df: pl.DataFrame) -> pl.DataFrame:
         """Get distribution of activities in the dataset."""
         if "activity_label" not in df.columns:
             return pl.DataFrame()
-        
+
         return (
-            df
-            .group_by("activity_label")
-            .agg([
-                pl.count().alias("count"),
-            ])
+            df.group_by("activity_label")
+            .agg(pl.count().alias("count"))
             .sort("activity_label")
-            .with_columns([
+            .with_columns(
                 pl.col("activity_label")
-                .map_elements(lambda x: ACTIVITY_LABELS.get(x, "unknown"), return_dtype=pl.String)
+                .replace(ACTIVITY_LABELS, default="unknown")
                 .alias("activity_name")
-            ])
+            )
         )
-    
+
     def save_processed(self, df: pl.DataFrame, output_path: Path) -> None:
         """Save processed data to Parquet."""
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         df.write_parquet(output_path)
         logger.info(f"Saved processed data to {output_path}")
-    
+
     def load_processed(self, input_path: Path) -> pl.DataFrame:
         """Load previously processed data from Parquet."""
         return pl.read_parquet(input_path)
@@ -568,22 +585,22 @@ class SensorDataLoader:
 def main() -> None:
     """Example usage of SensorDataLoader."""
     logging.basicConfig(level=logging.INFO)
-    
+
     loader = SensorDataLoader()
-    
+
     # Load synthetic data (for testing)
     df = loader._create_synthetic_data(n_samples=5000)
     print(f"\nLoaded {len(df):,} samples")
     print(f"Columns: {df.columns}")
     print(f"\nSample data:\n{df.head()}")
-    
+
     # Add time features
     df = loader.create_time_features(df)
-    
+
     # Get activity distribution
     dist = loader.get_activity_distribution(df)
     print(f"\nActivity distribution:\n{dist}")
-    
+
     # Create sequences
     X, y = loader.create_sequences(
         df,

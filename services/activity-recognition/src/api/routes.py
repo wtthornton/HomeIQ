@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/v1", tags=["activity"])
 # Pydantic Models
 # ============================================================================
 
+
 class SensorReading(BaseModel):
     """Single sensor reading."""
 
@@ -40,7 +41,7 @@ class SensorReading(BaseModel):
     @field_validator("*", mode="before")
     @classmethod
     def reject_nan_inf(cls, v):
-        if isinstance(v, float) and (v != v or v == float('inf') or v == float('-inf')):
+        if isinstance(v, float) and (v != v or v == float("inf") or v == float("-inf")):
             raise ValueError("NaN and Inf values are not allowed")
         return v
 
@@ -49,10 +50,7 @@ class SensorSequence(BaseModel):
     """Sequence of sensor readings for prediction."""
 
     readings: list[SensorReading] = Field(
-        ...,
-        min_length=10,
-        max_length=100,
-        description="Sequence of sensor readings (minimum 10)"
+        ..., min_length=10, max_length=100, description="Sequence of sensor readings (minimum 10)"
     )
 
 
@@ -62,9 +60,7 @@ class ActivityPrediction(BaseModel):
     activity: str = Field(..., description="Predicted activity name")
     activity_id: int = Field(..., description="Activity class ID")
     confidence: float = Field(..., description="Prediction confidence (0-1)")
-    probabilities: dict[str, float] = Field(
-        ..., description="Probabilities for all activities"
-    )
+    probabilities: dict[str, float] = Field(..., description="Probabilities for all activities")
 
 
 class CurrentActivityResponse(BaseModel):
@@ -115,7 +111,7 @@ def get_model():
         if _onnx_session is None:
             raise HTTPException(
                 status_code=503,
-                detail="Model not loaded. Please ensure the ONNX model is available."
+                detail="Model not loaded. Please ensure the ONNX model is available.",
             )
         return _onnx_session
 
@@ -155,17 +151,20 @@ def load_model(path: Path | str | None = None) -> bool:
 # Helper Functions
 # ============================================================================
 
+
 def readings_to_array(readings: list[SensorReading]) -> np.ndarray:
     """Convert sensor readings to numpy array."""
     features = []
     for r in readings:
-        features.append([
-            r.motion,
-            r.door,
-            r.temperature,
-            r.humidity,
-            r.power,
-        ])
+        features.append(
+            [
+                r.motion,
+                r.door,
+                r.temperature,
+                r.humidity,
+                r.power,
+            ]
+        )
     return np.array(features, dtype=np.float32)
 
 
@@ -194,10 +193,12 @@ def predict_activity(sensor_array: np.ndarray) -> tuple[int, np.ndarray]:
 # API Endpoints
 # ============================================================================
 
+
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
-    model_loaded = _onnx_session is not None
+    with _model_lock:
+        model_loaded = _onnx_session is not None
     response = HealthResponse(
         status="healthy" if model_loaded else "degraded",
         service="activity-recognition",
@@ -229,11 +230,7 @@ async def predict(sequence: SensorSequence):
     activity_name = ACTIVITIES.get(predicted_class, "unknown")
     confidence = float(probs[predicted_class])
 
-    probabilities = {
-        ACTIVITIES[i]: float(probs[i])
-        for i in range(len(probs))
-        if i in ACTIVITIES
-    }
+    probabilities = {ACTIVITIES[i]: float(probs[i]) for i in range(len(probs)) if i in ACTIVITIES}
 
     return ActivityPrediction(
         activity=activity_name,
@@ -252,18 +249,21 @@ async def list_activities():
 @router.get("/model/info")
 async def get_model_info() -> dict[str, Any]:
     """Get information about the loaded model."""
-    if _onnx_session is None:
+    with _model_lock:
+        session = _onnx_session
+        model_path = _model_path
+    if session is None:
         return {
             "loaded": False,
-            "model_path": str(_model_path),
+            "model_path": str(model_path),
         }
 
-    inputs = _onnx_session.get_inputs()
-    outputs = _onnx_session.get_outputs()
+    inputs = session.get_inputs()
+    outputs = session.get_outputs()
 
     return {
         "loaded": True,
-        "model_path": str(_model_path),
+        "model_path": str(model_path),
         "inputs": [
             {
                 "name": inp.name,
