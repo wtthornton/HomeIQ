@@ -158,10 +158,10 @@ class PlanParser:
             return spec
 
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in plan: {e}")
+            raise ValueError(f"Invalid JSON in plan: {e}") from e
         except Exception as e:
             logger.error(f"Error parsing plan: {e}")
-            raise ValueError(f"Failed to parse plan: {e}")
+            raise ValueError(f"Failed to parse plan: {e}") from e
 
     def _parse_trigger(self, trigger_dict: dict[str, Any]) -> TriggerSpec | None:
         """Parse trigger dictionary into TriggerSpec."""

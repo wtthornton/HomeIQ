@@ -198,13 +198,13 @@ class OpenAIClient:
 {entity_context_section}"""
 
         try:
-            kwargs: dict[str, Any] = dict(
-                model=self.model,
-                messages=[
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-            )
+            }
             # Reasoning models use max_completion_tokens, others use max_tokens
             if self.is_reasoning_model:
                 kwargs["max_completion_tokens"] = max_tokens
@@ -272,60 +272,6 @@ class OpenAIClient:
             raise ValueError("OpenAI API key not configured")
 
         # Structured plan JSON schema
-        plan_schema = {
-            "type": "object",
-            "properties": {
-                "alias": {"type": "string", "description": "Automation name"},
-                "description": {"type": "string", "description": "What this automation does"},
-                "trigger": {
-                    "type": "array",
-                    "description": "List of triggers. 'at' is ONLY for platform:'time'. For platform:'state', use 'to'/'from'/'entity_id' (never 'at').",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "platform": {"type": "string"},
-                            "entity_id": {"type": ["string", "array"]},
-                            "to": {"type": "string"},
-                            "from": {"type": "string"},
-                            "at": {
-                                "type": "string",
-                                "description": "ONLY for platform:'time' triggers. Do NOT use with state/event triggers.",
-                            },
-                            "attribute": {"type": "string"},
-                        },
-                        "required": ["platform"],
-                    },
-                },
-                "action": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "service": {"type": "string"},
-                            "target": {"type": "object"},
-                            "data": {"type": "object"},
-                        },
-                        "required": ["service"],
-                    },
-                },
-                "condition": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "condition": {"type": "string"},
-                            "entity_id": {"type": ["string", "array"]},
-                            "state": {"type": "string"},
-                        },
-                    },
-                },
-                "mode": {"type": "string", "enum": ["single", "restart", "queued", "parallel"]},
-                "initial_state": {"type": "boolean"},
-                "max_exceeded": {"type": "string", "enum": ["silent", "warning", "error"]},
-                "tags": {"type": "array", "items": {"type": "string"}},
-            },
-            "required": ["alias", "trigger", "action"],
-        }
 
         # R2: Add entity context to system prompt
         entity_context_section = ""
@@ -357,13 +303,13 @@ Return ONLY valid JSON matching this schema:
 Return ONLY the JSON object, no explanations or markdown code blocks."""
 
         try:
-            kwargs: dict[str, Any] = dict(
-                model=self.model,
-                messages=[
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-            )
+            }
             # Reasoning models use max_completion_tokens, others use max_tokens
             if self.is_reasoning_model:
                 kwargs["max_completion_tokens"] = max_tokens
@@ -400,10 +346,10 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
             raise ValueError(f"Invalid JSON in plan response: {e}") from e
         except APIError as e:
             logger.error(f"OpenAI API error: {e}")
-            raise from e
+            raise
         except Exception as e:
             logger.error(f"Unexpected error generating structured plan: {e}")
-            raise from e
+            raise
 
     async def generate_homeiq_automation_json(
         self,
@@ -496,13 +442,13 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
             logger.warning("Using fallback prompt - PromptBuilder not available")
 
         try:
-            kwargs: dict[str, Any] = dict(
-                model=self.model,
-                messages=[
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-            )
+            }
             # Reasoning models use max_completion_tokens, others use max_tokens
             if self.is_reasoning_model:
                 kwargs["max_completion_tokens"] = max_tokens
@@ -541,10 +487,10 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
             raise ValueError(f"Invalid JSON in HomeIQ automation response: {e}") from e
         except APIError as e:
             logger.error(f"OpenAI API error: {e}")
-            raise from e
+            raise
         except Exception as e:
             logger.error(f"Unexpected error generating HomeIQ JSON: {e}")
-            raise from e
+            raise
 
     async def generate_suggestion_description(
         self, pattern_data: dict[str, Any], temperature: float = 0.7, max_tokens: int = 500
@@ -567,16 +513,16 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
         prompt = f"Generate a brief, user-friendly description for this automation pattern: {pattern_data}"
 
         try:
-            kwargs: dict[str, Any] = dict(
-                model=self.model,
-                messages=[
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": [
                     {
                         "role": "system",
                         "content": "You are a helpful assistant that creates clear, concise automation descriptions.",
                     },
                     {"role": "user", "content": prompt},
                 ],
-            )
+            }
             # Reasoning models use max_completion_tokens, others use max_tokens
             if self.is_reasoning_model:
                 kwargs["max_completion_tokens"] = max_tokens

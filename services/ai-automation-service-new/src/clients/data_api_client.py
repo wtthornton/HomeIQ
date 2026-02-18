@@ -81,7 +81,7 @@ class DataAPIClient:
         device_id: str | None = None,
         event_type: str | None = None,
         limit: int = 10000,
-        **kwargs: Any,  # Accept but ignore unused params for backward compatibility
+        **_kwargs: Any,  # Accept but ignore unused params for backward compatibility
     ) -> list[dict[str, Any]]:
         """
         Fetch historical events from Data API.

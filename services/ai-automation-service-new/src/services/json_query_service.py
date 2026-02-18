@@ -89,33 +89,35 @@ class JSONQueryService:
 
         # Filter by pattern_type
         if "pattern_type" in filters:
-            if not automation.pattern_context:
-                return False
-            if automation.pattern_context.pattern_type != filters["pattern_type"]:
+            if not automation.pattern_context or automation.pattern_context.pattern_type != filters[
+                "pattern_type"
+            ]:
                 return False
 
         # Filter by use_case
-        if "use_case" in filters:
-            if automation.homeiq_metadata.use_case != filters["use_case"]:
-                return False
+        if "use_case" in filters and automation.homeiq_metadata.use_case != filters["use_case"]:
+            return False
 
         # Filter by complexity
-        if "complexity" in filters:
-            if automation.homeiq_metadata.complexity != filters["complexity"]:
-                return False
+        if "complexity" in filters and automation.homeiq_metadata.complexity != filters["complexity"]:
+            return False
 
         # Filter by energy impact
         if "min_energy_impact_w" in filters:
-            if not automation.energy_impact or not automation.energy_impact.estimated_power_w:
-                return False
-            if automation.energy_impact.estimated_power_w < filters["min_energy_impact_w"]:
+            if (
+                not automation.energy_impact
+                or not automation.energy_impact.estimated_power_w
+                or automation.energy_impact.estimated_power_w < filters["min_energy_impact_w"]
+            ):
                 return False
 
         # Filter by safety requirements
         if "requires_confirmation" in filters:
-            if not automation.safety_checks:
-                return False
-            if automation.safety_checks.requires_confirmation != filters["requires_confirmation"]:
+            if (
+                not automation.safety_checks
+                or automation.safety_checks.requires_confirmation
+                != filters["requires_confirmation"]
+            ):
                 return False
 
         # Filter by tags

@@ -214,10 +214,9 @@ class HomeAssistantClient:
             if not isinstance(action, dict):
                 continue
             target = action.get("target")
-            if isinstance(target, dict):
-                if target.get("area_id") in (None, "", "''", []):
-                    del target["area_id"]
-                    logger.info("Stripping empty 'area_id' from action target")
+            if isinstance(target, dict) and target.get("area_id") in (None, "", "''", []):
+                del target["area_id"]
+                logger.info("Stripping empty 'area_id' from action target")
 
         # --- Sanitize conditions: fix common GPT-generated condition format issues ---
         conditions = automation_data.get("condition", [])

@@ -229,14 +229,14 @@ IMPORTANT: When selecting a template, verify the target area has the required se
             if not self.openai_client.client:
                 raise ValueError("OpenAI client not initialized")
 
-            plan_kwargs = dict(
-                model=self.openai_client.model,
-                messages=[
+            plan_kwargs = {
+                "model": self.openai_client.model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                response_format={"type": "json_object"},
-            )
+                "response_format": {"type": "json_object"},
+            }
             if self.openai_client.supports_temperature:
                 plan_kwargs["temperature"] = 0.3
             response = await self.openai_client.client.chat.completions.create(**plan_kwargs)
@@ -292,10 +292,10 @@ IMPORTANT: When selecting a template, verify the target area has the required se
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
-            raise ValueError(f"LLM returned invalid JSON: {e}")
+            raise ValueError(f"LLM returned invalid JSON: {e}") from e
         except Exception as e:
             logger.error(f"Failed to create plan: {e}", exc_info=True)
-            raise
+            raise RuntimeError(f"Failed to create plan: {e}") from e
 
     async def _build_entity_summary(self) -> str:
         """Build compact entity summary per area for the LLM prompt.

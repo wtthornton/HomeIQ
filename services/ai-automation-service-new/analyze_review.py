@@ -1,7 +1,6 @@
 import json
-import sys
 
-with open('review-results.json', 'r', encoding='utf-8') as f:
+with open('review-results.json', encoding='utf-8') as f:
     data = json.load(f)
 
 all_issues = []
@@ -16,11 +15,11 @@ for issue in all_issues:
     severity = issue.get('severity', '').lower()
     issue_type = issue.get('type', '').lower()
     message = issue.get('message', '').lower()
-    
+
     # Look for actual bugs: errors, exceptions, logic errors, etc.
-    if (severity in ['error', 'critical'] or 
-        'bug' in issue_type or 
-        'exception' in message or 
+    if (severity in ['error', 'critical'] or
+        'bug' in issue_type or
+        'exception' in message or
         'error' in message or
         'undefined' in message or
         'missing' in message and 'import' in message or
@@ -45,4 +44,4 @@ top_bugs = bugs[:5]
 with open('top_bugs.json', 'w', encoding='utf-8') as f:
     json.dump(top_bugs, f, indent=2)
 
-print(f"\n\nTop 5 bugs saved to top_bugs.json")
+print("\n\nTop 5 bugs saved to top_bugs.json")

@@ -84,11 +84,10 @@ class DeploymentService:
                 raise DeploymentError(f"Suggestion {suggestion_id} not found")
 
             # Validate status (unless skip_validation)
-            if not skip_validation:
-                if suggestion.status not in ["approved", "deployed"]:
-                    raise DeploymentError(
-                        f"Suggestion status must be 'approved' or 'deployed', got '{suggestion.status}'"
-                    )
+            if not skip_validation and suggestion.status not in ["approved", "deployed"]:
+                raise DeploymentError(
+                    f"Suggestion status must be 'approved' or 'deployed', got '{suggestion.status}'"
+                )
 
             # Generate YAML if not present
             if not suggestion.automation_yaml:
@@ -277,7 +276,7 @@ class DeploymentService:
             new_version_number = latest_version.version_number + 1
 
             # Deploy previous version
-            deployment_result = await self.ha_client.deploy_automation(
+            await self.ha_client.deploy_automation(
                 previous_version.automation_yaml
             )
 

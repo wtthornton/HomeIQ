@@ -94,7 +94,7 @@ class ScriptValidationRouter(UnifiedValidationRouter):
     async def run_validation(
         self,
         request: ValidationRequest,
-        **kwargs: Any,
+        **_kwargs: Any,
     ) -> ValidationResponse:
         import yaml as yaml_lib
 

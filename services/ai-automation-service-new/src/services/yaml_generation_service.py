@@ -188,11 +188,9 @@ class YAMLGenerationService:
             if isinstance(suggestion, Suggestion):
                 description = suggestion.description or ""
                 title = suggestion.title or "Automation"
-                pattern_id = suggestion.pattern_id
             else:
                 description = suggestion.get("description", "")
                 title = suggestion.get("title", "Automation")
-                pattern_id = suggestion.get("pattern_id")
 
             if not description:
                 raise InvalidSuggestionError("Suggestion description is required")
@@ -249,7 +247,7 @@ If you need an entity that doesn't exist, use the closest matching entity from t
             raise
         except Exception as e:
             logger.error(f"Failed to generate HomeIQ JSON: {e}")
-            raise YAMLGenerationError(f"HomeIQ JSON generation failed: {e}")
+            raise YAMLGenerationError(f"HomeIQ JSON generation failed: {e}") from e
 
     async def generate_automation_yaml(
         self,
@@ -312,7 +310,7 @@ If you need an entity that doesn't exist, use the closest matching entity from t
             raise
         except Exception as e:
             logger.error(f"Failed to generate YAML: {e}")
-            raise YAMLGenerationError(f"YAML generation failed: {e}")
+            raise YAMLGenerationError(f"YAML generation failed: {e}") from e
 
     async def _generate_yaml_from_homeiq_json(self, suggestion: dict[str, Any] | Suggestion) -> str:
         """
@@ -381,7 +379,7 @@ If you need an entity that doesn't exist, use the closest matching entity from t
 
         except Exception as e:
             logger.error(f"Failed to generate YAML from HomeIQ JSON: {e}")
-            raise YAMLGenerationError(f"HomeIQ JSON to YAML conversion failed: {e}")
+            raise YAMLGenerationError(f"HomeIQ JSON to YAML conversion failed: {e}") from e
 
     async def _generate_yaml_from_structured_plan(self, title: str, description: str) -> str:
         """
@@ -461,10 +459,10 @@ Requirements:
 
         except ValueError as e:
             logger.error(f"Failed to parse structured plan: {e}")
-            raise YAMLGenerationError(f"Plan parsing failed: {e}")
+            raise YAMLGenerationError(f"Plan parsing failed: {e}") from e
         except Exception as e:
             logger.error(f"Failed to generate YAML from structured plan: {e}")
-            raise YAMLGenerationError(f"Structured plan generation failed: {e}")
+            raise YAMLGenerationError(f"Structured plan generation failed: {e}") from e
 
     async def _generate_yaml_direct(self, title: str, description: str) -> str:
         """
@@ -506,7 +504,7 @@ Requirements:
             yaml.safe_load(yaml_content)
         except yaml.YAMLError as e:
             logger.error(f"Generated YAML is invalid: {e}")
-            raise YAMLGenerationError(f"Invalid YAML syntax: {e}")
+            raise YAMLGenerationError(f"Invalid YAML syntax: {e}") from e
 
         # R3: Mandatory entity validation - fail if invalid entities found
         is_valid, invalid_entities = await self.validate_entities(yaml_content)

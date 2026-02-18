@@ -377,7 +377,7 @@ class VersioningService:
         else:
             return {}
 
-        query = query.where(AutomationVersion.is_active == True)
+        query = query.where(AutomationVersion.is_active)
         query = query.order_by(AutomationVersion.version_number.desc())
 
         result = await self.db.execute(query)

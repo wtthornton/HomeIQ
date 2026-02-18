@@ -95,9 +95,13 @@ class HAVersionService:
             Version string (e.g., "2025.10.3") or None if unavailable
         """
         # Check cache
-        if use_cache and self._version_cache and self._cache_expiry:
-            if datetime.now(timezone.utc) < self._cache_expiry:
-                return self._version_cache.get("version")
+        if (
+            use_cache
+            and self._version_cache
+            and self._cache_expiry
+            and datetime.now(timezone.utc) < self._cache_expiry
+        ):
+            return self._version_cache.get("version")
 
         if not self.ha_base_url or not self.ha_token:
             logger.warning("HA base URL or token not configured")
@@ -183,10 +187,8 @@ class HAVersionService:
         # Default: assume newer versions support all features
         # For older versions, check if any known version supports it
         for v, features in self._feature_support.items():
-            if features.get(feature, False):
-                # Feature exists in some version, check if our version is newer
-                if self._compare_versions(major_minor, v) >= 0:
-                    return True
+            if features.get(feature, False) and self._compare_versions(major_minor, v) >= 0:
+                return True
 
         return False
 
@@ -212,7 +214,7 @@ class HAVersionService:
         v1_parts.extend([0] * (max_len - len(v1_parts)))
         v2_parts.extend([0] * (max_len - len(v2_parts)))
 
-        for p1, p2 in zip(v1_parts, v2_parts):
+        for p1, p2 in zip(v1_parts, v2_parts, strict=True):
             if p1 < p2:
                 return -1
             elif p1 > p2:

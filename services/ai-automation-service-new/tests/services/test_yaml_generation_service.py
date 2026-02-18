@@ -2,7 +2,6 @@
 Tests for yaml_generation_service.py
 """
 
-from src.services.yaml_generation_service import *
 
 # Test functions
 

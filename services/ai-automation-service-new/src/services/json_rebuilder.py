@@ -88,7 +88,7 @@ Return ONLY valid JSON matching the HomeIQ Automation schema, no explanations or
 
         except Exception as e:
             logger.error(f"Failed to rebuild JSON from YAML: {e}")
-            raise ValueError(f"JSON rebuild failed: {e}")
+            raise ValueError(f"JSON rebuild failed: {e}") from e
 
     async def rebuild_from_description(
         self,
@@ -152,7 +152,7 @@ Return ONLY valid JSON matching the HomeIQ Automation schema, no explanations or
 
         except Exception as e:
             logger.error(f"Failed to rebuild JSON from description: {e}")
-            raise ValueError(f"JSON rebuild failed: {e}")
+            raise ValueError(f"JSON rebuild failed: {e}") from e
 
     async def fix_invalid_json(
         self, invalid_json: dict[str, Any], errors: list[str] | None = None
@@ -199,11 +199,11 @@ Requirements:
                 HomeIQAutomation(**fixed_json)
                 logger.info(f"Fixed invalid JSON: {fixed_json.get('alias', 'unknown')}")
             except Exception as e:
-                logger.error(f"Fixed JSON still has validation errors: {e}")
-                raise ValueError(f"Failed to fix JSON: {e}")
+                logger.error("Fixed JSON still has validation errors: %s", e)
+                raise ValueError(f"Failed to fix JSON: {e}") from e
 
             return fixed_json
 
         except Exception as e:
             logger.error(f"Failed to fix invalid JSON: {e}")
-            raise ValueError(f"JSON fix failed: {e}")
+            raise ValueError(f"JSON fix failed: {e}") from e

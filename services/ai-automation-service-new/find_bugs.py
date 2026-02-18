@@ -1,5 +1,4 @@
 """Script to find bugs in ai-automation-service-new"""
-import ast
 import re
 from pathlib import Path
 
@@ -10,7 +9,7 @@ def check_file(filepath: Path):
     try:
         content = filepath.read_text(encoding='utf-8')
         lines = content.split('\n')
-        
+
         # Bug 1: Operator precedence issues with 'not' and '=='
         for i, line in enumerate(lines, 1):
             if re.search(r'if\s+not\s+\w+\.get\([^)]+\)\s*==', line):
@@ -18,10 +17,10 @@ def check_file(filepath: Path):
                     'file': str(filepath),
                     'line': i,
                     'type': 'operator_precedence',
-                    'message': f"Operator precedence bug: 'not x == y' should be 'x != y' or 'not (x == y)'",
+                    'message': "Operator precedence bug: 'not x == y' should be 'x != y' or 'not (x == y)'",
                     'code': line.strip()
                 })
-        
+
         # Bug 2: Default None with Depends()
         for i, line in enumerate(lines, 1):
             if 'Depends(' in line and '= None' in line:
@@ -32,7 +31,7 @@ def check_file(filepath: Path):
                     'message': "Cannot use '= None' default with Depends() - remove default value",
                     'code': line.strip()
                 })
-        
+
         # Bug 3: Missing None check before attribute access
         for i, line in enumerate(lines, 1):
             if re.search(r'\.get\([^)]+\)\.\w+', line) and 'if' not in line[:20]:
@@ -46,7 +45,7 @@ def check_file(filepath: Path):
                         'message': "Potential AttributeError: .get() may return None, check before attribute access",
                         'code': line.strip()
                     })
-        
+
         # Bug 4: Incorrect comparison with None
         for i, line in enumerate(lines, 1):
             if re.search(r'==\s+None|!=\s+None', line):
@@ -57,10 +56,10 @@ def check_file(filepath: Path):
                     'message': "Use 'is None' or 'is not None' instead of '== None' or '!= None'",
                     'code': line.strip()
                 })
-        
+
         # Bug 5: Missing await in async context
         # This is harder to detect statically, skip for now
-        
+
         # Bug 6: Resource leak - missing close/cleanup
         # Check for httpx.AsyncClient without context manager
         has_async_client = False
@@ -80,7 +79,7 @@ def check_file(filepath: Path):
                     'message': "httpx.AsyncClient should be closed or used as context manager",
                     'code': 'File-level issue'
                 })
-        
+
     except Exception as e:
         print(f"Error checking {filepath}: {e}")
 

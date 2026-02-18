@@ -30,7 +30,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    
+
     # Create plans table
     op.create_table(
         'plans',
@@ -50,7 +50,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_plans_conversation_id'), 'plans', ['conversation_id'], unique=False)
     op.create_index(op.f('ix_plans_template_id'), 'plans', ['template_id'], unique=False)
     op.create_index(op.f('ix_plans_created_at'), 'plans', ['created_at'], unique=False)
-    
+
     # Create compiled_artifacts table
     op.create_table(
         'compiled_artifacts',
@@ -67,7 +67,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_compiled_artifacts_compiled_id'), 'compiled_artifacts', ['compiled_id'], unique=False)
     op.create_index(op.f('ix_compiled_artifacts_plan_id'), 'compiled_artifacts', ['plan_id'], unique=False)
     op.create_index(op.f('ix_compiled_artifacts_created_at'), 'compiled_artifacts', ['created_at'], unique=False)
-    
+
     # Create deployments table
     op.create_table(
         'deployments',
@@ -88,20 +88,20 @@ def upgrade() -> None:
     op.create_index(op.f('ix_deployments_ha_automation_id'), 'deployments', ['ha_automation_id'], unique=False)
     op.create_index(op.f('ix_deployments_status'), 'deployments', ['status'], unique=False)
     op.create_index(op.f('ix_deployments_deployed_at'), 'deployments', ['deployed_at'], unique=False)
-    
+
     # Add foreign key columns to suggestions table (optional, for linking)
     # Check if columns exist first
     result = conn.execute(sa.text("PRAGMA table_info(suggestions)"))
     suggestions_columns = [row[1] for row in result]
-    
+
     if 'plan_id' not in suggestions_columns:
         op.add_column('suggestions', sa.Column('plan_id', sa.String(), nullable=True))
         op.create_index(op.f('ix_suggestions_plan_id'), 'suggestions', ['plan_id'], unique=False)
-    
+
     if 'compiled_id' not in suggestions_columns:
         op.add_column('suggestions', sa.Column('compiled_id', sa.String(), nullable=True))
         op.create_index(op.f('ix_suggestions_compiled_id'), 'suggestions', ['compiled_id'], unique=False)
-    
+
     if 'deployment_id' not in suggestions_columns:
         op.add_column('suggestions', sa.Column('deployment_id', sa.String(), nullable=True))
         op.create_index(op.f('ix_suggestions_deployment_id'), 'suggestions', ['deployment_id'], unique=False)
@@ -115,7 +115,7 @@ def downgrade() -> None:
     op.drop_column('suggestions', 'deployment_id')
     op.drop_column('suggestions', 'compiled_id')
     op.drop_column('suggestions', 'plan_id')
-    
+
     # Drop tables
     op.drop_index(op.f('ix_deployments_deployed_at'), table_name='deployments')
     op.drop_index(op.f('ix_deployments_status'), table_name='deployments')
@@ -123,12 +123,12 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_deployments_compiled_id'), table_name='deployments')
     op.drop_index(op.f('ix_deployments_deployment_id'), table_name='deployments')
     op.drop_table('deployments')
-    
+
     op.drop_index(op.f('ix_compiled_artifacts_created_at'), table_name='compiled_artifacts')
     op.drop_index(op.f('ix_compiled_artifacts_plan_id'), table_name='compiled_artifacts')
     op.drop_index(op.f('ix_compiled_artifacts_compiled_id'), table_name='compiled_artifacts')
     op.drop_table('compiled_artifacts')
-    
+
     op.drop_index(op.f('ix_plans_created_at'), table_name='plans')
     op.drop_index(op.f('ix_plans_template_id'), table_name='plans')
     op.drop_index(op.f('ix_plans_conversation_id'), table_name='plans')

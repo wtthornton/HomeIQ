@@ -16,7 +16,7 @@ import pytest
 
 from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
 from shared.homeiq_automation.schema import HomeIQAutomation
-from shared.homeiq_automation.validator import HomeIQAutomationSchemaValidator
+from shared.homeiq_automation.validator import HomeIQAutomationValidator
 from shared.yaml_validation_service.version_aware_renderer import VersionAwareAutomationRenderer
 
 from ...src.clients.data_api_client import DataAPIClient
@@ -123,7 +123,7 @@ async def test_json_generation_workflow(mock_openai_client, sample_homeiq_json):
 @pytest.mark.integration
 async def test_json_validation_workflow(mock_data_api_client, sample_homeiq_json):
     """Test JSON validation workflow."""
-    validator = HomeIQAutomationSchemaValidator(mock_data_api_client)
+    validator = HomeIQAutomationValidator(mock_data_api_client)
 
     # Validate JSON
     result = await validator.validate_homeiq_automation(sample_homeiq_json)
@@ -333,7 +333,7 @@ async def test_end_to_end_json_workflow(
     )
 
     # Step 2: Validate JSON
-    validator = HomeIQAutomationSchemaValidator(mock_data_api_client)
+    validator = HomeIQAutomationValidator(mock_data_api_client)
     validation_result = await validator.validate_homeiq_automation(homeiq_json)
     assert validation_result.is_valid is True
 

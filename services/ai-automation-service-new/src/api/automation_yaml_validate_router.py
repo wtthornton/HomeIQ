@@ -106,7 +106,7 @@ class AutomationYAMLValidationRouter(UnifiedValidationRouter):
     async def run_validation(
         self,
         request: ValidationRequest,
-        **kwargs: Any,
+        **_kwargs: Any,
     ) -> ValidationResponse:
         """Orchestrate yaml-validation-service and return unified response."""
         result = await self.yaml_client.validate_yaml(

@@ -2,7 +2,6 @@
 Tests for openai_client.py
 """
 
-from src.clients.openai_client import *
 
 # Test functions
 

@@ -42,7 +42,7 @@ class TestOpenAIClientInitialization:
     @pytest.mark.asyncio
     async def test_client_uses_default_model(self):
         """Test that client uses default model when not specified."""
-        with patch("src.clients.openai_client.AsyncOpenAI") as mock_openai:
+        with patch("src.clients.openai_client.AsyncOpenAI"):
             with patch("src.clients.openai_client.settings") as mock_settings:
                 mock_settings.openai_model = "gpt-4o"
                 mock_settings.openai_api_key = "test-key"

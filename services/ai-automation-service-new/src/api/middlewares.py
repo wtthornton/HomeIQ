@@ -6,6 +6,7 @@ Following 2025 FastAPI best practices with async/await and proper dependency inj
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections import defaultdict, deque
@@ -263,10 +264,8 @@ async def stop_rate_limit_cleanup():
     global _cleanup_task
     if _cleanup_task:
         _cleanup_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await _cleanup_task
-        except asyncio.CancelledError:
-            pass
         _cleanup_task = None
         logger.info("✅ Rate limit cleanup task stopped")
 

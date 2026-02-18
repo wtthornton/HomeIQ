@@ -66,7 +66,7 @@ async def get_db_schema(db_path: str) -> dict[str, dict[str, Any]]:
     async with aiosqlite.connect(db_path) as db:
         # Get all tables
         cursor = await db.execute("""
-            SELECT name FROM sqlite_master 
+            SELECT name FROM sqlite_master
             WHERE type='table' AND name NOT LIKE 'sqlite_%'
             ORDER BY name
         """)
@@ -111,7 +111,7 @@ def get_model_schema() -> dict[str, dict[str, Any]]:
     schema = {}
 
     # Directly inspect Base.metadata (no engine needed)
-    for table_name in Base.metadata.tables.keys():
+    for table_name in Base.metadata.tables:
         table = Base.metadata.tables[table_name]
 
         schema[table_name] = {

@@ -195,7 +195,7 @@ class SetupValidationRouter(UnifiedValidationRouter):
         }
         return self.build_response(result, request)
 
-    async def _validate_connectivity(self, integration_type: str) -> list[str]:
+    async def _validate_connectivity(self, _integration_type: str) -> list[str]:
         """Validate connectivity for the integration type."""
         errors: list[str] = []
         # Check HA is reachable (proxy for integration connectivity)
