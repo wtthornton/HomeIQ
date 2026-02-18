@@ -214,7 +214,7 @@ class HomeAssistantClient:
             if not isinstance(action, dict):
                 continue
             target = action.get("target")
-            if isinstance(target, dict) and target.get("area_id") in (None, "", "''", []):
+            if isinstance(target, dict) and "area_id" in target and target.get("area_id") in (None, "", "''", []):
                 del target["area_id"]
                 logger.info("Stripping empty 'area_id' from action target")
 
