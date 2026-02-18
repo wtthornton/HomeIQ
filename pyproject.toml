@@ -1,0 +1,21 @@
+[project]
+name = "homeiq"
+version = "0.1.0"
+description = "HomeIQ - Home automation intelligence platform"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "TCH", "PTH"]
+ignore = ["E501", "B008", "T201"]
+
+[tool.ruff.lint.per-file-ignores]
+# E402: Imports must follow sys.path setup for shared module resolution
+"services/admin-api/src/main.py" = ["E402"]
+"services/data-api/src/main.py" = ["E402"]
+"services/websocket-ingestion/src/main.py" = ["E402"]
+"services/proactive-agent-service/src/main.py" = ["E402"]

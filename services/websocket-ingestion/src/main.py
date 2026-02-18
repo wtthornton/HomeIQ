@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import aiohttp
 from dotenv import load_dotenv
 
 # Add shared directory to path for imports
@@ -44,7 +43,6 @@ if shared_path and str(shared_path) not in sys.path:
 elif not shared_path:
     logging.warning("[websocket-ingestion] Warning: could not locate 'shared' directory in expected locations")
 
-from shared.correlation_middleware import create_correlation_middleware
 from shared.enhanced_ha_connection_manager import ha_connection_manager
 from shared.logging_config import (
     generate_correlation_id,

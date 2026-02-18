@@ -51,7 +51,6 @@ except ImportError:
 from shared.auth import AuthManager  # Moved to shared
 
 # WebSocket endpoints removed - using HTTP polling only
-from shared.endpoints import create_integration_router
 from shared.monitoring import (
     MonitoringEndpoints,
     StatsEndpoints,
@@ -62,7 +61,6 @@ from shared.monitoring import (
 from shared.rate_limiter import RateLimiter, rate_limit_middleware
 
 from .config_endpoints import ConfigEndpoints
-from .config_manager import config_manager
 from .docker_endpoints import DockerEndpoints
 from .ha_proxy_endpoints import router as ha_proxy_router
 from .health_endpoints import HealthEndpoints

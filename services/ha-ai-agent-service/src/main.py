@@ -23,6 +23,7 @@ except IndexError:
     pass  # Docker: PYTHONPATH already includes /app
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -305,14 +306,9 @@ async def health_check() -> dict:
         await health_service.close()
         
         # Return appropriate status code based on overall health
-        status_code = 200
-        if health_result["status"] == "unhealthy":
-            status_code = 503
-        elif health_result["status"] == "degraded":
-            status_code = 200  # Still operational, just degraded
-        
-        return health_result
-    except Exception as e:
+        status_code = 503 if health_result["status"] == "unhealthy" else 200
+        return JSONResponse(content=health_result, status_code=status_code)
+    except Exception:
         logger.exception("Error during health check")
         raise HTTPException(
             status_code=503,

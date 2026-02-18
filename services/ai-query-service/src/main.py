@@ -24,7 +24,6 @@ Key Features:
 """
 
 import logging
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
