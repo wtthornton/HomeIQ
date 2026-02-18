@@ -135,16 +135,19 @@ class HomeIQAutomationValidator:
             entity_ids: set[str] = set()
             group_entities: list[str] = []
             
-            # From triggers
+            # From triggers (entity_id may be on trigger or trigger.config)
             for trigger in automation.triggers:
-                if trigger.entity_id:
-                    if isinstance(trigger.entity_id, list):
-                        entity_ids.update(trigger.entity_id)
-                        group_entities.extend([eid for eid in trigger.entity_id if self._is_group_entity(eid)])
+                tid = getattr(trigger, "entity_id", None) or (
+                    trigger.config.entity_id if getattr(trigger, "config", None) else None
+                )
+                if tid:
+                    if isinstance(tid, list):
+                        entity_ids.update(tid)
+                        group_entities.extend([eid for eid in tid if self._is_group_entity(eid)])
                     else:
-                        entity_ids.add(trigger.entity_id)
-                        if self._is_group_entity(trigger.entity_id):
-                            group_entities.append(trigger.entity_id)
+                        entity_ids.add(tid)
+                        if self._is_group_entity(tid):
+                            group_entities.append(tid)
             
             # From conditions
             if automation.conditions:
@@ -345,11 +348,14 @@ class HomeIQAutomationValidator:
         automation_entity_ids: set[str] = set()
         
         for trigger in automation.triggers:
-            if trigger.entity_id:
-                if isinstance(trigger.entity_id, list):
-                    automation_entity_ids.update(trigger.entity_id)
+            entity_id = getattr(trigger, "entity_id", None) or (
+                trigger.config.entity_id if getattr(trigger, "config", None) else None
+            )
+            if entity_id:
+                if isinstance(entity_id, list):
+                    automation_entity_ids.update(entity_id)
                 else:
-                    automation_entity_ids.add(trigger.entity_id)
+                    automation_entity_ids.add(entity_id)
         
         if automation.conditions:
             for condition in automation.conditions:

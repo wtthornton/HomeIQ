@@ -309,9 +309,9 @@ class TestUsageStats:
         # Execute
         stats = openai_client.get_usage_stats()
 
-        # Assert
+        # Assert (model comes from client config, not hardcoded)
         assert stats["total_tokens"] == 100
-        assert stats["model"] == "gpt-4o-mini"
+        assert stats["model"] == openai_client.model
         assert stats["total_cost_usd"] == 0.0
 
     @pytest.mark.asyncio

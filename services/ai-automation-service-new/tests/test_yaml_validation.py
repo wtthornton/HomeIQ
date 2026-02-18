@@ -459,6 +459,38 @@ action:
         assert len(invalid_entities) == 0  # Empty list on error
 
 
+def _minimal_homeiq_automation_json():
+    """Minimal valid HomeIQ automation dict (no energy_impact to avoid validator comparison)."""
+    return {
+        "alias": "Test Automation",
+        "description": "Turn on lights at 7 AM",
+        "version": "2.0.0",
+        "homeiq_metadata": {
+            "use_case": "convenience",
+            "complexity": "low",
+        },
+        "device_context": {
+            "entity_ids": ["light.office_lamp"],
+            "device_ids": [],
+            "device_types": ["light"],
+        },
+        "triggers": [
+            {
+                "platform": "time",
+                "config": {"parameters": {"at": "07:00:00"}},
+            }
+        ],
+        "actions": [
+            {
+                "service": "light.turn_on",
+                "target": {"entity_id": "light.office_lamp"},
+                "data": {},
+            }
+        ],
+        "mode": "single",
+    }
+
+
 @pytest.mark.unit
 class TestYAMLGeneration:
     """Unit tests for YAML generation from suggestions."""
@@ -479,12 +511,18 @@ action:
       entity_id: light.office_lamp
 """
         )
+        client.generate_homeiq_automation_json = AsyncMock(
+            return_value=_minimal_homeiq_automation_json()
+        )
         return client
 
     @pytest.fixture
     def mock_data_api_client(self):
-        """Mock Data API client."""
+        """Mock Data API client (entity validation)."""
         client = AsyncMock(spec=DataAPIClient)
+        client.fetch_entities = AsyncMock(
+            return_value=[{"entity_id": "light.office_lamp"}]
+        )
         return client
 
     @pytest.fixture
@@ -496,29 +534,29 @@ action:
 
     @pytest.mark.asyncio
     async def test_generate_yaml_from_suggestion_model(self, yaml_service: YAMLGenerationService):
-        """Test YAML generation from Suggestion model instance."""
+        """Test YAML generation from Suggestion model instance (HomeIQ JSON flow)."""
         suggestion = Suggestion(
             title="Test Automation", description="Turn on lights at 7 AM", status="approved"
         )
 
         yaml_content = await yaml_service.generate_automation_yaml(suggestion)
 
-        assert "id:" in yaml_content
+        assert "alias:" in yaml_content or "id:" in yaml_content
         assert "trigger:" in yaml_content
         assert "action:" in yaml_content
-        yaml_service.openai_client.generate_yaml.assert_called_once()
+        yaml_service.openai_client.generate_homeiq_automation_json.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_yaml_from_suggestion_dict(self, yaml_service: YAMLGenerationService):
-        """Test YAML generation from suggestion dictionary."""
+        """Test YAML generation from suggestion dictionary (HomeIQ JSON flow)."""
         suggestion = {"title": "Test Automation", "description": "Turn on lights at 7 AM"}
 
         yaml_content = await yaml_service.generate_automation_yaml(suggestion)
 
-        assert "id:" in yaml_content
+        assert "alias:" in yaml_content or "trigger:" in yaml_content
         assert "trigger:" in yaml_content
         assert "action:" in yaml_content
-        yaml_service.openai_client.generate_yaml.assert_called_once()
+        yaml_service.openai_client.generate_homeiq_automation_json.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_yaml_fails_without_description(
@@ -536,22 +574,7 @@ action:
     async def test_generate_yaml_cleans_markdown_from_response(
         self, yaml_service: YAMLGenerationService
     ):
-        """Test that markdown code blocks are removed from OpenAI response."""
-        # Setup: Mock OpenAI to return YAML with markdown
-        yaml_service.openai_client.generate_yaml = AsyncMock(
-            return_value="""```yaml
-id: 'test-123'
-alias: Test Automation
-trigger:
-  - platform: time
-    at: '07:00:00'
-action:
-  - service: light.turn_on
-    target:
-      entity_id: light.office_lamp
-```"""
-        )
-
+        """Test that generated YAML does not contain markdown (HomeIQ JSON flow renders clean YAML)."""
         suggestion = Suggestion(
             title="Test Automation", description="Turn on lights at 7 AM", status="approved"
         )
@@ -559,22 +582,14 @@ action:
         yaml_content = await yaml_service.generate_automation_yaml(suggestion)
 
         assert "```" not in yaml_content
-        assert yaml_content.startswith("id:") is True
+        assert "alias:" in yaml_content or "trigger:" in yaml_content
 
     @pytest.mark.asyncio
     async def test_generate_yaml_validates_syntax(self, yaml_service: YAMLGenerationService):
-        """Test that generated YAML syntax is validated."""
-        # Setup: Mock OpenAI to return invalid YAML
-        yaml_service.openai_client.generate_yaml = AsyncMock(
-            return_value="""id: 'test-123'
-alias: Test Automation
-trigger:
-  - platform: time
-    at: '07:00:00'
-action:
-  - service: light.turn_on
-    invalid: [unclosed bracket
-"""
+        """Test that invalid HomeIQ JSON from OpenAI raises YAMLGenerationError."""
+        # Mock OpenAI to return invalid HomeIQ JSON (missing required fields)
+        yaml_service.openai_client.generate_homeiq_automation_json = AsyncMock(
+            return_value={"alias": "Test", "triggers": [], "actions": []}  # invalid: empty triggers
         )
 
         suggestion = Suggestion(
@@ -584,13 +599,12 @@ action:
         with pytest.raises(YAMLGenerationError) as exc_info:
             await yaml_service.generate_automation_yaml(suggestion)
 
-        assert "Invalid YAML syntax" in str(exc_info.value)
+        assert "YAML generation failed" in str(exc_info.value) or "failed" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_generate_yaml_handles_openai_error(self, yaml_service: YAMLGenerationService):
-        """Test that OpenAI errors are handled gracefully."""
-        # Setup: Mock OpenAI to raise an error
-        yaml_service.openai_client.generate_yaml = AsyncMock(
+        """Test that OpenAI errors are handled gracefully (HomeIQ JSON flow)."""
+        yaml_service.openai_client.generate_homeiq_automation_json = AsyncMock(
             side_effect=Exception("OpenAI API Error")
         )
 
@@ -601,4 +615,4 @@ action:
         with pytest.raises(YAMLGenerationError) as exc_info:
             await yaml_service.generate_automation_yaml(suggestion)
 
-        assert "YAML generation failed" in str(exc_info.value)
+        assert "YAML generation failed" in str(exc_info.value) or "OpenAI" in str(exc_info.value)

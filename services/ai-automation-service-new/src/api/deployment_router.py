@@ -34,6 +34,18 @@ class DeployRequest(BaseModel):
     force_deploy: bool = False
 
 
+@router.post("/batch")
+@handle_route_errors("batch deploy")
+async def batch_deploy(
+    suggestion_ids: list[int], deployment_svc: DeploymentService = Depends(get_deployment_service)
+) -> dict[str, Any]:
+    """
+    Deploy multiple automations in batch.
+    """
+    result = await deployment_svc.batch_deploy(suggestion_ids)
+    return result
+
+
 @router.post("/{suggestion_id}")
 @handle_route_errors("deploy suggestion")
 async def deploy_suggestion(
@@ -49,18 +61,6 @@ async def deploy_suggestion(
         skip_validation=request.skip_validation,
         force_deploy=request.force_deploy,
     )
-    return result
-
-
-@router.post("/batch")
-@handle_route_errors("batch deploy")
-async def batch_deploy(
-    suggestion_ids: list[int], deployment_svc: DeploymentService = Depends(get_deployment_service)
-) -> dict[str, Any]:
-    """
-    Deploy multiple automations in batch.
-    """
-    result = await deployment_svc.batch_deploy(suggestion_ids)
     return result
 
 

@@ -719,10 +719,18 @@ Requirements:
                     if "." in match and len(match.split(".")) == 2:
                         entity_ids.append(match)
 
-            # Check if string looks like an entity ID (domain.entity_name)
+            # Check if string looks like an entity ID (domain.entity_name), not a service (domain.action)
             if "." in data and len(data.split(".")) == 2:
                 parts = data.split(".")
                 if len(parts[0]) > 0 and len(parts[1]) > 0:
+                    # Exclude service names (e.g. light.turn_on, switch.turn_off)
+                    service_actions = {
+                        "turn_on", "turn_off", "toggle", "enable", "disable", "reload",
+                        "open_cover", "close_cover", "stop", "play", "pause", "media_pause",
+                        "set_temperature", "set_hvac_mode", "lock", "unlock",
+                    }
+                    if parts[1] in service_actions:
+                        return entity_ids
                     # Check if it's a valid entity domain (not just any dot-separated string)
                     valid_domains = [
                         "light",
