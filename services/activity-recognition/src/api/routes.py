@@ -105,7 +105,7 @@ ACTIVITIES = {
 }
 
 
-def get_model():
+def get_model() -> Any:
     """Get the loaded ONNX model session."""
     with _model_lock:
         if _onnx_session is None:
@@ -195,8 +195,8 @@ def predict_activity(sensor_array: np.ndarray) -> tuple[int, np.ndarray]:
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health_check():
-    """Health check endpoint."""
+async def health_check() -> HealthResponse | JSONResponse:
+    """Health check endpoint. Returns 503 when model is not loaded (degraded)."""
     with _model_lock:
         model_loaded = _onnx_session is not None
     response = HealthResponse(
@@ -214,7 +214,7 @@ async def health_check():
 
 
 @router.post("/predict", response_model=ActivityPrediction)
-async def predict(sequence: SensorSequence):
+async def predict(sequence: SensorSequence) -> ActivityPrediction:
     """
     Predict activity from sensor sequence.
 
@@ -241,7 +241,7 @@ async def predict(sequence: SensorSequence):
 
 
 @router.get("/activities", response_model=dict[int, str])
-async def list_activities():
+async def list_activities() -> dict[int, str]:
     """List all supported activity classes."""
     return ACTIVITIES
 

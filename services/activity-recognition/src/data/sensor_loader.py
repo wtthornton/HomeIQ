@@ -161,6 +161,15 @@ class SensorDataLoader:
             logger.warning(f"Failed to load {csv_file}: {e}")
             return None
 
+    def _load_house_csvs(self, house_dir: Path) -> list[pl.DataFrame]:
+        """Load all CSV DataFrames from a REFIT house directory."""
+        frames = []
+        for csv_file in house_dir.glob("*.csv"):
+            df = self._load_csv_file(csv_file, house_id=house_dir.name)
+            if df is not None:
+                frames.append(df)
+        return frames
+
     def load_refit(self, path: Path | None = None) -> pl.DataFrame:
         """
         Load REFIT Smart Home dataset.
@@ -177,24 +186,15 @@ class SensorDataLoader:
             Polars DataFrame with sensor data
         """
         data_path = path or self.data_dir / "refit"
-
         if not data_path.exists():
-            logger.warning(f"REFIT data directory not found: {data_path}")
+            logger.warning("REFIT data directory not found: %s", data_path)
             return self._create_synthetic_data()
 
-        logger.info(f"Loading REFIT dataset from {data_path}")
-
-        all_data = []
-
-        # REFIT has data per house (House_1, House_2, etc.)
-        house_dirs = [d for d in sorted(data_path.glob("House_*")) if d.is_dir()]
-
+        logger.info("Loading REFIT dataset from %s", data_path)
+        house_dirs = sorted(d for d in data_path.glob("House_*") if d.is_dir())
+        all_data: list[pl.DataFrame] = []
         for house_dir in house_dirs:
-            csv_files = list(house_dir.glob("*.csv"))
-            for csv_file in csv_files:
-                df = self._load_csv_file(csv_file, house_id=house_dir.name)
-                if df is not None:
-                    all_data.append(df)
+            all_data.extend(self._load_house_csvs(house_dir))
 
         if not all_data:
             logger.warning("No REFIT data found, using synthetic data")
@@ -202,9 +202,7 @@ class SensorDataLoader:
 
         combined = pl.concat(all_data, how="diagonal")
         combined = self._standardize_columns(combined)
-
-        logger.info(f"Loaded {len(combined):,} rows from REFIT dataset")
-
+        logger.info("Loaded %s rows from REFIT dataset", len(combined))
         return combined
 
     def load_generic_csv(self, path: Path) -> pl.DataFrame:
@@ -287,7 +285,7 @@ class SensorDataLoader:
         self, hour_of_day: np.ndarray, n_samples: int, rng: np.random.Generator
     ) -> np.ndarray:
         """
-        Generate activity labels based on hour of day.
+        Generate activity labels based on hour of day (vectorized).
 
         Args:
             hour_of_day: Array of hours (0-23) for each sample
@@ -297,32 +295,18 @@ class SensorDataLoader:
         Returns:
             Array of activity labels (0-9)
         """
-        activity_label = np.zeros(n_samples, dtype=int)
-
-        for i, h in enumerate(hour_of_day):
-            if 0 <= h < 6:
-                activity_label[i] = 0  # sleeping
-            elif 6 <= h < 8:
-                activity_label[i] = 1  # waking
-            elif h == 8:
-                activity_label[i] = 2  # leaving
-            elif 8 < h < 17:
-                activity_label[i] = 6  # working (away)
-            elif h == 17:
-                activity_label[i] = 3  # arriving
-            elif 17 < h < 19:
-                activity_label[i] = 4  # cooking
-            elif 19 <= h < 21:
-                activity_label[i] = 5  # eating
-            elif 21 <= h < 23:
-                activity_label[i] = 7  # watching_tv
-            else:
-                activity_label[i] = 8  # relaxing
-
-        # Add some noise to activity labels
+        h = hour_of_day.astype(int)
+        activity_label = np.full(n_samples, 8, dtype=int)  # default relaxing
+        activity_label[(h >= 0) & (h < 6)] = 0   # sleeping
+        activity_label[(h >= 6) & (h < 8)] = 1   # waking
+        activity_label[h == 8] = 2               # leaving
+        activity_label[(h > 8) & (h < 17)] = 6   # working
+        activity_label[h == 17] = 3               # arriving
+        activity_label[(h > 17) & (h < 19)] = 4  # cooking
+        activity_label[(h >= 19) & (h < 21)] = 5 # eating
+        activity_label[(h >= 21) & (h < 23)] = 7 # watching_tv
         noise_mask = rng.random(n_samples) < 0.1
         activity_label[noise_mask] = rng.integers(0, 10, noise_mask.sum())
-
         return activity_label
 
     def _create_synthetic_data(self, n_samples: int = 10000) -> pl.DataFrame:
@@ -448,17 +432,13 @@ class SensorDataLoader:
                 np.zeros(0, dtype=int),
             )
 
-        X = np.zeros((n_sequences, self.sequence_length, len(feature_cols)))
-        y = np.zeros(n_sequences, dtype=int)
+        start_indices = np.arange(n_sequences) * self.step_size
+        window = np.arange(self.sequence_length)
+        indices = start_indices[:, np.newaxis] + window[np.newaxis, :]
+        X = features[indices].astype(np.float32)
+        y = labels[start_indices + self.sequence_length - 1]
 
-        for i in range(n_sequences):
-            start_idx = i * self.step_size
-            end_idx = start_idx + self.sequence_length
-
-            X[i] = features[start_idx:end_idx]
-            y[i] = labels[end_idx - 1]  # Label is the last time step
-
-        logger.info(f"Created {n_sequences:,} sequences of shape {X.shape}")
+        logger.info("Created %s sequences of shape %s", n_sequences, X.shape)
 
         return X, y
 

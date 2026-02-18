@@ -279,38 +279,32 @@ class ActivityTrainer:
         patience_counter = 0
 
         for epoch in range(num_epochs):
-            # Train
             train_loss = self.train_epoch(train_loader)
             self.train_losses.append(train_loss)
-
-            # Validate
             val_loss, val_accuracy = self.validate(val_loader)
             self.val_losses.append(val_loss)
-
-            # Learning rate scheduling
             self.scheduler.step(val_loss)
 
             logger.info(
-                f"Epoch {epoch + 1}/{num_epochs} - "
-                f"Train Loss: {train_loss:.4f}, "
-                f"Val Loss: {val_loss:.4f}, "
-                f"Val Accuracy: {val_accuracy:.2%}"
+                "Epoch %s/%s - Train Loss: %.4f, Val Loss: %.4f, Val Accuracy: %.2f%%",
+                epoch + 1,
+                num_epochs,
+                train_loss,
+                val_loss,
+                val_accuracy * 100,
             )
 
-            # Check for improvement
-            if val_loss < self.best_val_loss:
+            improved = val_loss < self.best_val_loss
+            if improved:
                 self.best_val_loss = val_loss
                 patience_counter = 0
-
-                # Save best model
                 if checkpoint_dir:
                     self.save_checkpoint(checkpoint_dir / "best_model.pt")
             else:
                 patience_counter += 1
 
-            # Early stopping
             if patience_counter >= early_stopping_patience:
-                logger.info(f"Early stopping at epoch {epoch + 1}")
+                logger.info("Early stopping at epoch %s", epoch + 1)
                 break
 
         return {
