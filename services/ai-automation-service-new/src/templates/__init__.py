@@ -6,7 +6,7 @@ Purpose: Versioned template library for deterministic YAML compilation
 """
 
 from .template_library import TemplateLibrary
-from .template_schema import Template, TemplateParameter, TemplateCompilationMapping
+from .template_schema import Template, TemplateCompilationMapping, TemplateParameter
 
 __all__ = [
     "TemplateLibrary",

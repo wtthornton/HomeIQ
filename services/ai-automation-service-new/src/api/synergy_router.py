@@ -22,11 +22,11 @@ router = APIRouter(prefix="/api/synergies", tags=["synergies"])
 @router.get("/")
 async def get_synergies_root(
     request: Request,
-    synergy_type: str | None = Query(None),
-    min_confidence: float | None = Query(None),
-    validated_by_patterns: bool | None = Query(None),
-    limit: int = Query(100, ge=1, le=1000),
-    order_by_priority: bool = Query(True)
+    _synergy_type: str | None = Query(None),
+    _min_confidence: float | None = Query(None),
+    _validated_by_patterns: bool | None = Query(None),
+    _limit: int = Query(100, ge=1, le=1000),
+    _order_by_priority: bool = Query(True),
 ) -> Response:
     """
     Root endpoint for synergies - proxies to list endpoint.
@@ -34,24 +34,20 @@ async def get_synergies_root(
     This endpoint handles requests to /api/synergies (without /list suffix)
     to maintain compatibility with frontend API calls.
     """
-    return await proxy_to_service(
-        request, settings.pattern_service_url, "api/v1/synergies", "list"
-    )
+    return await proxy_to_service(request, settings.pattern_service_url, "api/v1/synergies", "list")
 
 
 @router.get("/list")
 async def list_synergies(
     request: Request,
-    synergy_type: str | None = Query(None),
-    min_confidence: float | None = Query(None),
-    synergy_depth: int | None = Query(None),
-    limit: int = Query(100, ge=1, le=1000),
-    order_by_priority: bool = Query(True)
+    _synergy_type: str | None = Query(None),
+    _min_confidence: float | None = Query(None),
+    _synergy_depth: int | None = Query(None),
+    _limit: int = Query(100, ge=1, le=1000),
+    _order_by_priority: bool = Query(True),
 ) -> Response:
     """List synergies from pattern service."""
-    return await proxy_to_service(
-        request, settings.pattern_service_url, "api/v1/synergies", "list"
-    )
+    return await proxy_to_service(request, settings.pattern_service_url, "api/v1/synergies", "list")
 
 
 @router.get("/stats")
@@ -63,10 +59,7 @@ async def get_synergy_stats(request: Request) -> Response:
 
 
 @router.get("/{synergy_id}")
-async def get_synergy(
-    request: Request,
-    synergy_id: str
-) -> Response:
+async def get_synergy(request: Request, synergy_id: str) -> Response:
     """Get a single synergy by ID from pattern service."""
     return await proxy_to_service(
         request, settings.pattern_service_url, "api/v1/synergies", synergy_id

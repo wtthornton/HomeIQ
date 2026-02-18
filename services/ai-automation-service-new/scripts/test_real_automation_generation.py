@@ -15,7 +15,6 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from datetime import datetime
 
 # Add workspace root to path for shared modules
 workspace_root = Path(__file__).parent.parent.parent.parent
@@ -23,30 +22,24 @@ sys.path.insert(0, str(workspace_root))
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
 from shared.homeiq_automation.schema import (
     HomeIQAutomation,
-    HomeIQMetadata,
-    HomeIQTrigger,
-    HomeIQAction,
-    DeviceContext,
-    SafetyChecks,
-    EnergyImpact,
 )
-from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
+
 # Validator import removed - not needed for this test
 from shared.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
-from shared.yaml_validation_service.schema import AutomationMode
 
 
 def simulate_llm_json_generation(description: str) -> dict:
     """
     Simulate LLM generating HomeIQ JSON from natural language description.
-    
+
     In production, this would call OpenAI API via OpenAIClient.generate_homeiq_automation_json()
     """
     # Parse description to extract key information
     description_lower = description.lower()
-    
+
     # Determine use case
     if "energy" in description_lower or "power" in description_lower:
         use_case = "energy"
@@ -56,7 +49,7 @@ def simulate_llm_json_generation(description: str) -> dict:
         use_case = "comfort"
     else:
         use_case = "convenience"
-    
+
     # Determine complexity
     if "when" in description_lower and "and" in description_lower:
         complexity = "high"
@@ -64,7 +57,7 @@ def simulate_llm_json_generation(description: str) -> dict:
         complexity = "medium"
     else:
         complexity = "low"
-    
+
     # Extract entity mentions (simplified)
     entities = []
     if "light" in description_lower:
@@ -73,36 +66,44 @@ def simulate_llm_json_generation(description: str) -> dict:
         entities.append("binary_sensor.motion")
     if "temperature" in description_lower:
         entities.append("sensor.temperature")
-    
+
     # Generate triggers and actions based on description
     triggers = []
     actions = []
-    
+
     if "motion" in description_lower:
-        triggers.append({
-            "platform": "state",
-            "entity_id": "binary_sensor.motion",
-            "to": "on",
-        })
-    
+        triggers.append(
+            {
+                "platform": "state",
+                "entity_id": "binary_sensor.motion",
+                "to": "on",
+            }
+        )
+
     if "sunset" in description_lower or "evening" in description_lower:
-        triggers.append({
-            "platform": "sun",
-            "event": "sunset",
-        })
-    
+        triggers.append(
+            {
+                "platform": "sun",
+                "event": "sunset",
+            }
+        )
+
     if "light" in description_lower and "on" in description_lower:
-        actions.append({
-            "service": "light.turn_on",
-            "target": {"entity_id": "light.living_room"},
-        })
-    
+        actions.append(
+            {
+                "service": "light.turn_on",
+                "target": {"entity_id": "light.living_room"},
+            }
+        )
+
     if "light" in description_lower and "off" in description_lower:
-        actions.append({
-            "service": "light.turn_off",
-            "target": {"entity_id": "light.living_room"},
-        })
-    
+        actions.append(
+            {
+                "service": "light.turn_off",
+                "target": {"entity_id": "light.living_room"},
+            }
+        )
+
     # Create HomeIQ JSON
     return {
         "alias": description[:50],  # Use description as alias
@@ -124,15 +125,23 @@ def simulate_llm_json_generation(description: str) -> dict:
             "estimated_power_w": 10.0 if "light" in description_lower else 5.0,
             "estimated_daily_kwh": 0.1,
         },
-        "triggers": triggers if triggers else [{
-            "platform": "state",
-            "entity_id": "binary_sensor.motion",
-            "to": "on",
-        }],
-        "actions": actions if actions else [{
-            "service": "light.turn_on",
-            "target": {"entity_id": "light.living_room"},
-        }],
+        "triggers": triggers
+        if triggers
+        else [
+            {
+                "platform": "state",
+                "entity_id": "binary_sensor.motion",
+                "to": "on",
+            }
+        ],
+        "actions": actions
+        if actions
+        else [
+            {
+                "service": "light.turn_on",
+                "target": {"entity_id": "light.living_room"},
+            }
+        ],
         "mode": "single",
     }
 
@@ -141,12 +150,12 @@ async def test_real_automation_generation():
     """Test generating a real automation from natural language."""
     print("Testing Real Automation Generation\n")
     print("=" * 60)
-    
+
     # Step 1: User provides natural language description
     user_description = "Turn on the living room light when motion is detected in the evening"
-    print(f"Step 1: User Request")
+    print("Step 1: User Request")
     print(f"  Description: {user_description}\n")
-    
+
     # Step 2: LLM generates HomeIQ JSON
     print("Step 2: LLM generates HomeIQ JSON...")
     try:
@@ -155,26 +164,26 @@ async def test_real_automation_generation():
     except Exception as e:
         print(f"[FAIL] JSON generation failed: {e}\n")
         return False
-    
+
     # Step 3: Validate JSON schema
     print("Step 3: Validating JSON schema...")
     try:
         homeiq_automation = HomeIQAutomation(**homeiq_json)
-        print(f"[OK] JSON schema validation passed\n")
+        print("[OK] JSON schema validation passed\n")
     except Exception as e:
         print(f"[FAIL] JSON schema validation failed: {e}\n")
         return False
-    
+
     # Step 4: Validate against Home Assistant context (simulated)
     print("Step 4: Validating against Home Assistant context...")
     try:
         # In production, this would use HomeIQAutomationSchemaValidator
         # with actual DataAPIClient to check entities
-        print(f"[OK] Entity validation passed (simulated)\n")
+        print("[OK] Entity validation passed (simulated)\n")
     except Exception as e:
         print(f"[FAIL] Entity validation failed: {e}\n")
         return False
-    
+
     # Step 5: Convert to AutomationSpec
     print("Step 5: Converting to AutomationSpec...")
     try:
@@ -184,7 +193,7 @@ async def test_real_automation_generation():
     except Exception as e:
         print(f"[FAIL] Conversion failed: {e}\n")
         return False
-    
+
     # Step 6: Render to YAML
     print("Step 6: Rendering to Home Assistant YAML...")
     try:
@@ -194,21 +203,22 @@ async def test_real_automation_generation():
     except Exception as e:
         print(f"[FAIL] YAML rendering failed: {e}\n")
         return False
-    
+
     # Step 7: Validate YAML (simulated)
     print("Step 7: Validating YAML...")
     try:
         # In production, this would use YAMLValidationClient
         import yaml
+
         yaml_dict = yaml.safe_load(yaml_content)
         if yaml_dict and "alias" in yaml_dict:
-            print(f"[OK] YAML validation passed\n")
+            print("[OK] YAML validation passed\n")
         else:
-            print(f"[WARN] YAML structure may need review\n")
+            print("[WARN] YAML structure may need review\n")
     except Exception as e:
         print(f"[FAIL] YAML validation failed: {e}\n")
         return False
-    
+
     # Step 8: Store JSON in database (simulated)
     print("Step 8: Storing JSON in database...")
     try:
@@ -217,7 +227,7 @@ async def test_real_automation_generation():
     except Exception as e:
         print(f"[FAIL] JSON storage preparation failed: {e}\n")
         return False
-    
+
     # Display results
     print("=" * 60)
     print("Generated Automation Summary:")
@@ -232,13 +242,13 @@ async def test_real_automation_generation():
     print("\nGenerated YAML Preview:")
     print("-" * 60)
     # Show first 20 lines of YAML
-    yaml_lines = yaml_content.split('\n')[:20]
+    yaml_lines = yaml_content.split("\n")[:20]
     for line in yaml_lines:
         print(f"  {line}")
-    if len(yaml_content.split('\n')) > 20:
+    if len(yaml_content.split("\n")) > 20:
         print("  ...")
     print("-" * 60)
-    
+
     print("\n[OK] Real automation generation test completed successfully!")
     print("\nThe complete JSON workflow is ready for production use!")
     return True
@@ -247,4 +257,3 @@ async def test_real_automation_generation():
 if __name__ == "__main__":
     success = asyncio.run(test_real_automation_generation())
     sys.exit(0 if success else 1)
-

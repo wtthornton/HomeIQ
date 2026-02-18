@@ -21,30 +21,32 @@ router = APIRouter(prefix="/api/patterns", tags=["patterns"])
 @router.get("/list")
 async def list_patterns(
     request: Request,
-    pattern_type: str | None = Query(None),
-    min_confidence: float | None = Query(None),
-    limit: int = Query(100, ge=1, le=1000),
-    offset: int = Query(0, ge=0)
+    _pattern_type: str | None = Query(None),
+    _min_confidence: float | None = Query(None),
+    _limit: int = Query(100, ge=1, le=1000),
+    _offset: int = Query(0, ge=0),
 ) -> Response:
     """List patterns from pattern service."""
-    return await proxy_to_service(
-        request, settings.pattern_service_url, "api/v1/patterns", "list"
-    )
+    return await proxy_to_service(request, settings.pattern_service_url, "api/v1/patterns", "list")
 
 
 @router.get("/stats")
 async def get_pattern_stats(request: Request) -> Response:
     """Get pattern statistics from pattern service."""
-    return await proxy_to_service(
-        request, settings.pattern_service_url, "api/v1/patterns", "stats"
-    )
+    return await proxy_to_service(request, settings.pattern_service_url, "api/v1/patterns", "stats")
 
 
 @router.post("/analysis/run")
 async def run_analysis(request: Request) -> Response:
     """Trigger pattern analysis in pattern service."""
-    body = await request.json() if request.headers.get("content-type") == "application/json" else None
+    body = (
+        await request.json() if request.headers.get("content-type") == "application/json" else None
+    )
     return await proxy_to_service(
-        request, settings.pattern_service_url, "api/v1/patterns", "analysis/run",
-        method="POST", body=body
+        request,
+        settings.pattern_service_url,
+        "api/v1/patterns",
+        "analysis/run",
+        method="POST",
+        body=body,
     )

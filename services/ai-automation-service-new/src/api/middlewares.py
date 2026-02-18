@@ -33,14 +33,16 @@ _rate_limit_locks: dict[str, asyncio.Lock] = {}
 _cleanup_task: asyncio.Task | None = None
 
 # Performance metrics (simple in-memory storage for single-user)
-_performance_metrics: dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))  # Store last 1000 requests per endpoint
+_performance_metrics: dict[str, deque] = defaultdict(
+    lambda: deque(maxlen=1000)
+)  # Store last 1000 requests per endpoint
 _error_counts: dict[str, int] = defaultdict(int)  # Error counts by endpoint
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     Rate limiting middleware using token bucket algorithm (2025 pattern).
-    
+
     Features:
     - Token bucket algorithm for smooth rate limiting
     - Per-API-key rate limiting
@@ -48,23 +50,25 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     - Background cleanup of inactive buckets
     - Configurable limits per endpoint
     """
-    
+
     async def dispatch(self, request: Request, call_next):
         """Process request with rate limiting."""
         # Skip rate limiting for health checks
         if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json"]:
             return await call_next(request)
-        
+
         # Get API key from header
-        api_key = request.headers.get("X-HomeIQ-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
-        
+        api_key = request.headers.get("X-HomeIQ-API-Key") or request.headers.get(
+            "Authorization", ""
+        ).replace("Bearer ", "")
+
         if not api_key:
             # No API key - use IP address as identifier
             client_ip = request.client.host if request.client else "unknown"
             identifier = f"ip:{client_ip}"
         else:
             identifier = f"key:{api_key}"
-        
+
         # Get or create bucket with lock for thread safety (M3)
         if identifier not in _rate_limit_buckets:
             _rate_limit_buckets[identifier] = {
@@ -95,50 +99,50 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     content={
                         "error": "rate_limit_exceeded",
                         "message": "Rate limit exceeded. Please try again later.",
-                        "retry_after": int(1 / bucket["refill_rate"])
+                        "retry_after": int(1 / bucket["refill_rate"]),
                     },
-                    headers={"Retry-After": str(int(1 / bucket["refill_rate"]))}
+                    headers={"Retry-After": str(int(1 / bucket["refill_rate"]))},
                 )
 
             # Consume token
             bucket["tokens"] -= 1
-        
+
         # Process request with timing
         start_time = time.time()
         response = await call_next(request)
         elapsed_time = time.time() - start_time
-        
+
         # Track performance metrics (skip health checks to avoid noise)
         if request.url.path not in ["/health", "/docs", "/redoc", "/openapi.json"]:
             endpoint = f"{request.method} {request.url.path}"
             _performance_metrics[endpoint].append(elapsed_time)
-            
+
             # Track errors (4xx, 5xx)
             if response.status_code >= 400:
                 _error_counts[endpoint] += 1
-        
+
         # Add rate limit headers
         response.headers["X-RateLimit-Limit"] = str(bucket["capacity"])
         response.headers["X-RateLimit-Remaining"] = str(int(bucket["tokens"]))
         response.headers["X-RateLimit-Reset"] = str(int(current_time + (1 / bucket["refill_rate"])))
-        
+
         # Add performance header
         response.headers["X-Response-Time"] = f"{elapsed_time:.3f}s"
-        
+
         return response
 
 
 class AuthenticationMiddleware(BaseHTTPMiddleware):
     """
     Authentication middleware (2025 pattern).
-    
+
     Validates API keys from X-HomeIQ-API-Key header or Authorization Bearer token.
     Skips authentication for internal service-to-service communication (simplified).
     """
-    
+
     # Internal network prefixes (Docker, private networks)
-    INTERNAL_NETWORK_PREFIXES = ['172.', '10.', '192.168.', '127.0.0.1', '::1', 'localhost']
-    
+    INTERNAL_NETWORK_PREFIXES = ["172.", "10.", "192.168.", "127.0.0.1", "::1", "localhost"]
+
     def _is_internal_request(self, request: Request) -> bool:
         """
         Check if request is from an internal service.
@@ -155,25 +159,25 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             # Check if IP is in internal network ranges
             if any(client_ip.startswith(prefix) for prefix in self.INTERNAL_NETWORK_PREFIXES):
                 return True
-            
+
             # Check if IP is localhost variations
-            if client_ip in ['localhost', '127.0.0.1', '::1']:
+            if client_ip in ["localhost", "127.0.0.1", "::1"]:
                 return True
-        
+
         return False
-    
+
     async def dispatch(self, request: Request, call_next):
         """Process request with authentication."""
         # Skip authentication for health checks and docs
         if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json", "/"]:
             return await call_next(request)
-        
+
         # Skip authentication for internal service-to-service requests
         if self._is_internal_request(request):
             request.state.authenticated = True
             request.state.internal_service = True
             return await call_next(request)
-        
+
         # Get API key from header for external requests
         api_key = request.headers.get("X-HomeIQ-API-Key")
         if not api_key:
@@ -181,26 +185,25 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             auth_header = request.headers.get("Authorization", "")
             if auth_header.startswith("Bearer "):
                 api_key = auth_header.replace("Bearer ", "")
-        
+
         # Validate API key for external requests
         if not api_key:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={
                     "error": "authentication_required",
-                    "message": "API key required. Provide X-HomeIQ-API-Key header or Authorization Bearer token."
-                }
+                    "message": "API key required. Provide X-HomeIQ-API-Key header or Authorization Bearer token.",
+                },
             )
 
         # Validate API key against configured keys (C2: actual validation)
-        valid_api_keys = settings.api_keys if hasattr(settings, 'api_keys') and settings.api_keys else set()
+        valid_api_keys = (
+            settings.api_keys if hasattr(settings, "api_keys") and settings.api_keys else set()
+        )
         if valid_api_keys and api_key not in valid_api_keys:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    "error": "invalid_api_key",
-                    "message": "Invalid API key."
-                }
+                content={"error": "invalid_api_key", "message": "Invalid API key."},
             )
 
         # Store API key in request state for use in endpoints
@@ -215,40 +218,42 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 async def start_rate_limit_cleanup():
     """Background task to clean up inactive rate limit buckets."""
     global _cleanup_task
-    
+
     async def cleanup_loop():
         while True:
             try:
                 await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
                 current_time = time.time()
-                
+
                 # Remove buckets that haven't been accessed recently
                 inactive_keys = [
-                    key for key, bucket in _rate_limit_buckets.items()
+                    key
+                    for key, bucket in _rate_limit_buckets.items()
                     if current_time - bucket["last_access"] > RATE_LIMIT_TTL_SECONDS
                 ]
-                
+
                 for key in inactive_keys:
                     del _rate_limit_buckets[key]
-                
+
                 if inactive_keys:
                     logger.debug(f"Cleaned up {len(inactive_keys)} inactive rate limit buckets")
-                
+
                 # Limit total buckets to prevent memory issues
                 if len(_rate_limit_buckets) > MAX_RATE_LIMIT_BUCKETS:
                     # Remove oldest buckets (LRU)
                     sorted_buckets = sorted(
-                        _rate_limit_buckets.items(),
-                        key=lambda x: x[1]["last_access"]
+                        _rate_limit_buckets.items(), key=lambda x: x[1]["last_access"]
                     )
                     to_remove = len(_rate_limit_buckets) - MAX_RATE_LIMIT_BUCKETS
                     for key, _ in sorted_buckets[:to_remove]:
                         del _rate_limit_buckets[key]
-                    logger.warning(f"Rate limit bucket limit reached, removed {to_remove} oldest buckets")
-            
+                    logger.warning(
+                        f"Rate limit bucket limit reached, removed {to_remove} oldest buckets"
+                    )
+
             except Exception as e:
                 logger.error(f"Error in rate limit cleanup: {e}", exc_info=True)
-    
+
     _cleanup_task = asyncio.create_task(cleanup_loop())
     logger.info("✅ Rate limit cleanup task started")
 
@@ -269,7 +274,7 @@ async def stop_rate_limit_cleanup():
 def get_performance_metrics() -> dict[str, dict]:
     """
     Get performance metrics for all endpoints.
-    
+
     Returns:
         Dictionary with endpoint metrics (avg, p95, p99 response times)
     """
@@ -277,19 +282,19 @@ def get_performance_metrics() -> dict[str, dict]:
     for endpoint, times in _performance_metrics.items():
         if not times:
             continue
-        
+
         sorted_times = sorted(times)
         count = len(sorted_times)
-        
+
         metrics[endpoint] = {
             "count": count,
             "avg": sum(sorted_times) / count,
             "p95": sorted_times[int(count * 0.95)] if count > 0 else 0,
             "p99": sorted_times[int(count * 0.99)] if count > 0 else 0,
             "min": sorted_times[0] if count > 0 else 0,
-            "max": sorted_times[-1] if count > 0 else 0
+            "max": sorted_times[-1] if count > 0 else 0,
         }
-    
+
     return metrics
 
 
@@ -303,4 +308,3 @@ def reset_metrics():
     global _performance_metrics, _error_counts
     _performance_metrics.clear()
     _error_counts.clear()
-

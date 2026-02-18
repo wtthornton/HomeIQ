@@ -10,7 +10,7 @@ from httpx import AsyncClient
 
 class TestHealthRouter:
     """Test suite for health router endpoints."""
-    
+
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_health_endpoint(self, client: AsyncClient):
@@ -25,7 +25,7 @@ class TestHealthRouter:
         assert data["status"] in ["healthy", "unhealthy"]
         assert "service" in data
         assert data["service"] == "ai-automation-service"
-    
+
     @pytest.mark.unit
     @pytest.mark.requires_db
     @pytest.mark.asyncio
@@ -38,4 +38,3 @@ class TestHealthRouter:
         assert isinstance(data, dict)
         assert "service" in data
         assert data["service"] == "ai-automation-service"
-

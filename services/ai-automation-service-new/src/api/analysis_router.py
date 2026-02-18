@@ -19,29 +19,19 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 
 @router.get("/status")
-async def get_analysis_status(
-    request: Request
-) -> Response:
+async def get_analysis_status(request: Request) -> Response:
     """Get analysis status from pattern service."""
-    return await proxy_to_service(
-        request, settings.pattern_service_url, "api/analysis", "status"
-    )
+    return await proxy_to_service(request, settings.pattern_service_url, "api/analysis", "status")
 
 
 @router.get("/schedule")
-async def get_analysis_schedule(
-    request: Request
-) -> Response:
+async def get_analysis_schedule(request: Request) -> Response:
     """Get analysis schedule from pattern service."""
-    return await proxy_to_service(
-        request, settings.pattern_service_url, "api/analysis", "schedule"
-    )
+    return await proxy_to_service(request, settings.pattern_service_url, "api/analysis", "schedule")
 
 
 @router.post("/trigger")
-async def trigger_analysis(
-    request: Request
-) -> Response:
+async def trigger_analysis(request: Request) -> Response:
     """Trigger analysis in pattern service."""
     body = None
     try:
@@ -49,6 +39,5 @@ async def trigger_analysis(
     except Exception:
         body = {}
     return await proxy_to_service(
-        request, settings.pattern_service_url, "api/analysis", "trigger",
-        method="POST", body=body
+        request, settings.pattern_service_url, "api/analysis", "trigger", method="POST", body=body
     )

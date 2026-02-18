@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from openai import AsyncOpenAI, APIError, RateLimitError
+from openai import APIError, AsyncOpenAI, RateLimitError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -26,20 +26,24 @@ from tenacity import (
 from ..config import settings
 
 # Add shared directory to path for imports
-shared_path_override = os.getenv('HOMEIQ_SHARED_PATH')
+shared_path_override = os.getenv("HOMEIQ_SHARED_PATH")
 try:
-    app_root = Path(__file__).resolve().parents[2]  # services/ai-automation-service-new/src/clients -> services
+    app_root = (
+        Path(__file__).resolve().parents[2]
+    )  # services/ai-automation-service-new/src/clients -> services
 except Exception:
     app_root = Path("/app")
 
 candidate_paths = []
 if shared_path_override:
     candidate_paths.append(Path(shared_path_override).expanduser())
-candidate_paths.extend([
-    app_root.parent / "shared",  # services/../shared
-    Path("/app/shared"),
-    Path.cwd() / "shared",
-])
+candidate_paths.extend(
+    [
+        app_root.parent / "shared",  # services/../shared
+        Path("/app/shared"),
+        Path.cwd() / "shared",
+    ]
+)
 
 shared_path: Path | None = None
 for p in candidate_paths:
@@ -55,7 +59,9 @@ try:
 except ImportError:
     # Fallback if shared module not available
     PromptBuilder = None  # type: ignore
-    logging.warning("Could not import PromptBuilder from shared.prompt_guidance.builder - using fallback prompt")
+    logging.warning(
+        "Could not import PromptBuilder from shared.prompt_guidance.builder - using fallback prompt"
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +69,7 @@ logger = logging.getLogger(__name__)
 class OpenAIClient:
     """
     Async client for generating automation YAML via OpenAI API.
-    
+
     Features:
     - Async OpenAI API calls
     - Automatic retry logic
@@ -71,7 +77,7 @@ class OpenAIClient:
     - Proper error handling
     - Support for fine-tuned models (Phase 2 ML Enhancement)
     """
-    
+
     # Fine-tuned model configuration
     # Set via OPENAI_FINE_TUNED_MODEL env var after fine-tuning
     # Format: ft:gpt-4o-mini-2024-07-18:homeiq:ha-commands:xxx
@@ -80,11 +86,11 @@ class OpenAIClient:
     def __init__(self, api_key: str | None = None, model: str | None = None):
         """
         Initialize OpenAI client.
-        
+
         Args:
             api_key: OpenAI API key (defaults to settings.openai_api_key)
             model: Model to use (defaults to settings.openai_model)
-        
+
         Model Selection Priority:
         1. Explicit model parameter
         2. OPENAI_FINE_TUNED_MODEL env var (if set, uses fine-tuned model)
@@ -92,9 +98,9 @@ class OpenAIClient:
         4. Default: gpt-4o-mini
         """
         import os
-        
+
         self.api_key = api_key or settings.openai_api_key
-        
+
         # Model selection with fine-tuned model support
         fine_tuned_model = os.getenv(self.FINE_TUNED_MODEL_ENV)
         if model:
@@ -104,10 +110,10 @@ class OpenAIClient:
             logger.info(f"Using fine-tuned model: {fine_tuned_model}")
         else:
             self.model = settings.openai_model or "gpt-4o-mini"
-        
+
         # Track if using fine-tuned model
         self.is_fine_tuned = self.model.startswith("ft:")
-        
+
         if not self.api_key:
             logger.warning("OpenAI API key not configured")
             self.client = None
@@ -117,21 +123,23 @@ class OpenAIClient:
                 f"OpenAI client initialized with model={self.model} "
                 f"(fine-tuned={self.is_fine_tuned})"
             )
-        
+
         # Models that don't support custom temperature (reasoning models)
         _NO_TEMP_PREFIXES = ("o1", "o3", "gpt-5")
-        self.supports_temperature = not any(
-            self.model.startswith(p) for p in _NO_TEMP_PREFIXES
-        )
-        
+        self.supports_temperature = not any(self.model.startswith(p) for p in _NO_TEMP_PREFIXES)
+
         # Models that support reasoning_effort parameter (GPT-5.2+ codex)
         self.is_reasoning_model = (
-            "codex" in self.model.lower() or 
-            self.model.startswith("gpt-5.2") or
-            self.model.startswith("o1") or
-            self.model.startswith("o3")
+            "codex" in self.model.lower()
+            or self.model.startswith("gpt-5.2")
+            or self.model.startswith("o1")
+            or self.model.startswith("o3")
         )
-        self.reasoning_effort = getattr(settings, "openai_reasoning_effort", "high") if self.is_reasoning_model else None
+        self.reasoning_effort = (
+            getattr(settings, "openai_reasoning_effort", "high")
+            if self.is_reasoning_model
+            else None
+        )
 
         # Usage tracking
         self.total_tokens_used = 0
@@ -141,38 +149,38 @@ class OpenAIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((APIError, RateLimitError)),
-        reraise=True
+        reraise=True,
     )
     async def generate_yaml(
         self,
         prompt: str,
         entity_context: dict[str, Any] | None = None,
         temperature: float = 0.1,
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
     ) -> str:
         """
         Generate automation YAML from prompt.
-        
+
         DEPRECATED: Use generate_structured_plan() instead (Epic 51, Story 51.8).
         This method is kept for backward compatibility.
         R2: Entity context is included to ensure LLM uses only real entities.
-        
+
         Args:
             prompt: Prompt describing the automation
             entity_context: Optional entity context (R2: entities grouped by domain)
             temperature: Sampling temperature (default: 0.1 for deterministic YAML)
             max_tokens: Maximum tokens in response
-        
+
         Returns:
             Generated YAML string
-        
+
         Raises:
             ValueError: If API key not configured
             APIError: If OpenAI API call fails
         """
         if not self.client:
             raise ValueError("OpenAI API key not configured")
-        
+
         # R2: Build entity context section for system prompt
         entity_context_section = ""
         if entity_context and entity_context.get("entities"):
@@ -185,22 +193,16 @@ class OpenAIClient:
                 entity_ids = [e.get("entity_id", "") for e in limited if e.get("entity_id")]
                 if entity_ids:
                     entity_context_section += f"{domain.upper()}: {', '.join(entity_ids)}\n"
-        
+
         system_prompt = f"""You are a Home Assistant automation expert. Generate valid Home Assistant automation YAML only, no explanations.
 {entity_context_section}"""
-        
+
         try:
             kwargs: dict[str, Any] = dict(
                 model=self.model,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
                 ],
             )
             # Reasoning models use max_completion_tokens, others use max_tokens
@@ -213,23 +215,23 @@ class OpenAIClient:
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
             response = await self.client.chat.completions.create(**kwargs)
-            
+
             # Track usage
             if response.usage:
                 self.total_tokens_used += response.usage.total_tokens
-            
+
             # Extract YAML from response
             yaml_content = response.choices[0].message.content or ""
-            
+
             # Clean up YAML (remove markdown code blocks if present)
             if yaml_content.startswith("```"):
                 lines = yaml_content.split("\n")
                 # Remove first line (```yaml) and last line (```)
                 yaml_content = "\n".join(lines[1:-1])
-            
+
             logger.debug(f"Generated YAML ({len(yaml_content)} chars)")
             return yaml_content.strip()
-        
+
         except APIError as e:
             logger.error(f"OpenAI API error: {e}")
             raise
@@ -242,33 +244,33 @@ class OpenAIClient:
         prompt: str,
         entity_context: dict[str, Any] | None = None,
         temperature: float = 0.1,
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
     ) -> dict[str, Any]:
         """
         Generate structured automation plan (JSON) from prompt.
-        
+
         Epic 51, Story 51.8: Structured Plan Generation
         R2: Entity context is included to ensure LLM uses only real entities.
-        
+
         LLM generates structured JSON/object instead of YAML directly.
         This plan is then parsed into AutomationSpec and rendered to YAML server-side.
-        
+
         Args:
             prompt: Prompt describing the automation
             entity_context: Optional entity context (R2: entities grouped by domain)
             temperature: Sampling temperature (default: 0.1 for deterministic output)
             max_tokens: Maximum tokens in response
-        
+
         Returns:
             Dictionary containing structured automation plan
-        
+
         Raises:
             ValueError: If API key not configured or plan cannot be parsed
             APIError: If OpenAI API call fails
         """
         if not self.client:
             raise ValueError("OpenAI API key not configured")
-        
+
         # Structured plan JSON schema
         plan_schema = {
             "type": "object",
@@ -285,11 +287,14 @@ class OpenAIClient:
                             "entity_id": {"type": ["string", "array"]},
                             "to": {"type": "string"},
                             "from": {"type": "string"},
-                            "at": {"type": "string", "description": "ONLY for platform:'time' triggers. Do NOT use with state/event triggers."},
-                            "attribute": {"type": "string"}
+                            "at": {
+                                "type": "string",
+                                "description": "ONLY for platform:'time' triggers. Do NOT use with state/event triggers.",
+                            },
+                            "attribute": {"type": "string"},
                         },
-                        "required": ["platform"]
-                    }
+                        "required": ["platform"],
+                    },
                 },
                 "action": {
                     "type": "array",
@@ -298,10 +303,10 @@ class OpenAIClient:
                         "properties": {
                             "service": {"type": "string"},
                             "target": {"type": "object"},
-                            "data": {"type": "object"}
+                            "data": {"type": "object"},
                         },
-                        "required": ["service"]
-                    }
+                        "required": ["service"],
+                    },
                 },
                 "condition": {
                     "type": "array",
@@ -310,18 +315,18 @@ class OpenAIClient:
                         "properties": {
                             "condition": {"type": "string"},
                             "entity_id": {"type": ["string", "array"]},
-                            "state": {"type": "string"}
-                        }
-                    }
+                            "state": {"type": "string"},
+                        },
+                    },
                 },
                 "mode": {"type": "string", "enum": ["single", "restart", "queued", "parallel"]},
                 "initial_state": {"type": "boolean"},
                 "max_exceeded": {"type": "string", "enum": ["silent", "warning", "error"]},
-                "tags": {"type": "array", "items": {"type": "string"}}
+                "tags": {"type": "array", "items": {"type": "string"}},
             },
-            "required": ["alias", "trigger", "action"]
+            "required": ["alias", "trigger", "action"],
         }
-        
+
         # R2: Add entity context to system prompt
         entity_context_section = ""
         if entity_context and entity_context.get("entities"):
@@ -334,7 +339,7 @@ class OpenAIClient:
                 entity_ids = [e.get("entity_id", "") for e in limited if e.get("entity_id")]
                 if entity_ids:
                     entity_context_section += f"{domain.upper()}: {', '.join(entity_ids)}\n"
-        
+
         system_prompt = f"""You are a Home Assistant automation expert. Generate a structured JSON plan for the automation described by the user.
 
 Return ONLY valid JSON matching this schema:
@@ -350,19 +355,13 @@ Return ONLY valid JSON matching this schema:
 {entity_context_section}
 
 Return ONLY the JSON object, no explanations or markdown code blocks."""
-        
+
         try:
             kwargs: dict[str, Any] = dict(
                 model=self.model,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
                 ],
             )
             # Reasoning models use max_completion_tokens, others use max_tokens
@@ -384,7 +383,7 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
 
             # Extract JSON from response
             json_content = response.choices[0].message.content or "{}"
-            
+
             # Clean up JSON (remove markdown code blocks if present from reasoning models)
             if json_content.startswith("```"):
                 lines = json_content.split("\n")
@@ -392,19 +391,19 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
 
             # Parse JSON
             plan_dict = json.loads(json_content)
-            
+
             logger.debug(f"Generated structured plan: {plan_dict.get('alias', 'unknown')}")
             return plan_dict
-        
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON plan: {e}")
-            raise ValueError(f"Invalid JSON in plan response: {e}")
+            raise ValueError(f"Invalid JSON in plan response: {e}") from e
         except APIError as e:
             logger.error(f"OpenAI API error: {e}")
-            raise
+            raise from e
         except Exception as e:
             logger.error(f"Unexpected error generating structured plan: {e}")
-            raise
+            raise from e
 
     async def generate_homeiq_automation_json(
         self,
@@ -412,43 +411,49 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
         homeiq_context: dict[str, Any] | None = None,
         entity_context: dict[str, Any] | None = None,
         temperature: float = 0.1,
-        max_tokens: int = 3000
+        max_tokens: int = 3000,
     ) -> dict[str, Any]:
         """
         Generate HomeIQ JSON Automation format from prompt.
-        
+
         Uses structured output with JSON schema to generate comprehensive
         HomeIQ automation JSON including metadata, device context, and patterns.
-        
+
         R2: Entity context is included in system prompt to ensure LLM uses only real entities.
-        
+
         Args:
             prompt: Prompt describing the automation
             homeiq_context: Optional HomeIQ context (patterns, devices, areas)
             entity_context: Optional entity context (R2: entities grouped by domain)
             temperature: Sampling temperature (default: 0.1 for deterministic output)
             max_tokens: Maximum tokens in response
-        
+
         Returns:
             Dictionary containing HomeIQ JSON Automation
-        
+
         Raises:
             ValueError: If API key not configured or JSON cannot be parsed
             APIError: If OpenAI API call fails
         """
         if not self.client:
             raise ValueError("OpenAI API key not configured")
-        
+
         # Build context section
         context_section = ""
         if homeiq_context:
             if "patterns" in homeiq_context:
-                context_section += f"\n\nPatterns Available:\n{json.dumps(homeiq_context['patterns'], indent=2)}"
+                context_section += (
+                    f"\n\nPatterns Available:\n{json.dumps(homeiq_context['patterns'], indent=2)}"
+                )
             if "devices" in homeiq_context:
-                context_section += f"\n\nDevices Available:\n{json.dumps(homeiq_context['devices'], indent=2)}"
+                context_section += (
+                    f"\n\nDevices Available:\n{json.dumps(homeiq_context['devices'], indent=2)}"
+                )
             if "areas" in homeiq_context:
-                context_section += f"\n\nAreas Available:\n{json.dumps(homeiq_context['areas'], indent=2)}"
-        
+                context_section += (
+                    f"\n\nAreas Available:\n{json.dumps(homeiq_context['areas'], indent=2)}"
+                )
+
         # R2: Add entity context to system prompt
         entity_context_section = ""
         if entity_context and entity_context.get("entities"):
@@ -456,7 +461,7 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
             entity_context_section += "You MUST use ONLY the entity IDs listed below. Do NOT create fictional entity IDs.\n"
             entity_context_section += "If you need an entity that doesn't exist in the list, use the closest matching entity.\n"
             entity_context_section += "Entity IDs are in format: domain.entity_name (e.g., light.office, binary_sensor.motion)\n\n"
-            
+
             entities_by_domain = entity_context["entities"]
             for domain, entity_list in sorted(entities_by_domain.items()):
                 if not entity_list:
@@ -467,17 +472,18 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
                 if entity_ids:
                     entity_context_section += f"{domain.upper()}: {', '.join(entity_ids)}\n"
                     if len(entity_list) > 30:
-                        entity_context_section += f"  ... and {len(entity_list) - 30} more {domain} entities\n"
-        
+                        entity_context_section += (
+                            f"  ... and {len(entity_list) - 30} more {domain} entities\n"
+                        )
+
         # Use shared prompt guidance system if available
         if PromptBuilder:
             # Build additional context from homeiq_context and entity_context
             additional_context = context_section if context_section else ""
-            
+
             # Build system prompt using PromptBuilder
             system_prompt = PromptBuilder.build_automation_generation_prompt(
-                additional_context=additional_context,
-                entity_context=entity_context
+                additional_context=additional_context, entity_context=entity_context
             )
         else:
             # Fallback to basic prompt if PromptBuilder not available
@@ -488,19 +494,13 @@ Return ONLY valid JSON matching the HomeIQ Automation schema.
 {entity_context_section}
 Return ONLY the JSON object, no explanations or markdown code blocks."""
             logger.warning("Using fallback prompt - PromptBuilder not available")
-        
+
         try:
             kwargs: dict[str, Any] = dict(
                 model=self.model,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
                 ],
             )
             # Reasoning models use max_completion_tokens, others use max_tokens
@@ -522,7 +522,7 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
 
             # Extract JSON from response
             json_content = response.choices[0].message.content or "{}"
-            
+
             # Clean up JSON (remove markdown code blocks if present from reasoning models)
             if json_content.startswith("```"):
                 lines = json_content.split("\n")
@@ -530,55 +530,51 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
 
             # Parse JSON
             automation_json = json.loads(json_content)
-            
-            logger.debug(f"Generated HomeIQ JSON automation: {automation_json.get('alias', 'unknown')}")
+
+            logger.debug(
+                f"Generated HomeIQ JSON automation: {automation_json.get('alias', 'unknown')}"
+            )
             return automation_json
-        
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse HomeIQ JSON: {e}")
-            raise ValueError(f"Invalid JSON in HomeIQ automation response: {e}")
+            raise ValueError(f"Invalid JSON in HomeIQ automation response: {e}") from e
         except APIError as e:
             logger.error(f"OpenAI API error: {e}")
-            raise
+            raise from e
         except Exception as e:
             logger.error(f"Unexpected error generating HomeIQ JSON: {e}")
-            raise
+            raise from e
 
     async def generate_suggestion_description(
-        self,
-        pattern_data: dict[str, Any],
-        temperature: float = 0.7,
-        max_tokens: int = 500
+        self, pattern_data: dict[str, Any], temperature: float = 0.7, max_tokens: int = 500
     ) -> str:
         """
         Generate human-readable suggestion description from pattern data.
-        
+
         Args:
             pattern_data: Pattern data dictionary
             temperature: Sampling temperature (default: 0.7 for creativity)
             max_tokens: Maximum tokens in response
-        
+
         Returns:
             Generated description string
         """
         if not self.client:
             raise ValueError("OpenAI API key not configured")
-        
+
         # Build prompt from pattern data
         prompt = f"Generate a brief, user-friendly description for this automation pattern: {pattern_data}"
-        
+
         try:
             kwargs: dict[str, Any] = dict(
                 model=self.model,
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a helpful assistant that creates clear, concise automation descriptions."
+                        "content": "You are a helpful assistant that creates clear, concise automation descriptions.",
                     },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "user", "content": prompt},
                 ],
             )
             # Reasoning models use max_completion_tokens, others use max_tokens
@@ -591,14 +587,14 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
             response = await self.client.chat.completions.create(**kwargs)
-            
+
             # Track usage
             if response.usage:
                 self.total_tokens_used += response.usage.total_tokens
-            
+
             description = response.choices[0].message.content or ""
             return description.strip()
-        
+
         except APIError as e:
             logger.error(f"OpenAI API error generating description: {e}")
             raise
@@ -606,14 +602,14 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
     def get_usage_stats(self) -> dict[str, Any]:
         """
         Get token usage statistics.
-        
+
         Returns:
             Dictionary with usage statistics
         """
         return {
             "total_tokens": self.total_tokens_used,
             "total_cost_usd": self.total_cost_usd,
-            "model": self.model
+            "model": self.model,
         }
 
     def reset_usage_stats(self):
@@ -621,4 +617,3 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
         self.total_tokens_used = 0
         self.total_cost_usd = 0.0
         logger.debug("Usage statistics reset")
-

@@ -24,14 +24,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from src.config import settings
 from src.database.models import Suggestion
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -39,7 +37,7 @@ logger = logging.getLogger(__name__)
 async def migrate_suggestion_status():
     """
     Migrate existing suggestions from status='pending' to status='draft'.
-    
+
     This fixes the status mapping issue where the API was using 'pending'
     but the frontend expects 'draft'.
     """
@@ -47,20 +45,20 @@ async def migrate_suggestion_status():
     logger.info("Migration: Update suggestions status from 'pending' to 'draft'")
     logger.info("=" * 60)
     logger.info(f"Database: {settings.database_path}")
-    
+
     # Create async engine
     engine = create_async_engine(
         settings.database_url,
         echo=False,
     )
-    
+
     # Create session factory
     async_session_maker = async_sessionmaker(
         engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     try:
         async with async_session_maker() as session:
             # Count suggestions with status='pending'
@@ -68,29 +66,29 @@ async def migrate_suggestion_status():
             result = await session.execute(stmt)
             pending_suggestions = result.scalars().all()
             pending_count = len(pending_suggestions)
-            
+
             logger.info(f"Found {pending_count} suggestions with status='pending'")
-            
+
             if pending_count == 0:
                 logger.info("No suggestions to migrate. Migration complete.")
                 return
-            
+
             # Update all suggestions with status='pending' to status='draft'
             update_stmt = (
-                update(Suggestion)
-                .where(Suggestion.status == "pending")
-                .values(status="draft")
+                update(Suggestion).where(Suggestion.status == "pending").values(status="draft")
             )
             result = await session.execute(update_stmt)
             updated_count = result.rowcount
-            
+
             # Commit the changes
             await session.commit()
-            
-            logger.info(f"✅ Successfully updated {updated_count} suggestions from 'pending' to 'draft'")
+
+            logger.info(
+                f"✅ Successfully updated {updated_count} suggestions from 'pending' to 'draft'"
+            )
             logger.info("=" * 60)
             logger.info("Migration complete!")
-            
+
     except Exception as e:
         logger.error(f"❌ Migration failed: {e}", exc_info=True)
         raise

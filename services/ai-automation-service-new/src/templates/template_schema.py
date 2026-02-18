@@ -7,13 +7,14 @@ Pydantic models for template structure, parameter schemas, and compilation mappi
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Literal, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 class SafetyClass(str, Enum):
     """Safety classification for templates."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -22,6 +23,7 @@ class SafetyClass(str, Enum):
 
 class ParameterType(str, Enum):
     """Parameter type definitions."""
+
     STRING = "string"
     INTEGER = "integer"
     FLOAT = "float"
@@ -34,24 +36,24 @@ class ParameterType(str, Enum):
 
 class TemplateParameter(BaseModel):
     """Parameter schema definition for a template."""
+
     type: ParameterType
     required: bool = Field(default=False, description="Whether parameter is required")
     default: Any = Field(default=None, description="Default value if not provided")
-    enum: Optional[list[Any]] = Field(default=None, description="Allowed enum values")
-    min: Optional[Union[int, float]] = Field(default=None, description="Minimum value (for numeric types)")
-    max: Optional[Union[int, float]] = Field(default=None, description="Maximum value (for numeric types)")
-    description: Optional[str] = Field(default=None, description="Parameter description")
-    format: Optional[str] = Field(default=None, description="Format hint (e.g., 'HH:MM' for time)")
-    properties: Optional[dict[str, "TemplateParameter"]] = Field(
+    enum: list[Any] | None = Field(default=None, description="Allowed enum values")
+    min: int | float | None = Field(default=None, description="Minimum value (for numeric types)")
+    max: int | float | None = Field(default=None, description="Maximum value (for numeric types)")
+    description: str | None = Field(default=None, description="Parameter description")
+    format: str | None = Field(default=None, description="Format hint (e.g., 'HH:MM' for time)")
+    properties: dict[str, TemplateParameter] | None = Field(
         default=None, description="Nested properties for object type"
     )
-    items: Optional["TemplateParameter"] = Field(
-        default=None, description="Item schema for array type"
-    )
+    items: TemplateParameter | None = Field(default=None, description="Item schema for array type")
 
 
 class RequiredCapabilities(BaseModel):
     """Required device capabilities for a template."""
+
     sensors: list[str] = Field(default_factory=list, description="Required sensor types")
     devices: list[str] = Field(default_factory=list, description="Required device types")
     services: list[str] = Field(default_factory=list, description="Required service domains")
@@ -59,7 +61,10 @@ class RequiredCapabilities(BaseModel):
 
 class TemplateCompilationMapping(BaseModel):
     """Compilation mapping from template parameters to HA automation structure."""
-    mode: Optional[str] = Field(default=None, description="HA automation mode (single, restart, queued, parallel)")
+
+    mode: str | None = Field(
+        default=None, description="HA automation mode (single, restart, queued, parallel)"
+    )
     trigger: list[dict[str, Any]] | dict[str, Any] = Field(
         description="Trigger configuration with parameter placeholders (list for HA 2024.x+)"
     )
@@ -69,12 +74,13 @@ class TemplateCompilationMapping(BaseModel):
     action: list[dict[str, Any]] | dict[str, Any] = Field(
         description="Action configuration with parameter placeholders (list for HA 2024.x+)"
     )
-    alias_template: Optional[str] = Field(default=None, description="Alias template with placeholders")
-    description_template: Optional[str] = Field(default=None, description="Description template")
+    alias_template: str | None = Field(default=None, description="Alias template with placeholders")
+    description_template: str | None = Field(default=None, description="Description template")
 
 
 class Template(BaseModel):
     """Template definition for automation generation."""
+
     template_id: str = Field(description="Unique template identifier")
     version: int = Field(description="Template version number")
     description: str = Field(description="Template description and purpose")

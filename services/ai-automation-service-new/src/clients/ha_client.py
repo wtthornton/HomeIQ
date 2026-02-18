@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class HomeAssistantClient:
     """
     Async client for interacting with Home Assistant REST API.
-    
+
     Features:
     - Async HTTP requests with httpx
     - Automatic retry logic
@@ -40,70 +40,67 @@ class HomeAssistantClient:
         ha_url: str | None = None,
         access_token: str | None = None,
         max_retries: int = 3,
-        timeout: float = 10.0
+        timeout: float = 10.0,
     ):
         """
         Initialize HA client.
-        
+
         Args:
             ha_url: Home Assistant URL (defaults to settings.ha_url)
             access_token: Long-lived access token (defaults to settings.ha_token)
             max_retries: Maximum retry attempts
             timeout: Request timeout in seconds
         """
-        self.ha_url = (ha_url or settings.ha_url or "").rstrip('/')
+        self.ha_url = (ha_url or settings.ha_url or "").rstrip("/")
         self.access_token = access_token or settings.ha_token or ""
         self.max_retries = max_retries
         self.timeout = timeout
-        
+
         if not self.ha_url or not self.access_token:
             logger.warning("Home Assistant URL or token not configured")
-        
+
         # Create async HTTP client with connection pooling
         self.client = httpx.AsyncClient(
             timeout=self.timeout,
             follow_redirects=True,
-            limits=httpx.Limits(
-                max_keepalive_connections=5,
-                max_connections=10
-            ),
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
             headers={
                 "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json"
-            }
+                "Content-Type": "application/json",
+            },
         )
-        
+
         logger.info(f"Home Assistant client initialized with url={self.ha_url}")
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def deploy_automation(self, automation_yaml: str) -> dict[str, Any]:
         """
         Deploy automation to Home Assistant.
-        
+
         Args:
             automation_yaml: Home Assistant automation YAML as string
-        
+
         Returns:
             Dictionary with automation_id and status
-        
+
         Raises:
             httpx.HTTPError: If deployment fails
             ValueError: If YAML is invalid
         """
         if not self.ha_url or not self.access_token:
             raise ValueError("Home Assistant URL and token must be configured")
-        
+
         # Parse YAML to validate
         try:
             automation_data = yaml.safe_load(automation_yaml)
         except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML: {e}")
-        
+            raise ValueError(f"Invalid YAML: {e}") from e
+
         if not automation_data or not isinstance(automation_data, dict):
             raise ValueError("YAML must contain a valid automation dictionary")
 
@@ -113,35 +110,38 @@ class HomeAssistantClient:
         # Generate unique automation ID if not present
         if "id" not in automation_data:
             automation_data["id"] = f"automation.{uuid.uuid4().hex[:8]}"
-        
+
         automation_id = automation_data["id"]
-        
+
         # Log sanitized payload for debugging
-        logger.info(f"Deploying automation {automation_id}, payload keys: {list(automation_data.keys())}")
+        logger.info(
+            f"Deploying automation {automation_id}, payload keys: {list(automation_data.keys())}"
+        )
         if automation_data.get("condition"):
             logger.info(f"Conditions after sanitization: {automation_data['condition']}")
 
         # Deploy via Home Assistant API
         url = f"{self.ha_url}/api/config/automation/config/{automation_id}"
-        
+
         try:
             response = await self.client.post(
-                url,
-                json=automation_data,
-                headers={"Content-Type": "application/json"}
+                url, json=automation_data, headers={"Content-Type": "application/json"}
             )
             response.raise_for_status()
-            
+
             result = response.json()
             logger.info(f"✅ Automation deployed: {automation_id}")
 
             # Post-deploy verification using PostActionVerifier pattern (Story 3 + Reusable Pattern Framework)
             from ..services.automation_deploy_verifier import AutomationDeployVerifier
+
             verifier = AutomationDeployVerifier(get_state_fn=self.get_state)
-            verification = await verifier.verify({
-                "automation_id": automation_id,
-                "status": "deployed",
-            })
+            verification = await verifier.verify(
+                {
+                    "automation_id": automation_id,
+                    "status": "deployed",
+                }
+            )
 
             response_data: dict[str, Any] = {
                 "automation_id": automation_id,
@@ -158,7 +158,9 @@ class HomeAssistantClient:
                 )
             return response_data
         except httpx.HTTPStatusError as e:
-            logger.error(f"Failed to deploy automation: {e.response.status_code} - {e.response.text}")
+            logger.error(
+                f"Failed to deploy automation: {e.response.status_code} - {e.response.text}"
+            )
             raise
         except httpx.HTTPError as e:
             logger.error(f"HTTP error deploying automation: {e}")
@@ -168,7 +170,7 @@ class HomeAssistantClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     def _sanitize_automation(self, automation_data: dict[str, Any]) -> dict[str, Any]:
         """Sanitize automation data before sending to HA.
@@ -194,8 +196,7 @@ class HomeAssistantClient:
             # Strip 'at' from non-time triggers
             if platform not in _AT_ONLY_PLATFORMS and "at" in trigger:
                 logger.info(
-                    f"Stripping invalid 'at' from '{platform}' trigger "
-                    f"(value={trigger['at']!r})"
+                    f"Stripping invalid 'at' from '{platform}' trigger (value={trigger['at']!r})"
                 )
                 del trigger["at"]
             # Strip empty 'to'/'from' values
@@ -230,9 +231,16 @@ class HomeAssistantClient:
             data = action.get("data")
             if isinstance(data, dict):
                 # Remove non-HA fields GPT likes to inject
-                for bad_key in ("note", "description", "sequence_colors",
-                                "rgb_color_sequence", "rgb_sequence",
-                                "repeat", "fallback_colors", "color_template"):
+                for bad_key in (
+                    "note",
+                    "description",
+                    "sequence_colors",
+                    "rgb_color_sequence",
+                    "rgb_sequence",
+                    "repeat",
+                    "fallback_colors",
+                    "color_template",
+                ):
                     if bad_key in data:
                         logger.info(f"Stripping non-HA field '{bad_key}' from action data")
                         del data[bad_key]
@@ -240,21 +248,23 @@ class HomeAssistantClient:
         # --- Improve generic/bad alias names ---
         alias = automation_data.get("alias", "")
         _GENERIC_ALIASES = {
-            "", "automation", "multi-condition automation",
-            "automation with or conditions", "automation with and conditions",
-            "new automation", "untitled", "untitled automation",
+            "",
+            "automation",
+            "multi-condition automation",
+            "automation with or conditions",
+            "automation with and conditions",
+            "new automation",
+            "untitled",
+            "untitled automation",
         }
         # Also detect aliases containing raw entity_id patterns
         # e.g. "sensor.vgk_team_tracker → light.turn_on"
         _RAW_ENTITY_RE = re.compile(
-            r'\b(?:sensor|light|switch|binary_sensor|input_boolean|climate|'
-            r'cover|fan|media_player|automation|script|scene|input_number|'
-            r'input_select|group|number|select|button)\.\w+'
+            r"\b(?:sensor|light|switch|binary_sensor|input_boolean|climate|"
+            r"cover|fan|media_player|automation|script|scene|input_number|"
+            r"input_select|group|number|select|button)\.\w+"
         )
-        needs_alias = (
-            alias.lower().strip() in _GENERIC_ALIASES
-            or _RAW_ENTITY_RE.search(alias)
-        )
+        needs_alias = alias.lower().strip() in _GENERIC_ALIASES or _RAW_ENTITY_RE.search(alias)
         if needs_alias:
             new_alias = self._generate_alias(automation_data)
             logger.info(f"Replacing alias '{alias}' → '{new_alias}'")
@@ -262,8 +272,17 @@ class HomeAssistantClient:
 
         # --- Remove non-standard top-level fields HA doesn't understand ---
         _KNOWN_TOP_LEVEL = {
-            "id", "alias", "description", "trigger", "condition", "action",
-            "mode", "max", "max_exceeded", "variables", "trace",
+            "id",
+            "alias",
+            "description",
+            "trigger",
+            "condition",
+            "action",
+            "mode",
+            "max",
+            "max_exceeded",
+            "variables",
+            "trace",
             "initial_state",
         }
         unknown_keys = [k for k in automation_data if k not in _KNOWN_TOP_LEVEL]
@@ -337,7 +356,11 @@ class HomeAssistantClient:
                 fixed["state"] = fixed.pop("to")
 
             # For numeric_state: ensure 'above' or 'below' key exists
-            if fixed.get("condition") == "numeric_state" and "above" not in fixed and "below" not in fixed:
+            if (
+                fixed.get("condition") == "numeric_state"
+                and "above" not in fixed
+                and "below" not in fixed
+            ):
                 fixed["above"] = 0
 
             # For template conditions that were converted from unknown types:
@@ -352,9 +375,7 @@ class HomeAssistantClient:
                 elif entity_id:
                     state = fixed.get("state", fixed.get("to", ""))
                     if state:
-                        fixed["value_template"] = (
-                            f"{{{{ is_state('{entity_id}', '{state}') }}}}"
-                        )
+                        fixed["value_template"] = f"{{{{ is_state('{entity_id}', '{state}') }}}}"
                     else:
                         fixed["value_template"] = "{{ true }}"
                 else:
@@ -363,7 +384,15 @@ class HomeAssistantClient:
             # Determine valid fields per condition type
             _VALID_FIELDS: dict[str, set[str]] = {
                 "state": {"condition", "entity_id", "state", "for", "attribute", "alias"},
-                "numeric_state": {"condition", "entity_id", "above", "below", "attribute", "value_template", "alias"},
+                "numeric_state": {
+                    "condition",
+                    "entity_id",
+                    "above",
+                    "below",
+                    "attribute",
+                    "value_template",
+                    "alias",
+                },
                 "template": {"condition", "value_template", "alias"},
                 "time": {"condition", "after", "before", "weekday", "alias"},
                 "zone": {"condition", "entity_id", "zone", "state", "alias"},
@@ -449,18 +478,18 @@ class HomeAssistantClient:
     async def get_automation(self, automation_id: str) -> dict[str, Any] | None:
         """
         Get automation from Home Assistant.
-        
+
         Args:
             automation_id: Automation entity ID
-        
+
         Returns:
             Automation data or None if not found
         """
         if not self.ha_url or not self.access_token:
             return None
-        
+
         url = f"{self.ha_url}/api/config/automation/config/{automation_id}"
-        
+
         try:
             response = await self.client.get(url)
             if response.status_code == 404:
@@ -475,34 +504,35 @@ class HomeAssistantClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def list_automations(self) -> list[dict[str, Any]]:
         """
         List all automations from Home Assistant.
-        
+
         Uses /api/states endpoint and filters for automation.* entities.
         This is the correct Home Assistant API endpoint (not /api/config/automation/config).
-        
+
         Returns:
             List of automation dictionaries
         """
         if not self.ha_url or not self.access_token:
             logger.warning("Home Assistant URL or token not configured - cannot list automations")
             return []
-        
+
         url = f"{self.ha_url}/api/states"
-        
+
         try:
             response = await self.client.get(url)
             response.raise_for_status()
             all_states = response.json()
-            
+
             # Filter for automation entities
             if isinstance(all_states, list):
                 automations = [
-                    state for state in all_states
-                    if state.get('entity_id', '').startswith('automation.')
+                    state
+                    for state in all_states
+                    if state.get("entity_id", "").startswith("automation.")
                 ]
                 logger.info(f"✅ Found {len(automations)} automations in Home Assistant")
                 return automations
@@ -510,7 +540,9 @@ class HomeAssistantClient:
                 logger.warning(f"Unexpected response format from /api/states: {type(all_states)}")
                 return []
         except httpx.HTTPStatusError as e:
-            logger.error(f"Home Assistant API error listing automations: {e.response.status_code} - {e.response.text}")
+            logger.error(
+                f"Home Assistant API error listing automations: {e.response.status_code} - {e.response.text}"
+            )
             return []
         except httpx.HTTPError as e:
             logger.error(f"Failed to connect to Home Assistant: {e}")
@@ -519,23 +551,20 @@ class HomeAssistantClient:
     async def enable_automation(self, automation_id: str) -> bool:
         """
         Enable an automation.
-        
+
         Args:
             automation_id: Automation entity ID
-        
+
         Returns:
             True if successful
         """
         if not self.ha_url or not self.access_token:
             return False
-        
+
         url = f"{self.ha_url}/api/services/automation/turn_on"
-        
+
         try:
-            response = await self.client.post(
-                url,
-                json={"entity_id": automation_id}
-            )
+            response = await self.client.post(url, json={"entity_id": automation_id})
             response.raise_for_status()
             return True
         except httpx.HTTPError as e:
@@ -545,23 +574,20 @@ class HomeAssistantClient:
     async def disable_automation(self, automation_id: str) -> bool:
         """
         Disable an automation.
-        
+
         Args:
             automation_id: Automation entity ID
-        
+
         Returns:
             True if successful
         """
         if not self.ha_url or not self.access_token:
             return False
-        
+
         url = f"{self.ha_url}/api/services/automation/turn_off"
-        
+
         try:
-            response = await self.client.post(
-                url,
-                json={"entity_id": automation_id}
-            )
+            response = await self.client.post(url, json={"entity_id": automation_id})
             response.raise_for_status()
             return True
         except httpx.HTTPError as e:
@@ -571,23 +597,20 @@ class HomeAssistantClient:
     async def trigger_automation(self, automation_id: str) -> bool:
         """
         Trigger an automation.
-        
+
         Args:
             automation_id: Automation entity ID
-        
+
         Returns:
             True if successful
         """
         if not self.ha_url or not self.access_token:
             return False
-        
+
         url = f"{self.ha_url}/api/services/automation/trigger"
-        
+
         try:
-            response = await self.client.post(
-                url,
-                json={"entity_id": automation_id}
-            )
+            response = await self.client.post(url, json={"entity_id": automation_id})
             response.raise_for_status()
             return True
         except httpx.HTTPError as e:
@@ -619,10 +642,7 @@ class HomeAssistantClient:
             return None
 
     async def set_state(
-        self,
-        entity_id: str,
-        state: str,
-        attributes: dict[str, Any] | None = None
+        self, entity_id: str, state: str, attributes: dict[str, Any] | None = None
     ) -> bool:
         """
         Set the state of an entity (M6 fix).
@@ -656,13 +676,13 @@ class HomeAssistantClient:
     async def health_check(self) -> bool:
         """
         Check if Home Assistant is accessible.
-        
+
         Returns:
             True if service is healthy
         """
         if not self.ha_url or not self.access_token:
             return False
-        
+
         try:
             url = f"{self.ha_url}/api/"
             response = await self.client.get(url, timeout=5.0)
@@ -683,4 +703,3 @@ class HomeAssistantClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()
-

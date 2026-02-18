@@ -25,8 +25,14 @@ logger = logging.getLogger(__name__)
 
 # Errors that are likely transient and can be retried
 TRANSIENT_ERRORS = (
-    "timeout", "connection refused", "connection reset", "service unavailable",
-    "rate limit", "502", "503", "504",
+    "timeout",
+    "connection refused",
+    "connection reset",
+    "service unavailable",
+    "rate limit",
+    "502",
+    "503",
+    "504",
 )
 
 
@@ -90,10 +96,7 @@ class TaskExecutionVerifier(PostActionVerifier):
             )
 
         # Check trace for errors
-        trace_errors = [
-            entry for entry in trace
-            if isinstance(entry, dict) and entry.get("error")
-        ]
+        trace_errors = [entry for entry in trace if isinstance(entry, dict) and entry.get("error")]
         if trace_errors:
             for entry in trace_errors:
                 warnings.append(
@@ -131,9 +134,7 @@ class TaskExecutionVerifier(PostActionVerifier):
                 if expected_attrs and isinstance(expected_attrs, dict):
                     expected_dict.update(expected_attrs)
 
-                attr_warnings = self.verify_state_match(
-                    state_data, expected_dict, entity_id
-                )
+                attr_warnings = self.verify_state_match(state_data, expected_dict, entity_id)
                 warnings.extend(attr_warnings)
                 verified_attributes = state_data.get("attributes", {})
 
@@ -146,8 +147,7 @@ class TaskExecutionVerifier(PostActionVerifier):
             metadata={
                 "task_id": task_id,
                 "retryable": any(
-                    any(t in w.message.lower() for t in TRANSIENT_ERRORS)
-                    for w in warnings
+                    any(t in w.message.lower() for t in TRANSIENT_ERRORS) for w in warnings
                 ),
             },
             verified_attributes=verified_attributes,

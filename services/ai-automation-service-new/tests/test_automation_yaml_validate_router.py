@@ -5,8 +5,9 @@ Epic: HomeIQ Automation Platform Improvements
 Tests POST /api/v1/automations/validate - valid YAML, invalid YAML, response shape.
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, patch
 from httpx import AsyncClient
 
 VALID_YAML = """id: 'test-123'
@@ -57,9 +58,7 @@ class TestUnifiedValidateEndpoint:
         from src.api.dependencies import get_yaml_validation_client
         from src.main import app
 
-        app.dependency_overrides[get_yaml_validation_client] = (
-            lambda: mock_yaml_validation_client
-        )
+        app.dependency_overrides[get_yaml_validation_client] = lambda: mock_yaml_validation_client
 
         try:
             response = await client.post(
@@ -98,9 +97,7 @@ class TestUnifiedValidateEndpoint:
         from src.api.dependencies import get_yaml_validation_client
         from src.main import app
 
-        app.dependency_overrides[get_yaml_validation_client] = (
-            lambda: mock_yaml_validation_client
-        )
+        app.dependency_overrides[get_yaml_validation_client] = lambda: mock_yaml_validation_client
 
         try:
             response = await client.post(
@@ -140,9 +137,7 @@ class TestUnifiedValidateEndpoint:
         from src.api.dependencies import get_yaml_validation_client
         from src.main import app
 
-        app.dependency_overrides[get_yaml_validation_client] = (
-            lambda: mock_yaml_validation_client
-        )
+        app.dependency_overrides[get_yaml_validation_client] = lambda: mock_yaml_validation_client
 
         try:
             response = await client.post(

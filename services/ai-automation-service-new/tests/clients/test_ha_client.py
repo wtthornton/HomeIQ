@@ -4,9 +4,9 @@ Tests for Home Assistant API client.
 Phase 4.1: HA client post-deploy verification (verification_warning when state is unavailable).
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.clients.ha_client import HomeAssistantClient
 
 
@@ -33,14 +33,14 @@ class TestHAClientPostDeployVerification:
 
         # Mock httpx client: post (deploy) succeeds, get (state) returns unavailable
         mock_http = AsyncMock()
-        mock_http.post = AsyncMock(
-            return_value=_mock_response({"id": "automation.test_123"})
-        )
+        mock_http.post = AsyncMock(return_value=_mock_response({"id": "automation.test_123"}))
         mock_http.get = AsyncMock(
-            return_value=_mock_response({
-                "state": "unavailable",
-                "attributes": {"last_triggered": None},
-            })
+            return_value=_mock_response(
+                {
+                    "state": "unavailable",
+                    "attributes": {"last_triggered": None},
+                }
+            )
         )
         client.client = mock_http
 
@@ -71,14 +71,14 @@ action:
         )
 
         mock_http = AsyncMock()
-        mock_http.post = AsyncMock(
-            return_value=_mock_response({"id": "automation.test_456"})
-        )
+        mock_http.post = AsyncMock(return_value=_mock_response({"id": "automation.test_456"}))
         mock_http.get = AsyncMock(
-            return_value=_mock_response({
-                "state": "on",
-                "attributes": {"last_triggered": "2026-02-09T12:00:00.000Z"},
-            })
+            return_value=_mock_response(
+                {
+                    "state": "on",
+                    "attributes": {"last_triggered": "2026-02-09T12:00:00.000Z"},
+                }
+            )
         )
         client.client = mock_http
 

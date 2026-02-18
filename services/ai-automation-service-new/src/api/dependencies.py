@@ -40,7 +40,9 @@ def get_api_key(request: Request) -> str:
     Extract API key from request state (set by AuthenticationMiddleware).
     """
     if not hasattr(request.state, "api_key"):
-        raise ValueError("API key not found in request state. Ensure AuthenticationMiddleware is configured.")
+        raise ValueError(
+            "API key not found in request state. Ensure AuthenticationMiddleware is configured."
+        )
     return request.state.api_key
 
 
@@ -50,7 +52,7 @@ def get_authenticated_user(request: Request) -> dict:
     """
     return {
         "api_key": get_api_key(request),
-        "authenticated": getattr(request.state, "authenticated", False)
+        "authenticated": getattr(request.state, "authenticated", False),
     }
 
 
@@ -71,17 +73,10 @@ def init_clients() -> None:
     """Initialize singleton HTTP clients. Called during lifespan startup."""
     global _data_api_client, _ha_client, _openai_client, _yaml_validation_client
     _data_api_client = DataAPIClient(base_url=settings.data_api_url)
-    _ha_client = HomeAssistantClient(
-        ha_url=settings.ha_url,
-        access_token=settings.ha_token
-    )
-    _openai_client = OpenAIClient(
-        api_key=settings.openai_api_key,
-        model=settings.openai_model
-    )
+    _ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token)
+    _openai_client = OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
     _yaml_validation_client = YAMLValidationClient(
-        base_url=settings.yaml_validation_service_url,
-        api_key=settings.yaml_validation_api_key
+        base_url=settings.yaml_validation_service_url, api_key=settings.yaml_validation_api_key
     )
     logger.info("Singleton HTTP clients initialized")
 
@@ -90,7 +85,7 @@ async def close_clients() -> None:
     """Close all singleton HTTP clients. Called during lifespan shutdown."""
     global _data_api_client, _ha_client, _openai_client, _yaml_validation_client
     for client in [_data_api_client, _ha_client, _yaml_validation_client]:
-        if client and hasattr(client, 'close'):
+        if client and hasattr(client, "close"):
             try:
                 await client.close()
             except Exception as e:
@@ -129,63 +124,54 @@ def get_yaml_validation_client() -> YAMLValidationClient:
     """Get YAML Validation Service client singleton (Epic 51)."""
     if _yaml_validation_client is None:
         return YAMLValidationClient(
-            base_url=settings.yaml_validation_service_url,
-            api_key=settings.yaml_validation_api_key
+            base_url=settings.yaml_validation_service_url, api_key=settings.yaml_validation_api_key
         )
     return _yaml_validation_client
 
 
 # Service dependencies
 def get_yaml_generation_service(
-    db: DatabaseSession,
+    _db: DatabaseSession,
     openai_client: Annotated[OpenAIClient, Depends(get_openai_client)],
     data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)],
-    yaml_validation_client: Annotated[YAMLValidationClient, Depends(get_yaml_validation_client)]
+    yaml_validation_client: Annotated[YAMLValidationClient, Depends(get_yaml_validation_client)],
 ) -> YAMLGenerationService:
     """Get YAML generation service instance (Epic 51: integrated with validation service)."""
     return YAMLGenerationService(
         openai_client=openai_client,
         data_api_client=data_api_client,
-        yaml_validation_client=yaml_validation_client
+        yaml_validation_client=yaml_validation_client,
     )
 
 
 def get_suggestion_service(
     db: DatabaseSession,
     data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)],
-    openai_client: Annotated[OpenAIClient, Depends(get_openai_client)]
+    openai_client: Annotated[OpenAIClient, Depends(get_openai_client)],
 ) -> SuggestionService:
     """Get suggestion service instance."""
-    return SuggestionService(
-        db=db,
-        data_api_client=data_api_client,
-        openai_client=openai_client
-    )
+    return SuggestionService(db=db, data_api_client=data_api_client, openai_client=openai_client)
 
 
 def get_deployment_service(
     db: DatabaseSession,
     ha_client: Annotated[HomeAssistantClient, Depends(get_ha_client)],
-    yaml_service: Annotated[YAMLGenerationService, Depends(get_yaml_generation_service)]
+    yaml_service: Annotated[YAMLGenerationService, Depends(get_yaml_generation_service)],
 ) -> DeploymentService:
     """Get deployment service instance."""
-    return DeploymentService(
-        db=db,
-        ha_client=ha_client,
-        yaml_service=yaml_service
-    )
+    return DeploymentService(db=db, ha_client=ha_client, yaml_service=yaml_service)
 
 
 # JSON service dependencies (Epic 51: HomeIQ JSON Automation layer)
 def get_json_rebuilder(
-    openai_client: Annotated[OpenAIClient, Depends(get_openai_client)]
+    openai_client: Annotated[OpenAIClient, Depends(get_openai_client)],
 ) -> JSONRebuilder:
     """Get JSON rebuilder service instance."""
     return JSONRebuilder(openai_client=openai_client)
 
 
 def get_json_verification_service(
-    data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)]
+    data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)],
 ) -> JSONVerificationService:
     """Get JSON verification service instance."""
     return JSONVerificationService(data_api_client=data_api_client)

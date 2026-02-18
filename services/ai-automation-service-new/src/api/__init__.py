@@ -4,18 +4,20 @@ API routers for AI Automation Service
 Epic 39, Story 39.10: Automation Service Foundation
 """
 
+from . import (
+    analysis_router,
+    automation_yaml_validate_router,
+    blueprint_validate_router,
+    pattern_router,
+    preference_router,
+    scene_validate_router,
+    script_validate_router,
+    setup_validate_router,
+    synergy_router,
+)
+from .deployment_router import router as deployment_router
 from .health_router import router as health_router
 from .suggestion_router import router as suggestion_router
-from .deployment_router import router as deployment_router
-from . import pattern_router
-from . import synergy_router
-from . import analysis_router
-from . import preference_router
-from . import automation_yaml_validate_router
-from . import blueprint_validate_router
-from . import setup_validate_router
-from . import scene_validate_router
-from . import script_validate_router
 
 __all__ = [
     "health_router",
@@ -31,4 +33,3 @@ __all__ = [
     "scene_validate_router",
     "script_validate_router",
 ]
-

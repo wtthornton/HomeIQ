@@ -5,14 +5,15 @@ Epic 39, Story 39.10: Automation Service Foundation
 Tests for main.py application initialization, lifespan, and configuration.
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from httpx import AsyncClient, ASGITransport
+from httpx import AsyncClient
 
 
 class TestMainApplication:
     """Test suite for main application initialization and configuration."""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_root_endpoint(self, client: AsyncClient):
@@ -24,21 +25,17 @@ class TestMainApplication:
         assert data["version"] == "1.0.0"
         assert data["status"] == "operational"
         assert "note" in data
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_cors_headers(self, client: AsyncClient):
         """Test CORS headers are properly configured."""
         response = await client.options(
-            "/",
-            headers={
-                "Origin": "http://localhost:3000",
-                "Access-Control-Request-Method": "GET"
-            }
+            "/", headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "GET"}
         )
         # CORS middleware should handle OPTIONS requests
         assert response.status_code in [200, 204]
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_app_includes_routers(self, client: AsyncClient):
@@ -46,12 +43,12 @@ class TestMainApplication:
         # Health router
         response = await client.get("/health")
         assert response.status_code in [200, 503]  # 503 if DB unavailable
-        
+
         # Suggestion router (may require auth)
         response = await client.get("/api/v1/suggestions")
         # Should return 401 (unauthorized) or 200, not 404
         assert response.status_code != 404
-        
+
         # Deployment router (may require auth)
         response = await client.get("/api/v1/deployment/automations")
         # Should return 401 (unauthorized) or 200, not 404
@@ -60,81 +57,71 @@ class TestMainApplication:
 
 class TestLifespanManagement:
     """Test suite for application lifespan (startup/shutdown) management."""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.init_db')
-    @patch('src.main.start_rate_limit_cleanup')
-    @patch('src.main.stop_rate_limit_cleanup')
+    @patch("src.main.init_db")
+    @patch("src.main.start_rate_limit_cleanup")
+    @patch("src.main.stop_rate_limit_cleanup")
     async def test_lifespan_startup_success(
-        self,
-        mock_stop_cleanup,
-        mock_start_cleanup,
-        mock_init_db
+        self, mock_stop_cleanup, mock_start_cleanup, mock_init_db
     ):
         """Test lifespan startup initializes all components successfully."""
-        from src.main import lifespan, app
-        
+        from src.main import app, lifespan
+
         mock_init_db.return_value = None
         mock_start_cleanup.return_value = None
-        
+
         # Test lifespan context manager
         async with lifespan(app):
             # During startup
             mock_init_db.assert_called_once()
             mock_start_cleanup.assert_called_once()
-        
+
         # During shutdown
         mock_stop_cleanup.assert_called_once()
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.init_db')
-    @patch('src.main.start_rate_limit_cleanup')
-    async def test_lifespan_startup_database_failure(
-        self,
-        mock_start_cleanup,
-        mock_init_db
-    ):
+    @patch("src.main.init_db")
+    @patch("src.main.start_rate_limit_cleanup")
+    async def test_lifespan_startup_database_failure(self, mock_start_cleanup, mock_init_db):
         """Test lifespan startup handles database initialization failure."""
-        from src.main import lifespan, app
-        
+        from src.main import app, lifespan
+
         mock_init_db.side_effect = Exception("Database connection failed")
-        
+
         # Should raise exception during startup
         with pytest.raises(Exception, match="Database connection failed"):
             async with lifespan(app):
                 pass
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.init_db')
-    @patch('src.main.start_rate_limit_cleanup')
-    @patch('src.main.stop_rate_limit_cleanup')
+    @patch("src.main.init_db")
+    @patch("src.main.start_rate_limit_cleanup")
+    @patch("src.main.stop_rate_limit_cleanup")
     async def test_lifespan_shutdown_handles_errors(
-        self,
-        mock_stop_cleanup,
-        mock_start_cleanup,
-        mock_init_db
+        self, mock_stop_cleanup, mock_start_cleanup, mock_init_db
     ):
         """Test lifespan shutdown handles errors gracefully."""
-        from src.main import lifespan, app
-        
+        from src.main import app, lifespan
+
         mock_init_db.return_value = None
         mock_start_cleanup.return_value = None
         mock_stop_cleanup.side_effect = Exception("Cleanup error")
-        
+
         # Should not raise exception during shutdown
         async with lifespan(app):
             pass
-        
+
         # Cleanup should have been attempted
         mock_stop_cleanup.assert_called_once()
 
 
 class TestMiddlewareConfiguration:
     """Test suite for middleware configuration."""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_authentication_middleware_enabled(self, client: AsyncClient):
@@ -143,7 +130,7 @@ class TestMiddlewareConfiguration:
         response = await client.get("/api/v1/suggestions")
         # Should return 401 (unauthorized) or 403 (forbidden), not 200
         assert response.status_code in [401, 403, 404]
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_rate_limiting_middleware_enabled(self, client: AsyncClient):
@@ -153,7 +140,7 @@ class TestMiddlewareConfiguration:
         for _ in range(10):
             response = await client.get("/")
             responses.append(response.status_code)
-        
+
         # All should succeed (root endpoint may not be rate limited)
         # But middleware should be active
         assert all(status in [200, 429] for status in responses)
@@ -161,7 +148,7 @@ class TestMiddlewareConfiguration:
 
 class TestErrorHandling:
     """Test suite for error handling configuration."""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_error_handler_registered(self, client: AsyncClient):
@@ -170,22 +157,22 @@ class TestErrorHandling:
         # May return 401 (auth middleware) or 404 (not found)
         response = await client.get("/nonexistent")
         assert response.status_code in [401, 404]
-        
+
         # Error response should be JSON
         assert "application/json" in response.headers.get("content-type", "")
 
 
 class TestObservability:
     """Test suite for observability configuration."""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.init_db')
-    @patch('src.main.start_rate_limit_cleanup')
-    @patch('src.main.stop_rate_limit_cleanup')
-    @patch('src.main.setup_tracing')
-    @patch('src.main.instrument_fastapi')
-    @patch('src.main.OBSERVABILITY_AVAILABLE', True)
+    @patch("src.main.init_db")
+    @patch("src.main.start_rate_limit_cleanup")
+    @patch("src.main.stop_rate_limit_cleanup")
+    @patch("src.main.setup_tracing")
+    @patch("src.main.instrument_fastapi")
+    @patch("src.main.OBSERVABILITY_AVAILABLE", True)
     async def test_observability_initialized_when_available(
         self,
         mock_obs_available,
@@ -193,27 +180,29 @@ class TestObservability:
         mock_setup_tracing,
         mock_stop_cleanup,
         mock_start_cleanup,
-        mock_init_db
+        mock_init_db,
     ):
         """Test that observability is initialized when available."""
         # Reload the module to pick up the patched OBSERVABILITY_AVAILABLE
         import importlib
+
         import src.main
+
         importlib.reload(src.main)
-        
-        from src.main import lifespan, app
-        
+
+        from src.main import app, lifespan
+
         mock_init_db.return_value = None
         mock_start_cleanup.return_value = None
         mock_setup_tracing.return_value = None
         mock_instrument.return_value = None
-        
+
         async with lifespan(app):
             # During startup, observability should be set up if available
             # Note: This test may pass even if observability is not available
             # as the code checks OBSERVABILITY_AVAILABLE at runtime
             pass
-        
+
         # If observability was available, it should have been called
         # But we can't guarantee it was called if the module was already loaded
         # So we'll just verify the lifespan completes without error
@@ -221,29 +210,33 @@ class TestObservability:
 
 class TestConfiguration:
     """Test suite for application configuration."""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_app_metadata(self, client: AsyncClient):
         """Test application metadata is correctly configured."""
         from src.main import app
-        
+
         assert app.title == "AI Automation Service"
-        assert app.description == "Automation service for suggestion generation, YAML generation, and deployment to Home Assistant"
+        assert (
+            app.description
+            == "Automation service for suggestion generation, YAML generation, and deployment to Home Assistant"
+        )
         assert app.version == "1.0.0"
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch.dict('os.environ', {'CORS_ORIGINS': 'http://localhost:3000,http://localhost:3001'})
+    @patch.dict("os.environ", {"CORS_ORIGINS": "http://localhost:3000,http://localhost:3001"})
     async def test_cors_configuration(self):
         """Test CORS configuration from environment variables."""
         from src.main import app
-        
+
         # CORS middleware should be added
         assert len(app.user_middleware) > 0
-        
+
         # Check that CORS middleware is present (check class name or module)
         middleware_info = [str(middleware.cls) for middleware in app.user_middleware]
         # CORS middleware will be in the middleware stack
-        assert any('cors' in str(mid).lower() or 'CORSMiddleware' in str(mid) for mid in middleware_info)
-
+        assert any(
+            "cors" in str(mid).lower() or "CORSMiddleware" in str(mid) for mid in middleware_info
+        )

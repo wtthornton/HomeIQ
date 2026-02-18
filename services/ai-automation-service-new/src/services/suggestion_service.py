@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class SuggestionService:
     """
     Service for generating and managing automation suggestions.
-    
+
     Features:
     - Generate suggestions from patterns
     - List and filter suggestions
@@ -31,14 +31,11 @@ class SuggestionService:
     """
 
     def __init__(
-        self,
-        db: AsyncSession,
-        data_api_client: DataAPIClient,
-        openai_client: OpenAIClient
+        self, db: AsyncSession, data_api_client: DataAPIClient, openai_client: OpenAIClient
     ):
         """
         Initialize suggestion service.
-        
+
         Args:
             db: Database session
             data_api_client: Client for fetching data from Data API
@@ -49,19 +46,16 @@ class SuggestionService:
         self.openai_client = openai_client
 
     async def generate_suggestions(
-        self,
-        pattern_ids: list[str] | None = None,
-        days: int = 30,
-        limit: int = 10
+        self, pattern_ids: list[str] | None = None, days: int = 30, limit: int = 10
     ) -> list[dict[str, Any]]:
         """
         Generate automation suggestions from detected patterns.
-        
+
         Args:
             pattern_ids: Optional list of pattern IDs to generate suggestions for
             days: Number of days of data to analyze
             limit: Maximum number of suggestions to generate
-        
+
         Returns:
             List of suggestion dictionaries
         """
@@ -71,7 +65,7 @@ class SuggestionService:
                 error_msg = "OpenAI API key not configured. Cannot generate suggestions."
                 logger.error(error_msg)
                 raise ValueError(error_msg)
-            
+
             # Fetch events from Data API
             logger.info(f"Fetching events for suggestion generation (days={days}, limit=10000)")
             try:
@@ -80,45 +74,51 @@ class SuggestionService:
                 error_msg = f"Failed to fetch events from Data API: {e}. Check Data API service and websocket-ingestion."
                 logger.error(error_msg)
                 raise ValueError(error_msg) from e
-            
+
             logger.info(f"Received {len(events) if events else 0} events from Data API")
-            
+
             if not events:
                 warning_msg = f"No events found for suggestion generation (days={days}, limit={limit}). Suggestions require events from Home Assistant. Check Data API and websocket-ingestion service."
                 logger.warning(warning_msg)
                 return []
-            
+
             # Validate event count for suggestion generation
             if len(events) < 100:
-                logger.warning(f"Only {len(events)} events available. Need at least 100 events to generate suggestions (have {len(events)}, need 100). Check websocket-ingestion service to ensure events are being written to InfluxDB.")
+                logger.warning(
+                    f"Only {len(events)} events available. Need at least 100 events to generate suggestions (have {len(events)}, need 100). Check websocket-ingestion service to ensure events are being written to InfluxDB."
+                )
                 return []
-            
+
             # TODO: Epic 39, Story 39.13 - Integrate with pattern detection service
             # Current: Generate suggestions directly from events
             # Future: Use detected patterns from pattern-detection-service for better suggestions
-            
+
             suggestions = []
-            
+
             # Calculate how many suggestions we can generate (1 per 100 events)
             max_suggestions = len(events) // 100
             actual_limit = min(limit, max_suggestions)
-            logger.info(f"Can generate up to {max_suggestions} suggestions, requested {limit}, will generate {actual_limit}")
-            
+            logger.info(
+                f"Can generate up to {max_suggestions} suggestions, requested {limit}, will generate {actual_limit}"
+            )
+
             if actual_limit == 0:
-                logger.warning(f"Insufficient events for suggestion generation: {len(events)} events available, need at least 100 (can generate {max_suggestions} suggestions)")
+                logger.warning(
+                    f"Insufficient events for suggestion generation: {len(events)} events available, need at least 100 (can generate {max_suggestions} suggestions)"
+                )
                 return []
-            
+
             # Generate suggestions using OpenAI
             for i in range(actual_limit):
                 try:
                     # Get batch of events for this suggestion
-                    event_batch = events[i * 100:(i + 1) * 100]
-                    
+                    event_batch = events[i * 100 : (i + 1) * 100]
+
                     # Generate description using OpenAI
                     description = await self.openai_client.generate_suggestion_description(
                         pattern_data={"events": event_batch}
                     )
-                    
+
                     # Create suggestion dictionary (matches Suggestion model fields)
                     suggestion = {
                         "title": f"Automation Suggestion {i + 1}",
@@ -126,13 +126,13 @@ class SuggestionService:
                         "status": "draft",
                     }
                     suggestions.append(suggestion)
-                    
+
                     logger.debug(f"Generated suggestion {i + 1}/{actual_limit}")
-                    
+
                 except Exception as e:
                     logger.error(f"Failed to generate suggestion {i + 1}: {e}")
                     continue
-            
+
             # Store suggestions in database
             stored_suggestions = []
             for suggestion_data in suggestions:
@@ -140,94 +140,105 @@ class SuggestionService:
                     suggestion = Suggestion(
                         title=suggestion_data["title"],
                         description=suggestion_data["description"],
-                        status=suggestion_data["status"]
+                        status=suggestion_data["status"],
                         # Note: pattern_data is stored in automation_json field if needed
                     )
                     self.db.add(suggestion)
                     await self.db.flush()
                     await self.db.refresh(suggestion)
-                    
-                    stored_suggestions.append({
-                        "id": suggestion.id,
-                        "title": suggestion.title,
-                        "description": suggestion.description,
-                        "status": suggestion.status,
-                        "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None
-                    })
+
+                    stored_suggestions.append(
+                        {
+                            "id": suggestion.id,
+                            "title": suggestion.title,
+                            "description": suggestion.description,
+                            "status": suggestion.status,
+                            "created_at": suggestion.created_at.isoformat()
+                            if suggestion.created_at
+                            else None,
+                        }
+                    )
                 except Exception as e:
                     logger.error(f"Failed to store suggestion: {e}")
                     continue
-            
+
             await self.db.commit()
-            
+
             logger.info(f"Generated {len(stored_suggestions)} suggestions")
             return stored_suggestions
-            
+
         except Exception as e:
             logger.error(f"Failed to generate suggestions: {e}")
             await self.db.rollback()
             raise
 
     async def list_suggestions(
-        self,
-        limit: int = 50,
-        offset: int = 0,
-        status: str | None = None
+        self, limit: int = 50, offset: int = 0, status: str | None = None
     ) -> dict[str, Any]:
         """
         List automation suggestions with filtering and pagination.
-        
+
         Args:
             limit: Maximum number of suggestions to return
             offset: Number of suggestions to skip
             status: Optional filter by status (pending, approved, rejected, deployed)
-        
+
         Returns:
             Dictionary with suggestions list and pagination info
         """
         try:
             # Build query
             query = select(Suggestion)
-            
+
             if status:
                 query = query.where(Suggestion.status == status)
-            
+
             # Get total count (efficient SQL COUNT)
             count_query = select(func.count()).select_from(Suggestion)
             if status:
                 count_query = count_query.where(Suggestion.status == status)
-            
+
             total_result = await self.db.execute(count_query)
             total = total_result.scalar() or 0
-            
+
             # Apply pagination
             query = query.order_by(Suggestion.created_at.desc())
             query = query.limit(limit).offset(offset)
-            
+
             # Execute query
             result = await self.db.execute(query)
             suggestions = result.scalars().all()
-            
+
             # Convert to dictionaries
             suggestions_list = []
             for suggestion in suggestions:
-                suggestions_list.append({
-                    "id": suggestion.id,
-                    "title": suggestion.title,
-                    "description": suggestion.description,
-                    "status": suggestion.status,
-                    "confidence": (suggestion.confidence_score if suggestion.confidence_score is not None else 0.5),  # Default to 0.5 if null
-                    "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
-                    "updated_at": suggestion.updated_at.isoformat() if suggestion.updated_at else None
-                })
-            
+                suggestions_list.append(
+                    {
+                        "id": suggestion.id,
+                        "title": suggestion.title,
+                        "description": suggestion.description,
+                        "status": suggestion.status,
+                        "confidence": (
+                            suggestion.confidence_score
+                            if suggestion.confidence_score is not None
+                            else 0.5
+                        ),  # Default to 0.5 if null
+                        "created_at": suggestion.created_at.isoformat()
+                        if suggestion.created_at
+                        else None,
+                        "updated_at": suggestion.updated_at.isoformat()
+                        if suggestion.updated_at
+                        else None,
+                    }
+                )
+
             return {
                 "suggestions": suggestions_list,
                 "total": total,
                 "limit": limit,
-                "offset": offset
+                "offset": offset,
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to list suggestions: {e}")
             raise
@@ -235,10 +246,10 @@ class SuggestionService:
     async def get_suggestion(self, suggestion_id: int) -> dict[str, Any] | None:
         """
         Get a specific suggestion by ID.
-        
+
         Args:
             suggestion_id: Suggestion ID
-        
+
         Returns:
             Suggestion dictionary or None if not found
         """
@@ -246,38 +257,38 @@ class SuggestionService:
             query = select(Suggestion).where(Suggestion.id == suggestion_id)
             result = await self.db.execute(query)
             suggestion = result.scalar_one_or_none()
-            
+
             if not suggestion:
                 return None
-            
+
             return {
                 "id": suggestion.id,
                 "title": suggestion.title,
                 "description": suggestion.description,
                 "status": suggestion.status,
-                "confidence": (suggestion.confidence_score if suggestion.confidence_score is not None else 0.5),  # Default to 0.5 if null
+                "confidence": (
+                    suggestion.confidence_score if suggestion.confidence_score is not None else 0.5
+                ),  # Default to 0.5 if null
                 "automation_yaml": suggestion.automation_yaml,
                 "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
                 "updated_at": suggestion.updated_at.isoformat() if suggestion.updated_at else None,
-                "deployed_at": suggestion.deployed_at.isoformat() if suggestion.deployed_at else None
+                "deployed_at": suggestion.deployed_at.isoformat()
+                if suggestion.deployed_at
+                else None,
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to get suggestion {suggestion_id}: {e}")
             raise
 
-    async def update_suggestion_status(
-        self,
-        suggestion_id: int,
-        status: str
-    ) -> bool:
+    async def update_suggestion_status(self, suggestion_id: int, status: str) -> bool:
         """
         Update suggestion status.
-        
+
         Args:
             suggestion_id: Suggestion ID
             status: New status (pending, approved, rejected, deployed)
-        
+
         Returns:
             True if successful
         """
@@ -285,16 +296,16 @@ class SuggestionService:
             query = select(Suggestion).where(Suggestion.id == suggestion_id)
             result = await self.db.execute(query)
             suggestion = result.scalar_one_or_none()
-            
+
             if not suggestion:
                 return False
-            
+
             suggestion.status = status
             suggestion.updated_at = datetime.now(timezone.utc)
-            
+
             await self.db.commit()
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to update suggestion status: {e}")
             await self.db.rollback()
@@ -314,19 +325,14 @@ class SuggestionService:
             total = total_result.scalar() or 0
 
             # Get counts by status using GROUP BY (C5: avoids loading all rows)
-            status_query = select(
-                Suggestion.status, func.count()
-            ).group_by(Suggestion.status)
+            status_query = select(Suggestion.status, func.count()).group_by(Suggestion.status)
             status_result = await self.db.execute(status_query)
-            by_status = {
-                (status or "unknown"): count
-                for status, count in status_result.all()
-            }
+            by_status = {(status or "unknown"): count for status, count in status_result.all()}
 
             stats = {
                 "total": total,
                 "by_status": by_status,
-                "openai_usage": self.openai_client.get_usage_stats() if self.openai_client else {}
+                "openai_usage": self.openai_client.get_usage_stats() if self.openai_client else {},
             }
 
             return stats
@@ -334,4 +340,3 @@ class SuggestionService:
         except Exception as e:
             logger.error(f"Failed to get usage stats: {e}")
             raise
-

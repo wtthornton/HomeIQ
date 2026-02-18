@@ -36,12 +36,13 @@
       }
     },
     "tapps-mcp": {
-      "command": "C:\\Users\\tappt\\AppData\\Roaming\\uv\\tools\\tapps-mcp\\Scripts\\tapps-mcp.exe",
+      "command": "C:\\Users\\tappt\\.local\\bin\\tapps-mcp.exe",
       "args": [
         "serve"
       ],
       "env": {
-        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
+        "TAPPS_MCP_CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}",
+        "TAPPS_MCP_HOST_PROJECT_ROOT": "C:\\cursor\\HomeIQ"
       }
     }
   }

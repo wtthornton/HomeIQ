@@ -16,24 +16,14 @@ from pathlib import Path
 workspace_root = Path(__file__).parent.parent.parent.parent.parent
 sys.path.insert(0, str(workspace_root))
 
-import pytest
-import json
-from datetime import datetime
-from typing import Any
 
+import pytest
+
+from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
 from shared.homeiq_automation.schema import (
     HomeIQAutomation,
-    HomeIQMetadata,
-    HomeIQTrigger,
-    HomeIQAction,
-    DeviceContext,
-    SafetyChecks,
-    EnergyImpact,
 )
-from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
-from shared.homeiq_automation.validator import HomeIQAutomationValidator
 from shared.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
-from shared.yaml_validation_service.schema import AutomationMode
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -46,7 +36,7 @@ from src.database.models import Suggestion
 async def test_json_generation_complete_workflow(db_session):
     """
     E2E Test: Complete JSON generation workflow from suggestion to stored automation.
-    
+
     Flow:
     1. Create a suggestion
     2. Generate HomeIQ JSON
@@ -57,16 +47,14 @@ async def test_json_generation_complete_workflow(db_session):
     """
     # Step 1: Create a suggestion
     suggestion = Suggestion(
-        title="Test Automation",
-        description="Turn on light when motion detected",
-        status="draft"
+        title="Test Automation", description="Turn on light when motion detected", status="draft"
     )
     db_session.add(suggestion)
     await db_session.commit()
     await db_session.refresh(suggestion)
-    
+
     assert suggestion.id is not None
-    
+
     # Step 2: Generate HomeIQ JSON (simulated - in production would use OpenAI)
     homeiq_json = {
         "alias": "Test Motion Light",
@@ -103,26 +91,26 @@ async def test_json_generation_complete_workflow(db_session):
         ],
         "mode": "single",
     }
-    
+
     # Step 3: Validate JSON schema
     homeiq_automation = HomeIQAutomation(**homeiq_json)
     assert homeiq_automation.alias == "Test Motion Light"
     assert homeiq_automation.homeiq_metadata.use_case == "comfort"
-    
+
     # Step 4: Convert to AutomationSpec
     converter = HomeIQToAutomationSpecConverter()
     automation_spec = converter.convert(homeiq_automation)
     assert automation_spec.alias == "Test Motion Light"
     assert len(automation_spec.trigger) == 1
     assert len(automation_spec.action) == 1
-    
+
     # Step 5: Render to YAML
     renderer = VersionAwareRenderer(ha_version="2025.10.3")
     yaml_content = renderer.render(automation_spec)
     assert "alias:" in yaml_content
     assert "Test Motion Light" in yaml_content
     assert "binary_sensor.motion" in yaml_content
-    
+
     # Step 6: Store in database
     suggestion.automation_json = homeiq_json
     suggestion.automation_yaml = yaml_content
@@ -130,17 +118,17 @@ async def test_json_generation_complete_workflow(db_session):
     suggestion.json_schema_version = "1.0.0"
     await db_session.commit()
     await db_session.refresh(suggestion)
-    
+
     assert suggestion.automation_json is not None
     assert suggestion.automation_yaml is not None
     assert suggestion.ha_version == "2025.10.3"
     assert suggestion.json_schema_version == "1.0.0"
-    
+
     # Verify JSON can be retrieved and parsed
     retrieved_json = suggestion.automation_json
     assert isinstance(retrieved_json, dict)
     assert retrieved_json["alias"] == "Test Motion Light"
-    
+
     # Verify YAML can be retrieved
     retrieved_yaml = suggestion.automation_yaml
     assert isinstance(retrieved_yaml, str)
@@ -189,11 +177,11 @@ async def test_json_validation_e2e():
         ],
         "mode": "single",
     }
-    
+
     # Validate schema
     homeiq_automation = HomeIQAutomation(**homeiq_json)
     assert homeiq_automation is not None
-    
+
     # In production, would also validate entities against Data API
     # For E2E test, we verify the structure is correct
     assert homeiq_automation.device_context.entity_ids == ["light.test"]
@@ -241,28 +229,28 @@ async def test_json_to_yaml_conversion_e2e():
         ],
         "mode": "single",
     }
-    
+
     # Convert to Pydantic model
     homeiq_automation = HomeIQAutomation(**homeiq_json)
-    
+
     # Convert to AutomationSpec
     converter = HomeIQToAutomationSpecConverter()
     automation_spec = converter.convert(homeiq_automation)
-    
+
     # Render to YAML
     renderer = VersionAwareRenderer(ha_version="2025.10.3")
     yaml_content = renderer.render(automation_spec)
-    
+
     # Verify YAML content
     assert "alias:" in yaml_content
     assert "Sunset Light Automation" in yaml_content
     assert "sunset" in yaml_content.lower()
     assert "light.living_room" in yaml_content
-    
+
     # Verify YAML can be parsed
     import yaml
+
     yaml_dict = yaml.safe_load(yaml_content)
     assert yaml_dict["alias"] == "Sunset Light Automation"
     assert len(yaml_dict["trigger"]) == 1
     assert len(yaml_dict["action"]) == 1
-

@@ -17,16 +17,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
 from shared.homeiq_automation.schema import (
+    DeviceContext,
+    EnergyImpact,
+    HomeIQAction,
     HomeIQAutomation,
     HomeIQMetadata,
     HomeIQTrigger,
-    HomeIQAction,
-    DeviceContext,
     SafetyChecks,
-    EnergyImpact,
 )
-from shared.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
 from shared.yaml_validation_service.schema import AutomationMode
+from shared.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
 
 
 def create_sample_homeiq_json() -> dict:
@@ -67,7 +67,7 @@ def create_sample_homeiq_json() -> dict:
         ],
         mode=AutomationMode.SINGLE,
     )
-    
+
     # Convert to dict for JSON serialization
     return homeiq_automation.model_dump(mode="json")
 
@@ -76,12 +76,12 @@ async def test_json_workflow():
     """Test the complete JSON workflow."""
     print("Testing HomeIQ JSON Automation Workflow\n")
     print("=" * 60)
-    
+
     # Step 1: Create sample JSON
     print("Step 1: Creating sample HomeIQ JSON...")
     sample_json = create_sample_homeiq_json()
     print(f"[OK] Created JSON with alias: {sample_json['alias']}\n")
-    
+
     # Step 2: Validate JSON schema
     print("Step 2: Validating JSON schema...")
     try:
@@ -90,7 +90,7 @@ async def test_json_workflow():
     except Exception as e:
         print(f"[FAIL] JSON schema validation failed: {e}\n")
         return False
-    
+
     # Step 3: Convert to AutomationSpec
     print("Step 3: Converting HomeIQ JSON to AutomationSpec...")
     try:
@@ -100,7 +100,7 @@ async def test_json_workflow():
     except Exception as e:
         print(f"[FAIL] Conversion failed: {e}\n")
         return False
-    
+
     # Step 4: Render to YAML
     print("Step 4: Rendering AutomationSpec to YAML...")
     try:
@@ -115,7 +115,7 @@ async def test_json_workflow():
     except Exception as e:
         print(f"[FAIL] YAML rendering failed: {e}\n")
         return False
-    
+
     # Step 5: Test JSON serialization (for API storage)
     print("Step 5: Testing JSON serialization...")
     try:
@@ -124,7 +124,7 @@ async def test_json_workflow():
     except Exception as e:
         print(f"[FAIL] JSON serialization failed: {e}\n")
         return False
-    
+
     # Step 6: Test JSON deserialization (for API retrieval)
     print("Step 6: Testing JSON deserialization...")
     try:
@@ -134,15 +134,15 @@ async def test_json_workflow():
     except Exception as e:
         print(f"[FAIL] JSON deserialization failed: {e}\n")
         return False
-    
+
     print("=" * 60)
     print("[OK] All workflow steps completed successfully!")
     print("\nSummary:")
-    print(f"  - JSON Schema: Valid")
-    print(f"  - Conversion: Working")
-    print(f"  - YAML Rendering: Working")
-    print(f"  - JSON Serialization: Working")
-    print(f"  - JSON Deserialization: Working")
+    print("  - JSON Schema: Valid")
+    print("  - Conversion: Working")
+    print("  - YAML Rendering: Working")
+    print("  - JSON Serialization: Working")
+    print("  - JSON Deserialization: Working")
     print("\nThe HomeIQ JSON Automation layer is ready for API integration!")
     return True
 
@@ -150,4 +150,3 @@ async def test_json_workflow():
 if __name__ == "__main__":
     success = asyncio.run(test_json_workflow())
     sys.exit(0 if success else 1)
-

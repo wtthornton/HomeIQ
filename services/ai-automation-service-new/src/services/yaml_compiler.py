@@ -14,7 +14,7 @@ import yaml
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
-from ..database.models import CompiledArtifact, Plan
+from ..database.models import CompiledArtifact
 from ..templates.template_library import TemplateLibrary
 from ..templates.template_schema import Template
 
@@ -23,13 +23,14 @@ logger = logging.getLogger(__name__)
 
 class CompilationError(Exception):
     """Raised when compilation fails."""
+
     pass
 
 
 class YAMLCompiler:
     """
     Service for compiling HA automation YAML from templates.
-    
+
     Responsibilities:
     - Accept validated plan + resolved context
     - Load template compilation mapping
@@ -38,22 +39,18 @@ class YAMLCompiler:
     - Generate human_summary and diff_summary
     - NEVER call LLM - pure deterministic compilation
     """
-    
-    def __init__(
-        self,
-        template_library: TemplateLibrary,
-        data_api_client: DataAPIClient
-    ):
+
+    def __init__(self, template_library: TemplateLibrary, data_api_client: DataAPIClient):
         """
         Initialize YAML compiler.
-        
+
         Args:
             template_library: Template library for template lookups
             data_api_client: Data API client for entity/device lookups
         """
         self.template_library = template_library
         self.data_api_client = data_api_client
-    
+
     async def compile_plan(
         self,
         plan_id: str,
@@ -61,11 +58,11 @@ class YAMLCompiler:
         template_version: int,
         parameters: dict[str, Any],
         resolved_context: dict[str, Any],
-        db: AsyncSession | None = None
+        db: AsyncSession | None = None,
     ) -> dict[str, Any]:
         """
         Compile automation YAML from plan.
-        
+
         Args:
             plan_id: Plan identifier
             template_id: Template identifier
@@ -73,10 +70,10 @@ class YAMLCompiler:
             parameters: Template parameters
             resolved_context: Resolved context (from validator)
             db: Optional database session for storing compiled artifact
-        
+
         Returns:
             Compiled artifact dictionary with compiled_id, yaml, human_summary, etc.
-        
+
         Raises:
             CompilationError: If compilation fails
         """
@@ -84,33 +81,31 @@ class YAMLCompiler:
         template = self.template_library.get_template(template_id, template_version)
         if not template:
             raise CompilationError(f"Template '{template_id}' version {template_version} not found")
-        
+
         # Merge parameters and resolved context
         all_params = {**parameters, **resolved_context}
-        
+
         # Compile trigger
         trigger = self._compile_trigger(template.compilation_mapping.trigger, all_params)
-        
+
         # Compile condition (if present)
         condition = None
         if template.compilation_mapping.condition:
             condition = self._compile_condition(template.compilation_mapping.condition, all_params)
-        
+
         # Compile action
         action = self._compile_action(template.compilation_mapping.action, all_params)
-        
+
         # Compile alias
         alias = self._compile_template_string(
-            template.compilation_mapping.alias_template or template.template_id,
-            all_params
+            template.compilation_mapping.alias_template or template.template_id, all_params
         )
-        
+
         # Compile description
         description = self._compile_template_string(
-            template.compilation_mapping.description_template or template.description,
-            all_params
+            template.compilation_mapping.description_template or template.description, all_params
         )
-        
+
         # Use mode from template compilation_mapping, default to "single"
         mode = template.compilation_mapping.mode or "single"
 
@@ -121,9 +116,9 @@ class YAMLCompiler:
             "initial_state": True,  # Required field for HA 2025.10+
             "mode": mode,
             "trigger": trigger,
-            "action": action
+            "action": action,
         }
-        
+
         if condition:
             automation["condition"] = condition
 
@@ -136,24 +131,26 @@ class YAMLCompiler:
 
         # Generate YAML
         yaml_content = yaml.dump(automation, default_flow_style=False, sort_keys=False)
-        
+
         # Generate human summary
         human_summary = self._generate_human_summary(template, parameters, resolved_context)
-        
+
         # Generate diff summary (empty for new automations)
         diff_summary = []
-        
+
         # Generate risk notes
         risk_notes = []
         if template.safety_class.value in ["high", "critical"]:
-            risk_notes.append({
-                "level": template.safety_class.value,
-                "message": f"This automation has {template.safety_class.value} safety classification"
-            })
-        
+            risk_notes.append(
+                {
+                    "level": template.safety_class.value,
+                    "message": f"This automation has {template.safety_class.value} safety classification",
+                }
+            )
+
         # Generate compiled_id
         compiled_id = f"c_{uuid.uuid4().hex[:8]}"
-        
+
         # Extract area_id from resolved context for update-vs-create lookup
         area_id = resolved_context.get("matched_area_id")
 
@@ -166,7 +163,7 @@ class YAMLCompiler:
             yaml=yaml_content,
             human_summary=human_summary,
             diff_summary=diff_summary,
-            risk_notes=risk_notes
+            risk_notes=risk_notes,
         )
 
         # Store in database if session provided
@@ -185,42 +182,35 @@ class YAMLCompiler:
             "yaml": yaml_content,
             "human_summary": human_summary,
             "diff_summary": diff_summary,
-            "risk_notes": risk_notes
+            "risk_notes": risk_notes,
         }
-    
+
     def _compile_trigger(
-        self,
-        trigger_mapping: dict[str, Any],
-        params: dict[str, Any]
+        self, trigger_mapping: dict[str, Any], params: dict[str, Any]
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """Compile trigger from mapping."""
         # Handle array of triggers
         if isinstance(trigger_mapping, list):
             return [self._compile_trigger_item(item, params) for item in trigger_mapping]
-        
+
         # Single trigger
         return self._compile_trigger_item(trigger_mapping, params)
-    
+
     def _compile_trigger_item(
-        self,
-        trigger_mapping: dict[str, Any],
-        params: dict[str, Any]
+        self, trigger_mapping: dict[str, Any], params: dict[str, Any]
     ) -> dict[str, Any]:
         """Compile single trigger item."""
         trigger = {}
-        
+
         # Copy platform
         if "platform" in trigger_mapping:
-            trigger["platform"] = self._compile_template_string(
-                trigger_mapping["platform"],
-                params
-            )
-        
+            trigger["platform"] = self._compile_template_string(trigger_mapping["platform"], params)
+
         # Copy other fields with template substitution
         for key, value in trigger_mapping.items():
             if key == "platform":
                 continue  # Already handled
-            
+
             if isinstance(value, str):
                 # Template string substitution
                 trigger[key] = self._compile_template_string(value, params)
@@ -233,64 +223,52 @@ class YAMLCompiler:
             else:
                 # Direct value
                 trigger[key] = value
-        
+
         return trigger
-    
+
     def _compile_condition(
-        self,
-        condition_mapping: dict[str, Any],
-        params: dict[str, Any]
+        self, condition_mapping: dict[str, Any], params: dict[str, Any]
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """Compile condition from mapping."""
         if isinstance(condition_mapping, list):
             return [self._compile_condition_item(item, params) for item in condition_mapping]
-        
+
         return self._compile_condition_item(condition_mapping, params)
-    
+
     def _compile_condition_item(
-        self,
-        condition_mapping: dict[str, Any],
-        params: dict[str, Any]
+        self, condition_mapping: dict[str, Any], params: dict[str, Any]
     ) -> dict[str, Any]:
         """Compile single condition item."""
         condition = {}
-        
+
         # Copy all fields with template substitution
         for key, value in condition_mapping.items():
             condition[key] = self._compile_value(value, params)
-        
+
         return condition
-    
+
     def _compile_action(
-        self,
-        action_mapping: dict[str, Any],
-        params: dict[str, Any]
+        self, action_mapping: dict[str, Any], params: dict[str, Any]
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """Compile action from mapping."""
         if isinstance(action_mapping, list):
             return [self._compile_action_item(item, params) for item in action_mapping]
-        
+
         return self._compile_action_item(action_mapping, params)
-    
+
     def _compile_action_item(
-        self,
-        action_mapping: dict[str, Any],
-        params: dict[str, Any]
+        self, action_mapping: dict[str, Any], params: dict[str, Any]
     ) -> dict[str, Any]:
         """Compile single action item."""
         action = {}
-        
+
         # Copy all fields with template substitution
         for key, value in action_mapping.items():
             action[key] = self._compile_value(value, params)
-        
+
         return action
-    
-    def _compile_value(
-        self,
-        value: Any,
-        params: dict[str, Any]
-    ) -> Any:
+
+    def _compile_value(self, value: Any, params: dict[str, Any]) -> Any:
         """Compile a value (recursive)."""
         if isinstance(value, str):
             return self._compile_template_string(value, params)
@@ -300,24 +278,16 @@ class YAMLCompiler:
             return [self._compile_value(item, params) for item in value]
         else:
             return value
-    
-    def _compile_dict(
-        self,
-        mapping: dict[str, Any],
-        params: dict[str, Any]
-    ) -> dict[str, Any]:
+
+    def _compile_dict(self, mapping: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
         """Compile a dictionary (recursive)."""
         result = {}
         for key, value in mapping.items():
             compiled_key = self._compile_template_string(key, params)
             result[compiled_key] = self._compile_value(value, params)
         return result
-    
-    def _compile_template_string(
-        self,
-        template: str,
-        params: dict[str, Any]
-    ) -> Any:
+
+    def _compile_template_string(self, template: str, params: dict[str, Any]) -> Any:
         """
         Compile template string with parameter substitution.
 
@@ -330,7 +300,7 @@ class YAMLCompiler:
         non-string (e.g. list), the native type is returned so YAML
         serialization produces the correct structure.
         """
-        pattern = r'\{\{([^}]+)\}\}'
+        pattern = r"\{\{([^}]+)\}\}"
         matches = re.findall(pattern, template)
 
         if not matches:
@@ -352,15 +322,11 @@ class YAMLCompiler:
                 # Otherwise, splice the string representation into the result
                 template = template.replace(f"{{{{{match}}}}}", str(resolved))
             else:
-                logger.warning(
-                    f"Parameter '{expr}' not found in params, leaving placeholder"
-                )
+                logger.warning(f"Parameter '{expr}' not found in params, leaving placeholder")
 
         return template
 
-    def _resolve_expression(
-        self, expr: str, params: dict[str, Any]
-    ) -> Any:
+    def _resolve_expression(self, expr: str, params: dict[str, Any]) -> Any:
         """Resolve a template expression against params.
 
         Handles:
@@ -375,7 +341,7 @@ class YAMLCompiler:
             return params[expr]
 
         # 2. Array indexing — e.g. "motion_sensor_entities[0]"
-        idx_match = re.match(r'^(\w+)\[(\d+)\]$', expr)
+        idx_match = re.match(r"^(\w+)\[(\d+)\]$", expr)
         if idx_match:
             name, idx = idx_match.group(1), int(idx_match.group(2))
             arr = params.get(name)
@@ -397,10 +363,10 @@ class YAMLCompiler:
             pass
 
         return None
-    
+
     # HA Jinja functions that should NOT be treated as unresolved placeholders
     _HA_JINJA_FUNCS = re.compile(
-        r'is_state\(|states\(|state_attr\(|now\(\)|utcnow\(\)|as_timestamp\('
+        r"is_state\(|states\(|state_attr\(|now\(\)|utcnow\(\)|as_timestamp\("
     )
 
     def _strip_unresolved(self, obj: Any, template: Template | None = None) -> Any:
@@ -411,7 +377,7 @@ class YAMLCompiler:
         Empty containers left after stripping are also removed.
         Values containing HA Jinja functions (is_state, states, etc.) are kept.
         """
-        _PH = re.compile(r'\{\{([^}]+)\}\}')
+        _PH = re.compile(r"\{\{([^}]+)\}\}")
 
         # Build set of required parameter names from the template schema
         required_params: set[str] = set()
@@ -437,7 +403,7 @@ class YAMLCompiler:
                             cleaned[k] = v
                             continue
                         # Extract base param name (handle nested like time_window.after)
-                        param_name = match.group(1).strip().split('.')[0]
+                        param_name = match.group(1).strip().split(".")[0]
                         if param_name in required_params:
                             raise CompilationError(
                                 f"Cannot compile: required parameter '{param_name}' "
@@ -463,7 +429,7 @@ class YAMLCompiler:
                 if isinstance(stripped, str):
                     match = pattern.search(stripped)
                     if match:
-                        param_name = match.group(1).strip().split('.')[0]
+                        param_name = match.group(1).strip().split(".")[0]
                         if param_name in required_params:
                             raise CompilationError(
                                 f"Cannot compile: required parameter '{param_name}' is unresolved"
@@ -494,8 +460,7 @@ class YAMLCompiler:
             if not isinstance(items, list):
                 continue
             cleaned = [
-                item for item in items
-                if not isinstance(item, dict) or set(item.keys()) != min_keys
+                item for item in items if not isinstance(item, dict) or set(item.keys()) != min_keys
             ]
             if cleaned:
                 automation[section] = cleaned
@@ -512,26 +477,23 @@ class YAMLCompiler:
         return automation
 
     def _generate_human_summary(
-        self,
-        template: Template,
-        parameters: dict[str, Any],
-        resolved_context: dict[str, Any]
+        self, template: Template, parameters: dict[str, Any], resolved_context: dict[str, Any]
     ) -> str:
         """Generate human-readable summary of compiled automation."""
         summary_parts = []
-        
+
         # Template description
         summary_parts.append(f"Template: {template.description}")
-        
+
         # Key parameters
         key_params = []
         for param_name, param_value in parameters.items():
             if param_name not in ["room_type", "target_area"]:  # Skip context params
                 key_params.append(f"{param_name}={param_value}")
-        
+
         if key_params:
             summary_parts.append(f"Parameters: {', '.join(key_params)}")
-        
+
         # Resolved context
         if resolved_context:
             context_parts = []
@@ -539,8 +501,8 @@ class YAMLCompiler:
                 context_parts.append(f"Area: {resolved_context['matched_area_id']}")
             if "presence_sensor_entity" in resolved_context:
                 context_parts.append(f"Sensor: {resolved_context['presence_sensor_entity']}")
-            
+
             if context_parts:
                 summary_parts.append(f"Context: {', '.join(context_parts)}")
-        
+
         return " | ".join(summary_parts)

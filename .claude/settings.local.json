@@ -99,7 +99,10 @@
       "Bash(git status:*)",
       "Bash(powershell -Command:*)",
       "Bash(npx playwright test:*)",
-      "WebFetch(domain:docs.claude.com)"
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:community.home-assistant.io)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": [],

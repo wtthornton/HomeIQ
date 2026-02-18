@@ -26,16 +26,18 @@ router = APIRouter(prefix="/automation", tags=["automation"])
 
 class PlanRequest(BaseModel):
     """Request to create automation plan."""
+
     conversation_id: str | None = Field(None, description="Conversation ID for tracking")
     user_text: str = Field(..., description="User's natural language request")
     context: dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional context (selected devices, room, timezone, etc.)"
+        description="Additional context (selected devices, room, timezone, etc.)",
     )
 
 
 class PlanResponse(BaseModel):
     """Response with automation plan."""
+
     plan_id: str
     intent_type: str = "automation_request"
     template_id: str
@@ -57,41 +59,38 @@ def get_template_library() -> TemplateLibrary:
     global _template_library
     if _template_library is None:
         from pathlib import Path
+
         current_file = Path(__file__)
         templates_dir = current_file.parent.parent / "templates" / "templates"
         _template_library = TemplateLibrary(templates_dir=templates_dir)
-        logger.info(f"Initialized template library with {len(_template_library.list_templates())} templates")
+        logger.info(
+            f"Initialized template library with {len(_template_library.list_templates())} templates"
+        )
     return _template_library
 
 
 def get_intent_planner(
-    db: DatabaseSession,
-    template_library: TemplateLibrary = Depends(get_template_library)
+    _db: DatabaseSession, template_library: TemplateLibrary = Depends(get_template_library)
 ) -> IntentPlanner:
     """Get intent planner instance."""
-    openai_client = OpenAIClient(
-        api_key=settings.openai_api_key,
-        model=settings.openai_model
-    )
+    openai_client = OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
     data_api_client = DataAPIClient(base_url=settings.data_api_url)
-    
+
     return IntentPlanner(
         openai_client=openai_client,
         template_library=template_library,
-        data_api_client=data_api_client
+        data_api_client=data_api_client,
     )
 
 
 @router.post("/plan", response_model=PlanResponse)
 @handle_route_errors("create automation plan")
 async def create_plan(
-    request: PlanRequest,
-    db: DatabaseSession,
-    planner: IntentPlanner = Depends(get_intent_planner)
+    request: PlanRequest, db: DatabaseSession, planner: IntentPlanner = Depends(get_intent_planner)
 ) -> PlanResponse:
     """
     Create automation plan from user intent.
-    
+
     LLM selects appropriate template and fills in parameters.
     Returns structured plan (template_id + parameters), never YAML.
     """
@@ -100,22 +99,21 @@ async def create_plan(
             user_text=request.user_text,
             conversation_id=request.conversation_id,
             context=request.context,
-            db=db
+            db=db,
         )
-        
+
         # Coerce clarifications_needed: LLM sometimes returns list[str]
         # instead of list[dict], which fails Pydantic validation.
         raw_clarifications = plan.get("clarifications_needed", [])
         plan["clarifications_needed"] = [
-            c if isinstance(c, dict) else {"question": c}
-            for c in raw_clarifications
+            c if isinstance(c, dict) else {"question": c} for c in raw_clarifications
         ]
 
         return PlanResponse(**plan)
 
     except ValueError as e:
         logger.error(f"Invalid plan creation request: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to create plan: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to create plan: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create plan: {str(e)}") from e

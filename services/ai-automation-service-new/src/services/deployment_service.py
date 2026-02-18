@@ -21,18 +21,20 @@ logger = logging.getLogger(__name__)
 
 class DeploymentError(Exception):
     """Base exception for deployment errors."""
+
     pass
 
 
 class SafetyValidationError(DeploymentError):
     """Raised when safety validation fails."""
+
     pass
 
 
 class DeploymentService:
     """
     Service for deploying automations to Home Assistant.
-    
+
     Features:
     - Deploy automations to Home Assistant
     - Safety validation before deployment
@@ -41,14 +43,11 @@ class DeploymentService:
     """
 
     def __init__(
-        self,
-        db: AsyncSession,
-        ha_client: HomeAssistantClient,
-        yaml_service: YAMLGenerationService
+        self, db: AsyncSession, ha_client: HomeAssistantClient, yaml_service: YAMLGenerationService
     ):
         """
         Initialize deployment service.
-        
+
         Args:
             db: Database session
             ha_client: Home Assistant client
@@ -59,22 +58,19 @@ class DeploymentService:
         self.yaml_service = yaml_service
 
     async def deploy_suggestion(
-        self,
-        suggestion_id: int,
-        skip_validation: bool = False,
-        force_deploy: bool = False
+        self, suggestion_id: int, skip_validation: bool = False, force_deploy: bool = False
     ) -> dict[str, Any]:
         """
         Deploy an automation suggestion to Home Assistant.
-        
+
         Args:
             suggestion_id: Suggestion ID to deploy
             skip_validation: Skip status validation (admin only)
             force_deploy: Override safety checks (admin only)
-        
+
         Returns:
             Deployment result dictionary
-        
+
         Raises:
             DeploymentError: If deployment fails
         """
@@ -83,29 +79,29 @@ class DeploymentService:
             query = select(Suggestion).where(Suggestion.id == suggestion_id)
             result = await self.db.execute(query)
             suggestion = result.scalar_one_or_none()
-            
+
             if not suggestion:
                 raise DeploymentError(f"Suggestion {suggestion_id} not found")
-            
+
             # Validate status (unless skip_validation)
             if not skip_validation:
                 if suggestion.status not in ["approved", "deployed"]:
                     raise DeploymentError(
                         f"Suggestion status must be 'approved' or 'deployed', got '{suggestion.status}'"
                     )
-            
+
             # Generate YAML if not present
             if not suggestion.automation_yaml:
                 logger.info(f"Generating YAML for suggestion {suggestion_id}")
                 yaml_content = await self.yaml_service.generate_automation_yaml(suggestion)
                 suggestion.automation_yaml = yaml_content
                 await self.db.flush()
-            
+
             # Validate YAML
             is_valid, error = await self.yaml_service.validate_yaml(suggestion.automation_yaml)
             if not is_valid:
                 raise DeploymentError(f"Invalid YAML: {error}")
-            
+
             # Safety validation (unless force_deploy)
             if not force_deploy:
                 # TODO: Epic 39, Story 39.11 - Integrate with dedicated safety validator service
@@ -118,27 +114,28 @@ class DeploymentService:
                     raise SafetyValidationError(
                         f"Invalid entities found: {', '.join(invalid_entities)}"
                     )
-            
+
             # Deploy to Home Assistant
-            deployment_result = await self.ha_client.deploy_automation(
-                suggestion.automation_yaml
-            )
-            
+            deployment_result = await self.ha_client.deploy_automation(suggestion.automation_yaml)
+
             if deployment_result.get("status") != "deployed":
                 raise DeploymentError(f"Deployment failed: {deployment_result}")
-            
+
             automation_id = deployment_result.get("automation_id")
             if not automation_id:
                 raise DeploymentError("Deployment result missing automation_id")
-            
+
             # Get previous version number for this automation
-            prev_version_query = select(AutomationVersion).where(
-                AutomationVersion.automation_id == automation_id
-            ).order_by(AutomationVersion.version_number.desc()).limit(1)
+            prev_version_query = (
+                select(AutomationVersion)
+                .where(AutomationVersion.automation_id == automation_id)
+                .order_by(AutomationVersion.version_number.desc())
+                .limit(1)
+            )
             prev_result = await self.db.execute(prev_version_query)
             prev_version = prev_result.scalar_one_or_none()
             version_number = (prev_version.version_number + 1) if prev_version else 1
-            
+
             # Store version for rollback
             version = AutomationVersion(
                 suggestion_id=suggestion.id,
@@ -146,25 +143,25 @@ class DeploymentService:
                 version_number=version_number,
                 automation_yaml=suggestion.automation_yaml,
                 safety_score=100,  # TODO: Epic 39, Story 39.11 - Get from safety validator service
-                deployed_at=datetime.now(timezone.utc)
+                deployed_at=datetime.now(timezone.utc),
             )
             self.db.add(version)
-            
+
             # Update suggestion status
             suggestion.status = "deployed"
             suggestion.automation_id = automation_id
             suggestion.deployed_at = datetime.now(timezone.utc)
             suggestion.updated_at = datetime.now(timezone.utc)
-            
+
             await self.db.commit()
-            
+
             logger.info(f"Successfully deployed suggestion {suggestion_id} as {automation_id}")
-            
+
             # Story 7: Include state, last_triggered, verification_warning for deploy feedback UI
             data: dict[str, Any] = {
                 "suggestion_id": suggestion_id,
                 "automation_id": automation_id,
-                "status": "deployed"
+                "status": "deployed",
             }
             if deployment_result.get("state"):
                 data["state"] = deployment_result["state"]
@@ -179,66 +176,51 @@ class DeploymentService:
                     automation_id,
                     deployment_result["verification_warning"],
                 )
-            
-            return {
-                "success": True,
-                "message": "Automation deployed successfully",
-                "data": data
-            }
-            
+
+            return {"success": True, "message": "Automation deployed successfully", "data": data}
+
         except DeploymentError:
             await self.db.rollback()
             raise
         except Exception as e:
             logger.error(f"Failed to deploy suggestion {suggestion_id}: {e}")
             await self.db.rollback()
-            raise DeploymentError(f"Deployment failed: {e}")
+            raise DeploymentError(f"Deployment failed: {e}") from e
 
-    async def batch_deploy(
-        self,
-        suggestion_ids: list[int]
-    ) -> dict[str, Any]:
+    async def batch_deploy(self, suggestion_ids: list[int]) -> dict[str, Any]:
         """
         Deploy multiple automations in batch.
-        
+
         Args:
             suggestion_ids: List of suggestion IDs to deploy
-        
+
         Returns:
             Batch deployment result dictionary
         """
-        results = {
-            "successful": [],
-            "failed": [],
-            "total": len(suggestion_ids)
-        }
-        
+        results = {"successful": [], "failed": [], "total": len(suggestion_ids)}
+
         for suggestion_id in suggestion_ids:
             try:
                 result = await self.deploy_suggestion(suggestion_id)
-                results["successful"].append({
-                    "suggestion_id": suggestion_id,
-                    "automation_id": result["data"]["automation_id"]
-                })
+                results["successful"].append(
+                    {
+                        "suggestion_id": suggestion_id,
+                        "automation_id": result["data"]["automation_id"],
+                    }
+                )
             except Exception as e:
                 logger.error(f"Failed to deploy suggestion {suggestion_id}: {e}")
-                results["failed"].append({
-                    "suggestion_id": suggestion_id,
-                    "error": str(e)
-                })
-        
+                results["failed"].append({"suggestion_id": suggestion_id, "error": str(e)})
+
         return results
 
-    async def get_automation_status(
-        self,
-        automation_id: str
-    ) -> dict[str, Any] | None:
+    async def get_automation_status(self, automation_id: str) -> dict[str, Any] | None:
         """
         Get status of a deployed automation.
-        
+
         Args:
             automation_id: Home Assistant automation ID
-        
+
         Returns:
             Automation status dictionary or None if not found
         """
@@ -252,7 +234,7 @@ class DeploymentService:
     async def list_deployed_automations(self) -> list[dict[str, Any]]:
         """
         List all deployed automations.
-        
+
         Returns:
             List of automation dictionaries
         """
@@ -263,43 +245,42 @@ class DeploymentService:
             logger.error(f"Failed to list automations: {e}")
             return []
 
-    async def rollback_automation(
-        self,
-        automation_id: str
-    ) -> dict[str, Any]:
+    async def rollback_automation(self, automation_id: str) -> dict[str, Any]:
         """
         Rollback automation to previous version.
-        
+
         Args:
             automation_id: Home Assistant automation ID
-        
+
         Returns:
             Rollback result dictionary
         """
         try:
             # Get previous version (ordered by version_number for proper rollback)
-            query = select(AutomationVersion).where(
-                AutomationVersion.automation_id == automation_id
-            ).order_by(AutomationVersion.version_number.desc())
-            
+            query = (
+                select(AutomationVersion)
+                .where(AutomationVersion.automation_id == automation_id)
+                .order_by(AutomationVersion.version_number.desc())
+            )
+
             result = await self.db.execute(query)
             versions = result.scalars().all()
-            
+
             if len(versions) < 2:
                 raise DeploymentError("No previous version found for rollback")
-            
+
             # Get previous version (second in list)
             previous_version = versions[1]
-            
+
             # Get latest version number
             latest_version = versions[0]
             new_version_number = latest_version.version_number + 1
-            
+
             # Deploy previous version
             deployment_result = await self.ha_client.deploy_automation(
                 previous_version.automation_yaml
             )
-            
+
             # Store new version
             new_version = AutomationVersion(
                 suggestion_id=previous_version.suggestion_id,
@@ -307,43 +288,42 @@ class DeploymentService:
                 version_number=new_version_number,
                 automation_yaml=previous_version.automation_yaml,
                 safety_score=previous_version.safety_score,
-                deployed_at=datetime.now(timezone.utc)
+                deployed_at=datetime.now(timezone.utc),
             )
             self.db.add(new_version)
             await self.db.commit()
-            
+
             return {
                 "success": True,
                 "message": "Automation rolled back successfully",
-                "automation_id": automation_id
+                "automation_id": automation_id,
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to rollback automation {automation_id}: {e}")
             await self.db.rollback()
-            raise DeploymentError(f"Rollback failed: {e}")
+            raise DeploymentError(f"Rollback failed: {e}") from e
 
-    async def get_automation_versions(
-        self,
-        automation_id: str
-    ) -> list[dict[str, Any]]:
+    async def get_automation_versions(self, automation_id: str) -> list[dict[str, Any]]:
         """
         Get version history for an automation.
-        
+
         Args:
             automation_id: Home Assistant automation ID
-        
+
         Returns:
             List of version dictionaries
         """
         try:
-            query = select(AutomationVersion).where(
-                AutomationVersion.automation_id == automation_id
-            ).order_by(AutomationVersion.version_number.desc())
-            
+            query = (
+                select(AutomationVersion)
+                .where(AutomationVersion.automation_id == automation_id)
+                .order_by(AutomationVersion.version_number.desc())
+            )
+
             result = await self.db.execute(query)
             versions = result.scalars().all()
-            
+
             return [
                 {
                     "id": v.id,
@@ -352,11 +332,11 @@ class DeploymentService:
                     "version_number": v.version_number,
                     "safety_score": v.safety_score,
                     "deployed_at": v.deployed_at.isoformat() if v.deployed_at else None,
-                    "is_active": v.is_active
+                    "is_active": v.is_active,
                 }
                 for v in versions
             ]
-            
+
         except Exception as e:
             logger.error(f"Failed to get automation versions: {e}")
             return []
@@ -364,10 +344,10 @@ class DeploymentService:
     async def enable_automation(self, automation_id: str) -> bool:
         """
         Enable a deployed automation.
-        
+
         Args:
             automation_id: Home Assistant automation ID
-        
+
         Returns:
             True if successful, False otherwise
         """
@@ -380,10 +360,10 @@ class DeploymentService:
     async def disable_automation(self, automation_id: str) -> bool:
         """
         Disable a deployed automation.
-        
+
         Args:
             automation_id: Home Assistant automation ID
-        
+
         Returns:
             True if successful, False otherwise
         """
@@ -396,10 +376,10 @@ class DeploymentService:
     async def trigger_automation(self, automation_id: str) -> bool:
         """
         Trigger a deployed automation.
-        
+
         Args:
             automation_id: Home Assistant automation ID
-        
+
         Returns:
             True if successful, False otherwise
         """
@@ -408,4 +388,3 @@ class DeploymentService:
         except Exception as e:
             logger.error(f"Failed to trigger automation {automation_id}: {e}")
             return False
-

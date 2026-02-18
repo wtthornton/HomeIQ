@@ -14,10 +14,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from ..api.dependencies import get_ha_client, get_data_api_client
+from ..api.dependencies import get_data_api_client, get_ha_client
 from ..api.error_handlers import handle_route_errors
-from ..clients.ha_client import HomeAssistantClient
 from ..clients.data_api_client import DataAPIClient
+from ..clients.ha_client import HomeAssistantClient
 
 try:
     _project_root = str(Path(__file__).resolve().parents[4])
@@ -30,7 +30,6 @@ from shared.patterns import (
     UnifiedValidationRouter,
     ValidationRequest,
     ValidationResponse,
-    ValidationSubsection,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,8 +39,10 @@ router = APIRouter(prefix="/api/v1/blueprints", tags=["blueprint", "validation"]
 
 # --- Request / Response models ---
 
+
 class ValidateBlueprintRequest(BaseModel):
     """Request to validate blueprint YAML."""
+
     yaml_content: str = Field(..., description="Blueprint YAML content")
     normalize: bool = Field(True, description="Normalize YAML")
     validate_entities: bool = Field(True, description="Validate entity references exist")
@@ -51,6 +52,7 @@ class ValidateBlueprintRequest(BaseModel):
 
 class DeviceValidationResult(BaseModel):
     """Device compatibility validation subsection."""
+
     performed: bool = True
     passed: bool = True
     errors: list[str] = Field(default_factory=list)
@@ -58,6 +60,7 @@ class DeviceValidationResult(BaseModel):
 
 class ValidateBlueprintResponse(BaseModel):
     """Unified blueprint validation response."""
+
     valid: bool
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -70,6 +73,7 @@ class ValidateBlueprintResponse(BaseModel):
 
 
 # --- Concrete validation router ---
+
 
 class BlueprintValidationRouter(UnifiedValidationRouter):
     """
@@ -204,7 +208,7 @@ class BlueprintValidationRouter(UnifiedValidationRouter):
         if not isinstance(inputs, dict):
             return errors
 
-        for input_name, input_def in inputs.items():
+        for _input_name, input_def in inputs.items():
             if not isinstance(input_def, dict):
                 continue
             selector = input_def.get("selector", {})
@@ -253,6 +257,7 @@ class BlueprintValidationRouter(UnifiedValidationRouter):
 
 
 # --- FastAPI route ---
+
 
 @router.post("/validate", response_model=ValidateBlueprintResponse)
 @handle_route_errors("validate blueprint YAML")

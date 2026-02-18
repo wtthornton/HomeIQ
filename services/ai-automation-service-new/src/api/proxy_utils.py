@@ -11,8 +11,6 @@ import httpx
 from fastapi import HTTPException, Request
 from fastapi.responses import Response
 
-from ..config import settings
-
 logger = logging.getLogger(__name__)
 
 
@@ -58,15 +56,11 @@ async def proxy_to_service(
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             if method == "GET":
-                response = await client.get(
-                    url, headers=headers, params=dict(request.query_params)
-                )
+                response = await client.get(url, headers=headers, params=dict(request.query_params))
             elif method == "POST":
                 response = await client.post(url, headers=headers, json=body)
             else:
-                raise HTTPException(
-                    status_code=405, detail=f"Method {method} not supported"
-                )
+                raise HTTPException(status_code=405, detail=f"Method {method} not supported")
 
             # Handle non-2xx responses
             if response.status_code >= 400:
@@ -82,12 +76,8 @@ async def proxy_to_service(
                 except Exception:
                     error_detail = response.text[:200] if response.text else "Unknown error"
 
-                logger.error(
-                    f"Upstream service returned {response.status_code}: {error_detail}"
-                )
-                raise HTTPException(
-                    status_code=response.status_code, detail=error_detail
-                )
+                logger.error(f"Upstream service returned {response.status_code}: {error_detail}")
+                raise HTTPException(status_code=response.status_code, detail=error_detail)
 
             return Response(
                 content=response.content,
@@ -101,21 +91,15 @@ async def proxy_to_service(
             )
     except httpx.ConnectError as e:
         logger.error(f"Failed to connect to upstream service at {service_base_url}: {e}")
-        raise HTTPException(
-            status_code=502, detail="Upstream service unavailable"
-        )
+        raise HTTPException(status_code=502, detail="Upstream service unavailable") from e
     except httpx.TimeoutException as e:
         logger.error(f"Timeout connecting to upstream service: {e}")
-        raise HTTPException(
-            status_code=504, detail="Upstream service timeout"
-        )
+        raise HTTPException(status_code=504, detail="Upstream service timeout") from e
     except httpx.RequestError as e:
         logger.error(f"Failed to proxy to upstream service: {e}")
-        raise HTTPException(status_code=502, detail="Upstream service unavailable")
+        raise HTTPException(status_code=502, detail="Upstream service unavailable") from e
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Unexpected error proxying to upstream service: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail="Internal server error"
-        )
+        raise HTTPException(status_code=500, detail="Internal server error") from e

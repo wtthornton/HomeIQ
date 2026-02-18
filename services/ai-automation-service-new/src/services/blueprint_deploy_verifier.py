@@ -69,9 +69,7 @@ class BlueprintDeployVerifier(PostActionVerifier):
         any_unavailable = False
 
         for aid in automation_ids:
-            entity_id = (
-                aid if str(aid).startswith("automation.") else f"automation.{aid}"
-            )
+            entity_id = aid if str(aid).startswith("automation.") else f"automation.{aid}"
             state_data = await self._get_state(entity_id)
 
             if not state_data:

@@ -53,10 +53,28 @@ class ValidateScriptResponse(BaseModel):
 
 
 VALID_ACTION_KEYS = {
-    "service", "target", "data", "delay", "wait_template", "event",
-    "choose", "conditions", "sequence", "default", "repeat", "count",
-    "while", "until", "if", "then", "else", "alias", "enabled",
-    "variables", "stop", "parallel",
+    "service",
+    "target",
+    "data",
+    "delay",
+    "wait_template",
+    "event",
+    "choose",
+    "conditions",
+    "sequence",
+    "default",
+    "repeat",
+    "count",
+    "while",
+    "until",
+    "if",
+    "then",
+    "else",
+    "alias",
+    "enabled",
+    "variables",
+    "stop",
+    "parallel",
 }
 
 
@@ -117,7 +135,7 @@ class ScriptValidationRouter(UnifiedValidationRouter):
             # Validate each action in the sequence
             for i, action in enumerate(sequence):
                 if not isinstance(action, dict):
-                    errors.append(f"Script '{script_name}', step {i+1}: must be a mapping")
+                    errors.append(f"Script '{script_name}', step {i + 1}: must be a mapping")
                     continue
 
                 # Validate service calls
@@ -127,7 +145,7 @@ class ScriptValidationRouter(UnifiedValidationRouter):
                         parts = svc.split(".")
                         if len(parts) != 2:
                             errors.append(
-                                f"Script '{script_name}', step {i+1}: "
+                                f"Script '{script_name}', step {i + 1}: "
                                 f"invalid service format '{svc}'"
                             )
 
@@ -184,8 +202,7 @@ class ScriptValidationRouter(UnifiedValidationRouter):
                 close_count = val.count("}}")
                 if open_count != close_count:
                     warnings.append(
-                        f"Script '{script_name}', step {step}: "
-                        f"unmatched template braces in '{key}'"
+                        f"Script '{script_name}', step {step}: unmatched template braces in '{key}'"
                     )
 
 

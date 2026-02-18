@@ -8,7 +8,6 @@ Tests:
 """
 
 import asyncio
-import json
 import sys
 from pathlib import Path
 
@@ -20,22 +19,22 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
 from shared.homeiq_automation.schema import (
+    DeviceContext,
+    EnergyImpact,
+    HomeIQAction,
     HomeIQAutomation,
     HomeIQMetadata,
     HomeIQTrigger,
-    HomeIQAction,
-    DeviceContext,
     SafetyChecks,
-    EnergyImpact,
 )
-from shared.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
 from shared.yaml_validation_service.schema import AutomationMode
+from shared.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
 
 
 def create_sample_homeiq_json() -> dict:
     """Create a sample HomeIQ JSON Automation for testing."""
     # Create using Pydantic models to ensure proper validation
-    
+
     return {
         "alias": "Test Automation",
         "description": "Test automation for JSON workflow",
@@ -78,12 +77,12 @@ def create_sample_homeiq_json() -> dict:
 async def test_json_workflow():
     """Test the complete JSON workflow."""
     print("Testing HomeIQ JSON Automation Workflow\n")
-    
+
     # Step 1: Create sample JSON
     print("Step 1: Creating sample HomeIQ JSON...")
     sample_json = create_sample_homeiq_json()
     print(f"[OK] Created JSON with alias: {sample_json['alias']}\n")
-    
+
     # Step 2: Validate JSON schema
     print("Step 2: Validating JSON schema...")
     try:
@@ -92,7 +91,7 @@ async def test_json_workflow():
     except Exception as e:
         print(f"[FAIL] JSON schema validation failed: {e}\n")
         return False
-    
+
     # Step 3: Convert to AutomationSpec
     print("Step 3: Converting HomeIQ JSON to AutomationSpec...")
     try:
@@ -102,7 +101,7 @@ async def test_json_workflow():
     except Exception as e:
         print(f"[FAIL] Conversion failed: {e}\n")
         return False
-    
+
     # Step 4: Render to YAML
     print("Step 4: Rendering AutomationSpec to YAML...")
     try:
@@ -117,7 +116,7 @@ async def test_json_workflow():
     except Exception as e:
         print(f"[FAIL] YAML rendering failed: {e}\n")
         return False
-    
+
     print("[OK] All workflow steps completed successfully!")
     return True
 
@@ -125,4 +124,3 @@ async def test_json_workflow():
 if __name__ == "__main__":
     success = asyncio.run(test_json_workflow())
     sys.exit(0 if success else 1)
-

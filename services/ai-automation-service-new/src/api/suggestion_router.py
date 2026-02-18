@@ -13,19 +13,14 @@ from pydantic import BaseModel
 
 from ..api.dependencies import (
     DatabaseSession,
-    get_automation_combiner,
     get_json_query_service,
     get_json_rebuilder,
-    get_json_verification_service,
     get_suggestion_service,
 )
 from ..api.error_handlers import handle_route_errors
-from ..database import get_db
 from ..database.models import Suggestion
-from ..services.automation_combiner import AutomationCombiner
 from ..services.json_query_service import JSONQueryService
 from ..services.json_rebuilder import JSONRebuilder
-from ..services.json_verification_service import JSONVerificationService
 from ..services.suggestion_service import SuggestionService
 
 logger = logging.getLogger(__name__)
@@ -35,6 +30,7 @@ router = APIRouter(prefix="/api/suggestions", tags=["suggestions"])
 
 class GenerateRequest(BaseModel):
     """Request to generate suggestions."""
+
     pattern_ids: list[str] | None = None
     days: int = 30
     limit: int = 10
@@ -44,22 +40,16 @@ class GenerateRequest(BaseModel):
 @handle_route_errors("generate suggestions")
 async def generate_suggestions(
     request: GenerateRequest,
-    db: DatabaseSession,
-    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
+    _db: DatabaseSession,
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service),
 ) -> dict[str, Any]:
     """
     Generate automation suggestions from patterns.
     """
     suggestions = await suggestion_svc.generate_suggestions(
-        pattern_ids=request.pattern_ids,
-        days=request.days,
-        limit=request.limit
+        pattern_ids=request.pattern_ids, days=request.days, limit=request.limit
     )
-    return {
-        "success": True,
-        "suggestions": suggestions,
-        "count": len(suggestions)
-    }
+    return {"success": True, "suggestions": suggestions, "count": len(suggestions)}
 
 
 @router.get("/list")
@@ -68,23 +58,19 @@ async def list_suggestions(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     status: str | None = Query(None),
-    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service),
 ) -> dict[str, Any]:
     """
     List automation suggestions with filtering and pagination.
     """
-    result = await suggestion_svc.list_suggestions(
-        limit=limit,
-        offset=offset,
-        status=status
-    )
+    result = await suggestion_svc.list_suggestions(limit=limit, offset=offset, status=status)
     return result
 
 
 @router.get("/usage/stats")
 @handle_route_errors("get usage stats")
 async def get_usage_stats(
-    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service),
 ) -> dict[str, Any]:
     """
     Get suggestion usage statistics.
@@ -96,8 +82,7 @@ async def get_usage_stats(
 @router.post("/refresh")
 @handle_route_errors("refresh suggestions")
 async def refresh_suggestions(
-    db: DatabaseSession,
-    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
+    _db: DatabaseSession, suggestion_svc: SuggestionService = Depends(get_suggestion_service)
 ) -> dict[str, Any]:
     """
     Manually trigger suggestion generation.
@@ -125,14 +110,14 @@ async def refresh_suggestions(
                 "message": "No suggestions generated. Possible reasons: No events available (need at least 100 events), Data API not responding, or OpenAI API key not configured. Check service logs for details.",
                 "count": 0,
                 "suggestions": [],
-                "error_code": "NO_SUGGESTIONS_GENERATED"
+                "error_code": "NO_SUGGESTIONS_GENERATED",
             }
 
         return {
             "success": True,
             "message": f"Suggestion generation completed. Generated {len(suggestions)} suggestions.",
             "count": len(suggestions),
-            "suggestions": suggestions
+            "suggestions": suggestions,
         }
     except ValueError as e:
         # Handle validation errors (e.g., OpenAI not configured, Data API errors)
@@ -142,7 +127,7 @@ async def refresh_suggestions(
             "message": "Suggestion generation failed due to a configuration or validation error. Check server logs.",
             "count": 0,
             "suggestions": [],
-            "error_code": "VALIDATION_ERROR"
+            "error_code": "VALIDATION_ERROR",
         }
     except Exception as e:
         # Handle unexpected errors (C3: don't leak internal details)
@@ -152,14 +137,12 @@ async def refresh_suggestions(
             "message": "Unexpected error during suggestion generation. Check server logs.",
             "count": 0,
             "suggestions": [],
-            "error_code": "GENERATION_ERROR"
+            "error_code": "GENERATION_ERROR",
         }
 
 
 @router.get("/refresh/status")
-async def get_refresh_status(
-    db: DatabaseSession
-) -> dict[str, Any]:
+async def get_refresh_status(_db: DatabaseSession) -> dict[str, Any]:
     """
     Get status of suggestion refresh operation.
 
@@ -169,16 +152,13 @@ async def get_refresh_status(
     # TODO: Epic 39, Story 39.10 - Migrate refresh status tracking from archived service
     # Current: Placeholder endpoint
     # Future: Real-time status updates, job queue management
-    return {
-        "status": "idle",
-        "message": "Refresh status endpoint - implementation in progress"
-    }
+    return {"status": "idle", "message": "Refresh status endpoint - implementation in progress"}
 
 
 @router.get("/health")
 @handle_route_errors("health check")
 async def get_suggestions_health(
-    suggestion_svc: SuggestionService = Depends(get_suggestion_service)
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service),
 ) -> dict[str, Any]:
     """
     Health check endpoint for suggestion generation prerequisites.
@@ -207,25 +187,17 @@ async def get_suggestions_health(
         }
     """
     issues = []
-    checks = {
-        "database": False,
-        "data_api": False,
-        "openai": False,
-        "events_available": False
-    }
-    details = {
-        "event_count": 0,
-        "can_generate": 0,
-        "openai_configured": False
-    }
+    checks = {"database": False, "data_api": False, "openai": False, "events_available": False}
+    details = {"event_count": 0, "can_generate": 0, "openai_configured": False}
 
     # Check database connectivity
     try:
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
+
         count_query = select(func.count()).select_from(Suggestion)
         result = await suggestion_svc.db.execute(count_query)
-        total_suggestions = result.scalar() or 0
         checks["database"] = True
+        details["suggestion_count"] = result.scalar() or 0
     except Exception as e:
         issues.append(f"Database connection failed: {str(e)}")
 
@@ -250,7 +222,9 @@ async def get_suggestions_health(
                 if event_count >= 100:
                     checks["events_available"] = True
                 else:
-                    issues.append(f"Insufficient events: {event_count} available, need at least 100 (can generate {details['can_generate']} suggestions)")
+                    issues.append(
+                        f"Insufficient events: {event_count} available, need at least 100 (can generate {details['can_generate']} suggestions)"
+                    )
             except Exception as e:
                 issues.append(f"Failed to fetch events from Data API: {str(e)}")
         else:
@@ -265,16 +239,15 @@ async def get_suggestions_health(
         "checks": checks,
         "details": details,
         "issues": issues,
-        "message": "All checks passed" if healthy else f"Found {len(issues)} issue(s). See 'issues' array for details."
+        "message": "All checks passed"
+        if healthy
+        else f"Found {len(issues)} issue(s). See 'issues' array for details.",
     }
 
 
 @router.get("/{suggestion_id}/json")
 @handle_route_errors("get suggestion JSON")
-async def get_suggestion_json(
-    suggestion_id: int,
-    db: DatabaseSession
-) -> dict[str, Any]:
+async def get_suggestion_json(suggestion_id: int, db: DatabaseSession) -> dict[str, Any]:
     """
     Get HomeIQ JSON Automation for a suggestion.
 
@@ -285,17 +258,14 @@ async def get_suggestion_json(
         raise HTTPException(status_code=404, detail="Suggestion not found")
 
     if not suggestion.automation_json:
-        raise HTTPException(
-            status_code=404,
-            detail="HomeIQ JSON not available for this suggestion"
-        )
+        raise HTTPException(status_code=404, detail="HomeIQ JSON not available for this suggestion")
 
     return {
         "success": True,
         "suggestion_id": suggestion_id,
         "automation_json": suggestion.automation_json,
         "json_schema_version": suggestion.json_schema_version,
-        "ha_version": suggestion.ha_version
+        "ha_version": suggestion.ha_version,
     }
 
 
@@ -305,7 +275,7 @@ async def rebuild_suggestion_json(
     suggestion_id: int,
     db: DatabaseSession,
     from_yaml: bool = Query(False, description="Rebuild from YAML instead of description"),
-    rebuilder: JSONRebuilder = Depends(get_json_rebuilder)
+    rebuilder: JSONRebuilder = Depends(get_json_rebuilder),
 ) -> dict[str, Any]:
     """
     Rebuild HomeIQ JSON Automation for a suggestion.
@@ -322,7 +292,7 @@ async def rebuild_suggestion_json(
             automation_json = await rebuilder.rebuild_from_yaml(
                 yaml_content=suggestion.automation_yaml,
                 suggestion_id=suggestion_id,
-                pattern_id=suggestion.pattern_id
+                pattern_id=suggestion.pattern_id,
             )
         else:
             # Rebuild from description
@@ -330,7 +300,7 @@ async def rebuild_suggestion_json(
                 description=suggestion.description or "",
                 title=suggestion.title,
                 suggestion_id=suggestion_id,
-                pattern_id=suggestion.pattern_id
+                pattern_id=suggestion.pattern_id,
             )
 
         # Update suggestion with rebuilt JSON
@@ -342,12 +312,14 @@ async def rebuild_suggestion_json(
             "success": True,
             "suggestion_id": suggestion_id,
             "automation_json": automation_json,
-            "message": "JSON rebuilt successfully"
+            "message": "JSON rebuilt successfully",
         }
 
     except Exception as e:
         logger.error(f"Failed to rebuild JSON for suggestion {suggestion_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to rebuild JSON. Check server logs for details.")
+        raise HTTPException(
+            status_code=500, detail="Failed to rebuild JSON. Check server logs for details."
+        ) from e
 
 
 @router.post("/query")
@@ -357,7 +329,7 @@ async def query_suggestions(
     db: DatabaseSession,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    query_svc: JSONQueryService = Depends(get_json_query_service)
+    query_svc: JSONQueryService = Depends(get_json_query_service),
 ) -> dict[str, Any]:
     """
     Query suggestions by JSON properties.
@@ -374,11 +346,11 @@ async def query_suggestions(
     - tags: str | list[str]
     """
     # C6 fix: Apply SQL-level filtering where possible before loading into memory
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
 
     # First get a count of suggestions with JSON (for estimation)
-    count_stmt = select(func.count()).select_from(Suggestion).where(
-        Suggestion.automation_json.isnot(None)
+    count_stmt = (
+        select(func.count()).select_from(Suggestion).where(Suggestion.automation_json.isnot(None))
     )
     count_result = await db.execute(count_stmt)
     total_with_json = count_result.scalar() or 0
@@ -390,14 +362,16 @@ async def query_suggestions(
             "count": 0,
             "total": 0,
             "limit": limit,
-            "offset": offset
+            "offset": offset,
         }
 
     # Load suggestions with JSON (SQLite doesn't support complex JSON queries,
     # so we filter in Python but limit the initial load)
-    stmt = select(Suggestion).where(
-        Suggestion.automation_json.isnot(None)
-    ).order_by(Suggestion.created_at.desc())
+    stmt = (
+        select(Suggestion)
+        .where(Suggestion.automation_json.isnot(None))
+        .order_by(Suggestion.created_at.desc())
+    )
     result = await db.execute(stmt)
     suggestions = result.scalars().all()
 
@@ -409,7 +383,7 @@ async def query_suggestions(
 
     # Apply pagination
     total = len(matching_automations)
-    paginated = matching_automations[offset:offset + limit]
+    paginated = matching_automations[offset : offset + limit]
 
     # Map back to suggestions
     automation_aliases = {a.get("alias"): a for a in paginated}
@@ -419,7 +393,7 @@ async def query_suggestions(
             "title": s.title,
             "description": s.description,
             "automation_json": s.automation_json,
-            "status": s.status
+            "status": s.status,
         }
         for s in suggestions
         if s.automation_json and s.automation_json.get("alias") in automation_aliases
@@ -431,5 +405,5 @@ async def query_suggestions(
         "count": len(matching_suggestions),
         "total": total,
         "limit": limit,
-        "offset": offset
+        "offset": offset,
     }

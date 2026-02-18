@@ -17,39 +17,36 @@ logger = logging.getLogger(__name__)
 class JSONRebuilder:
     """
     Service for rebuilding HomeIQ JSON using LLM.
-    
+
     Use Cases:
     - Rebuild JSON from legacy YAML
     - Rebuild JSON from natural language description
     - Fix invalid JSON
     """
-    
+
     def __init__(self, openai_client: OpenAIClient):
         """
         Initialize JSON rebuilder.
-        
+
         Args:
             openai_client: OpenAI client for LLM operations
         """
         self.openai_client = openai_client
-    
+
     async def rebuild_from_yaml(
-        self,
-        yaml_content: str,
-        suggestion_id: int | None = None,
-        pattern_id: int | None = None
+        self, yaml_content: str, suggestion_id: int | None = None, pattern_id: int | None = None
     ) -> dict[str, Any]:
         """
         Rebuild HomeIQ JSON from YAML using LLM.
-        
+
         Args:
             yaml_content: Home Assistant automation YAML
             suggestion_id: Optional suggestion ID for metadata
             pattern_id: Optional pattern ID for metadata
-        
+
         Returns:
             HomeIQ JSON Automation dictionary
-        
+
         Raises:
             ValueError: If rebuild fails
         """
@@ -73,50 +70,47 @@ Requirements:
 
 Return ONLY valid JSON matching the HomeIQ Automation schema, no explanations or markdown code blocks.
 """
-        
+
         try:
             automation_json = await self.openai_client.generate_homeiq_automation_json(
-                prompt=prompt,
-                homeiq_context=None,
-                temperature=0.1,
-                max_tokens=3000
+                prompt=prompt, homeiq_context=None, temperature=0.1, max_tokens=3000
             )
-            
+
             # Validate the rebuilt JSON
             try:
                 HomeIQAutomation(**automation_json)
             except Exception as e:
                 logger.warning(f"Rebuilt JSON validation warning: {e}")
                 # Continue anyway - LLM may have generated valid structure
-            
+
             logger.info(f"Rebuilt HomeIQ JSON from YAML: {automation_json.get('alias', 'unknown')}")
             return automation_json
-        
+
         except Exception as e:
             logger.error(f"Failed to rebuild JSON from YAML: {e}")
             raise ValueError(f"JSON rebuild failed: {e}")
-    
+
     async def rebuild_from_description(
         self,
         description: str,
         title: str | None = None,
         suggestion_id: int | None = None,
         pattern_id: int | None = None,
-        homeiq_context: dict[str, Any] | None = None
+        homeiq_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Rebuild HomeIQ JSON from natural language description using LLM.
-        
+
         Args:
             description: Natural language description of automation
             title: Optional title for automation
             suggestion_id: Optional suggestion ID for metadata
             pattern_id: Optional pattern ID for metadata
             homeiq_context: Optional HomeIQ context (patterns, devices, areas)
-        
+
         Returns:
             HomeIQ JSON Automation dictionary
-        
+
         Raises:
             ValueError: If rebuild fails
         """
@@ -139,48 +133,45 @@ Requirements:
 
 Return ONLY valid JSON matching the HomeIQ Automation schema, no explanations or markdown code blocks.
 """
-        
+
         try:
             automation_json = await self.openai_client.generate_homeiq_automation_json(
-                prompt=prompt,
-                homeiq_context=homeiq_context,
-                temperature=0.1,
-                max_tokens=3000
+                prompt=prompt, homeiq_context=homeiq_context, temperature=0.1, max_tokens=3000
             )
-            
+
             # Validate the rebuilt JSON
             try:
                 HomeIQAutomation(**automation_json)
             except Exception as e:
                 logger.warning(f"Rebuilt JSON validation warning: {e}")
-            
-            logger.info(f"Rebuilt HomeIQ JSON from description: {automation_json.get('alias', 'unknown')}")
+
+            logger.info(
+                f"Rebuilt HomeIQ JSON from description: {automation_json.get('alias', 'unknown')}"
+            )
             return automation_json
-        
+
         except Exception as e:
             logger.error(f"Failed to rebuild JSON from description: {e}")
             raise ValueError(f"JSON rebuild failed: {e}")
-    
+
     async def fix_invalid_json(
-        self,
-        invalid_json: dict[str, Any],
-        errors: list[str] | None = None
+        self, invalid_json: dict[str, Any], errors: list[str] | None = None
     ) -> dict[str, Any]:
         """
         Fix invalid HomeIQ JSON using LLM.
-        
+
         Args:
             invalid_json: Invalid JSON dictionary
             errors: Optional list of validation errors
-        
+
         Returns:
             Fixed HomeIQ JSON Automation dictionary
-        
+
         Raises:
             ValueError: If fix fails
         """
         errors_text = "\n".join(errors) if errors else "Unknown validation errors"
-        
+
         prompt = f"""Fix this invalid HomeIQ JSON Automation. It has the following errors:
 
 Errors:
@@ -197,15 +188,12 @@ Requirements:
 - Ensure all required fields are present
 - Return ONLY valid JSON matching the HomeIQ Automation schema, no explanations or markdown code blocks.
 """
-        
+
         try:
             fixed_json = await self.openai_client.generate_homeiq_automation_json(
-                prompt=prompt,
-                homeiq_context=None,
-                temperature=0.1,
-                max_tokens=3000
+                prompt=prompt, homeiq_context=None, temperature=0.1, max_tokens=3000
             )
-            
+
             # Validate the fixed JSON
             try:
                 HomeIQAutomation(**fixed_json)
@@ -213,10 +201,9 @@ Requirements:
             except Exception as e:
                 logger.error(f"Fixed JSON still has validation errors: {e}")
                 raise ValueError(f"Failed to fix JSON: {e}")
-            
+
             return fixed_json
-        
+
         except Exception as e:
             logger.error(f"Failed to fix invalid JSON: {e}")
             raise ValueError(f"JSON fix failed: {e}")
-

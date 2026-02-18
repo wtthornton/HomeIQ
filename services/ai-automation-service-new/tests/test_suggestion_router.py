@@ -10,7 +10,7 @@ from httpx import AsyncClient
 
 class TestSuggestionRouter:
     """Test suite for suggestion router endpoints."""
-    
+
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_generate_suggestions_endpoint(self, client: AsyncClient, auth_headers: dict):
@@ -21,7 +21,7 @@ class TestSuggestionRouter:
         assert "message" in data
         assert "status" in data
         assert data["status"] == "foundation_ready"
-    
+
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_list_suggestions_endpoint(self, client: AsyncClient, auth_headers: dict):
@@ -32,7 +32,7 @@ class TestSuggestionRouter:
         assert "suggestions" in data
         assert "total" in data
         assert isinstance(data["suggestions"], list)
-    
+
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_list_suggestions_with_params(self, client: AsyncClient, auth_headers: dict):
@@ -42,7 +42,7 @@ class TestSuggestionRouter:
         data = response.json()
         assert data["limit"] == 10
         assert data["offset"] == 0
-    
+
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_usage_stats_endpoint(self, client: AsyncClient, auth_headers: dict):
@@ -52,7 +52,7 @@ class TestSuggestionRouter:
         data = response.json()
         assert "stats" in data
         assert "message" in data
-    
+
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_refresh_suggestions_endpoint(self, client: AsyncClient, auth_headers: dict):
@@ -62,7 +62,7 @@ class TestSuggestionRouter:
         data = response.json()
         assert "status" in data
         assert "message" in data
-    
+
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_refresh_status_endpoint(self, client: AsyncClient, auth_headers: dict):
@@ -72,4 +72,3 @@ class TestSuggestionRouter:
         data = response.json()
         assert "status" in data
         assert "message" in data
-

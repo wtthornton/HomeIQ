@@ -32,7 +32,6 @@ from shared.patterns import (
     UnifiedValidationRouter,
     ValidationRequest,
     ValidationResponse,
-    categorize_errors,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,8 +43,10 @@ router = APIRouter(prefix="/api/v1/automations", tags=["automation", "validation
 # These preserve the existing API contract while the internal logic
 # now uses the shared UnifiedValidationRouter pattern.
 
+
 class ValidateYAMLRequest(BaseModel):
     """Request to validate automation YAML."""
+
     yaml_content: str = Field(..., description="Home Assistant automation YAML")
     normalize: bool = Field(True, description="Normalize YAML to canonical format")
     validate_entities: bool = Field(True, description="Validate entity IDs exist")
@@ -54,6 +55,7 @@ class ValidateYAMLRequest(BaseModel):
 
 class EntityValidationResult(BaseModel):
     """Entity validation subsection."""
+
     performed: bool = True
     passed: bool = True
     errors: list[str] = Field(default_factory=list)
@@ -61,6 +63,7 @@ class EntityValidationResult(BaseModel):
 
 class ServiceValidationResult(BaseModel):
     """Service validation subsection."""
+
     performed: bool = True
     passed: bool = True
     errors: list[str] = Field(default_factory=list)
@@ -68,6 +71,7 @@ class ServiceValidationResult(BaseModel):
 
 class ValidateYAMLResponse(BaseModel):
     """Unified validation response."""
+
     valid: bool
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -79,6 +83,7 @@ class ValidateYAMLResponse(BaseModel):
 
 
 # --- Concrete validation router using shared pattern ---
+
 
 class AutomationYAMLValidationRouter(UnifiedValidationRouter):
     """
@@ -122,7 +127,7 @@ def _build_router(yaml_client: YAMLValidationClient) -> AutomationYAMLValidation
 @handle_route_errors("validate automation YAML")
 async def validate_automation_yaml(
     request: ValidateYAMLRequest,
-    yaml_client: YAMLValidationClient = Depends(get_yaml_validation_client)
+    yaml_client: YAMLValidationClient = Depends(get_yaml_validation_client),
 ) -> ValidateYAMLResponse:
     """
     Unified validation endpoint for automation YAML.
@@ -142,10 +147,7 @@ async def validate_automation_yaml(
         response = await validation_router.run_validation(unified_request)
     except Exception as e:
         logger.error(f"YAML validation failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=502,
-            detail=f"Validation service error: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=502, detail=f"Validation service error: {str(e)}") from e
 
     if not response.valid and response.errors:
         logger.warning("Validation returned invalid: %s", response.errors[:3])

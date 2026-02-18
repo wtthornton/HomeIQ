@@ -23,20 +23,20 @@ logger = logging.getLogger(__name__)
 class IntentPlanner:
     """
     Service for planning automations from user intent.
-    
+
     Converts natural language requests into structured plans (template_id + parameters).
     LLM selects appropriate template and fills in parameters.
     """
-    
+
     def __init__(
         self,
         openai_client: OpenAIClient,
         template_library: TemplateLibrary,
-        data_api_client: DataAPIClient | None = None
+        data_api_client: DataAPIClient | None = None,
     ):
         """
         Initialize intent planner.
-        
+
         Args:
             openai_client: OpenAI client for LLM calls
             template_library: Template library for template selection
@@ -45,53 +45,54 @@ class IntentPlanner:
         self.openai_client = openai_client
         self.template_library = template_library
         self.data_api_client = data_api_client
-    
+
     async def create_plan(
         self,
         user_text: str,
         conversation_id: str | None = None,
         context: dict[str, Any] | None = None,
-        db: AsyncSession | None = None
+        db: AsyncSession | None = None,
     ) -> dict[str, Any]:
         """
         Create automation plan from user intent.
-        
+
         Args:
             user_text: User's natural language request
             conversation_id: Optional conversation ID for tracking
             context: Optional context (selected devices, room, timezone, etc.)
             db: Optional database session for storing plan
-        
+
         Returns:
             Plan dictionary with plan_id, template_id, parameters, confidence, etc.
         """
         # Get available templates for LLM selection
         available_templates = self.template_library.list_templates()
-        
+
         # Build prompt for template selection
         template_descriptions = []
         for template_info in available_templates:
             template = self.template_library.get_template(
-                template_info["template_id"],
-                template_info["version"]
+                template_info["template_id"], template_info["version"]
             )
             if template:
-                template_descriptions.append({
-                    "template_id": template.template_id,
-                    "version": template.version,
-                    "description": template.description,
-                    "required_capabilities": template.required_capabilities.model_dump(),
-                    "parameter_schema": {
-                        param_name: {
-                            "type": param.type.value,
-                            "required": param.required,
-                            "description": param.description,
-                            "enum": param.enum,
-                            "default": param.default
-                        }
-                        for param_name, param in template.parameter_schema.items()
+                template_descriptions.append(
+                    {
+                        "template_id": template.template_id,
+                        "version": template.version,
+                        "description": template.description,
+                        "required_capabilities": template.required_capabilities.model_dump(),
+                        "parameter_schema": {
+                            param_name: {
+                                "type": param.type.value,
+                                "required": param.required,
+                                "description": param.description,
+                                "enum": param.enum,
+                                "default": param.default,
+                            }
+                            for param_name, param in template.parameter_schema.items()
+                        },
                     }
-                })
+                )
 
         # Pre-filter templates that can't work in the target area
         template_descriptions = await self._filter_templates_by_capabilities(
@@ -222,37 +223,36 @@ IMPORTANT: When selecting a template, verify the target area has the required se
         user_prompt = f"User request: {user_text}"
         if context:
             user_prompt += f"\n\nContext: {json.dumps(context, indent=2)}"
-        
+
         # Call LLM with structured output
         try:
             if not self.openai_client.client:
                 raise ValueError("OpenAI client not initialized")
-            
+
             plan_kwargs = dict(
                 model=self.openai_client.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 response_format={"type": "json_object"},
             )
             if self.openai_client.supports_temperature:
                 plan_kwargs["temperature"] = 0.3
             response = await self.openai_client.client.chat.completions.create(**plan_kwargs)
-            
+
             plan_data = json.loads(response.choices[0].message.content)
-            
+
             # Validate template exists
             template = self.template_library.get_template(
-                plan_data["template_id"],
-                plan_data.get("template_version")
+                plan_data["template_id"], plan_data.get("template_version")
             )
             if not template:
                 raise ValueError(f"Template {plan_data['template_id']} not found")
-            
+
             # Generate plan_id
             plan_id = f"p_{uuid.uuid4().hex[:8]}"
-            
+
             # Create plan object
             plan = Plan(
                 plan_id=plan_id,
@@ -263,20 +263,20 @@ IMPORTANT: When selecting a template, verify the target area has the required se
                 confidence=plan_data.get("confidence", 0.5),
                 clarifications_needed=plan_data.get("clarifications_needed", []),
                 safety_class=plan_data.get("safety_class", "low"),
-                explanation=plan_data.get("explanation")
+                explanation=plan_data.get("explanation"),
             )
-            
+
             # Store in database if session provided
             if db:
                 db.add(plan)
                 await db.commit()
                 await db.refresh(plan)
-            
+
             logger.info(
                 f"Created plan {plan_id}: template={plan_data['template_id']}, "
                 f"confidence={plan_data.get('confidence', 0.0):.2f}"
             )
-            
+
             return {
                 "plan_id": plan_id,
                 "intent_type": "automation_request",
@@ -287,9 +287,9 @@ IMPORTANT: When selecting a template, verify the target area has the required se
                 "clarifications_needed": plan_data.get("clarifications_needed", []),
                 "safety_class": plan_data.get("safety_class", "low"),
                 "promotion_recommended": plan_data.get("confidence", 0.5) >= 0.8,
-                "explanation": plan_data.get("explanation", "")
+                "explanation": plan_data.get("explanation", ""),
             }
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
             raise ValueError(f"LLM returned invalid JSON: {e}")
@@ -401,11 +401,28 @@ IMPORTANT: When selecting a template, verify the target area has the required se
 
         # Quick sports intent detection
         sports_keywords = [
-            "team", "score", "game", "match", "goal",
-            "hockey", "football", "basketball", "baseball", "soccer",
-            "nhl", "nfl", "nba", "mlb", "mls",
-            "win", "lose", "start", "halftime", "quarter",
-            "touchdown", "home run",
+            "team",
+            "score",
+            "game",
+            "match",
+            "goal",
+            "hockey",
+            "football",
+            "basketball",
+            "baseball",
+            "soccer",
+            "nhl",
+            "nfl",
+            "nba",
+            "mlb",
+            "mls",
+            "win",
+            "lose",
+            "start",
+            "halftime",
+            "quarter",
+            "touchdown",
+            "home run",
         ]
         # Also check team name keywords
         team_name_hit = False
@@ -423,7 +440,8 @@ IMPORTANT: When selecting a template, verify the target area has the required se
         try:
             entities = await self.data_api_client.fetch_entities()
             team_sensors = [
-                e for e in entities
+                e
+                for e in entities
                 if "team_tracker" in e.get("entity_id", "")
                 and e.get("entity_id", "").startswith("sensor.")
             ]
@@ -444,9 +462,15 @@ IMPORTANT: When selecting a template, verify the target area has the required se
                 lines.append(f"  - {entity_id}: abbreviation={abbr.upper()}{name_str}")
 
             lines.append("")
-            lines.append("Team Tracker sensor states: PRE (pre-game), IN (in-progress), POST (game over), BYE, NOT_FOUND")
-            lines.append("Key attributes: team_score, opponent_score, team_name, opponent_name, team_abbr, team_colors")
-            lines.append("CRITICAL: For state triggers on team_tracker sensors, use 'platform: state' with 'to:' — do NOT include 'at:' field (that is for time triggers only).")
+            lines.append(
+                "Team Tracker sensor states: PRE (pre-game), IN (in-progress), POST (game over), BYE, NOT_FOUND"
+            )
+            lines.append(
+                "Key attributes: team_score, opponent_score, team_name, opponent_name, team_abbr, team_colors"
+            )
+            lines.append(
+                "CRITICAL: For state triggers on team_tracker sensors, use 'platform: state' with 'to:' — do NOT include 'at:' field (that is for time triggers only)."
+            )
 
             return "\n".join(lines)
         except Exception as e:
@@ -454,9 +478,7 @@ IMPORTANT: When selecting a template, verify the target area has the required se
             return ""
 
     async def _filter_templates_by_capabilities(
-        self,
-        templates: list[dict[str, Any]],
-        context: dict[str, Any] | None
+        self, templates: list[dict[str, Any]], context: dict[str, Any] | None
     ) -> list[dict[str, Any]]:
         """Filter out templates whose required capabilities cannot be met.
 
@@ -468,9 +490,7 @@ IMPORTANT: When selecting a template, verify the target area has the required se
             return templates
 
         # Try to identify target area from context
-        target_area = (
-            context.get("room") or context.get("area") or context.get("target_area")
-        )
+        target_area = context.get("room") or context.get("area") or context.get("target_area")
         if not target_area:
             return templates
 
@@ -500,9 +520,7 @@ IMPORTANT: When selecting a template, verify the target area has the required se
                 required_sensors = t.get("required_capabilities", {}).get("sensors", [])
 
                 if required_sensors:
-                    sensors_available = any(
-                        s in available_device_classes for s in required_sensors
-                    )
+                    sensors_available = any(s in available_device_classes for s in required_sensors)
                     if not sensors_available:
                         logger.info(
                             f"Filtering out template '{t['template_id']}': "

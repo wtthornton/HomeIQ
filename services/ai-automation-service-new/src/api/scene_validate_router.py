@@ -52,9 +52,32 @@ class ValidateSceneResponse(BaseModel):
     score: float = 0.0
 
 
-VALID_LIGHT_ATTRS = {"state", "brightness", "color_temp", "rgb_color", "xy_color", "hs_color", "effect", "transition"}
-VALID_COVER_ATTRS = {"state", "position", "tilt_position", "current_position", "current_tilt_position"}
-VALID_CLIMATE_ATTRS = {"state", "temperature", "target_temp_high", "target_temp_low", "hvac_mode", "fan_mode", "preset_mode"}
+VALID_LIGHT_ATTRS = {
+    "state",
+    "brightness",
+    "color_temp",
+    "rgb_color",
+    "xy_color",
+    "hs_color",
+    "effect",
+    "transition",
+}
+VALID_COVER_ATTRS = {
+    "state",
+    "position",
+    "tilt_position",
+    "current_position",
+    "current_tilt_position",
+}
+VALID_CLIMATE_ATTRS = {
+    "state",
+    "temperature",
+    "target_temp_high",
+    "target_temp_low",
+    "hvac_mode",
+    "fan_mode",
+    "preset_mode",
+}
 
 
 class SceneValidationRouter(UnifiedValidationRouter):
@@ -99,16 +122,16 @@ class SceneValidationRouter(UnifiedValidationRouter):
 
         for i, scene in enumerate(scenes):
             if not isinstance(scene, dict):
-                errors.append(f"Scene #{i+1}: must be a mapping")
+                errors.append(f"Scene #{i + 1}: must be a mapping")
                 continue
 
             name = scene.get("name")
             if not name:
-                errors.append(f"Scene #{i+1}: missing required 'name' field")
+                errors.append(f"Scene #{i + 1}: missing required 'name' field")
 
             entities = scene.get("entities", {})
             if not entities:
-                warnings.append(f"Scene '{name or i+1}': no entities defined")
+                warnings.append(f"Scene '{name or i + 1}': no entities defined")
                 continue
 
             if request.validate_entities:
@@ -128,7 +151,9 @@ class SceneValidationRouter(UnifiedValidationRouter):
             request,
         )
 
-    def _validate_attrs(self, domain: str, entity_id: str, attrs: dict, warnings: list[str]) -> None:
+    def _validate_attrs(
+        self, domain: str, entity_id: str, attrs: dict, warnings: list[str]
+    ) -> None:
         valid_attrs = None
         if domain == "light":
             valid_attrs = VALID_LIGHT_ATTRS
@@ -140,17 +165,13 @@ class SceneValidationRouter(UnifiedValidationRouter):
         if valid_attrs:
             for key in attrs:
                 if key not in valid_attrs:
-                    warnings.append(
-                        f"Unusual attribute '{key}' for {domain} entity '{entity_id}'"
-                    )
+                    warnings.append(f"Unusual attribute '{key}' for {domain} entity '{entity_id}'")
 
         # Validate brightness range for lights
         if domain == "light" and "brightness" in attrs:
             b = attrs["brightness"]
             if isinstance(b, (int, float)) and (b < 0 or b > 255):
-                warnings.append(
-                    f"Light brightness for '{entity_id}' should be 0-255, got {b}"
-                )
+                warnings.append(f"Light brightness for '{entity_id}' should be 0-255, got {b}")
 
 
 @router.post("/validate", response_model=ValidateSceneResponse)

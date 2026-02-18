@@ -4,15 +4,13 @@ Pytest configuration and fixtures for AI Automation Service
 Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
-import pytest
 import asyncio
-from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
+from collections.abc import AsyncGenerator
+from unittest.mock import AsyncMock
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
-from sqlalchemy import text
 
 # Note: These imports will be available once main.py and routers are created
 # from src.database import get_db
@@ -32,7 +30,7 @@ def event_loop():
 async def test_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Create a test database session using in-memory SQLite.
-    
+
     Each test gets a fresh database.
     Note: Automation service uses shared database models (Suggestion, etc.).
     """
@@ -43,23 +41,24 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
         connect_args={"check_same_thread": False},
         echo=False,
     )
-    
+
     # Create tables using SQLAlchemy models
     from src.database.models import Base
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     # Create session factory
     async_session_maker = async_sessionmaker(
         engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     # Create session for test
     async with async_session_maker() as session:
         yield session
-    
+
     # Cleanup
     await engine.dispose()
 
@@ -85,7 +84,7 @@ def sample_suggestion_data():
         "priority": "medium",
         "status": "draft",
         "device_id": "light.office_lamp",
-        "devices_involved": ["light.office_lamp"]
+        "devices_involved": ["light.office_lamp"],
     }
 
 
@@ -112,16 +111,13 @@ action:
 def mock_ha_client():
     """Mock Home Assistant client for testing."""
     client = AsyncMock()
-    client.create_automation = AsyncMock(return_value={
-        "success": True,
-        "automation_id": "automation.test_automation_123"
-    })
+    client.create_automation = AsyncMock(
+        return_value={"success": True, "automation_id": "automation.test_automation_123"}
+    )
     client.list_automations = AsyncMock(return_value=[])
-    client.get_automation = AsyncMock(return_value={
-        "id": "automation.test",
-        "alias": "Test Automation",
-        "state": "on"
-    })
+    client.get_automation = AsyncMock(
+        return_value={"id": "automation.test", "alias": "Test Automation", "state": "on"}
+    )
     client.enable_automation = AsyncMock(return_value=True)
     client.disable_automation = AsyncMock(return_value=True)
     client.trigger_automation = AsyncMock(return_value=True)
@@ -133,8 +129,9 @@ def mock_ha_client():
 def mock_openai_client():
     """Mock OpenAI client for YAML generation testing."""
     client = AsyncMock()
-    client.generate_with_unified_prompt = AsyncMock(return_value={
-        "automation_yaml": """id: 'test-123'
+    client.generate_with_unified_prompt = AsyncMock(
+        return_value={
+            "automation_yaml": """id: 'test-123'
 alias: Test Automation
 trigger:
   - platform: time
@@ -144,7 +141,8 @@ action:
     target:
       entity_id: light.office_lamp
 """
-    })
+        }
+    )
     return client
 
 
@@ -152,30 +150,27 @@ action:
 def auth_headers():
     """
     Authentication headers for test requests.
-    
+
     Tests use internal service header to bypass API key requirements
     (simplified internal service-to-service communication).
     """
-    return {
-        "X-Internal-Service": "true"
-    }
+    return {"X-Internal-Service": "true"}
 
 
 @pytest.fixture
 async def client(test_db: AsyncSession):
     """Create test client with database dependency override."""
-    from httpx import AsyncClient, ASGITransport
+    from httpx import ASGITransport, AsyncClient
     from src.database import get_db
     from src.main import app
-    
+
     async def override_get_db():
         return test_db
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
-    app.dependency_overrides.clear()
 
+    app.dependency_overrides.clear()

@@ -105,7 +105,7 @@ class InfluxDBVerificationStore(VerificationResultStore):
         """Query recent failures for an entity."""
         query = (
             f'from(bucket: "homeiq")'
-            f' |> range(start: -{lookback_hours}h)'
+            f" |> range(start: -{lookback_hours}h)"
             f' |> filter(fn: (r) => r._measurement == "{MEASUREMENT}")'
             f' |> filter(fn: (r) => r.entity_id == "{entity_id}")'
             f' |> filter(fn: (r) => r.success == "false")'
@@ -127,14 +127,12 @@ class InfluxDBVerificationStore(VerificationResultStore):
             return []
 
         # Build OR filter for multiple entity_ids
-        entity_filter = " or ".join(
-            f'r.entity_id == "{eid}"' for eid in entity_ids
-        )
+        entity_filter = " or ".join(f'r.entity_id == "{eid}"' for eid in entity_ids)
         query = (
             f'from(bucket: "homeiq")'
-            f' |> range(start: -{lookback_hours}h)'
+            f" |> range(start: -{lookback_hours}h)"
             f' |> filter(fn: (r) => r._measurement == "{MEASUREMENT}")'
-            f' |> filter(fn: (r) => {entity_filter})'
+            f" |> filter(fn: (r) => {entity_filter})"
             f' |> filter(fn: (r) => r.success == "true")'
             f' |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'
         )

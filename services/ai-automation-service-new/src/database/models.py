@@ -5,7 +5,7 @@ Epic 39, Story 39.10: Automation Service Foundation
 Shared models with other services (Suggestion, AutomationVersion, etc.)
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, ForeignKey, JSON
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
 
@@ -16,8 +16,9 @@ class Base(DeclarativeBase):
 
 class Suggestion(Base):
     """Suggestion model - shared with other services"""
+
     __tablename__ = "suggestions"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     pattern_id = Column(Integer, nullable=True)
     title = Column(String, nullable=False)
@@ -31,15 +32,15 @@ class Suggestion(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     automation_id = Column(String, nullable=True)  # HA automation ID after deployment
     deployed_at = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Quality metrics
     confidence_score = Column(Float, nullable=True)
     safety_score = Column(Float, nullable=True)
-    
+
     # User feedback
     user_feedback = Column(String, nullable=True)  # approve, reject, modify
     feedback_at = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Hybrid Flow Integration (optional foreign keys)
     plan_id = Column(String, nullable=True, index=True)  # Link to plans table
     compiled_id = Column(String, nullable=True, index=True)  # Link to compiled_artifacts table
@@ -49,11 +50,12 @@ class Suggestion(Base):
 class AutomationVersion(Base):
     """
     Version history for automations - enables rollback
-    
+
     Epic 51, Story 51.11: Enhanced with diffs, scores, approval tracking, state restoration
     """
+
     __tablename__ = "automation_versions"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     suggestion_id = Column(Integer, ForeignKey("suggestions.id"), nullable=False)
     automation_id = Column(String, nullable=False)  # HA automation ID (entity_id)
@@ -72,17 +74,20 @@ class AutomationVersion(Base):
     deployed_by = Column(String, nullable=True)  # User/API key identifier
     is_active = Column(Boolean, default=True)  # Current active version
     rollback_reason = Column(Text, nullable=True)  # If rolled back, reason
-    snapshot_entities = Column(Text, nullable=True)  # JSON array of entity states for restoration (Epic 51.11)
+    snapshot_entities = Column(
+        Text, nullable=True
+    )  # JSON array of entity states for restoration (Epic 51.11)
 
 
 class Plan(Base):
     """
     Automation plan - structured intent from LLM (template_id + parameters)
-    
+
     Hybrid Flow Implementation: LLM outputs structured plan, not YAML
     """
+
     __tablename__ = "plans"
-    
+
     plan_id = Column(String, primary_key=True, index=True)
     conversation_id = Column(String, nullable=True, index=True)  # Optional link to conversation
     template_id = Column(String, nullable=False, index=True)
@@ -98,11 +103,12 @@ class Plan(Base):
 class CompiledArtifact(Base):
     """
     Compiled YAML artifact - deterministic compilation from template + plan
-    
+
     Hybrid Flow Implementation: YAML is compiled, not LLM-generated
     """
+
     __tablename__ = "compiled_artifacts"
-    
+
     compiled_id = Column(String, primary_key=True, index=True)
     plan_id = Column(String, ForeignKey("plans.plan_id"), nullable=False, index=True)
     template_id = Column(String, nullable=True, index=True)  # Template used for compilation
@@ -120,10 +126,13 @@ class Deployment(Base):
 
     Hybrid Flow Implementation: Full audit trail for deployments
     """
+
     __tablename__ = "deployments"
 
     deployment_id = Column(String, primary_key=True, index=True)
-    compiled_id = Column(String, ForeignKey("compiled_artifacts.compiled_id"), nullable=False, index=True)
+    compiled_id = Column(
+        String, ForeignKey("compiled_artifacts.compiled_id"), nullable=False, index=True
+    )
     ha_automation_id = Column(String, nullable=False, index=True)  # HA automation entity ID
     template_id = Column(String, nullable=True, index=True)  # Template for update-vs-create lookup
     area_id = Column(String, nullable=True, index=True)  # Area for update-vs-create lookup
@@ -133,4 +142,3 @@ class Deployment(Base):
     ui_source = Column(String, nullable=True)  # UI source (ha-agent, automation-ui, etc.)
     deployed_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     audit_data = Column(JSON, nullable=True)  # who/when/why/template/version metadata
-

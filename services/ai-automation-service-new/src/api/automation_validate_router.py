@@ -13,8 +13,6 @@ from pydantic import BaseModel, Field
 
 from ..api.dependencies import DatabaseSession
 from ..api.error_handlers import handle_route_errors
-from ..clients.data_api_client import DataAPIClient
-from ..config import settings
 from ..services.template_validator import TemplateValidator, ValidationError
 from ..templates.template_library import TemplateLibrary
 
@@ -28,6 +26,7 @@ _template_library: TemplateLibrary | None = None
 
 class ValidateRequest(BaseModel):
     """Request to validate automation plan."""
+
     plan_id: str = Field(..., description="Plan identifier")
     template_id: str = Field(..., description="Template identifier")
     template_version: int = Field(..., description="Template version")
@@ -36,6 +35,7 @@ class ValidateRequest(BaseModel):
 
 class ValidateResponse(BaseModel):
     """Response with validation result."""
+
     valid: bool
     validation_errors: list[dict[str, str]] = Field(default_factory=list)
     resolved_context: dict[str, Any] = Field(default_factory=dict)
@@ -47,6 +47,7 @@ def get_template_library() -> TemplateLibrary:
     global _template_library
     if _template_library is None:
         from pathlib import Path
+
         current_file = Path(__file__)
         templates_dir = current_file.parent.parent / "templates" / "templates"
         _template_library = TemplateLibrary(templates_dir=templates_dir)
@@ -54,8 +55,7 @@ def get_template_library() -> TemplateLibrary:
 
 
 def get_template_validator(
-    db: DatabaseSession,
-    template_library: TemplateLibrary = Depends(get_template_library)
+    _db: DatabaseSession, template_library: TemplateLibrary = Depends(get_template_library)
 ) -> TemplateValidator:
     """Get template validator instance."""
     from .dependencies import get_data_api_client, get_ha_client
@@ -70,12 +70,11 @@ def get_template_validator(
 @router.post("/validate", response_model=ValidateResponse)
 @handle_route_errors("validate automation plan")
 async def validate_plan(
-    request: ValidateRequest,
-    validator: TemplateValidator = Depends(get_template_validator)
+    request: ValidateRequest, validator: TemplateValidator = Depends(get_template_validator)
 ) -> ValidateResponse:
     """
     Validate automation plan against template.
-    
+
     Validates:
     - Template exists and version matches
     - Parameters match schema (types, enums, bounds)
@@ -87,14 +86,18 @@ async def validate_plan(
             plan_id=request.plan_id,
             template_id=request.template_id,
             template_version=request.template_version,
-            parameters=request.parameters
+            parameters=request.parameters,
         )
-        
+
         return ValidateResponse(**result)
-        
+
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
-        raise HTTPException(status_code=400, detail="Validation error. Check server logs for details.")
+        raise HTTPException(
+            status_code=400, detail="Validation error. Check server logs for details."
+        ) from e
     except Exception as e:
         logger.error(f"Failed to validate plan: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to validate plan. Check server logs for details.")
+        raise HTTPException(
+            status_code=500, detail="Failed to validate plan. Check server logs for details."
+        ) from e

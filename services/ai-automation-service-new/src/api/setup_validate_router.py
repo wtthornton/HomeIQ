@@ -29,7 +29,6 @@ from shared.patterns import (
     UnifiedValidationRouter,
     ValidationRequest,
     ValidationResponse,
-    ValidationSubsection,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,11 +38,17 @@ router = APIRouter(prefix="/api/v1/setup", tags=["setup", "validation"])
 
 # --- Request / Response models ---
 
+
 class SetupValidationRequest(BaseModel):
     """Request to validate a device setup step."""
+
     yaml_content: str = Field("", description="Configuration content (YAML/JSON)")
-    integration_type: str = Field("", description="Integration type (zigbee, mqtt, hue, zwave, matter)")
-    step: str = Field("config", description="Wizard step to validate (config, connectivity, health)")
+    integration_type: str = Field(
+        "", description="Integration type (zigbee, mqtt, hue, zwave, matter)"
+    )
+    step: str = Field(
+        "config", description="Wizard step to validate (config, connectivity, health)"
+    )
     normalize: bool = Field(True, description="Normalize content")
     validate_entities: bool = Field(True, description="Validate entity references")
     validate_services: bool = Field(False, description="Validate service calls")
@@ -53,6 +58,7 @@ class SetupValidationRequest(BaseModel):
 
 class ConnectivityValidationResult(BaseModel):
     """Connectivity validation subsection."""
+
     performed: bool = True
     passed: bool = True
     errors: list[str] = Field(default_factory=list)
@@ -60,6 +66,7 @@ class ConnectivityValidationResult(BaseModel):
 
 class HealthValidationResult(BaseModel):
     """Integration health validation subsection."""
+
     performed: bool = True
     passed: bool = True
     errors: list[str] = Field(default_factory=list)
@@ -67,6 +74,7 @@ class HealthValidationResult(BaseModel):
 
 class SetupValidationResponse(BaseModel):
     """Unified setup validation response."""
+
     valid: bool
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -74,9 +82,7 @@ class SetupValidationResponse(BaseModel):
     connectivity_validation: ConnectivityValidationResult = Field(
         default_factory=ConnectivityValidationResult
     )
-    health_validation: HealthValidationResult = Field(
-        default_factory=HealthValidationResult
-    )
+    health_validation: HealthValidationResult = Field(default_factory=HealthValidationResult)
     score: float = 0.0
     step: str = "config"
 
@@ -84,11 +90,17 @@ class SetupValidationResponse(BaseModel):
 # --- Concrete validation router ---
 
 SUPPORTED_INTEGRATIONS = {
-    "zigbee", "zigbee2mqtt", "z2m",
-    "zwave", "z-wave",
-    "mqtt", "mosquitto",
-    "hue", "philips_hue",
-    "matter", "thread",
+    "zigbee",
+    "zigbee2mqtt",
+    "z2m",
+    "zwave",
+    "z-wave",
+    "mqtt",
+    "mosquitto",
+    "hue",
+    "philips_hue",
+    "matter",
+    "thread",
 }
 
 INTEGRATION_REQUIRED_FIELDS: dict[str, list[str]] = {
@@ -191,8 +203,7 @@ class SetupValidationRouter(UnifiedValidationRouter):
             healthy = await self.ha_client.health_check()
             if not healthy:
                 errors.append(
-                    "Home Assistant is unreachable. "
-                    "Cannot validate integration connectivity."
+                    "Home Assistant is unreachable. Cannot validate integration connectivity."
                 )
         except Exception as e:
             errors.append(f"Connectivity check failed: {e}")
@@ -205,8 +216,7 @@ class SetupValidationRouter(UnifiedValidationRouter):
             healthy = await self.ha_client.health_check()
             if not healthy:
                 errors.append(
-                    "Home Assistant health check failed. "
-                    "Integration health cannot be verified."
+                    "Home Assistant health check failed. Integration health cannot be verified."
                 )
         except Exception as e:
             errors.append(f"Health validation failed: {e}")
@@ -214,6 +224,7 @@ class SetupValidationRouter(UnifiedValidationRouter):
 
 
 # --- FastAPI route ---
+
 
 @router.post("/validate", response_model=SetupValidationResponse)
 @handle_route_errors("validate device setup")
@@ -262,7 +273,9 @@ async def validate_setup(
             "errors": [e for e in response.errors if "entity" in e.lower()],
         },
         connectivity_validation=ConnectivityValidationResult(
-            performed=connectivity_sub.performed if connectivity_sub else request.validate_connectivity,
+            performed=connectivity_sub.performed
+            if connectivity_sub
+            else request.validate_connectivity,
             passed=connectivity_sub.passed if connectivity_sub else True,
             errors=connectivity_sub.errors if connectivity_sub else [],
         ),

@@ -32,9 +32,7 @@ class SceneVerifier(PostActionVerifier):
 
     async def verify(self, action_result: dict[str, Any]) -> VerificationResult:
         scene_id = action_result.get("scene_id", "")
-        entity_id = (
-            scene_id if scene_id.startswith("scene.") else f"scene.{scene_id}"
-        )
+        entity_id = scene_id if scene_id.startswith("scene.") else f"scene.{scene_id}"
 
         state_data = await self._get_state(entity_id)
         if state_data is None:

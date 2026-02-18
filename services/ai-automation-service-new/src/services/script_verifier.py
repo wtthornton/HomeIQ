@@ -32,9 +32,7 @@ class ScriptVerifier(PostActionVerifier):
 
     async def verify(self, action_result: dict[str, Any]) -> VerificationResult:
         script_id = action_result.get("script_id", "")
-        entity_id = (
-            script_id if script_id.startswith("script.") else f"script.{script_id}"
-        )
+        entity_id = script_id if script_id.startswith("script.") else f"script.{script_id}"
 
         state_data = await self._get_state(entity_id)
         if state_data is None:

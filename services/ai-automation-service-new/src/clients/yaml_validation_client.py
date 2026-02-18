@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 class YAMLValidationClient:
     """Client for YAML validation via yaml-validation-service"""
 
-    def __init__(self, base_url: str = "http://yaml-validation-service:8037", api_key: str | None = None):
+    def __init__(
+        self, base_url: str = "http://yaml-validation-service:8037", api_key: str | None = None
+    ):
         """
         Initialize YAML Validation Service client.
 
@@ -26,12 +28,12 @@ class YAMLValidationClient:
             base_url: Base URL for YAML Validation Service (default: http://yaml-validation-service:8037)
             api_key: API key for authentication (optional)
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.client = httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
         )
         logger.info(f"YAML Validation Service client initialized with base_url={self.base_url}")
 
@@ -39,14 +41,14 @@ class YAMLValidationClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def validate_yaml(
         self,
         yaml_content: str,
         normalize: bool = True,
         validate_entities: bool = True,
-        validate_services: bool = False
+        validate_services: bool = False,
     ) -> dict[str, Any]:
         """
         Validate Home Assistant automation YAML.
@@ -74,7 +76,7 @@ class YAMLValidationClient:
                 "yaml_content": yaml_content,
                 "normalize": normalize,
                 "validate_entities": validate_entities,
-                "validate_services": validate_services
+                "validate_services": validate_services,
             }
 
             logger.debug(
@@ -87,9 +89,7 @@ class YAMLValidationClient:
                 headers["X-HomeIQ-API-Key"] = self.api_key
 
             response = await self.client.post(
-                f"{self.base_url}/api/v1/validation/validate",
-                json=payload,
-                headers=headers
+                f"{self.base_url}/api/v1/validation/validate", json=payload, headers=headers
             )
             response.raise_for_status()
 
@@ -134,15 +134,14 @@ class YAMLValidationClient:
             yaml_content=yaml_content,
             normalize=True,
             validate_entities=False,
-            validate_services=False
+            validate_services=False,
         )
         return {
             "normalized_yaml": result.get("fixed_yaml") or yaml_content,
-            "fixes_applied": result.get("fixes_applied", [])
+            "fixes_applied": result.get("fixes_applied", []),
         }
 
     async def close(self):
         """Close HTTP client connection pool"""
         await self.client.aclose()
         logger.debug("YAML Validation Service client closed")
-
