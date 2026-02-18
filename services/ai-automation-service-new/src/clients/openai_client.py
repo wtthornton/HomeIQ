@@ -31,7 +31,8 @@ try:
     app_root = (
         Path(__file__).resolve().parents[2]
     )  # services/ai-automation-service-new/src/clients -> services
-except Exception:
+except (IndexError, OSError):
+    # Fallback when path resolution fails (e.g. in some container layouts)
     app_root = Path("/app")
 
 candidate_paths = []

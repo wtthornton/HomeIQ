@@ -5,6 +5,7 @@ Epic 39: Analysis endpoints are handled by ai-pattern-service, this router proxi
 M1 fix: Uses shared proxy_utils instead of duplicated proxy function.
 """
 
+import json
 import logging
 
 from fastapi import APIRouter, Request
@@ -33,10 +34,12 @@ async def get_analysis_schedule(request: Request) -> Response:
 @router.post("/trigger")
 async def trigger_analysis(request: Request) -> Response:
     """Trigger analysis in pattern service."""
-    body = None
     try:
         body = await request.json()
-    except Exception:
+    except json.JSONDecodeError:
+        body = {}
+    except Exception as e:
+        logger.warning("Request body read failed, forwarding with empty body: %s", e)
         body = {}
     return await proxy_to_service(
         request, settings.pattern_service_url, "api/analysis", "trigger", method="POST", body=body

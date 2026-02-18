@@ -110,8 +110,8 @@ if __name__ == "__main__":
         port = int(os.getenv("PORT", "8036"))
     except (TypeError, ValueError):
         port = 8036
-    # B104: 0.0.0.0 intentional for containerized deployment (Docker).
-    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
+    # B104/S104: 0.0.0.0 intentional for containerized deployment (Docker).
+    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104,B104
     uvicorn.run(
         "src.main:app",
         host=host,

@@ -359,10 +359,9 @@ class YAMLCompiler:
             }
             safe_ns.update({k: v for k, v in params.items() if isinstance(v, (int, float))})
             return eval(expr, {"__builtins__": {}}, safe_ns)  # noqa: S307
-        except Exception:
-            pass
-
-        return None
+        except Exception as e:
+            logger.debug("Safe eval failed for %r: %s", expr, e)
+            return None
 
     # HA Jinja functions that should NOT be treated as unresolved placeholders
     _HA_JINJA_FUNCS = re.compile(

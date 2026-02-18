@@ -463,11 +463,12 @@ class SensorDataLoader:
             ]
         )
 
-        # Cyclical encoding for hour
+        # Cyclical encoding for hour (use Polars Expr.sin/cos for correct evaluation)
+        hour_rad = 2 * np.pi * pl.col("hour_of_day") / 24
         df = df.with_columns(
             [
-                (np.sin(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_sin"),
-                (np.cos(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_cos"),
+                hour_rad.sin().alias("hour_sin"),
+                hour_rad.cos().alias("hour_cos"),
             ]
         )
 

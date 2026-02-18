@@ -23,6 +23,99 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
+# HA condition type mapping (GPT/LLM output → HA API)
+_COND_TYPE_MAP = {
+    "state": "state",
+    "numeric_state": "numeric_state",
+    "template": "template",
+    "attribute_changed": "numeric_state",
+    "attribute_increase": "numeric_state",
+    "attribute_decrease": "numeric_state",
+    "time": "time",
+    "zone": "zone",
+    "sun": "sun",
+    "device": "device",
+    "trigger": "trigger",
+}
+
+# Valid fields per HA condition type (extra keys are stripped)
+_VALID_CONDITION_FIELDS: dict[str, set[str]] = {
+    "state": {"condition", "entity_id", "state", "for", "attribute", "alias"},
+    "numeric_state": {
+        "condition",
+        "entity_id",
+        "above",
+        "below",
+        "attribute",
+        "value_template",
+        "alias",
+    },
+    "template": {"condition", "value_template", "alias"},
+    "time": {"condition", "after", "before", "weekday", "alias"},
+    "zone": {"condition", "entity_id", "zone", "state", "alias"},
+    "sun": {"condition", "after", "before", "after_offset", "before_offset", "alias"},
+    "trigger": {"condition", "id", "alias"},
+    "device": {"condition", "device_id", "domain", "entity_id", "type", "alias"},
+}
+
+
+def _normalize_condition_type(fixed: dict) -> None:
+    """Map condition_type/type → condition, entity → entity_id, state/numeric_state fixes."""
+    if "condition_type" in fixed and "condition" not in fixed:
+        ct = fixed.pop("condition_type")
+        mapped = _COND_TYPE_MAP.get(ct, "template")
+        if mapped == "template" and ct not in _COND_TYPE_MAP:
+            logger.warning("Unknown condition_type '%s', falling back to 'template'", ct)
+        fixed["condition"] = mapped
+    if "type" in fixed and "condition" not in fixed:
+        t = fixed.pop("type")
+        mapped = _COND_TYPE_MAP.get(t, "template")
+        if mapped == "template" and t not in _COND_TYPE_MAP:
+            logger.warning("Unknown condition type '%s', falling back to 'template'", t)
+        fixed["condition"] = mapped
+    if "entity" in fixed and "entity_id" not in fixed:
+        fixed["entity_id"] = fixed.pop("entity")
+    if fixed.get("condition") == "state" and "to" in fixed and "state" not in fixed:
+        fixed["state"] = fixed.pop("to")
+    if (
+        fixed.get("condition") == "numeric_state"
+        and "above" not in fixed
+        and "below" not in fixed
+    ):
+        fixed["above"] = 0
+
+
+def _ensure_template_value(fixed: dict) -> None:
+    """Build value_template for template conditions when missing."""
+    if fixed.get("condition") != "template" or "value_template" in fixed:
+        return
+    entity_id = fixed.get("entity_id", "")
+    attribute = fixed.get("attribute", "")
+    if entity_id and attribute:
+        fixed["value_template"] = (
+            f"{{{{ state_attr('{entity_id}', '{attribute}') | int(0) > 0 }}}}"
+        )
+    elif entity_id:
+        state = fixed.get("state", fixed.get("to", ""))
+        fixed["value_template"] = (
+            f"{{{{ is_state('{entity_id}', '{state}') }}}}" if state else "{{ true }}"
+        )
+    else:
+        fixed["value_template"] = "{{ true }}"
+
+
+def _strip_invalid_condition_fields(fixed: dict) -> None:
+    """Remove keys not in _VALID_CONDITION_FIELDS for the condition type."""
+    cond_type = fixed.get("condition", "")
+    valid = _VALID_CONDITION_FIELDS.get(cond_type)
+    if valid:
+        for k in list(fixed):
+            if k not in valid:
+                logger.info("Stripping invalid field '%s' from '%s' condition", k, cond_type)
+                del fixed[k]
+    for bad_key in ("description", "change"):
+        fixed.pop(bad_key, None)
+
 
 class HomeAssistantClient:
     """
@@ -313,104 +406,9 @@ class HomeAssistantClient:
                 sanitized.append(fixed)
                 continue
 
-            # Map GPT condition types → valid HA condition types
-            _COND_TYPE_MAP = {
-                "state": "state",
-                "numeric_state": "numeric_state",
-                "template": "template",
-                "attribute_changed": "numeric_state",
-                "attribute_increase": "numeric_state",
-                "attribute_decrease": "numeric_state",
-                "time": "time",
-                "zone": "zone",
-                "sun": "sun",
-                "device": "device",
-                "trigger": "trigger",
-            }
-
-            # Fix condition_type → condition
-            if "condition_type" in fixed and "condition" not in fixed:
-                ct = fixed.pop("condition_type")
-                mapped = _COND_TYPE_MAP.get(ct)
-                if not mapped:
-                    logger.warning(f"Unknown condition_type '{ct}', falling back to 'template'")
-                    mapped = "template"
-                fixed["condition"] = mapped
-
-            # Fix 'type' → 'condition' (another GPT pattern)
-            if "type" in fixed and "condition" not in fixed:
-                t = fixed.pop("type")
-                mapped = _COND_TYPE_MAP.get(t)
-                if not mapped:
-                    logger.warning(f"Unknown condition type '{t}', falling back to 'template'")
-                    mapped = "template"
-                fixed["condition"] = mapped
-
-            # Fix 'entity' → 'entity_id'
-            if "entity" in fixed and "entity_id" not in fixed:
-                fixed["entity_id"] = fixed.pop("entity")
-
-            # For state conditions: HA uses 'state' key (not 'to')
-            if fixed.get("condition") == "state" and "to" in fixed and "state" not in fixed:
-                fixed["state"] = fixed.pop("to")
-
-            # For numeric_state: ensure 'above' or 'below' key exists
-            if (
-                fixed.get("condition") == "numeric_state"
-                and "above" not in fixed
-                and "below" not in fixed
-            ):
-                fixed["above"] = 0
-
-            # For template conditions that were converted from unknown types:
-            # Build a value_template from available fields and strip non-HA keys
-            if fixed.get("condition") == "template" and "value_template" not in fixed:
-                entity_id = fixed.get("entity_id", "")
-                attribute = fixed.get("attribute", "")
-                if entity_id and attribute:
-                    fixed["value_template"] = (
-                        f"{{{{ state_attr('{entity_id}', '{attribute}') | int(0) > 0 }}}}"
-                    )
-                elif entity_id:
-                    state = fixed.get("state", fixed.get("to", ""))
-                    if state:
-                        fixed["value_template"] = f"{{{{ is_state('{entity_id}', '{state}') }}}}"
-                    else:
-                        fixed["value_template"] = "{{ true }}"
-                else:
-                    fixed["value_template"] = "{{ true }}"
-
-            # Determine valid fields per condition type
-            _VALID_FIELDS: dict[str, set[str]] = {
-                "state": {"condition", "entity_id", "state", "for", "attribute", "alias"},
-                "numeric_state": {
-                    "condition",
-                    "entity_id",
-                    "above",
-                    "below",
-                    "attribute",
-                    "value_template",
-                    "alias",
-                },
-                "template": {"condition", "value_template", "alias"},
-                "time": {"condition", "after", "before", "weekday", "alias"},
-                "zone": {"condition", "entity_id", "zone", "state", "alias"},
-                "sun": {"condition", "after", "before", "after_offset", "before_offset", "alias"},
-                "trigger": {"condition", "id", "alias"},
-                "device": {"condition", "device_id", "domain", "entity_id", "type", "alias"},
-            }
-            cond_type = fixed.get("condition", "")
-            valid = _VALID_FIELDS.get(cond_type)
-            if valid:
-                extra_keys = [k for k in fixed if k not in valid]
-                for k in extra_keys:
-                    logger.info(f"Stripping invalid field '{k}' from '{cond_type}' condition")
-                    del fixed[k]
-
-            # Strip non-HA fields from conditions (catch-all)
-            for bad_key in ("description", "change"):
-                fixed.pop(bad_key, None)
-
+            _normalize_condition_type(fixed)
+            _ensure_template_value(fixed)
+            _strip_invalid_condition_fields(fixed)
             sanitized.append(fixed)
 
         return sanitized

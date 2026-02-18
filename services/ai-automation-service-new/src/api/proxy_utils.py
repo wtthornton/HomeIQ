@@ -73,7 +73,8 @@ async def proxy_to_service(
                         )
                     else:
                         error_detail = str(error_body)
-                except Exception:
+                except Exception as parse_err:
+                    logger.debug("Could not parse upstream error body: %s", parse_err)
                     error_detail = response.text[:200] if response.text else "Unknown error"
 
                 logger.error(f"Upstream service returned {response.status_code}: {error_detail}")

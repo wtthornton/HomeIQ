@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -185,7 +186,7 @@ class BlueprintValidationRouter(UnifiedValidationRouter):
                 state = await self.ha_client.get_state(eid)
                 if state is None:
                     errors.append(f"Entity not found: {eid}")
-            except Exception:
+            except httpx.HTTPError:
                 pass  # Network errors are not validation errors
         return errors
 

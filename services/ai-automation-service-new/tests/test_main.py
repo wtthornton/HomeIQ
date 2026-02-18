@@ -172,7 +172,7 @@ class TestObservability:
         with (
             patch("src.main.init_db") as mock_init_db,
             patch("src.main.start_rate_limit_cleanup") as mock_start_cleanup,
-            patch("src.main.stop_rate_limit_cleanup") as mock_stop_cleanup,
+            patch("src.main.stop_rate_limit_cleanup"),
             patch("src.main.setup_tracing") as mock_setup_tracing,
             patch("src.main.instrument_fastapi") as mock_instrument,
             patch("src.main.OBSERVABILITY_AVAILABLE", True),

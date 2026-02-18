@@ -107,6 +107,20 @@ except ImportError:
 scheduler: AsyncIOScheduler | None = None
 
 
+def _parse_schedule_time() -> tuple[int, int]:
+    """Parse scheduler_time (HH:MM) into (hour, minute). Raises ValueError if invalid."""
+    schedule_time = settings.scheduler_time.split(":")
+    if len(schedule_time) < 1 or len(schedule_time) > 2:
+        raise ValueError(
+            f"Invalid scheduler_time format: '{settings.scheduler_time}'. Expected 'HH:MM'."
+        )
+    hour = int(schedule_time[0])
+    minute = int(schedule_time[1]) if len(schedule_time) > 1 else 0
+    if not (0 <= hour <= 23) or not (0 <= minute <= 59):
+        raise ValueError(f"Invalid scheduler_time values: hour={hour}, minute={minute}")
+    return hour, minute
+
+
 def _start_scheduler() -> None:
     """
     Start the scheduler for automatic suggestion generation.
@@ -117,46 +131,35 @@ def _start_scheduler() -> None:
     if scheduler is None:
         scheduler = AsyncIOScheduler()
 
-    if scheduler:
-        try:
-            # Parse schedule time (format: "HH:MM") with validation (m4 fix)
-            schedule_time = settings.scheduler_time.split(":")
-            if len(schedule_time) < 1 or len(schedule_time) > 2:
-                raise ValueError(
-                    f"Invalid scheduler_time format: '{settings.scheduler_time}'. Expected 'HH:MM'."
-                )
-            hour = int(schedule_time[0])
-            minute = int(schedule_time[1]) if len(schedule_time) > 1 else 0
-            if not (0 <= hour <= 23) or not (0 <= minute <= 59):
-                raise ValueError(f"Invalid scheduler_time values: hour={hour}, minute={minute}")
+    if not scheduler:
+        return
 
-            # Add daily suggestion generation job
-            scheduler.add_job(
-                generate_daily_suggestions,
-                CronTrigger(hour=hour, minute=minute, timezone=settings.scheduler_timezone),
-                id="daily_suggestion_generation",
-                name="Daily Automation Suggestion Generation",
-                replace_existing=True,
-                max_instances=1,  # Prevent overlap
-                coalesce=True,  # Skip if previous run still active
-                misfire_grace_time=3600,  # Allow 1 hour delay if server was down
-            )
+    try:
+        hour, minute = _parse_schedule_time()
+        scheduler.add_job(
+            generate_daily_suggestions,
+            CronTrigger(hour=hour, minute=minute, timezone=settings.scheduler_timezone),
+            id="daily_suggestion_generation",
+            name="Daily Automation Suggestion Generation",
+            replace_existing=True,
+            max_instances=1,  # Prevent overlap
+            coalesce=True,  # Skip if previous run still active
+            misfire_grace_time=3600,  # Allow 1 hour delay if server was down
+        )
+        scheduler.start()
 
-            scheduler.start()
-
-            job = scheduler.get_job("daily_suggestion_generation")
-            next_run = job.next_run_time if job else None
-
-            logger.info(
-                f"✅ Scheduler started: daily suggestions at {settings.scheduler_time} "
-                f"({settings.scheduler_timezone})"
-            )
-            if next_run:
-                logger.info(f"Next scheduled run: {next_run}")
-        except Exception as e:
-            logger.error(f"Failed to start scheduler: {e}", exc_info=True)
-            # Don't raise - scheduler failure shouldn't prevent service startup
-            logger.warning("Service will continue without automatic suggestion generation")
+        job = scheduler.get_job("daily_suggestion_generation")
+        next_run = job.next_run_time if job else None
+        logger.info(
+            "✅ Scheduler started: daily suggestions at %s (%s)",
+            settings.scheduler_time,
+            settings.scheduler_timezone,
+        )
+        if next_run:
+            logger.info("Next scheduled run: %s", next_run)
+    except Exception as e:
+        logger.error("Failed to start scheduler: %s", e, exc_info=True)
+        logger.warning("Service will continue without automatic suggestion generation")
 
 
 def _stop_scheduler() -> None:
@@ -399,8 +402,8 @@ async def root() -> dict[str, str]:
 if __name__ == "__main__":
     import uvicorn
 
-    # Host 0.0.0.0 required for Docker/container; use HOST=127.0.0.1 for local-only
-    host = os.getenv("HOST", "0.0.0.0")
+    # Default 127.0.0.1 for security (local-only). Set HOST=0.0.0.0 in Docker/container.
+    host = os.getenv("HOST", "127.0.0.1")
     uvicorn.run(
         "main:app",
         host=host,
