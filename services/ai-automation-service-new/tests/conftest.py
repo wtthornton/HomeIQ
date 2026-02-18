@@ -5,6 +5,17 @@ Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
 import asyncio
+import sys
+from pathlib import Path
+
+# Add HomeIQ project root so shared module can be imported
+_workspace_root = Path(__file__).resolve().parent.parent.parent.parent
+if str(_workspace_root) not in sys.path:
+    sys.path.insert(0, str(_workspace_root))
+# Add service root so src module can be imported
+_service_root = Path(__file__).resolve().parent.parent
+if str(_service_root) not in sys.path:
+    sys.path.insert(0, str(_service_root))
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock
 

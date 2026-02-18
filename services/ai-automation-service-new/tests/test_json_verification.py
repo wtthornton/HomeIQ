@@ -12,7 +12,7 @@ from shared.homeiq_automation.schema import (
     HomeIQTrigger,
 )
 
-from ..services.json_verification_service import JSONVerificationService
+from src.services.json_verification_service import JSONVerificationService
 
 
 @pytest.mark.asyncio

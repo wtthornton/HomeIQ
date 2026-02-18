@@ -442,8 +442,8 @@ IMPORTANT: When selecting a template, verify the target area has the required se
             team_sensors = [
                 e
                 for e in entities
-                if "team_tracker" in e.get("entity_id", "")
-                and e.get("entity_id", "").startswith("sensor.")
+                if "team_tracker" in (e.get("entity_id") or "")
+                and (e.get("entity_id") or "").startswith("sensor.")
             ]
 
             if not team_sensors:
@@ -498,7 +498,7 @@ IMPORTANT: When selecting a template, verify the target area has the required se
             areas = await self.data_api_client.fetch_areas()
             area_id = None
             for area in areas:
-                if target_area.lower() in area.get("name", "").lower():
+                if target_area.lower() in (area.get("name") or "").lower():
                     area_id = area.get("area_id")
                     break
 
@@ -517,7 +517,7 @@ IMPORTANT: When selecting a template, verify the target area has the required se
             # Filter templates
             filtered = []
             for t in templates:
-                required_sensors = t.get("required_capabilities", {}).get("sensors", [])
+                required_sensors = (t.get("required_capabilities") or {}).get("sensors", [])
 
                 if required_sensors:
                     sensors_available = any(s in available_device_classes for s in required_sensors)

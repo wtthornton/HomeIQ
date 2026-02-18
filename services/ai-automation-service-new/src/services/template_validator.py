@@ -221,7 +221,7 @@ class TemplateValidator:
                 # Find matching area
                 matching_area = None
                 for area in areas:
-                    area_name = area.get("name", "").lower()
+                    area_name = (area.get("name") or "").lower()
                     if room_type.lower() in area_name or area_name in room_type.lower():
                         matching_area = area
                         break
@@ -243,7 +243,7 @@ class TemplateValidator:
                     areas = await self.data_api_client.fetch_areas()
 
                     for area in areas:
-                        if target_area.lower() in area.get("name", "").lower():
+                        if target_area.lower() in (area.get("name") or "").lower():
                             resolved["matched_area_id"] = area.get("area_id")
                             break
                 except Exception as e:
@@ -299,17 +299,19 @@ class TemplateValidator:
                     try:
                         all_entities = await self.data_api_client.fetch_entities(limit=2000)
                         area_lower = area_id.lower()
+                        def _entity_id(e: dict) -> str:
+                            return e.get("entity_id") or ""
                         motion_sensors = [
                             e["entity_id"]
                             for e in all_entities
                             if (
                                 e.get("domain") == "binary_sensor"
-                                and area_lower in e.get("entity_id", "").lower()
+                                and area_lower in _entity_id(e).lower()
                                 and (
                                     e.get("device_class") in ("motion", "occupancy")
-                                    or "motion" in e.get("entity_id", "").lower()
-                                    or "presence" in e.get("entity_id", "").lower()
-                                    or "occupancy" in e.get("entity_id", "").lower()
+                                    or "motion" in _entity_id(e).lower()
+                                    or "presence" in _entity_id(e).lower()
+                                    or "occupancy" in _entity_id(e).lower()
                                 )
                             )
                         ]

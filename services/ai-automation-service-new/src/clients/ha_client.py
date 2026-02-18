@@ -531,7 +531,7 @@ class HomeAssistantClient:
                 automations = [
                     state
                     for state in all_states
-                    if state.get("entity_id", "").startswith("automation.")
+                    if (state.get("entity_id") or "").startswith("automation.")
                 ]
                 logger.info(f"✅ Found {len(automations)} automations in Home Assistant")
                 return automations

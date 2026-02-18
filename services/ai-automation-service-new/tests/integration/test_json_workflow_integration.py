@@ -17,15 +17,15 @@ import pytest
 from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
 from shared.homeiq_automation.schema import HomeIQAutomation
 from shared.homeiq_automation.validator import HomeIQAutomationValidator
-from shared.yaml_validation_service.version_aware_renderer import VersionAwareAutomationRenderer
+from shared.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
 
-from ...src.clients.data_api_client import DataAPIClient
-from ...src.clients.openai_client import OpenAIClient
-from ...src.services.automation_combiner import AutomationCombiner
-from ...src.services.json_query_service import JSONQueryService
-from ...src.services.json_rebuilder import JSONRebuilder
-from ...src.services.json_verification_service import JSONVerificationService
-from ...src.services.yaml_generation_service import YAMLGenerationService
+from src.clients.data_api_client import DataAPIClient
+from src.clients.openai_client import OpenAIClient
+from src.services.automation_combiner import AutomationCombiner
+from src.services.json_query_service import JSONQueryService
+from src.services.json_rebuilder import JSONRebuilder
+from src.services.json_verification_service import JSONVerificationService
+from src.services.yaml_generation_service import YAMLGenerationService
 
 
 @pytest.fixture
@@ -148,8 +148,8 @@ async def test_json_to_yaml_conversion_workflow(sample_homeiq_json):
     assert len(automation_spec.action) == 1
 
     # Render to YAML
-    renderer = VersionAwareAutomationRenderer()
-    yaml_content = renderer.render(automation_spec, ha_version="2025.10.3")
+    renderer = VersionAwareRenderer(ha_version="2025.10.3")
+    yaml_content = renderer.render(automation_spec)
 
     assert yaml_content is not None
     assert "alias:" in yaml_content
@@ -293,12 +293,10 @@ async def test_version_aware_rendering(sample_homeiq_json):
     converter = HomeIQToAutomationSpecConverter()
     automation_spec = converter.convert(homeiq_automation_model)
 
-    renderer = VersionAwareAutomationRenderer()
-
-    # Render for different versions
-    yaml_2025_10 = renderer.render(automation_spec, ha_version="2025.10.3")
-    yaml_2024_12 = renderer.render(automation_spec, ha_version="2024.12.0")
-    yaml_latest = renderer.render(automation_spec, ha_version=None)
+    # Render for different versions (version is set in constructor)
+    yaml_2025_10 = VersionAwareRenderer(ha_version="2025.10.3").render(automation_spec)
+    yaml_2024_12 = VersionAwareRenderer(ha_version="2024.12.0").render(automation_spec)
+    yaml_latest = VersionAwareRenderer(ha_version=None).render(automation_spec)
 
     # All should produce valid YAML
     assert yaml_2025_10 is not None
@@ -345,8 +343,8 @@ async def test_end_to_end_json_workflow(
     assert automation_spec is not None
 
     # Step 4: Render to YAML
-    renderer = VersionAwareAutomationRenderer()
-    yaml_content = renderer.render(automation_spec, ha_version="2025.10.3")
+    renderer = VersionAwareRenderer(ha_version="2025.10.3")
+    yaml_content = renderer.render(automation_spec)
     assert yaml_content is not None
     assert "alias:" in yaml_content
 
