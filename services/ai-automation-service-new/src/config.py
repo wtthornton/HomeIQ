@@ -22,8 +22,10 @@ class Settings(BaseSettings):
 
     # OpenAI Configuration
     openai_api_key: str | None = None
-    # Must be a chat model (v1/chat/completions). Use OPENAI_MODEL to override.
+    # Default model for plan/chat (v1/chat/completions). Must be a chat model.
     openai_model: str = "gpt-4o-mini"
+    # Model for YAML and HomeIQ JSON generation (reasoning/codex). Use OPENAI_YAML_MODEL to override.
+    openai_yaml_model: str = "gpt-5.2-codex"
     openai_timeout: float = 90.0
     openai_reasoning_effort: str = "high"  # Reasoning effort: low, medium, high, xhigh
 

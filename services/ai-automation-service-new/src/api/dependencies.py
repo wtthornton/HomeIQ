@@ -66,25 +66,33 @@ AuthenticatedUser = Annotated[dict, Depends(get_authenticated_user)]
 _data_api_client: DataAPIClient | None = None
 _ha_client: HomeAssistantClient | None = None
 _openai_client: OpenAIClient | None = None
+_openai_yaml_client: OpenAIClient | None = None
 _yaml_validation_client: YAMLValidationClient | None = None
 
 
 def init_clients() -> None:
     """Initialize singleton HTTP clients. Called during lifespan startup."""
-    global _data_api_client, _ha_client, _openai_client, _yaml_validation_client
+    global _data_api_client, _ha_client, _openai_client, _openai_yaml_client, _yaml_validation_client
     _data_api_client = DataAPIClient(base_url=settings.data_api_url)
     _ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token)
     _openai_client = OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
+    _openai_yaml_client = OpenAIClient(
+        api_key=settings.openai_api_key, model=settings.openai_yaml_model
+    )
     _yaml_validation_client = YAMLValidationClient(
         base_url=settings.yaml_validation_service_url, api_key=settings.yaml_validation_api_key
     )
-    logger.info("Singleton HTTP clients initialized")
+    logger.info(
+        "Singleton HTTP clients initialized (plan=%s, yaml=%s)",
+        settings.openai_model,
+        settings.openai_yaml_model,
+    )
 
 
 async def close_clients() -> None:
     """Close all singleton HTTP clients. Called during lifespan shutdown."""
-    global _data_api_client, _ha_client, _openai_client, _yaml_validation_client
-    for client in [_data_api_client, _ha_client, _yaml_validation_client]:
+    global _data_api_client, _ha_client, _openai_client, _openai_yaml_client, _yaml_validation_client
+    for client in [_data_api_client, _ha_client, _openai_client, _openai_yaml_client, _yaml_validation_client]:
         if client and hasattr(client, "close"):
             try:
                 await client.close()
@@ -93,6 +101,7 @@ async def close_clients() -> None:
     _data_api_client = None
     _ha_client = None
     _openai_client = None
+    _openai_yaml_client = None
     _yaml_validation_client = None
     logger.info("Singleton HTTP clients closed")
 
@@ -114,10 +123,19 @@ def get_ha_client() -> HomeAssistantClient:
 
 
 def get_openai_client() -> OpenAIClient:
-    """Get OpenAI client singleton."""
+    """Get OpenAI client singleton (default/plan model, e.g. gpt-4o-mini)."""
     if _openai_client is None:
         return OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
     return _openai_client
+
+
+def get_openai_yaml_client() -> OpenAIClient:
+    """Get OpenAI client for YAML/HomeIQ JSON generation (reasoning/codex model)."""
+    if _openai_yaml_client is None:
+        return OpenAIClient(
+            api_key=settings.openai_api_key, model=settings.openai_yaml_model
+        )
+    return _openai_yaml_client
 
 
 def get_yaml_validation_client() -> YAMLValidationClient:
@@ -132,11 +150,11 @@ def get_yaml_validation_client() -> YAMLValidationClient:
 # Service dependencies
 def get_yaml_generation_service(
     _db: DatabaseSession,
-    openai_client: Annotated[OpenAIClient, Depends(get_openai_client)],
+    openai_client: Annotated[OpenAIClient, Depends(get_openai_yaml_client)],
     data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)],
     yaml_validation_client: Annotated[YAMLValidationClient, Depends(get_yaml_validation_client)],
 ) -> YAMLGenerationService:
-    """Get YAML generation service instance (Epic 51: integrated with validation service)."""
+    """Get YAML generation service (uses openai_yaml_model / Codex for YAML and HomeIQ JSON)."""
     return YAMLGenerationService(
         openai_client=openai_client,
         data_api_client=data_api_client,
@@ -164,9 +182,9 @@ def get_deployment_service(
 
 # JSON service dependencies (Epic 51: HomeIQ JSON Automation layer)
 def get_json_rebuilder(
-    openai_client: Annotated[OpenAIClient, Depends(get_openai_client)],
+    openai_client: Annotated[OpenAIClient, Depends(get_openai_yaml_client)],
 ) -> JSONRebuilder:
-    """Get JSON rebuilder service instance."""
+    """Get JSON rebuilder (uses openai_yaml_model / Codex for HomeIQ JSON generation)."""
     return JSONRebuilder(openai_client=openai_client)
 
 
