@@ -22,8 +22,9 @@ class Settings(BaseSettings):
 
     # OpenAI Configuration
     openai_api_key: str | None = None
-    openai_model: str = "gpt-5.2-codex"  # Reasoning model for high-quality YAML generation
-    openai_timeout: float = 90.0  # Reasoning models need more time
+    # Must be a chat model (v1/chat/completions). Use OPENAI_MODEL to override.
+    openai_model: str = "gpt-4o-mini"
+    openai_timeout: float = 90.0
     openai_reasoning_effort: str = "high"  # Reasoning effort: low, medium, high, xhigh
 
     # Device Intelligence Service

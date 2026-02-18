@@ -10,6 +10,7 @@ from shared.homeiq_automation.schema import (
     HomeIQAutomation,
     HomeIQMetadata,
     HomeIQTrigger,
+    TriggerConfig,
 )
 
 
@@ -19,12 +20,17 @@ def test_homeiq_automation_creation():
         alias="Test Automation",
         homeiq_metadata=HomeIQMetadata(use_case="comfort", complexity="low"),
         device_context=DeviceContext(entity_ids=["light.test"]),
-        triggers=[HomeIQTrigger(platform="state", entity_id="light.test", to="on")],
+        triggers=[
+            HomeIQTrigger(
+                platform="state",
+                config=TriggerConfig(entity_id="light.test", parameters={"to": "on"}),
+            )
+        ],
         actions=[HomeIQAction(service="light.turn_on", target={"entity_id": "light.test"})],
     )
 
     assert automation.alias == "Test Automation"
-    assert automation.version == "1.0.0"
+    assert automation.version == "2.0.0"
     assert len(automation.triggers) == 1
     assert len(automation.actions) == 1
 
@@ -36,7 +42,12 @@ def test_homeiq_automation_validation():
         alias="Valid Automation",
         homeiq_metadata=HomeIQMetadata(use_case="energy", complexity="medium"),
         device_context=DeviceContext(entity_ids=["sensor.temperature"]),
-        triggers=[HomeIQTrigger(platform="time", at="08:00:00")],
+        triggers=[
+            HomeIQTrigger(
+                platform="time",
+                config=TriggerConfig(parameters={"at": "08:00:00"}),
+            )
+        ],
         actions=[HomeIQAction(service="climate.set_temperature", data={"temperature": 72})],
     )
 

@@ -9,6 +9,7 @@ from shared.homeiq_automation.schema import (
     HomeIQAutomation,
     HomeIQMetadata,
     HomeIQTrigger,
+    TriggerConfig,
 )
 from shared.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
 
@@ -20,7 +21,12 @@ def test_json_workflow_end_to_end():
         alias="End-to-End Test",
         homeiq_metadata=HomeIQMetadata(use_case="comfort", complexity="medium"),
         device_context=DeviceContext(entity_ids=["light.test", "sensor.motion"]),
-        triggers=[HomeIQTrigger(platform="state", entity_id="sensor.motion", to="on")],
+        triggers=[
+            HomeIQTrigger(
+                platform="state",
+                config=TriggerConfig(entity_id="sensor.motion", parameters={"to": "on"}),
+            )
+        ],
         actions=[HomeIQAction(service="light.turn_on", target={"entity_id": "light.test"})],
     )
 

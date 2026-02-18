@@ -10,6 +10,7 @@ from shared.homeiq_automation.schema import (
     HomeIQAutomation,
     HomeIQMetadata,
     HomeIQTrigger,
+    TriggerConfig,
 )
 
 from src.services.json_verification_service import JSONVerificationService
@@ -22,7 +23,12 @@ async def test_json_verification_valid():
         alias="Valid Automation",
         homeiq_metadata=HomeIQMetadata(use_case="comfort", complexity="low"),
         device_context=DeviceContext(entity_ids=["light.test"]),
-        triggers=[HomeIQTrigger(platform="state", entity_id="light.test", to="on")],
+        triggers=[
+            HomeIQTrigger(
+                platform="state",
+                config=TriggerConfig(entity_id="light.test", parameters={"to": "on"}),
+            )
+        ],
         actions=[HomeIQAction(service="light.turn_on", target={"entity_id": "light.test"})],
     )
 
@@ -45,7 +51,12 @@ async def test_json_verification_consistency():
         alias="Consistency Test",
         homeiq_metadata=HomeIQMetadata(use_case="comfort", complexity="low"),
         device_context=DeviceContext(entity_ids=["light.test", "sensor.temperature"]),
-        triggers=[HomeIQTrigger(platform="state", entity_id="light.test", to="on")],
+        triggers=[
+            HomeIQTrigger(
+                platform="state",
+                config=TriggerConfig(entity_id="light.test", parameters={"to": "on"}),
+            )
+        ],
         actions=[HomeIQAction(service="light.turn_on", target={"entity_id": "light.test"})],
     )
 

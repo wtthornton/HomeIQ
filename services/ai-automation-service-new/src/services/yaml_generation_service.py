@@ -694,8 +694,10 @@ Requirements:
                         if isinstance(eid, str) and "." in eid:
                             entity_ids.append(eid)
 
-            # Recursively check all values
-            for value in data.values():
+            # Recursively check all values (skip entity_id - already processed above to avoid duplicates)
+            for key, value in data.items():
+                if key == "entity_id":
+                    continue
                 self._extract_entity_ids(value, entity_ids)
 
         elif isinstance(data, list):

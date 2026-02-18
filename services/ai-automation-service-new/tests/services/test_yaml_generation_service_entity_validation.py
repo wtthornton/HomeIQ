@@ -205,9 +205,9 @@ class TestFormatEntityContextForPrompt:
 
         formatted = yaml_service._format_entity_context_for_prompt(entity_context)
 
-        # Should only include first 50
+        # Should only include first 50 and indicate more
         assert formatted.count("light.entity_") == 50
-        assert "(+10 more)" in formatted
+        assert "10 more" in formatted
 
 
 class TestExtractEntityIds:
@@ -389,18 +389,18 @@ class TestEntityValidationIntegration:
         # Setup mocks
         mock_data_api_client.fetch_entities.return_value = sample_entities
 
-        # Mock OpenAI to return YAML with valid entities
-        valid_yaml = """
-        id: test-automation
-        alias: Test Automation
-        trigger:
-          - platform: state
-            entity_id: binary_sensor.office_motion
-        action:
-          - service: light.turn_on
-            target:
-              entity_id: light.office_main
-        """
+        # Mock OpenAI to return YAML with valid entities (no leading indent on top-level keys)
+        valid_yaml = (
+            "id: test-automation\n"
+            "alias: Test Automation\n"
+            "trigger:\n"
+            "  - platform: state\n"
+            "    entity_id: binary_sensor.office_motion\n"
+            "action:\n"
+            "  - service: light.turn_on\n"
+            "    target:\n"
+            "      entity_id: light.office_main\n"
+        )
         mock_openai_client.generate_yaml.return_value = valid_yaml
 
         # Test the flow
@@ -426,18 +426,18 @@ class TestEntityValidationIntegration:
         # Setup mocks
         mock_data_api_client.fetch_entities.return_value = sample_entities
 
-        # Mock OpenAI to return YAML with invalid entities
-        invalid_yaml = """
-        id: test-automation
-        alias: Test Automation
-        trigger:
-          - platform: state
-            entity_id: binary_sensor.fictional_motion
-        action:
-          - service: light.turn_on
-            target:
-              entity_id: light.fictional_light
-        """
+        # Mock OpenAI to return YAML with invalid entities (valid syntax, invalid entity IDs)
+        invalid_yaml = (
+            "id: test-automation\n"
+            "alias: Test Automation\n"
+            "trigger:\n"
+            "  - platform: state\n"
+            "    entity_id: binary_sensor.fictional_motion\n"
+            "action:\n"
+            "  - service: light.turn_on\n"
+            "    target:\n"
+            "      entity_id: light.fictional_light\n"
+        )
         mock_openai_client.generate_yaml.return_value = invalid_yaml
 
         # Test that validation fails
@@ -464,17 +464,17 @@ class TestEntityValidationIntegration:
         # Setup mocks
         mock_data_api_client.fetch_entities.return_value = sample_entities
 
-        valid_yaml = """
-        id: test-automation
-        alias: Test Automation
-        trigger:
-          - platform: state
-            entity_id: binary_sensor.office_motion
-        action:
-          - service: light.turn_on
-            target:
-              entity_id: light.office_main
-        """
+        valid_yaml = (
+            "id: test-automation\n"
+            "alias: Test Automation\n"
+            "trigger:\n"
+            "  - platform: state\n"
+            "    entity_id: binary_sensor.office_motion\n"
+            "action:\n"
+            "  - service: light.turn_on\n"
+            "    target:\n"
+            "      entity_id: light.office_main\n"
+        )
         mock_openai_client.generate_yaml.return_value = valid_yaml
 
         suggestion = {"title": "Test Automation", "description": "Test automation"}

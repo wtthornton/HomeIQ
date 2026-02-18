@@ -10,6 +10,7 @@ Tests the complete flow:
 6. JSON query and combination
 """
 
+import copy
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -30,47 +31,46 @@ from src.services.yaml_generation_service import YAMLGenerationService
 
 @pytest.fixture
 def sample_homeiq_json():
-    """Sample HomeIQ JSON Automation for testing."""
+    """Sample HomeIQ JSON Automation for testing (schema with alias, homeiq_metadata, triggers, actions)."""
     return {
-        "schema_version": "1.0.0",
-        "metadata": {
-            "alias": "Test Automation",
-            "description": "Test automation for integration testing",
-            "created_at": "2025-01-01T00:00:00Z",
-            "created_by": "test",
+        "alias": "Test Automation",
+        "description": "Test automation for integration testing",
+        "version": "2.0.0",
+        "homeiq_metadata": {
             "use_case": "comfort",
             "complexity": "low",
         },
         "pattern_context": None,
         "device_context": {
-            "devices": [
-                {
-                    "device_id": "test_device_1",
-                    "entity_ids": ["light.test_1", "sensor.motion_1"],
-                    "area_id": "living_room",
-                }
-            ],
+            "device_ids": ["test_device_1"],
             "entity_ids": ["light.test_1", "sensor.motion_1"],
+            "device_types": ["light", "sensor"],
+            "area_ids": ["living_room"],
         },
-        "safety_checks": {
-            "critical_warnings": [],
-            "recommendations": [],
-            "requires_confirmation": False,
-        },
-        "energy_impact": {
-            "estimated_watts": 10.0,
-            "estimated_daily_kwh": 0.24,
-            "peak_power_time": "evening",
-        },
-        "ha_automation_spec": {
-            "alias": "Test Automation",
-            "description": "Test automation",
-            "trigger": [{"platform": "state", "entity_id": "sensor.motion_1", "to": "on"}],
-            "condition": [],
-            "action": [{"service": "light.turn_on", "target": {"entity_id": "light.test_1"}}],
-            "mode": "single",
-            "initial_state": True,
-        },
+        "area_context": ["living_room"],
+        "triggers": [
+            {
+                "platform": "state",
+                "config": {
+                    "entity_id": "sensor.motion_1",
+                    "parameters": {"to": "on"},
+                },
+            }
+        ],
+        "conditions": None,
+        "actions": [
+            {
+                "service": "light.turn_on",
+                "target": {"entity_id": "light.test_1"},
+                "data": {},
+            }
+        ],
+        "mode": "single",
+        "initial_state": True,
+        "safety_checks": None,
+        "energy_impact": None,
+        "dependencies": None,
+        "tags": None,
         "extra": {},
     }
 
@@ -84,6 +84,11 @@ def mock_data_api_client():
             {"entity_id": "light.test_1"},
             {"entity_id": "sensor.motion_1"},
             {"entity_id": "light.test_2"},
+        ]
+    )
+    client.fetch_devices = AsyncMock(
+        return_value=[
+            {"device_id": "test_device_1", "entity_ids": ["light.test_1", "sensor.motion_1"]},
         ]
     )
     return client
@@ -111,12 +116,12 @@ async def test_json_generation_workflow(mock_openai_client, sample_homeiq_json):
     # Generate JSON
     result = await yaml_service.generate_homeiq_json(
         suggestion={"title": "Test", "description": "Turn on light when motion detected"},
-        home_context={},
+        homeiq_context={},
     )
 
     assert result is not None
-    assert result["metadata"]["alias"] == "Test Automation"
-    assert "ha_automation_spec" in result
+    assert result["alias"] == "Test Automation"
+    assert "triggers" in result and "actions" in result
 
 
 @pytest.mark.asyncio
@@ -125,10 +130,10 @@ async def test_json_validation_workflow(mock_data_api_client, sample_homeiq_json
     """Test JSON validation workflow."""
     validator = HomeIQAutomationValidator(mock_data_api_client)
 
-    # Validate JSON
-    result = await validator.validate_homeiq_automation(sample_homeiq_json)
+    # Validate JSON (entity/device validation uses mock_data_api_client)
+    result = await validator.validate(sample_homeiq_json)
 
-    assert result.is_valid is True
+    assert result.valid is True, f"Validation failed: {result.errors}"
     assert len(result.errors) == 0
 
 
@@ -189,12 +194,11 @@ async def test_automation_combiner(sample_homeiq_json):
     """Test automation combination service."""
     combiner = AutomationCombiner()
 
-    # Create second automation
-    automation2 = sample_homeiq_json.copy()
-    automation2["metadata"]["alias"] = "Test Automation 2"
-    automation2["ha_automation_spec"]["alias"] = "Test Automation 2"
-    automation2["ha_automation_spec"]["trigger"][0]["entity_id"] = "sensor.motion_2"
-    automation2["ha_automation_spec"]["action"][0]["target"]["entity_id"] = "light.test_2"
+    # Create second automation (deep copy to avoid mutating shared fixture)
+    automation2 = copy.deepcopy(sample_homeiq_json)
+    automation2["alias"] = "Test Automation 2"
+    automation2["triggers"][0]["config"]["entity_id"] = "sensor.motion_2"
+    automation2["actions"][0]["target"] = {"entity_id": "light.test_2"}
 
     # Combine automations
     combined = combiner.combine(
@@ -205,10 +209,10 @@ async def test_automation_combiner(sample_homeiq_json):
 
     assert combined is not None
     assert isinstance(combined, HomeIQAutomation)
-    assert combined.metadata.alias == "Combined Automation"
+    assert combined.alias == "Combined Automation"
     # Should have triggers and actions from both
-    assert len(combined.ha_automation_spec.trigger) >= 1
-    assert len(combined.ha_automation_spec.action) >= 1
+    assert len(combined.triggers) >= 1
+    assert len(combined.actions) >= 1
 
 
 @pytest.mark.asyncio
@@ -239,8 +243,8 @@ action:
     )
 
     assert result is not None
-    assert "metadata" in result
-    assert "ha_automation_spec" in result
+    assert "alias" in result
+    assert "triggers" in result and "actions" in result
 
 
 @pytest.mark.asyncio
@@ -261,8 +265,8 @@ async def test_json_rebuilder_from_description(mock_openai_client, sample_homeiq
     )
 
     assert result is not None
-    assert "metadata" in result
-    assert "ha_automation_spec" in result
+    assert "alias" in result
+    assert "triggers" in result and "actions" in result
 
 
 @pytest.mark.asyncio
@@ -273,15 +277,15 @@ async def test_json_verification_service(mock_data_api_client, sample_homeiq_jso
 
     # Verify valid JSON
     result = await verification_service.verify(sample_homeiq_json)
-    assert result.is_valid is True
+    assert result.valid is True
 
-    # Test invalid entity
-    invalid_json = sample_homeiq_json.copy()
-    invalid_json["ha_automation_spec"]["trigger"][0]["entity_id"] = "invalid.entity"
+    # Test invalid entity (use new schema: triggers[].config.entity_id)
+    invalid_json = copy.deepcopy(sample_homeiq_json)
+    invalid_json["triggers"][0]["config"]["entity_id"] = "invalid.entity"
 
     result = await verification_service.verify(invalid_json)
     # Should fail entity validation
-    assert result.is_valid is False
+    assert result.valid is False
 
 
 @pytest.mark.asyncio
@@ -303,11 +307,10 @@ async def test_version_aware_rendering(sample_homeiq_json):
     assert yaml_2024_12 is not None
     assert yaml_latest is not None
 
-    # All should contain basic structure
+    # All should contain basic structure (HA uses trigger/action; converter may use triggers/actions)
     for yaml_content in [yaml_2025_10, yaml_2024_12, yaml_latest]:
         assert "alias:" in yaml_content
-        assert "trigger:" in yaml_content
-        assert "action:" in yaml_content
+        assert "trigger" in yaml_content and "action" in yaml_content
 
 
 @pytest.mark.asyncio
@@ -327,13 +330,13 @@ async def test_end_to_end_json_workflow(
     )
 
     homeiq_json = await yaml_service.generate_homeiq_json(
-        suggestion={"title": "Test", "description": "Test automation"}, home_context={}
+        suggestion={"title": "Test", "description": "Test automation"}, homeiq_context={}
     )
 
     # Step 2: Validate JSON
     validator = HomeIQAutomationValidator(mock_data_api_client)
-    validation_result = await validator.validate_homeiq_automation(homeiq_json)
-    assert validation_result.is_valid is True
+    validation_result = await validator.validate(homeiq_json)
+    assert validation_result.valid is True
 
     # Step 3: Convert to AutomationSpec
     # First convert dict to HomeIQAutomation model
@@ -356,4 +359,4 @@ async def test_end_to_end_json_workflow(
     # Step 6: Verify complete workflow
     verification_service = JSONVerificationService(mock_data_api_client)
     verify_result = await verification_service.verify(homeiq_json)
-    assert verify_result.is_valid is True
+    assert verify_result.valid is True

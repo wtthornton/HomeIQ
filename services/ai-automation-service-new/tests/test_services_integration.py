@@ -5,7 +5,7 @@ Epic 39, Story 39.10: Automation Service Foundation
 Tests the core business logic services with mocked external dependencies.
 """
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,17 +23,30 @@ class TestSuggestionService:
     """Integration tests for SuggestionService."""
 
     @pytest.fixture
+    def mock_openai_client_suggestion(self):
+        """Mock OpenAIClient for SuggestionService (needs .client and generate_suggestion_description)."""
+        client = AsyncMock(spec=OpenAIClient)
+        client.client = MagicMock()
+        client.generate_yaml = AsyncMock(
+            return_value="id: test\nalias: Test\ntrigger: []\naction: []\n"
+        )
+        client.generate_suggestion_description = AsyncMock(
+            return_value="Turn on office lamp at 7am"
+        )
+        client.get_usage_stats = MagicMock(return_value={"prompt_tokens": 0, "completion_tokens": 0})
+        return client
+
+    @pytest.fixture
     def mock_data_api_client(self):
-        """Mock DataAPIClient."""
+        """Mock DataAPIClient (100+ events so generate_suggestions runs)."""
+        base_event = {
+            "entity_id": "light.office_lamp",
+            "state": "on",
+            "last_changed": "2025-12-22T07:00:00Z",
+        }
         client = AsyncMock(spec=DataAPIClient)
         client.fetch_events = AsyncMock(
-            return_value=[
-                {
-                    "entity_id": "light.office_lamp",
-                    "state": "on",
-                    "last_changed": "2025-12-22T07:00:00Z",
-                }
-            ]
+            return_value=[{**base_event, "entity_id": f"light.lamp_{i % 10}"} for i in range(100)]
         )
         client.fetch_devices = AsyncMock(return_value=[])
         client.fetch_entities = AsyncMock(return_value=[])
@@ -58,10 +71,14 @@ action:
         return client
 
     @pytest.fixture
-    def suggestion_service(self, test_db: AsyncSession, mock_data_api_client, mock_openai_client):
+    def suggestion_service(
+        self, test_db: AsyncSession, mock_data_api_client, mock_openai_client_suggestion
+    ):
         """Create SuggestionService instance."""
         return SuggestionService(
-            db=test_db, data_api_client=mock_data_api_client, openai_client=mock_openai_client
+            db=test_db,
+            data_api_client=mock_data_api_client,
+            openai_client=mock_openai_client_suggestion,
         )
 
     @pytest.mark.asyncio
@@ -171,29 +188,49 @@ class TestYAMLGenerationService:
 
     @pytest.fixture
     def mock_data_api_client(self):
-        """Mock DataAPIClient."""
+        """Mock DataAPIClient (entities and devices for validator)."""
         client = AsyncMock(spec=DataAPIClient)
         client.fetch_entities = AsyncMock(
             return_value=[{"entity_id": "light.office_lamp", "state": "on"}]
+        )
+        client.fetch_devices = AsyncMock(
+            return_value=[{"device_id": "test_device_1", "entity_ids": ["light.office_lamp"]}]
         )
         return client
 
     @pytest.fixture
     def mock_openai_client(self):
-        """Mock OpenAIClient."""
+        """Mock OpenAIClient (generate_homeiq_automation_json for default flow)."""
+        sample_json = {
+            "alias": "Test Automation",
+            "description": "Turn on lights at 7 AM",
+            "version": "2.0.0",
+            "homeiq_metadata": {"use_case": "comfort", "complexity": "low"},
+            "device_context": {
+                "device_ids": ["test_device_1"],
+                "entity_ids": ["light.office_lamp"],
+                "device_types": ["light"],
+                "area_ids": None,
+            },
+            "triggers": [
+                {
+                    "platform": "state",
+                    "config": {"entity_id": "light.office_lamp", "parameters": {"to": "on"}},
+                }
+            ],
+            "conditions": None,
+            "actions": [
+                {"service": "light.turn_on", "target": {"entity_id": "light.office_lamp"}, "data": {}}
+            ],
+            "mode": "single",
+            "initial_state": True,
+        }
         client = AsyncMock(spec=OpenAIClient)
+        client.client = MagicMock()
         client.generate_yaml = AsyncMock(
-            return_value="""id: 'test-123'
-alias: Test Automation
-trigger:
-  - platform: time
-    at: '07:00:00'
-action:
-  - service: light.turn_on
-    target:
-      entity_id: light.office_lamp
-"""
+            return_value="id: test\nalias: Test\ntrigger: []\naction: []\n"
         )
+        client.generate_homeiq_automation_json = AsyncMock(return_value=sample_json)
         return client
 
     @pytest.fixture
