@@ -10,25 +10,25 @@ class Settings(BaseSettings):
     # Service Configuration
     service_port: int = 8037
     service_name: str = "yaml-validation-service"
-    
+
     # Data API Configuration
     data_api_url: str = "http://data-api:8006"
     data_api_key: str | None = None
     api_key: str | None = None  # Fallback: shared API_KEY from .env
-    
+
     # Home Assistant Configuration (optional, for service validation)
     ha_url: str | None = None
     ha_token: str | None = None
-    
+
     # Validation Settings
     validation_level: str = "moderate"  # strict, moderate, permissive
     enable_normalization: bool = True
     enable_entity_validation: bool = True
     enable_service_validation: bool = False  # Requires HA client
-    
+
     # Logging
     log_level: str = "INFO"
-    
+
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

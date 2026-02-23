@@ -7,7 +7,6 @@ Epic 50 Story 50.2: Added configurable SSL verification
 
 import asyncio
 import logging
-import os
 import time
 from typing import Any
 
@@ -48,13 +47,13 @@ class DiscoveryService:
     async def _discover_devices_websocket(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None) -> list[dict[str, Any]]:
         """
         Discover devices via WebSocket using message routing
-        
+
         Uses message routing through connection manager to avoid listen loop conflicts.
-        
+
         Args:
             websocket: Connected WebSocket client (optional, for backward compatibility)
             connection_manager: Connection manager for sending messages (preferred)
-            
+
         Returns:
             List of device dictionaries
         """
@@ -102,15 +101,15 @@ class DiscoveryService:
     async def _discover_devices_http(self) -> list[dict[str, Any]]:
         """
         Discover devices via HTTP API (fallback when WebSocket not available)
-        
+
         Uses Home Assistant's HTTP API endpoint: /api/config/device_registry/list
-        
+
         Returns:
             List of device dictionaries
         """
         try:
-            import os
             import aiohttp
+            import os
 
             ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
             ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
@@ -156,12 +155,12 @@ class DiscoveryService:
     async def discover_devices(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None) -> list[dict[str, Any]]:
         """
         Discover all devices from Home Assistant device registry
-        
+
         Tries WebSocket first, then falls back to HTTP API if available.
-        
+
         Args:
             websocket: Optional WebSocket client (preferred method)
-            
+
         Returns:
             List of device dictionaries
         """
@@ -440,13 +439,13 @@ class DiscoveryService:
     async def discover_config_entries(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None) -> list[dict[str, Any]]:
         """
         Discover all config entries (integrations) from Home Assistant
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             List of config entry dictionaries
-            
+
         Raises:
             Exception: If command fails or response is invalid
         """
@@ -519,15 +518,15 @@ class DiscoveryService:
     ) -> dict[str, Any] | None:
         """
         Wait for response with specific message ID using message routing
-        
+
         Uses pending_responses dict to route messages from connection manager's listen loop.
         This allows discovery to work even when listen loop is active.
-        
+
         Args:
             websocket: WebSocket connection (optional - kept for compatibility)
             message_id: Message ID to wait for
             timeout: Timeout in seconds
-            
+
         Returns:
             Response dictionary or None if timeout/error
         """
@@ -535,7 +534,7 @@ class DiscoveryService:
             # Create Future for this message ID (message routing pattern)
             future = asyncio.Future()
             self.pending_responses[message_id] = future
-            
+
             try:
                 # Wait for response via Future (will be set by handle_message_result)
                 # Device registry queries can be slow, use extended timeout
@@ -559,34 +558,34 @@ class DiscoveryService:
                         # Event loop not available, clean up immediately
                         self.pending_responses.pop(message_id, None)
                 return None
-                
+
         except Exception as e:
             logger.error(f"Error waiting for response: {e}")
             self.pending_responses.pop(message_id, None)
             return None
-    
+
     async def _cleanup_pending_response(self, message_id: int, delay: float = 2.0):
         """Clean up pending response Future after a delay (for late-arriving messages)"""
         await asyncio.sleep(delay)
         self.pending_responses.pop(message_id, None)
-    
+
     def handle_message_result(self, message: dict[str, Any]) -> bool:
         """
         Handle result message from connection manager's message routing
-        
+
         This method is called by connection manager's _on_message handler
         to route result messages to pending discovery requests.
-        
+
         Args:
             message: Message dictionary from WebSocket
-            
+
         Returns:
             True if message was routed to a pending request, False otherwise
         """
         # Handle both "result" type messages and successful responses
         message_type = message.get("type")
         message_id = message.get("id")
-        
+
         # Route result messages to pending discovery requests
         if message_type == "result" and message_id is not None:
             if message_id in self.pending_responses:
@@ -598,7 +597,7 @@ class DiscoveryService:
                 else:
                     # Future already done (probably timed out), but message arrived
                     logger.debug(f"⚠️  Result message {message_id} arrived but Future already done (likely timeout)")
-        
+
         return False
 
     async def discover_all(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None, store: bool = True) -> dict[str, Any]:
@@ -655,12 +654,12 @@ class DiscoveryService:
     async def discover_services(self, websocket: ClientWebSocketResponse) -> dict[str, dict[str, Any]]:
         """
         Discover available services from Home Assistant Services API.
-        
+
         Epic 2025: Fetch all available services per domain for service validation.
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             Dictionary mapping domain -> {service_name -> service_data}
         """
@@ -688,7 +687,7 @@ class DiscoveryService:
                 async with session.get(f"{ha_url}/api/services", headers=headers) as response:
                     if response.status == 200:
                         services_data = await response.json()
-                        
+
                         # Handle list format: [{"domain": "light", "services": {...}}, ...]
                         # Transform to dict format: {"light": {...}, "lock": {...}}
                         if isinstance(services_data, list):
@@ -705,19 +704,19 @@ class DiscoveryService:
                         elif not isinstance(services_data, dict):
                             logger.error(f"❌ Services data is neither dict nor list, got {type(services_data)}")
                             return {}
-                        
+
                         # Validate structure - ensure it's dict[str, dict[str, Any]]
                         # Check that all values are dicts (domain services)
                         invalid_domains = []
                         for domain, domain_services in services_data.items():
                             if not isinstance(domain_services, dict):
                                 invalid_domains.append(domain)
-                        
+
                         if invalid_domains:
                             logger.warning(f"⚠️  Found {len(invalid_domains)} domains with invalid service format: {invalid_domains[:5]}")
                             # Filter out invalid domains
                             services_data = {k: v for k, v in services_data.items() if isinstance(v, dict)}
-                        
+
                         logger.info(f"✅ Retrieved {len(services_data)} service domains from HA")
                         return services_data
                     else:
@@ -736,12 +735,12 @@ class DiscoveryService:
     ) -> bool:
         """
         Store discovery results to SQLite (via data-api) and optionally to InfluxDB
-        
+
         Args:
             devices_data: List of device dictionaries from HA
             entities_data: List of entity dictionaries from HA
             config_entries_data: List of config entry dictionaries from HA
-            
+
         Returns:
             True if storage successful
         """
@@ -778,7 +777,7 @@ class DiscoveryService:
                         if entry_id and domain:
                             config_entry_map[entry_id] = domain
                     logger.info(f"🔧 Built config entry mapping: {len(config_entry_map)} entries")
-                
+
                 # Resolve integration field for devices from config_entries
                 if devices_data and config_entry_map:
                     for device in devices_data:
@@ -793,7 +792,7 @@ class DiscoveryService:
                                 if integration:
                                     device["integration"] = integration
                                     logger.debug(f"Resolved integration '{integration}' for device {device.get('name', 'unknown')} from config_entry {first_entry_id}")
-                
+
                 # Identify Zigbee devices within MQTT integration
                 # Zigbee2MQTT devices use 'mqtt' integration but need to be identified as Zigbee
                 if devices_data:
@@ -809,16 +808,16 @@ class DiscoveryService:
                                 zigbee_bridge_config_entry = config_entries[0] if isinstance(config_entries, list) else config_entries
                                 logger.info(f"🔍 Found Zigbee2MQTT Bridge with config_entry: {zigbee_bridge_config_entry}")
                                 break
-                    
+
                     # Identify Zigbee devices
                     # FIX: Check identifiers FIRST, even if integration is null
                     # This allows Zigbee devices to be identified even when config entries weren't discovered
                     zigbee_devices_found = 0
                     for device in devices_data:
                         integration = str(device.get("integration", "")).lower()
-                        
+
                         is_zigbee = False
-                        
+
                         # Method 1: Check device identifiers for Zigbee patterns (works even if integration is null)
                         identifiers = device.get("identifiers", [])
                         for identifier in identifiers:
@@ -838,7 +837,7 @@ class DiscoveryService:
                                     break
                                 except ValueError:
                                     pass
-                        
+
                         # Method 2: Check if device shares config_entry with Zigbee2MQTT Bridge
                         if not is_zigbee and zigbee_bridge_config_entry:
                             config_entries = device.get("config_entries", [])
@@ -847,7 +846,7 @@ class DiscoveryService:
                                 if device_entry == zigbee_bridge_config_entry:
                                     is_zigbee = True
                                     logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (shares bridge config_entry)")
-                        
+
                         # Method 3: If integration is already "mqtt", check if it's a Zigbee device
                         # (This is a fallback for devices that already have integration="mqtt" resolved)
                         if not is_zigbee and integration == "mqtt":
@@ -863,17 +862,17 @@ class DiscoveryService:
                                             is_zigbee = True
                                             logger.debug(f"Identified {device.get('name', 'unknown')} as Zigbee (via Zigbee bridge device)")
                                             break
-                        
+
                         if is_zigbee:
                             # Mark as Zigbee device
                             device["integration"] = "zigbee2mqtt"  # Update integration field
                             device["source"] = "zigbee2mqtt"  # Add source field for tracking
                             zigbee_devices_found += 1
                             logger.info(f"✅ Identified Zigbee device: {device.get('name', 'unknown')} (manufacturer: {device.get('manufacturer', 'unknown')})")
-                    
+
                     if zigbee_devices_found > 0:
                         logger.info(f"🔍 Identified {zigbee_devices_found} Zigbee devices within MQTT integration")
-                
+
                 # Store devices to SQLite
                 if devices_data:
                     try:
@@ -1020,10 +1019,10 @@ class DiscoveryService:
     async def subscribe_to_device_registry_events(self, websocket: ClientWebSocketResponse) -> bool:
         """
         Subscribe to device registry update events
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             True if subscription successful
         """
@@ -1054,10 +1053,10 @@ class DiscoveryService:
     async def subscribe_to_entity_registry_events(self, websocket: ClientWebSocketResponse) -> bool:
         """
         Subscribe to entity registry update events
-        
+
         Args:
             websocket: Connected WebSocket client
-            
+
         Returns:
             True if subscription successful
         """
@@ -1088,10 +1087,10 @@ class DiscoveryService:
     async def handle_device_registry_event(self, event: dict[str, Any]) -> bool:
         """
         Handle device registry update event
-        
+
         Args:
             event: Event data from Home Assistant
-            
+
         Returns:
             True if handled successfully
         """
@@ -1129,10 +1128,10 @@ class DiscoveryService:
     async def handle_entity_registry_event(self, event: dict[str, Any]) -> bool:
         """
         Handle entity registry update event
-        
+
         Args:
             event: Event data from Home Assistant
-            
+
         Returns:
             True if handled successfully
         """
@@ -1182,10 +1181,10 @@ class DiscoveryService:
     def get_device_id(self, entity_id: str) -> str | None:
         """
         Get device_id for an entity
-        
+
         Args:
             entity_id: The entity ID to look up
-            
+
         Returns:
             device_id if found, None otherwise
         """
@@ -1196,15 +1195,15 @@ class DiscoveryService:
     def get_area_id(self, entity_id: str, device_id: str | None = None) -> str | None:
         """
         Get area_id for an entity or device
-        
+
         Checks in this order:
         1. Entity direct area assignment
         2. Device area assignment (if device_id provided or looked up)
-        
+
         Args:
             entity_id: The entity ID to look up
             device_id: Optional device ID (will be looked up if not provided)
-            
+
         Returns:
             area_id if found, None otherwise
         """
@@ -1226,10 +1225,10 @@ class DiscoveryService:
     def get_device_metadata(self, device_id: str) -> dict[str, Any] | None:
         """
         Get device metadata (manufacturer, model, sw_version)
-        
+
         Args:
             device_id: The device ID to look up
-            
+
         Returns:
             Device metadata dict if found, None otherwise
         """
@@ -1238,10 +1237,10 @@ class DiscoveryService:
     def _check_cache_freshness(self):
         """
         Check if cache is stale and log warning if needed.
-        
+
         Cache is considered stale if it's older than TTL and has entries.
         This helps identify when discovery hasn't run recently.
-        
+
         Only logs warning once per interval to avoid log spam.
         """
         if self._cache_timestamp and len(self.entity_to_device) > 0:
@@ -1265,7 +1264,7 @@ class DiscoveryService:
     def is_cache_stale(self) -> bool:
         """
         Check if cache is stale.
-        
+
         Returns:
             True if cache is older than TTL, False otherwise
         """
@@ -1277,7 +1276,7 @@ class DiscoveryService:
     def clear_caches(self):
         """
         Clear all mapping caches.
-        
+
         Useful when discovery fails or needs to be reset.
         """
         self.entity_to_device.clear()
@@ -1290,7 +1289,7 @@ class DiscoveryService:
     def get_cache_statistics(self) -> dict[str, Any]:
         """
         Get statistics about mapping caches
-        
+
         Returns:
             Dictionary with cache statistics
         """

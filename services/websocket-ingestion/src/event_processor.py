@@ -30,10 +30,10 @@ class EventProcessor:
     def validate_event(self, event_data: dict[str, Any]) -> tuple[bool, str]:
         """
         Validate Home Assistant event data
-        
+
         Args:
             event_data: The event data to validate
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -69,10 +69,10 @@ class EventProcessor:
     def _validate_state_changed_event(self, event_data: dict[str, Any]) -> tuple[bool, str]:
         """
         Validate state_changed event specifically
-        
+
         Args:
             event_data: The state_changed event data
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -170,10 +170,10 @@ class EventProcessor:
     def extract_event_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """
         Extract structured data from Home Assistant event
-        
+
         Args:
             event_data: The raw event data
-            
+
         Returns:
             Dictionary with extracted event data
         """
@@ -208,10 +208,10 @@ class EventProcessor:
     def _extract_state_changed_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """
         Extract data from state_changed event
-        
+
         Args:
             event_data: The state_changed event data
-            
+
         Returns:
             Dictionary with extracted state_changed data
         """
@@ -322,10 +322,10 @@ class EventProcessor:
     def _extract_call_service_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """
         Extract data from call_service event
-        
+
         Args:
             event_data: The call_service event data
-            
+
         Returns:
             Dictionary with extracted call_service data
         """
@@ -339,10 +339,10 @@ class EventProcessor:
     def process_event(self, event_data: dict[str, Any]) -> dict[str, Any] | None:
         """
         Process and validate a Home Assistant event
-        
+
         Args:
             event_data: The raw event data
-            
+
         Returns:
             Processed event data if valid, None if invalid
         """
@@ -376,7 +376,7 @@ class EventProcessor:
     def _log_processed_event(self, processed_data: dict[str, Any]):
         """
         Log processed event information
-        
+
         Args:
             processed_data: The processed event data
         """
@@ -399,7 +399,7 @@ class EventProcessor:
     def get_processing_statistics(self) -> dict[str, Any]:
         """
         Get event processing statistics
-        
+
         Returns:
             Dictionary with processing statistics
         """

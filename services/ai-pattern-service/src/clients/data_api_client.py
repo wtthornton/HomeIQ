@@ -30,7 +30,7 @@ class DataAPIClient:
     ):
         """
         Initialize Data API client.
-        
+
         Args:
             base_url: Base URL for Data API (default: http://data-api:8006)
             influxdb_url: Optional InfluxDB URL for direct queries
@@ -77,7 +77,7 @@ class DataAPIClient:
     ) -> pd.DataFrame:
         """
         Fetch historical events from Data API.
-        
+
         Args:
             start_time: Start datetime (default: 30 days ago)
             end_time: End datetime (default: now)
@@ -85,7 +85,7 @@ class DataAPIClient:
             device_id: Optional filter for specific device
             event_type: Optional filter for event type
             limit: Maximum number of events to return
-        
+
         Returns:
             pandas DataFrame with event data
         """
@@ -185,13 +185,13 @@ class DataAPIClient:
     ) -> list[dict[str, Any]]:
         """
         Fetch all devices from Data API.
-        
+
         Args:
             manufacturer: Optional filter by manufacturer
             model: Optional filter by model
             area_id: Optional filter by area/room
             limit: Maximum number of devices to return
-        
+
         Returns:
             List of device dictionaries
         """
@@ -250,14 +250,14 @@ class DataAPIClient:
     ) -> list[dict[str, Any]]:
         """
         Fetch all entities from Data API.
-        
+
         Args:
             device_id: Optional filter by device ID
             domain: Optional filter by domain
             platform: Optional filter by platform
             area_id: Optional filter by area/room
             limit: Maximum number of entities to return
-        
+
         Returns:
             List of entity dictionaries
         """

@@ -129,38 +129,38 @@ class CapabilityPatternsService:
         except Exception as e:
             logger.warning(f"⚠️ Error generating capability patterns from device-intelligence: {e}")
             logger.info("🔄 Falling back to entity-based capability extraction...")
-            
+
             # Fallback: Extract capabilities directly from entities
             try:
                 return await self._extract_capabilities_from_entities()
             except Exception as fallback_error:
                 logger.error(f"❌ Fallback capability extraction also failed: {fallback_error}", exc_info=True)
                 return "Capability patterns unavailable."
-    
+
     async def _extract_capabilities_from_entities(self) -> str:
         """
         Fallback: Extract capability patterns directly from entity attributes.
-        
+
         Returns:
             Formatted capability patterns string
         """
         try:
             # Fetch entities from data-api
             entities = await self.data_api_client.fetch_entities(limit=500)
-            
+
             if not entities:
                 return "No capability patterns found"
-            
+
             # Group capabilities by domain
             domain_capabilities: dict[str, set[str]] = defaultdict(set)
-            
+
             for entity in entities:
                 domain = entity.get("domain", "")
                 if domain not in ["light", "fan", "climate", "cover", "media_player"]:
                     continue
-                
+
                 attributes = entity.get("attributes", {})
-                
+
                 # Extract light capabilities
                 if domain == "light":
                     supported_color_modes = attributes.get("supported_color_modes", [])
@@ -176,7 +176,7 @@ class CapabilityPatternsService:
                         effects = attributes.get("effect_list", [])
                         if effects:
                             domain_capabilities["light"].add(f"effect: [{', '.join(effects[:5])}{'...' if len(effects) > 5 else ''}]")
-            
+
             # Format patterns
             pattern_parts = []
             for domain in sorted(domain_capabilities.keys()):
@@ -185,17 +185,17 @@ class CapabilityPatternsService:
                     pattern_parts.append(f"{domain}:")
                     for cap in capabilities:
                         pattern_parts.append(f"  {cap}")
-            
+
             patterns = "\n".join(pattern_parts) if pattern_parts else "No capability patterns found"
-            
+
             # Cache the result
             await self.context_builder._set_cached_value(
                 self._cache_key, patterns, self._cache_ttl
             )
-            
+
             logger.info(f"✅ Generated capability patterns from entities ({len(patterns)} chars)")
             return patterns
-            
+
         except Exception as e:
             logger.error(f"❌ Error extracting capabilities from entities: {e}", exc_info=True)
             return "Capability patterns unavailable."
@@ -221,21 +221,20 @@ class CapabilityPatternsService:
                 if unit:
                     range_str += f" {unit}"
                 return f"{cap_name} ({range_str})"
-            elif "max" in properties:
+            if "max" in properties:
                 range_str = f"0-{properties['max']}"
                 if unit:
                     range_str += f" {unit}"
                 return f"{cap_name} ({range_str})"
-            elif "min" in properties:
+            if "min" in properties:
                 range_str = f"{properties['min']}+"
                 if unit:
                     range_str += f" {unit}"
                 return f"{cap_name} ({range_str})"
-            elif unit:
+            if unit:
                 return f"{cap_name} ({unit})"
-            else:
-                return cap_name
-        elif cap_type == "enum":
+            return cap_name
+        if cap_type == "enum":
             # Show actual enum values (limit to 8 for readability)
             if "values" in properties and isinstance(properties["values"], list):
                 values = properties["values"]
@@ -243,31 +242,26 @@ class CapabilityPatternsService:
                     # Show all values
                     values_str = ", ".join(str(v) for v in values)
                     return f"{cap_name} [{values_str}]"
-                else:
-                    # Show first 5 and count
-                    values_str = ", ".join(str(v) for v in values[:5])
-                    return f"{cap_name} [{values_str}, ... ({len(values)} total)]"
-            elif "count" in properties:
+                # Show first 5 and count
+                values_str = ", ".join(str(v) for v in values[:5])
+                return f"{cap_name} [{values_str}, ... ({len(values)} total)]"
+            if "count" in properties:
                 return f"{cap_name} ({properties['count']} options)"
-            else:
-                return cap_name
-        elif cap_type == "composite":
+            return cap_name
+        if cap_type == "composite":
             # Show components if available
             if "components" in properties:
                 components = properties["components"]
                 if isinstance(components, list) and len(components) <= 5:
                     components_str = ", ".join(str(c) for c in components)
                     return f"{cap_name} (composite: {components_str})"
-                elif isinstance(components, list):
+                if isinstance(components, list):
                     components_str = ", ".join(str(c) for c in components[:3])
                     return f"{cap_name} (composite: {components_str}, ... {len(components)} total)"
-                else:
-                    return f"{cap_name} (composite)"
-            else:
-                return cap_name
-        else:
-            # Binary or unknown
+                return f"{cap_name} (composite)"
             return cap_name
+        # Binary or unknown
+        return cap_name
 
     async def close(self):
         """Close service resources"""

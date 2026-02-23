@@ -7,7 +7,7 @@ Reduces code duplication in synergy_router.py.
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,26 +16,26 @@ def safe_parse_json(
     value: Any,
     default: Any = None,
     field_name: str = "field",
-    context_id: Optional[str] = None
+    context_id: str | None = None
 ) -> Any:
     """
     Safely parse a JSON string or return the value if already parsed.
-    
+
     Args:
         value: Value to parse (string or already parsed)
         default: Default value if parsing fails
         field_name: Name of the field for logging
         context_id: Optional identifier for logging context
-        
+
     Returns:
         Parsed value or default
     """
     if value is None:
         return default
-    
+
     if isinstance(value, (dict, list)):
         return value
-    
+
     if isinstance(value, str):
         try:
             return json.loads(value)
@@ -43,7 +43,7 @@ def safe_parse_json(
             context_str = f" for {context_id}" if context_id else ""
             logger.warning(f"Failed to parse {field_name}{context_str}: {e}")
             return default
-    
+
     return default
 
 
@@ -53,11 +53,11 @@ def extract_synergy_fields(
 ) -> dict[str, Any]:
     """
     Extract and normalize synergy fields from database result.
-    
+
     Args:
         synergy: Synergy object or dictionary
         is_dict: Whether synergy is a dictionary
-        
+
     Returns:
         Normalized synergy dictionary
     """
@@ -69,42 +69,42 @@ def extract_synergy_fields(
 def _extract_from_dict(synergy: dict[str, Any]) -> dict[str, Any]:
     """Extract fields from dictionary synergy."""
     synergy_id = synergy.get("synergy_id")
-    
+
     metadata = safe_parse_json(
         synergy.get("opportunity_metadata"),
         default={},
         field_name="opportunity_metadata",
         context_id=synergy_id
     )
-    
+
     device_ids = safe_parse_json(
         synergy.get("device_ids"),
         default=[],
         field_name="device_ids",
         context_id=synergy_id
     )
-    
+
     chain_devices = safe_parse_json(
         synergy.get("chain_devices"),
         default=None,
         field_name="chain_devices",
         context_id=synergy_id
     )
-    
+
     explanation = safe_parse_json(
         synergy.get("explanation") or metadata.get('explanation'),
         default=None,
         field_name="explanation",
         context_id=synergy_id
     )
-    
+
     context_breakdown = safe_parse_json(
         synergy.get("context_breakdown") or metadata.get('context_breakdown'),
         default=None,
         field_name="context_breakdown",
         context_id=synergy_id
     )
-    
+
     return {
         "id": synergy.get("id"),
         "synergy_id": synergy_id,
@@ -128,42 +128,42 @@ def _extract_from_dict(synergy: dict[str, Any]) -> dict[str, Any]:
 def _extract_from_object(synergy: Any) -> dict[str, Any]:
     """Extract fields from SQLAlchemy synergy object."""
     synergy_id = synergy.synergy_id
-    
+
     metadata = safe_parse_json(
         synergy.opportunity_metadata,
         default={},
         field_name="opportunity_metadata",
         context_id=synergy_id
     )
-    
+
     device_ids = safe_parse_json(
         synergy.device_ids,
         default=[],
         field_name="device_ids",
         context_id=synergy_id
     )
-    
+
     chain_devices = safe_parse_json(
         getattr(synergy, 'chain_devices', None),
         default=None,
         field_name="chain_devices",
         context_id=synergy_id
     )
-    
+
     explanation = safe_parse_json(
         getattr(synergy, 'explanation', None) or metadata.get('explanation'),
         default=None,
         field_name="explanation",
         context_id=synergy_id
     )
-    
+
     context_breakdown = safe_parse_json(
         getattr(synergy, 'context_breakdown', None) or metadata.get('context_breakdown'),
         default=None,
         field_name="context_breakdown",
         context_id=synergy_id
     )
-    
+
     return {
         "id": synergy.id,
         "synergy_id": synergy_id,
@@ -187,14 +187,14 @@ def _extract_from_object(synergy: Any) -> dict[str, Any]:
 def find_synergy_by_id(
     synergies: list[Any],
     synergy_id: str
-) -> Optional[Any]:
+) -> Any | None:
     """
     Find a synergy by its synergy_id.
-    
+
     Args:
         synergies: List of synergy objects or dictionaries
         synergy_id: Synergy ID to find
-        
+
     Returns:
         Synergy object/dict if found, None otherwise
     """
@@ -211,14 +211,14 @@ def find_synergy_by_id(
 def generate_xai_explanation(
     synergy_data: dict[str, Any],
     explainer: Any
-) -> Optional[str]:
+) -> str | None:
     """
     Generate XAI explanation for a synergy.
-    
+
     Args:
         synergy_data: Normalized synergy dictionary
         explainer: ExplainableSynergyGenerator instance
-        
+
     Returns:
         Generated explanation or None
     """
@@ -252,10 +252,10 @@ def generate_xai_explanation(
 def calculate_synergy_stats(synergies: list[Any]) -> dict[str, Any]:
     """
     Calculate statistics for a list of synergies.
-    
+
     Args:
         synergies: List of synergy objects or dictionaries
-        
+
     Returns:
         Statistics dictionary
     """
@@ -265,7 +265,7 @@ def calculate_synergy_stats(synergies: list[Any]) -> dict[str, Any]:
     total_confidence = 0.0
     total_impact = 0.0
     areas: set[str] = set()
-    
+
     for s in synergies:
         if isinstance(s, dict):
             synergy_type = s.get("synergy_type", "unknown")
@@ -279,15 +279,15 @@ def calculate_synergy_stats(synergies: list[Any]) -> dict[str, Any]:
             confidence = float(s.confidence) if s.confidence is not None else 0.0
             impact = float(s.impact_score) if s.impact_score is not None else 0.0
             area = s.area
-        
+
         by_type[synergy_type] = by_type.get(synergy_type, 0) + 1
         by_complexity[complexity] = by_complexity.get(complexity, 0) + 1
         total_confidence += confidence
         total_impact += impact
-        
+
         if area:
             areas.add(area)
-    
+
     return {
         "total_synergies": total,
         "by_type": by_type,

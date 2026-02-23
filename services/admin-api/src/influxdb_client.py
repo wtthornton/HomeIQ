@@ -41,7 +41,7 @@ class AdminAPIInfluxDBClient:
     async def connect(self) -> bool:
         """
         Connect to InfluxDB
-        
+
         Returns:
             True if connection successful, False otherwise
         """
@@ -90,10 +90,10 @@ class AdminAPIInfluxDBClient:
     async def get_event_statistics(self, period: str = "1h") -> dict[str, Any]:
         """
         Get event processing statistics from InfluxDB
-        
+
         Args:
             period: Time period (1h, 6h, 24h, 7d)
-        
+
         Returns:
             Dictionary with event statistics
         """
@@ -125,10 +125,10 @@ from(bucket: "{self.bucket}")
     async def get_error_rate(self, period: str = "1h") -> dict[str, Any]:
         """
         Calculate error rate from InfluxDB metrics
-        
+
         Args:
             period: Time period
-        
+
         Returns:
             Dictionary with error statistics
         """
@@ -171,11 +171,11 @@ from(bucket: "{self.bucket}")
     async def get_service_metrics(self, service_name: str, period: str = "1h") -> dict[str, Any]:
         """
         Get metrics for a specific service from InfluxDB
-        
+
         Args:
             service_name: Name of the service
             period: Time period
-        
+
         Returns:
             Service metrics dictionary
         """
@@ -210,10 +210,10 @@ from(bucket: "{self.bucket}")
     async def get_all_service_statistics(self, period: str = "1h") -> dict[str, Any]:
         """
         Get aggregated statistics across all services
-        
+
         Args:
             period: Time period
-        
+
         Returns:
             Dictionary with aggregated metrics
         """
@@ -261,11 +261,11 @@ from(bucket: "{self.bucket}")
     async def get_event_trends(self, period: str = "24h", window: str = "1h") -> dict[str, Any]:
         """
         Get event processing trends over time
-        
+
         Args:
             period: Overall time period
             window: Aggregation window (1m, 5m, 1h)
-        
+
         Returns:
             Time-series trend data
         """
@@ -303,10 +303,10 @@ from(bucket: "{self.bucket}")
     async def _execute_query(self, query: str) -> list[dict[str, Any]]:
         """
         Execute InfluxDB query and return results
-        
+
         Args:
             query: Flux query string
-        
+
         Returns:
             List of result dictionaries
         """
@@ -353,10 +353,10 @@ from(bucket: "{self.bucket}")
     def _period_to_seconds(self, period: str) -> int:
         """
         Convert period string to seconds
-        
+
         Args:
             period: Period string (e.g., "1h", "24h", "7d")
-        
+
         Returns:
             Number of seconds
         """
@@ -372,7 +372,7 @@ from(bucket: "{self.bucket}")
     def get_connection_status(self) -> dict[str, Any]:
         """
         Get connection status and statistics
-        
+
         Returns:
             Dictionary with connection info and stats
         """

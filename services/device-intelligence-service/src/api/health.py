@@ -46,7 +46,7 @@ class ServiceStatus(BaseModel):
 async def health_check(settings: Settings = Depends(lambda: Settings())) -> HealthResponse:
     """
     Basic health check endpoint.
-    
+
     Returns:
         HealthResponse: Service health status and basic metrics
     """
@@ -99,7 +99,7 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
 async def service_status(settings: Settings = Depends(lambda: Settings())) -> ServiceStatus:
     """
     Detailed service status endpoint.
-    
+
     Returns:
         ServiceStatus: Detailed service information and configuration
     """
@@ -130,7 +130,7 @@ async def service_status(settings: Settings = Depends(lambda: Settings())) -> Se
 async def readiness_check() -> dict[str, Any]:
     """
     Kubernetes-style readiness check.
-    
+
     Returns:
         Dict[str, Any]: Readiness status
     """
@@ -155,7 +155,7 @@ async def readiness_check() -> dict[str, Any]:
 async def liveness_check() -> dict[str, Any]:
     """
     Kubernetes-style liveness check.
-    
+
     Returns:
         Dict[str, Any]: Liveness status
     """

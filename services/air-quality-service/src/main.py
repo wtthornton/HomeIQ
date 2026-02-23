@@ -12,9 +12,8 @@ from typing import Any
 import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
-from influxdb_client_3 import InfluxDBClient3, Point
-
 from health_check import HealthCheckHandler
+from influxdb_client_3 import InfluxDBClient3, Point
 
 from shared.logging_config import log_error_with_context, log_with_context, setup_logging
 
@@ -99,8 +98,8 @@ class AirQualityService:
     def _validate_coordinate(value: str, name: str, min_val: float, max_val: float) -> None:
         try:
             num = float(value)
-        except (TypeError, ValueError):
-            raise ValueError(f"{name} must be a valid number, got {value!r}")
+        except (TypeError, ValueError) as err:
+            raise ValueError(f"{name} must be a valid number, got {value!r}") from err
         if not (min_val <= num <= max_val):
             raise ValueError(f"{name} must be between {min_val} and {max_val}, got {num}")
 
@@ -334,7 +333,7 @@ class AirQualityService:
         self._rate_limit_requests.append(now)
         return True
 
-    async def get_current_aqi(self, request: web.Request) -> web.Response:
+    async def get_current_aqi(self, _request: web.Request) -> web.Response:
         """API endpoint for current AQI"""
 
         if not self._check_rate_limit():
@@ -420,7 +419,8 @@ async def main() -> None:
     await runner.setup()
 
     port = int(os.getenv('SERVICE_PORT', '8012'))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    host = os.getenv('SERVICE_HOST', '0.0.0.0')  # noqa: S104  # nosec B104 — bind all interfaces for Docker
+    site = web.TCPSite(runner, host, port)
     await site.start()
 
     logger.info(f"API endpoints available on port {port}")

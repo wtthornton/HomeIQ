@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from .detector import DeviceAnomalyDetector, AnomalyAlertManager, AnomalyResult
+from .detector import AnomalyAlertManager, DeviceAnomalyDetector
 
 logger = logging.getLogger(__name__)
 
@@ -66,45 +66,45 @@ class PredictResponse(BaseModel):
 async def train_detector(request: TrainRequest) -> TrainResponse:
     """
     Train anomaly detector for a specific device.
-    
+
     Requires at least 100 samples of normal behavior data.
     """
     import numpy as np
-    
+
     try:
         data = np.array(request.data)
-        
+
         if len(data) < 100:
             raise HTTPException(
                 status_code=400,
                 detail=f"Insufficient training data: {len(data)} < 100 required"
             )
-        
+
         success = detector.fit(
             device_id=request.device_id,
             normal_patterns=data,
             feature_names=request.feature_names,
         )
-        
+
         if not success:
             return TrainResponse(
                 success=False,
                 device_id=request.device_id,
                 message="Training failed - check logs for details",
             )
-        
+
         model_info = detector.get_model_info(request.device_id)
-        
+
         return TrainResponse(
             success=True,
             device_id=request.device_id,
             message=f"Successfully trained on {len(data)} samples",
             model_info=model_info,
         )
-        
+
     except Exception as e:
         logger.error(f"Training error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/predict", response_model=PredictResponse)
@@ -113,36 +113,36 @@ async def predict_anomalies(request: PredictRequest) -> PredictResponse:
     Detect anomalies in new data for a trained device.
     """
     import numpy as np
-    
+
     if request.device_id not in detector.device_models:
         raise HTTPException(
             status_code=404,
             detail=f"No trained model for device: {request.device_id}"
         )
-    
+
     try:
         data = np.array(request.data)
-        
+
         results = detector.predict(
             device_id=request.device_id,
             new_data=data,
             device_name=request.device_name,
             anomaly_type=request.anomaly_type,
         )
-        
+
         # Add anomalies to alert manager
         for result in results:
             alert_manager.add_alert(result)
-        
+
         return PredictResponse(
             device_id=request.device_id,
             anomalies_detected=sum(1 for r in results if r.is_anomaly),
             results=[r.to_dict() for r in results],
         )
-        
+
     except Exception as e:
         logger.error(f"Prediction error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/alerts", response_model=AlertResponse)
@@ -155,7 +155,7 @@ async def get_alerts(
 ) -> AlertResponse:
     """
     Get anomaly alerts with filtering.
-    
+
     Used by the health dashboard to display active anomalies.
     """
     alerts = alert_manager.get_alerts(
@@ -164,9 +164,9 @@ async def get_alerts(
         limit=limit,
         include_acknowledged=include_acknowledged,
     )
-    
+
     summary = alert_manager.get_summary() if include_summary else None
-    
+
     return AlertResponse(
         alerts=alerts,
         total=len(alerts),
@@ -203,13 +203,13 @@ async def list_trained_models() -> dict[str, list[str]]:
 async def get_model_info(device_id: str) -> dict[str, Any]:
     """Get information about a trained model."""
     info = detector.get_model_info(device_id)
-    
+
     if not info:
         raise HTTPException(
             status_code=404,
             detail=f"No trained model for device: {device_id}"
         )
-    
+
     return info
 
 

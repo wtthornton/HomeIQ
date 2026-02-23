@@ -76,7 +76,7 @@ openvino_manager: OpenVINOManager | None = None
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Application lifespan manager."""
     global openvino_manager
 
@@ -211,13 +211,13 @@ def _validate_text_batch(texts: list[str]) -> None:
     if not texts:
         raise HTTPException(status_code=400, detail="At least one text is required")
     if len(texts) > MAX_EMBEDDING_TEXTS:
-        raise HTTPException(status_code=400, detail="Too many texts (max %d)" % MAX_EMBEDDING_TEXTS)
+        raise HTTPException(status_code=400, detail=f"Too many texts (max {MAX_EMBEDDING_TEXTS})")
 
     for idx, text in enumerate(texts):
         if not isinstance(text, str):
-            raise HTTPException(status_code=400, detail="Text at index %d must be a string" % idx)
+            raise HTTPException(status_code=400, detail=f"Text at index {idx} must be a string")
         if len(text) > MAX_TEXT_LENGTH:
-            raise HTTPException(status_code=400, detail="Text at index %d exceeds %d characters" % (idx, MAX_TEXT_LENGTH))
+            raise HTTPException(status_code=400, detail=f"Text at index {idx} exceeds {MAX_TEXT_LENGTH} characters")
         if not text.strip():
             raise HTTPException(status_code=400, detail="Texts cannot be empty strings")
 
@@ -227,14 +227,14 @@ def _validate_rerank_payload(query: str, candidates: list[dict[str, Any]], top_k
     if not query or not query.strip():
         raise HTTPException(status_code=400, detail="Query text is required")
     if len(query) > MAX_QUERY_LENGTH:
-        raise HTTPException(status_code=400, detail="Query exceeds %d characters" % MAX_QUERY_LENGTH)
+        raise HTTPException(status_code=400, detail=f"Query exceeds {MAX_QUERY_LENGTH} characters")
 
     if not candidates:
         raise HTTPException(status_code=400, detail="At least one candidate is required")
     if len(candidates) > MAX_RERANK_CANDIDATES:
         raise HTTPException(
             status_code=400,
-            detail="Too many candidates (max %d)" % MAX_RERANK_CANDIDATES,
+            detail=f"Too many candidates (max {MAX_RERANK_CANDIDATES})",
         )
 
     for idx, candidate in enumerate(candidates):
@@ -242,14 +242,14 @@ def _validate_rerank_payload(query: str, candidates: list[dict[str, Any]], top_k
         if len(description) > MAX_TEXT_LENGTH:
             raise HTTPException(
                 status_code=400,
-                detail="Candidate description at index %d exceeds %d characters" % (idx, MAX_TEXT_LENGTH),
+                detail=f"Candidate description at index {idx} exceeds {MAX_TEXT_LENGTH} characters",
             )
 
     max_allowed = min(MAX_RERANK_TOP_K, len(candidates))
     if top_k < 1 or top_k > max_allowed:
         raise HTTPException(
             status_code=400,
-            detail="top_k must be between 1 and %d" % max_allowed,
+            detail=f"top_k must be between 1 and {max_allowed}",
         )
 
 
@@ -260,7 +260,7 @@ def _validate_pattern_description(description: str) -> None:
     if len(description) > MAX_PATTERN_LENGTH:
         raise HTTPException(
             status_code=400,
-            detail="pattern_description exceeds %d characters" % MAX_PATTERN_LENGTH,
+            detail=f"pattern_description exceeds {MAX_PATTERN_LENGTH} characters",
         )
 
 
@@ -327,15 +327,15 @@ async def generate_embeddings(request: EmbeddingRequest):
             processing_time=processing_time,
         )
 
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as exc:
         timeout = manager.inference_timeout
         logger.warning("Embedding generation timed out after %.2fs", timeout)
-        raise HTTPException(status_code=504, detail="Embedding generation timed out after %s seconds" % timeout)
+        raise HTTPException(status_code=504, detail=f"Embedding generation timed out after {timeout} seconds") from exc
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Error generating embeddings")
-        raise HTTPException(status_code=500, detail="Embedding generation failed")
+        raise HTTPException(status_code=500, detail="Embedding generation failed") from exc
 
 
 @app.post("/rerank", response_model=RerankResponse)
@@ -364,15 +364,15 @@ async def rerank_candidates(request: RerankRequest):
             processing_time=processing_time,
         )
 
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as exc:
         timeout = manager.inference_timeout
         logger.warning("Re-ranking timed out after %.2fs", timeout)
-        raise HTTPException(status_code=504, detail="Re-ranking timed out after %s seconds" % timeout)
+        raise HTTPException(status_code=504, detail=f"Re-ranking timed out after {timeout} seconds") from exc
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Error re-ranking candidates")
-        raise HTTPException(status_code=500, detail="Re-ranking failed")
+        raise HTTPException(status_code=500, detail="Re-ranking failed") from exc
 
 
 @app.post("/classify", response_model=ClassifyResponse)
@@ -397,15 +397,15 @@ async def classify_pattern(request: ClassifyRequest):
             processing_time=processing_time,
         )
 
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as exc:
         timeout = manager.inference_timeout
         logger.warning("Pattern classification timed out after %.2fs", timeout)
-        raise HTTPException(status_code=504, detail="Classification timed out after %s seconds" % timeout)
+        raise HTTPException(status_code=504, detail=f"Classification timed out after {timeout} seconds") from exc
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Error classifying pattern")
-        raise HTTPException(status_code=500, detail="Classification failed")
+        raise HTTPException(status_code=500, detail="Classification failed") from exc
 
 
 # ---------------------------------------------------------------------------

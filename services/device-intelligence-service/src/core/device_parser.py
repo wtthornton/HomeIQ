@@ -438,21 +438,21 @@ class DeviceParser:
                     score -= 20
                 elif zigbee_device.lqi < 100:
                     score -= 10
-            
+
             # Deduct for disabled/unavailable status
             if zigbee_device.availability:
                 if zigbee_device.availability == "disabled":
                     score -= 30
                 elif zigbee_device.availability == "unavailable":
                     score -= 20
-            
+
             # Deduct for low battery
             if zigbee_device.battery is not None:
                 if zigbee_device.battery < 20:
                     score -= 15
                 elif zigbee_device.battery < 50:
                     score -= 5
-            
+
             # Deduct for battery low warning
             if zigbee_device.battery_low:
                 score -= 10

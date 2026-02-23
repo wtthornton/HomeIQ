@@ -17,7 +17,7 @@ class HealthCheckHandler:
         self.failed_fetches = 0
         self.start_time = datetime.now(timezone.utc)
 
-    async def handle(self, request: web.Request) -> web.Response:
+    async def handle(self, _request: web.Request) -> web.Response:
         """Handle health check request"""
 
         uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()

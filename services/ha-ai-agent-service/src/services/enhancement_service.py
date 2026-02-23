@@ -12,11 +12,9 @@ import hashlib
 import logging
 import re
 import time
-from functools import lru_cache
 from typing import Any
 
-import yaml
-from openai import AsyncOpenAI, APITimeoutError
+from openai import APITimeoutError, AsyncOpenAI
 
 from ..clients.patterns_client import PatternsClient
 from ..clients.synergies_client import SynergiesClient
@@ -45,10 +43,9 @@ def _get_cached_enhancement(cache_key: str) -> list[Any] | None:
         if time.time() - timestamp < _CACHE_TTL_SECONDS:
             logger.debug(f"[Cache] HIT for enhancement key {cache_key[:8]}...")
             return result
-        else:
-            # Expired, remove it
-            del _enhancement_cache[cache_key]
-            logger.debug(f"[Cache] EXPIRED for enhancement key {cache_key[:8]}...")
+        # Expired, remove it
+        del _enhancement_cache[cache_key]
+        logger.debug(f"[Cache] EXPIRED for enhancement key {cache_key[:8]}...")
     return None
 
 
@@ -58,15 +55,15 @@ def _set_cached_enhancement(cache_key: str, result: list[Any]) -> None:
     if len(_enhancement_cache) >= _MAX_CACHE_SIZE:
         oldest_key = min(_enhancement_cache.keys(), key=lambda k: _enhancement_cache[k][0])
         del _enhancement_cache[oldest_key]
-        logger.debug(f"[Cache] EVICTED oldest entry to make room")
-    
+        logger.debug("[Cache] EVICTED oldest entry to make room")
+
     _enhancement_cache[cache_key] = (time.time(), result)
     logger.debug(f"[Cache] STORED enhancement key {cache_key[:8]}... (cache size: {len(_enhancement_cache)})")
 
 
 class Enhancement:
     """Represents a single automation enhancement"""
-    
+
     def __init__(
         self,
         level: str,
@@ -86,7 +83,7 @@ class Enhancement:
         self.source = source
         self.pattern_id = pattern_id
         self.synergy_id = synergy_id
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response"""
         return {
@@ -105,7 +102,7 @@ class AutomationEnhancementService:
     """
     Generates automation enhancements using patterns and synergies.
     """
-    
+
     def __init__(
         self,
         openai_client: AsyncOpenAI,
@@ -128,7 +125,7 @@ class AutomationEnhancementService:
         self.settings = settings
         self.patterns_client = patterns_client or PatternsClient(settings=settings)
         self.synergies_client = synergies_client or SynergiesClient(settings=settings)
-    
+
     async def generate_enhancements(
         self,
         automation_yaml: str,
@@ -161,9 +158,9 @@ class AutomationEnhancementService:
                 f"[Enhancement] Using cached YAML enhancements for: {original_prompt[:50]}..."
             )
             return cached_result
-        
+
         enhancements = []
-        
+
         # 1-3: LLM-based enhancements (with timeout)
         logger.info("Generating LLM-based enhancements (small, medium, large)")
         try:
@@ -186,7 +183,7 @@ class AutomationEnhancementService:
                 self._create_fallback_enhancement(automation_yaml, 2),
                 self._create_fallback_enhancement(automation_yaml, 3)
             ])
-        
+
         # 4: Pattern-driven (Advanced) - with timeout
         logger.info("Generating pattern-driven enhancement (advanced)")
         try:
@@ -201,7 +198,7 @@ class AutomationEnhancementService:
         except Exception as e:
             logger.error(f"Error generating pattern enhancement: {e}", exc_info=True)
             enhancements.append(await self._generate_fallback_advanced(automation_yaml))
-        
+
         # 5: Synergy-driven (Fun/Crazy) - with timeout
         logger.info("Generating synergy-driven enhancement (fun/crazy)")
         try:
@@ -216,19 +213,19 @@ class AutomationEnhancementService:
         except Exception as e:
             logger.error(f"Error generating synergy enhancement: {e}", exc_info=True)
             enhancements.append(self._create_fallback_enhancement(automation_yaml, 5))
-        
+
         # Ensure we have at least 3 enhancements
         while len(enhancements) < 3:
             enhancements.append(self._create_fallback_enhancement(automation_yaml, len(enhancements) + 1))
-        
+
         result = enhancements[:5]  # Return up to 5
-        
+
         # Cache the result
         _set_cached_enhancement(cache_key, result)
         logger.info(f"[Enhancement] Generated and cached {len(result)} YAML enhancements")
-        
+
         return result
-    
+
     async def generate_prompt_enhancements(
         self,
         original_prompt: str,
@@ -238,19 +235,19 @@ class AutomationEnhancementService:
     ) -> list[Enhancement]:
         """
         Generate prompt enhancement suggestions (no YAML required).
-        
+
         Enhances the user's prompt to make it more comprehensive, specific, and
         context-aware. Returns enhanced prompt suggestions that can be used to
         generate better automations.
-        
+
         Uses LRU caching to avoid regenerating identical prompt enhancements.
-        
+
         Args:
             original_prompt: User's original request
             creativity_level: Creativity level ("conservative", "balanced", "creative")
             entities: Optional list of entity IDs for pattern/synergy lookup
             areas: Optional list of area IDs for pattern/synergy lookup
-            
+
         Returns:
             List of 5 Enhancement objects with enhanced prompts (stored in enhanced_yaml field)
         """
@@ -262,13 +259,13 @@ class AutomationEnhancementService:
                 f"[Enhancement] Using cached prompt enhancements for: {original_prompt[:50]}..."
             )
             return cached_result
-        
+
         try:
             # For creative/balanced levels, try to use patterns and synergies
             use_patterns_synergies = creativity_level in ("balanced", "creative")
             pattern_enhancement = None
             synergy_enhancement = None
-            
+
             if use_patterns_synergies and entities and areas:
                 try:
                     # Try to get pattern-based enhancement for advanced level
@@ -286,7 +283,7 @@ class AutomationEnhancementService:
                                 )
                 except Exception as e:
                     logger.warning(f"Failed to generate pattern enhancement for prompt: {e}")
-                
+
                 try:
                     # Try to get synergy-based enhancement for fun/creative level
                     if areas and entities:
@@ -305,7 +302,7 @@ class AutomationEnhancementService:
                                 )
                 except Exception as e:
                     logger.warning(f"Failed to generate synergy enhancement for prompt: {e}")
-            
+
             # Adjust enhancement levels based on creativity level
             if creativity_level == "conservative":
                 enhancement_levels = [
@@ -331,10 +328,10 @@ class AutomationEnhancementService:
                     ("Advanced Enhancement", "Add smart features (time-based conditions, energy optimization, adaptive behavior)"),
                     ("Creative Enhancement", "Add fun/creative elements (themed effects, interactive patterns, surprise elements)")
                 ]
-            
+
             enhancement_list = "\n".join([f"{i+1}. **{title}**: {desc}" for i, (title, desc) in enumerate(enhancement_levels)])
-            
-            prompt = f"""You are a prompt enhancement expert for Home Assistant automations. 
+
+            prompt = f"""You are a prompt enhancement expert for Home Assistant automations.
 Given this user prompt, generate 5 enhancement suggestions that make the prompt more comprehensive:
 
 Original Prompt: {original_prompt}
@@ -374,14 +371,14 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
                 temperature=1.0,  # Reasoning models (GPT-5.2-Codex) only support temperature=1.0
                 response_format={"type": "json_object"}
             )
-            
+
             content = response.choices[0].message.content
             if not content:
                 raise ValueError("Empty response from OpenAI")
-            
+
             import json
             data = json.loads(content)
-            
+
             enhancements = []
             for enh_data in data.get("enhancements", []):
                 enhancements.append(Enhancement(
@@ -392,7 +389,7 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
                     changes=enh_data.get("changes", []),
                     source="llm"
                 ))
-            
+
             # Replace advanced enhancement with pattern-based if available
             if pattern_enhancement:
                 # Find and replace the advanced enhancement (usually index 3)
@@ -400,7 +397,7 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
                     enhancements[3] = pattern_enhancement
                 else:
                     enhancements.append(pattern_enhancement)
-            
+
             # Replace creative/fun enhancement with synergy-based if available
             if synergy_enhancement:
                 # Find and replace the last enhancement (creative/fun, usually index 4)
@@ -408,23 +405,23 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
                     enhancements[4] = synergy_enhancement
                 else:
                     enhancements.append(synergy_enhancement)
-            
+
             # Ensure we have at least 3 enhancements
             while len(enhancements) < 3:
                 enhancements.append(self._create_fallback_prompt_enhancement(
                     original_prompt, len(enhancements) + 1
                 ))
-            
+
             result = enhancements[:5]
-            
+
             # Cache the result for future requests
             _set_cached_enhancement(cache_key, result)
             logger.info(
                 f"[Enhancement] Generated and cached {len(result)} prompt enhancements"
             )
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error generating prompt enhancements: {e}", exc_info=True)
             # Return fallback enhancements (don't cache fallbacks)
@@ -435,7 +432,7 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
                 self._create_fallback_prompt_enhancement(original_prompt, 4),
                 self._create_fallback_prompt_enhancement(original_prompt, 5)
             ]
-    
+
     def _create_fallback_prompt_enhancement(
         self,
         original_prompt: str,
@@ -449,9 +446,9 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
             4: ("advanced", "Advanced Enhancement", "Add smart features"),
             5: ("fun", "Creative Enhancement", "Add creative elements")
         }
-        
+
         level, title, description = level_map.get(level_num, ("small", "Enhancement", "Prompt enhancement"))
-        
+
         return Enhancement(
             level=level,
             title=title,
@@ -460,12 +457,12 @@ Ensure enhanced prompts are more comprehensive and specific than the original.""
             changes=["Enhancement applied"],
             source="fallback"
         )
-    
+
     async def _generate_llm_enhancements(
         self,
         automation_yaml: str,
         original_prompt: str,
-        entities: list[str]
+        _entities: list[str]
     ) -> list[Enhancement]:
         """Generate 3 LLM-based enhancements (small, medium, large)"""
         try:
@@ -528,14 +525,14 @@ Ensure all YAML is valid and maintains the original automation's intent."""
                 temperature=1.0,  # Reasoning models (GPT-5.2-Codex) only support temperature=1.0
                 response_format={"type": "json_object"}
             )
-            
+
             content = response.choices[0].message.content
             if not content:
                 raise ValueError("Empty response from OpenAI")
-            
+
             import json
             data = json.loads(content)
-            
+
             enhancements = []
             for enh_data in data.get("enhancements", []):
                 enhancements.append(Enhancement(
@@ -546,15 +543,15 @@ Ensure all YAML is valid and maintains the original automation's intent."""
                     changes=enh_data.get("changes", []),
                     source="llm"
                 ))
-            
+
             # Ensure we have exactly 3 enhancements
             while len(enhancements) < 3:
                 enhancements.append(self._create_fallback_enhancement(
                     automation_yaml, len(enhancements) + 1
                 ))
-            
+
             return enhancements[:3]
-            
+
         except Exception as e:
             logger.error(f"Error generating LLM enhancements: {e}", exc_info=True)
             # Return fallback enhancements
@@ -563,12 +560,12 @@ Ensure all YAML is valid and maintains the original automation's intent."""
                 self._create_fallback_enhancement(automation_yaml, 2),
                 self._create_fallback_enhancement(automation_yaml, 3)
             ]
-    
+
     async def _generate_pattern_enhancement(
         self,
         automation_yaml: str,
         entities: list[str],
-        areas: list[str]
+        _areas: list[str]
     ) -> Enhancement:
         """Generate pattern-driven enhancement (advanced)"""
         try:
@@ -578,25 +575,25 @@ Ensure all YAML is valid and maintains the original automation's intent."""
                 min_confidence=0.7,
                 limit=10
             )
-            
+
             if not patterns:
                 logger.info("No patterns found, generating fallback advanced enhancement")
                 return await self._generate_fallback_advanced(automation_yaml)
-            
+
             # Find most relevant pattern
             relevant_pattern = self._find_best_pattern(patterns, automation_yaml)
-            
+
             if relevant_pattern:
                 # Generate enhancement YAML using pattern
                 enhanced_yaml = await self._apply_pattern_to_automation(
                     automation_yaml,
                     relevant_pattern
                 )
-                
+
                 pattern_type = relevant_pattern.get("pattern_type", "pattern")
                 confidence = relevant_pattern.get("confidence", 0.0)
                 occurrences = relevant_pattern.get("occurrences", 0)
-                
+
                 return Enhancement(
                     level="advanced",
                     title=f"Optimize with {pattern_type.replace('_', ' ').title()} Pattern",
@@ -610,13 +607,12 @@ Ensure all YAML is valid and maintains the original automation's intent."""
                     source="pattern",
                     pattern_id=relevant_pattern.get("id")
                 )
-            else:
-                return await self._generate_fallback_advanced(automation_yaml)
-                
+            return await self._generate_fallback_advanced(automation_yaml)
+
         except Exception as e:
             logger.error(f"Error generating pattern enhancement: {e}", exc_info=True)
             return await self._generate_fallback_advanced(automation_yaml)
-    
+
     async def _generate_synergy_enhancement(
         self,
         automation_yaml: str,
@@ -633,27 +629,27 @@ Ensure all YAML is valid and maintains the original automation's intent."""
                 min_confidence=0.6,
                 limit=10
             )
-            
+
             if not synergies:
                 logger.info("No synergies found, generating fallback fun enhancement")
                 return await self._generate_fallback_fun(automation_yaml)
-            
+
             # Find most relevant synergy
             relevant_synergy = self._find_best_synergy(synergies, entities, areas)
-            
+
             if relevant_synergy:
                 # Generate enhancement YAML using synergy
                 enhanced_yaml = await self._apply_synergy_to_automation(
                     automation_yaml,
                     relevant_synergy
                 )
-                
+
                 synergy_type = relevant_synergy.get("synergy_type", "device_pair")
                 impact_score = relevant_synergy.get("impact_score", 0.0)
                 device_ids = relevant_synergy.get("device_ids", [])
                 explanation = relevant_synergy.get("explanation", {})
                 description = explanation.get("summary", "") if isinstance(explanation, dict) else str(explanation)
-                
+
                 return Enhancement(
                     level="fun",
                     title=f"Combine with {synergy_type.replace('_', ' ').title()}",
@@ -667,41 +663,40 @@ Ensure all YAML is valid and maintains the original automation's intent."""
                     source="synergy",
                     synergy_id=relevant_synergy.get("synergy_id")
                 )
-            else:
-                return await self._generate_fallback_fun(automation_yaml)
-                
+            return await self._generate_fallback_fun(automation_yaml)
+
         except Exception as e:
             logger.error(f"Error generating synergy enhancement: {e}", exc_info=True)
             return await self._generate_fallback_fun(automation_yaml)
-    
+
     def _find_best_pattern(
         self,
         patterns: list[dict[str, Any]],
-        automation_yaml: str
+        _automation_yaml: str
     ) -> dict[str, Any] | None:
         """Find the most relevant pattern for the automation"""
         if not patterns:
             return None
-        
+
         # Simple scoring: prefer higher confidence and more occurrences
         scored_patterns = [
             (p, p.get("confidence", 0.0) * p.get("occurrences", 0))
             for p in patterns
         ]
         scored_patterns.sort(key=lambda x: x[1], reverse=True)
-        
+
         return scored_patterns[0][0] if scored_patterns else None
-    
+
     def _find_best_synergy(
         self,
         synergies: list[dict[str, Any]],
         entities: list[str],
-        areas: list[str]
+        _areas: list[str]
     ) -> dict[str, Any] | None:
         """Find the most relevant synergy for the automation"""
         if not synergies:
             return None
-        
+
         # Score synergies by impact and relevance
         scored_synergies = []
         for synergy in synergies:
@@ -710,14 +705,14 @@ Ensure all YAML is valid and maintains the original automation's intent."""
             overlap = len(set(entities) & set(synergy_device_ids))
             impact_score = synergy.get("impact_score", 0.0)
             confidence = synergy.get("confidence", 0.0)
-            
+
             # Score: impact * confidence * (1 + overlap bonus)
             score = impact_score * confidence * (1 + overlap * 0.2)
             scored_synergies.append((synergy, score))
-        
+
         scored_synergies.sort(key=lambda x: x[1], reverse=True)
         return scored_synergies[0][0] if scored_synergies else None
-    
+
     async def _apply_pattern_to_automation(
         self,
         automation_yaml: str,
@@ -727,7 +722,7 @@ Ensure all YAML is valid and maintains the original automation's intent."""
         try:
             pattern_type = pattern.get("pattern_type", "")
             pattern_metadata = pattern.get("pattern_metadata", {})
-            
+
             prompt = f"""You are an automation enhancement expert. Apply this detected pattern to the automation:
 
 Pattern Type: {pattern_type}
@@ -752,18 +747,17 @@ Return ONLY the enhanced YAML, no explanations."""
                 ],
                 temperature=1.0  # Reasoning models only support 1.0
             )
-            
+
             enhanced_yaml = response.choices[0].message.content or automation_yaml
             # Clean up markdown code blocks if present
             enhanced_yaml = re.sub(r'```yaml\n?', '', enhanced_yaml)
-            enhanced_yaml = re.sub(r'```\n?', '', enhanced_yaml).strip()
-            
-            return enhanced_yaml
-            
+            return re.sub(r'```\n?', '', enhanced_yaml).strip()
+
+
         except Exception as e:
             logger.error(f"Error applying pattern: {e}", exc_info=True)
             return automation_yaml
-    
+
     async def _apply_synergy_to_automation(
         self,
         automation_yaml: str,
@@ -775,7 +769,7 @@ Return ONLY the enhanced YAML, no explanations."""
             device_ids = synergy.get("device_ids", [])
             explanation = synergy.get("explanation", {})
             description = explanation.get("summary", "") if isinstance(explanation, dict) else ""
-            
+
             prompt = f"""You are an automation enhancement expert. Apply this detected synergy to create a fun, creative enhancement:
 
 Synergy Type: {synergy_type}
@@ -799,18 +793,17 @@ Return ONLY the enhanced YAML, no explanations."""
                 ],
                 temperature=1.0  # Reasoning models only support 1.0
             )
-            
+
             enhanced_yaml = response.choices[0].message.content or automation_yaml
             # Clean up markdown code blocks if present
             enhanced_yaml = re.sub(r'```yaml\n?', '', enhanced_yaml)
-            enhanced_yaml = re.sub(r'```\n?', '', enhanced_yaml).strip()
-            
-            return enhanced_yaml
-            
+            return re.sub(r'```\n?', '', enhanced_yaml).strip()
+
+
         except Exception as e:
             logger.error(f"Error applying synergy: {e}", exc_info=True)
             return automation_yaml
-    
+
     async def _generate_fallback_advanced(self, automation_yaml: str) -> Enhancement:
         """Generate fallback advanced enhancement using LLM"""
         try:
@@ -837,10 +830,10 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
                 temperature=1.0,  # Reasoning models only support 1.0
                 response_format={"type": "json_object"}
             )
-            
+
             import json
             data = json.loads(response.choices[0].message.content or "{}")
-            
+
             return Enhancement(
                 level="advanced",
                 title=data.get("title", "Advanced Enhancement"),
@@ -852,7 +845,7 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
         except Exception as e:
             logger.error(f"Error generating fallback advanced: {e}", exc_info=True)
             return self._create_fallback_enhancement(automation_yaml, 4)
-    
+
     async def _generate_fallback_fun(self, automation_yaml: str) -> Enhancement:
         """Generate fallback fun enhancement using LLM"""
         try:
@@ -879,10 +872,10 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
                 temperature=1.0,  # Reasoning models only support 1.0
                 response_format={"type": "json_object"}
             )
-            
+
             import json
             data = json.loads(response.choices[0].message.content or "{}")
-            
+
             return Enhancement(
                 level="fun",
                 title=data.get("title", "Fun Enhancement"),
@@ -894,7 +887,7 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
         except Exception as e:
             logger.error(f"Error generating fallback fun: {e}", exc_info=True)
             return self._create_fallback_enhancement(automation_yaml, 5)
-    
+
     def _create_fallback_enhancement(
         self,
         automation_yaml: str,
@@ -908,9 +901,9 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
             4: ("advanced", "Advanced Enhancement", "Smart pattern-based features"),
             5: ("fun", "Fun Enhancement", "Creative and interactive features")
         }
-        
+
         level, title, description = level_map.get(level_num, ("small", "Enhancement", "Automation enhancement"))
-        
+
         return Enhancement(
             level=level,
             title=title,
@@ -919,7 +912,7 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
             changes=["Enhancement applied"],
             source="fallback"
         )
-    
+
     async def _generate_pattern_prompt_enhancement(
         self,
         original_prompt: str,
@@ -929,7 +922,7 @@ Return JSON with: title, description, enhanced_yaml, changes (array)"""
         try:
             pattern_type = pattern.get("pattern_type", "")
             pattern_metadata = pattern.get("pattern_metadata", {})
-            
+
             prompt = f"""You are a prompt enhancement expert. Enhance this automation prompt using this detected pattern:
 
 Pattern Type: {pattern_type}
@@ -945,7 +938,7 @@ Return JSON with:
 - description: What the enhanced prompt does
 - enhanced_prompt: Complete enhanced prompt text
 - changes: List of 2-3 key additions related to the pattern"""
-            
+
             response = await self.openai_client.chat.completions.create(
                 model=self.settings.openai_model,
                 messages=[
@@ -955,14 +948,14 @@ Return JSON with:
                 temperature=1.0,  # Reasoning models only support 1.0
                 response_format={"type": "json_object"}
             )
-            
+
             content = response.choices[0].message.content
             if not content:
                 raise ValueError("Empty response from OpenAI")
-            
+
             import json
             data = json.loads(content)
-            
+
             return Enhancement(
                 level=data.get("level", "advanced"),
                 title=data.get("title", f"Pattern-Based: {pattern_type.replace('_', ' ').title()}"),
@@ -975,7 +968,7 @@ Return JSON with:
         except Exception as e:
             logger.error(f"Error generating pattern prompt enhancement: {e}", exc_info=True)
             return self._create_fallback_prompt_enhancement(original_prompt, 4)
-    
+
     async def _generate_synergy_prompt_enhancement(
         self,
         original_prompt: str,
@@ -987,7 +980,7 @@ Return JSON with:
             device_ids = synergy.get("device_ids", [])
             explanation = synergy.get("explanation", {})
             description = explanation.get("summary", "") if isinstance(explanation, dict) else str(explanation)
-            
+
             prompt = f"""You are a prompt enhancement expert. Enhance this automation prompt using this detected device synergy:
 
 Synergy Type: {synergy_type}
@@ -1004,7 +997,7 @@ Return JSON with:
 - description: What the enhanced prompt does
 - enhanced_prompt: Complete enhanced prompt text
 - changes: List of 2-3 key additions related to the synergy"""
-            
+
             response = await self.openai_client.chat.completions.create(
                 model=self.settings.openai_model,
                 messages=[
@@ -1014,18 +1007,18 @@ Return JSON with:
                 temperature=1.0,  # Reasoning models only support 1.0
                 response_format={"type": "json_object"}
             )
-            
+
             content = response.choices[0].message.content
             if not content:
                 raise ValueError("Empty response from OpenAI")
-            
+
             import json
             data = json.loads(content)
-            
+
             return Enhancement(
                 level=data.get("level", "fun"),
                 title=data.get("title", f"Synergy-Based: {synergy_type.replace('_', ' ').title()}"),
-                description=data.get("description", f"Creative multi-device coordination"),
+                description=data.get("description", "Creative multi-device coordination"),
                 enhanced_yaml=data.get("enhanced_prompt", original_prompt),
                 changes=data.get("changes", ["Synergy-based coordination"]),
                 source="synergy",
@@ -1034,7 +1027,7 @@ Return JSON with:
         except Exception as e:
             logger.error(f"Error generating synergy prompt enhancement: {e}", exc_info=True)
             return self._create_fallback_prompt_enhancement(original_prompt, 5)
-    
+
     @staticmethod
     def extract_entities_from_yaml(yaml_str: str) -> list[str]:
         """Extract entity IDs from YAML string"""
@@ -1043,14 +1036,14 @@ Return JSON with:
         entity_pattern = r'entity_id:\s*["\']?([^"\'\n]+)["\']?'
         matches = re.findall(entity_pattern, yaml_str, re.IGNORECASE)
         entities.extend(matches)
-        
+
         # Match target.entity_id patterns
         target_pattern = r'target:\s*\n\s*entity_id:\s*["\']?([^"\'\n]+)["\']?'
         matches = re.findall(target_pattern, yaml_str, re.IGNORECASE | re.MULTILINE)
         entities.extend(matches)
-        
+
         return list(set(entities))  # Remove duplicates
-    
+
     @staticmethod
     def extract_areas_from_yaml(yaml_str: str) -> list[str]:
         """Extract area IDs from YAML string"""
@@ -1059,11 +1052,11 @@ Return JSON with:
         area_pattern = r'area_id:\s*["\']?([^"\'\n]+)["\']?'
         matches = re.findall(area_pattern, yaml_str, re.IGNORECASE)
         areas.extend(matches)
-        
+
         # Match target.area_id patterns
         target_pattern = r'target:\s*\n\s*area_id:\s*["\']?([^"\'\n]+)["\']?'
         matches = re.findall(target_pattern, yaml_str, re.IGNORECASE | re.MULTILINE)
         areas.extend(matches)
-        
+
         return list(set(areas))  # Remove duplicates
 

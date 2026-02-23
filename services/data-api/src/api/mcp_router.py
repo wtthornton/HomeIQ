@@ -4,7 +4,6 @@ These endpoints are called by code executed in the ai-code-executor sandbox.
 """
 
 import logging
-import re
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -82,7 +81,7 @@ async def query_device_history(request: QueryDeviceHistoryRequest):
 
     except Exception as e:
         logger.error(f"MCP tool error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/get_devices")
@@ -116,7 +115,7 @@ async def get_devices():
 
     except Exception as e:
         logger.error(f"MCP tool error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/search_events")
@@ -175,4 +174,4 @@ async def search_events(
 
     except Exception as e:
         logger.error(f"MCP tool error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

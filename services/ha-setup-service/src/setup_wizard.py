@@ -46,7 +46,7 @@ class SetupWizardResult(BaseModel):
 class SetupWizardFramework:
     """
     Framework for guided setup wizards
-    
+
     Features:
     - Step-by-step execution with validation
     - Progress tracking
@@ -67,12 +67,12 @@ class SetupWizardFramework:
     ) -> str:
         """
         Start a new setup wizard session
-        
+
         Args:
             integration_type: Type of integration (mqtt, zigbee2mqtt, etc.)
             steps: List of setup steps
             initial_config: Initial configuration data
-            
+
         Returns:
             Session ID for tracking progress
         """
@@ -100,12 +100,12 @@ class SetupWizardFramework:
     ) -> dict:
         """
         Execute a single setup step
-        
+
         Args:
             session_id: Wizard session ID
             step_number: Step number to execute
             step_data: Data for this step
-            
+
         Returns:
             Step execution result
         """
@@ -153,13 +153,13 @@ class SetupWizardFramework:
 
     async def _execute_step_logic(
         self,
-        session: dict,
-        step: SetupStep,
-        step_data: dict
+        _session: dict,
+        _step: SetupStep,
+        _step_data: dict
     ) -> dict:
         """
         Execute step-specific logic
-        
+
         To be overridden by specific wizard implementations
         """
         return {"message": "Step executed successfully"}
@@ -167,7 +167,7 @@ class SetupWizardFramework:
     async def rollback_wizard(self, session_id: str):
         """
         Rollback wizard changes
-        
+
         Args:
             session_id: Wizard session ID
         """
@@ -187,13 +187,12 @@ class SetupWizardFramework:
         session["status"] = SetupWizardStatus.CANCELLED
         session["completed_at"] = datetime.now(timezone.utc)
 
-    async def _rollback_step(self, session: dict, step_number: int):
+    async def _rollback_step(self, _session: dict, _step_number: int):
         """
         Rollback a specific step
-        
+
         To be overridden by specific wizard implementations
         """
-        pass
 
     def get_session_status(self, session_id: str) -> dict | None:
         """Get current session status"""
@@ -203,7 +202,7 @@ class SetupWizardFramework:
 class Zigbee2MQTTSetupWizard(SetupWizardFramework):
     """
     Zigbee2MQTT Setup Wizard
-    
+
     Steps:
     1. Check prerequisites (MQTT broker, addon installed)
     2. Configure Zigbee coordinator
@@ -256,7 +255,7 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
 
     async def _execute_step_logic(
         self,
-        session: dict,
+        _session: dict,
         step: SetupStep,
         step_data: dict
     ) -> dict:
@@ -372,7 +371,7 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
 class MQTTSetupWizard(SetupWizardFramework):
     """
     MQTT Integration Setup Wizard
-    
+
     Steps:
     1. Detect MQTT broker
     2. Configure connection

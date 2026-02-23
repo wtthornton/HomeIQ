@@ -5,6 +5,7 @@ Epic 17.3: Essential Performance Metrics
 
 import logging
 import os
+from pathlib import Path
 import sys
 from datetime import datetime
 from typing import Any
@@ -12,7 +13,7 @@ from typing import Any
 import aiohttp
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(str(Path(__file__).resolve().parent, '../../shared'))
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -62,7 +63,7 @@ class MetricsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get metrics: {str(e)}"
-                )
+                ) from e
 
         @self.router.get("/metrics/all", response_model=dict[str, ServiceMetrics])
         async def get_all_services_metrics():
@@ -76,7 +77,7 @@ class MetricsEndpoints:
                 # Get metrics from other services
                 for service_name, service_url in self.service_urls.items():
                     try:
-                        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:
+                        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:  # noqa: SIM117
                             async with session.get(f"{service_url}/metrics") as response:
                                 if response.status == 200:
                                     all_metrics[service_name] = await response.json()
@@ -91,7 +92,7 @@ class MetricsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get all services metrics: {str(e)}"
-                )
+                ) from e
 
         @self.router.get("/metrics/system")
         async def get_system_metrics():
@@ -104,7 +105,7 @@ class MetricsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get system metrics: {str(e)}"
-                )
+                ) from e
 
         @self.router.get("/metrics/summary")
         async def get_metrics_summary():
@@ -119,7 +120,7 @@ class MetricsEndpoints:
                             metrics = self.metrics_collector.get_all_metrics()
                         else:
                             service_url = self.service_urls[service_name]
-                            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:
+                            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:  # noqa: SIM117
                                 async with session.get(f"{service_url}/metrics") as response:
                                     if response.status == 200:
                                         metrics = await response.json()
@@ -150,7 +151,7 @@ class MetricsEndpoints:
                 total_response_time = 0.0
                 response_count = 0
 
-                for service_name, metrics in all_metrics.items():
+                for _service_name, metrics in all_metrics.items():
                     # System metrics
                     if 'system' in metrics:
                         if 'cpu' in metrics['system']:
@@ -184,7 +185,7 @@ class MetricsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get metrics summary: {str(e)}"
-                )
+                ) from e
 
         @self.router.post("/metrics/reset")
         async def reset_metrics():
@@ -201,16 +202,16 @@ class MetricsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to reset metrics: {str(e)}"
-                )
+                ) from e
 
 
 def create_metrics_router(metrics_collector: MetricsCollector | None = None) -> APIRouter:
     """
     Create and return metrics router
-    
+
     Args:
         metrics_collector: Optional metrics collector instance
-        
+
     Returns:
         FastAPI APIRouter with metrics endpoints
     """

@@ -20,17 +20,17 @@ class PatternDeduplicator:
     def deduplicate_patterns(self, patterns: list[dict]) -> list[dict]:
         """
         Remove duplicates and consolidate near-duplicates.
-        
+
         Duplicates:
         - Exact same device, type, and metadata
-        
+
         Near-duplicates (consolidate):
         - Same device, same type, similar time (within 15 min)
         - Same devices, same type, slight variation
-        
+
         Args:
             patterns: List of pattern dictionaries
-            
+
         Returns:
             Deduplicated list of patterns
         """
@@ -38,7 +38,6 @@ class PatternDeduplicator:
             return []
 
         deduplicated = []
-        seen_signatures = set()
 
         # Group by device and type
         grouped = defaultdict(list)
@@ -48,7 +47,7 @@ class PatternDeduplicator:
             key = (pattern_type, device_id)
             grouped[key].append(pattern)
 
-        for (pattern_type, device_id), group in grouped.items():
+        for (pattern_type, _device_id), group in grouped.items():
             if pattern_type == 'time_of_day':
                 # Consolidate time patterns within 15 minutes
                 consolidated = self._consolidate_time_patterns(group)

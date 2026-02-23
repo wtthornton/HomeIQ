@@ -64,20 +64,19 @@ from shared.endpoints import create_integration_router
 from shared.monitoring import alerting_service, metrics_service
 from shared.rate_limiter import RateLimiter, rate_limit_middleware
 
+# Import endpoint routers (Stories 13.2-13.4)
+from .activity_endpoints import router as activity_router
 from .alert_endpoints import AlertEndpoints
 
 # Story 21.4: Analytics Endpoints
 from .analytics_endpoints import router as analytics_router
 
+# MCP Code Execution Tools
+from .api.mcp_router import router as mcp_router
+
 # Automation Trace: Internal + analytics endpoints
 from .automation_analytics_endpoints import router as automation_analytics_router
 from .automation_internal_endpoints import router as automation_internal_router
-
-# E4.S3: Agent Evaluation Endpoints
-from .evaluation_endpoints import router as evaluation_router
-
-# MCP Code Execution Tools
-from .api.mcp_router import router as mcp_router
 from .cache import cache
 from .config_manager import config_manager
 from .database import check_db_health, init_db
@@ -86,20 +85,20 @@ from .devices_endpoints import router as devices_router
 # Energy Correlation Endpoints (Phase 4)
 from .energy_endpoints import router as energy_router
 
-# Import endpoint routers (Stories 13.2-13.4)
-from .activity_endpoints import router as activity_router
+# E4.S3: Agent Evaluation Endpoints
+from .evaluation_endpoints import router as evaluation_router
 from .events_endpoints import EventsEndpoints
 from .ha_automation_endpoints import router as ha_automation_router
 from .ha_automation_endpoints import start_webhook_detector, stop_webhook_detector
 from .hygiene_endpoints import router as hygiene_router
 from .metrics_endpoints import create_metrics_router
 
+# Real-time metrics buffer for analytics
+from .metrics_state import metrics_buffer
+
 # Story 13.4: Sports & HA Automation (Epic 12 Integration)
 from .sports_endpoints import router as sports_router
 from .sports_influxdb_writer import get_sports_writer
-
-# Real-time metrics buffer for analytics
-from .metrics_state import metrics_buffer
 
 load_dotenv()
 
@@ -245,7 +244,7 @@ async def lifespan(app: FastAPI):
     """Handle application lifecycle"""
     # Epic 40: Deployment mode validation and logging
     try:
-        from shared.deployment_validation import log_deployment_info, get_deployment_mode
+        from shared.deployment_validation import get_deployment_mode, log_deployment_info
         log_deployment_info("data-api")
         logger.info(f"Deployment Mode: {get_deployment_mode()}")
     except ImportError:
@@ -253,7 +252,7 @@ async def lifespan(app: FastAPI):
         import os
         deployment_mode = os.getenv("DEPLOYMENT_MODE", "production")
         logger.info(f"Data API starting in {deployment_mode} mode")
-    
+
     # Startup
     # Ensure data directory exists
     pathlib.Path("./data").mkdir(exist_ok=True)

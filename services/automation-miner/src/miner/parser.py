@@ -184,7 +184,7 @@ class AutomationParser:
             'condition': conditions if isinstance(conditions, list) else [conditions] if conditions else [],
             'action': actions if isinstance(actions, list) else [actions] if actions else [],
             '_blueprint_variables': variables,
-            '_blueprint_devices': sorted(list(devices)),
+            '_blueprint_devices': sorted(devices),
             '_blueprint_metadata': blueprint_meta
         }
 
@@ -215,9 +215,7 @@ class AutomationParser:
                 # Check for entity_id references
                 if 'entity_id' in obj:
                     entity_id = obj['entity_id']
-                    if isinstance(entity_id, str) and '.' in entity_id:
-                        # Skip !input references (they're placeholders)
-                        if not entity_id.startswith('!input'):
+                    if isinstance(entity_id, str) and '.' in entity_id and not entity_id.startswith('!input'):
                             domain = entity_id.split('.')[0]
                             if domain in self.DEVICE_TYPES:
                                 devices.add(domain)
@@ -282,12 +280,12 @@ class AutomationParser:
 
         recurse_dict(automation)
 
-        return sorted(list(devices))
+        return sorted(devices)
 
     def extract_integrations(self, automation: dict[str, Any]) -> list[str]:
         """
         Extract HA integrations used in automation
-        
+
         Looks for platform references and known integration names
         """
         integrations = set()
@@ -311,7 +309,7 @@ class AutomationParser:
 
         recurse_dict(automation)
 
-        return sorted(list(integrations))
+        return sorted(integrations)
 
     def classify_use_case(
         self,
@@ -321,9 +319,9 @@ class AutomationParser:
     ) -> str:
         """
         Classify automation use case using keyword matching
-        
+
         ML-free approach: counts keyword matches for each category
-        
+
         Returns:
             'energy', 'comfort', 'security', or 'convenience'
         """
@@ -353,10 +351,10 @@ class AutomationParser:
     def calculate_complexity(self, automation: dict[str, Any]) -> str:
         """
         Calculate automation complexity based on structure
-        
+
         Args:
             automation: Parsed automation dictionary
-        
+
         Returns:
             'low', 'medium', or 'high'
         """
@@ -381,14 +379,14 @@ class AutomationParser:
     ) -> float:
         """
         Calculate quality score (0.0-1.0)
-        
+
         Formula: weighted average of vote score, recency, and completeness
-        
+
         Args:
             votes: Number of community votes
             age_days: Age in days since creation
             completeness: Completeness score (0.0-1.0)
-        
+
         Returns:
             Quality score between 0.0 and 1.0
         """
@@ -457,10 +455,10 @@ class AutomationParser:
     ) -> ParsedAutomation | None:
         """
         Parse automation from Discourse post data
-        
+
         Args:
             post_data: Post data from DiscourseClient
-        
+
         Returns:
             ParsedAutomation or None if parsing failed
         """
@@ -534,11 +532,11 @@ class AutomationParser:
     ) -> AutomationMetadata:
         """
         Create AutomationMetadata from parsed automation
-        
+
         Args:
             post_data: Original post data
             parsed: Parsed automation
-        
+
         Returns:
             Validated AutomationMetadata
         """
@@ -581,8 +579,7 @@ class AutomationParser:
         }
 
         # Include blueprint metadata if this is a blueprint
-        if parsed.parsed_data and isinstance(parsed.parsed_data, dict):
-            if '_blueprint_metadata' in parsed.parsed_data:
+        if parsed.parsed_data and isinstance(parsed.parsed_data, dict) and '_blueprint_metadata' in parsed.parsed_data:
                 metadata['_blueprint_metadata'] = parsed.parsed_data['_blueprint_metadata']
                 metadata['_blueprint_variables'] = parsed.parsed_data.get('_blueprint_variables', {})
                 metadata['_blueprint_devices'] = parsed.parsed_data.get('_blueprint_devices', [])

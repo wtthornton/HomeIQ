@@ -155,9 +155,9 @@ class ZigbeeBridgeManager:
                 response_time = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
                 if response.status == 200:
-                    bridge_state = await response.json()
+                    _bridge_state = await response.json()
                 else:
-                    bridge_state = None
+                    _bridge_state = None
 
             # For device metrics we still need all states (unavoidable for counts)
             async with session.get(
@@ -362,7 +362,7 @@ class ZigbeeBridgeManager:
 
         return recommendations
 
-    def _determine_bridge_state(self, integration_result: CheckResult, metrics: BridgeMetrics) -> BridgeState:
+    def _determine_bridge_state(self, integration_result: CheckResult, _metrics: BridgeMetrics) -> BridgeState:
         """Determine bridge state based on integration and metrics"""
         if integration_result.status == IntegrationStatus.HEALTHY:
             return BridgeState.ONLINE
@@ -389,10 +389,10 @@ class ZigbeeBridgeManager:
     async def attempt_bridge_recovery(self, force: bool = False) -> tuple[bool, str]:
         """
         Attempt to recover bridge connectivity
-        
+
         Args:
             force: Force recovery attempt even if cooldown period hasn't passed
-            
+
         Returns:
             Tuple of (success, message)
         """

@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 class SyntheticDeviceGenerator:
     """
     Generate devices for synthetic homes.
-    
+
     Pipeline:
     1. Generate devices for each area
     2. Assign device types based on area context
     3. Distribute devices across categories (security, climate, lighting, etc.)
     """
-    
+
     # Device type templates by category
     DEVICE_TEMPLATES = {
         'security': [
@@ -60,13 +60,13 @@ class SyntheticDeviceGenerator:
             {'device_type': 'binary_sensor', 'device_class': 'smoke', 'name': 'Smoke Detector'}
         ]
     }
-    
+
     def __init__(self):
         """
         Initialize device generator.
         """
         logger.info("SyntheticDeviceGenerator initialized")
-    
+
     def generate_devices(
         self,
         home_data: dict[str, Any],
@@ -74,11 +74,11 @@ class SyntheticDeviceGenerator:
     ) -> list[dict[str, Any]]:
         """
         Generate devices for a synthetic home using templates.
-        
+
         Args:
             home_data: Home data from synthetic home generator
             areas: List of areas for the home
-        
+
         Returns:
             List of device dictionaries
         """
@@ -86,7 +86,7 @@ class SyntheticDeviceGenerator:
         home_metadata = home_data.get('metadata', {})
         device_categories = home_metadata.get('device_categories', {})
         size_category = home_data.get('size_category', 'medium')
-        
+
         # If device_categories exist in metadata, use them but map to templates
         if device_categories:
             devices = self._generate_from_categories(
@@ -102,10 +102,10 @@ class SyntheticDeviceGenerator:
                 areas,
                 size_category
             )
-        
+
         logger.info(f"✅ Generated {len(devices)} devices")
         return devices
-    
+
     def _generate_from_categories(
         self,
         device_categories: dict[str, Any],
@@ -115,30 +115,30 @@ class SyntheticDeviceGenerator:
     ) -> list[dict[str, Any]]:
         """
         Generate devices from category specifications using templates.
-        
+
         Args:
             device_categories: Device category specifications
             areas: List of areas
             home_type: Type of home (unused, kept for API compatibility)
             size_category: Size category (unused, kept for API compatibility)
-        
+
         Returns:
             List of device dictionaries
         """
         devices = []
         area_names = [area['name'] for area in areas]
-        
+
         for category, category_data in device_categories.items():
             count = category_data.get('count', 0)
             device_types = category_data.get('devices', [])
-            
+
             if count == 0:
                 continue
-            
+
             # Distribute devices across areas
             for i in range(count):
                 area = random.choice(area_names) if area_names else 'Unknown'
-                
+
                 # Select device type - map to template if needed
                 if device_types:
                     # Try to find matching template device
@@ -150,7 +150,7 @@ class SyntheticDeviceGenerator:
                             device_class = template_device.get('device_class')
                             name_template = template_device.get('name', 'Device')
                             break
-                    
+
                     # If no match, use first device type from list or fallback
                     if device_type_str is None:
                         device_type_str = device_types[0] if device_types else 'sensor'
@@ -168,7 +168,7 @@ class SyntheticDeviceGenerator:
                         device_type_str = 'sensor'
                         device_class = None
                         name_template = 'Device'
-                
+
                 # Create device
                 device = self._create_device(
                     device_type_str=device_type_str,
@@ -179,9 +179,9 @@ class SyntheticDeviceGenerator:
                     name_template=name_template
                 )
                 devices.append(device)
-        
+
         return devices
-    
+
     def _generate_from_template(
         self,
         home_type: str,
@@ -190,12 +190,12 @@ class SyntheticDeviceGenerator:
     ) -> list[dict[str, Any]]:
         """
         Generate devices from template based on home type and size.
-        
+
         Args:
             home_type: Type of home
             areas: List of areas
             size_category: Size category (small, medium, large, extra_large)
-        
+
         Returns:
             List of device dictionaries
         """
@@ -207,7 +207,7 @@ class SyntheticDeviceGenerator:
             'extra_large': 2.0
         }
         multiplier = size_multipliers.get(size_category, 1.0)
-        
+
         # Base device counts per category
         base_counts = {
             'security': 5,
@@ -216,21 +216,21 @@ class SyntheticDeviceGenerator:
             'appliances': 4,
             'monitoring': 3
         }
-        
+
         devices = []
         area_names = [area['name'] for area in areas]
-        
+
         for category, base_count in base_counts.items():
             count = int(base_count * multiplier)
             template = self.DEVICE_TEMPLATES.get(category, [])
-            
+
             if not template:
                 continue
-            
+
             for i in range(count):
                 area = random.choice(area_names) if area_names else 'Unknown'
                 device_template = random.choice(template)
-                
+
                 device = self._create_device(
                     device_type_str=device_template['device_type'],
                     device_class=device_template.get('device_class'),
@@ -240,9 +240,9 @@ class SyntheticDeviceGenerator:
                     index=i + 1
                 )
                 devices.append(device)
-        
+
         return devices
-    
+
     def _create_device(
         self,
         device_type_str: str,
@@ -254,7 +254,7 @@ class SyntheticDeviceGenerator:
     ) -> dict[str, Any]:
         """
         Create a device dictionary.
-        
+
         Args:
             device_type_str: Device type (e.g., 'light', 'sensor')
             category: Device category (security, climate, etc.)
@@ -262,7 +262,7 @@ class SyntheticDeviceGenerator:
             index: Device index
             device_class: Optional device class
             name_template: Name template
-        
+
         Returns:
             Device dictionary
         """
@@ -270,7 +270,7 @@ class SyntheticDeviceGenerator:
         area_slug = area.lower().replace(' ', '_')
         device_name = f"{name_template.lower().replace(' ', '_')}_{index}"
         entity_id = f"{device_type_str}.{area_slug}_{device_name}"
-        
+
         device = {
             'entity_id': entity_id,
             'device_type': device_type_str,
@@ -279,6 +279,6 @@ class SyntheticDeviceGenerator:
             'category': category,
             'device_class': device_class
         }
-        
+
         return device
 

@@ -5,13 +5,13 @@ FastAPI application setup for websocket-ingestion service.
 import logging
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from shared.observability.correlation import CorrelationMiddleware
 
-from .routers import health, event_rate, discovery, filter, websocket
+from .routers import discovery, event_rate, filter, health, websocket
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +21,16 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for FastAPI app."""
     # Lazy import to avoid circular dependency
     from ..main import WebSocketIngestionService
-    
+
     # Startup
     logger.info("Starting WebSocket Ingestion Service...")
     service = WebSocketIngestionService()
     app.state.service = service
     await service.start()
     logger.info("WebSocket Ingestion Service started")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down WebSocket Ingestion Service...")
     if hasattr(app.state, 'service') and app.state.service:

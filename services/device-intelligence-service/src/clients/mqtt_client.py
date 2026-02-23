@@ -155,7 +155,7 @@ class MQTTClient:
         self.connected = False
         logger.info("Disconnected from MQTT broker")
 
-    def _on_connect(self, client, userdata, flags, rc):
+    def _on_connect(self, _client, _userdata, _flags, rc):
         """MQTT connection callback."""
         if rc == 0:
             self.connected = True
@@ -167,7 +167,7 @@ class MQTTClient:
             logger.error(f"MQTT broker connection failed with code {rc}")
             self.connected = False
 
-    def _on_disconnect(self, client, userdata, rc):
+    def _on_disconnect(self, _client, _userdata, rc):
         """MQTT disconnection callback."""
         self.connected = False
         if rc != 0:
@@ -180,12 +180,12 @@ class MQTTClient:
         else:
             logger.info("MQTT broker disconnected")
 
-    def _on_message(self, client, userdata, msg):
+    def _on_message(self, _client, _userdata, msg):
         """MQTT message callback."""
         try:
             topic = msg.topic
             payload = msg.payload.decode('utf-8')
-            
+
             # Enhanced logging: Log ALL received MQTT messages for debugging
             payload_preview = payload[:200] if len(payload) > 200 else payload
             logger.debug(f"MQTT message received: topic={topic}, payload_size={len(payload)} bytes, preview={payload_preview}...")
@@ -207,7 +207,7 @@ class MQTTClient:
         except Exception as e:
             logger.error(f"Error handling MQTT message: {e}")
 
-    def _on_log(self, client, userdata, level, buf):
+    def _on_log(self, _client, _userdata, level, buf):
         """MQTT log callback."""
         if level == mqtt.MQTT_LOG_ERR:
             logger.error(f"MQTT Error: {buf}")
@@ -305,10 +305,10 @@ class MQTTClient:
                         last_seen = datetime.fromisoformat(last_seen_str)
                     except Exception as e:
                         logger.debug(f"Could not parse last_seen for {device_data.get('ieee_address')}: {e}")
-                
+
                 # Extract Zigbee2MQTT-specific fields
                 definition = device_data.get("definition", {})
-                
+
                 device = ZigbeeDevice(
                     ieee_address=device_data["ieee_address"],
                     friendly_name=device_data["friendly_name"],
@@ -395,9 +395,9 @@ class MQTTClient:
             component = topic_parts[1]
             device_id = topic_parts[2]
             object_id = topic_parts[3] if len(topic_parts) > 3 else None
-            
+
             logger.debug(f"Received HA discovery config: {component}/{device_id}/{object_id}")
-            
+
             # Call message handler if registered
             if "discovery_config" in self.message_handlers:
                 await self.message_handlers["discovery_config"]({
@@ -414,9 +414,9 @@ class MQTTClient:
         """Handle Zigbee2MQTT device state message."""
         # Extract device friendly_name from topic: zigbee2mqtt/<friendly_name>
         friendly_name = topic.replace(f"{self.base_topic}/", "")
-        
+
         logger.debug(f"Received Zigbee2MQTT device state: {friendly_name}")
-        
+
         # Call message handler if registered
         if "device_state" in self.message_handlers:
             await self.message_handlers["device_state"]({

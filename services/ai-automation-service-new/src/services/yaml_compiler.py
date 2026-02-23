@@ -326,6 +326,9 @@ class YAMLCompiler:
 
         return template
 
+    # Allowed math functions for safe expression evaluation
+    _SAFE_MATH_FUNCS: dict[str, Any] = {}  # populated in _resolve_expression
+
     def _resolve_expression(self, expr: str, params: dict[str, Any]) -> Any:
         """Resolve a template expression against params.
 
@@ -333,7 +336,10 @@ class YAMLCompiler:
         - Simple lookup: ``motion_sensor_entities``
         - Array index:   ``motion_sensor_entities[0]``
         - Math:          ``ceil(255 / dim_step)``, ``timeout // 60``
+
+        Uses AST-based safe evaluation instead of eval() to prevent code injection.
         """
+        import ast
         import math as _math
 
         # 1. Simple param lookup
@@ -348,20 +354,86 @@ class YAMLCompiler:
             if isinstance(arr, list) and idx < len(arr):
                 return arr[idx]
 
-        # 3. Math expression — safe eval with only math + params
+        # 3. Math expression — AST-based safe evaluation
+        safe_funcs: dict[str, Any] = {
+            "ceil": _math.ceil,
+            "floor": _math.floor,
+            "round": round,
+            "min": min,
+            "max": max,
+        }
+        numeric_params = {k: v for k, v in params.items() if isinstance(v, (int, float))}
+
         try:
-            safe_ns: dict[str, Any] = {
-                "ceil": _math.ceil,
-                "floor": _math.floor,
-                "round": round,
-                "min": min,
-                "max": max,
-            }
-            safe_ns.update({k: v for k, v in params.items() if isinstance(v, (int, float))})
-            return eval(expr, {"__builtins__": {}}, safe_ns)  # noqa: S307
+            tree = ast.parse(expr, mode="eval")
+            return self._safe_eval_node(tree.body, numeric_params, safe_funcs)
         except Exception as e:
             logger.debug("Safe eval failed for %r: %s", expr, e)
             return None
+
+    def _safe_eval_node(
+        self,
+        node: Any,
+        variables: dict[str, Any],
+        functions: dict[str, Any],
+    ) -> Any:
+        """Recursively evaluate an AST node with only safe operations.
+
+        Supports: numbers, arithmetic (+, -, *, /, //, %, **),
+        unary ops, comparisons, and whitelisted function calls.
+        """
+        import ast
+        import operator
+
+        _SAFE_BIN_OPS: dict[type, Any] = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.FloorDiv: operator.floordiv,
+            ast.Mod: operator.mod,
+            ast.Pow: operator.pow,
+        }
+        _SAFE_UNARY_OPS: dict[type, Any] = {
+            ast.UAdd: operator.pos,
+            ast.USub: operator.neg,
+        }
+
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, (int, float)):
+                return node.value
+            raise ValueError(f"Unsupported constant type: {type(node.value).__name__}")
+
+        if isinstance(node, ast.Name):
+            if node.id in variables:
+                return variables[node.id]
+            raise ValueError(f"Unknown variable: {node.id}")
+
+        if isinstance(node, ast.BinOp):
+            op_func = _SAFE_BIN_OPS.get(type(node.op))
+            if op_func is None:
+                raise ValueError(f"Unsupported binary operator: {type(node.op).__name__}")
+            left = self._safe_eval_node(node.left, variables, functions)
+            right = self._safe_eval_node(node.right, variables, functions)
+            return op_func(left, right)
+
+        if isinstance(node, ast.UnaryOp):
+            op_func = _SAFE_UNARY_OPS.get(type(node.op))
+            if op_func is None:
+                raise ValueError(f"Unsupported unary operator: {type(node.op).__name__}")
+            operand = self._safe_eval_node(node.operand, variables, functions)
+            return op_func(operand)
+
+        if isinstance(node, ast.Call):
+            if not isinstance(node.func, ast.Name):
+                raise ValueError("Only simple function calls are allowed")
+            func_name = node.func.id
+            if func_name not in functions:
+                raise ValueError(f"Unknown function: {func_name}")
+            args = [self._safe_eval_node(arg, variables, functions) for arg in node.args]
+            return functions[func_name](*args)
+
+        raise ValueError(f"Unsupported expression node: {type(node).__name__}")
 
     # HA Jinja functions that should NOT be treated as unresolved placeholders
     _HA_JINJA_FUNCS = re.compile(

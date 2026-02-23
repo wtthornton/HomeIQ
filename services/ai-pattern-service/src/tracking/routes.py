@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from .execution_tracker import ExecutionTracker, ExecutionStatus
+from .execution_tracker import ExecutionStatus, ExecutionTracker
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ execution_tracker = ExecutionTracker(retention_days=90)
 # Request/Response Models
 class RecordExecutionRequest(BaseModel):
     """Request model for recording execution."""
-    
+
     automation_id: str = Field(..., description="Home Assistant automation entity ID")
     execution_id: str = Field(..., description="Unique execution identifier")
     status: str = Field(..., description="Execution status (success, failure, timeout, partial, skipped)")
@@ -41,7 +41,7 @@ class RecordExecutionRequest(BaseModel):
 
 class ExecutionRecordResponse(BaseModel):
     """Response model for execution record."""
-    
+
     automation_id: str
     execution_id: str
     status: str
@@ -51,7 +51,7 @@ class ExecutionRecordResponse(BaseModel):
 
 class SuccessRateResponse(BaseModel):
     """Response model for success rate."""
-    
+
     period_days: int
     total_executions: int
     successful: int
@@ -64,7 +64,7 @@ class SuccessRateResponse(BaseModel):
 
 class AutomationStatsResponse(BaseModel):
     """Response model for automation statistics."""
-    
+
     automation_id: str
     total_executions: int
     successful_executions: int
@@ -76,7 +76,7 @@ class AutomationStatsResponse(BaseModel):
 
 class ProblematicAutomationResponse(BaseModel):
     """Response model for problematic automation."""
-    
+
     automation_id: str
     total_executions: int
     success_rate: float
@@ -91,12 +91,12 @@ async def record_execution(request: RecordExecutionRequest) -> ExecutionRecordRe
     """
     try:
         status = ExecutionStatus(request.status)
-    except ValueError:
+    except ValueError as e:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid status: {request.status}. Valid values: {[s.value for s in ExecutionStatus]}",
-        )
-    
+        ) from e
+
     record = execution_tracker.record_execution(
         automation_id=request.automation_id,
         execution_id=request.execution_id,
@@ -112,7 +112,7 @@ async def record_execution(request: RecordExecutionRequest) -> ExecutionRecordRe
         synergy_id=request.synergy_id,
         blueprint_id=request.blueprint_id,
     )
-    
+
     return ExecutionRecordResponse(
         automation_id=record.automation_id,
         execution_id=record.execution_id,
@@ -128,7 +128,7 @@ async def get_success_rate(
 ) -> SuccessRateResponse:
     """
     Get overall success rate.
-    
+
     Target: 85% (from RECOMMENDATIONS_FEASIBILITY_ANALYSIS.md)
     """
     summary = execution_tracker.get_overall_success_rate(days=days)
@@ -141,13 +141,13 @@ async def get_automation_stats(automation_id: str) -> AutomationStatsResponse:
     Get statistics for a specific automation.
     """
     stats = execution_tracker.get_automation_stats(automation_id)
-    
+
     if not stats:
         raise HTTPException(
             status_code=404,
             detail=f"No statistics found for automation {automation_id}",
         )
-    
+
     return AutomationStatsResponse(
         automation_id=stats.automation_id,
         total_executions=stats.total_executions,
@@ -165,13 +165,13 @@ async def get_automation_success_rate(automation_id: str) -> dict[str, Any]:
     Get success rate for a specific automation.
     """
     success_rate = execution_tracker.get_automation_success_rate(automation_id)
-    
+
     if success_rate is None:
         raise HTTPException(
             status_code=404,
             detail=f"No executions found for automation {automation_id}",
         )
-    
+
     return {
         "automation_id": automation_id,
         "success_rate": success_rate,
@@ -186,13 +186,13 @@ async def get_synergy_success_rate(synergy_id: str) -> dict[str, Any]:
     Get success rate for automations from a synergy.
     """
     success_rate = execution_tracker.get_synergy_success_rate(synergy_id)
-    
+
     if success_rate is None:
         raise HTTPException(
             status_code=404,
             detail=f"No executions found for synergy {synergy_id}",
         )
-    
+
     return {
         "synergy_id": synergy_id,
         "success_rate": success_rate,
@@ -228,14 +228,14 @@ async def get_problematic_automations(
 ) -> list[ProblematicAutomationResponse]:
     """
     Get automations with low success rates.
-    
+
     These automations may need attention or should be disabled.
     """
     problematic = execution_tracker.get_problematic_automations(
         min_executions=min_executions,
         max_success_rate=max_success_rate,
     )
-    
+
     return [
         ProblematicAutomationResponse(
             automation_id=p["automation_id"],
@@ -256,7 +256,7 @@ async def cleanup_old_records(
     Clean up old execution records.
     """
     removed = execution_tracker.cleanup_old_records()
-    
+
     return {
         "status": "cleaned",
         "records_removed": removed,
@@ -269,7 +269,7 @@ async def health_check() -> dict[str, Any]:
     Check tracking service health.
     """
     summary = execution_tracker.get_overall_success_rate(days=1)
-    
+
     return {
         "status": "healthy",
         "executions_24h": summary["total_executions"],

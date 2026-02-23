@@ -4,6 +4,7 @@ Fetches grid carbon intensity from WattTime API
 """
 
 import asyncio
+import contextlib
 import os
 import re
 import signal
@@ -13,9 +14,8 @@ from typing import Any
 import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
-from influxdb_client_3 import InfluxDBClient3, Point
-
 from health_check import HealthCheckHandler
+from influxdb_client_3 import InfluxDBClient3, Point
 
 from shared.logging_config import log_error_with_context, log_with_context, setup_logging
 
@@ -77,13 +77,13 @@ class CarbonIntensityService:
 
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
-    
+
     def _validate_credentials(self) -> None:
         """Validate WattTime credentials and configure service accordingly."""
         # Check if credentials are placeholder values
         is_placeholder_username = self.username and self.username.lower() in ['your_watttime_username', 'your-username', '']
         is_placeholder_password = self.password and self.password.lower() in ['your_watttime_password', 'your-password', '']
-        
+
         if not self.username or not self.password or is_placeholder_username or is_placeholder_password:
             if not self.api_token:
                 if is_placeholder_username or is_placeholder_password:
@@ -162,7 +162,7 @@ class CarbonIntensityService:
     async def refresh_token(self) -> bool:
         """
         Refresh WattTime API token using username/password
-        
+
         Returns:
             bool: True if refresh successful, False otherwise
         """
@@ -199,7 +199,7 @@ class CarbonIntensityService:
                             status_code=response.status
                         )
                         return False
-                    
+
                     data = await response.json()
                     self.api_token = data.get('token')
 
@@ -277,7 +277,7 @@ class CarbonIntensityService:
     async def ensure_valid_token(self) -> bool:
         """
         Ensure we have a valid token, refresh if needed
-        
+
         Returns:
             bool: True if we have a valid token, False otherwise
         """
@@ -327,12 +327,59 @@ class CarbonIntensityService:
         self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
         self.health_handler.total_fetches += 1
 
-    async def fetch_carbon_intensity(self) -> dict[str, Any] | None:
-        """Fetch carbon intensity from WattTime API"""
+    async def _handle_auth_retry(self, url: str, params: dict[str, str]) -> dict[str, Any] | None:
+        """Handle 401 response by refreshing token and retrying once.
 
+        Returns parsed data on success, None on failure.
+        """
+        if not self.session:
+            return None
+
+        if await self.refresh_token():
+            logger.info("Token refreshed, retrying request...")
+            headers = {"Authorization": f"Bearer {self.api_token}"}
+            async with self.session.get(url, headers=headers, params=params) as retry_response:
+                if retry_response.status == 200:
+                    raw_data = await retry_response.json()
+                    data = self._parse_watttime_response(raw_data)
+                    self._update_cache_and_health(data)
+                    logger.info(f"Carbon intensity (retry): {data['carbon_intensity']:.1f} gCO2/kWh")
+                    return data
+        return None
+
+    async def _handle_transient_retry(
+        self, url: str, headers: dict[str, str], params: dict[str, str], initial_status: int
+    ) -> dict[str, Any] | None:
+        """Handle transient HTTP errors (429, 5xx) with exponential backoff.
+
+        Returns parsed data on success, None after all retries exhausted.
+        """
+        if not self.session:
+            return None
+
+        last_status = initial_status
+        retry_delays = [5, 10, 20]
+        for attempt, delay in enumerate(retry_delays, 1):
+            logger.warning(f"Transient HTTP {last_status}, retry {attempt}/{len(retry_delays)} after {delay}s")
+            await asyncio.sleep(delay)
+            async with self.session.get(url, headers=headers, params=params) as retry_resp:
+                if retry_resp.status == 200:
+                    raw_data = await retry_resp.json()
+                    data = self._parse_watttime_response(raw_data)
+                    self._update_cache_and_health(data)
+                    logger.info(f"Carbon intensity (retry {attempt}): {data['carbon_intensity']:.1f} gCO2/kWh")
+                    return data
+                last_status = retry_resp.status
+                if retry_resp.status not in (429, 500, 502, 503):
+                    break
+
+        logger.error(f"WattTime API returned status {last_status} after {len(retry_delays)} retries")
+        return None
+
+    async def fetch_carbon_intensity(self) -> dict[str, Any] | None:
+        """Fetch carbon intensity from WattTime API."""
         # If no credentials configured, skip fetch silently
         if not self.credentials_configured:
-            # Don't log error every time, just return None quietly
             return None
 
         # Return cached data if still within TTL
@@ -347,7 +394,6 @@ class CarbonIntensityService:
             return self.cached_data
 
         try:
-            # Ensure we have a valid token before making request
             if not await self.ensure_valid_token():
                 logger.error("No valid WattTime token available")
                 self.health_handler.failed_fetches += 1
@@ -361,119 +407,71 @@ class CarbonIntensityService:
                 logger, "INFO",
                 f"Fetching carbon intensity for region {self.region}",
                 service="carbon-intensity-service",
-                region=self.region
+                region=self.region,
             )
 
-            async with self.session.get(url, headers=headers, params=params) as response:
-                if response.status == 200:
-                    raw_data = await response.json()
+            result = await self._dispatch_api_request(url, headers, params)
+            if result is not None:
+                return result
 
-                    # Parse WattTime response
-                    data = self._parse_watttime_response(raw_data)
-
-                    # Update cache and health
-                    self._update_cache_and_health(data)
-
-                    logger.info(f"Carbon intensity: {data['carbon_intensity']:.1f} gCO2/kWh, Renewable: {data['renewable_percentage']:.1f}%")
-
-                    return data
-
-                elif response.status == 401:
-                    # Token expired mid-request, try refresh and retry once
-                    error = aiohttp.ClientResponseError(
-                        request_info=response.request_info,
-                        history=response.history,
-                        status=401
-                    )
-                    log_error_with_context(
-                        logger,
-                        "Authentication failed (401), attempting token refresh",
-                        error,
-                        service="carbon-intensity-service"
-                    )
-
-                    if await self.refresh_token():
-                        logger.info("Token refreshed, retrying request...")
-                        # Retry once with new token
-                        headers = {"Authorization": f"Bearer {self.api_token}"}
-                        async with self.session.get(url, headers=headers, params=params) as retry_response:
-                            if retry_response.status == 200:
-                                raw_data = await retry_response.json()
-
-                                # Parse WattTime response
-                                data = self._parse_watttime_response(raw_data)
-
-                                # Update cache and health
-                                self._update_cache_and_health(data)
-
-                                logger.info(f"Carbon intensity (retry): {data['carbon_intensity']:.1f} gCO2/kWh")
-                                return data
-
-                    # Token refresh failed or retry failed
-                    self.health_handler.failed_fetches += 1
-                    return self.cached_data
-
-                elif response.status in (429, 500, 502, 503):
-                    # Retryable transient errors - exponential backoff
-                    last_status = response.status
-                    retry_delays = [5, 10, 20]
-                    for attempt, delay in enumerate(retry_delays, 1):
-                        logger.warning(f"Transient HTTP {last_status}, retry {attempt}/{len(retry_delays)} after {delay}s")
-                        await asyncio.sleep(delay)
-                        async with self.session.get(url, headers=headers, params=params) as retry_resp:
-                            if retry_resp.status == 200:
-                                raw_data = await retry_resp.json()
-                                data = self._parse_watttime_response(raw_data)
-                                self._update_cache_and_health(data)
-                                logger.info(f"Carbon intensity (retry {attempt}): {data['carbon_intensity']:.1f} gCO2/kWh")
-                                return data
-                            last_status = retry_resp.status
-                            if retry_resp.status not in (429, 500, 502, 503):
-                                break
-
-                    logger.error(f"WattTime API returned status {last_status} after {len(retry_delays)} retries")
-                    self.health_handler.failed_fetches += 1
-                    return self.cached_data
-
-                else:
-                    log_error_with_context(
-                        logger,
-                        f"WattTime API returned status {response.status}",
-                        aiohttp.ClientResponseError(
-                            request_info=response.request_info,
-                            history=response.history,
-                            status=response.status
-                        ),
-                        service="carbon-intensity-service"
-                    )
-                    self.health_handler.failed_fetches += 1
-                    return self.cached_data
+            self.health_handler.failed_fetches += 1
+            return self.cached_data
 
         except aiohttp.ClientError as e:
-            log_error_with_context(
-                logger,
-                f"Error fetching carbon intensity: {e}",
-                e,
-                service="carbon-intensity-service"
-            )
+            log_error_with_context(logger, f"Error fetching carbon intensity: {e}", e, service="carbon-intensity-service")
             self.health_handler.failed_fetches += 1
-
-            # Return cached data if available
             if self.cached_data:
                 logger.warning("Using cached carbon intensity data")
                 return self.cached_data
-
             return None
 
         except Exception as e:
-            log_error_with_context(
-                logger,
-                f"Unexpected error: {e}",
-                e,
-                service="carbon-intensity-service"
-            )
+            log_error_with_context(logger, f"Unexpected error: {e}", e, service="carbon-intensity-service")
             self.health_handler.failed_fetches += 1
             return self.cached_data
+
+    async def _dispatch_api_request(
+        self, url: str, headers: dict[str, str], params: dict[str, str]
+    ) -> dict[str, Any] | None:
+        """Make the WattTime API request and dispatch based on status code.
+
+        Returns parsed data on success, None on failure (caller should handle fallback).
+        """
+        if not self.session:
+            return None
+
+        async with self.session.get(url, headers=headers, params=params) as response:
+            if response.status == 200:
+                raw_data = await response.json()
+                data = self._parse_watttime_response(raw_data)
+                self._update_cache_and_health(data)
+                logger.info(
+                    f"Carbon intensity: {data['carbon_intensity']:.1f} gCO2/kWh, "
+                    f"Renewable: {data['renewable_percentage']:.1f}%"
+                )
+                return data
+
+            if response.status == 401:
+                error = aiohttp.ClientResponseError(
+                    request_info=response.request_info, history=response.history, status=401
+                )
+                log_error_with_context(
+                    logger, "Authentication failed (401), attempting token refresh", error, service="carbon-intensity-service"
+                )
+                return await self._handle_auth_retry(url, params)
+
+            if response.status in (429, 500, 502, 503):
+                return await self._handle_transient_retry(url, headers, params, response.status)
+
+            log_error_with_context(
+                logger,
+                f"WattTime API returned status {response.status}",
+                aiohttp.ClientResponseError(
+                    request_info=response.request_info, history=response.history, status=response.status
+                ),
+                service="carbon-intensity-service",
+            )
+            return None
 
     async def store_in_influxdb(self, data: dict[str, Any]) -> None:
         """Store carbon intensity data in InfluxDB"""
@@ -576,7 +574,8 @@ async def main():
 
     # Start health check server
     port = int(os.getenv('SERVICE_PORT', '8010'))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    bind_host = os.getenv("BIND_HOST", "0.0.0.0")  # noqa: S104 — Docker container requires binding to all interfaces
+    site = web.TCPSite(runner, bind_host, port)
     await site.start()
 
     logger.info(f"Health check endpoint available on port {port}")
@@ -590,11 +589,9 @@ async def main():
         shutdown_event.set()
 
     for sig in (signal.SIGTERM, signal.SIGINT):
-        try:
-            loop.add_signal_handler(sig, _signal_handler)
-        except NotImplementedError:
+        with contextlib.suppress(NotImplementedError):
             # Windows does not support add_signal_handler
-            pass
+            loop.add_signal_handler(sig, _signal_handler)
 
     try:
         # Run continuous data collection until shutdown

@@ -95,7 +95,7 @@ class WeatherService:
             if host != self.influxdb_host:
                 self.influxdb_urls.append(f'http://{host}:{self.influxdb_port}')
 
-        logger.info(f"InfluxDB fallback URLs configured: {len(self.influxdb_urls)} URLs (original + {len(fallback_hosts)} fallbacks)")
+        logger.info("InfluxDB fallback URLs configured: %d URLs (original + %d fallbacks)", len(self.influxdb_urls), len(fallback_hosts))
         self.influxdb_url = influxdb_url
         self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
@@ -156,7 +156,7 @@ class WeatherService:
         # Try each URL in order
         for url in self.influxdb_urls:
             try:
-                logger.info(f"Attempting to connect to InfluxDB at {url}")
+                logger.info("Attempting to connect to InfluxDB at %s", url)
 
                 # InfluxDBClient3 expects full URL with protocol
                 client = InfluxDBClient3(
@@ -169,14 +169,14 @@ class WeatherService:
                 # Actually test the connection with a lightweight query
                 await asyncio.to_thread(client.query, "SELECT 1")
                 self.working_influxdb_host = url
-                logger.info(f"[OK] Successfully verified InfluxDB connection at: {url}")
+                logger.info("[OK] Successfully verified InfluxDB connection at: %s", url)
                 return client
 
             except Exception as e:
-                logger.warning(f"Failed to connect to InfluxDB at {url}: {e}")
+                logger.warning("Failed to connect to InfluxDB at %s: %s", url, e)
                 continue
 
-        logger.error(f"[FAIL] Failed to connect to InfluxDB with any URL: {self.influxdb_urls}")
+        logger.error("[FAIL] Failed to connect to InfluxDB with any URL: %s", self.influxdb_urls)
         return None
 
     async def shutdown(self):
@@ -231,18 +231,18 @@ class WeatherService:
                     }
 
                     self.fetch_count += 1
-                    logger.info(f"Fetched weather: {weather['temperature']}°C, {weather['condition']}")
+                    logger.info("Fetched weather: %s°C, %s", weather['temperature'], weather['condition'])
                     return weather
                 else:
                     if response.status == 401 and self.auth_mode == "header":
                         logger.error("OpenWeatherMap API authentication failed with header mode. "
                                      "Set WEATHER_API_AUTH_MODE=query if your API key does not support headers.")
                     else:
-                        logger.error(f"OpenWeatherMap API error: {response.status}")
+                        logger.error("OpenWeatherMap API error: %s", response.status)
                     return self.cached_weather
 
         except Exception as e:
-            logger.error(f"Error fetching weather: {e}")
+            logger.error("Error fetching weather: %s", e)
             return self.cached_weather
 
     async def get_current_weather(self) -> dict[str, Any] | None:
@@ -318,7 +318,7 @@ class WeatherService:
 
                 # Check if it's a DNS/connection error
                 if "Name does not resolve" in error_str or "Failed to resolve" in error_str:
-                    logger.warning(f"DNS resolution failed (attempt {attempt}/{self.max_influx_retries}), attempting to reconnect with fallback hostname...")
+                    logger.warning("DNS resolution failed (attempt %d/%d), attempting to reconnect with fallback hostname...", attempt, self.max_influx_retries)
                     # Try to reinitialize with fallback
                     old_client = self.influxdb_client
                     self.influxdb_client = await self._initialize_influxdb()
@@ -330,7 +330,7 @@ class WeatherService:
                             return
                         continue
                     elif old_client != self.influxdb_client:
-                        logger.info(f"Successfully reconnected to InfluxDB using fallback URL: {self.working_influxdb_host}")
+                        logger.info("Successfully reconnected to InfluxDB using fallback URL: %s", self.working_influxdb_host)
 
                 if attempt >= self.max_influx_retries:
                     self.influx_write_failure_count += 1
@@ -344,7 +344,7 @@ class WeatherService:
 
     async def run_continuous(self):
         """Background fetch loop"""
-        logger.info(f"Starting continuous fetch (every {self.cache_ttl}s)")
+        logger.info("Starting continuous fetch (every %ds)", self.cache_ttl)
         consecutive_failures = 0
 
         while True:
@@ -359,8 +359,8 @@ class WeatherService:
                 consecutive_failures += 1
                 self.last_background_error = str(e)
                 backoff = min(300 * consecutive_failures, 1800)  # Max 30 minutes
-                logger.error(f"Error in continuous loop (failure #{consecutive_failures}): {e}. "
-                             f"Retrying in {backoff}s")
+                logger.error("Error in continuous loop (failure #%d): %s. Retrying in %ds",
+                             consecutive_failures, e, backoff)
                 await asyncio.sleep(backoff)
 
     def start_background_task(self) -> asyncio.Task:
@@ -501,4 +501,5 @@ async def cache_stats():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv('SERVICE_PORT', '8009'))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    host = os.getenv('SERVICE_HOST', '0.0.0.0')  # noqa: S104 — Docker requires binding all interfaces
+    uvicorn.run(app, host=host, port=port, log_level="info")

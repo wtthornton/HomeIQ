@@ -9,7 +9,7 @@ Epic 46, Story 46.1: Synthetic Device Data Generator
 
 import logging
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class SyntheticDeviceGenerator:
     """
     Generate synthetic device health metrics using template-based approach.
-    
+
     Uses predefined distributions and templates to generate realistic device metrics
     without LLM/API calls. Fast generation (<30 seconds for 1000 samples).
     """
@@ -255,7 +255,7 @@ class SyntheticDeviceGenerator:
     def __init__(self, random_seed: int | None = None, home_type: str | None = None):
         """
         Initialize synthetic device generator.
-        
+
         Args:
             random_seed: Optional random seed for reproducibility
             home_type: Optional home type to influence device distribution
@@ -264,12 +264,12 @@ class SyntheticDeviceGenerator:
         if random_seed is not None:
             random.seed(random_seed)
             np.random.seed(random_seed)
-        
+
         self.home_type = home_type
         if home_type and home_type not in self.HOME_TYPE_DEVICE_PATTERNS:
             logger.warning(f"Unknown home type '{home_type}', using default distribution")
             self.home_type = None
-        
+
         logger.info(f"SyntheticDeviceGenerator initialized (template-based generation, home_type={home_type or 'default'})")
 
     def generate_training_data(
@@ -283,7 +283,7 @@ class SyntheticDeviceGenerator:
     ) -> list[dict[str, Any]]:
         """
         Generate synthetic device training data with enhanced temporal patterns (2025).
-        
+
         Args:
             count: Number of device samples to generate
             days: Number of days of historical data to simulate
@@ -291,38 +291,38 @@ class SyntheticDeviceGenerator:
             device_types: Optional list of device types to generate (default: all)
             home_type: Optional home type to influence device distribution (overrides instance home_type)
             reference_date: Optional reference date for temporal patterns (2025: timezone-aware, defaults to now)
-        
+
         Returns:
             List of device metric dictionaries compatible with training pipeline
         """
         # Use parameter home_type if provided, otherwise use instance home_type
         effective_home_type = home_type or self.home_type
-        
+
         # Use current date if not provided (2025: timezone-aware)
         if reference_date is None:
             reference_date = datetime.now(timezone.utc)
         elif reference_date.tzinfo is None:
             reference_date = reference_date.replace(tzinfo=timezone.utc)
-        
+
         logger.info(f"Generating {count} synthetic device samples (template-based, {days} days, home_type={effective_home_type or 'default'}, reference_date={reference_date.date()})")
-        
+
         training_samples = []
         failure_count = int(count * failure_rate)
         normal_count = count - failure_count
-        
+
         # Determine device types to use
         if device_types is None:
             device_types = list(self.DEVICE_TYPE_DISTRIBUTION.keys())
-        
+
         # Adjust device type distribution based on home type
         if effective_home_type and effective_home_type in self.HOME_TYPE_DEVICE_PATTERNS:
             device_types = self._adjust_device_types_for_home_type(device_types, effective_home_type)
-        
+
         # Generate normal devices
         for i in range(normal_count):
             device_type = self._select_device_type(device_types, effective_home_type)
             device_id = f"synthetic_device_{i+1:04d}"
-            
+
             sample = self._generate_device_sample(
                 device_id=device_id,
                 device_type=device_type,
@@ -332,14 +332,14 @@ class SyntheticDeviceGenerator:
                 reference_date=reference_date
             )
             training_samples.append(sample)
-        
+
         # Generate devices with failure scenarios
         failure_scenarios = list(self.FAILURE_SCENARIOS.keys())
         for i in range(failure_count):
             device_type = self._select_device_type(device_types, effective_home_type)
             device_id = f"synthetic_device_{normal_count+i+1:04d}"
             failure_scenario = random.choice(failure_scenarios)
-            
+
             sample = self._generate_device_sample(
                 device_id=device_id,
                 device_type=device_type,
@@ -349,34 +349,34 @@ class SyntheticDeviceGenerator:
                 reference_date=reference_date
             )
             training_samples.append(sample)
-        
+
         logger.info(f"Generated {len(training_samples)} synthetic device samples")
         logger.info(f"- Normal devices: {normal_count}")
         logger.info(f"- Failure scenarios: {failure_count}")
-        
+
         return training_samples
 
     def _adjust_device_types_for_home_type(self, device_types: list[str], home_type: str) -> list[str]:
         """Adjust device type distribution based on home type patterns."""
         patterns = self.HOME_TYPE_DEVICE_PATTERNS[home_type]
-        
+
         # Create adjusted distribution
         adjusted_distribution = self.DEVICE_TYPE_DISTRIBUTION.copy()
-        
+
         # Adjust ratios based on home type
         if 'climate_ratio' in patterns:
             # Increase climate devices for homes with higher HVAC usage
             adjusted_distribution['climate'] = int(adjusted_distribution['climate'] * (1 + patterns['climate_ratio']))
-        
+
         if 'security_ratio' in patterns:
             adjusted_distribution['security'] = int(adjusted_distribution['security'] * (1 + patterns['security_ratio']))
-        
+
         if 'media_ratio' in patterns:
             adjusted_distribution['media'] = int(adjusted_distribution['media'] * (1 + patterns['media_ratio']))
-        
+
         if 'vacuum_ratio' in patterns:
             adjusted_distribution['vacuum'] = int(adjusted_distribution['vacuum'] * (1 + patterns['vacuum_ratio']))
-        
+
         # Return device types that exist in both lists
         return [dt for dt in device_types if dt in adjusted_distribution]
 
@@ -384,12 +384,12 @@ class SyntheticDeviceGenerator:
         """Select device type based on distribution, optionally adjusted for home type."""
         # Create weighted list
         weighted_types = []
-        
+
         # Use home-type-adjusted distribution if available
         if home_type and home_type in self.HOME_TYPE_DEVICE_PATTERNS:
             patterns = self.HOME_TYPE_DEVICE_PATTERNS[home_type]
             adjusted_distribution = self.DEVICE_TYPE_DISTRIBUTION.copy()
-            
+
             # Apply home type adjustments
             if 'climate_ratio' in patterns:
                 adjusted_distribution['climate'] = int(adjusted_distribution['climate'] * (1 + patterns['climate_ratio']))
@@ -399,15 +399,15 @@ class SyntheticDeviceGenerator:
                 adjusted_distribution['media'] = int(adjusted_distribution['media'] * (1 + patterns['media_ratio']))
             if 'vacuum_ratio' in patterns:
                 adjusted_distribution['vacuum'] = int(adjusted_distribution['vacuum'] * (1 + patterns['vacuum_ratio']))
-            
+
             distribution = adjusted_distribution
         else:
             distribution = self.DEVICE_TYPE_DISTRIBUTION
-        
+
         for device_type in device_types:
             weight = distribution.get(device_type, 10)
             weighted_types.extend([device_type] * weight)
-        
+
         return random.choice(weighted_types)
 
     def _generate_device_sample(
@@ -421,22 +421,22 @@ class SyntheticDeviceGenerator:
     ) -> dict[str, Any]:
         """
         Generate a single device sample with realistic metrics.
-        
+
         Args:
             device_id: Unique device identifier
             device_type: Type of device (sensor, switch, light, etc.)
             days: Number of days of historical data
             failure_scenario: Optional failure scenario name
-        
+
         Returns:
             Device metric dictionary compatible with training pipeline
         """
         # Get base characteristics for device type
         if device_type not in self.DEVICE_CHARACTERISTICS:
             device_type = 'sensor'# Fallback
-        
+
         base_chars = self.DEVICE_CHARACTERISTICS[device_type]
-        
+
         # Generate base metrics with enhanced temporal patterns (2025)
         # Use reference_date for timezone-aware temporal calculations
         response_time = self._generate_realistic_value(
@@ -445,28 +445,28 @@ class SyntheticDeviceGenerator:
             days=days,
             reference_date=reference_date
         )
-        
+
         error_rate = self._generate_realistic_value(
             base_chars['error_rate'],
             pattern='stable',
             days=days,
             reference_date=reference_date
         )
-        
+
         battery_level = self._generate_realistic_value(
             base_chars['battery_level'],
             pattern='degradation' if device_type in ['battery_powered', 'security'] else 'stable',
             days=days,
             reference_date=reference_date
         )
-        
+
         signal_strength = self._generate_realistic_value(
             base_chars['signal_strength'],
             pattern='variation',
             days=days,
             reference_date=reference_date
         )
-        
+
         # Enhanced usage frequency with weekend patterns (2025)
         usage_frequency = self._generate_realistic_value(
             base_chars['usage_frequency'],
@@ -474,7 +474,7 @@ class SyntheticDeviceGenerator:
             days=days,
             reference_date=reference_date
         )
-        
+
         # Enhanced temperature with seasonal-daily combination (2025)
         temperature = self._generate_realistic_value(
             base_chars['temperature'],
@@ -482,7 +482,7 @@ class SyntheticDeviceGenerator:
             days=days,
             reference_date=reference_date
         )
-        
+
         # Enhanced humidity with seasonal patterns (2025)
         humidity = self._generate_realistic_value(
             base_chars['humidity'],
@@ -490,28 +490,28 @@ class SyntheticDeviceGenerator:
             days=days,
             reference_date=reference_date
         )
-        
+
         uptime_hours = self._generate_realistic_value(
             base_chars['uptime_hours'],
             pattern='increasing',
             days=days,
             reference_date=reference_date
         )
-        
+
         restart_count = self._generate_realistic_value(
             base_chars['restart_count'],
             pattern='stable',
             days=days,
             reference_date=reference_date
         )
-        
+
         connection_drops = self._generate_realistic_value(
             base_chars['connection_drops'],
             pattern='stable',
             days=days,
             reference_date=reference_date
         )
-        
+
         # Enhanced data transfer with daily patterns (2025)
         data_transfer_rate = self._generate_realistic_value(
             base_chars['data_transfer_rate'],
@@ -519,20 +519,20 @@ class SyntheticDeviceGenerator:
             days=days,
             reference_date=reference_date
         )
-        
+
         # Apply failure scenario if specified
         if failure_scenario:
             failure_params = self.FAILURE_SCENARIOS[failure_scenario]
-            
+
             # Apply multipliers
             error_rate *= random.uniform(*failure_params['error_rate_multiplier'])
             response_time *= random.uniform(*failure_params['response_time_multiplier'])
             connection_drops += random.randint(*failure_params['connection_drops_increase'])
-            
+
             # Battery depletion
             if failure_params['battery_depletion_rate'] > 0:
                 battery_level = max(0, battery_level - (failure_params['battery_depletion_rate'] * days * 100))
-        
+
         # Ensure realistic ranges
         response_time = max(10, min(5000, response_time))
         error_rate = max(0.0, min(1.0, error_rate))
@@ -545,7 +545,7 @@ class SyntheticDeviceGenerator:
         restart_count = max(0, restart_count)
         connection_drops = max(0, connection_drops)
         data_transfer_rate = max(10, data_transfer_rate)
-        
+
         # Build sample dictionary (matches _collect_training_data format)
         sample = {
             "device_id": device_id,
@@ -561,13 +561,13 @@ class SyntheticDeviceGenerator:
             "connection_drops": int(connection_drops),
             "data_transfer_rate": round(data_transfer_rate, 1)
         }
-        
+
         # Add optional health score (if device would have one)
         if random.random() > 0.3:  # 70% of devices have health score
             # Calculate health score based on metrics
             health_score = self._calculate_health_score(sample)
             sample["health_score"] = round(health_score, 2)
-        
+
         return sample
 
     def _generate_realistic_value(
@@ -579,32 +579,32 @@ class SyntheticDeviceGenerator:
     ) -> float:
         """
         Generate realistic value with enhanced temporal patterns (2025 patterns).
-        
+
         Args:
             base_range: (min, max) range for the value
-            pattern: Pattern type ('stable', 'daily_cycle', 'weekly_cycle', 'seasonal', 
+            pattern: Pattern type ('stable', 'daily_cycle', 'weekly_cycle', 'seasonal',
                      'degradation', 'increasing', 'variation', 'seasonal_daily', 'weekend_peak')
             days: Number of days to simulate
             reference_date: Optional reference date for temporal calculations (2025: timezone-aware)
-        
+
         Returns:
             Realistic value within range
         """
         min_val, max_val = base_range
         base_value = random.uniform(min_val, max_val)
-        
+
         # Use current date if not provided (2025: timezone-aware)
         if reference_date is None:
             reference_date = datetime.now(timezone.utc)
         elif reference_date.tzinfo is None:
             # Ensure timezone-aware (2025 best practice)
             reference_date = reference_date.replace(tzinfo=timezone.utc)
-        
+
         if pattern == 'stable':
             # Small random variation around base
             variation = random.uniform(-0.1, 0.1) * (max_val - min_val)
             return base_value + variation
-        
+
         elif pattern == 'daily_cycle':
             # Enhanced daily cycle with time-of-day awareness (2025 pattern)
             # Morning (6-9 AM) and evening (6-9 PM) peaks
@@ -617,7 +617,7 @@ class SyntheticDeviceGenerator:
                 cycle_factor = np.sin((hour / 24) * 2 * np.pi) * 0.15
             variation = cycle_factor * (max_val - min_val)
             return base_value + variation
-        
+
         elif pattern == 'weekly_cycle':
             # Enhanced weekly pattern with weekday/weekend awareness (2025 pattern)
             weekday = reference_date.weekday()  # 0=Monday, 6=Sunday
@@ -627,7 +627,7 @@ class SyntheticDeviceGenerator:
                 cycle_factor = np.sin((weekday / 7) * 2 * np.pi) * 0.2 + 0.1  # Higher on weekends
             variation = cycle_factor * (max_val - min_val)
             return base_value + variation
-        
+
         elif pattern == 'seasonal':
             # Enhanced seasonal variation with month awareness (2025 pattern)
             month = reference_date.month
@@ -636,7 +636,7 @@ class SyntheticDeviceGenerator:
             seasonal_factor = np.sin(seasonal_phase) * 0.3
             variation = seasonal_factor * (max_val - min_val)
             return base_value + variation
-        
+
         elif pattern == 'seasonal_daily':
             # Combined seasonal and daily patterns (2025: multi-scale temporal)
             month = reference_date.month
@@ -646,7 +646,7 @@ class SyntheticDeviceGenerator:
             combined_factor = (np.sin(seasonal_phase) * 0.2 + np.sin(daily_phase) * 0.15)
             variation = combined_factor * (max_val - min_val)
             return base_value + variation
-        
+
         elif pattern == 'weekend_peak':
             # Weekend-specific peak pattern (2025: behavior-aware)
             weekday = reference_date.weekday()
@@ -656,24 +656,24 @@ class SyntheticDeviceGenerator:
                 peak_factor = -0.1 + random.uniform(-0.05, 0.05)
             variation = peak_factor * (max_val - min_val)
             return base_value + variation
-        
+
         elif pattern == 'degradation':
             # Gradual degradation over time (days-based)
             degradation_rate = 1.0 - (days * 0.0005)  # ~0.5% per day over 180 days
             degradation_factor = max(0.7, degradation_rate)  # Cap at 30% degradation
             return base_value * degradation_factor
-        
+
         elif pattern == 'increasing':
             # Gradual increase over time (days-based)
             increase_rate = 1.0 + (days * 0.001)  # ~0.1% per day
             increase_factor = min(1.5, increase_rate)  # Cap at 50% increase
             return base_value * increase_factor
-        
+
         elif pattern == 'variation':
             # Random variation within range
             variation = random.uniform(-0.2, 0.2) * (max_val - min_val)
             return base_value + variation
-        
+
         else:
             # Default: stable with small variation
             variation = random.uniform(-0.1, 0.1) * (max_val - min_val)
@@ -682,48 +682,48 @@ class SyntheticDeviceGenerator:
     def _calculate_health_score(self, sample: dict[str, Any]) -> float:
         """
         Calculate health score based on device metrics.
-        
+
         Args:
             sample: Device metric dictionary
-        
+
         Returns:
             Health score (0.0-1.0, where 1.0 is healthy)
         """
         score = 1.0
-        
+
         # Penalize high error rate
         if sample['error_rate'] > 0.1:
             score -= 0.3
         elif sample['error_rate'] > 0.05:
             score -= 0.15
-        
+
         # Penalize slow response time
         if sample['response_time'] > 2000:
             score -= 0.2
         elif sample['response_time'] > 1000:
             score -= 0.1
-        
+
         # Penalize low battery
         if sample['battery_level'] < 20:
             score -= 0.2
         elif sample['battery_level'] < 50:
             score -= 0.1
-        
+
         # Penalize poor signal
         if sample['signal_strength'] < -80:
             score -= 0.15
         elif sample['signal_strength'] < -70:
             score -= 0.08
-        
+
         # Penalize connection drops
         if sample['connection_drops'] > 5:
             score -= 0.15
         elif sample['connection_drops'] > 2:
             score -= 0.08
-        
+
         # Penalize frequent restarts
         if sample['restart_count'] > 10:
             score -= 0.1
-        
+
         return max(0.0, min(1.0, score))
 

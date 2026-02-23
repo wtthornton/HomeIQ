@@ -60,7 +60,7 @@ class CarbonIntensityClient:
             )
             response.raise_for_status()
             data = response.json()
-            
+
             # Transform to expected format
             return {
                 "intensity": data.get("intensity", 0),
@@ -79,12 +79,12 @@ class CarbonIntensityClient:
                 error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
                 logger.warning(f"HTTP error fetching carbon intensity: {error_msg}")
             return None  # Graceful degradation
-        except httpx.ConnectError as e:
+        except httpx.ConnectError:
             error_msg = f"Could not connect to Data API at {self.data_api_url}"
             logger.warning(f"Connection error: {error_msg}")
             return None  # Graceful degradation
-        except Exception as e:
-            logger.warning(f"Error fetching carbon intensity: {str(e)}", exc_info=True)
+        except Exception:
+            logger.warning("Error fetching carbon intensity", exc_info=True)
             return None  # Graceful degradation
 
     @retry(
@@ -114,12 +114,12 @@ class CarbonIntensityClient:
                 error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
                 logger.warning(f"HTTP error fetching carbon intensity trends: {error_msg}")
             return None  # Graceful degradation
-        except httpx.ConnectError as e:
+        except httpx.ConnectError:
             error_msg = f"Could not connect to Data API at {self.data_api_url}"
             logger.warning(f"Connection error: {error_msg}")
             return None  # Graceful degradation
-        except Exception as e:
-            logger.warning(f"Error fetching carbon intensity trends: {str(e)}", exc_info=True)
+        except Exception:
+            logger.warning("Error fetching carbon intensity trends", exc_info=True)
             return None  # Graceful degradation
 
     async def close(self):

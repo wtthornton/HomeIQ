@@ -50,9 +50,9 @@ app.include_router(observability_router)
 
 # Include task and schedule routers if Huey is available
 try:
-    from .task_queue.huey_config import huey
-    from .api.task_router import router as task_router
     from .api.schedule_router import router as schedule_router
+    from .api.task_router import router as task_router
+    from .task_queue.huey_config import huey
     app.include_router(task_router)
     app.include_router(schedule_router)
     HUEY_AVAILABLE = True
@@ -81,39 +81,39 @@ def _start_huey_consumer() -> None:
 async def startup() -> None:
     """Initialize services on startup"""
     global rest_client, websocket_client, capability_graph
-    
+
     logger.info("Starting API Automation Edge Service")
-    
+
     # Initialize REST client
     rest_client = HARestClient()
-    
+
     # Initialize WebSocket client
     websocket_client = HAWebSocketClient()
     await websocket_client.connect()
-    
+
     # Initialize capability graph
     capability_graph = CapabilityGraph(rest_client, websocket_client)
     await capability_graph.initialize()
     await capability_graph.start(websocket_client)
-    
+
     # Start Huey consumer if enabled
     if settings.use_task_queue:
         try:
             # Start consumer in background thread
             consumer_thread = threading.Thread(target=_start_huey_consumer, daemon=True)
             consumer_thread.start()
-            
+
             # Give thread a moment to start
             time.sleep(0.1)
-            
+
             logger.info("Huey task queue consumer thread started")
-            
+
         except ImportError:
             logger.warning("Huey not available - task queue disabled")
         except Exception as e:
             logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
             logger.warning("Service will continue without task queue")
-    
+
     logger.info("API Automation Edge Service started")
 
 
@@ -121,9 +121,9 @@ async def startup() -> None:
 async def shutdown() -> None:
     """Cleanup on shutdown"""
     global websocket_client, capability_graph
-    
+
     logger.info("Shutting down API Automation Edge Service")
-    
+
     # Stop Huey consumer if running
     if settings.use_task_queue:
         try:
@@ -132,13 +132,13 @@ async def shutdown() -> None:
             logger.info("Huey consumer stopped")
         except Exception as e:
             logger.warning(f"Error stopping Huey consumer: {e}")
-    
+
     if capability_graph:
         await capability_graph.stop()
-    
+
     if websocket_client:
         await websocket_client.disconnect()
-    
+
     logger.info("API Automation Edge Service stopped")
 
 

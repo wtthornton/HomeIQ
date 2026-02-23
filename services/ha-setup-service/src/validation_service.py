@@ -48,24 +48,24 @@ class ValidationResult(BaseModel):
 class ValidationService:
     """
     Service for validating Home Assistant configuration
-    
+
     Detects:
     - Missing area assignments
     - Incorrect area assignments
     - Provides smart suggestions based on entity names
     """
-    
+
     def __init__(self):
         self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
         self.timeout = aiohttp.ClientTimeout(total=30)
         self.suggestion_engine = SuggestionEngine()
-        
+
         # Cache for validation results (5 minute TTL)
         self._cache: dict[str, tuple[datetime, ValidationResult]] = {}
         self._cache_ttl = timedelta(minutes=5)
         self._cache_lock = asyncio.Lock()
-        
+
     async def validate_ha_config(
         self,
         category: str | None = None,
@@ -74,12 +74,12 @@ class ValidationService:
     ) -> ValidationResult:
         """
         Validate Home Assistant configuration
-        
+
         Args:
             category: Optional filter by issue category
             min_confidence: Minimum confidence score (0-100)
             use_cache: Whether to use cached results (default: True)
-            
+
         Returns:
             ValidationResult with issues and suggestions
         """
@@ -96,21 +96,21 @@ class ValidationService:
                         else:
                             # Cache expired, remove it
                             del self._cache[cache_key]
-            
+
             logger.info("Starting HA configuration validation...")
-            
+
             # Fetch entities and areas from HA
             entities, areas, ha_version = await self._fetch_ha_data()
-            
+
             logger.info(f"Fetched {len(entities)} entities and {len(areas)} areas")
-            
+
             # Detect issues
             issues = await self._detect_issues(entities, areas)
-            
+
             # Filter by category if specified
             if category:
                 issues = [i for i in issues if i.category == category]
-            
+
             # Filter by confidence
             if min_confidence > 0:
                 filtered_issues = []
@@ -123,17 +123,17 @@ class ValidationService:
                     elif issue.confidence >= min_confidence:
                         filtered_issues.append(issue)
                 issues = filtered_issues
-            
+
             # Generate summary
             summary = self._generate_summary(issues, ha_version)
-            
+
             logger.info(f"Validation complete: {summary.total_issues} issues found")
-            
+
             result = ValidationResult(
                 summary=summary,
                 issues=issues
             )
-            
+
             # Cache result (only if no filters applied)
             if use_cache and not category and min_confidence == 0:
                 async with self._cache_lock:
@@ -146,18 +146,18 @@ class ValidationService:
                     ]
                     for k in expired_keys:
                         del self._cache[k]
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Validation failed: {e}", exc_info=True)
             raise
-    
+
     def clear_cache(self):
         """Clear validation cache"""
         self._cache.clear()
         logger.info("Validation cache cleared")
-    
+
     async def _fetch_ha_data(self) -> tuple[list[dict], list[dict], str]:
         """Fetch entities and areas from Home Assistant"""
         session = await get_http_session()
@@ -223,7 +223,7 @@ class ValidationService:
             logger.warning(f"Could not fetch HA version: {e}")
 
         return entities, areas, ha_version
-    
+
     async def _detect_issues(
         self,
         entities: list[dict],
@@ -231,20 +231,16 @@ class ValidationService:
     ) -> list[ValidationIssue]:
         """Detect validation issues in entities"""
         issues = []
-        
-        # Create area lookup
-        area_map = {area.get("area_id"): area.get("name") for area in areas}
-        area_ids = list(area_map.keys())
-        
+
         for entity in entities:
             entity_id = entity.get("entity_id")
             if not entity_id:
                 continue
-            
+
             current_area_id = entity.get("area_id")
             entity_name = entity.get("name") or entity_id
             device_id = entity.get("device_id")
-            
+
             # Check for missing area assignment
             if not current_area_id:
                 # Generate suggestions
@@ -253,7 +249,7 @@ class ValidationService:
                     entity_name=entity_name,
                     areas=areas
                 )
-                
+
                 if suggestions:
                     issues.append(ValidationIssue(
                         entity_id=entity_id,
@@ -264,7 +260,7 @@ class ValidationService:
                         entity_name=entity_name,
                         confidence=max(s.get("confidence", 0) for s in suggestions) if suggestions else 0
                     ))
-            
+
             # Check for incorrect area assignment (entity name suggests different area)
             elif current_area_id:
                 suggestions = await self.suggestion_engine.suggest_area(
@@ -272,7 +268,7 @@ class ValidationService:
                     entity_name=entity_name,
                     areas=areas
                 )
-                
+
                 # If top suggestion is different from current, flag as incorrect
                 if suggestions and suggestions[0].get("area_id") != current_area_id:
                     top_suggestion = suggestions[0]
@@ -287,9 +283,9 @@ class ValidationService:
                             entity_name=entity_name,
                             confidence=top_suggestion.get("confidence", 0)
                         ))
-        
+
         return issues
-    
+
     def _generate_summary(
         self,
         issues: list[ValidationIssue],
@@ -299,14 +295,14 @@ class ValidationService:
         by_category = {}
         for issue in issues:
             by_category[issue.category] = by_category.get(issue.category, 0) + 1
-        
+
         return ValidationSummary(
             total_issues=len(issues),
             by_category=by_category,
             scan_timestamp=datetime.now(timezone.utc),
             ha_version=ha_version
         )
-    
+
     async def apply_fix(
         self,
         entity_id: str,
@@ -314,11 +310,11 @@ class ValidationService:
     ) -> dict[str, Any]:
         """
         Apply area assignment fix to Home Assistant
-        
+
         Args:
             entity_id: Entity ID to update
             area_id: Area ID to assign
-            
+
         Returns:
             Success response with details
         """
@@ -350,32 +346,32 @@ class ValidationService:
                         error_text = await response.text()
                         logger.error(f"Failed to update entity: {response.status} - {error_text}")
                         raise Exception(f"HA API returned {response.status}: {error_text}")
-                        
+
         except Exception as e:
             logger.error(f"Error applying fix: {e}", exc_info=True)
             raise
-    
+
     async def apply_bulk_fixes(
         self,
         fixes: list[dict[str, str]]
     ) -> dict[str, Any]:
         """
         Apply multiple area assignment fixes
-        
+
         Args:
             fixes: List of dicts with entity_id and area_id
-            
+
         Returns:
             Summary of applied fixes
         """
         results = []
         applied = 0
         failed = 0
-        
+
         for fix in fixes:
             entity_id = fix.get("entity_id")
             area_id = fix.get("area_id")
-            
+
             if not entity_id or not area_id:
                 results.append({
                     "entity_id": entity_id or "unknown",
@@ -384,7 +380,7 @@ class ValidationService:
                 })
                 failed += 1
                 continue
-            
+
             try:
                 await self.apply_fix(entity_id, area_id)
                 results.append({
@@ -400,7 +396,7 @@ class ValidationService:
                     "error": str(e)
                 })
                 failed += 1
-        
+
         return {
             "success": True,
             "applied": applied,

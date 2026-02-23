@@ -68,7 +68,7 @@ class ConfigEndpoints:
                 else:
                     # Get config for all services
                     all_config = {}
-                    for service_name in self.service_urls.keys():
+                    for service_name in self.service_urls:
                         config = await self._get_service_config(service_name, include_sensitive)
                         all_config[service_name] = config
                     return all_config
@@ -132,7 +132,7 @@ class ConfigEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to update configuration"
-                )
+                ) from e
 
         @self.router.post("/config/{service}/validate", response_model=ConfigValidation)
         async def validate_configuration(
@@ -157,7 +157,7 @@ class ConfigEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to validate configuration"
-                )
+                ) from e
 
         @self.router.get("/config/{service}/backup", response_model=dict[str, Any])
         async def backup_configuration(service: str):
@@ -179,7 +179,7 @@ class ConfigEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to backup configuration"
-                )
+                ) from e
 
         @self.router.post("/config/{service}/restore", response_model=dict[str, Any])
         async def restore_configuration(
@@ -204,7 +204,7 @@ class ConfigEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to restore configuration"
-                )
+                ) from e
 
         @self.router.get("/config/{service}/history", response_model=list[dict[str, Any]])
         async def get_config_history(
@@ -229,14 +229,14 @@ class ConfigEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get configuration history"
-                )
+                ) from e
 
     async def _get_service_config(self, service: str, include_sensitive: bool) -> dict[str, Any]:
         """Get configuration for a specific service"""
         service_url = self.service_urls[service]
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
                 params = {"include_sensitive": include_sensitive}
                 async with session.get(f"{service_url}/config", params=params) as response:
                     if response.status == 200:
@@ -253,7 +253,7 @@ class ConfigEndpoints:
 
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
                     async with session.get(f"{service_url}/config/schema") as response:
                         if response.status == 200:
                             data = await response.json()
@@ -312,7 +312,7 @@ class ConfigEndpoints:
         service_url = self.service_urls[service]
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:  # noqa: SIM117
                 async with session.put(f"{service_url}/config", json=updates) as response:
                     if response.status == 200:
                         return await response.json()
@@ -320,7 +320,7 @@ class ConfigEndpoints:
                         raise Exception(f"HTTP {response.status}")
         except Exception as e:
             logger.error(f"Error applying config updates for {service}: {e}")
-            raise Exception(f"Failed to apply configuration updates: {e}")
+            raise Exception(f"Failed to apply configuration updates: {e}") from e
 
     async def _validate_service_config(self, service: str, config: dict[str, Any]) -> ConfigValidation:
         """Validate complete service configuration"""
@@ -333,7 +333,7 @@ class ConfigEndpoints:
         service_url = self.service_urls[service]
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
                 async with session.get(f"{service_url}/config/backup") as response:
                     if response.status == 200:
                         backup_data = await response.json()
@@ -346,14 +346,14 @@ class ConfigEndpoints:
                         raise Exception(f"HTTP {response.status}")
         except Exception as e:
             logger.error(f"Error backing up config for {service}: {e}")
-            raise Exception(f"Failed to backup configuration: {e}")
+            raise Exception(f"Failed to backup configuration: {e}") from e
 
     async def _restore_service_config(self, service: str, backup_data: dict[str, Any]) -> dict[str, Any]:
         """Restore service configuration from backup"""
         service_url = self.service_urls[service]
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:  # noqa: SIM117
                 async with session.post(f"{service_url}/config/restore", json=backup_data) as response:
                     if response.status == 200:
                         return await response.json()
@@ -361,14 +361,14 @@ class ConfigEndpoints:
                         raise Exception(f"HTTP {response.status}")
         except Exception as e:
             logger.error(f"Error restoring config for {service}: {e}")
-            raise Exception(f"Failed to restore configuration: {e}")
+            raise Exception(f"Failed to restore configuration: {e}") from e
 
     async def _get_config_history(self, service: str, limit: int) -> list[dict[str, Any]]:
         """Get configuration change history"""
         service_url = self.service_urls[service]
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
                 params = {"limit": limit}
                 async with session.get(f"{service_url}/config/history", params=params) as response:
                     if response.status == 200:
@@ -399,26 +399,26 @@ class ConfigEndpoints:
     def _validate_rules(self, value: Any, rules: dict[str, Any]) -> dict[str, list[str]]:
         r"""
         Validate a configuration value against custom validation rules.
-        
+
         Performs multiple validation types including range checks, string length validation,
         and regex pattern matching. Returns categorized errors and warnings.
-        
+
         Complexity: C (15) - Moderate-high complexity due to multiple validation types
-        
+
         Args:
             value (Any): Configuration value to validate (can be string, int, float, dict, etc.)
             rules (Dict[str, Any]): Validation rules dictionary containing optional keys:
                 - 'min': Minimum numeric value
-                - 'max': Maximum numeric value  
+                - 'max': Maximum numeric value
                 - 'min_length': Minimum string length
                 - 'max_length': Maximum string length
                 - 'pattern': Regex pattern for string matching
-                
+
         Returns:
             Dict[str, List[str]]: Validation result containing:
                 - 'errors' (List[str]): Validation failures
                 - 'warnings' (List[str]): Non-critical issues
-                
+
         Example:
             >>> rules = {'min': 0, 'max': 100, 'pattern': r'^\d+$'}
             >>> result = endpoints._validate_rules(50, rules)
@@ -426,7 +426,7 @@ class ConfigEndpoints:
             ...     print(f"Invalid: {result['errors']}")
             >>> else:
             ...     print("Valid")
-        
+
         Note:
             Complexity arises from:
             - Multiple rule types (min/max, length, pattern)

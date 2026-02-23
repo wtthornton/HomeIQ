@@ -1,0 +1,30 @@
+---
+description: >-
+  TappsMCP domain expert consultation — use when needing
+  guidance on security, performance, architecture, testing,
+  or other domain-specific best practices.
+---
+
+# Expert Consultation
+
+Call `tapps_consult_expert(question)` for domain guidance.
+
+## Available Expert Domains
+
+- security, performance, architecture, testing
+- documentation, accessibility, devops, database
+- api, frontend, backend, data-science
+- ml, cloud, mobile, embedded
+
+## Usage
+
+Provide a clear question and optionally specify the domain:
+
+```
+tapps_consult_expert(
+    question="How should I handle auth tokens?",
+    domain="security"
+)
+```
+
+Returns RAG-backed expert guidance with confidence scores.

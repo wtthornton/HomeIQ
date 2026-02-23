@@ -10,18 +10,20 @@ import hmac
 import json
 import logging
 import os
+from pathlib import Path
 import sys
 from datetime import datetime
 from typing import Any
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(str(Path(__file__).resolve().parent, '../../shared'))
 
 import aiohttp
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, HttpUrl
 
 from shared.influxdb_query_client import InfluxDBQueryClient
+
 from .flux_utils import sanitize_flux_value
 
 logger = logging.getLogger(__name__)
@@ -89,13 +91,13 @@ webhooks: dict[str, WebhookRegistration] = {}
 async def get_game_status(team: str):
     """
     Quick game status check for Home Assistant automations
-    
+
     Performance target: <50ms response time
     Epic 12 Story 12.3: HA automation integration
-    
+
     Args:
         team: Team name or abbreviation
-        
+
     Returns:
         Quick status (no_game, upcoming, live, finished)
     """
@@ -149,19 +151,19 @@ async def get_game_status(team: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get game status: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/ha/game-context/{team}", response_model=GameContextResponse)
 async def get_game_context(team: str):
     """
     Get rich game context for Home Assistant automations
-    
+
     Provides full game details for automation decision-making
-    
+
     Args:
         team: Team name
-        
+
     Returns:
         Complete game context
     """
@@ -212,22 +214,22 @@ async def get_game_context(team: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get game context: {str(e)}"
-        )
+        ) from e
 
 
 @router.post("/ha/webhooks/register", response_model=WebhookResponse)
 async def register_webhook(registration: WebhookRegistration):
     """
     Register a webhook for game events
-    
+
     Home Assistant will receive HTTP POST when events occur:
     - game_start: Game status changes to "live"
     - game_end: Game status changes to "finished"
     - score_change: Score changes significantly (6+ points or lead change)
-    
+
     Args:
         registration: Webhook configuration
-        
+
     Returns:
         Webhook registration confirmation
     """
@@ -253,14 +255,14 @@ async def register_webhook(registration: WebhookRegistration):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to register webhook: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/ha/webhooks", response_model=list[WebhookResponse])
 async def list_webhooks():
     """
     List all registered webhooks
-    
+
     Returns:
         List of active webhooks
     """
@@ -283,17 +285,17 @@ async def list_webhooks():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list webhooks: {str(e)}"
-        )
+        ) from e
 
 
 @router.delete("/ha/webhooks/{webhook_id}")
 async def delete_webhook(webhook_id: str):
     """
     Delete a registered webhook
-    
+
     Args:
         webhook_id: Webhook ID to delete
-        
+
     Returns:
         Deletion confirmation
     """
@@ -320,16 +322,16 @@ async def delete_webhook(webhook_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete webhook: {str(e)}"
-        )
+        ) from e
 
 
 # Webhook delivery helper
 async def deliver_webhook(webhook: WebhookRegistration, event_type: str, payload: dict[str, Any]):
     """
     Deliver webhook to Home Assistant
-    
+
     Includes HMAC signature for security
-    
+
     Args:
         webhook: Webhook registration
         event_type: Type of event (game_start, game_end, score_change)
@@ -373,10 +375,10 @@ async def deliver_webhook(webhook: WebhookRegistration, event_type: str, payload
 async def get_monitored_teams(user_id: str = "default") -> list[str]:
     """
     Get list of teams to monitor for webhook events
-    
+
     Epic 11 Story 11.5: Team Persistence Implementation
     Epic 12 Story 12.4: Event Detector Team Integration
-    
+
     Gets teams from (in priority order):
     1. Registered webhooks (teams with webhooks)
     2. Database (user's selected teams from TeamPreferences)
@@ -384,24 +386,25 @@ async def get_monitored_teams(user_id: str = "default") -> list[str]:
     4. Default: empty list (monitor all if no teams specified)
     """
     teams = set()
-    
+
     # Get teams from registered webhooks (highest priority)
     for webhook in webhooks.values():
         if webhook.team:
             teams.add(webhook.team.lower())
-    
+
     # Get teams from database (Epic 11 Story 11.5)
     try:
         from sqlalchemy import select
+
         from .database import AsyncSessionLocal
         from .models.team_preferences import TeamPreferences
-        
+
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 select(TeamPreferences).where(TeamPreferences.user_id == user_id)
             )
             prefs = result.scalar_one_or_none()
-            
+
             if prefs:
                 # Add NFL teams
                 for team in prefs.nfl_teams:
@@ -414,7 +417,7 @@ async def get_monitored_teams(user_id: str = "default") -> list[str]:
                 logger.debug(f"Loaded {len(prefs.nfl_teams)} NFL and {len(prefs.nhl_teams)} NHL teams from database for user {user_id}")
     except Exception as e:
         logger.warning(f"Failed to load teams from database: {e}, falling back to environment variable")
-    
+
     # Fallback: Get teams from environment variable (comma-separated)
     if not teams:
         env_teams = os.getenv("SPORTS_MONITORED_TEAMS", "")
@@ -424,7 +427,7 @@ async def get_monitored_teams(user_id: str = "default") -> list[str]:
                 if team:
                     teams.add(team)
             logger.debug(f"Loaded teams from environment variable: {list(teams)}")
-    
+
     return list(teams)
 
 
@@ -432,15 +435,15 @@ async def get_monitored_teams(user_id: str = "default") -> list[str]:
 async def webhook_event_detector():
     """
     Background task to detect game events and trigger webhooks
-    
+
     Epic 12 Story 12.3: Adaptive Event Monitor + Webhooks
     Epic 12 Story 12.4: Event Detector Team Integration
-    
+
     Runs every 15 seconds, checks for:
     - Game start (status: scheduled → live)
-    - Game end (status: live → finished)  
+    - Game end (status: live → finished)
     - Score changes (significant: 6+ points or lead change)
-    
+
     Only monitors games for user-selected teams (Story 12.4)
     """
     logger.info("Starting webhook event detector background task")
@@ -458,12 +461,12 @@ async def webhook_event_detector():
 
             # Get teams to monitor (Story 12.4, Epic 11 Story 11.5)
             monitored_teams = await get_monitored_teams(user_id="default")
-            
+
             if not monitored_teams and not webhooks:
                 # No teams to monitor and no webhooks registered - skip this cycle
                 logger.debug("No teams to monitor and no webhooks registered, skipping detection cycle")
                 continue
-            
+
             # Build query - filter by monitored teams if specified
             if monitored_teams:
                 # Build team filter with case-insensitive matching (OR condition for home_team or away_team)
@@ -495,11 +498,11 @@ async def webhook_event_detector():
                 logger.debug("No teams specified - monitoring all games")
 
             results = await influxdb_client._execute_query(query)
-            
+
             if not results:
                 logger.debug("No active games found in InfluxDB")
                 continue
-            
+
             logger.debug(f"Found {len(results)} active games to check for events")
 
             for game in results:
@@ -509,40 +512,38 @@ async def webhook_event_detector():
                 current_status = game.get("status", "").lower()
 
                 # Check for webhooks for either team
-                for webhook_id, webhook in webhooks.items():
+                for _webhook_id, webhook in webhooks.items():
                     webhook_team = webhook.team.lower()
                     if webhook_team not in [home_team, away_team]:
                         continue
-                    
+
                     logger.debug(f"Checking events for game {game_id} (team: {webhook.team})")
 
                     # Check for events
                     previous = previous_state.get(game_id, {})
 
                     # Game start event
-                    if "game_start" in webhook.events:
-                        if current_status == "live" and previous.get("status") != "live":
-                            payload = {
-                                "event": "game_start",
-                                "game_id": game_id,
-                                "team": webhook.team,
-                                "opponent": away_team if home_team == webhook.team else home_team,
-                                "timestamp": datetime.now().isoformat()
-                            }
-                            await deliver_webhook(webhook, "game_start", payload)
+                    if "game_start" in webhook.events and current_status == "live" and previous.get("status") != "live":
+                        payload = {
+                            "event": "game_start",
+                            "game_id": game_id,
+                            "team": webhook.team,
+                            "opponent": away_team if home_team == webhook.team else home_team,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        await deliver_webhook(webhook, "game_start", payload)
 
                     # Game end event
-                    if "game_end" in webhook.events:
-                        if current_status == "finished" and previous.get("status") == "live":
-                            payload = {
-                                "event": "game_end",
-                                "game_id": game_id,
-                                "team": webhook.team,
-                                "final_score": f"{game.get('home_score')}-{game.get('away_score')}",
-                                "result": "win" if _team_won(game, webhook.team) else "loss",
-                                "timestamp": datetime.now().isoformat()
-                            }
-                            await deliver_webhook(webhook, "game_end", payload)
+                    if "game_end" in webhook.events and current_status == "finished" and previous.get("status") == "live":
+                        payload = {
+                            "event": "game_end",
+                            "game_id": game_id,
+                            "team": webhook.team,
+                            "final_score": f"{game.get('home_score')}-{game.get('away_score')}",
+                            "result": "win" if _team_won(game, webhook.team) else "loss",
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        await deliver_webhook(webhook, "game_end", payload)
 
                     # Score change event
                     if "score_change" in webhook.events:

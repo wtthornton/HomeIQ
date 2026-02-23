@@ -8,7 +8,7 @@ Home Assistant Tool Implementations
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -23,8 +23,8 @@ from ..models.automation_models import (
     AutomationPreviewResponse,
 )
 from ..services.business_rules.rule_validator import BusinessRuleValidator
-from ..services.entity_resolution.entity_resolution_service import EntityResolutionService
 from ..services.enhancement_service import AutomationEnhancementService
+from ..services.entity_resolution.entity_resolution_service import EntityResolutionService
 from ..services.validation.ai_automation_validation_strategy import (
     AIAutomationValidationStrategy,
 )
@@ -56,10 +56,10 @@ class HAToolHandler:
         data_api_client: DataAPIClient,
         ai_automation_client: AIAutomationClient | None = None,
         yaml_validation_client: YAMLValidationClient | None = None,
-        openai_client: Optional[AsyncOpenAI] = None,
-        entity_resolution_service: Optional[EntityResolutionService] = None,
-        business_rule_validator: Optional[BusinessRuleValidator] = None,
-        validation_chain: Optional[ValidationChain] = None,
+        openai_client: AsyncOpenAI | None = None,
+        entity_resolution_service: EntityResolutionService | None = None,
+        business_rule_validator: BusinessRuleValidator | None = None,
+        validation_chain: ValidationChain | None = None,
         hybrid_flow_client: HybridFlowClient | None = None,
         use_hybrid_flow: bool = True,
     ):
@@ -109,7 +109,7 @@ class HAToolHandler:
             strategies.append(BasicValidationStrategy(self))
             validation_chain = ValidationChain(strategies)
         self.validation_chain = validation_chain
-    
+
     async def _preview_with_hybrid_flow(
         self,
         user_prompt: str,
@@ -118,20 +118,20 @@ class HAToolHandler:
     ) -> dict[str, Any]:
         """
         Preview automation using Hybrid Flow (template-based).
-        
+
         Flow: plan → validate → compile → preview
-        
+
         Args:
             user_prompt: User's natural language request
             conversation_id: Optional conversation ID
             arguments: Additional tool arguments
-        
+
         Returns:
             Preview response dictionary
         """
         if not self.hybrid_flow_client:
             raise ValueError("Hybrid Flow client not initialized")
-        
+
         # Step 1: Create plan (LLM selects template + parameters)
         try:
             context = arguments.get("context", {})
@@ -140,19 +140,19 @@ class HAToolHandler:
                 conversation_id=conversation_id,
                 context=context
             )
-            
+
             plan_id = plan_response["plan_id"]
             template_id = plan_response["template_id"]
             template_version = plan_response["template_version"]
             parameters = plan_response["parameters"]
             confidence = plan_response.get("confidence", 0.0)
             clarifications_needed = plan_response.get("clarifications_needed", [])
-            
+
             logger.info(
                 f"[Preview-Hybrid] Plan created: {plan_id}, template={template_id}, "
                 f"confidence={confidence:.2f} (conversation_id={conversation_id or 'N/A'})"
             )
-            
+
             # Step 2: Check if clarifications needed
             if clarifications_needed:
                 return {
@@ -165,7 +165,7 @@ class HAToolHandler:
                     "message": "I need more information to create this automation. Please answer the following questions:",
                     "conversation_id": conversation_id
                 }
-            
+
             # Step 3: Validate plan
             validate_response = await self.hybrid_flow_client.validate_plan(
                 plan_id=plan_id,
@@ -173,7 +173,7 @@ class HAToolHandler:
                 template_version=template_version,
                 parameters=parameters
             )
-            
+
             if not validate_response["valid"]:
                 return {
                     "success": False,
@@ -182,10 +182,10 @@ class HAToolHandler:
                     "message": "The automation plan has validation errors. Please review and correct them.",
                     "conversation_id": conversation_id
                 }
-            
+
             resolved_context = validate_response["resolved_context"]
             safety_info = validate_response["safety"]
-            
+
             # Step 4: Compile to YAML
             compile_response = await self.hybrid_flow_client.compile_plan(
                 plan_id=plan_id,
@@ -194,24 +194,24 @@ class HAToolHandler:
                 parameters=parameters,
                 resolved_context=resolved_context
             )
-            
+
             compiled_id = compile_response["compiled_id"]
             yaml_content = compile_response["yaml"]
             human_summary = compile_response["human_summary"]
             risk_notes = compile_response.get("risk_notes", [])
-            
+
             logger.info(
                 f"[Preview-Hybrid] Compiled: {compiled_id}, "
                 f"plan={plan_id} (conversation_id={conversation_id or 'N/A'})"
             )
-            
+
             # Step 5: Validate compiled YAML
             validation_result = await self.validation_chain.validate(yaml_content)
-            
+
             # Step 6: Extract automation details for preview
             automation_dict = yaml.safe_load(yaml_content)
             extraction_result = self._extract_automation_details(automation_dict)
-            
+
             # Build preview response using existing helper
             request = AutomationPreviewRequest(
                 user_prompt=user_prompt,
@@ -219,14 +219,14 @@ class HAToolHandler:
                 alias=automation_dict.get("alias", human_summary.split("|")[0] if human_summary else "Automation"),
                 conversation_id=conversation_id
             )
-            
+
             safety_warnings = []
             if risk_notes:
                 safety_warnings = [note.get("message", "") for note in risk_notes if note.get("message")]
-            
+
             if safety_info.get("requires_confirmation"):
                 safety_warnings.append("This automation requires confirmation due to safety classification")
-            
+
             return self._build_preview_response(
                 request=request,
                 automation_dict=automation_dict,
@@ -242,7 +242,7 @@ class HAToolHandler:
                     "human_summary": human_summary
                 }
             )
-            
+
         except Exception as e:
             logger.error(
                 f"[Preview-Hybrid] Error in hybrid flow: {e}",
@@ -275,7 +275,7 @@ class HAToolHandler:
         # Extract conversation_id for traceability
         conversation_id = arguments.get("conversation_id")
         user_prompt = arguments.get("user_prompt", "")
-        
+
         # Hybrid Flow: If enabled and no YAML provided, use template-based flow
         if self.use_hybrid_flow and self.hybrid_flow_client and not arguments.get("automation_yaml"):
             try:
@@ -290,7 +290,7 @@ class HAToolHandler:
                     exc_info=True
                 )
                 # Fall through to legacy flow
-        
+
         # Legacy Flow: Direct YAML preview (backward compatibility)
         # Create and validate request
         request = AutomationPreviewRequest.from_dict(arguments)
@@ -314,7 +314,7 @@ class HAToolHandler:
                 f"strategy={validation_result.strategy_name if hasattr(validation_result, 'strategy_name') else 'unknown'} "
                 f"(conversation_id={conversation_id or 'N/A'})"
             )
-            
+
             automation_dict = self._parse_automation_yaml(request.automation_yaml, request)
 
             # Extract automation details
@@ -375,7 +375,7 @@ class HAToolHandler:
                 safety_warnings=safety_warnings,
                 conversation_id=conversation_id,
             )
-            
+
         except (yaml.YAMLError, ValueError) as e:
             return self._handle_yaml_error(e, request, conversation_id)
         except Exception as e:
@@ -403,7 +403,7 @@ class HAToolHandler:
         # Extract conversation_id for traceability
         conversation_id = arguments.get("conversation_id")
         compiled_id = arguments.get("compiled_id")
-        
+
         # Hybrid Flow: If enabled and compiled_id provided, deploy compiled artifact
         if self.use_hybrid_flow and self.hybrid_flow_client and compiled_id:
             try:
@@ -418,7 +418,7 @@ class HAToolHandler:
                     exc_info=True
                 )
                 # Fall through to legacy flow
-        
+
         # Legacy Flow: Direct YAML deployment (backward compatibility)
         # Validate required arguments
         validation_error = self._validate_create_arguments(arguments)
@@ -481,7 +481,7 @@ class HAToolHandler:
             return self._build_error_response(
                 f"Unexpected error: {str(e)}", user_prompt, alias
             )
-    
+
     async def _create_with_hybrid_flow(
         self,
         compiled_id: str,
@@ -490,18 +490,18 @@ class HAToolHandler:
     ) -> dict[str, Any]:
         """
         Create automation using Hybrid Flow (deploy compiled artifact).
-        
+
         Args:
             compiled_id: Compiled artifact identifier
             conversation_id: Optional conversation ID
             arguments: Additional tool arguments
-        
+
         Returns:
             Creation result dictionary
         """
         if not self.hybrid_flow_client:
             raise ValueError("Hybrid Flow client not initialized")
-        
+
         try:
             # Deploy compiled artifact
             deployment_response = await self.hybrid_flow_client.deploy_compiled(
@@ -509,15 +509,15 @@ class HAToolHandler:
                 approved_by=arguments.get("approved_by"),
                 ui_source="ha-ai-agent"
             )
-            
+
             deployment_id = deployment_response["deployment_id"]
             ha_automation_id = deployment_response["ha_automation_id"]
-            
+
             logger.info(
                 f"[Create-Hybrid] Deployed: {ha_automation_id}, "
                 f"deployment={deployment_id} (conversation_id={conversation_id or 'N/A'})"
             )
-            
+
             return {
                 "success": True,
                 "automation_id": ha_automation_id,
@@ -527,7 +527,7 @@ class HAToolHandler:
                 "conversation_id": conversation_id,
                 "hybrid_flow": True
             }
-            
+
         except Exception as e:
             logger.error(
                 f"[Create-Hybrid] Error deploying compiled artifact: {e}",
@@ -562,7 +562,7 @@ class HAToolHandler:
         return None
 
     def _parse_automation_yaml(
-        self, automation_yaml: str, request: AutomationPreviewRequest
+        self, automation_yaml: str, _request: AutomationPreviewRequest
     ) -> dict[str, Any]:
         """
         Parse automation YAML and validate structure.
@@ -652,7 +652,7 @@ class HAToolHandler:
             trigger_description=self._describe_trigger(automation_dict.get("trigger")),
             action_description=self._describe_action(automation_dict.get("action")),
             mode=automation_dict.get("mode", "single"),
-            initial_state=automation_dict.get("initial_state", None),
+            initial_state=automation_dict.get("initial_state"),
         )
 
         # Use normalized YAML if available (recommendation #10 from HA_AGENT_API_FLOW_ANALYSIS.md)
@@ -679,7 +679,7 @@ class HAToolHandler:
             alias=request.alias,
             message="Preview generated successfully. Review the details above and approve to create the automation.",
         )
-        
+
         # Add hybrid flow metadata if available
         response_dict = response.to_dict()
         if hybrid_flow_data:
@@ -687,7 +687,7 @@ class HAToolHandler:
             # Include compiled_id for deployment
             if "compiled_id" in hybrid_flow_data:
                 response_dict["compiled_id"] = hybrid_flow_data["compiled_id"]
-        
+
         # Add safety score to response metadata if available (enhanced validation)
         # Note: This may require updating AutomationPreviewResponse model to include safety_score
 
@@ -870,20 +870,20 @@ class HAToolHandler:
     ) -> list[dict[str, Any]]:
         """
         Extract scene.create actions from automation YAML.
-        
+
         Returns list of scene definitions with:
         - scene_id: Scene ID (without 'scene.' prefix)
         - snapshot_entities: List of entity IDs to snapshot
         - scene_entity_id: Full scene entity ID (scene.{scene_id})
-        
+
         Args:
             automation_dict: Parsed automation dictionary
-            
+
         Returns:
             List of scene definitions
         """
         scenes = []
-        
+
         def extract_from_actions(actions: Any) -> None:
             """Recursively extract scene.create actions from action list."""
             if isinstance(actions, list):
@@ -897,14 +897,14 @@ class HAToolHandler:
                             data = action.get("data", {})
                             scene_id = data.get("scene_id")
                             snapshot_entities = data.get("snapshot_entities", [])
-                            
+
                             if scene_id:
                                 scenes.append({
                                     "scene_id": scene_id,
                                     "snapshot_entities": snapshot_entities if isinstance(snapshot_entities, list) else [],
                                     "scene_entity_id": f"scene.{scene_id}",
                                 })
-                        
+
                         # Check for nested actions (choose, repeat, etc.)
                         if "sequence" in action:
                             extract_from_actions(action["sequence"])
@@ -916,11 +916,11 @@ class HAToolHandler:
                             repeat = action["repeat"]
                             if isinstance(repeat, dict) and "sequence" in repeat:
                                 extract_from_actions(repeat["sequence"])
-        
+
         # Extract from action section
         if "action" in automation_dict:
             extract_from_actions(automation_dict["action"])
-        
+
         return scenes
 
     async def _validate_entity_availability(
@@ -930,11 +930,11 @@ class HAToolHandler:
     ) -> dict[str, Any]:
         """
         Validate that entities exist and are available in Home Assistant.
-        
+
         Args:
             entity_ids: List of entity IDs to validate
             conversation_id: Optional conversation ID for traceability
-            
+
         Returns:
             Dictionary with:
             - available: List of available entity IDs
@@ -949,13 +949,13 @@ class HAToolHandler:
                 "not_found": [],
                 "all_available": True,
             }
-        
+
         available = []
         unavailable = []
         not_found = []
-        
+
         session = await self.ha_client._get_session()
-        
+
         for entity_id in entity_ids:
             try:
                 # Check entity state via Home Assistant API
@@ -990,9 +990,9 @@ class HAToolHandler:
                 )
                 # On error, assume available (may be transient)
                 available.append(entity_id)
-        
+
         all_available = len(unavailable) == 0 and len(not_found) == 0
-        
+
         if unavailable or not_found:
             logger.warning(
                 f"[Create] Entity availability check: "
@@ -1000,7 +1000,7 @@ class HAToolHandler:
                 f"not_found={len(not_found)} "
                 f"(conversation_id={conversation_id or 'N/A'})"
             )
-        
+
         return {
             "available": available,
             "unavailable": unavailable,
@@ -1015,39 +1015,39 @@ class HAToolHandler:
     ) -> list[dict[str, Any]]:
         """
         Pre-create scenes in Home Assistant before automation deployment.
-        
+
         This prevents "Unknown entity" warnings in Home Assistant UI
         by creating scenes that will be referenced by scene.turn_on actions.
-        
+
         Entities are validated for availability before scene creation.
-        
+
         Args:
             scenes: List of scene definitions from _extract_scene_create_actions
             conversation_id: Optional conversation ID for traceability
-            
+
         Returns:
             List of creation results with scene_id and success status
         """
         if not scenes:
             return []
-        
+
         session = await self.ha_client._get_session()
         results = []
-        
+
         for scene_def in scenes:
             scene_id = scene_def["scene_id"]
             scene_entity_id = scene_def["scene_entity_id"]
             snapshot_entities = scene_def["snapshot_entities"]
-            
+
             # Validate entity availability before scene creation
             entity_validation = await self._validate_entity_availability(
                 snapshot_entities, conversation_id
             )
-            
+
             # Store validation result for use after scene creation attempt
             has_unavailable_entities = not entity_validation["all_available"]
             unavailable_entities = entity_validation["unavailable"] + entity_validation["not_found"]
-            
+
             if has_unavailable_entities:
                 logger.warning(
                     f"[Create] ⚠️  Scene pre-creation: {len(unavailable_entities)} entities unavailable "
@@ -1056,14 +1056,14 @@ class HAToolHandler:
                     f"Scene will still be created, but may show warnings in UI. "
                     f"Scene will work correctly at runtime when entities become available."
                 )
-            
+
             try:
                 # Create scene using Home Assistant scene.create service
                 # POST /api/services/scene/create
                 # This creates a scene with a snapshot of current entity states
                 # This pre-creates the scene entity so it exists when the automation is deployed
                 url = f"{self.ha_client.ha_url}/api/services/scene/create"
-                
+
                 # Prepare scene data for service call
                 # scene.create service accepts scene_id and snapshot_entities
                 # This captures the current state of entities and creates the scene
@@ -1071,7 +1071,7 @@ class HAToolHandler:
                     "scene_id": scene_id,
                     "snapshot_entities": snapshot_entities,
                 }
-                
+
                 async with session.post(url, json=scene_data) as response:
                     if response.status in (200, 201):
                         logger.info(
@@ -1134,7 +1134,7 @@ class HAToolHandler:
                     "success": False,
                     "error": str(e),
                 })
-        
+
         return results
 
     async def _create_automation_in_ha(
@@ -1160,7 +1160,7 @@ class HAToolHandler:
         """
         # Extract scenes that will be created dynamically
         scenes_to_precreate = self._extract_scene_create_actions(automation_dict)
-        
+
         # Pre-create scenes before deploying automation
         # This prevents "Unknown entity" warnings in Home Assistant UI
         scene_results = []
@@ -1175,7 +1175,7 @@ class HAToolHandler:
             logger.info(
                 f"[Create] Pre-created {sum(1 for r in scene_results if r['success'])}/{len(scene_results)} scenes"
             )
-        
+
         session = await self.ha_client._get_session()
 
         # Generate a safe config ID from alias
@@ -1214,23 +1214,22 @@ class HAToolHandler:
                         for r in scene_results
                     ],
                 }
-            else:
-                error_text = await response.text()
-                logger.error(
-                    f"[Create] ❌ Failed to create automation '{alias}': {response.status} - {error_text} "
-                    f"(conversation_id={conversation_id or 'N/A'}). "
-                    f"Prompt: '{user_prompt[:100]}...'",
-                    exc_info=False
-                )
-                return {
-                    "success": False,
-                    "error": f"Failed to create automation: {response.status} - {error_text}",
-                    "user_prompt": user_prompt,
-                    "alias": alias,
-                    "http_status": response.status,
-                    "scenes_precreated": scene_results,  # Return scene results even if automation creation failed
-                }
-    
+            error_text = await response.text()
+            logger.error(
+                f"[Create] ❌ Failed to create automation '{alias}': {response.status} - {error_text} "
+                f"(conversation_id={conversation_id or 'N/A'}). "
+                f"Prompt: '{user_prompt[:100]}...'",
+                exc_info=False
+            )
+            return {
+                "success": False,
+                "error": f"Failed to create automation: {response.status} - {error_text}",
+                "user_prompt": user_prompt,
+                "alias": alias,
+                "http_status": response.status,
+                "scenes_precreated": scene_results,  # Return scene results even if automation creation failed
+            }
+
     def _extract_from_yaml(
         self,
         automation_dict: dict[str, Any],
@@ -1264,20 +1263,19 @@ class HAToolHandler:
             if isinstance(section, list):
                 for item in section:
                     extract_from_section(item, path_index)
-            elif isinstance(section, dict):
-                if field_name in section:
-                    value = section[field_name]
-                    if is_last_field:
-                        # Extract value
-                        if isinstance(value, list):
-                            for v in value:
-                                if isinstance(v, str):
-                                    results.append(v)
-                        elif isinstance(value, str):
-                            results.append(value)
-                    else:
-                        # Continue navigation
-                        extract_from_section(value, path_index + 1)
+            elif isinstance(section, dict) and field_name in section:
+                value = section[field_name]
+                if is_last_field:
+                    # Extract value
+                    if isinstance(value, list):
+                        for v in value:
+                            if isinstance(v, str):
+                                results.append(v)
+                    elif isinstance(value, str):
+                        results.append(value)
+                else:
+                    # Continue navigation
+                    extract_from_section(value, path_index + 1)
 
         # Extract from specified sections
         for section_name in sections:
@@ -1289,7 +1287,7 @@ class HAToolHandler:
     def _extract_entities_from_yaml(self, automation_dict: dict[str, Any]) -> list[str]:
         """Extract entity IDs from automation YAML"""
         entities = []
-        
+
         # Extract from entity_id fields (triggers, conditions, actions)
         entities.extend(self._extract_from_yaml(automation_dict, ["entity_id"]))
 
@@ -1299,7 +1297,7 @@ class HAToolHandler:
                 automation_dict, ["target", "entity_id"], sections=["action"]
             )
         )
-        
+
         return list(set(entities))  # Remove duplicates
 
     def _extract_areas_from_yaml(self, automation_dict: dict[str, Any]) -> list[str]:
@@ -1467,7 +1465,7 @@ class HAToolHandler:
         """Generate human-readable description of trigger"""
         if not trigger:
             return "No trigger specified"
-        
+
         if isinstance(trigger, list):
             descriptions = []
             for t in trigger:
@@ -1493,17 +1491,17 @@ class HAToolHandler:
                 else:
                     descriptions.append(f"{platform} trigger")
             return "; ".join(descriptions)
-        elif isinstance(trigger, dict):
+        if isinstance(trigger, dict):
             platform = trigger.get("platform", "unknown")
             return f"{platform} trigger"
-        
+
         return "Unknown trigger type"
 
     def _describe_action(self, action: Any) -> str:
         """Generate human-readable description of action"""
         if not action:
             return "No action specified"
-        
+
         if isinstance(action, list):
             descriptions = []
             for a in action:
@@ -1530,17 +1528,17 @@ class HAToolHandler:
                 else:
                     descriptions.append("Unknown action")
             return "; ".join(descriptions)
-        elif isinstance(action, dict):
+        if isinstance(action, dict):
             if "service" in action:
                 service = action["service"]
                 return f"{service}"
-            elif "scene" in action:
+            if "scene" in action:
                 scene = action.get("scene", "")
                 return f"Activate scene {scene}"
-        
+
         return "Unknown action type"
 
-    
+
     @property
     def enhancement_service(self) -> AutomationEnhancementService | None:
         """Get or create enhancement service"""
@@ -1552,27 +1550,27 @@ class HAToolHandler:
                 settings=settings
             )
         return self._enhancement_service
-    
+
     async def suggest_automation_enhancements(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """
         Generate 5 enhancement suggestions for an automation.
-        
+
         Supports two modes:
         - Prompt Enhancement Mode: Enhance user prompts before YAML generation (no YAML required)
         - YAML Enhancement Mode: Enhance existing automation YAML (YAML required)
-        
+
         Uses:
         - LLM for small/medium/large
         - Patterns API for advanced
         - Synergies API for fun/crazy
-        
+
         Args:
             arguments: Tool arguments containing:
                 - automation_yaml: The automation YAML to enhance (optional)
                 - original_prompt: User's original request (required)
                 - conversation_id: Conversation ID for tracking
                 - creativity_level: Creativity level - "conservative", "balanced", or "creative" (optional, default: "balanced")
-                
+
         Returns:
             Dictionary with 5 enhancement suggestions and mode indicator
         """
@@ -1580,32 +1578,32 @@ class HAToolHandler:
         original_prompt = arguments.get("original_prompt")  # Required
         conversation_id = arguments.get("conversation_id")
         creativity_level = arguments.get("creativity_level", "balanced")  # Optional, default to balanced
-        
+
         if not original_prompt:
             return {
                 "success": False,
                 "error": "original_prompt is required",
                 "conversation_id": conversation_id
             }
-        
+
         if not self.enhancement_service:
             return {
                 "success": False,
                 "error": "Enhancement service not available (OpenAI client not initialized)",
                 "conversation_id": conversation_id
             }
-        
+
         try:
             logger.info(
                 f"[Enhancement] Generating enhancements (mode: {'yaml' if automation_yaml else 'prompt'}) "
                 f"for conversation {conversation_id or 'N/A'}"
             )
-            
+
             if automation_yaml:
                 # YAML Enhancement Mode (existing behavior)
                 entities = AutomationEnhancementService.extract_entities_from_yaml(automation_yaml)
                 areas = AutomationEnhancementService.extract_areas_from_yaml(automation_yaml)
-                
+
                 enhancements = await self.enhancement_service.generate_enhancements(
                     automation_yaml=automation_yaml,
                     original_prompt=original_prompt,
@@ -1619,7 +1617,7 @@ class HAToolHandler:
                 entities = None
                 areas = None
                 # For now, we'll skip entity extraction from prompt text (could be enhanced later)
-                
+
                 enhancements = await self.enhancement_service.generate_prompt_enhancements(
                     original_prompt=original_prompt,
                     creativity_level=creativity_level,
@@ -1627,14 +1625,14 @@ class HAToolHandler:
                     areas=areas
                 )
                 mode = "prompt"
-            
+
             return {
                 "success": True,
                 "enhancements": [e.to_dict() for e in enhancements],
                 "conversation_id": conversation_id,
                 "mode": mode  # Indicate which mode was used
             }
-            
+
         except Exception as e:
             logger.error(
                 f"[Enhancement] ❌ Error generating enhancements "

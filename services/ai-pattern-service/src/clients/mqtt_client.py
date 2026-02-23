@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 class MQTTNotificationClient:
     """
     MQTT client for publishing pattern analysis notifications.
-    
+
     Epic 39, Story 39.6: Extracted to pattern service for scheduler notifications.
-    
+
     Features:
     - Publish pattern analysis notifications
     - Automatic reconnection on disconnect
@@ -68,11 +68,11 @@ class MQTTNotificationClient:
     def connect(self, max_retries: int = 3, retry_delay: float = 2.0) -> bool:
         """
         Connect to MQTT broker with retry logic.
-        
+
         Args:
             max_retries: Maximum number of connection attempts
             retry_delay: Delay between retry attempts in seconds
-        
+
         Returns:
             True if connection successful
         """
@@ -139,7 +139,7 @@ class MQTTNotificationClient:
     def _on_connect(self, client: mqtt.Client, userdata: dict, flags: dict, rc: int) -> None:
         """
         Callback for when client connects to broker.
-        
+
         Args:
             client: MQTT client instance
             userdata: User data passed to callbacks
@@ -165,7 +165,7 @@ class MQTTNotificationClient:
     def _on_disconnect(self, client: mqtt.Client, userdata: dict, rc: int) -> None:
         """
         Callback for when client disconnects from broker.
-        
+
         Args:
             client: MQTT client instance
             userdata: User data passed to callbacks
@@ -191,12 +191,12 @@ class MQTTNotificationClient:
     def publish(self, topic: str, message: dict, qos: int = 1) -> bool:
         """
         Publish a message to MQTT topic.
-        
+
         Args:
             topic: MQTT topic
             message: Message payload (will be JSON-encoded)
             qos: Quality of service (0, 1, or 2)
-        
+
         Returns:
             True if publish successful
         """
@@ -223,10 +223,10 @@ class MQTTNotificationClient:
     def publish_analysis_complete(self, result_summary: dict) -> bool:
         """
         Publish pattern analysis complete notification.
-        
+
         Args:
             result_summary: Summary of analysis results
-        
+
         Returns:
             True if publish successful
         """
@@ -244,7 +244,7 @@ class MQTTNotificationClient:
     def disconnect(self) -> None:
         """
         Disconnect from MQTT broker.
-        
+
         Stops the MQTT client loop and disconnects from the broker.
         Safe to call even if not connected.
         """

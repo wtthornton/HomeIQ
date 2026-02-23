@@ -29,14 +29,14 @@ class StatisticsAggregator:
         self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
         self.influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
         self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-        
+
         # SQLite metadata database (for statistics_meta table)
         self.sqlite_path = os.getenv("SQLITE_PATH", "data/metadata.db")
-        
+
         self.client: InfluxDBClient | None = None
         self.query_api = None
         self.write_api = None
-        
+
         # Statistics tracking
         self.last_short_term_run: datetime | None = None
         self.last_long_term_run: datetime | None = None
@@ -48,7 +48,7 @@ class StatisticsAggregator:
         """Get or create InfluxDB client"""
         if not InfluxDBClient:
             raise ImportError("influxdb_client package not installed")
-        
+
         if not self.client:
             self.client = InfluxDBClient(
                 url=self.influxdb_url,
@@ -57,7 +57,7 @@ class StatisticsAggregator:
             )
             self.query_api = self.client.query_api()
             self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
-        
+
         return self.client
 
     def _get_eligible_entities(self) -> list[dict[str, Any]]:
@@ -93,33 +93,33 @@ class StatisticsAggregator:
     async def aggregate_short_term(self) -> dict[str, Any]:
         """
         Aggregate raw events into 5-minute statistics (Epic 45.3).
-        
+
         Returns:
             Dictionary with aggregation results
         """
         try:
             logger.info("Starting short-term statistics aggregation (5-minute)...")
             start_time = datetime.now(timezone.utc)
-            
+
             # Get InfluxDB client
             self._get_influxdb_client()
-            
+
             # Get eligible entities
             eligible_entities = self._get_eligible_entities()
             if not eligible_entities:
                 logger.warning("No eligible entities found for statistics aggregation")
                 return {"success": False, "error": "No eligible entities"}
-            
+
             logger.info(f"Found {len(eligible_entities)} eligible entities for aggregation")
-            
+
             # Calculate time range: last 5 minutes (or since last run)
             if self.last_short_term_run:
                 range_start = self.last_short_term_run
             else:
                 range_start = datetime.now(timezone.utc) - timedelta(minutes=5)
-            
+
             range_end = datetime.now(timezone.utc)
-            
+
             # Aggregate entities in batches to avoid N+1 query problem
             aggregated_points = []
             entities_processed = 0
@@ -212,7 +212,7 @@ class StatisticsAggregator:
                     logger.error(f"Error aggregating entity batch: {e}")
                     self.errors += 1
                     continue
-            
+
             # Write aggregated points to InfluxDB
             if aggregated_points:
                 self.write_api.write(
@@ -221,20 +221,20 @@ class StatisticsAggregator:
                     record=aggregated_points
                 )
                 logger.info(f"Wrote {len(aggregated_points)} short-term statistics points for {entities_processed} entities")
-            
+
             # Update tracking
             self.last_short_term_run = range_end
             self.short_term_aggregations += 1
-            
+
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-            
+
             return {
                 "success": True,
                 "entities_processed": entities_processed,
                 "points_written": len(aggregated_points),
                 "duration_seconds": duration
             }
-            
+
         except Exception as e:
             logger.error(f"Error in short-term aggregation: {e}")
             self.errors += 1
@@ -243,31 +243,31 @@ class StatisticsAggregator:
     async def aggregate_long_term(self) -> dict[str, Any]:
         """
         Aggregate short-term statistics into hourly statistics (Epic 45.4).
-        
+
         Returns:
             Dictionary with aggregation results
         """
         try:
             logger.info("Starting long-term statistics aggregation (hourly)...")
             start_time = datetime.now(timezone.utc)
-            
+
             # Get InfluxDB client
             self._get_influxdb_client()
-            
+
             # Get eligible entities
             eligible_entities = self._get_eligible_entities()
             if not eligible_entities:
                 logger.warning("No eligible entities found for statistics aggregation")
                 return {"success": False, "error": "No eligible entities"}
-            
+
             # Calculate time range: last hour (or since last run)
             if self.last_long_term_run:
                 range_start = self.last_long_term_run
             else:
                 range_start = datetime.now(timezone.utc) - timedelta(hours=1)
-            
+
             range_end = datetime.now(timezone.utc)
-            
+
             # Aggregate entities from short-term statistics in batches
             aggregated_points = []
             entities_processed = 0
@@ -327,7 +327,7 @@ class StatisticsAggregator:
                     logger.error(f"Error aggregating entity batch: {e}")
                     self.errors += 1
                     continue
-            
+
             # Write aggregated points to InfluxDB
             if aggregated_points:
                 self.write_api.write(
@@ -336,20 +336,20 @@ class StatisticsAggregator:
                     record=aggregated_points
                 )
                 logger.info(f"Wrote {len(aggregated_points)} long-term statistics points for {entities_processed} entities")
-            
+
             # Update tracking
             self.last_long_term_run = range_end
             self.long_term_aggregations += 1
-            
+
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-            
+
             return {
                 "success": True,
                 "entities_processed": entities_processed,
                 "points_written": len(aggregated_points),
                 "duration_seconds": duration
             }
-            
+
         except Exception as e:
             logger.error(f"Error in long-term aggregation: {e}")
             self.errors += 1

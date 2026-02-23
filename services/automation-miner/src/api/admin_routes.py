@@ -23,7 +23,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 async def trigger_manual_refresh(background_tasks: BackgroundTasks):
     """
     Manually trigger corpus refresh
-    
+
     Runs the weekly refresh job immediately in the background.
     Useful for testing or recovering from failed scheduled runs.
     """
@@ -43,7 +43,7 @@ async def trigger_manual_refresh(background_tasks: BackgroundTasks):
 async def get_refresh_status(db: AsyncSession = Depends(get_db_session)):
     """
     Get weekly refresh job status
-    
+
     Returns information about the last refresh and next scheduled run.
     """
     from ..miner.repository import CorpusRepository
@@ -90,5 +90,5 @@ async def get_refresh_status(db: AsyncSession = Depends(get_db_session)):
 
     except Exception as e:
         logger.error(f"Failed to get refresh status: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 

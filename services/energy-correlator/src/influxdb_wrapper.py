@@ -101,7 +101,7 @@ class InfluxDBWrapper:
     async def write_points(self, points: list[Point]):
         """
         Write a batch of points to InfluxDB asynchronously
-        
+
         Args:
             points: List of InfluxDB Point objects
         """

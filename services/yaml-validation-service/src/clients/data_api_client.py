@@ -24,11 +24,11 @@ class DataAPIClient:
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
         self.client = httpx.AsyncClient(timeout=10.0, headers=headers)
-    
+
     async def fetch_entities(self) -> list[dict[str, Any]]:
         """
         Fetch all entities from Data API.
-        
+
         Returns:
             List of entity dictionaries
         """
@@ -40,11 +40,11 @@ class DataAPIClient:
         except Exception as e:
             logger.error(f"Failed to fetch entities: {e}")
             return []
-    
+
     async def fetch_areas(self) -> list[dict[str, Any]]:
         """
         Fetch all areas from Data API.
-        
+
         Returns:
             List of area dictionaries
         """
@@ -56,7 +56,7 @@ class DataAPIClient:
         except Exception as e:
             logger.error(f"Failed to fetch areas: {e}")
             return []
-    
+
     async def close(self):
         """Close HTTP client."""
         await self.client.aclose()

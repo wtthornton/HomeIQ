@@ -38,18 +38,18 @@ class CapabilityDiscoveryService:
     ) -> dict[str, Any]:
         """
         Discover capabilities for a device.
-        
+
         Args:
             device_id: Device identifier
             entity_ids: List of entity IDs for this device
-            
+
         Returns:
             Dictionary with capabilities and features
         """
         discoverer = self._get_discoverer()
         if not discoverer:
             return {"capabilities": [], "features": {}}
-        
+
         try:
             result = await discoverer.discover_capabilities(device_id, entity_ids)
             return result
@@ -60,16 +60,16 @@ class CapabilityDiscoveryService:
     def format_capabilities_for_storage(self, capabilities_data: dict[str, Any]) -> str | None:
         """
         Format capabilities data for storage in Device model.
-        
+
         Args:
             capabilities_data: Capabilities dictionary
-            
+
         Returns:
             JSON string for device_features_json field
         """
         if not capabilities_data:
             return None
-        
+
         try:
             return json.dumps(capabilities_data)
         except Exception as e:

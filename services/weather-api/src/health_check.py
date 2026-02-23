@@ -28,7 +28,7 @@ class HealthCheckHandler:
     async def handle(self, service: WeatherService | None) -> dict[str, Any]:
         """
         Handle health check request
-        
+
         Returns:
             Dict with service health status
         """
@@ -102,10 +102,7 @@ class HealthCheckHandler:
             # Check if last write was recent (within last 30 minutes)
             now = datetime.now(timezone.utc)
             write_age = (now - service.last_influx_write).total_seconds()
-            if write_age > 1800:  # 30 minutes
-                influx_state = "degraded"  # No recent successful writes
-            else:
-                influx_state = "healthy"
+            influx_state = "degraded" if write_age > 1800 else "healthy"
         else:
             # Client exists but no writes yet
             influx_state = "initializing"

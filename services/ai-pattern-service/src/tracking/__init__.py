@@ -7,7 +7,7 @@ Integrates with analytics and rating services for continuous improvement.
 Target: 85% automation success rate
 """
 
-from .execution_tracker import ExecutionTracker, ExecutionRecord
+from .execution_tracker import ExecutionRecord, ExecutionTracker
 from .ha_event_subscriber import HAEventSubscriber
 
 __all__ = [

@@ -23,8 +23,8 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI
-from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from ..config import settings
 from ..miner.database import get_database
@@ -43,10 +43,11 @@ logger = logging.getLogger(__name__)
 async def _check_and_initialize_corpus(app_instance: FastAPI, db) -> None:
     """Check corpus status and initialize if needed."""
     try:
-        from ..jobs.weekly_refresh import WeeklyRefreshJob
-        from ..miner.repository import CorpusRepository
         import asyncio
         from datetime import datetime, timezone
+
+        from ..jobs.weekly_refresh import WeeklyRefreshJob
+        from ..miner.repository import CorpusRepository
 
         async with db.get_session() as session:
             repo = CorpusRepository(session)
@@ -113,9 +114,10 @@ async def _start_scheduler() -> object | None:
     if not settings.enable_automation_miner:
         logger.info("ℹ️  Weekly refresh scheduler disabled (ENABLE_AUTOMATION_MINER=false)")
         return None
-    
+
     try:
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
         from ..jobs.weekly_refresh import setup_weekly_refresh_job
 
         scheduler = AsyncIOScheduler()
@@ -156,19 +158,19 @@ async def _shutdown_scheduler(scheduler: Any | None) -> None:
 async def lifespan(app: FastAPI):
     """
     Lifespan context manager for startup/shutdown.
-    
+
     This lifespan context manager handles:
     - Database initialization and table creation
     - Corpus initialization on startup (if empty or stale)
     - Weekly refresh scheduler startup
     - Graceful shutdown of scheduler and database connections
-    
+
     Args:
         app: FastAPI application instance
-        
+
     Yields:
         None: Control is yielded to the application runtime
-        
+
     Raises:
         Exception: If database initialization fails (prevents service startup)
     """
@@ -232,7 +234,7 @@ app.include_router(device_router, prefix="/api/automation-miner")  # Story AI4.3
 async def health_check() -> dict[str, Any]:
     """
     Health check endpoint
-    
+
     Returns service status and corpus information.
     """
     from ..miner.database import get_db_session
@@ -287,7 +289,7 @@ async def health_check() -> dict[str, Any]:
 async def root() -> dict[str, str]:
     """
     Root endpoint providing service information.
-    
+
     Returns:
         dict: Service metadata including message, version, and endpoint links
     """

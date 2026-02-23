@@ -7,7 +7,7 @@ Epic F1: Structured logs with correlation IDs and secret redaction
 import json
 import logging
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,32 +15,32 @@ logger = logging.getLogger(__name__)
 class StructuredLogger:
     """
     Structured logger with correlation IDs.
-    
+
     Features:
     - Correlation IDs across trigger/plan/execute/confirm
     - Structured log format (JSON)
     - Secret redaction
     """
-    
-    def __init__(self, logger_instance: Optional[logging.Logger] = None):
+
+    def __init__(self, logger_instance: logging.Logger | None = None):
         """
         Initialize structured logger.
-        
+
         Args:
             logger_instance: Optional logger instance
         """
         self.logger = logger_instance or logger
-        self._correlation_id: Optional[str] = None
-    
-    def set_correlation_id(self, correlation_id: Optional[str] = None):
+        self._correlation_id: str | None = None
+
+    def set_correlation_id(self, correlation_id: str | None = None):
         """Set correlation ID for current context"""
         self._correlation_id = correlation_id or str(uuid.uuid4())
         return self._correlation_id
-    
-    def get_correlation_id(self) -> Optional[str]:
+
+    def get_correlation_id(self) -> str | None:
         """Get current correlation ID"""
         return self._correlation_id
-    
+
     def _redact_secrets(self, data: Any) -> Any:
         """Recursively redact secrets from data structures"""
         if isinstance(data, dict):
@@ -58,13 +58,13 @@ class StructuredLogger:
             if len(data) > 20 and all(c.isalnum() or c in '-_' for c in data):
                 return "[REDACTED]"
         return data
-    
+
     def _create_log_entry(
         self,
         level: str,
         message: str,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create structured log entry"""
         entry = {
             "timestamp": logging.Formatter().formatTime(
@@ -79,7 +79,7 @@ class StructuredLogger:
             **kwargs
         }
         return self._redact_secrets(entry)
-    
+
     def log(
         self,
         level: str,
@@ -89,7 +89,7 @@ class StructuredLogger:
         """Log structured message"""
         entry = self._create_log_entry(level, message, **kwargs)
         log_message = json.dumps(entry)
-        
+
         if level == "DEBUG":
             self.logger.debug(log_message)
         elif level == "INFO":
@@ -100,11 +100,11 @@ class StructuredLogger:
             self.logger.error(log_message)
         else:
             self.logger.info(log_message)
-    
+
     def log_trigger(
         self,
         trigger_type: str,
-        trigger_data: Dict[str, Any],
+        trigger_data: dict[str, Any],
         spec_id: str
     ):
         """Log trigger event"""
@@ -116,13 +116,13 @@ class StructuredLogger:
             trigger_data=trigger_data,
             spec_id=spec_id
         )
-    
+
     def log_validation(
         self,
         spec_id: str,
         is_valid: bool,
         errors: list[str],
-        execution_plan: Optional[Dict[str, Any]] = None
+        execution_plan: dict[str, Any] | None = None
     ):
         """Log validation result"""
         self.log(
@@ -134,11 +134,11 @@ class StructuredLogger:
             errors=errors,
             execution_plan=execution_plan
         )
-    
+
     def log_execution(
         self,
         spec_id: str,
-        execution_result: Dict[str, Any]
+        execution_result: dict[str, Any]
     ):
         """Log execution result"""
         self.log(
@@ -148,12 +148,12 @@ class StructuredLogger:
             spec_id=spec_id,
             execution_result=execution_result
         )
-    
+
     def log_confirmation(
         self,
         entity_id: str,
         confirmed: bool,
-        error: Optional[str] = None
+        error: str | None = None
     ):
         """Log confirmation result"""
         self.log(

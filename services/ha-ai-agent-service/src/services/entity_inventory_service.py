@@ -50,7 +50,7 @@ class EntityInventoryService:
         self.device_intelligence_client = DeviceIntelligenceClient(settings)
         self._cache_key = "entity_inventory_summary"
         self._cache_ttl = 300  # 5 minutes
-    
+
     async def _get_device_mapping_info(
         self,
         device_id: str,
@@ -58,11 +58,11 @@ class EntityInventoryService:
     ) -> dict[str, Any] | None:
         """
         Get device mapping information from Device Intelligence Service.
-        
+
         Args:
             device_id: Device ID
             device_data: Device data dictionary
-            
+
         Returns:
             Dictionary with device type, relationships, and context, or None if unavailable
         """
@@ -75,34 +75,34 @@ class EntityInventoryService:
                 "name": device_data.get("name"),
                 "area_id": device_data.get("area_id")
             }
-            
+
             # Get device type
             type_result = await self.device_intelligence_client.get_device_type(
                 device_id, device_payload
             )
-            
+
             if not type_result:
                 return None
-            
+
             # Get device context
             context_result = await self.device_intelligence_client.get_device_context(
                 device_id, device_payload
             )
-            
+
             # Combine results
             result = {
                 "type": type_result.get("type"),
                 "handler": type_result.get("handler"),
                 "context": context_result.get("context") if context_result else None
             }
-            
+
             # Get relationships if available
             relationships_result = await self.device_intelligence_client.get_device_relationships(
                 device_id, device_payload
             )
             if relationships_result:
                 result["relationships"] = relationships_result.get("relationships", [])
-            
+
             return result
         except Exception as e:
             logger.debug(f"⚠️ Error getting device mapping info for {device_id}: {e}")
@@ -144,10 +144,10 @@ class EntityInventoryService:
             logger.info("📊 Fetching entity states...")
             try:
                 states = await self.ha_client.get_states()
-                state_map = {state.get("entity_id"): state for state in states}
+                _state_map = {state.get("entity_id"): state for state in states}  # noqa: F841
             except Exception as e:
                 logger.warning(f"⚠️ Could not fetch states: {e}")
-                state_map = {}
+                _state_map = {}  # noqa: F841
 
             # Fetch areas for friendly name mapping
             try:
@@ -191,17 +191,17 @@ class EntityInventoryService:
             # Device Type Detection (Epic AI-24: Use Device Mapping Library)
             # Cache for device mapping results to avoid excessive API calls
             device_mapping_cache: dict[str, dict[str, Any]] = {}  # device_id → mapping results
-            
+
             # Fallback: Legacy device type detection (Epic AI-23 Story AI23.3) - kept for backward compatibility
             hue_room_devices: dict[str, dict[str, Any]] = {}  # device_id → device_data (Hue Room/Zone groups)
             wled_master_entities: dict[str, str] = {}  # entity_id → master_entity_id (for segments)
             device_relationships: dict[str, list[str]] = {}  # device_id/entity_id → related entities
-            
+
             # Try to use device mapping library for device type detection
             # Process devices in batches to improve performance
             device_ids_to_process = list(device_metadata_map.keys())
             logger.info(f"🔍 Processing {len(device_ids_to_process)} devices with device mapping library...")
-            
+
             # Process devices (with fallback to legacy detection)
             for device_id, device_data in device_metadata_map.items():
                 # Try device mapping library first (Epic AI-24)
@@ -213,12 +213,12 @@ class EntityInventoryService:
                     # Fallback to legacy detection (Epic AI-23)
                     model = (device_data.get("model") or "").lower()
                     manufacturer = (device_data.get("manufacturer") or "").lower()
-                    
+
                     # Detect Hue Room/Zone groups (legacy)
                     if ("room" in model or "zone" in model) and ("signify" in manufacturer or "philips" in manufacturer):
                         hue_room_devices[device_id] = device_data
                         logger.debug(f"✅ Legacy detection: Hue Room/Zone group: {device_id}")
-            
+
             # Detect WLED segments (legacy fallback)
             for entity in entities:
                 entity_id = entity.get("entity_id", "")
@@ -226,9 +226,9 @@ class EntityInventoryService:
                     base_name = entity_id.split("_segment_")[0]
                     wled_master_entities[entity_id] = base_name
                     logger.debug(f"✅ Legacy detection: WLED segment: {entity_id}")
-            
+
             # Build device relationships from device mapping library or legacy
-            for device_id in device_metadata_map.keys():
+            for device_id in device_metadata_map:
                 if device_id in device_mapping_cache:
                     # Use relationships from device mapping library
                     mapping_result = device_mapping_cache[device_id]
@@ -284,23 +284,23 @@ class EntityInventoryService:
                 # Skip None entities (defensive programming)
                 if entity is None:
                     continue
-                    
+
                 domain = entity.get("domain", "unknown")
-                
+
                 # CRITICAL FIX (Epic AI-23): Resolve area_id from device if entity doesn't have it
                 entity_area_id = entity.get("area_id")
                 entity_device_id = entity.get("device_id")
-                
+
                 # If entity doesn't have area_id, try to get it from device
                 if not entity_area_id and entity_device_id:
                     entity_area_id = device_area_map.get(entity_device_id)
                     if entity_area_id:
                         logger.debug(f"✅ Resolved area_id for {entity.get('entity_id')} from device {entity_device_id}: {entity_area_id}")
-                
+
                 area_id = entity_area_id or "unassigned"
                 domain_area_counts[domain][area_id] += 1
                 domain_totals[domain] += 1
-                
+
                 # Get device metadata for entity (Epic AI-23)
                 device_metadata = device_metadata_map.get(entity_device_id, {}) if entity_device_id else {}
                 # Merge device metadata into entity data
@@ -311,9 +311,9 @@ class EntityInventoryService:
                 # Get entity registry data for this entity (Epic AI-23)
                 entity_id = entity.get("entity_id", "")
                 entity_reg_data = entity_registry_map.get(entity_id, {})
-                entity_aliases = entity_reg_data.get("aliases", [])
-                entity_category = entity_reg_data.get("category")
-                entity_disabled = entity_reg_data.get("disabled_by") is not None
+                _entity_aliases = entity_reg_data.get("aliases", [])  # noqa: F841
+                _entity_category = entity_reg_data.get("category")  # noqa: F841
+                _entity_disabled = entity_reg_data.get("disabled_by") is not None  # noqa: F841
 
                 # NOTE: Sample collection code removed - generic examples are no longer shown
                 # This code was collecting samples from all areas to show as "Examples:"

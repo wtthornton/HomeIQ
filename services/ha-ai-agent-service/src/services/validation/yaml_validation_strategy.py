@@ -6,7 +6,6 @@ comprehensive validation including normalization, entity validation, and fixes.
 """
 
 import logging
-from typing import Optional
 
 from ...clients.yaml_validation_client import YAMLValidationClient
 from ...models.automation_models import ValidationResult
@@ -18,7 +17,7 @@ logger = logging.getLogger(__name__)
 class YAMLValidationStrategy(ValidationStrategy):
     """Validation strategy using YAML Validation Service."""
 
-    def __init__(self, yaml_validation_client: Optional[YAMLValidationClient]):
+    def __init__(self, yaml_validation_client: YAMLValidationClient | None):
         """
         Initialize YAML validation strategy.
 

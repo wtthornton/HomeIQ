@@ -34,9 +34,9 @@ for p in candidate_paths:
 if shared_path and str(shared_path) not in sys.path:
     sys.path.insert(0, str(shared_path))
 
-import logging
+import logging  # noqa: E402
 
-from service_container import BaseServiceContainer
+from service_container import BaseServiceContainer  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 class WebSocketIngestionServiceContainer(BaseServiceContainer):
     """
     Service container for WebSocket Ingestion service.
-    
+
     Manages dependencies like ConnectionManager, BatchProcessor, etc.
     """
 

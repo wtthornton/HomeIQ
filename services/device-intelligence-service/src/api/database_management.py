@@ -5,8 +5,8 @@ API endpoints for database management and schema updates.
 """
 
 import logging
-import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -78,10 +78,10 @@ class DatabaseStatsResponse(BaseModel):
 async def recreate_database_tables() -> RecreateTablesResponse:
     """
     Recreate all database tables with the latest schema.
-    
+
     **WARNING:** This will drop all existing data and recreate tables.
     Only use this during development or when you need to apply schema changes.
-    
+
     Returns:
         RecreateTablesResponse: Success status and message
     """
@@ -104,14 +104,14 @@ async def recreate_database_tables() -> RecreateTablesResponse:
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.get("/status", response_model=DatabaseStatusResponse)
 async def get_database_status() -> DatabaseStatusResponse:
     """
     Get database status and connection information.
-    
+
     Returns:
         DatabaseStatusResponse: Database status information
     """
@@ -151,10 +151,10 @@ async def cleanup_database(
 ) -> DatabaseCleanupResponse:
     """
     Clean up old records from the database.
-    
+
     Args:
         days_to_keep: Number of days of data to keep (default: 90)
-    
+
     Returns:
         DatabaseCleanupResponse: Cleanup results
     """
@@ -193,7 +193,7 @@ async def cleanup_database(
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.post("/optimize", response_model=DatabaseOptimizeResponse, dependencies=[Depends(verify_admin_token)])
@@ -202,7 +202,7 @@ async def optimize_database(
 ) -> DatabaseOptimizeResponse:
     """
     Optimize database by running VACUUM and ANALYZE.
-    
+
     Returns:
         DatabaseOptimizeResponse: Optimization results
     """
@@ -229,7 +229,7 @@ async def optimize_database(
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.get("/stats", response_model=DatabaseStatsResponse)
@@ -238,7 +238,7 @@ async def get_database_stats(
 ) -> DatabaseStatsResponse:
     """
     Get database statistics including size and record counts.
-    
+
     Returns:
         DatabaseStatsResponse: Database statistics
     """
@@ -246,9 +246,9 @@ async def get_database_stats(
         # Get database file size
         db_url = settings.get_database_url()
         if db_url.startswith("sqlite:///"):
-            db_path = db_url.replace("sqlite:///", "")
-            if os.path.exists(db_path):
-                db_size_bytes = os.path.getsize(db_path)
+            db_path = Path(db_url.replace("sqlite:///", ""))
+            if db_path.exists():
+                db_size_bytes = db_path.stat().st_size
                 db_size_mb = db_size_bytes / (1024 * 1024)
             else:
                 db_size_mb = 0.0
@@ -290,7 +290,7 @@ async def get_database_stats(
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.get("/")

@@ -5,7 +5,6 @@ Tries validation strategies in order until one succeeds or all fail.
 """
 
 import logging
-from typing import Optional
 
 from ...models.automation_models import ValidationResult
 from .validation_strategy import ValidationStrategy
@@ -45,10 +44,10 @@ class ValidationChain:
         """
         all_errors: list[str] = []
         all_warnings: list[str] = []
-        last_result: Optional[ValidationResult] = None
+        last_result: ValidationResult | None = None
 
         services_unavailable = []
-        
+
         for strategy in self.strategies:
             try:
                 logger.debug(f"Trying validation strategy: {strategy.name}")
@@ -90,8 +89,8 @@ class ValidationChain:
                     f"Validation services unavailable: {', '.join(services_unavailable)}. "
                     "Using basic validation as fallback."
                 )
-            
-            result = ValidationResult(
+
+            return ValidationResult(
                 valid=False,
                 errors=list(set(all_errors)),  # Remove duplicates
                 warnings=warnings,
@@ -101,15 +100,13 @@ class ValidationChain:
                 strategy_name=last_result.strategy_name if last_result.strategy_name else "Basic Validation",
                 services_unavailable=services_unavailable if services_unavailable else None,
             )
-            return result
 
         # No strategies available
         logger.error("All validation strategies failed or unavailable")
-        result = ValidationResult(
+        return ValidationResult(
             valid=False,
             errors=["All validation strategies failed or unavailable"],
             warnings=[],
             strategy_name="None",
             services_unavailable=services_unavailable if services_unavailable else None,
         )
-        return result

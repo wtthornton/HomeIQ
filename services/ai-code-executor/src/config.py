@@ -77,7 +77,7 @@ class Settings(BaseSettings):
         env="EXECUTOR_API_TOKEN",
         description="Shared secret required via X-Executor-Token header (REQUIRED - set via EXECUTOR_API_TOKEN environment variable)",
     )
-    
+
     @field_validator("api_token")
     @classmethod
     def validate_api_token(cls, value: str) -> str:
@@ -95,7 +95,8 @@ class Settings(BaseSettings):
             import warnings
             warnings.warn(
                 "Using default or weak API token. Set EXECUTOR_API_TOKEN environment variable for security.",
-                UserWarning
+                UserWarning,
+                stacklevel=2,
             )
         return value
 

@@ -39,7 +39,7 @@ class RerankingError(OpenVINOClientError):
 class OpenVINOClient:
     """
     Async client for OpenVINO service.
-    
+
     Features:
     - Async HTTP requests with httpx
     - Automatic retry logic
@@ -50,12 +50,12 @@ class OpenVINOClient:
     def __init__(self, base_url: str | None = None):
         """
         Initialize OpenVINO client.
-        
+
         Args:
             base_url: Base URL for OpenVINO service (defaults to settings.openvino_service_url)
         """
         self.base_url = (base_url or settings.openvino_service_url).rstrip('/')
-        
+
         # Create async HTTP client with connection pooling
         self.client = httpx.AsyncClient(
             timeout=30.0,
@@ -65,7 +65,7 @@ class OpenVINOClient:
                 max_connections=10
             ),
         )
-        
+
         logger.info(f"OpenVINO client initialized with base_url={self.base_url}")
 
     @retry(
@@ -81,20 +81,20 @@ class OpenVINOClient:
     ) -> list[list[float]]:
         """
         Get embeddings for texts from OpenVINO service.
-        
+
         Args:
             texts: List of texts to embed
             normalize: Whether to normalize embeddings (default: True)
-        
+
         Returns:
             List of embedding vectors (1024-dim each)
-        
+
         Raises:
             EmbeddingGenerationError: If embedding generation fails
         """
         if not texts:
             return []
-        
+
         try:
             response = await self.client.post(
                 f"{self.base_url}/embeddings",
@@ -105,13 +105,13 @@ class OpenVINOClient:
                 timeout=30.0
             )
             response.raise_for_status()
-            
+
             data = response.json()
             embeddings = data.get("embeddings", [])
-            
+
             logger.debug(f"Generated embeddings for {len(texts)} texts")
             return embeddings
-            
+
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error generating embeddings: {e.response.status_code} - {e.response.text}")
             raise EmbeddingGenerationError(f"Failed to generate embeddings: {e}") from e
@@ -136,21 +136,21 @@ class OpenVINOClient:
     ) -> list[dict[str, Any]]:
         """
         Rerank candidates using OpenVINO reranker model.
-        
+
         Args:
             query: Query text
             candidates: List of candidate dictionaries (must have 'text' key)
             top_k: Number of top results to return
-        
+
         Returns:
             List of reranked candidates (dictionaries with scores)
-        
+
         Raises:
             RerankingError: If reranking fails
         """
         if not candidates:
             return []
-        
+
         try:
             response = await self.client.post(
                 f"{self.base_url}/rerank",
@@ -162,13 +162,13 @@ class OpenVINOClient:
                 timeout=30.0
             )
             response.raise_for_status()
-            
+
             data = response.json()
             ranked_candidates = data.get("ranked_candidates", [])
-            
+
             logger.debug(f"Reranked {len(candidates)} candidates, returning top {top_k}")
             return ranked_candidates
-            
+
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error reranking: {e.response.status_code} - {e.response.text}")
             raise RerankingError(f"Failed to rerank: {e}") from e

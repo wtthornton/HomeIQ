@@ -40,7 +40,7 @@ class DeferredEvent:
     """
     Dataclass for deferred events in retry queue
     Epic 48 Story 48.5: Performance & Memory Optimization
-    
+
     More memory-efficient than dictionaries for retry queue storage.
     """
     time: datetime
@@ -48,7 +48,7 @@ class DeferredEvent:
     domain: str
     state: str
     previous_state: str
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for compatibility"""
         return {
@@ -58,7 +58,7 @@ class DeferredEvent:
             'state': self.state,
             'previous_state': self.previous_state
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> 'DeferredEvent':
         """Create from dictionary"""
@@ -147,7 +147,7 @@ class EnergyEventCorrelator:
     async def process_recent_events(self, lookback_minutes: int = 5):
         """
         Process recent events and create correlations
-        
+
         Args:
             lookback_minutes: How far back to process events (default: 5 minutes)
         """
@@ -222,7 +222,7 @@ class EnergyEventCorrelator:
     async def _query_recent_events(self, minutes: int) -> list[dict]:
         """
         Query recent HA events that could affect power consumption
-        
+
         Focuses on:
         - Switches (lights, plugs)
         - Climate devices (HVAC, thermostats)
@@ -241,11 +241,11 @@ class EnergyEventCorrelator:
         from(bucket: "{safe_bucket}")
           |> range(start: {start_time.isoformat()}Z, stop: {now.isoformat()}Z)
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
-          |> filter(fn: (r) => 
-              r["domain"] == "switch" or 
-              r["domain"] == "light" or 
-              r["domain"] == "climate" or 
-              r["domain"] == "fan" or 
+          |> filter(fn: (r) =>
+              r["domain"] == "switch" or
+              r["domain"] == "light" or
+              r["domain"] == "climate" or
+              r["domain"] == "fan" or
               r["domain"] == "cover"
           )
           |> filter(fn: (r) => r["_field"] == "state_value")
@@ -493,7 +493,7 @@ class EnergyEventCorrelator:
         # Convert pending events to dicts for merging
         pending_dicts = [evt.to_dict() for evt in filtered_pending]
         combined = pending_dicts + new_events
-        
+
         if not combined:
             return []
 
@@ -557,7 +557,7 @@ class EnergyEventCorrelator:
         # Epic 48 Story 48.5: Queue capacity monitoring
         queue_size = len(filtered)
         capacity_pct = (queue_size / self.max_retry_queue_size * 100) if self.max_retry_queue_size > 0 else 0
-        
+
         if capacity_pct >= 80:
             logger.warning(
                 f"Retry queue at {capacity_pct:.1f}% capacity "
@@ -584,7 +584,7 @@ class EnergyEventCorrelator:
             start_time = start_time.replace(tzinfo=timezone.utc)
         if end_time.tzinfo is None:
             end_time = end_time.replace(tzinfo=timezone.utc)
-        
+
         start_iso = start_time.isoformat().replace('+00:00', 'Z')
         end_iso = end_time.isoformat().replace('+00:00', 'Z')
 
@@ -674,7 +674,7 @@ class EnergyEventCorrelator:
             (queue_size / self.max_retry_queue_size * 100)
             if self.max_retry_queue_size > 0 else 0
         )
-        
+
         return {
             "total_events_processed": self.total_events_processed,
             "correlations_found": self.correlations_found,

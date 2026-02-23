@@ -4,6 +4,7 @@ Phase 3.1: Periodically sync device capabilities from Device Database
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 from datetime import datetime, timedelta, timezone
@@ -55,10 +56,8 @@ class DeviceSyncService:
         self._running = False
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
         logger.info("Device sync service stopped")
 
     async def _sync_loop(self):
@@ -97,7 +96,7 @@ class DeviceSyncService:
         if hasattr(self.cache, 'cache_dir') and self.cache.cache_dir.exists():
             for cache_file in self.cache.cache_dir.glob("*.json"):
                 try:
-                    with open(cache_file) as f:
+                    with cache_file.open() as f:
                         data = json.load(f)
                     manufacturer = data.get("manufacturer")
                     model = data.get("model")

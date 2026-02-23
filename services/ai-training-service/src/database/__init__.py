@@ -6,6 +6,7 @@ Database connection pooling for shared SQLite database.
 """
 
 import logging
+
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -38,7 +39,7 @@ AsyncSessionLocal = async_sessionmaker(
 async def get_db() -> AsyncSession:
     """
     Dependency for getting database session.
-    
+
     Usage:
         @router.get("/endpoint")
         async def endpoint(db: AsyncSession = Depends(get_db)):
@@ -59,9 +60,10 @@ async def init_db():
     """Initialize database connection and verify connectivity"""
     try:
         # Import database models to ensure they're registered
-        from .models import Base
         from sqlalchemy import text
-        
+
+        from .models import Base  # noqa: F401
+
         # Create tables if they don't exist (for shared database, this may already exist)
         # We'll just test connectivity
         async with engine.begin() as conn:

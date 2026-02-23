@@ -81,7 +81,7 @@ class CoOccurrencePatternDetector:
     """
     Detects device co-occurrence patterns.
     Finds devices frequently used together within time window.
-    
+
     Examples:
         - Motion sensor triggers → Light turns on (within 30 seconds)
         - Door opens → Alarm activates (within 2 minutes)
@@ -102,7 +102,7 @@ class CoOccurrencePatternDetector:
     ):
         """
         Initialize co-occurrence detector.
-        
+
         Args:
             window_minutes: Time window for co-occurrence (default: 5 minutes)
             min_support: Minimum number of co-occurrences (default: 5)
@@ -134,13 +134,13 @@ class CoOccurrencePatternDetector:
         """
         Find devices used together within time window.
         Simple approach: sliding window + counting.
-        
+
         Args:
             events: DataFrame with columns [device_id, timestamp, state]
                     device_id: str - Device identifier
                     timestamp: datetime - Event timestamp
                     state: str - Device state
-        
+
         Returns:
             List of co-occurrence pattern dictionaries with keys:
                 - pattern_type: "co_occurrence"
@@ -196,7 +196,7 @@ class CoOccurrencePatternDetector:
         pair_time_deltas = defaultdict(list)  # Store time deltas for each pair
 
         # Sliding window approach
-        for i, event in events.iterrows():
+        for _i, event in events.iterrows():
             device_a = event['device_id']
             timestamp_a = event['timestamp']
 
@@ -346,9 +346,9 @@ class CoOccurrencePatternDetector:
     def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         """
         Store daily aggregates to InfluxDB.
-        
+
         Story AI5.3: Incremental pattern processing with aggregate storage.
-        
+
         Args:
             patterns: List of detected patterns
             events: Original events DataFrame
@@ -373,15 +373,9 @@ class CoOccurrencePatternDetector:
                 if not device1 or not device2:
                     continue
 
-                # Extract domains
-                domain1 = device1.split('.')[0] if '.' in device1 else 'unknown'
-                domain2 = device2.split('.')[0] if '.' in device2 else 'unknown'
-
                 # Calculate metrics
                 occurrences = pattern.get('occurrences', 0)
                 confidence = pattern.get('confidence', 0.0)
-                support = pattern.get('metadata', {}).get('support', 0.0)
-                avg_time_delta = pattern.get('metadata', {}).get('avg_time_delta_seconds')
 
                 # Store aggregate
                 try:
@@ -410,13 +404,13 @@ class CoOccurrencePatternDetector:
     async def detect_patterns_optimized(self, events: pd.DataFrame) -> list[dict]:
         """
         Optimized version for large event counts using intelligent sampling.
-        
+
         Note: System noise filtering and variance thresholding are applied
         by calling detect_patterns() which handles these filters.
-        
+
         Args:
             events: DataFrame with columns [device_id, timestamp, state]
-        
+
         Returns:
             List of co-occurrence patterns
         """
@@ -477,7 +471,7 @@ class CoOccurrencePatternDetector:
     ) -> float | None:
         """
         Calculate average time delta between device1 and device2 events.
-        
+
         Returns:
             Average time delta in seconds, or None if insufficient data
         """
@@ -514,12 +508,12 @@ class CoOccurrencePatternDetector:
     def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
         """
         Filter out system sensors, trackers, images, and events.
-        
+
         Task 2: Filter System Noise from Co-occurrence Detector
-        
+
         Args:
             events: DataFrame with device_id column
-            
+
         Returns:
             Filtered DataFrame with only actionable events
         """
@@ -535,12 +529,12 @@ class CoOccurrencePatternDetector:
     def _is_actionable_entity(self, device_id: str) -> bool:
         """
         Check if an entity ID represents an actionable (user-controllable) device.
-        
+
         Task 2: Filter System Noise
-        
+
         Args:
             device_id: Entity ID to check
-            
+
         Returns:
             True if actionable, False if system noise
         """
@@ -555,26 +549,22 @@ class CoOccurrencePatternDetector:
                 return False
 
         # Check patterns (contains)
-        for pattern in EXCLUDED_PATTERNS:
-            if pattern in device_id.lower():
-                return False
-
-        return True
+        return all(pattern not in device_id.lower() for pattern in EXCLUDED_PATTERNS)
 
     def _is_meaningful_automation_pattern(self, device1: str, device2: str) -> bool:
         """
         Validate that pattern represents a meaningful automation opportunity.
-        
+
         Rules:
         1. At least one device must be actionable (controllable)
         2. At least one device must be a trigger or both actionable
         3. Avoid sensor-to-sensor patterns (no action possible)
         4. Avoid status-to-status patterns (informational only)
-        
+
         Args:
             device1: First device ID
             device2: Second device ID
-            
+
         Returns:
             True if meaningful automation pattern, False otherwise
         """
@@ -595,19 +585,16 @@ class CoOccurrencePatternDetector:
             return False
 
         # Additional quality checks
-        if self._is_redundant_pairing(device1, device2):
-            return False
-
-        return True
+        return not self._is_redundant_pairing(device1, device2)
 
     def _is_redundant_pairing(self, device1: str, device2: str) -> bool:
         """
         Check for redundant/meaningless pairings.
-        
+
         Args:
             device1: First device ID
             device2: Second device ID
-            
+
         Returns:
             True if redundant pairing, False otherwise
         """
@@ -624,22 +611,19 @@ class CoOccurrencePatternDetector:
             return True
 
         # Both are informational only
-        if (domain1 in PASSIVE_DOMAINS and domain2 in PASSIVE_DOMAINS):
-            return True
-
-        return False
+        return domain1 in PASSIVE_DOMAINS and domain2 in PASSIVE_DOMAINS
 
     def _is_actionable_pattern(self, device1: str, device2: str) -> bool:
         """
         Check if a device pair represents an actionable pattern.
-        
+
         DEPRECATED: Use _is_meaningful_automation_pattern() instead.
         Kept for backward compatibility.
-        
+
         Args:
             device1: First device ID
             device2: Second device ID
-            
+
         Returns:
             True if both devices are actionable
         """
@@ -648,10 +632,10 @@ class CoOccurrencePatternDetector:
     def get_pattern_summary(self, patterns: list[dict]) -> dict:
         """
         Get summary statistics for detected patterns.
-        
+
         Args:
             patterns: List of pattern dictionaries
-        
+
         Returns:
             Summary dictionary with counts and statistics
         """

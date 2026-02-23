@@ -25,9 +25,9 @@ class DeviceRecommenderService:
             try:
                 import sys
                 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../device-recommender/src'))
-                from recommender import DeviceRecommender
                 from db_client import DeviceDatabaseClient
-                
+                from recommender import DeviceRecommender
+
                 db_client = DeviceDatabaseClient()
                 self._db_client = db_client
                 self._recommender = DeviceRecommender(db_client=db_client)
@@ -57,19 +57,19 @@ class DeviceRecommenderService:
     ) -> list[dict[str, Any]]:
         """
         Get device recommendations.
-        
+
         Args:
             device_type: Device type
             requirements: User requirements
             user_devices: User's existing devices
-            
+
         Returns:
             List of recommendations
         """
         recommender = self._get_recommender()
         if not recommender:
             return []
-        
+
         try:
             return await recommender.recommend_devices(
                 device_type=device_type,
@@ -87,11 +87,11 @@ class DeviceRecommenderService:
     ) -> dict[str, Any]:
         """
         Compare devices.
-        
+
         Args:
             device_ids: Device IDs to compare
             devices: Device data
-            
+
         Returns:
             Comparison result
         """
@@ -101,7 +101,7 @@ class DeviceRecommenderService:
                 "message": "Comparison engine not available",
                 "devices": []
             }
-        
+
         try:
             return engine.compare_devices(device_ids, devices)
         except Exception as e:
@@ -118,11 +118,11 @@ class DeviceRecommenderService:
     ) -> list[dict[str, Any]]:
         """
         Find similar devices.
-        
+
         Args:
             device_id: Reference device ID
             all_devices: All available devices
-            
+
         Returns:
             List of similar devices
         """
@@ -131,20 +131,20 @@ class DeviceRecommenderService:
             (d for d in all_devices if d.get("device_id") == device_id),
             None
         )
-        
+
         if not reference:
             return []
-        
+
         # Find similar devices (same type, manufacturer, or category)
         similar = []
         ref_type = reference.get("device_type")
         ref_manufacturer = reference.get("manufacturer")
         ref_category = reference.get("device_category")
-        
+
         for device in all_devices:
             if device.get("device_id") == device_id:
                 continue
-            
+
             # Score similarity
             score = 0.0
             if device.get("device_type") == ref_type:
@@ -153,14 +153,14 @@ class DeviceRecommenderService:
                 score += 0.3
             if device.get("device_category") == ref_category:
                 score += 0.2
-            
+
             if score > 0.3:
                 device["similarity_score"] = score
                 similar.append(device)
-        
+
         # Sort by similarity
         similar.sort(key=lambda x: x.get("similarity_score", 0), reverse=True)
-        
+
         return similar[:10]  # Top 10
 
 

@@ -10,14 +10,13 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-
 from shared.logging_config import setup_logging
 
 from src.classifier import DeviceContextClassifier
-from src.patterns import DEVICE_PATTERNS, get_device_category, DOMAIN_TO_DEVICE_TYPE
+from src.patterns import DEVICE_PATTERNS, DOMAIN_TO_DEVICE_TYPE, get_device_category
 
 logger = setup_logging("device-context-classifier")
 
@@ -149,9 +148,10 @@ async def get_categories() -> dict:
 
 if __name__ == "__main__":
     port = int(os.getenv("DEVICE_CONTEXT_CLASSIFIER_PORT", "8020"))
+    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104 - Docker container binding
     uvicorn.run(
         "src.main:app",
-        host="0.0.0.0",
+        host=host,
         port=port,
         reload=os.getenv("RELOAD", "false").lower() == "true",
         log_level=os.getenv("LOG_LEVEL", "info").lower()

@@ -105,9 +105,8 @@ async def get_all_health_scores(
                 )
 
                 # Apply filters
-                if min_score <= health_score["overall_score"] <= max_score:
-                    if health_status is None or health_score["health_status"] == health_status:
-                        health_scores.append(health_score)
+                if min_score <= health_score["overall_score"] <= max_score and (health_status is None or health_score["health_status"] == health_status):
+                    health_scores.append(health_score)
 
             except Exception as e:
                 logger.error(f"Error calculating health score for device {device.id}: {e}")
@@ -131,7 +130,7 @@ async def get_all_health_scores(
 
     except Exception as e:
         logger.error(f"Error getting all health scores: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/scores/{device_id}")
@@ -169,7 +168,7 @@ async def get_device_health_score(device_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting health score for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/trends/{device_id}")
@@ -259,7 +258,7 @@ async def get_device_health_trends(
         raise
     except Exception as e:
         logger.error(f"Error getting health trends for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/comparison")
@@ -357,7 +356,7 @@ async def compare_device_health_scores(
 
     except Exception as e:
         logger.error(f"Error comparing device health scores: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/summary")
@@ -412,7 +411,7 @@ async def get_health_summary():
 
     except Exception as e:
         logger.error(f"Error getting health summary: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post("/calculate/{device_id}")
@@ -430,4 +429,4 @@ async def calculate_device_health_score(device_id: str, metrics: dict[str, Any])
 
     except Exception as e:
         logger.error(f"Error calculating custom health score for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e

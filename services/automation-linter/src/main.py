@@ -8,25 +8,24 @@ from pathlib import Path
 # Add shared module to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "shared"))
 
+import logging  # noqa: I001
+import time
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional
-import time
-import logging
 
-from ha_automation_lint.engine import LintEngine
 from ha_automation_lint.constants import (
     ENGINE_VERSION,
-    RULESET_VERSION,
     FixMode,
     MAX_YAML_SIZE_BYTES,
-    PROCESSING_TIMEOUT_SECONDS
+    RULESET_VERSION,
 )
-from ha_automation_lint.renderers.yaml_renderer import YAMLRenderer
+from ha_automation_lint.engine import LintEngine
 from ha_automation_lint.fixers.auto_fixer import AutoFixer
+from ha_automation_lint.renderers.yaml_renderer import YAMLRenderer
 
 # Configure logging
 logging.basicConfig(
@@ -60,7 +59,7 @@ renderer = YAMLRenderer()
 class LintRequest(BaseModel):
     """Request model for lint endpoint."""
     yaml: str = Field(..., description="Automation YAML to lint")
-    options: Optional[Dict] = Field(default_factory=dict, description="Optional lint options")
+    options: dict | None = Field(default_factory=dict, description="Optional lint options")
 
 
 class LintResponse(BaseModel):
@@ -68,8 +67,8 @@ class LintResponse(BaseModel):
     engine_version: str
     ruleset_version: str
     automations_detected: int
-    findings: List[Dict]
-    summary: Dict[str, int]
+    findings: list[dict]
+    summary: dict[str, int]
 
 
 class FixRequest(BaseModel):
@@ -83,11 +82,11 @@ class FixResponse(BaseModel):
     engine_version: str
     ruleset_version: str
     automations_detected: int
-    findings: List[Dict]
-    summary: Dict[str, int]
-    fixed_yaml: Optional[str] = None
-    applied_fixes: List[str] = Field(default_factory=list)
-    diff_summary: Optional[str] = None
+    findings: list[dict]
+    summary: dict[str, int]
+    fixed_yaml: str | None = None
+    applied_fixes: list[str] = Field(default_factory=list)
+    diff_summary: str | None = None
 
 
 # Middleware for request size limit
@@ -193,7 +192,7 @@ async def lint_automation(request: LintRequest):
         raise
     except Exception as e:
         logger.error(f"Lint error: {e}", exc_info=True)
-        raise HTTPException(500, f"Linting failed: {str(e)}")
+        raise HTTPException(500, f"Linting failed: {str(e)}") from e
 
 
 @app.post("/fix", response_model=FixResponse)
@@ -275,7 +274,7 @@ async def fix_automation(request: FixRequest):
         raise
     except Exception as e:
         logger.error(f"Fix error: {e}", exc_info=True)
-        raise HTTPException(500, f"Auto-fix failed: {str(e)}")
+        raise HTTPException(500, f"Auto-fix failed: {str(e)}") from e
 
 
 # Serve UI
@@ -304,4 +303,4 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8020)
+    uvicorn.run(app, host="0.0.0.0", port=8020)  # nosec B104 - Docker container

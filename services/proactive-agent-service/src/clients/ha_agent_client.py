@@ -115,11 +115,11 @@ class HAAgentClient:
             error_msg = f"HA AI Agent returned {e.response.status_code}: {e.response.text[:200]}"
             logger.error(f"HTTP error communicating with HA AI Agent: {error_msg}")
             return None  # Graceful degradation
-        except httpx.ConnectError as e:
+        except httpx.ConnectError:
             error_msg = f"Could not connect to HA AI Agent at {self.base_url}"
             logger.warning(f"Connection error: {error_msg}")
             return None  # Graceful degradation
-        except httpx.TimeoutException as e:
+        except httpx.TimeoutException:
             error_msg = f"HA AI Agent request timed out after {self.timeout} seconds"
             logger.warning(f"Timeout error: {error_msg}")
             return None  # Graceful degradation

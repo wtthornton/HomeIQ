@@ -60,7 +60,7 @@ except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
-from .api import health_router, pattern_router, synergy_router, community_pattern_router
+from .api import community_pattern_router, health_router, pattern_router, synergy_router
 from .clients.mqtt_client import MQTTNotificationClient
 from .config import settings
 from .database import init_db
@@ -76,7 +76,7 @@ async def _initialize_mqtt_client() -> MQTTNotificationClient | None:
     if not settings.mqtt_broker:
         logger.info("ℹ️ MQTT broker not configured, notifications disabled")
         return None
-    
+
     try:
         client = MQTTNotificationClient(
             broker=settings.mqtt_broker,
@@ -103,10 +103,10 @@ async def _initialize_scheduler(client: MQTTNotificationClient | None) -> Patter
             cron_schedule=settings.analysis_schedule,
             enable_incremental=settings.enable_incremental
         )
-        
+
         if client:
             scheduler.set_mqtt_client(client)
-        
+
         scheduler.start()
         logger.info(f"✅ Pattern analysis scheduler started (schedule: {settings.analysis_schedule})")
         return scheduler
@@ -140,32 +140,32 @@ async def _shutdown_mqtt_client() -> None:
 
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """
     Initialize service on startup and cleanup on shutdown.
-    
+
     This lifespan context manager handles:
     - Database initialization
     - Observability setup (if available)
     - MQTT client initialization and connection
     - Pattern analysis scheduler startup
     - Graceful shutdown of scheduler and MQTT client
-    
+
     Args:
         app: FastAPI application instance
-        
+
     Yields:
         None: Control is yielded to the application runtime
-        
+
     Raises:
         Exception: If database initialization fails (prevents service startup)
     """
     global pattern_scheduler, mqtt_client
-    
+
     logger.info("=" * 60)
     logger.info("AI Pattern Service Starting Up")
     logger.info("=" * 60)
-    
+
     # Initialize database
     try:
         await init_db()
@@ -173,7 +173,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
         raise
-    
+
     # Setup observability if available
     if OBSERVABILITY_AVAILABLE:
         try:
@@ -181,26 +181,26 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Observability initialized")
         except Exception as e:
             logger.warning(f"Observability setup failed: {e}")
-    
+
     # Initialize MQTT client (Epic 39, Story 39.6)
     mqtt_client = await _initialize_mqtt_client()
-    
+
     # Initialize and start scheduler (Epic 39, Story 39.6)
     pattern_scheduler = await _initialize_scheduler(mqtt_client)
-    
+
     logger.info("✅ AI Pattern Service startup complete")
     logger.info("=" * 60)
-    
+
     yield
-    
+
     # Shutdown
     logger.info("=" * 60)
     logger.info("AI Pattern Service Shutting Down")
     logger.info("=" * 60)
-    
+
     # Stop scheduler (Epic 39, Story 39.6)
     await _shutdown_scheduler()
-    
+
     # Disconnect MQTT client
     await _shutdown_mqtt_client()
 
@@ -239,7 +239,7 @@ if OBSERVABILITY_AVAILABLE:
 def _register_core_routers(app: FastAPI) -> None:
     """Register core routers for the application."""
     from .api import analysis_router
-    
+
     app.include_router(health_router.router, tags=["health"])
     app.include_router(pattern_router.router, tags=["patterns"])
     # CRITICAL: Include specific_router FIRST to ensure /stats and /list are matched before /{synergy_id}
@@ -304,7 +304,7 @@ _register_enhancement_routers(app)
 async def root() -> dict[str, str]:
     """
     Root endpoint providing service information.
-    
+
     Returns:
         dict: Service metadata including name, version, and status
     """

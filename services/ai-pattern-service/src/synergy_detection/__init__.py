@@ -15,13 +15,13 @@ Refactored Architecture:
 - context_detection.py: Context-aware synergy detection (weather, energy)
 """
 
-from .synergy_detector import DeviceSynergyDetector
+from .capability_analyzer import DeviceCapabilityAnalyzer
 from .chain_detection import ChainDetector
-from .scene_detection import SceneDetector
 from .context_detection import ContextAwareDetector
 from .relationship_discovery import RelationshipDiscoveryEngine
-from .capability_analyzer import DeviceCapabilityAnalyzer
+from .scene_detection import SceneDetector
 from .spatial_intelligence import SpatialIntelligenceService
+from .synergy_detector import DeviceSynergyDetector
 from .temporal_detector import TemporalSynergyDetector
 
 __all__ = [

@@ -5,7 +5,6 @@ Event Queue System for High-Volume Event Processing
 import asyncio
 import json
 import logging
-import os
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,7 +19,7 @@ class EventQueue:
     def __init__(self, maxsize: int = 10000, persistence_path: str | None = None):
         """
         Initialize event queue
-        
+
         Args:
             maxsize: Maximum queue size
             persistence_path: Path for queue persistence (optional)
@@ -59,11 +58,11 @@ class EventQueue:
     async def put(self, event_data: dict[str, Any], priority: int = 0) -> bool:
         """
         Put an event in the queue
-        
+
         Args:
             event_data: Event data to queue
             priority: Event priority (higher = more important)
-            
+
         Returns:
             True if event was queued successfully, False otherwise
         """
@@ -103,7 +102,7 @@ class EventQueue:
     async def get(self) -> dict[str, Any] | None:
         """
         Get an event from the queue
-        
+
         Returns:
             Event data or None if queue is empty
         """
@@ -131,7 +130,7 @@ class EventQueue:
     async def get_nowait(self) -> dict[str, Any] | None:
         """
         Get an event from the queue without waiting
-        
+
         Returns:
             Event data or None if queue is empty
         """
@@ -165,10 +164,10 @@ class EventQueue:
             # Create persistence file path
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"overflow_events_{timestamp}.jsonl"
-            filepath = os.path.join(self.persistence_path, filename)
+            filepath = Path(self.persistence_path) / filename
 
             # Append event to file
-            with open(filepath, "a", encoding="utf-8") as f:
+            with filepath.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(queue_item) + "\n")
 
         except Exception as e:
@@ -177,7 +176,7 @@ class EventQueue:
     async def recover_overflow_events(self) -> int:
         """
         Recover overflow events from persistence files
-        
+
         Returns:
             Number of events recovered
         """
@@ -192,7 +191,7 @@ class EventQueue:
 
             for filepath in overflow_files:
                 try:
-                    with open(filepath, encoding="utf-8") as f:
+                    with filepath.open(encoding="utf-8") as f:
                         for line in f:
                             if line.strip():
                                 queue_item = json.loads(line.strip())

@@ -5,7 +5,7 @@ Epic F3: Store decision factors and provide user-facing explanations
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -13,31 +13,31 @@ logger = logging.getLogger(__name__)
 class Explainer:
     """
     Explainability system for automation decisions.
-    
+
     Features:
     - Store decision factors (triggers matched, conditions applied, targets resolved)
     - User-facing explanation templates
     - "Why did this happen?" query interface
     """
-    
+
     def __init__(self):
         """Initialize explainer"""
         # Store explanations by correlation_id
-        self.explanations: Dict[str, Dict[str, Any]] = {}
-    
+        self.explanations: dict[str, dict[str, Any]] = {}
+
     def record_decision_factors(
         self,
         correlation_id: str,
         spec_id: str,
-        triggers_matched: List[Dict[str, Any]],
-        conditions_applied: List[Dict[str, Any]],
-        targets_resolved: Dict[str, List[str]],
-        policy_checks: Dict[str, Any],
-        execution_plan: Dict[str, Any]
+        triggers_matched: list[dict[str, Any]],
+        conditions_applied: list[dict[str, Any]],
+        targets_resolved: dict[str, list[str]],
+        policy_checks: dict[str, Any],
+        execution_plan: dict[str, Any]
     ):
         """
         Record decision factors for an execution.
-        
+
         Args:
             correlation_id: Correlation ID
             spec_id: Spec ID
@@ -55,67 +55,67 @@ class Explainer:
             "policy_checks": policy_checks,
             "execution_plan": execution_plan
         }
-        
+
         logger.debug(f"Recorded decision factors for {correlation_id}")
-    
-    def get_explanation(self, correlation_id: str) -> Optional[Dict[str, Any]]:
+
+    def get_explanation(self, correlation_id: str) -> dict[str, Any] | None:
         """
         Get explanation for a correlation ID.
-        
+
         Args:
             correlation_id: Correlation ID
-        
+
         Returns:
             Explanation dictionary or None
         """
         return self.explanations.get(correlation_id)
-    
+
     def generate_user_explanation(
         self,
         correlation_id: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Generate user-facing explanation.
-        
+
         Args:
             correlation_id: Correlation ID
-        
+
         Returns:
             Human-readable explanation string
         """
         explanation = self.get_explanation(correlation_id)
         if not explanation:
             return None
-        
+
         spec_id = explanation.get("spec_id", "unknown")
         triggers = explanation.get("triggers_matched", [])
         conditions = explanation.get("conditions_applied", [])
         targets = explanation.get("targets_resolved", {})
-        
+
         lines = [f"Automation '{spec_id}' executed because:"]
-        
+
         # Triggers
         if triggers:
             lines.append("  Triggers:")
             for trigger in triggers:
                 trigger_type = trigger.get("type", "unknown")
                 lines.append(f"    - {trigger_type} occurred")
-        
+
         # Conditions
         if conditions:
             lines.append("  Conditions met:")
             for condition in conditions:
                 condition_type = condition.get("type", "unknown")
                 lines.append(f"    - {condition_type}")
-        
+
         # Actions
         if targets:
             lines.append("  Actions executed:")
             for action_id, entity_ids in targets.items():
                 lines.append(f"    - {action_id} on {len(entity_ids)} entity(ies)")
-        
+
         return "\n".join(lines)
-    
+
     def explain_why(
         self,
         correlation_id: str,
@@ -123,16 +123,16 @@ class Explainer:
     ) -> str:
         """
         Answer "Why did this happen?" query.
-        
+
         Args:
             correlation_id: Correlation ID
             question: Question type (default: "why")
-        
+
         Returns:
             Explanation string
         """
         explanation = self.generate_user_explanation(correlation_id)
         if explanation:
             return explanation
-        
+
         return f"No explanation found for correlation ID: {correlation_id}"

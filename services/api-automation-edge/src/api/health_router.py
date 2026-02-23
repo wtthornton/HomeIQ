@@ -3,7 +3,7 @@ Health Check Router
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter
 
@@ -25,32 +25,32 @@ except ImportError:
 
 
 @router.get("")
-async def health_check() -> Dict[str, Any]:
+async def health_check() -> dict[str, Any]:
     """
     Health check endpoint with queue status.
-    
+
     Returns:
         Health status including queue metrics
     """
-    status: Dict[str, Any] = {
+    status: dict[str, Any] = {
         "status": "healthy",
         "service": "api-automation-edge"
     }
-    
+
     # Add queue status if Huey is available
     if HUEY_AVAILABLE and huey and settings.use_task_queue:
         try:
             # Get queue metrics
             pending_tasks = huey.pending()
             scheduled_tasks = huey.scheduled()
-            
+
             pending_count = len(list(pending_tasks))
             scheduled_count = len(list(scheduled_tasks))
-            
+
             # Get scheduler status
             scheduler = get_scheduler()
             registered_schedules = len(scheduler.registered_schedules) if scheduler else 0
-            
+
             status["queue"] = {
                 "enabled": True,
                 "pending": pending_count,
@@ -59,7 +59,7 @@ async def health_check() -> Dict[str, Any]:
                 "registered_schedules": registered_schedules,
                 "consumer_status": "running"  # Would track actual consumer status
             }
-            
+
         except Exception as e:
             logger.warning(f"Error getting queue status: {e}")
             status["queue"] = {
@@ -80,5 +80,5 @@ async def health_check() -> Dict[str, Any]:
         status["queue"] = {
             "enabled": False
         }
-    
+
     return status

@@ -83,18 +83,18 @@ async def _setup_observability() -> None:
 async def lifespan(app: FastAPI):
     """
     Initialize service on startup and cleanup on shutdown.
-    
+
     This lifespan context manager handles:
     - Database initialization
     - Observability setup (if available)
     - Graceful shutdown
-    
+
     Args:
         app: FastAPI application instance
-    
+
     Yields:
         None: Control is yielded to the application runtime
-    
+
     Raises:
         Exception: If database initialization fails (prevents service startup)
     """
@@ -106,18 +106,18 @@ async def lifespan(app: FastAPI):
     logger.info(f"Query Timeout: {settings.query_timeout}s")
     logger.info(f"Cache Enabled: {settings.enable_caching}")
     logger.info("=" * 60)
-    
+
     # Initialize database
     await _initialize_database()
-    
+
     # Setup observability if available
     await _setup_observability()
-    
+
     logger.info("✅ AI Query Service startup complete")
     logger.info("=" * 60)
-    
+
     yield
-    
+
     # Shutdown
     logger.info("=" * 60)
     logger.info("AI Query Service Shutting Down")
@@ -187,7 +187,7 @@ app.include_router(query_router.router, tags=["query"])
 async def root() -> dict[str, str]:
     """
     Root endpoint.
-    
+
     Returns:
         dict: Service information including name, version, and status.
     """

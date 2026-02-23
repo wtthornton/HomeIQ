@@ -35,24 +35,24 @@ class DeviceData(BaseModel):
 async def reload_device_mappings() -> dict[str, Any]:
     """
     Reload device mapping registry.
-    
+
     This endpoint clears the registry cache and re-discovers all handlers.
     Useful after updating handler configurations.
-    
+
     Also clears the device mapping cache to ensure fresh data.
-    
+
     Returns:
         Dictionary with reload status and handler count
     """
     try:
         # Clear cache before reloading
         clear_cache()
-        
+
         registry = reload_registry()
         handlers = registry.get_all_handlers()
-        
+
         logger.info(f"Device mapping registry reloaded: {len(handlers)} handlers, cache cleared")
-        
+
         return {
             "status": "success",
             "message": "Device mapping registry reloaded successfully",
@@ -65,14 +65,14 @@ async def reload_device_mappings() -> dict[str, Any]:
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.get("/status")
 async def get_device_mappings_status() -> dict[str, Any]:
     """
     Get device mapping registry status.
-    
+
     Returns:
         Dictionary with registry status and handler information
     """
@@ -80,7 +80,7 @@ async def get_device_mappings_status() -> dict[str, Any]:
         registry = get_registry()
         handlers = registry.get_all_handlers()
         cache = get_cache()
-        
+
         return {
             "status": "operational",
             "handler_count": len(handlers),
@@ -92,18 +92,18 @@ async def get_device_mappings_status() -> dict[str, Any]:
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.post("/{device_id}/type")
 async def get_device_type(device_id: str, device_data: DeviceData) -> dict[str, Any]:
     """
     Get device type for a specific device.
-    
+
     Args:
         device_id: Device ID (must match device_data.device_id)
         device_data: Device data dictionary
-        
+
     Returns:
         Dictionary with device type information
     """
@@ -112,23 +112,23 @@ async def get_device_type(device_id: str, device_data: DeviceData) -> dict[str, 
             status_code=400,
             detail="Device ID in path must match device_id in body"
         )
-    
+
     cache = get_cache()
     cache_key = f"device_mapping_{device_id}_type"
-    
+
     # Check cache
     cached_result = cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"Cache hit for device type: {device_id}")
         return cached_result
-    
+
     try:
         registry = get_registry()
         device_dict = device_data.model_dump(exclude_none=True)
-        
+
         # Find handler for this device
         handler = registry.find_handler(device_dict)
-        
+
         if handler is None:
             # No handler found - return default type
             result = {
@@ -146,17 +146,17 @@ async def get_device_type(device_id: str, device_data: DeviceData) -> dict[str, 
                 "handler": handler.__class__.__name__,
                 "handler_name": registry.get_handler_name(handler)
             }
-        
+
         # Cache the result
         cache.set(cache_key, result)
-        
+
         return result
     except Exception as e:
         logger.error(f"Error getting device type for {device_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.post("/{device_id}/relationships")
@@ -167,12 +167,12 @@ async def get_device_relationships(
 ) -> dict[str, Any]:
     """
     Get device relationships for a specific device.
-    
+
     Args:
         device_id: Device ID (must match device_data.device_id)
         device_data: Device data dictionary
         all_devices: Optional list of all devices for relationship discovery
-        
+
     Returns:
         Dictionary with device relationships
     """
@@ -181,23 +181,23 @@ async def get_device_relationships(
             status_code=400,
             detail="Device ID in path must match device_id in body"
         )
-    
+
     cache = get_cache()
     cache_key = f"device_mapping_{device_id}_relationships"
-    
+
     # Check cache
     cached_result = cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"Cache hit for device relationships: {device_id}")
         return cached_result
-    
+
     try:
         registry = get_registry()
         device_dict = device_data.model_dump(exclude_none=True)
-        
+
         # Find handler for this device
         handler = registry.find_handler(device_dict)
-        
+
         if handler is None:
             # No handler found - return empty relationships
             result = {
@@ -216,17 +216,17 @@ async def get_device_relationships(
                 "handler": handler.__class__.__name__,
                 "handler_name": registry.get_handler_name(handler)
             }
-        
+
         # Cache the result
         cache.set(cache_key, result)
-        
+
         return result
     except Exception as e:
         logger.error(f"Error getting device relationships for {device_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.post("/{device_id}/context")
@@ -237,12 +237,12 @@ async def get_device_context(
 ) -> dict[str, Any]:
     """
     Get enriched context for a specific device.
-    
+
     Args:
         device_id: Device ID (must match device_data.device_id)
         device_data: Device data dictionary
         entities: Optional list of entities associated with the device
-        
+
     Returns:
         Dictionary with enriched device context
     """
@@ -251,23 +251,23 @@ async def get_device_context(
             status_code=400,
             detail="Device ID in path must match device_id in body"
         )
-    
+
     cache = get_cache()
     cache_key = f"device_mapping_{device_id}_context"
-    
+
     # Check cache
     cached_result = cache.get(cache_key)
     if cached_result is not None:
         logger.debug(f"Cache hit for device context: {device_id}")
         return cached_result
-    
+
     try:
         registry = get_registry()
         device_dict = device_data.model_dump(exclude_none=True)
-        
+
         # Find handler for this device
         handler = registry.find_handler(device_dict)
-        
+
         if handler is None:
             # No handler found - return basic context
             result = {
@@ -286,15 +286,15 @@ async def get_device_context(
                 "handler": handler.__class__.__name__,
                 "handler_name": registry.get_handler_name(handler)
             }
-        
+
         # Cache the result
         cache.set(cache_key, result)
-        
+
         return result
     except Exception as e:
         logger.error(f"Error getting device context for {device_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
-        )
+        ) from e
 

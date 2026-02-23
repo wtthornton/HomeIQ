@@ -24,7 +24,7 @@ class MemoryManager:
                  gc_threshold: float = 0.8):
         """
         Initialize memory manager
-        
+
         Args:
             max_memory_mb: Maximum memory usage in MB
             memory_check_interval: Interval for memory checks in seconds

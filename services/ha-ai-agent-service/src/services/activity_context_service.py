@@ -6,8 +6,8 @@ Fetches current household activity from data-api and injects into Tier 1 context
 Graceful degradation: on timeout, 404, or 503, omits activity or uses fallback.
 """
 
+import contextlib
 import logging
-from typing import Any
 
 import httpx
 
@@ -53,12 +53,10 @@ class ActivityContextService:
 
         activity_str = await self._fetch_and_format()
         if activity_str:
-            try:
+            with contextlib.suppress(Exception):
                 await self.context_builder._set_cached_value(
                     cache_key, activity_str, self._cache_ttl
                 )
-            except Exception:
-                pass
         return activity_str
 
     async def _fetch_and_format(self) -> str:

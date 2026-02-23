@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class MessageIDManager:
     """
     Centralized message ID manager for WebSocket messages.
-    
+
     Home Assistant requires message IDs to be strictly increasing across
     all WebSocket messages. This singleton ensures all components use
     the same counter.
@@ -44,7 +44,7 @@ class MessageIDManager:
     async def get_next_id(self) -> int:
         """
         Get the next message ID (thread-safe).
-        
+
         Returns:
             Next available message ID (strictly increasing)
         """
@@ -57,10 +57,10 @@ class MessageIDManager:
     def get_next_id_sync(self) -> int:
         """
         Get the next message ID synchronously (for non-async contexts).
-        
+
         Note: This should only be used when async is not available.
         Prefer get_next_id() for async code.
-        
+
         Returns:
             Next available message ID (strictly increasing)
         """
@@ -86,7 +86,7 @@ class MessageIDManager:
     def reset(self, start_value: int = 1):
         """
         Reset the counter (use with caution).
-        
+
         Args:
             start_value: Starting value for the counter (default: 1)
         """
@@ -96,7 +96,7 @@ class MessageIDManager:
     def get_current_id(self) -> int:
         """
         Get the current counter value (without incrementing).
-        
+
         Returns:
             Current counter value
         """
@@ -110,7 +110,7 @@ _message_id_manager: MessageIDManager | None = None
 def get_message_id_manager() -> MessageIDManager:
     """
     Get the global MessageIDManager instance.
-    
+
     Returns:
         MessageIDManager singleton instance
     """

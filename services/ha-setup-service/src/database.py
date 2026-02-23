@@ -31,7 +31,7 @@ class Base(DeclarativeBase):
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency for FastAPI endpoints to get database session.
-    
+
     Context7 Pattern: Async dependency injection with proper exception handling
     """
     async with async_session_maker() as session:

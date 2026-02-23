@@ -31,7 +31,7 @@ async def get_stats(request: Request):
         raise
     except Exception as e:
         logger.error(f"Get retention stats failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 
 
 @router.post("/downsample-hourly", response_model=RetentionOperationResponse)
@@ -55,7 +55,7 @@ async def downsample_hourly(request: Request):
         raise
     except Exception as e:
         logger.error(f"Hourly downsampling failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 
 
 @router.post("/downsample-daily", response_model=RetentionOperationResponse)
@@ -79,7 +79,7 @@ async def downsample_daily(request: Request):
         raise
     except Exception as e:
         logger.error(f"Daily downsampling failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 
 
 @router.post("/archive-s3", response_model=RetentionOperationResponse)
@@ -103,7 +103,7 @@ async def archive_s3(request: Request):
         raise
     except Exception as e:
         logger.error(f"S3 archival failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 
 
 @router.post("/refresh-views", response_model=RetentionOperationResponse)
@@ -127,5 +127,5 @@ async def refresh_views(request: Request):
         raise
     except Exception as e:
         logger.error(f"View refresh failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 

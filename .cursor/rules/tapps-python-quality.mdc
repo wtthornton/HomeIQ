@@ -1,0 +1,26 @@
+---
+globs: "*.py"
+alwaysApply: false
+---
+
+# Python Quality Standards
+
+When Python files are referenced, enforce these quality standards:
+
+## 7 Scoring Categories
+
+TappsMCP scores Python code across 7 categories (0-100 each):
+
+1. **Correctness** - Logic errors, type safety, edge cases
+2. **Security** - Vulnerabilities, injection risks, secrets
+3. **Maintainability** - Complexity, naming, structure
+4. **Performance** - Efficiency, resource usage, scaling
+5. **Documentation** - Docstrings, comments, clarity
+6. **Testing** - Coverage, edge cases, assertions
+7. **Style** - PEP 8, formatting, consistency
+
+## Actions
+
+- Call `tapps_quick_check(file_path)` on edited Python files
+- Any category scoring below 70 needs immediate attention
+- Call `tapps_score_file(file_path)` for full breakdown

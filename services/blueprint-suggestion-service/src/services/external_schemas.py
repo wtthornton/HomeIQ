@@ -8,7 +8,6 @@ Origin: ai-pattern-service (blueprint_opportunity.schemas, blueprint_opportunity
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,14 +17,14 @@ class DeviceSignature(BaseModel):
 
     entity_id: str
     domain: str
-    device_class: Optional[str] = None
-    area_id: Optional[str] = None
-    area_name: Optional[str] = None
-    device_id: Optional[str] = None
-    friendly_name: Optional[str] = None
-    manufacturer: Optional[str] = None
-    model: Optional[str] = None
-    integration: Optional[str] = None
+    device_class: str | None = None
+    area_id: str | None = None
+    area_name: str | None = None
+    device_id: str | None = None
+    friendly_name: str | None = None
+    manufacturer: str | None = None
+    model: str | None = None
+    integration: str | None = None
 
 
 class BlueprintSummary(BaseModel):
@@ -33,18 +32,18 @@ class BlueprintSummary(BaseModel):
 
     id: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     source_url: str
     source_type: str
     domain: str = "automation"
-    use_case: Optional[str] = None
+    use_case: str | None = None
     required_domains: list[str] = Field(default_factory=list)
     required_device_classes: list[str] = Field(default_factory=list)
     community_rating: float = 0.0
     quality_score: float = 0.5
     stars: int = 0
     complexity: str = "medium"
-    author: Optional[str] = None
+    author: str | None = None
 
 
 @dataclass

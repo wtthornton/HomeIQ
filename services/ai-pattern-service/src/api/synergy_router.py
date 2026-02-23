@@ -14,25 +14,25 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
-from ..crud.synergies import get_synergy_opportunities, get_synergy_by_id
+from ..config import settings
+from ..crud.synergies import get_synergy_by_id, get_synergy_opportunities
 from ..database import get_db
 from ..database.models import SynergyOpportunity
-from ..services.device_activity import DeviceActivityService
 from ..services.automation_generator import AutomationGenerator
 from ..services.automation_tracker import AutomationTracker
-from ..config import settings
-from .synergy_helpers import extract_synergy_fields, safe_parse_json, generate_xai_explanation
+from ..services.device_activity import DeviceActivityService
+from .synergy_helpers import extract_synergy_fields, generate_xai_explanation
 
 logger = logging.getLogger(__name__)
 
 # Blueprint Opportunity Engine imports (Phase 2)
 try:
     from ..blueprint_opportunity.opportunity_engine import BlueprintOpportunityEngine
-    from ..blueprint_opportunity.schemas import BlueprintOpportunity, DeviceSignature
+    from ..blueprint_opportunity.schemas import BlueprintOpportunity, DeviceSignature  # noqa: F401
     BLUEPRINT_ENGINE_AVAILABLE = True
 except (ImportError, Exception) as e:
     logger.warning(f"Blueprint Opportunity Engine not available: {e}")
@@ -79,18 +79,18 @@ async def get_synergy_stats(
 ) -> dict[str, Any]:
     """
     Get synergy statistics.
-    
+
     Returns summary statistics about detected synergy opportunities.
-    
+
     IMPORTANT: This route must be defined BEFORE the parameterized /{synergy_id} route
     on the same router to ensure FastAPI matches /stats correctly.
-    
+
     Args:
         db: Database session dependency
-        
+
     Returns:
         dict: Synergy statistics including counts by type, average scores, etc.
-        
+
     Raises:
         HTTPException: If database query fails (500 status)
     """
@@ -99,12 +99,12 @@ async def get_synergy_stats(
         # Use SQL aggregate queries for efficient statistics calculation
         # This is more efficient than loading records into memory and provides accurate counts
         # NOTE: Include ALL data (no filtering) - data cleanup happens on insert, not output
-        
+
         # Total synergies count (ALL data)
         total_query = select(func.count()).select_from(SynergyOpportunity)
         total_result = await db.execute(total_query)
         total_synergies = total_result.scalar() or 0
-        
+
         # Count by type
         type_query = (
             select(SynergyOpportunity.synergy_type, func.count())
@@ -112,7 +112,7 @@ async def get_synergy_stats(
         )
         type_result = await db.execute(type_query)
         by_type = {row[0]: row[1] for row in type_result.all()}
-        
+
         # Count by complexity
         complexity_query = (
             select(SynergyOpportunity.complexity, func.count())
@@ -120,7 +120,7 @@ async def get_synergy_stats(
         )
         complexity_result = await db.execute(complexity_query)
         by_complexity = {row[0]: row[1] for row in complexity_result.all()}
-        
+
         # Count by synergy_depth (level)
         depth_query = (
             select(SynergyOpportunity.synergy_depth, func.count())
@@ -128,7 +128,7 @@ async def get_synergy_stats(
         )
         depth_result = await db.execute(depth_query)
         by_depth = {row[0]: row[1] for row in depth_result.all()}
-        
+
         # Count by type and depth (detailed breakdown)
         type_depth_query = (
             select(
@@ -152,7 +152,7 @@ async def get_synergy_stats(
             avg_conf = float(row[4] or 0.0)
             min_impact = float(row[5] or 0.0)
             max_impact = float(row[6] or 0.0)
-            
+
             if synergy_type not in by_type_and_depth:
                 by_type_and_depth[synergy_type] = {}
             by_type_and_depth[synergy_type][depth] = {
@@ -162,7 +162,7 @@ async def get_synergy_stats(
                 "min_impact": round(min_impact, 3),
                 "max_impact": round(max_impact, 3)
             }
-        
+
         # Count by type and complexity (detailed breakdown)
         type_complexity_query = (
             select(
@@ -182,7 +182,7 @@ async def get_synergy_stats(
             count = row[2]
             avg_impact = float(row[3] or 0.0)
             avg_conf = float(row[4] or 0.0)
-            
+
             if synergy_type not in by_type_and_complexity:
                 by_type_and_complexity[synergy_type] = {}
             by_type_and_complexity[synergy_type][complexity] = {
@@ -190,31 +190,31 @@ async def get_synergy_stats(
                 "avg_impact": round(avg_impact, 3),
                 "avg_confidence": round(avg_conf, 3)
             }
-        
+
         # Average impact score
         avg_impact_query = select(func.avg(SynergyOpportunity.impact_score))
         avg_impact_result = await db.execute(avg_impact_query)
         avg_impact = float(avg_impact_result.scalar() or 0.0)
-        
+
         # Average confidence
         avg_confidence_query = select(func.avg(SynergyOpportunity.confidence))
         avg_confidence_result = await db.execute(avg_confidence_query)
         avg_confidence = float(avg_confidence_result.scalar() or 0.0)
-        
+
         # Min/Max impact scores
         min_impact_query = select(func.min(SynergyOpportunity.impact_score))
         min_impact_result = await db.execute(min_impact_query)
         min_impact = float(min_impact_result.scalar() or 0.0)
-        
+
         max_impact_query = select(func.max(SynergyOpportunity.impact_score))
         max_impact_result = await db.execute(max_impact_query)
         max_impact = float(max_impact_result.scalar() or 0.0)
-        
+
         # Count unique areas
         unique_areas_query = select(func.count(func.distinct(SynergyOpportunity.area)))
         unique_areas_result = await db.execute(unique_areas_query)
         unique_areas = unique_areas_result.scalar() or 0
-        
+
         return {
             "success": True,
             "data": {
@@ -232,7 +232,7 @@ async def get_synergy_stats(
             },
             "message": "Synergy statistics retrieved successfully"
         }
-    
+
     except Exception as e:
         logger.error(f"Failed to get synergy stats: {e}", exc_info=True)
         raise HTTPException(
@@ -257,12 +257,12 @@ async def list_synergies(
 ) -> dict[str, Any]:
     """
     List synergy opportunities with optional filters.
-    
+
     2025 Enhancement: Added quality score and tier filtering.
-    
+
     Returns synergies with safely parsed metadata and opportunity details.
     Optionally filters by device activity (default: only active devices).
-    
+
     Args:
         synergy_type: Optional filter by synergy type
         min_confidence: Minimum confidence threshold (0.0-1.0)
@@ -275,10 +275,10 @@ async def list_synergies(
         quality_tier: Filter by quality tier ('high', 'medium', 'low', default: None = no filter)
         exclude_filtered: Exclude synergies with filter_reason set (default: True)
         db: Database session dependency
-        
+
     Returns:
         dict: Response with synergies list and count
-        
+
     Raises:
         HTTPException: If database query fails (500 status)
     """
@@ -294,7 +294,7 @@ async def list_synergies(
             quality_tier=quality_tier,
             exclude_filtered=exclude_filtered
         )
-        
+
         # Filter by device activity if requested
         if not include_inactive:
             try:
@@ -304,7 +304,7 @@ async def list_synergies(
                         window_days=activity_window_days,
                         data_api_client=data_client
                     )
-                    
+
                     if active_devices:
                         # Convert synergies to dict format for filtering (before JSON parsing)
                         synergies_dict = []
@@ -319,17 +319,17 @@ async def list_synergies(
                                     "device_ids": s.device_ids if hasattr(s, 'device_ids') else None,
                                     "entities": getattr(s, 'entities', None),
                                 })
-                        
+
                         # Filter synergies by activity
                         filtered_synergies = activity_service.filter_synergies_by_activity(
                             synergies_dict,
                             active_devices
                         )
-                        
+
                         # Convert back to original format (keep original objects if possible)
                         active_synergy_ids = {s.get("id") if isinstance(s, dict) else s.id for s in filtered_synergies}
                         synergies = [s for s in synergies if (s.id if hasattr(s, 'id') else s.get("id")) in active_synergy_ids]
-                        
+
                         logger.info(
                             f"Filtered synergies by activity: {len(synergies_dict)} → {len(filtered_synergies)} "
                             f"(window: {activity_window_days} days)"
@@ -398,17 +398,17 @@ async def get_synergy(
 ) -> dict[str, Any]:
     """
     Get detailed synergy opportunity by synergy_id.
-    
+
     Args:
         synergy_id: Unique synergy identifier
         db: Database session dependency
-        
+
     Returns:
         dict: Synergy opportunity details
-        
+
     Raises:
         HTTPException: If synergy not found (404) or query fails (500)
-    
+
     Note:
         This route should NOT match 'stats' or 'list' as those are handled by
         specific routes. FastAPI should match specific routes first, but we
@@ -440,7 +440,7 @@ async def get_synergy(
             "data": fields,
             "message": "Synergy opportunity retrieved successfully"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -459,21 +459,21 @@ async def submit_synergy_feedback(
 ) -> dict[str, Any]:
     """
     Submit user feedback for a synergy opportunity.
-    
+
     This endpoint enables the Reinforcement Learning feedback loop (Priority 2.4).
     Feedback is stored for future RL optimization of synergy scoring.
-    
+
     Args:
         synergy_id: Unique synergy identifier
         feedback: Feedback data (accepted, feedback_text, rating)
         db: Database session dependency
-        
+
     Returns:
         dict: Confirmation of feedback submission
-        
+
     Raises:
         HTTPException: If synergy not found (404) or storage fails (500)
-    
+
     Note:
         Currently stores feedback in a simple format. Full RL integration
         will be implemented in Priority 2.4 (RL feedback loop).
@@ -554,7 +554,7 @@ async def submit_synergy_feedback(
             },
             "message": "Feedback received successfully"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -572,14 +572,14 @@ async def generate_automation_from_synergy(
 ) -> dict[str, Any]:
     """
     Generate and deploy Home Assistant automation from synergy.
-    
+
     This endpoint implements Recommendation 1.1: Complete Automation Generation Pipeline.
     Converts synergy to Home Assistant automation using 2025 best practices.
-    
+
     Args:
         synergy_id: Unique synergy identifier
         db: Database session dependency
-        
+
     Returns:
         {
             'automation_id': str,
@@ -588,7 +588,7 @@ async def generate_automation_from_synergy(
             'deployment_status': str,
             'estimated_impact': float
         }
-        
+
     Raises:
         HTTPException: If synergy not found (404), HA config missing (400), or deployment fails (500)
     """
@@ -617,14 +617,14 @@ async def generate_automation_from_synergy(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Home Assistant configuration missing. Set HA_URL and HA_TOKEN environment variables."
             )
-        
+
         # Initialize automation generator
         generator = AutomationGenerator(
             ha_url=settings.ha_url,
             ha_token=settings.ha_token,
             ha_version=settings.ha_version
         )
-        
+
         # Create HTTP client for Home Assistant API
         import httpx
         async with httpx.AsyncClient(timeout=30.0) as ha_client:
@@ -634,18 +634,18 @@ async def generate_automation_from_synergy(
                 ha_client=ha_client,
                 db=db
             )
-        
+
         logger.info(
             f"✅ Automation generated from synergy {synergy_id}: "
             f"automation_id={result['automation_id']}"
         )
-        
+
         return {
             "success": True,
             "data": result,
             "message": f"Automation {result['automation_id']} created successfully"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -665,16 +665,16 @@ async def track_automation_execution(
 ) -> dict[str, Any]:
     """
     Track automation execution and update synergy confidence.
-    
+
     This endpoint implements Recommendation 2.2: Automation Execution Tracking.
     Tracks automation success/failure and updates synergy confidence based on outcomes.
-    
+
     Args:
         synergy_id: Synergy ID that generated this automation
         automation_id: Home Assistant automation entity ID
         execution_result: Execution result with success, error, execution_time_ms, triggered_count
         db: Database session dependency
-    
+
     Returns:
         {
             'success': bool,
@@ -682,7 +682,7 @@ async def track_automation_execution(
             'confidence_updated': bool,
             'new_confidence': float | None
         }
-    
+
     Raises:
         HTTPException: If synergy not found (404) or tracking fails (500)
     """
@@ -697,7 +697,7 @@ async def track_automation_execution(
 
         # Initialize automation tracker
         tracker = AutomationTracker(db=db)
-        
+
         # Track execution
         await tracker.track_automation_execution(
             automation_id=automation_id,
@@ -710,7 +710,7 @@ async def track_automation_execution(
             },
             db=db
         )
-        
+
         # Get updated confidence
         from sqlalchemy import text
         result = await db.execute(
@@ -722,19 +722,19 @@ async def track_automation_execution(
         )
         row = result.fetchone()
         new_confidence = float(row[0]) if row and row[0] is not None else None
-        
+
         logger.info(
             f"✅ Tracked automation execution: synergy_id={synergy_id}, "
             f"automation_id={automation_id}, success={execution_result.success}"
         )
-        
+
         return {
             "success": True,
             "message": f"Automation execution tracked for synergy {synergy_id}",
             "confidence_updated": True,
             "new_confidence": new_confidence
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -752,14 +752,14 @@ async def get_automation_execution_stats(
 ) -> dict[str, Any]:
     """
     Get automation execution statistics for a synergy.
-    
+
     This endpoint provides execution statistics for automations generated from a synergy.
     Implements Recommendation 2.2: Automation Execution Tracking.
-    
+
     Args:
         synergy_id: Synergy ID to get stats for
         db: Database session dependency
-    
+
     Returns:
         {
             'total_executions': int,
@@ -773,15 +773,15 @@ async def get_automation_execution_stats(
     try:
         # Initialize automation tracker
         tracker = AutomationTracker(db=db)
-        
+
         # Get execution stats
         stats = await tracker.get_execution_stats(synergy_id, db=db)
-        
+
         return {
             "success": True,
             "data": stats
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get execution stats: {e}", exc_info=True)
         raise HTTPException(
@@ -824,21 +824,21 @@ async def list_blueprint_opportunities(
 ) -> dict[str, Any]:
     """
     Discover blueprint opportunities based on device inventory.
-    
+
     This endpoint implements Phase 2 of the Blueprint-First Architecture.
     It analyzes the user's Home Assistant device inventory and recommends
     blueprints that can be deployed with their existing devices.
-    
+
     Args:
         limit: Maximum number of opportunities to return
         min_fit_score: Minimum fit score threshold (0.0-1.0)
         domain: Optional filter by domain
         use_case: Optional filter by use case
         db: Database session dependency
-        
+
     Returns:
         dict: Blueprint opportunities with fit scores and auto-fill suggestions
-        
+
     Raises:
         HTTPException: If blueprint engine unavailable (503) or query fails (500)
     """
@@ -847,14 +847,14 @@ async def list_blueprint_opportunities(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Blueprint Opportunity Engine not available. Check module installation."
         )
-    
+
     try:
         # Initialize blueprint opportunity engine
         engine = BlueprintOpportunityEngine(
             blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031",
             data_api_url=settings.data_api_url
         )
-        
+
         # Create discovery request
         from ..blueprint_opportunity.schemas import OpportunityDiscoveryRequest
         discovery_request = OpportunityDiscoveryRequest(
@@ -862,10 +862,10 @@ async def list_blueprint_opportunities(
             limit=limit,
             use_cases=[use_case] if use_case else None
         )
-        
+
         # Discover blueprint opportunities (engine handles device fetching internally)
         response = await engine.discover_opportunities(request=discovery_request)
-        
+
         return {
             "success": True,
             "data": {
@@ -878,7 +878,7 @@ async def list_blueprint_opportunities(
             },
             "message": f"Found {response.total_found} blueprint opportunities"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -896,17 +896,17 @@ async def discover_blueprint_opportunities(
 ) -> dict[str, Any]:
     """
     Discover blueprint opportunities with custom device inventory.
-    
+
     This endpoint allows passing a custom device inventory for opportunity discovery.
     Useful for testing or when the device inventory differs from the live HA instance.
-    
+
     Args:
         request: Request with device_inventory, limit, min_fit_score, include_partial_matches
         db: Database session dependency
-        
+
     Returns:
         dict: Blueprint opportunities with fit scores and auto-fill suggestions
-        
+
     Raises:
         HTTPException: If blueprint engine unavailable (503) or query fails (500)
     """
@@ -915,13 +915,13 @@ async def discover_blueprint_opportunities(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Blueprint Opportunity Engine not available. Check module installation."
         )
-    
+
     try:
         # Initialize blueprint opportunity engine
         engine = BlueprintOpportunityEngine(
             blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
         )
-        
+
         # Use provided inventory or fetch from data-api
         device_inventory = request.device_inventory
         if device_inventory is None:
@@ -933,7 +933,7 @@ async def discover_blueprint_opportunities(
             except Exception as e:
                 logger.warning(f"Failed to fetch device inventory: {e}")
                 device_inventory = []
-        
+
         # Discover opportunities
         opportunities = await engine.discover_opportunities(
             device_inventory=device_inventory,
@@ -941,7 +941,7 @@ async def discover_blueprint_opportunities(
             min_fit_score=request.min_fit_score,
             include_partial_matches=request.include_partial_matches
         )
-        
+
         return {
             "success": True,
             "data": {
@@ -951,7 +951,7 @@ async def discover_blueprint_opportunities(
             },
             "message": f"Discovered {len(opportunities)} blueprint opportunities"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -969,17 +969,17 @@ async def get_blueprint_opportunity_details(
 ) -> dict[str, Any]:
     """
     Get detailed information about a specific blueprint opportunity.
-    
+
     This includes the full blueprint definition, input requirements,
     device compatibility analysis, and auto-fill suggestions.
-    
+
     Args:
         blueprint_id: Unique blueprint identifier
         db: Database session dependency
-        
+
     Returns:
         dict: Blueprint details with compatibility analysis
-        
+
     Raises:
         HTTPException: If blueprint not found (404) or query fails (500)
     """
@@ -988,12 +988,12 @@ async def get_blueprint_opportunity_details(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Blueprint Opportunity Engine not available."
         )
-    
+
     try:
         engine = BlueprintOpportunityEngine(
             blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
         )
-        
+
         # Fetch device inventory
         device_inventory = []
         try:
@@ -1003,25 +1003,25 @@ async def get_blueprint_opportunity_details(
                     device_inventory = devices_response["data"]
         except Exception as e:
             logger.warning(f"Failed to fetch device inventory: {e}")
-        
+
         # Get blueprint details with opportunity analysis
         opportunity = await engine.get_blueprint_opportunity(
             blueprint_id=blueprint_id,
             device_inventory=device_inventory
         )
-        
+
         if not opportunity:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Blueprint not found: {blueprint_id}"
             )
-        
+
         return {
             "success": True,
             "data": opportunity.model_dump(),
             "message": f"Blueprint opportunity details retrieved for {blueprint_id}"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1040,18 +1040,18 @@ async def preview_blueprint_deployment(
 ) -> dict[str, Any]:
     """
     Preview what a blueprint deployment would look like.
-    
+
     This generates a preview of the automation that would be created
     without actually deploying it to Home Assistant.
-    
+
     Args:
         blueprint_id: Blueprint to preview
         request: Deployment configuration with input values
         db: Database session dependency
-        
+
     Returns:
         dict: Preview of the automation YAML and configuration
-        
+
     Raises:
         HTTPException: If blueprint not found (404) or preview fails (500)
     """
@@ -1060,12 +1060,12 @@ async def preview_blueprint_deployment(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Blueprint Opportunity Engine not available."
         )
-    
+
     try:
         engine = BlueprintOpportunityEngine(
             blueprint_index_url=settings.blueprint_index_url or "http://blueprint-index:8031"
         )
-        
+
         # Fetch device inventory for auto-fill
         device_inventory = []
         try:
@@ -1075,7 +1075,7 @@ async def preview_blueprint_deployment(
                     device_inventory = devices_response["data"]
         except Exception as e:
             logger.warning(f"Failed to fetch device inventory: {e}")
-        
+
         # Generate deployment preview
         preview = await engine.preview_deployment(
             blueprint_id=blueprint_id,
@@ -1084,19 +1084,19 @@ async def preview_blueprint_deployment(
             description=request.description,
             device_inventory=device_inventory
         )
-        
+
         if not preview:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Blueprint not found: {blueprint_id}"
             )
-        
+
         return {
             "success": True,
             "data": preview,
             "message": f"Deployment preview generated for blueprint {blueprint_id}"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1115,18 +1115,18 @@ async def get_blueprint_matches_for_synergy(
 ) -> dict[str, Any]:
     """
     Find blueprints that match a detected synergy pattern.
-    
+
     This endpoint bridges synergy detection with blueprint deployment by
     finding blueprints that can implement detected synergy patterns.
-    
+
     Args:
         synergy_id: Synergy ID to find blueprint matches for
         limit: Maximum number of matching blueprints to return
         db: Database session dependency
-        
+
     Returns:
         dict: Matching blueprints ranked by fit score
-        
+
     Raises:
         HTTPException: If synergy not found (404) or query fails (500)
     """
@@ -1135,7 +1135,7 @@ async def get_blueprint_matches_for_synergy(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Blueprint Opportunity Engine not available."
         )
-    
+
     try:
         # Fetch synergy details using direct lookup
         synergy_raw = await get_synergy_by_id(db, synergy_id)
@@ -1160,7 +1160,7 @@ async def get_blueprint_matches_for_synergy(
             synergy=synergy_data,
             limit=limit
         )
-        
+
         return {
             "success": True,
             "data": {
@@ -1170,7 +1170,7 @@ async def get_blueprint_matches_for_synergy(
             },
             "message": f"Found {len(matches)} blueprint matches for synergy {synergy_id}"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:

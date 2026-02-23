@@ -33,7 +33,7 @@ code_validator: CodeValidator | None = None
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # noqa: ARG001
     """Initialize sandbox on startup"""
     global sandbox, code_validator
 
@@ -150,7 +150,7 @@ async def health_check():
     if sandbox is not None:
         # Use public method instead of private attribute
         mcp_initialized = sandbox.is_initialized()
-    
+
     return {
         "status": "healthy",
         "service": settings.service_name,

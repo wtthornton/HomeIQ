@@ -29,7 +29,7 @@ class ChatRequest(BaseModel):
     )
     # Proactive Suggestions Enhancement: Hidden context for LLM
     hidden_context: dict[str, Any] | None = Field(
-        None, 
+        None,
         description="Structured context to inject into system prompt (not shown to user). "
                     "Useful for passing automation hints like game_time, team_colors, trigger_type."
     )

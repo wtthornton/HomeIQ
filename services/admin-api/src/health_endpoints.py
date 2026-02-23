@@ -151,7 +151,7 @@ class HealthEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get health status"
-                )
+                ) from e
 
         @self.router.get("/health/services", response_model=dict[str, ServiceHealth])
         async def get_services_health():
@@ -164,7 +164,7 @@ class HealthEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get services health"
-                )
+                ) from e
 
         @self.router.get("/health/dependencies", response_model=dict[str, Any])
         async def get_dependencies_health():
@@ -177,7 +177,7 @@ class HealthEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get dependencies health"
-                )
+                ) from e
 
         @self.router.get("/health/metrics", response_model=dict[str, Any])
         async def get_health_metrics():
@@ -190,7 +190,7 @@ class HealthEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get health metrics"
-                )
+                ) from e
 
     async def _check_services(self) -> dict[str, ServiceHealth]:
         """Check health of all services"""
@@ -212,7 +212,7 @@ class HealthEndpoints:
                 health_path = custom_health_paths.get(service_name, "/health")
 
                 # Standard health check for internal services
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:  # noqa: SIM117
                     async with session.get(f"{service_url}{health_path}") as response:
                         response_time = (datetime.now() - start_time).total_seconds() * 1000
 
@@ -259,7 +259,7 @@ class HealthEndpoints:
             if not websocket_url:
                 return {}
 
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
                 async with session.get(f"{websocket_url}/health") as response:
                     if response.status == 200:
                         return await response.json()
@@ -277,7 +277,7 @@ class HealthEndpoints:
         # Check InfluxDB
         try:
             influxdb_url = self.service_urls["influxdb"]
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
                 async with session.get(f"{influxdb_url}/health") as response:
                     dependencies_health["influxdb"] = {
                         "status": "healthy" if response.status == 200 else "unhealthy",
@@ -296,7 +296,7 @@ class HealthEndpoints:
             weather_api_key = os.getenv("WEATHER_API_KEY")
             if weather_api_key:
                 weather_url = self.service_urls["weather-api"]
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
                     async with session.get(f"{weather_url}/weather?q=London&appid={weather_api_key}") as response:
                         dependencies_health["weather_api"] = {
                             "status": "healthy" if response.status == 200 else "unhealthy",
@@ -336,7 +336,7 @@ class HealthEndpoints:
         """Check InfluxDB health"""
         try:
             influxdb_url = self.service_urls["influxdb"]
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
                 async with session.get(f"{influxdb_url}/health") as response:
                     return response.status == 200
         except Exception as e:
@@ -346,7 +346,7 @@ class HealthEndpoints:
     async def _check_service_health(self, service_url: str) -> bool:
         """Check service health via HTTP"""
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
                 async with session.get(service_url) as response:
                     return response.status == 200
         except Exception as e:
@@ -372,10 +372,10 @@ class HealthEndpoints:
     def _calculate_uptime_percentage(self, dependencies: list[dict[str, Any]], uptime_seconds: float) -> float:
         """
         Calculate realistic uptime percentage based on dependency health and service uptime.
-        
+
         Context7 Best Practice: Calculate from actual data, not hardcoded values
         Source: /blueswen/fastapi-observability
-        
+
         Formula: (healthy_dependencies / total_dependencies) * current_uptime_ratio
         - If all dependencies healthy: ~99.x% based on uptime
         - If dependencies failing: proportionally lower

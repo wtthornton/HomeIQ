@@ -18,7 +18,6 @@ import sys
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
 
 # Suppress TRANSFORMERS_CACHE deprecation warnings
 warnings.filterwarnings("ignore", category=FutureWarning, message=".*TRANSFORMERS_CACHE.*")
@@ -122,7 +121,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_training_examples(db_path: Path, limit: int) -> List[Dict[str, str]]:
+def load_training_examples(db_path: Path, limit: int) -> list[dict[str, str]]:
     if not db_path.exists():
         raise FileNotFoundError(f"SQLite database not found at {db_path}")
 
@@ -134,7 +133,7 @@ def load_training_examples(db_path: Path, limit: int) -> List[Dict[str, str]]:
         LIMIT ?
     """
 
-    examples: List[Dict[str, str]] = []
+    examples: list[dict[str, str]] = []
 
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
@@ -175,8 +174,8 @@ def load_training_examples(db_path: Path, limit: int) -> List[Dict[str, str]]:
 def ensure_dependencies():
     try:
         import torch  # noqa: F401
-        from transformers import AutoTokenizer  # noqa: F401
         from peft import LoraConfig  # noqa: F401
+        from transformers import AutoTokenizer  # noqa: F401
         try:
             import psutil  # noqa: F401
         except ImportError:
@@ -189,7 +188,7 @@ def ensure_dependencies():
 
 def prepare_dataset(
     tokenizer,
-    examples: List[Dict[str, str]],
+    examples: list[dict[str, str]],
     max_source_tokens: int,
     max_target_tokens: int,
 ):
@@ -270,8 +269,8 @@ def main():
         logger.exception("Failed to load training examples: %s", e)
         sys.exit(1)
 
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
     from peft import LoraConfig, get_peft_model
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
 
     # Use cached model if available (set via HF_HOME environment variable)
     # Note: TRANSFORMERS_CACHE is deprecated, use HF_HOME only
@@ -324,7 +323,7 @@ def main():
         # Explicitly set device to CPU for NUC deployment (no GPU)
         device = torch.device("cpu")
         logger.info("Using device: %s", device)
-        
+
         logger.info("Loading model from cache: %s...", cache_dir if cache_dir else "default location")
         try:
             model = AutoModelForSeq2SeqLM.from_pretrained(
@@ -366,7 +365,7 @@ def main():
     except Exception as e:
         logger.exception("Failed to configure LoRA adapters: %s", e)
         sys.exit(1)
-    
+
     # Enable training mode (PEFT automatically marks LoRA parameters as trainable)
     model.train()
 
@@ -431,7 +430,7 @@ def main():
 
     try:
         import torch
-        
+
         # Log memory usage before training (if psutil available)
         process = None
         try:
@@ -442,25 +441,25 @@ def main():
             logger.info(f"Available memory: {psutil.virtual_memory().available / 1024 / 1024:.2f} MB")
         except ImportError:
             logger.info("Memory logging unavailable (psutil not installed)")
-        
+
         logger.info(f"PyTorch device: {torch.device('cpu')}")
         logger.info(f"Number of training examples: {len(examples)}")
         logger.info(f"Batch size: {args.batch_size}, Gradient accumulation: 2")
-        
+
         logger.info("Starting training...")
         # Ensure model and all parameters are on CPU
         device = torch.device("cpu")
         trainer.model = trainer.model.to(device)
-        
+
         # Double-check model is on CPU
         if next(trainer.model.parameters()).is_cuda:
             logger.warning("Model parameters detected on CUDA, moving to CPU...")
             trainer.model = trainer.model.to(device)
-        
+
         logger.info(f"Model device confirmed: {next(trainer.model.parameters()).device}")
         train_result = trainer.train()
         logger.info("Training completed successfully. Final loss: %.4f", train_result.training_loss)
-        
+
         # Log memory usage after training (if psutil available)
         if process is not None:
             try:
@@ -487,14 +486,13 @@ def main():
         error_msg = str(e)
         logger.exception("Training failed with unexpected error: %s", e)
         logger.error("Error type: %s", type(e).__name__)
-        
+
         # Check if this might be an OOM kill (process was killed)
-        import signal
         if hasattr(e, 'errno') and e.errno == -9:
             logger.error("Process was killed (likely OOM). Container memory limit may be too low.")
             logger.error("Current container limit: Check docker-compose.yml (ai-training-service)")
             logger.error("Recommendation: Increase memory limit to 2GB or reduce training parameters")
-        
+
         sys.exit(1)
     except Exception as e:
         logger.exception("Training failed with unexpected error: %s", e)

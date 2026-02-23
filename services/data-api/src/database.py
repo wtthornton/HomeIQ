@@ -40,7 +40,7 @@ async_engine: AsyncEngine = create_async_engine(
 def set_sqlite_pragma(dbapi_conn, connection_record):
     """
     Set SQLite pragmas on each connection for optimal performance.
-    
+
     Pragmas configured:
     - WAL mode: Better concurrency (multiple readers, one writer)
     - NORMAL sync: Faster writes, still safe (survives OS crash)
@@ -91,7 +91,7 @@ AsyncSessionLocal = async_sessionmaker(
 class Base(DeclarativeBase):
     """
     Base class for all SQLAlchemy models.
-    
+
     Usage:
         class Device(Base):
             __tablename__ = "devices"
@@ -105,13 +105,13 @@ class Base(DeclarativeBase):
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session.
-    
+
     Automatically handles:
     - Session creation
     - Transaction commit on success
     - Transaction rollback on error
     - Session cleanup
-    
+
     Usage:
         @app.get("/devices")
         async def list_devices(db: AsyncSession = Depends(get_db)):
@@ -132,7 +132,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     """
     Initialize database by creating all tables.
-    
+
     Called during application startup.
     Note: In production, use Alembic migrations instead.
     """
@@ -145,7 +145,7 @@ async def init_db() -> None:
 async def check_db_health() -> dict:
     """
     Check database health and return status information.
-    
+
     Returns:
         dict: Database health status including:
             - status: "healthy" or "unhealthy"

@@ -128,14 +128,14 @@ class HomeAssistantClient:
                     return data.get("result", [])
                 raise Exception(f"Unexpected WebSocket response format: {data}")
 
-        except asyncio.TimeoutError:
-            raise Exception("WebSocket connection or response timeout")
+        except asyncio.TimeoutError as e:
+            raise Exception("WebSocket connection or response timeout") from e
         except websockets.exceptions.InvalidStatusCode as e:
-            raise Exception(f"WebSocket connection failed: {e}")
+            raise Exception(f"WebSocket connection failed: {e}") from e
         except Exception as e:
             if "WebSocket" in str(e):
                 raise
-            raise Exception(f"WebSocket error: {str(e)}")
+            raise Exception(f"WebSocket error: {str(e)}") from e
 
     @retry(
         stop=stop_after_attempt(3),
@@ -146,7 +146,7 @@ class HomeAssistantClient:
     async def get_area_registry(self) -> list[dict[str, Any]]:
         """
         Get area registry from Home Assistant.
-        
+
         2025 Best Practice: Tries WebSocket API first (official method),
         falls back to REST API if WebSocket fails.
 
@@ -163,7 +163,7 @@ class HomeAssistantClient:
         except Exception as ws_error:
             logger.warning(f"⚠️ WebSocket API failed: {ws_error}")
             logger.info("🔄 Falling back to REST API...")
-            
+
             # Fallback to REST API
             try:
                 session = await self._get_session()
@@ -344,7 +344,7 @@ class HomeAssistantClient:
     async def get_entity_registry(self) -> list[dict[str, Any]]:
         """
         Get entity registry from Home Assistant.
-        
+
         2025 Best Practice: Tries WebSocket API first (official method),
         falls back to REST API if WebSocket fails.
 
@@ -361,7 +361,7 @@ class HomeAssistantClient:
         except Exception as ws_error:
             logger.warning(f"⚠️ WebSocket API failed: {ws_error}")
             logger.info("🔄 Falling back to REST API...")
-            
+
             # Fallback to REST API
             try:
                 session = await self._get_session()
@@ -397,7 +397,7 @@ class HomeAssistantClient:
     async def get_device_registry(self) -> list[dict[str, Any]]:
         """
         Get device registry from Home Assistant.
-        
+
         2025 Best Practice: Tries WebSocket API first (official method),
         falls back to REST API if WebSocket fails.
 
@@ -414,7 +414,7 @@ class HomeAssistantClient:
         except Exception as ws_error:
             logger.warning(f"⚠️ WebSocket API failed: {ws_error}")
             logger.info("🔄 Falling back to REST API...")
-            
+
             # Fallback to REST API
             try:
                 session = await self._get_session()

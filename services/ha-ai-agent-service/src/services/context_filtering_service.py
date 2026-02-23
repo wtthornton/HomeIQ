@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class ContextFilteringService:
     """
     Service for filtering context based on user intent extraction.
-    
+
     Extracts intent (area, device type, service) from user prompt and
     filters context to include only relevant items.
     """
@@ -30,10 +30,10 @@ class ContextFilteringService:
     def extract_intent(self, user_prompt: str) -> dict[str, Any]:
         """
         Extract intent from user prompt.
-        
+
         Args:
             user_prompt: User's natural language prompt
-            
+
         Returns:
             Dictionary with extracted intent:
             {
@@ -50,19 +50,19 @@ class ContextFilteringService:
             "services": [],
             "domains": []
         }
-        
+
         # Common area names (can be extended)
         area_keywords = [
             "office", "bedroom", "living room", "kitchen", "bathroom",
             "garage", "basement", "attic", "hallway", "dining room",
             "outdoor", "garden", "patio", "backyard", "front yard"
         ]
-        
+
         # Extract areas
         for area in area_keywords:
             if area in prompt_lower:
                 intent["areas"].append(area.replace(" ", "_"))
-        
+
         # Extract device types/domains
         domain_keywords = {
             "light": ["light", "lamp", "bulb", "brightness", "illuminate", "illumination"],
@@ -76,12 +76,12 @@ class ContextFilteringService:
             "camera": ["camera", "video", "record"],
             "alarm": ["alarm", "alert", "notification"],
         }
-        
+
         for domain, keywords in domain_keywords.items():
             if any(keyword in prompt_lower for keyword in keywords):
                 intent["domains"].append(domain)
                 intent["device_types"].append(domain)
-        
+
         # Extract services (common patterns)
         service_patterns = [
             (r"turn\s+on", "turn_on"),
@@ -91,7 +91,7 @@ class ContextFilteringService:
             (r"dim", "set_brightness"),
             (r"brighten", "set_brightness"),
         ]
-        
+
         for pattern, service_action in service_patterns:
             if re.search(pattern, prompt_lower):
                 # Try to infer domain from context
@@ -99,7 +99,7 @@ class ContextFilteringService:
                     service = f"{domain}.{service_action}"
                     if service not in intent["services"]:
                         intent["services"].append(service)
-        
+
         return intent
 
     def filter_entities(
@@ -109,32 +109,27 @@ class ContextFilteringService:
     ) -> list[dict[str, Any]]:
         """
         Filter entities based on extracted intent.
-        
+
         Args:
             entities: List of entity dictionaries
             intent: Extracted intent dictionary
-            
+
         Returns:
             Filtered list of entities matching intent
         """
         if not intent.get("domains") and not intent.get("areas"):
             # No filtering criteria - return all
             return entities
-        
+
         filtered = []
-        
+
         for entity in entities:
             entity_domain = (entity.get("domain") or "").lower()
             entity_area_id = (entity.get("area_id") or "").lower()
-            
+
             # Check domain match
-            domain_match = False
-            if intent.get("domains"):
-                domain_match = entity_domain in intent["domains"]
-            else:
-                # No domain filter - match all
-                domain_match = True
-            
+            domain_match = entity_domain in intent["domains"] if intent.get("domains") else True
+
             # Check area match
             area_match = False
             if intent.get("areas"):
@@ -146,11 +141,11 @@ class ContextFilteringService:
             else:
                 # No area filter - match all
                 area_match = True
-            
+
             # Include if matches domain AND area (if both specified)
             if domain_match and area_match:
                 filtered.append(entity)
-        
+
         return filtered
 
     def filter_devices(
@@ -160,24 +155,24 @@ class ContextFilteringService:
     ) -> list[dict[str, Any]]:
         """
         Filter devices based on extracted intent.
-        
+
         Args:
             devices: List of device dictionaries
             intent: Extracted intent dictionary
-            
+
         Returns:
             Filtered list of devices matching intent
         """
         if not intent.get("device_types") and not intent.get("areas"):
             # No filtering criteria - return all
             return devices
-        
+
         filtered = []
-        
+
         for device in devices:
             device_area_id = (device.get("area_id") or "").lower()
             device_name = (device.get("name") or device.get("device_id") or "").lower()
-            
+
             # Check device type match (by name/manufacturer/model)
             type_match = False
             if intent.get("device_types"):
@@ -189,7 +184,7 @@ class ContextFilteringService:
             else:
                 # No type filter - match all
                 type_match = True
-            
+
             # Check area match
             area_match = False
             if intent.get("areas"):
@@ -200,11 +195,11 @@ class ContextFilteringService:
             else:
                 # No area filter - match all
                 area_match = True
-            
+
             # Include if matches type AND area (if both specified)
             if type_match and area_match:
                 filtered.append(device)
-        
+
         return filtered
 
     def filter_services(
@@ -214,34 +209,33 @@ class ContextFilteringService:
     ) -> list[str]:
         """
         Filter services based on extracted intent.
-        
+
         Args:
             services: List of service names
             intent: Extracted intent dictionary
-            
+
         Returns:
             Filtered list of services matching intent
         """
         if not intent.get("services") and not intent.get("domains"):
             # No filtering criteria - return all
             return services
-        
+
         filtered = []
-        
+
         for service in services:
             service_lower = service.lower()
-            
+
             # Check exact service match
-            if intent.get("services"):
-                if any(intent_service.lower() in service_lower for intent_service in intent["services"]):
-                    filtered.append(service)
-                    continue
-            
+            if intent.get("services") and any(intent_service.lower() in service_lower for intent_service in intent["services"]):
+                filtered.append(service)
+                continue
+
             # Check domain match
             if intent.get("domains"):
                 for domain in intent["domains"]:
                     if service_lower.startswith(f"{domain}."):
                         filtered.append(service)
                         break
-        
+
         return filtered

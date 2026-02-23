@@ -52,7 +52,7 @@ class DeviceRecommender:
     def __init__(self, corpus_repo: CorpusRepository):
         """
         Initialize device recommender
-        
+
         Args:
             corpus_repo: CorpusRepository for querying automations
         """
@@ -62,7 +62,7 @@ class DeviceRecommender:
     def _load_device_costs(self) -> dict[str, tuple[int, int]]:
         """
         Load device cost estimates from JSON file
-        
+
         Returns:
             Dictionary mapping device types to (min_cost, max_cost) tuples
             Falls back to default costs if file cannot be loaded
@@ -74,7 +74,7 @@ class DeviceRecommender:
             return {}
 
         try:
-            with open(costs_file, encoding='utf-8') as f:
+            with Path(costs_file).open(encoding='utf-8') as f:
                 data = json.load(f)
 
             # Validate and convert to tuple format
@@ -106,17 +106,17 @@ class DeviceRecommender:
     async def recommend_devices(
         self,
         user_devices: list[str],
-        user_integrations: list[str],
+        user_integrations: list[str],  # noqa: ARG002
         limit: int = 10
     ) -> list[DeviceRecommendation]:
         """
         Recommend devices to purchase based on automation potential
-        
+
         Args:
             user_devices: List of device types user currently has
             user_integrations: List of integrations user has configured
             limit: Maximum recommendations to return
-        
+
         Returns:
             List of DeviceRecommendation objects, sorted by ROI score
         """
@@ -207,7 +207,7 @@ class DeviceRecommender:
                 example_use_cases=top_use_cases,
                 cost_estimate_usd=cost_range,
                 roi_score=round(roi, 2),
-                compatible_integrations=sorted(list(integrations)),
+                compatible_integrations=sorted(integrations),
                 example_automations=example_automations
             ))
 
@@ -225,11 +225,11 @@ class DeviceRecommender:
     ) -> list[dict[str, Any]]:
         """
         Get automation possibilities for a specific device type
-        
+
         Args:
             device_type: Device type (e.g., "motion_sensor")
             user_devices: List of devices user currently has
-        
+
         Returns:
             List of automation possibilities grouped by use case
         """
@@ -283,8 +283,8 @@ class DeviceRecommender:
             possibilities.append({
                 'use_case': use_case,
                 'automation_count': len(autos),
-                'required_devices': sorted(list(required_devices)),
-                'optional_enhancements': sorted(list(optional_devices)),
+                'required_devices': sorted(required_devices),
+                'optional_enhancements': sorted(optional_devices),
                 'example_automations': autos[:3],  # Top 3
                 'difficulty': difficulty,
                 'avg_quality': round(avg_quality, 2)

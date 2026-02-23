@@ -7,6 +7,7 @@ Context7 Best Practices Applied:
 - Graceful shutdown handling
 """
 import asyncio
+import contextlib
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 class ContinuousHealthMonitor:
     """
     Background service for continuous health monitoring
-    
+
     Features:
     - Scheduled health checks every 60 seconds
     - Integration checks every 5 minutes
@@ -70,10 +71,8 @@ class ContinuousHealthMonitor:
         self.running = False
         if self.task:
             self.task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Continuous health monitoring stopped")
 
@@ -189,7 +188,7 @@ class ContinuousHealthMonitor:
     async def _send_alert(self, title: str, message: str):
         """
         Send alert for critical issues
-        
+
         Placeholder for future alerting implementation
         Currently logs to console
         """
@@ -204,11 +203,11 @@ class ContinuousHealthMonitor:
     ) -> dict:
         """
         Get health trends over specified time period
-        
+
         Args:
             db: Database session
             hours: Number of hours to analyze
-            
+
         Returns:
             Trend data including average score, score changes, issue frequency
         """

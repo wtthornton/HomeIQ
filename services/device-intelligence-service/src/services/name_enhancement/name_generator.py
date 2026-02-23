@@ -39,7 +39,7 @@ class DeviceNameGenerator:
         self._pattern_cache_max_size = 1000
         self.pattern_cache: OrderedDict[str, NameSuggestion] = OrderedDict()
         self.ai_suggester = None
-        
+
         # Initialize AI suggester if available
         if AINameSuggester and settings:
             try:
@@ -84,16 +84,16 @@ class DeviceNameGenerator:
     ) -> NameSuggestion:
         """
         Generate name suggestion using tiered approach:
-        
+
         1. Pattern-based (fast, no AI) - 90% of cases
         2. AI generation (optional) - complex cases only
         3. Local LLM (optional) - privacy-sensitive users
-        
+
         Returns suggestion with confidence score and source.
         """
         # Try pattern-based first (fast, no AI)
         suggestion = self._pattern_based_generation(device, entity)
-        
+
         # If pattern-based has low confidence and AI is requested, try AI
         if use_ai and self.ai_suggester and suggestion.confidence < 0.5:
             try:
@@ -103,7 +103,7 @@ class DeviceNameGenerator:
                     return max(ai_suggestions, key=lambda s: s.confidence)
             except Exception as e:
                 logger.warning(f"AI suggestion failed, using pattern-based: {e}")
-        
+
         return suggestion
 
     def _cache_put(self, key: str, value: NameSuggestion) -> None:
@@ -219,11 +219,11 @@ class DeviceNameGenerator:
             domain = entity.domain
             if domain in self.device_type_map:
                 return self.device_type_map[domain]
-        
+
         if device.device_class:
             # Capitalize device class
             return device.device_class.replace("_", " ").title()
-        
+
         return None
 
     def _extract_position_from_entity_id(self, entity_id: str) -> str | None:
@@ -232,7 +232,7 @@ class DeviceNameGenerator:
         for pattern, position in self.position_patterns.items():
             if re.search(pattern, entity_id):
                 return position
-        
+
         # Try to extract numbers that might indicate position
         # e.g., "hue_color_downlight_1_6" -> "1_6" -> "Back Left"
         match = re.search(r"_(\d+)_(\d+)$", entity_id)
@@ -246,28 +246,28 @@ class DeviceNameGenerator:
             elif first == "2" and second == "2":
                 return "Front Right"
             # Add more mappings as needed
-        
+
         return None
 
     def _clean_device_name(self, name: str) -> str:
         """Clean up device name by removing technical terms"""
         # Remove common technical prefixes/suffixes
         cleaned = name
-        
+
         # Remove model numbers (e.g., "E27 WS opal 980lm")
         cleaned = re.sub(r'\bE\d+\b', '', cleaned)
         cleaned = re.sub(r'\b\d+lm\b', '', cleaned)
         cleaned = re.sub(r'\bWS\b', '', cleaned)
-        
+
         # Remove version numbers
         cleaned = re.sub(r'\bv?\d+\.\d+\.\d+\b', '', cleaned)
-        
+
         # Remove manufacturer if it's redundant
         cleaned = re.sub(r'\b(Philips|Hue|IKEA|TRADFRI|Xiaomi)\s+', '', cleaned, flags=re.IGNORECASE)
-        
+
         # Clean up multiple spaces
         cleaned = re.sub(r'\s+', ' ', cleaned)
         cleaned = cleaned.strip()
-        
+
         return cleaned
 

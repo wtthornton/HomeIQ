@@ -1,7 +1,7 @@
 """HTTP client for Blueprint Index Service."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 
 class BlueprintClient:
     """Client for interacting with Blueprint Index Service."""
-    
-    def __init__(self, base_url: Optional[str] = None):
+
+    def __init__(self, base_url: str | None = None):
         """Initialize blueprint client."""
         self.base_url = (base_url or settings.blueprint_index_url).rstrip("/")
-        self._client: Optional[httpx.AsyncClient] = None
-    
+        self._client: httpx.AsyncClient | None = None
+
     async def __aenter__(self):
         """Async context manager entry."""
         timeout = httpx.Timeout(
@@ -28,13 +28,13 @@ class BlueprintClient:
         )
         self._client = httpx.AsyncClient(timeout=timeout)
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         if self._client:
             await self._client.aclose()
             self._client = None
-    
+
     async def get_all_blueprints(
         self,
         limit: int = 200,
@@ -42,11 +42,11 @@ class BlueprintClient:
     ) -> list[dict[str, Any]]:
         """
         Get all blueprints from blueprint-index service.
-        
+
         Args:
             limit: Maximum number of blueprints to return
             min_quality_score: Minimum quality score filter
-            
+
         Returns:
             List of blueprint dictionaries
         """
@@ -66,14 +66,14 @@ class BlueprintClient:
         except Exception as e:
             logger.error(f"Failed to fetch blueprints: {e}")
             return []
-    
-    async def get_blueprint(self, blueprint_id: str) -> Optional[dict[str, Any]]:
+
+    async def get_blueprint(self, blueprint_id: str) -> dict[str, Any] | None:
         """
         Get a specific blueprint by ID.
-        
+
         Args:
             blueprint_id: Blueprint ID
-            
+
         Returns:
             Blueprint dictionary or None if not found
         """

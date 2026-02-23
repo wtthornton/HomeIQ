@@ -241,7 +241,7 @@ async def get_forecast(
                 timestamp=ts,
                 power_watts=float(val),
             )
-            for ts, val in zip(timestamps, values)
+            for ts, val in zip(timestamps, values, strict=False)
         ]
 
         result = ForecastResponse(
@@ -261,7 +261,7 @@ async def get_forecast(
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred while generating the forecast. Check service logs for details."
-        )
+        ) from e
 
 
 @router.get("/peak-prediction", response_model=PeakPrediction)
@@ -305,7 +305,7 @@ async def get_peak_prediction():
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred while generating peak prediction. Check service logs for details."
-        )
+        ) from e
 
 
 @router.get("/optimization", response_model=OptimizationRecommendation)
@@ -328,7 +328,7 @@ async def get_optimization_recommendation():
         values = forecast_series.values().flatten()
 
         # Find best (lowest) and worst (highest) hours
-        hour_values = [(ts.hour, val) for ts, val in zip(timestamps, values)]
+        hour_values = [(ts.hour, val) for ts, val in zip(timestamps, values, strict=False)]
         hour_values.sort(key=lambda x: x[1])
 
         best_hours = [h for h, _ in hour_values[:4]]
@@ -359,7 +359,7 @@ async def get_optimization_recommendation():
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred while generating optimization recommendations. Check service logs for details."
-        )
+        ) from e
 
 
 @router.get("/model/info")

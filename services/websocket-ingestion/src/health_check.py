@@ -77,7 +77,7 @@ class HealthCheckHandler:
                     # Use session events for rate calculation (current activity)
                     session_events = sub_status.get("total_events_received", 0)
                     event_rate = 0
-                    
+
                     # Calculate rate based on session events and subscription duration
                     if sub_status.get("subscription_start_time"):
                         try:
@@ -88,7 +88,7 @@ class HealthCheckHandler:
                             else:
                                 # If no events yet, use current time to show 0 rate (correct behavior)
                                 end_time = datetime.now(timezone.utc)
-                            
+
                             duration_minutes = (end_time - start_time).total_seconds() / 60
                             if duration_minutes > 0:
                                 event_rate = session_events / duration_minutes
@@ -198,7 +198,7 @@ class HealthCheckHandler:
                     # Use session events for rate calculation (current activity)
                     session_events = sub_status.get("total_events_received", 0)
                     event_rate = 0
-                    
+
                     # Calculate rate based on session events and subscription duration
                     if sub_status.get("subscription_start_time"):
                         try:
@@ -209,7 +209,7 @@ class HealthCheckHandler:
                             else:
                                 # If no events yet, use current time to show 0 rate (correct behavior)
                                 end_time = datetime.now(timezone.utc)
-                            
+
                             duration_minutes = (end_time - start_time).total_seconds() / 60
                             if duration_minutes > 0:
                                 event_rate = session_events / duration_minutes

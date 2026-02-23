@@ -80,20 +80,20 @@ async def store_knowledge(
 ) -> StoreResponse:
     """
     Store knowledge with semantic embedding.
-    
+
     Args:
         request: Store request with text, type, metadata, success_score
         service: RAG service instance (dependency injection)
-    
+
     Returns:
         Store response with entry ID
-    
+
     Raises:
         HTTPException: If storage fails
     """
     start_time = time.time()
     metrics = get_metrics()
-    
+
     try:
         entry_id, cache_hit = await service.store(
             text=request.text,
@@ -101,22 +101,22 @@ async def store_knowledge(
             metadata=request.metadata,
             success_score=request.success_score
         )
-        
+
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_call('store', latency_ms, cache_hit)
         metrics.record_success_score(request.success_score)
-        
+
         logger.info(f"Stored knowledge: id={entry_id}, type={request.knowledge_type}")
         return StoreResponse(
             id=entry_id,
             message="Knowledge stored successfully"
         )
-        
+
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_error('storage')
         logger.error(f"Error storing knowledge: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to store knowledge: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to store knowledge: {str(e)}") from e
 
 
 @router.post("/retrieve", response_model=RetrieveResponse)
@@ -126,20 +126,20 @@ async def retrieve_knowledge(
 ) -> RetrieveResponse:
     """
     Retrieve similar knowledge using semantic similarity.
-    
+
     Args:
         request: Retrieve request with query, filters, top_k, min_similarity
         service: RAG service instance (dependency injection)
-    
+
     Returns:
         Retrieve response with similar entries
-    
+
     Raises:
         HTTPException: If retrieval fails
     """
     start_time = time.time()
     metrics = get_metrics()
-    
+
     try:
         results, cache_hit = await service.retrieve(
             query=request.query,
@@ -147,21 +147,21 @@ async def retrieve_knowledge(
             top_k=request.top_k,
             min_similarity=request.min_similarity
         )
-        
+
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_call('retrieve', latency_ms, cache_hit)
-        
+
         logger.info(f"Retrieved {len(results)} results for query: {request.query[:50]}...")
         return RetrieveResponse(
             results=results,
             count=len(results)
         )
-        
+
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_error('embedding')
         logger.error(f"Error retrieving knowledge: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve knowledge: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve knowledge: {str(e)}") from e
 
 
 @router.post("/search", response_model=SearchResponse)
@@ -171,20 +171,20 @@ async def search_knowledge(
 ) -> SearchResponse:
     """
     Search knowledge with optional filters.
-    
+
     Args:
         request: Search request with query, filters, top_k, min_similarity
         service: RAG service instance (dependency injection)
-    
+
     Returns:
         Search response with results
-    
+
     Raises:
         HTTPException: If search fails
     """
     start_time = time.time()
     metrics = get_metrics()
-    
+
     try:
         results, cache_hit = await service.search(
             query=request.query,
@@ -192,16 +192,16 @@ async def search_knowledge(
             top_k=request.top_k,
             min_similarity=request.min_similarity
         )
-        
+
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_call('search', latency_ms, cache_hit)
-        
+
         logger.info(f"Searched {len(results)} results for query: {request.query[:50]}...")
         return SearchResponse(
             results=results,
             count=len(results)
         )
-        
+
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_error('embedding')
@@ -217,15 +217,15 @@ async def update_success_score(
 ) -> UpdateSuccessResponse:
     """
     Update success score for a knowledge entry.
-    
+
     Args:
         id: Entry ID
         request: Update request with new success score
         service: RAG service instance (dependency injection)
-    
+
     Returns:
         Update response with success message
-    
+
     Raises:
         HTTPException: If update fails
     """
@@ -233,12 +233,12 @@ async def update_success_score(
         await service.update_success_score(id, request.score)
         metrics = get_metrics()
         metrics.record_success_score(request.score)
-        
+
         logger.info(f"Updated success score for entry {id}: {request.score}")
         return UpdateSuccessResponse(
             message=f"Success score updated for entry {id}"
         )
-        
+
     except ValueError as e:
         logger.error(f"Entry not found: {e}")
         raise HTTPException(status_code=404, detail=str(e))

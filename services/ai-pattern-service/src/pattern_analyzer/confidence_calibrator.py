@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class ConfidenceCalibrator:
     """
     Calibrate confidence scores using historical user feedback.
-    
+
     Concept: Track which patterns → suggestions → deployments
     Learn what confidence scores actually mean in terms of user acceptance.
     """
@@ -31,15 +31,15 @@ class ConfidenceCalibrator:
     async def calibrate_pattern_confidence(self, pattern: dict) -> float:
         """
         Adjust pattern confidence based on historical acceptance.
-        
+
         Formula:
         calibrated_confidence = raw_confidence × acceptance_rate_factor
-        
+
         Where acceptance_rate_factor is learned from historical data.
-        
+
         Args:
             pattern: Pattern dictionary with 'pattern_type' and 'confidence'
-            
+
         Returns:
             Calibrated confidence score (0.0-1.0)
         """
@@ -91,24 +91,24 @@ class ConfidenceCalibrator:
     ) -> dict | None:
         """
         Query historical acceptance rates for patterns in confidence range.
-        
+
         Args:
             pattern_type: Type of pattern (e.g., 'co_occurrence', 'time_of_day')
             confidence_range: (min_confidence, max_confidence) tuple
             min_samples: Minimum number of samples required
-            
+
         Returns:
             Dictionary with 'total', 'accepted', 'sample_count', or None if insufficient data
         """
         try:
             # Query suggestions derived from patterns in this confidence range
             query = text("""
-                SELECT 
+                SELECT
                     COUNT(*) as total,
                     SUM(CASE WHEN s.status IN ('deployed', 'yaml_generated', 'approved') THEN 1 ELSE 0 END) as accepted
                 FROM suggestions s
                 JOIN patterns p ON s.pattern_id = p.id
-                WHERE 
+                WHERE
                     p.pattern_type = :pattern_type
                     AND p.confidence BETWEEN :min_conf AND :max_conf
             """)
@@ -140,7 +140,7 @@ class ConfidenceCalibrator:
     async def generate_calibration_report(self) -> dict:
         """
         Generate report on pattern type reliability.
-        
+
         Returns:
             Dictionary mapping pattern_type to reliability metrics
         """
@@ -182,10 +182,10 @@ class ConfidenceCalibrator:
     async def calibrate_patterns_batch(self, patterns: list[dict]) -> list[dict]:
         """
         Calibrate confidence for a batch of patterns.
-        
+
         Args:
             patterns: List of pattern dictionaries
-            
+
         Returns:
             List of patterns with calibrated confidence scores
         """

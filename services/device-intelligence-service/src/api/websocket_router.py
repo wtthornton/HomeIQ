@@ -13,7 +13,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket, WebSoc
 from fastapi.responses import HTMLResponse
 
 from ..config import Settings
-
 from ..core.device_state_tracker import device_state_tracker
 from ..core.performance_collector import performance_collector
 from ..core.websocket_manager import websocket_manager
@@ -95,27 +94,27 @@ async def websocket_test_page():
     <body>
         <div class="container">
             <h1>Device Intelligence WebSocket Test</h1>
-            
+
             <div id="status" class="status disconnected">Disconnected</div>
-            
+
             <div class="controls">
                 <button onclick="connect()">Connect</button>
                 <button onclick="disconnect()">Disconnect</button>
                 <button onclick="ping()">Ping</button>
                 <button onclick="getStats()">Get Stats</button>
             </div>
-            
+
             <div class="controls">
                 <input type="text" id="deviceId" placeholder="Device ID" value="test-device">
                 <button onclick="subscribeDevice()">Subscribe to Device</button>
                 <button onclick="unsubscribeDevice()">Unsubscribe from Device</button>
             </div>
-            
+
             <div class="controls">
                 <button onclick="simulateDeviceUpdate()">Simulate Device Update</button>
                 <button onclick="clearMessages()">Clear Messages</button>
             </div>
-            
+
             <h3>Messages:</h3>
             <div id="messages" class="messages"></div>
         </div>
@@ -127,24 +126,24 @@ async def websocket_test_page():
             function connect() {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsUrl = `${protocol}//${window.location.host}/ws/`;
-                
+
                 ws = new WebSocket(wsUrl);
-                
+
                 ws.onopen = function(event) {
                     updateStatus('Connected', 'connected');
                     addMessage('Connected to WebSocket server');
                 };
-                
+
                 ws.onmessage = function(event) {
                     const data = JSON.parse(event.data);
                     addMessage(`Received: ${JSON.stringify(data, null, 2)}`);
                 };
-                
+
                 ws.onclose = function(event) {
                     updateStatus('Disconnected', 'disconnected');
                     addMessage('Disconnected from WebSocket server');
                 };
-                
+
                 ws.onerror = function(error) {
                     addMessage(`Error: ${error}`);
                 };

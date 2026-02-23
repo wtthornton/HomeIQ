@@ -24,7 +24,7 @@ class HealthCheckHandler:
         self.influxdb_write_failures = 0
         self.last_successful_write = None
 
-    async def handle(self, request):
+    async def handle(self, _request: web.Request) -> web.Response:
         """Handle health check request"""
 
         uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()

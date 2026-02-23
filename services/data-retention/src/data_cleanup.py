@@ -2,6 +2,7 @@
 
 import asyncio
 import collections
+import contextlib
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -45,7 +46,7 @@ class DataCleanupService:
     def __init__(self, influxdb_client=None):
         """
         Initialize data cleanup service.
-        
+
         Args:
             influxdb_client: InfluxDB client for data operations
         """
@@ -75,20 +76,18 @@ class DataCleanupService:
 
         if self.cleanup_task and not self.cleanup_task.done():
             self.cleanup_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.cleanup_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Data cleanup service stopped")
 
     async def run_cleanup(self, policy_name: str | None = None) -> list[CleanupResult]:
         """
         Run data cleanup for specified policy or all enabled policies.
-        
+
         Args:
             policy_name: Specific policy to run cleanup for (None for all)
-            
+
         Returns:
             List of cleanup results
         """
@@ -129,10 +128,10 @@ class DataCleanupService:
     async def _cleanup_policy(self, policy: RetentionPolicy) -> CleanupResult:
         """
         Clean up data for a specific policy.
-        
+
         Args:
             policy: Retention policy to apply
-            
+
         Returns:
             CleanupResult: Result of the cleanup operation
         """
@@ -173,10 +172,10 @@ class DataCleanupService:
     async def _get_expired_records(self, expiration_date: datetime) -> list[dict[str, Any]]:
         """
         Get records that have expired.
-        
+
         Args:
             expiration_date: Date before which records are considered expired
-            
+
         Returns:
             List of expired records
         """
@@ -216,10 +215,10 @@ class DataCleanupService:
     async def _delete_expired_records(self, records: list[dict[str, Any]]) -> int:
         """
         Delete expired records.
-        
+
         Args:
             records: List of records to delete
-            
+
         Returns:
             Number of records deleted
         """
@@ -253,7 +252,7 @@ class DataCleanupService:
     async def schedule_cleanup(self, interval_hours: int = 24) -> None:
         """
         Schedule periodic cleanup operations.
-        
+
         Args:
             interval_hours: Interval between cleanup runs in hours
         """
@@ -282,10 +281,10 @@ class DataCleanupService:
     def get_cleanup_history(self, limit: int = 100) -> list[CleanupResult]:
         """
         Get cleanup history.
-        
+
         Args:
             limit: Maximum number of history entries to return
-            
+
         Returns:
             List of cleanup results
         """
@@ -294,7 +293,7 @@ class DataCleanupService:
     def get_cleanup_statistics(self) -> dict[str, Any]:
         """
         Get cleanup statistics.
-        
+
         Returns:
             Dictionary containing cleanup statistics
         """
@@ -326,7 +325,7 @@ class DataCleanupService:
     def get_policy_manager(self) -> RetentionPolicyManager:
         """
         Get the retention policy manager.
-        
+
         Returns:
             RetentionPolicyManager instance
         """

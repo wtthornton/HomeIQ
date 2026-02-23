@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 class AutomationMetadata(BaseModel):
     """
     Structured metadata for a community automation
-    
+
     Validated using Pydantic for data quality assurance.
     """
     # Core fields
@@ -50,7 +50,7 @@ class AutomationMetadata(BaseModel):
     def normalize_devices(cls, v: list[str]) -> list[str]:
         """
         Normalize device names (lowercase, underscores)
-        
+
         Example: "Motion Sensor" → "motion_sensor"
         """
         if not v:
@@ -104,7 +104,7 @@ class AutomationMetadata(BaseModel):
 class ParsedAutomation(BaseModel):
     """
     Intermediate model for parsed YAML automation
-    
+
     Used during normalization before creating AutomationMetadata
     """
     raw_yaml: str | None = None

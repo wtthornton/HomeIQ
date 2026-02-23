@@ -10,8 +10,6 @@ Epic: Proactive Suggestions Device Validation
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from enum import Enum
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -22,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 from ..services.suggestion_storage_service import SuggestionStorageService
 from ..clients.ha_agent_client import HAAgentClient
-from ..models import Suggestion, InvalidSuggestionReport, InvalidReportReason
+from ..models import Suggestion, InvalidSuggestionReport
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +92,7 @@ class SuggestionListResponse(BaseModel):
 
 class InvalidSuggestionReportRequest(BaseModel):
     """Request model for reporting an invalid suggestion."""
-    
+
     reason: str = Field(
         ...,
         description="Reason for reporting",
@@ -109,7 +107,7 @@ class InvalidSuggestionReportRequest(BaseModel):
 
 class InvalidSuggestionReportResponse(BaseModel):
     """Response model for invalid suggestion report."""
-    
+
     success: bool
     report_id: str
     message: str
@@ -117,7 +115,7 @@ class InvalidSuggestionReportResponse(BaseModel):
 
 class InvalidReportItem(BaseModel):
     """Item in invalid reports list."""
-    
+
     id: str
     suggestion_id: str
     reason: str
@@ -128,7 +126,7 @@ class InvalidReportItem(BaseModel):
 
 class InvalidReportsListResponse(BaseModel):
     """Response for listing invalid reports."""
-    
+
     reports: list[InvalidReportItem]
     total: int
     by_reason: dict[str, int]
@@ -524,11 +522,11 @@ async def send_suggestion_to_agent(
 
         # Initialize HA Agent client
         agent_client = HAAgentClient()
-        
+
         try:
             # Generate title from context type for conversation
             title = f"💡 {suggestion.context_type.title()} suggestion"
-            
+
             # Build hidden context from automation_hints (if available)
             hidden_context = None
             automation_hints = suggestion.prompt_metadata.get("automation_hints") or \
@@ -539,7 +537,7 @@ async def send_suggestion_to_agent(
                     **automation_hints
                 }
                 logger.debug(f"Passing hidden context to HA Agent: {hidden_context}")
-            
+
             # Send message to HA AI Agent Service
             agent_response = await agent_client.send_message(
                 suggestion.prompt,

@@ -71,11 +71,11 @@ class NameUniquenessValidator:
     ) -> ValidationResult:
         """
         Fast validation using in-memory cache.
-        
+
         Performance: <1ms (cache hit) or 5-10ms (SQLite query)
         """
         normalized_name = self._normalize_name(proposed_name)
-        
+
         # Check cache first (fast)
         if normalized_name not in self.name_cache:
             return ValidationResult(is_unique=True, conflicts=[])
@@ -89,7 +89,7 @@ class NameUniquenessValidator:
                 # False positive in cache (same device), add to cache and return unique
                 self.name_cache.add(normalized_name)
                 return ValidationResult(is_unique=True, conflicts=[])
-            
+
             return ValidationResult(
                 is_unique=False,
                 conflicts=conflicts,
@@ -112,12 +112,12 @@ class NameUniquenessValidator:
     ) -> str:
         """
         Generate unique variant with minimal changes.
-        
+
         Strategies (in order):
         1. Add location: "Light" → "Office Light"
         2. Add descriptive: "Light" → "Main Light"
         3. Add number: "Light" → "Light 1" (last resort)
-        
+
         Performance: <5ms
         """
         if existing_names is None:
@@ -217,14 +217,14 @@ class NameUniquenessValidator:
     ) -> list[str]:
         """Generate alternative name suggestions"""
         suggestions = []
-        
+
         # Add number suffix
         for i in range(1, 6):
             suggestions.append(f"{base_name} {i}")
-        
+
         # Add location if available from conflicts
         # (This is a simple implementation - could be enhanced)
-        
+
         return suggestions[:3]  # Return top 3
 
     async def refresh_cache(self, db_session: AsyncSession):

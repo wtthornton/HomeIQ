@@ -8,7 +8,6 @@ Provides validation functions for API endpoints and bucket names.
 import ipaddress
 import logging
 import re
-from typing import Optional
 
 from aiohttp import web
 
@@ -18,44 +17,44 @@ logger = logging.getLogger(__name__)
 def validate_bucket_name(bucket: str) -> str:
     """
     Validate InfluxDB bucket name format.
-    
+
     Args:
         bucket: The bucket name to validate
-        
+
     Returns:
         Validated bucket name
-        
+
     Raises:
         ValueError: If bucket name is invalid
     """
     if not bucket:
         raise ValueError("Bucket name cannot be empty")
-    
+
     # Check length (InfluxDB limit is typically 255 characters)
     if len(bucket) > 255:
         raise ValueError(
             f"Invalid bucket name: '{bucket}' exceeds maximum length of 255 characters."
         )
-    
+
     # InfluxDB bucket names: alphanumeric, hyphens, underscores only
     if not re.match(r'^[a-zA-Z0-9_-]+$', bucket):
         raise ValueError(
             f"Invalid bucket name format: '{bucket}'. "
             "Bucket names must contain only alphanumeric characters, hyphens, and underscores."
         )
-    
+
     return bucket
 
 
-def validate_internal_request(request: web.Request, allowed_networks: Optional[list[str]] = None) -> bool:
+def validate_internal_request(request: web.Request, allowed_networks: list[str] | None = None) -> bool:
     """
     Validate if a request originates from an allowed internal network.
-    
+
     Args:
         request: The aiohttp request object
         allowed_networks: List of allowed CIDR networks (e.g., ['172.16.0.0/12', '192.168.0.0/16'])
                          If provided, these networks are used. If None, defaults to internal ranges.
-        
+
     Returns:
         True if the request is from an allowed internal network,
         False otherwise.
@@ -87,7 +86,7 @@ def validate_internal_request(request: web.Request, allowed_networks: Optional[l
         # IPv4 with port: 192.168.1.1:54321
         peername = peername.split(':')[0]
     # else: bare IPv6 address (no port) or bare IPv4 - use as-is
-    
+
     try:
         request_ip = ipaddress.ip_address(peername)
         for network_str in allowed_networks:
@@ -103,14 +102,14 @@ def validate_internal_request(request: web.Request, allowed_networks: Optional[l
         return False
 
 
-async def require_internal_network(request: web.Request, allowed_networks: Optional[list[str]] = None) -> None:
+async def require_internal_network(request: web.Request, allowed_networks: list[str] | None = None) -> None:
     """
     Middleware function to require requests from internal networks.
-    
+
     Args:
         request: The aiohttp request object
         allowed_networks: List of allowed CIDR networks
-        
+
     Raises:
         web.HTTPForbidden: If request is not from allowed network
     """

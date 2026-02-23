@@ -31,12 +31,12 @@ class LoadResult(TypedDict, total=False):
 
 class SyntheticHomeHALoader:
     """Load synthetic home JSON into Home Assistant"""
-    
+
     def __init__(self):
         """Initialize HA loader"""
         self.area_generator = SyntheticAreaGenerator()
         self.device_generator = SyntheticDeviceGenerator()
-    
+
     async def load_json_home_to_ha(
         self,
         home_json_path: Path,
@@ -45,12 +45,12 @@ class SyntheticHomeHALoader:
     ) -> LoadResult:
         """
         Load a synthetic home JSON file into Home Assistant.
-        
+
         Args:
             home_json_path: Path to JSON file
             ha_url: Home Assistant URL
             ha_token: Authentication token
-        
+
         Returns:
             Dictionary with loading results:
                 - areas_created: Number of areas created
@@ -61,13 +61,13 @@ class SyntheticHomeHALoader:
         # Validate inputs
         if not home_json_path.exists():
             raise FileNotFoundError(f"Home JSON file not found: {home_json_path}")
-        
+
         if not ha_url:
             raise ValueError("ha_url cannot be empty")
-        
+
         if not ha_token:
             raise ValueError("ha_token cannot be empty")
-        
+
         # Load JSON home
         try:
             with open(home_json_path, 'r', encoding='utf-8') as f:
@@ -76,18 +76,18 @@ class SyntheticHomeHALoader:
             raise ValueError(f"Invalid JSON in home file {home_json_path}: {e}") from e
         except OSError as e:
             raise IOError(f"Failed to read home file {home_json_path}: {e}") from e
-        
+
         logger.info(f"Loading home: {home_data.get('metadata', {}).get('home', {}).get('name', 'Unknown')}")
-        
+
         # Generate areas and devices if not present
         if 'areas' not in home_data:
             areas = self.area_generator.generate_areas(home_data)
             home_data['areas'] = areas
-        
+
         if 'devices' not in home_data:
             devices = self.device_generator.generate_devices(home_data, home_data['areas'])
             home_data['devices'] = devices
-        
+
         # Convert and load to HA
         results = {
             'areas_created': 0,
@@ -95,29 +95,29 @@ class SyntheticHomeHALoader:
             'area_map': {},
             'errors': []
         }
-        
+
         async with httpx.AsyncClient() as client:
             # Create areas
             areas = home_data.get('areas', [])
             area_map = {}
-            
+
             for area in areas:
                 area_name = area.get('name') if isinstance(area, dict) else str(area)
                 if not area_name:
                     continue
-                
+
                 area_id = await self.create_ha_area(client, area_name, ha_url, ha_token)
                 if area_id:
                     area_map[area_name] = area_id
                     results['areas_created'] += 1
                 else:
                     results['errors'].append(f"Failed to create area: {area_name}")
-            
+
             results['area_map'] = area_map
-            
+
             # Create entities
             devices = home_data.get('devices', [])
-            
+
             for device in devices:
                 entity_id = device.get('entity_id')
                 if not entity_id:
@@ -129,15 +129,15 @@ class SyntheticHomeHALoader:
                     # Remove any invalid characters for entity_id
                     sanitized_name = ''.join(c for c in sanitized_name if c.isalnum() or c == '_')
                     entity_id = f"{device_type}.{sanitized_name}"
-                
+
                 state = device.get('state', 'unknown')
                 attributes = device.get('attributes', {})
-                
+
                 # Add area if available
                 area_name = device.get('area')
                 if area_name and area_name in area_map:
                     attributes['area_id'] = area_map[area_name]
-                
+
                 success = await self.create_ha_entity(
                     client, entity_id, state, attributes, ha_url, ha_token
                 )
@@ -145,14 +145,14 @@ class SyntheticHomeHALoader:
                     results['entities_created'] += 1
                 else:
                     results['errors'].append(f"Failed to create entity: {entity_id}")
-        
+
         logger.info(
             f"✅ Loaded home: {results['areas_created']} areas, "
             f"{results['entities_created']} entities"
         )
-        
+
         return results
-    
+
     async def create_ha_area(
         self,
         client: httpx.AsyncClient,
@@ -162,13 +162,13 @@ class SyntheticHomeHALoader:
     ) -> str | None:
         """
         Create an area in Home Assistant.
-        
+
         Args:
             client: HTTP client
             area_name: Name of area
             ha_url: Home Assistant URL
             ha_token: Authentication token
-        
+
         Returns:
             Area ID or None if failed
         """
@@ -194,7 +194,7 @@ class SyntheticHomeHALoader:
         except Exception as e:
             logger.error(f"Unexpected error creating area {area_name}: {e}")
             return None
-    
+
     async def create_ha_entity(
         self,
         client: httpx.AsyncClient,
@@ -206,7 +206,7 @@ class SyntheticHomeHALoader:
     ) -> bool:
         """
         Create or update an entity in Home Assistant.
-        
+
         Args:
             client: HTTP client
             entity_id: Entity ID (e.g., 'light.living_room_light')
@@ -214,7 +214,7 @@ class SyntheticHomeHALoader:
             attributes: Entity attributes
             ha_url: Home Assistant URL
             ha_token: Authentication token
-        
+
         Returns:
             True if successful, False otherwise
         """
@@ -242,14 +242,14 @@ class SyntheticHomeHALoader:
         except Exception as e:
             logger.warning(f"Unexpected error creating entity {entity_id}: {e}")
             return False
-    
+
     def convert_areas_to_ha(self, areas: list[dict[str, Any] | str]) -> list[dict[str, Any]]:
         """
         Convert areas to HA format.
-        
+
         Args:
             areas: List of area dictionaries or strings
-        
+
         Returns:
             List of HA-formatted area dictionaries
         """
@@ -264,14 +264,14 @@ class SyntheticHomeHALoader:
                     "aliases": area.get("aliases", [])
                 })
         return ha_areas
-    
+
     def convert_devices_to_entities(self, devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Convert devices to HA entity format.
-        
+
         Args:
             devices: List of device dictionaries
-        
+
         Returns:
             List of HA-formatted entity dictionaries
         """
@@ -286,18 +286,18 @@ class SyntheticHomeHALoader:
                 sanitized_name = device_name.lower().replace(' ', '_').replace('-', '_')
                 sanitized_name = ''.join(c for c in sanitized_name if c.isalnum() or c == '_')
                 entity_id = f"{device_type}.{sanitized_name}"
-            
+
             entity = {
                 "entity_id": entity_id,
                 "state": device.get("state", "unknown"),
                 "attributes": device.get("attributes", {})
             }
-            
+
             # Add area if available
             if "area" in device:
                 entity["attributes"]["area_name"] = device["area"]
-            
+
             entities.append(entity)
-        
+
         return entities
 

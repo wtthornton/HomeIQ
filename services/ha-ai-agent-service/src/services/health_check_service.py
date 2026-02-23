@@ -7,13 +7,14 @@ Verifies all dependencies and services in a single call.
 import logging
 from typing import Any
 
+from sqlalchemy import text
+
 from ..clients.data_api_client import DataAPIClient
 from ..clients.device_intelligence_client import DeviceIntelligenceClient
 from ..clients.ha_client import HomeAssistantClient
 from ..config import Settings
 from ..database import get_session
 from ..services.context_builder import ContextBuilder
-from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +72,10 @@ class HealthCheckService:
                     "message": "Home Assistant connection successful",
                     "entities_count": len(states)
                 }
-            else:
-                return {
-                    "status": "unhealthy",
-                    "message": "Home Assistant returned empty response"
-                }
+            return {
+                "status": "unhealthy",
+                "message": "Home Assistant returned empty response"
+            }
         except Exception as e:
             logger.error(f"Home Assistant health check failed: {e}")
             return {
@@ -87,7 +87,7 @@ class HealthCheckService:
         """Check Data API connection"""
         try:
             # Try to fetch a small number of entities (lightweight)
-            entities = await self.data_api_client.fetch_entities(limit=1)
+            await self.data_api_client.fetch_entities(limit=1)
             return {
                 "status": "healthy",
                 "message": "Data API connection successful",
@@ -152,7 +152,7 @@ class HealthCheckService:
 
             # Try to build a minimal context (this will test all services)
             context = await self.context_builder.build_context()
-            
+
             # Check which components are available
             components = {
                 "entity_inventory": "ENTITY INVENTORY:" in context,
@@ -195,7 +195,7 @@ class HealthCheckService:
 
         # Determine overall status
         statuses = [check["status"] for check in checks.values()]
-        
+
         if "unhealthy" in statuses:
             overall_status = "unhealthy"
         elif "degraded" in statuses:

@@ -17,7 +17,7 @@ class ConfigManager:
     def __init__(self, config_dir: str = "infrastructure"):
         """
         Initialize config manager
-        
+
         Args:
             config_dir: Directory containing .env files
         """
@@ -29,7 +29,7 @@ class ConfigManager:
     def list_services(self) -> list[str]:
         """
         List all available service configurations
-        
+
         Returns:
             List of service names
         """
@@ -51,13 +51,13 @@ class ConfigManager:
     def read_config(self, service: str) -> dict[str, str]:
         """
         Read configuration for a service
-        
+
         Args:
             service: Service name (e.g., 'websocket', 'weather')
-            
+
         Returns:
             Dictionary of configuration key-value pairs
-            
+
         Raises:
             FileNotFoundError: If config file doesn't exist
         """
@@ -95,15 +95,15 @@ class ConfigManager:
     ) -> dict[str, str]:
         """
         Update configuration for a service
-        
+
         Args:
             service: Service name
             updates: Dictionary of key-value pairs to update
             create_if_missing: Create file if it doesn't exist
-            
+
         Returns:
             Updated configuration dictionary
-            
+
         Raises:
             FileNotFoundError: If config file doesn't exist and create_if_missing=False
         """
@@ -177,28 +177,28 @@ class ConfigManager:
     def validate_config(self, service: str, config: dict[str, str]) -> dict[str, list[str]]:
         """
         Validate service configuration against service-specific rules and requirements.
-        
+
         Performs comprehensive validation including URL format checking, required field
         verification, numeric range validation, and service-specific business rules.
         Returns detailed validation results with categorized errors and warnings.
-        
+
         Complexity: C (19) - High complexity due to service-specific validation rules
-        
+
         Args:
             service (str): Service identifier (e.g., 'websocket', 'weather', 'influxdb')
             config (Dict[str, str]): Configuration dictionary with key-value pairs
-            
+
         Returns:
             Dict[str, List[str]]: Validation result containing:
                 - 'errors' (List[str]): Blocking validation errors that prevent service start
                 - 'warnings' (List[str]): Non-blocking issues that should be addressed
                 - 'valid' (bool): True if no errors found
-        
+
         Service-Specific Validation Rules:
             - websocket: Validates HA_URL (ws://), HA_TOKEN (min length 10)
             - weather: Validates API key, latitude (-90 to 90), longitude (-180 to 180)
             - influxdb: Validates URL (http://), token, org, bucket presence
-        
+
         Example:
             >>> manager = ConfigManager()
             >>> result = manager.validate_config("websocket", {
@@ -209,7 +209,7 @@ class ConfigManager:
             ...     print("Configuration is valid")
             >>> else:
             ...     print(f"Errors: {result['errors']}")
-        
+
         Note:
             High complexity arises from:
             - Multiple service types with different validation rules
@@ -275,10 +275,10 @@ class ConfigManager:
     def get_config_template(self, service: str) -> dict[str, dict[str, str]]:
         """
         Get configuration template with field metadata
-        
+
         Args:
             service: Service name
-            
+
         Returns:
             Dictionary with field definitions
         """

@@ -6,12 +6,12 @@ Epic 11 Story 11.5: Team Persistence Implementation
 """
 
 import logging
-import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(str(Path(__file__).resolve().parent, '../../shared'))
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.influxdb_query_client import InfluxDBQueryClient
+
 from .database import get_db
 from .flux_utils import sanitize_flux_value
 from .models.team_preferences import TeamPreferences
@@ -42,24 +43,24 @@ class GameResponse(BaseModel):
     quarter_period: str | None = None  # Quarter (NFL) or Period (NHL)
     time_remaining: str | None = None
     timestamp: str
-    
+
     # NEW: 6 high-value automation attributes
     # 1. Home/away status - for different lighting scenes
     team_homeaway: str | None = None  # "home" or "away"
-    
+
     # 2. Team colors - for smart light integration (hex colors)
     team_color_primary: str | None = None  # e.g., "#344043"
     team_color_secondary: str | None = None  # e.g., "#b4975a"
-    
+
     # 3. Team winner flag - for celebration automations
     team_winner: bool | None = None
-    
+
     # 4. Opponent winner flag - for "better luck" automations
     opponent_winner: bool | None = None
-    
+
     # 5. Event name - for rich notifications ("CBJ @ VGK")
     event_name: str | None = None
-    
+
     # 6. Last play - for real-time play reactions (touchdowns, goals)
     last_play: str | None = None
 
@@ -119,10 +120,10 @@ async def get_live_games(
 ):
     """
     Get currently live games
-    
+
     Story 21.2: Live games endpoint for Sports Tab
     Epic 12 Story 12.1: InfluxDB persistence - writes game data to InfluxDB
-    
+
     This endpoint queries InfluxDB for live games and writes new data when fetched.
     For historical data, use /sports/games/history endpoint.
     """
@@ -143,7 +144,7 @@ async def get_live_games(
                 |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                 |> sort(columns: ["_time"], desc: true)
         '''
-        
+
         if league:
             safe_league = sanitize_flux_value(league.upper())
             query = f'''
@@ -173,7 +174,7 @@ async def get_live_games(
                 opponent_abbr = record.get("opponent_abbr", "").lower()
                 if team_abbr not in team_list and opponent_abbr not in team_list:
                     continue
-            
+
             # Map sports-api data structure to GameResponse
             # sports-api writes: team_abbr, opponent_abbr, team_score, opponent_score, state, league
             # Handle timestamp - convert datetime to ISO string if needed
@@ -182,13 +183,13 @@ async def get_live_games(
                 timestamp_str = raw_time.isoformat()
             else:
                 timestamp_str = str(raw_time)
-            
+
             # Parse team_winner/opponent_winner from string to bool
             team_winner_str = record.get("team_winner")
             opponent_winner_str = record.get("opponent_winner")
             team_winner = team_winner_str == "true" if team_winner_str else None
             opponent_winner = opponent_winner_str == "true" if opponent_winner_str else None
-            
+
             game = GameResponse(
                 game_id=entity_id,  # Use entity_id as game_id
                 league=record.get("league", ""),
@@ -212,7 +213,7 @@ async def get_live_games(
                 last_play=record.get("last_play")
             )
             games.append(game)
-            
+
             # Write to InfluxDB (Epic 12 Story 12.1) - ensures data is persisted
             if sports_writer.is_connected:
                 game_data = {
@@ -230,7 +231,7 @@ async def get_live_games(
                     "start_time": game.timestamp
                 }
                 await sports_writer.write_game(game_data)
-        
+
         return {
             "games": [game.model_dump() for game in games],
             "count": len(games),
@@ -238,7 +239,7 @@ async def get_live_games(
         }
     except Exception as e:
         logger.error(f"Error fetching live games: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch live games: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch live games: {str(e)}") from e
 
 
 @router.get("/sports/games/upcoming")
@@ -249,10 +250,10 @@ async def get_upcoming_games(
 ):
     """
     Get upcoming games
-    
+
     Story 21.2: Upcoming games endpoint for Sports Tab
     Epic 12 Story 12.1: InfluxDB persistence - writes game data to InfluxDB
-    
+
     This endpoint queries InfluxDB for upcoming games and writes new data when fetched.
     For historical data, use /sports/games/history endpoint.
     """
@@ -260,13 +261,13 @@ async def get_upcoming_games(
         # Ensure InfluxDB connection
         if not influxdb_client.is_connected:
             await influxdb_client.connect()
-        
+
         # Query InfluxDB for upcoming games (PRE state = pre-game/upcoming)
         # Data is written by sports-api to home_assistant_events bucket with measurement "sports_data"
         # We query recent data and filter by PRE state (upcoming games)
         # Use pivot() to combine all fields into single records
         # Short time range (-5m) ensures we get only recent data with all fields
-        query = f'''
+        query = '''
             from(bucket: "home_assistant_events")
                 |> range(start: -5m)
                 |> filter(fn: (r) => r._measurement == "sports_data")
@@ -274,7 +275,7 @@ async def get_upcoming_games(
                 |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                 |> sort(columns: ["_time"], desc: true)
         '''
-        
+
         if league:
             safe_league = sanitize_flux_value(league.upper())
             query = f'''
@@ -286,9 +287,9 @@ async def get_upcoming_games(
                     |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                     |> sort(columns: ["_time"], desc: true)
             '''
-        
+
         results = await influxdb_client._execute_query(query)
-        
+
         games = []
         seen_entities = set()  # Deduplicate by entity_id
         for record in results:
@@ -296,7 +297,7 @@ async def get_upcoming_games(
             if entity_id in seen_entities:
                 continue
             seen_entities.add(entity_id)
-            
+
             # Filter by team_ids if provided
             if team_ids:
                 team_list = [t.strip().lower() for t in team_ids.split(",")]
@@ -304,7 +305,7 @@ async def get_upcoming_games(
                 opponent_abbr = record.get("opponent_abbr", "").lower()
                 if team_abbr not in team_list and opponent_abbr not in team_list:
                     continue
-            
+
             # Map sports-api data structure to GameResponse
             # Handle timestamp - convert datetime to ISO string if needed
             raw_time = record.get("_time", datetime.now())
@@ -312,7 +313,7 @@ async def get_upcoming_games(
                 timestamp_str = raw_time.isoformat()
             else:
                 timestamp_str = str(raw_time)
-            
+
             game = GameResponse(
                 game_id=entity_id,  # Use entity_id as game_id
                 league=record.get("league", ""),
@@ -336,7 +337,7 @@ async def get_upcoming_games(
                 last_play=None  # Not applicable for upcoming
             )
             games.append(game)
-            
+
             # Write to InfluxDB (Epic 12 Story 12.1) - ensures data is persisted
             if sports_writer.is_connected:
                 game_data = {
@@ -354,7 +355,7 @@ async def get_upcoming_games(
                     "start_time": game.timestamp
                 }
                 await sports_writer.write_game(game_data)
-        
+
         return {
             "games": [game.model_dump() for game in games],
             "count": len(games),
@@ -362,7 +363,7 @@ async def get_upcoming_games(
         }
     except Exception as e:
         logger.error(f"Error fetching upcoming games: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch upcoming games: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch upcoming games: {str(e)}") from e
 
 
 @router.get("/sports/teams")
@@ -371,7 +372,7 @@ async def get_teams(
 ):
     """
     Get available teams
-    
+
     Story 21.2: Teams endpoint for Setup Wizard
     """
     try:
@@ -414,7 +415,7 @@ async def get_teams(
             return {"teams": nfl_teams + nhl_teams, "count": len(nfl_teams) + len(nhl_teams)}
     except Exception as e:
         logger.error(f"Error fetching teams: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch teams: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch teams: {str(e)}") from e
 
 
 @router.get("/sports/games/history", response_model=GameListResponse)
@@ -427,16 +428,16 @@ async def get_game_history(
 ):
     """
     Get historical games for a team
-    
+
     Epic 12 Story 12.2: Query sports data from InfluxDB
-    
+
     Args:
         team: Team name (e.g., "Patriots", "Bruins")
         season: Season year (e.g., 2025)
         league: Filter by league (NFL or NHL)
         status_filter: Filter by game status (scheduled, live, finished)
         limit: Maximum results
-        
+
     Returns:
         List of games with scores and details
     """
@@ -507,7 +508,7 @@ async def get_game_history(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get game history: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/sports/games/timeline/{game_id}", response_model=ScoreTimelineResponse)
@@ -517,13 +518,13 @@ async def get_game_timeline(
 ):
     """
     Get score progression timeline for a specific game
-    
+
     Shows how the score changed throughout the game (useful for comeback visualizations)
-    
+
     Args:
         game_id: Unique game identifier
         league: NFL or NHL (optional, will search both if not specified)
-        
+
     Returns:
         Score timeline with timestamps
     """
@@ -593,7 +594,7 @@ async def get_game_timeline(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get game timeline: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/sports/schedule/{team}", response_model=TeamScheduleResponse)
@@ -604,17 +605,17 @@ async def get_team_schedule(
 ):
     """
     Retrieve complete season schedule for a team with calculated win/loss record.
-    
+
     Fetches all games for the specified team and season from ESPN API via sports-data service,
     then calculates team record (wins/losses/ties) by analyzing game scores.
-    
+
     Complexity: C (14) - Moderate-high complexity due to game data processing and record calculation
-    
+
     Args:
         team (str): Team identifier/name (e.g., "49ers", "Patriots")
         season (Optional[int]): Season year (default: current year)
         league (Optional[str]): League identifier - "NFL" or "NHL" (auto-detected if None)
-        
+
     Returns:
         TeamScheduleResponse: Complete schedule containing:
             - team: Team name
@@ -624,7 +625,7 @@ async def get_team_schedule(
             - wins: Number of wins
             - losses: Number of losses
             - ties: Number of ties
-            
+
     Process Flow:
         1. Determine current season (if not provided)
         2. Fetch all games via get_game_history() endpoint
@@ -632,7 +633,7 @@ async def get_team_schedule(
         4. Calculate wins/losses/ties based on score comparison
         5. Distinguish home vs away game logic
         6. Return complete schedule with calculated record
-    
+
     Example:
         >>> # Get 49ers current season schedule
         >>> response = await get_team_schedule("49ers", league="NFL")
@@ -640,7 +641,7 @@ async def get_team_schedule(
         >>> print(f"Total games: {len(response.games)}")
         >>> for game in response.games:
         ...     print(f"{game.home_team} vs {game.away_team}: {game.home_score}-{game.away_score}")
-    
+
     Note:
         Complexity arises from:
         - Iteration through all team games (up to 200 games)
@@ -649,7 +650,7 @@ async def get_team_schedule(
         - Null/None handling for unfinished games
         - Record calculation logic
         - Response formatting
-        
+
     Performance:
         - Typical response time: <500ms
         - Caches team data where possible
@@ -706,7 +707,7 @@ async def get_team_schedule(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get team schedule: {str(e)}"
-        )
+        ) from e
 
 
 # Epic 11 Story 11.5: Team Persistence Implementation
@@ -733,13 +734,13 @@ async def save_user_teams(
 ):
     """
     Save user's selected teams to database
-    
+
     Epic 11 Story 11.5: Team Persistence Implementation
-    
+
     Args:
         teams: NFL and NHL team selections
         user_id: User identifier (default: "default")
-        
+
     Returns:
         Saved team preferences
     """
@@ -755,13 +756,13 @@ async def save_user_teams(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Maximum 5 NHL teams allowed"
             )
-        
+
         # Check if preferences exist
         result = await db.execute(
             select(TeamPreferences).where(TeamPreferences.user_id == user_id)
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             # Update existing preferences
             existing.nfl_teams = teams.nfl_teams
@@ -783,7 +784,7 @@ async def save_user_teams(
             await db.refresh(new_prefs)
             logger.info(f"Created team preferences for user {user_id}: NFL={len(teams.nfl_teams)}, NHL={len(teams.nhl_teams)}")
             return UserTeamsResponse(**new_prefs.to_dict())
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -792,7 +793,7 @@ async def save_user_teams(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save team preferences: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/sports/user/teams", response_model=UserTeamsResponse)
@@ -802,12 +803,12 @@ async def get_user_teams(
 ):
     """
     Get user's selected teams from database
-    
+
     Epic 11 Story 11.5: Team Persistence Implementation
-    
+
     Args:
         user_id: User identifier (default: "default")
-        
+
     Returns:
         User's team preferences (empty lists if not found)
     """
@@ -816,7 +817,7 @@ async def get_user_teams(
             select(TeamPreferences).where(TeamPreferences.user_id == user_id)
         )
         prefs = result.scalar_one_or_none()
-        
+
         if prefs:
             return UserTeamsResponse(**prefs.to_dict())
         else:
@@ -828,11 +829,11 @@ async def get_user_teams(
                 created_at=None,
                 updated_at=None
             )
-            
+
     except Exception as e:
         logger.error(f"Error getting team preferences: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get team preferences: {str(e)}"
-        )
+        ) from e
 

@@ -50,7 +50,7 @@ class OptimizationRecommendation(BaseModel):
 class PerformanceAnalysisEngine:
     """
     Performance analysis engine for Home Assistant environments
-    
+
     Features:
     - Response time analysis
     - Resource usage monitoring
@@ -65,7 +65,7 @@ class PerformanceAnalysisEngine:
     async def analyze_performance(self) -> dict:
         """
         Comprehensive performance analysis
-        
+
         Returns:
             Analysis results with bottlenecks and recommendations
         """
@@ -176,7 +176,7 @@ class PerformanceAnalysisEngine:
         self,
         response_time: dict,
         resource_usage: dict,
-        configuration: dict
+        _configuration: dict
     ) -> list[dict]:
         """Identify performance bottlenecks"""
         bottlenecks = []
@@ -216,7 +216,7 @@ class PerformanceAnalysisEngine:
 class RecommendationEngine:
     """
     Generate optimization recommendations
-    
+
     Features:
     - Prioritization by impact and effort
     - Automated fixes for common issues
@@ -232,7 +232,7 @@ class RecommendationEngine:
     ) -> list[OptimizationRecommendation]:
         """
         Generate optimization recommendations based on performance analysis
-        
+
         Returns:
             Prioritized list of recommendations
         """
@@ -325,7 +325,7 @@ class RecommendationEngine:
     ) -> list[OptimizationRecommendation]:
         """
         Prioritize recommendations by impact and effort
-        
+
         Priority order:
         1. High impact, Low effort
         2. High impact, Medium effort

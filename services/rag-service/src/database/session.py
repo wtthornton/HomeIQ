@@ -36,7 +36,7 @@ engine = create_async_engine(
 
 # Set PRAGMA settings on connection pool initialization
 @event.listens_for(engine.sync_engine, "connect")
-def set_sqlite_pragma(dbapi_conn, connection_record):
+def set_sqlite_pragma(dbapi_conn, connection_record):  # noqa: ARG001
     """Set SQLite PRAGMA settings for optimal performance."""
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for concurrent reads
@@ -58,12 +58,12 @@ async_session_maker = async_sessionmaker(
 async def get_db() -> AsyncSession:
     """
     Dependency function to get database session.
-    
+
     Usage in FastAPI:
         @router.get("/endpoint")
         async def endpoint(db: AsyncSession = Depends(get_db)):
             ...
-    
+
     Returns:
         AsyncSession: Database session
     """
@@ -77,32 +77,32 @@ async def get_db() -> AsyncSession:
 async def init_db() -> None:
     """
     Initialize database (create tables).
-    
+
     Called on service startup to ensure database tables exist.
-    
+
     Raises:
         Exception: If database initialization fails
     """
     logger.info(f"Initializing database: {settings.database_path}")
-    
+
     # Ensure database directory exists
     db_path = Path(settings.database_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     try:
         from sqlalchemy import text
-        
+
         # Test connection first
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-        
+
         # Import models to ensure they're registered with Base
         from .models import RAGKnowledge  # noqa: F401
-        
+
         # Create all tables
         async with engine.begin() as conn:
             await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn))
-        
+
         logger.info("✅ Database initialized successfully")
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}", exc_info=True)

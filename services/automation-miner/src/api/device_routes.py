@@ -27,12 +27,12 @@ async def get_device_possibilities(
 ):
     """
     Get automation possibilities for a specific device type
-    
+
     Shows what you can automate with this device, categorized by use case.
-    
+
     Example:
         GET /api/automation-miner/devices/motion_sensor/possibilities?user_devices=light,switch
-    
+
     Returns:
         List of possibilities grouped by use case (energy, comfort, security, convenience)
     """
@@ -59,7 +59,7 @@ async def get_device_possibilities(
 
     except Exception as e:
         logger.error(f"Failed to get device possibilities: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/recommendations", response_model=list[DeviceRecommendation])
@@ -71,13 +71,13 @@ async def get_device_recommendations(
 ):
     """
     Get device purchase recommendations based on ROI
-    
+
     Analyzes which devices would unlock the most high-value automations
     and calculates ROI score for each.
-    
+
     Example:
         GET /api/automation-miner/devices/recommendations?user_devices=light,switch&limit=5
-    
+
     Returns:
         List of device recommendations sorted by ROI score (highest first)
     """
@@ -107,5 +107,5 @@ async def get_device_recommendations(
 
     except Exception as e:
         logger.error(f"Failed to generate recommendations: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 

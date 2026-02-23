@@ -191,29 +191,29 @@ class DataAPIClient:
     async def fetch_device(self, device_id: str) -> dict[str, Any]:
         """
         Fetch a single device by ID from Data API.
-        
+
         Args:
             device_id: Device ID to fetch
-            
+
         Returns:
             Device dictionary with keys: device_id, name, manufacturer, model, area_id, etc.
-            
+
         Raises:
             Exception: If API request fails
         """
         try:
             logger.debug(f"Fetching device {device_id} from Data API")
-            
+
             response = await self.client.get(
                 f"{self.base_url}/api/devices/{device_id}"
             )
             response.raise_for_status()
-            
+
             device = response.json()
-            
+
             logger.info(f"✅ Fetched device {device_id} from Data API")
             return device
-            
+
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 error_msg = f"Device {device_id} not found in Data API"
@@ -234,7 +234,7 @@ class DataAPIClient:
             error_msg = f"HTTP error fetching device: {str(e)}"
             logger.error(f"❌ {error_msg}")
             raise Exception(error_msg) from e
-    
+
     async def get_areas(self) -> list[dict[str, Any]]:
         """
         Extract areas from devices and entities (local/cached).
@@ -248,7 +248,7 @@ class DataAPIClient:
         try:
             # Fetch devices to extract unique areas
             devices = await self.get_devices(limit=1000)
-            
+
             # Extract unique area_ids from devices
             area_map: dict[str, str] = {}
             for device in devices:
@@ -256,20 +256,20 @@ class DataAPIClient:
                 if area_id and area_id not in area_map:
                     # Use area_id as name (can be improved with actual area names if available)
                     area_map[area_id] = area_id.replace("_", " ").title()
-            
+
             # Also check entities for any additional areas
             entities = await self.fetch_entities(limit=1000)
             for entity in entities:
                 area_id = entity.get("area_id")
                 if area_id and area_id not in area_map:
                     area_map[area_id] = area_id.replace("_", " ").title()
-            
+
             # Convert to list format
             areas = [
                 {"area_id": area_id, "name": name}
                 for area_id, name in sorted(area_map.items())
             ]
-            
+
             logger.info(f"✅ Extracted {len(areas)} areas from Data API")
             return areas
 

@@ -4,7 +4,7 @@ Phase 1.2: Query HA API for device states and history
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
@@ -18,7 +18,7 @@ class HAClient:
     def __init__(self, ha_url: str, access_token: str, timeout: int = 10):
         """
         Initialize HA client.
-        
+
         Args:
             ha_url: Home Assistant URL (e.g., "http://homeassistant:8123")
             access_token: Long-lived access token
@@ -47,17 +47,17 @@ class HAClient:
     async def get_state(self, entity_id: str) -> dict[str, Any] | None:
         """
         Get current state of an entity.
-        
+
         Args:
             entity_id: Entity ID (e.g., "sensor.temperature")
-            
+
         Returns:
             State dictionary or None if not found
         """
         try:
             session = await self._get_session()
             url = f"{self.ha_url}/api/states/{entity_id}"
-            
+
             async with session.get(url) as response:
                 if response.status == 200:
                     return await response.json()
@@ -79,28 +79,28 @@ class HAClient:
     ) -> list[dict[str, Any]]:
         """
         Get history for an entity.
-        
+
         Args:
             entity_id: Entity ID
             start_time: Start time for history query
             end_time: End time (defaults to now)
-            
+
         Returns:
             List of state changes
         """
         try:
             session = await self._get_session()
-            
+
             if end_time is None:
                 end_time = datetime.now(timezone.utc)
-            
+
             # Format times for HA API
             start_str = start_time.isoformat()
             end_str = end_time.isoformat()
-            
+
             url = f"{self.ha_url}/api/history/period/{start_str}"
             params = {"filter_entity_id": entity_id, "end_time": end_str}
-            
+
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -118,14 +118,14 @@ class HAClient:
     async def get_entity_registry(self) -> dict[str, dict[str, Any]]:
         """
         Get entity registry from HA.
-        
+
         Returns:
             Dictionary mapping entity_id to entity data
         """
         try:
             session = await self._get_session()
             url = f"{self.ha_url}/api/config/entity_registry/list"
-            
+
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()

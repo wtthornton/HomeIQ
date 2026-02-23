@@ -4,10 +4,12 @@ Generic smart meter integration with adapter pattern
 """
 
 import asyncio
+import contextlib
 import os
 import signal
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import aiohttp
@@ -15,7 +17,7 @@ from aiohttp import web
 from dotenv import load_dotenv
 from influxdb_client_3 import InfluxDBClient3, Point
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(str(Path(__file__).parent / "../../shared"))
 
 from adapters.base import MeterAdapter
 from adapters.home_assistant import HomeAssistantAdapter
@@ -315,7 +317,8 @@ async def main() -> None:
     await runner.setup()
 
     port = int(os.getenv('SERVICE_PORT', '8014'))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    bind_address = os.getenv("BIND_ADDRESS", "0.0.0.0")  # noqa: S104 — Docker requires binding all interfaces
+    site = web.TCPSite(runner, bind_address, port)
     await site.start()
 
     logger.info(f"API endpoints available on port {port}")
@@ -330,21 +333,17 @@ async def main() -> None:
 
     # Register signal handlers (SIGTERM for Docker, SIGINT for Ctrl+C)
     for sig in (signal.SIGTERM, signal.SIGINT):
-        try:
-            loop.add_signal_handler(sig, handle_signal)
-        except NotImplementedError:
+        with contextlib.suppress(NotImplementedError):
             # Windows does not support add_signal_handler
-            pass
+            loop.add_signal_handler(sig, handle_signal)
 
     try:
         # Run continuous collection until stop signal
         collection_task = asyncio.create_task(service.run_continuous())
         await stop_event.wait()
         collection_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await collection_task
-        except asyncio.CancelledError:
-            pass
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt")
     finally:

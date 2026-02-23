@@ -6,6 +6,7 @@ Database connection pooling for shared SQLite database.
 """
 
 import logging
+
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -29,7 +30,7 @@ if "sqlite" in settings.database_url:
             "timeout": 30.0,  # 30 second timeout for database operations
         },
     )
-    
+
     # Set SQLite PRAGMA settings on connection
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(dbapi_conn, connection_record):
@@ -68,7 +69,7 @@ AsyncSessionLocal = async_sessionmaker(
 async def get_db() -> AsyncSession:
     """
     Dependency for getting database session.
-    
+
     Usage:
         @router.get("/endpoint")
         async def endpoint(db: AsyncSession = Depends(get_db)):
@@ -89,14 +90,15 @@ async def init_db():
     """Initialize database connection and verify connectivity"""
     try:
         # Import database models to ensure they're registered
-        from .models import Base
-        from .integrity import check_database_integrity
         from sqlalchemy import text
-        
+
+        from .integrity import check_database_integrity
+        from .models import Base  # noqa: F401 - imported for side-effect registration
+
         # Test connectivity (tables may already exist in shared database)
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-        
+
         # Check database integrity on initialization
         async with AsyncSessionLocal() as session:
             is_healthy, error_msg = await check_database_integrity(session)
@@ -105,7 +107,7 @@ async def init_db():
                 logger.warning("Database may be corrupted. Consider running repair.")
             else:
                 logger.info("Database integrity check passed on initialization")
-        
+
         logger.info(f"Database initialized: {settings.database_path}")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}", exc_info=True)

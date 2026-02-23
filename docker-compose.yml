@@ -2525,6 +2525,8 @@ services:
     restart: unless-stopped
     ports:
       - "8044:8020"
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
     env_file:
       - .env
     environment:

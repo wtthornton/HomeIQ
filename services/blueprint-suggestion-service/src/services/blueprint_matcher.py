@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 from itertools import combinations
-from typing import Any, Optional
+from typing import Any
 
 from ..clients.blueprint_client import BlueprintClient
 from ..clients.data_api_client import DataApiClient
@@ -16,15 +16,15 @@ logger = logging.getLogger(__name__)
 class BlueprintMatcher:
     """
     Matches blueprints to devices and generates multiple suggestions per blueprint.
-    
+
     For each blueprint, generates 3-5 suggestions with different device combinations.
     Each suggestion is scored independently.
     """
-    
+
     def __init__(self):
         """Initialize blueprint matcher."""
         self.scorer = SuggestionScorer()
-    
+
     async def generate_suggestions(
         self,
         min_score: float = 0.6,
@@ -32,23 +32,23 @@ class BlueprintMatcher:
     ) -> list[dict[str, Any]]:
         """
         Generate suggestions for all blueprints.
-        
+
         Args:
             min_score: Minimum score threshold for suggestions
             max_suggestions_per_blueprint: Maximum suggestions per blueprint
-            
+
         Returns:
             List of suggestion dictionaries
         """
         all_suggestions = []
-        
+
         # Fetch blueprints and devices
         async with BlueprintClient() as blueprint_client, DataApiClient() as data_client:
             blueprints = await blueprint_client.get_all_blueprints(limit=settings.max_blueprints_fetch)
             entities = await data_client.get_all_entities(limit=settings.max_entities_fetch)
-            
+
             logger.info(f"Processing {len(blueprints)} blueprints against {len(entities)} entities")
-            
+
             for blueprint in blueprints:
                 suggestions = await self._generate_blueprint_suggestions(
                     blueprint=blueprint,
@@ -57,26 +57,26 @@ class BlueprintMatcher:
                     max_suggestions=max_suggestions_per_blueprint,
                 )
                 all_suggestions.extend(suggestions)
-        
+
         # Sort by score (highest first)
         all_suggestions.sort(key=lambda x: x["suggestion_score"], reverse=True)
-        
+
         logger.info(f"Generated {len(all_suggestions)} total suggestions")
         return all_suggestions
-    
+
     async def generate_suggestions_with_params(
         self,
-        device_ids: Optional[list[str]] = None,
-        complexity: Optional[str] = None,
-        use_case: Optional[str] = None,
+        device_ids: list[str] | None = None,
+        complexity: str | None = None,
+        use_case: str | None = None,
         min_score: float = 0.6,
         max_suggestions: int = 10,
-        min_quality_score: Optional[float] = None,
-        domain: Optional[str] = None,
+        min_quality_score: float | None = None,
+        domain: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         Generate suggestions with user-defined parameters.
-        
+
         Args:
             device_ids: Specific device entity IDs to use, or None for all
             complexity: Filter by complexity (simple/medium/high), or None for all
@@ -85,12 +85,12 @@ class BlueprintMatcher:
             max_suggestions: Maximum number of suggestions to generate
             min_quality_score: Minimum blueprint quality score
             domain: Filter by device domain
-            
+
         Returns:
             List of suggestion dictionaries
         """
         all_suggestions = []
-        
+
         # Fetch blueprints and devices
         async with BlueprintClient() as blueprint_client, DataApiClient() as data_client:
             # Fetch blueprints with quality filter
@@ -101,7 +101,7 @@ class BlueprintMatcher:
 
             # Fetch entities
             entities = await data_client.get_all_entities(limit=settings.max_entities_fetch)
-            
+
             # Filter entities by device_ids if specified
             if device_ids:
                 device_id_set = set(device_ids)
@@ -109,11 +109,11 @@ class BlueprintMatcher:
                     e for e in entities
                     if (e.get("entity_id") or e.get("id")) in device_id_set
                 ]
-            
+
             # Filter entities by domain if specified
             if domain:
                 entities = [e for e in entities if e.get("domain") == domain]
-            
+
             # Filter blueprints by complexity and use_case
             filtered_blueprints = []
             for blueprint in blueprints:
@@ -122,20 +122,20 @@ class BlueprintMatcher:
                     blueprint_complexity = str(blueprint.get("complexity", "medium")).lower()
                     if blueprint_complexity != complexity.lower():
                         continue
-                
+
                 # Filter by use_case
                 if use_case:
                     blueprint_use_case = blueprint.get("use_case")
                     if blueprint_use_case != use_case:
                         continue
-                
+
                 filtered_blueprints.append(blueprint)
-            
+
             logger.info(
                 f"Processing {len(filtered_blueprints)} blueprints against {len(entities)} entities "
                 f"with filters: complexity={complexity}, use_case={use_case}, domain={domain}"
             )
-            
+
             # Generate suggestions for each blueprint
             for blueprint in filtered_blueprints:
                 suggestions = await self._generate_blueprint_suggestions(
@@ -145,14 +145,14 @@ class BlueprintMatcher:
                     max_suggestions=5,  # Max per blueprint (will limit total later)
                 )
                 all_suggestions.extend(suggestions)
-        
+
         # Sort by score (highest first) and limit to max_suggestions
         all_suggestions.sort(key=lambda x: x["suggestion_score"], reverse=True)
         all_suggestions = all_suggestions[:max_suggestions]
-        
+
         logger.info(f"Generated {len(all_suggestions)} total suggestions")
         return all_suggestions
-    
+
     async def _generate_blueprint_suggestions(
         self,
         blueprint: dict[str, Any],
@@ -162,45 +162,45 @@ class BlueprintMatcher:
     ) -> list[dict[str, Any]]:
         """
         Generate multiple suggestions for a single blueprint.
-        
+
         Args:
             blueprint: Blueprint dictionary
             entities: List of entity dictionaries
             min_score: Minimum score threshold
             max_suggestions: Maximum suggestions to generate
-            
+
         Returns:
             List of suggestion dictionaries
         """
         suggestions = []
-        
+
         # Find all entities that match blueprint requirements
         required_domains = set(blueprint.get("required_domains", []))
         required_classes = set(blueprint.get("required_device_classes", []))
-        
+
         # Filter entities by domain
         matching_entities = [
             e for e in entities
             if e.get("domain") in required_domains or not required_domains
         ]
-        
+
         # Filter by device class if specified
         if required_classes:
             matching_entities = [
                 e for e in matching_entities
                 if e.get("device_class") in required_classes or e.get("device_class") is None
             ]
-        
+
         if not matching_entities:
             return suggestions
-        
+
         # Generate different device combinations
         # Strategy: Try combinations of 1, 2, 3+ devices (up to required count)
         required_count = max(len(required_domains), len(required_classes), 1)
-        
+
         # Generate combinations
         device_combinations = []
-        
+
         # Single device suggestions (if blueprint only needs one domain)
         if required_count == 1 and matching_entities:
             for entity in matching_entities[:settings.max_single_device_candidates]:
@@ -244,16 +244,16 @@ class BlueprintMatcher:
                 devices=device_combo,
                 current_time=datetime.now(),
             )
-            
+
             if score >= min_score:
                 scored_combinations.append({
                     "devices": device_combo,
                     "score": score,
                 })
-        
+
         # Sort by score and take top N
         scored_combinations.sort(key=lambda x: x["score"], reverse=True)
-        
+
         for combo_data in scored_combinations[:max_suggestions]:
             suggestion = {
                 "blueprint_id": blueprint.get("id"),
@@ -277,5 +277,5 @@ class BlueprintMatcher:
                 "use_case": blueprint.get("use_case"),
             }
             suggestions.append(suggestion)
-        
+
         return suggestions

@@ -17,7 +17,7 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, Literal
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request, status
@@ -26,7 +26,6 @@ from pydantic import BaseModel, Field
 
 from .algorithms.anomaly_detection import AnomalyDetectionManager
 from .algorithms.clustering import ClusteringManager
-
 
 # ---------------------------------------------------------------------------
 # Structured JSON logging
@@ -209,7 +208,7 @@ anomaly_manager: AnomalyDetectionManager | None = None
 # ---------------------------------------------------------------------------
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Initialize ML managers on startup."""
     global clustering_manager, anomaly_manager
 
@@ -328,7 +327,7 @@ class BatchAnomalyOperation(BaseModel):
 
 
 BatchOperation = Annotated[
-    Union[BatchClusterOperation, BatchAnomalyOperation],
+    BatchClusterOperation | BatchAnomalyOperation,
     Field(discriminator="type"),
 ]
 
@@ -455,12 +454,12 @@ async def cluster_data(request: ClusteringRequest) -> ClusteringResponse:
         raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception:
+    except Exception as exc:
         logger.exception("Error clustering data")
         raise HTTPException(
             status_code=500,
             detail="Clustering failed due to an internal error.",
-        )
+        ) from exc
 
 
 @app.post("/anomaly", response_model=AnomalyResponse)
@@ -495,12 +494,12 @@ async def detect_anomalies(request: AnomalyRequest) -> AnomalyResponse:
         raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception:
+    except Exception as exc:
         logger.exception("Error detecting anomalies")
         raise HTTPException(
             status_code=500,
             detail="Anomaly detection failed due to an internal error.",
-        )
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -508,7 +507,7 @@ async def detect_anomalies(request: AnomalyRequest) -> AnomalyResponse:
 # ---------------------------------------------------------------------------
 
 async def _process_single_operation(
-    operation: Union[BatchClusterOperation, BatchAnomalyOperation],
+    operation: BatchClusterOperation | BatchAnomalyOperation,
 ) -> BatchOperationResult:
     """Process a single batch operation, returning a result dict.
 
@@ -525,13 +524,14 @@ async def _process_single_operation(
             algorithm = req.algorithm.lower()
 
             if algorithm == "kmeans":
-                if req.n_clusters is not None:
-                    if req.n_clusters < 2 or req.n_clusters > MAX_CLUSTERS or req.n_clusters > num_points:
-                        return BatchOperationResult(
-                            type="cluster",
-                            status="error",
-                            error="Invalid n_clusters value supplied in batch operation.",
-                        )
+                if req.n_clusters is not None and (
+                    req.n_clusters < 2 or req.n_clusters > MAX_CLUSTERS or req.n_clusters > num_points
+                ):
+                    return BatchOperationResult(
+                        type="cluster",
+                        status="error",
+                        error="Invalid n_clusters value supplied in batch operation.",
+                    )
 
                 labels, n_clusters = await _run_cpu_bound(
                     clustering_manager.kmeans_cluster,

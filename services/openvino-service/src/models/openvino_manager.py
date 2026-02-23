@@ -440,7 +440,7 @@ class OpenVINOManager:
         def _rerank() -> list[dict]:
             # HIGH-5: Batch all candidates at once instead of one-by-one
             texts = [candidate.get("description", str(candidate)) for candidate in candidates]
-            pairs = ["%s [SEP] %s" % (query, text) for text in texts]
+            pairs = [f"{query} [SEP] {text}" for text in texts]
 
             # Batch tokenize all pairs at once
             inputs = self._reranker_tokenizer(
@@ -457,7 +457,7 @@ class OpenVINOManager:
                     del outputs
                 gc.collect()
 
-            scored = list(zip(candidates, scores))
+            scored = list(zip(candidates, scores, strict=True))
             scored.sort(key=lambda x: x[1], reverse=True)
             return [candidate for candidate, _ in scored[:top_k]]
 
@@ -483,9 +483,9 @@ class OpenVINOManager:
         category_prompt = (
             "Classify this smart home pattern into ONE category: "
             "energy, comfort, security, or convenience.\n\n"
-            "Pattern: %s\n\n"
+            f"Pattern: {pattern_description}\n\n"
             "Respond with only the category name (one word).\n\n"
-            "Category:" % pattern_description
+            "Category:"
         )
 
         def _classify() -> dict[str, str]:
@@ -512,10 +512,10 @@ class OpenVINOManager:
 
             priority_prompt = (
                 "Rate priority (high, medium, or low) for this smart home pattern.\n\n"
-                "Pattern: %s\n"
-                "Category: %s\n\n"
+                f"Pattern: {pattern_description}\n"
+                f"Category: {category}\n\n"
                 "Respond with only the priority level (one word).\n\n"
-                "Priority:" % (pattern_description, category)
+                "Priority:"
             )
 
             priority_raw = _generate(priority_prompt)

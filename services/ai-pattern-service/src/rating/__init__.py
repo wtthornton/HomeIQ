@@ -7,7 +7,7 @@ Integrates with RL optimizer and pattern detection for continuous improvement.
 Target: 4.0+ average user satisfaction rating
 """
 
-from .rating_service import RatingService, AutomationRating, BlueprintRating
+from .rating_service import AutomationRating, BlueprintRating, RatingService
 
 __all__ = [
     "RatingService",

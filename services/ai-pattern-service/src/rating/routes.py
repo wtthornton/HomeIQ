@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from .rating_service import RatingService, AutomationRating, BlueprintRating
+from .rating_service import RatingService
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ rating_service = RatingService(min_ratings_for_confidence=5)
 # Request/Response Models
 class SubmitRatingRequest(BaseModel):
     """Request model for submitting a rating."""
-    
+
     automation_id: str = Field(..., description="Home Assistant automation entity ID")
     overall_rating: float = Field(..., ge=1.0, le=5.0, description="Overall rating (1-5)")
     synergy_id: str | None = Field(None, description="Synergy ID if applicable")
@@ -37,7 +37,7 @@ class SubmitRatingRequest(BaseModel):
 
 class RatingResponse(BaseModel):
     """Response model for a rating."""
-    
+
     automation_id: str
     synergy_id: str | None
     blueprint_id: str | None
@@ -48,7 +48,7 @@ class RatingResponse(BaseModel):
 
 class BlueprintRatingResponse(BaseModel):
     """Response model for blueprint rating."""
-    
+
     blueprint_id: str
     total_ratings: int
     average_overall: float
@@ -61,7 +61,7 @@ class BlueprintRatingResponse(BaseModel):
 
 class SatisfactionSummaryResponse(BaseModel):
     """Response model for satisfaction summary."""
-    
+
     period_days: int
     total_ratings: int
     average_overall: float
@@ -76,7 +76,7 @@ class SatisfactionSummaryResponse(BaseModel):
 
 class DeviceFeedbackRequest(BaseModel):
     """Request model for device feedback."""
-    
+
     device_id: str = Field(..., description="Device entity ID")
     rating: float = Field(..., ge=1.0, le=5.0, description="Rating (1-5)")
 
@@ -85,7 +85,7 @@ class DeviceFeedbackRequest(BaseModel):
 async def submit_rating(request: SubmitRatingRequest) -> RatingResponse:
     """
     Submit a rating for an automation.
-    
+
     Ratings are used to:
     - Improve blueprint recommendations
     - Train the RL optimizer
@@ -102,7 +102,7 @@ async def submit_rating(request: SubmitRatingRequest) -> RatingResponse:
         feedback_text=request.feedback_text,
         would_recommend=request.would_recommend,
     )
-    
+
     return RatingResponse(
         automation_id=rating.automation_id,
         synergy_id=rating.synergy_id,
@@ -120,7 +120,7 @@ async def get_automation_ratings(automation_id: str) -> dict[str, Any]:
     """
     ratings = rating_service.get_automation_ratings(automation_id)
     avg_rating = rating_service.get_automation_average_rating(automation_id)
-    
+
     return {
         "automation_id": automation_id,
         "average_rating": avg_rating,
@@ -146,10 +146,10 @@ async def get_blueprint_rating(blueprint_id: str) -> BlueprintRatingResponse:
     Get aggregated rating for a blueprint.
     """
     bp_rating = rating_service.get_blueprint_rating(blueprint_id)
-    
+
     if not bp_rating:
         raise HTTPException(status_code=404, detail=f"No ratings found for blueprint {blueprint_id}")
-    
+
     return BlueprintRatingResponse(
         blueprint_id=bp_rating.blueprint_id,
         total_ratings=bp_rating.total_ratings,
@@ -166,12 +166,12 @@ async def get_blueprint_rating(blueprint_id: str) -> BlueprintRatingResponse:
 async def get_blueprint_score(blueprint_id: str) -> dict[str, Any]:
     """
     Get blueprint score for ranking.
-    
+
     Returns 0 if not enough ratings for confidence.
     """
     score = rating_service.get_blueprint_score(blueprint_id)
     bp_rating = rating_service.get_blueprint_rating(blueprint_id)
-    
+
     return {
         "blueprint_id": blueprint_id,
         "score": score,
@@ -188,7 +188,7 @@ async def get_top_rated_blueprints(
     Get top-rated blueprints.
     """
     top_blueprints = rating_service.get_top_rated_blueprints(limit=limit)
-    
+
     return [
         BlueprintRatingResponse(
             blueprint_id=bp.blueprint_id,
@@ -210,7 +210,7 @@ async def get_satisfaction_summary(
 ) -> SatisfactionSummaryResponse:
     """
     Get user satisfaction summary.
-    
+
     Target: 4.0+ average rating
     """
     summary = rating_service.get_satisfaction_summary(days=days)
@@ -221,16 +221,16 @@ async def get_satisfaction_summary(
 async def record_device_feedback(request: DeviceFeedbackRequest) -> dict[str, Any]:
     """
     Record feedback for a device.
-    
+
     Used to adjust pattern confidence for devices.
     """
     rating_service.record_device_feedback(
         device_id=request.device_id,
         rating=request.rating,
     )
-    
+
     feedback_score = rating_service.get_device_feedback_score(request.device_id)
-    
+
     return {
         "device_id": request.device_id,
         "rating_recorded": request.rating,
@@ -242,12 +242,12 @@ async def record_device_feedback(request: DeviceFeedbackRequest) -> dict[str, An
 async def get_device_feedback_score(device_id: str) -> dict[str, Any]:
     """
     Get feedback score for a device.
-    
+
     Score ranges from 0.5 (negative) to 1.5 (positive), 1.0 is neutral.
     Used by pattern detection to adjust confidence.
     """
     score = rating_service.get_device_feedback_score(device_id)
-    
+
     return {
         "device_id": device_id,
         "feedback_score": score,
@@ -263,12 +263,12 @@ async def get_device_feedback_score(device_id: str) -> dict[str, Any]:
 async def get_rl_feedback(synergy_id: str) -> dict[str, Any]:
     """
     Get feedback data for RL optimizer.
-    
+
     Returns reward signal and context for reinforcement learning.
     """
     feedback = rating_service.get_feedback_for_rl_optimizer(synergy_id)
-    
+
     if not feedback:
         raise HTTPException(status_code=404, detail=f"No feedback found for synergy {synergy_id}")
-    
+
     return feedback

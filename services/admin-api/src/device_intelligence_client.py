@@ -30,13 +30,13 @@ class DeviceIntelligenceClient:
     ) -> dict[str, Any]:
         """
         Get devices from Device Intelligence Service.
-        
+
         Args:
             limit: Maximum number of devices to return
             manufacturer: Filter by manufacturer
             model: Filter by model
             area_id: Filter by area/room
-            
+
         Returns:
             Dictionary with devices, count, and limit
         """
@@ -69,10 +69,10 @@ class DeviceIntelligenceClient:
     async def get_device_by_id(self, device_id: str) -> dict[str, Any]:
         """
         Get a specific device by ID.
-        
+
         Args:
             device_id: Device identifier
-            
+
         Returns:
             Device data dictionary
         """
@@ -100,7 +100,7 @@ class DeviceIntelligenceClient:
     async def get_device_stats(self) -> dict[str, Any]:
         """
         Get device statistics from Device Intelligence Service.
-        
+
         Returns:
             Device statistics dictionary
         """
@@ -125,10 +125,10 @@ class DeviceIntelligenceClient:
     async def get_device_capabilities(self, device_id: str) -> list[dict[str, Any]]:
         """
         Get device capabilities from Device Intelligence Service.
-        
+
         Args:
             device_id: Device identifier
-            
+
         Returns:
             List of device capabilities
         """

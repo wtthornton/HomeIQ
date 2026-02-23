@@ -7,17 +7,17 @@ Story 22.2: Updated to use SQLite storage
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
+
+# Add shared directory to path
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-# Add shared directory to path
-from pathlib import Path
 sys.path.append(str(Path(__file__).parent / '../../shared'))
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
@@ -30,14 +30,14 @@ from .cache import cache
 from .database import get_db
 from .flux_utils import sanitize_flux_value
 from .models import Device, Entity, Service
-from .services.entity_registry import EntityRegistry
-from .services.device_health import get_health_service
-from .services.device_classifier import get_classifier_service
-from .services.setup_assistant import get_setup_assistant
-from .services.device_database import get_device_database_service
 from .services.capability_discovery import get_capability_service
+from .services.device_classifier import get_classifier_service
+from .services.device_database import get_device_database_service
+from .services.device_health import get_health_service
 from .services.device_recommender import get_recommender_service
 from .services.entity_enrichment import get_entity_enrichment_service
+from .services.entity_registry import EntityRegistry
+from .services.setup_assistant import get_setup_assistant
 
 logger = logging.getLogger(__name__)
 
@@ -165,20 +165,20 @@ influxdb_client = InfluxDBQueryClient()
 def compute_device_status(last_seen: datetime | None, inactive_days: int = 30) -> str:
     """
     Compute device status based on last_seen timestamp.
-    
+
     Args:
         last_seen: Last time device was seen (datetime or None)
         inactive_days: Number of days after which device is considered inactive (default: 30)
-    
+
     Returns:
         "active" if device was seen within inactive_days, "inactive" otherwise
     """
     if last_seen is None:
         return "inactive"
-    
+
     # Calculate days since last seen
     days_ago = (datetime.utcnow() - last_seen.replace(tzinfo=None)).days
-    
+
     # Device is active if seen within inactive_days
     return "active" if days_ago <= inactive_days else "inactive"
 
@@ -233,7 +233,7 @@ async def list_devices(
             Device.serial_number,
             Device.model_id
         ]
-        
+
         if platform:
             # Join with entities to filter by platform
             query = select(*device_columns, func.count(Entity.entity_id).label('entity_count'))\
@@ -306,10 +306,10 @@ async def list_devices(
                 serial_number = row[13] if row_len > 13 and hasattr(Device, 'serial_number') else None
                 model_id = row[14] if row_len > 14 and hasattr(Device, 'model_id') else None
                 entity_count = row[-1]  # Last column is always entity_count
-                
+
                 # Compute device status based on last_seen
                 device_status = compute_device_status(last_seen)
-                
+
                 device_responses.append(DeviceResponse(
                     device_id=device_id,
                     name=name,
@@ -344,11 +344,11 @@ async def list_devices(
                 # Fallback to basic fields only
                 last_seen_fallback = row[9] if len(row) > 9 and row[9] else None
                 device_status_fallback = compute_device_status(last_seen_fallback)
-                
+
                 # Fallback: try to extract device_type and device_category if available
                 fallback_device_type = row[10] if len(row) > 10 else None
                 fallback_device_category = row[11] if len(row) > 11 else None
-                
+
                 device_responses.append(DeviceResponse(
                     device_id=row[0],
                     name=row[1],
@@ -430,7 +430,7 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             Device.serial_number,
             Device.model_id
         ]
-        
+
         query = select(*device_columns, func.count(Entity.entity_id).label('entity_count'))\
             .outerjoin(Entity, Device.device_id == Entity.device_id)\
             .where(Device.device_id == device_id)\
@@ -496,9 +496,9 @@ async def get_device_reliability(
 ):
     """
     Get device reliability metrics grouped by manufacturer or model
-    
+
     Epic 23.5: Analyzes event data from InfluxDB to identify device reliability patterns
-    
+
     Returns:
     - Event counts by manufacturer/model
     - Coverage percentage (% of events with device metadata)
@@ -745,10 +745,10 @@ async def get_entities_by_device(
 ):
     """
     Get all entities for a device
-    
+
     Args:
         device_id: Device ID
-        
+
     Returns:
         List of EntityRegistryEntry instances
     """
@@ -776,10 +776,10 @@ async def get_sibling_entities(
 ):
     """
     Get sibling entities (entities from same device)
-    
+
     Args:
         entity_id: Entity ID
-        
+
     Returns:
         List of EntityRegistryEntry instances (sibling entities)
     """
@@ -809,10 +809,10 @@ async def get_device_for_entity(
 ):
     """
     Get device for an entity
-    
+
     Args:
         entity_id: Entity ID
-        
+
     Returns:
         Device information
     """
@@ -890,10 +890,10 @@ async def get_entities_in_area(
 ):
     """
     Get all entities in an area
-    
+
     Args:
         area_id: Area ID
-        
+
     Returns:
         List of EntityRegistryEntry instances
     """
@@ -921,10 +921,10 @@ async def get_entities_by_config_entry(
 ):
     """
     Get entities by config entry ID
-    
+
     Args:
         config_entry_id: Config entry ID
-        
+
     Returns:
         List of EntityRegistryEntry instances
     """
@@ -952,10 +952,10 @@ async def get_device_hierarchy(
 ):
     """
     Get device hierarchy (via_device relationships)
-    
+
     Args:
         device_id: Device ID
-        
+
     Returns:
         Dictionary with device hierarchy information
     """
@@ -981,7 +981,7 @@ async def get_integration_performance(
 ):
     """
     Get performance metrics for a specific integration platform (Phase 3.3)
-    
+
     Returns event rate, error rate, response time, and discovery status
     """
     try:
@@ -1114,7 +1114,7 @@ async def get_integration_analytics(
 ):
     """
     Get analytics for a specific integration platform (Phase 2.3)
-    
+
     Returns device count, entity count, and entity breakdown by domain
     """
     try:
@@ -1171,7 +1171,7 @@ async def list_integrations(
 ):
     """
     List all Home Assistant integrations (config entries)
-    
+
     Returns all discovered integrations with their setup status.
     """
     try:
@@ -1417,7 +1417,7 @@ async def bulk_upsert_entities(
                 available_services = await enrichment_service.get_available_services_for_domain(domain, db)
             except Exception as e:
                 logger.debug(f"Failed to fetch available services for {entity_id}: {e}")
-            
+
             # Try to enrich capabilities from HA state API (may be slow, so we do it after commit)
             # For now, set to None - will be populated by background enrichment
             supported_features = None
@@ -1461,7 +1461,7 @@ async def bulk_upsert_entities(
         await db.commit()
 
         logger.info(f"Bulk upserted {upserted_count} entities from HA discovery")
-        
+
         # After entity sync, trigger classification for devices with newly linked entities
         # This ensures devices get classified when entities are synced
         try:
@@ -1473,25 +1473,25 @@ async def bulk_upsert_entities(
                     Device.device_type == ''
                 )
             ).distinct().limit(100)  # Limit to avoid long operations
-            
+
             unclassified_result = await db.execute(unclassified_devices_query)
             unclassified_devices = unclassified_result.scalars().all()
-            
+
             if unclassified_devices:
                 logger.info(f"Triggering automatic classification for {len(unclassified_devices)} devices with newly synced entities")
                 classified_count = 0
-                
+
                 for device in unclassified_devices:
                     try:
                         # Get entities for this device
                         entities_query = select(Entity).where(Entity.device_id == device.device_id)
                         entities_result = await db.execute(entities_query)
                         entities = entities_result.scalars().all()
-                        
+
                         # Extract entity domains
                         entity_domains = [e.domain for e in entities if e.domain]
                         entity_ids = [e.entity_id for e in entities]
-                        
+
                         # Classify device
                         if entity_domains:
                             classification = await classifier_service.classify_device_from_domains(
@@ -1507,17 +1507,17 @@ async def bulk_upsert_entities(
                                 device.manufacturer,
                                 device.model
                             )
-                        
+
                         # Update device if classification succeeded
                         if classification.get("device_type"):
                             device.device_type = classification.get("device_type")
                             device.device_category = classification.get("device_category")
                             classified_count += 1
-                            
+
                     except Exception as e:
                         logger.warning(f"Failed to auto-classify device {device.device_id}: {e}")
                         continue
-                
+
                 if classified_count > 0:
                     await db.commit()
                     logger.info(f"Auto-classified {classified_count} devices after entity sync")
@@ -1536,7 +1536,7 @@ async def bulk_upsert_entities(
                 entity_id = entity_data.get('entity_id')
                 if entity_id:
                     entity_ids_to_enrich.append(entity_id)
-            
+
             # Enrich capabilities in background (non-blocking)
             if entity_ids_to_enrich:
                 # Query entities that need enrichment (capabilities is None)
@@ -1547,7 +1547,7 @@ async def bulk_upsert_entities(
                     )
                 )
                 entities_to_enrich = entities_result.scalars().all()
-                
+
                 enriched_count = 0
                 for entity in entities_to_enrich:
                     try:
@@ -1563,7 +1563,7 @@ async def bulk_upsert_entities(
                     except Exception as e:
                         logger.debug(f"Failed to enrich capabilities for {entity.entity_id}: {e}")
                         continue
-                
+
                 if enriched_count > 0:
                     await db.commit()
                     logger.info(f"Enriched capabilities for {enriched_count} entities in background")
@@ -1593,26 +1593,26 @@ async def bulk_upsert_services(
 ):
     """
     Internal endpoint for websocket-ingestion to bulk upsert services from HA Services API
-    
+
     Accepts services in format: {domain: {service_name: service_data}}
     Flattens to list of services with domain and service_name
-    
+
     Epic 2025: Stores available services per domain for service validation
     """
     try:
         upserted_count = 0
-        
+
         # Flatten services dict to list of service records
         for domain, domain_services in services.items():
             if not isinstance(domain_services, dict):
                 logger.warning(f"Skipping invalid domain services format for domain: {domain}")
                 continue
-                
+
             for service_name, service_data in domain_services.items():
                 if not isinstance(service_data, dict):
                     logger.warning(f"Skipping invalid service data for {domain}.{service_name}")
                     continue
-                
+
                 # Check if service exists
                 result = await db.execute(
                     select(Service).where(
@@ -1621,7 +1621,7 @@ async def bulk_upsert_services(
                     )
                 )
                 existing_service = result.scalar_one_or_none()
-                
+
                 # Prepare service values
                 service_values = {
                     'domain': domain,
@@ -1632,7 +1632,7 @@ async def bulk_upsert_services(
                     'target': service_data.get('target'),
                     'last_updated': datetime.now()
                 }
-                
+
                 if existing_service:
                     # Update existing service
                     for key, value in service_values.items():
@@ -1642,19 +1642,19 @@ async def bulk_upsert_services(
                     # Insert new service
                     new_service = Service(**service_values)
                     db.add(new_service)
-                
+
                 upserted_count += 1
-        
+
         await db.commit()
-        
+
         logger.info(f"Bulk upserted {upserted_count} services from HA Services API")
-        
+
         return {
             "success": True,
             "upserted": upserted_count,
             "timestamp": datetime.now().isoformat()
         }
-    
+
     except Exception as e:
         await db.rollback()
         logger.error(f"Error bulk upserting services: {e}")
@@ -1674,7 +1674,7 @@ async def get_device_health(
 ):
     """
     Get health report for a device.
-    
+
     Phase 1.2: Analyzes device health including response times, battery levels,
     last seen timestamps, and power consumption anomalies.
     """
@@ -1683,13 +1683,13 @@ async def get_device_health(
         device = await db.get(Device, device_id)
         if not device:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Get entities for this device
         entities_query = select(Entity).where(Entity.device_id == device_id)
         entities_result = await db.execute(entities_query)
         entities = entities_result.scalars().all()
         entity_ids = [e.entity_id for e in entities]
-        
+
         # Get health analysis
         health_service = get_health_service()
         health_report = await health_service.get_device_health(
@@ -1698,9 +1698,9 @@ async def get_device_health(
             entity_ids=entity_ids,
             power_spec_w=device.power_consumption_active_w
         )
-        
+
         return health_report
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1714,7 +1714,7 @@ async def get_health_summary(
 ):
     """
     Get overall health summary for all devices.
-    
+
     Phase 1.2: Provides summary of device health across all devices.
     """
     try:
@@ -1722,28 +1722,28 @@ async def get_health_summary(
         devices_query = select(Device)
         devices_result = await db.execute(devices_query)
         devices = devices_result.scalars().all()
-        
+
         total_devices = len(devices)
         healthy_devices = 0
         warning_devices = 0
         error_devices = 0
-        
+
         health_service = get_health_service()
-        
+
         # Analyze each device (limit to avoid timeout)
         for device in devices[:100]:  # Limit to first 100 devices
             entities_query = select(Entity).where(Entity.device_id == device.device_id)
             entities_result = await db.execute(entities_query)
             entities = entities_result.scalars().all()
             entity_ids = [e.entity_id for e in entities]
-            
+
             health_report = await health_service.get_device_health(
                 device_id=device.device_id,
                 device_name=device.name,
                 entity_ids=entity_ids,
                 power_spec_w=device.power_consumption_active_w
             )
-            
+
             status = health_report.get("overall_status", "unknown")
             if status == "healthy":
                 healthy_devices += 1
@@ -1751,7 +1751,7 @@ async def get_health_summary(
                 warning_devices += 1
             elif status == "error":
                 error_devices += 1
-        
+
         return {
             "total_devices": total_devices,
             "healthy_devices": healthy_devices,
@@ -1759,7 +1759,7 @@ async def get_health_summary(
             "error_devices": error_devices,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting health summary: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get health summary: {str(e)}") from e
@@ -1772,7 +1772,7 @@ async def get_maintenance_alerts(
 ):
     """
     Get maintenance alerts for devices needing attention.
-    
+
     Phase 1.2: Returns list of devices with health issues requiring maintenance.
     """
     try:
@@ -1780,23 +1780,23 @@ async def get_maintenance_alerts(
         devices_query = select(Device).limit(limit * 2)  # Get more to filter
         devices_result = await db.execute(devices_query)
         devices = devices_result.scalars().all()
-        
+
         alerts = []
         health_service = get_health_service()
-        
+
         for device in devices:
             entities_query = select(Entity).where(Entity.device_id == device.device_id)
             entities_result = await db.execute(entities_query)
             entities = entities_result.scalars().all()
             entity_ids = [e.entity_id for e in entities]
-            
+
             health_report = await health_service.get_device_health(
                 device_id=device.device_id,
                 device_name=device.name,
                 entity_ids=entity_ids,
                 power_spec_w=device.power_consumption_active_w
             )
-            
+
             # Only include devices with issues
             issues = health_report.get("issues", [])
             if issues:
@@ -1809,16 +1809,16 @@ async def get_maintenance_alerts(
                         "message": issue.get("message"),
                         "timestamp": datetime.now().isoformat()
                     })
-            
+
             if len(alerts) >= limit:
                 break
-        
+
         return {
             "alerts": alerts[:limit],
             "count": len(alerts[:limit]),
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting maintenance alerts: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get maintenance alerts: {str(e)}") from e
@@ -1828,12 +1828,12 @@ async def get_maintenance_alerts(
 @router.get("/api/devices/{device_id}/power-analysis")
 async def get_device_power_analysis(
     device_id: str,
-    days: int = Query(default=7, ge=1, le=30, description="Days of history"),
+    days: int = Query(default=7, ge=1, le=30, description="Days of history"),  # noqa: ARG001
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get power consumption analysis for a device.
-    
+
     Phase 1.3: Compares actual power usage vs. device specifications,
     detects power anomalies, and calculates efficiency scores.
     """
@@ -1842,12 +1842,12 @@ async def get_device_power_analysis(
         device = await db.get(Device, device_id)
         if not device:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Get entities for this device
         entities_query = select(Entity).where(Entity.device_id == device_id)
         entities_result = await db.execute(entities_query)
         entities = entities_result.scalars().all()
-        
+
         if not entities:
             return {
                 "device_id": device_id,
@@ -1855,12 +1855,12 @@ async def get_device_power_analysis(
                 "message": "No entities found for device",
                 "analysis": {}
             }
-        
+
         # Get power data from energy endpoints (simplified - would need actual energy correlator integration)
         # For now, return analysis based on device specs
         spec_power = device.power_consumption_active_w
         actual_power = None  # Would come from energy-correlator
-        
+
         analysis = {
             "device_id": device_id,
             "device_name": device.name,
@@ -1870,7 +1870,7 @@ async def get_device_power_analysis(
             "anomaly_detected": False,
             "recommendations": []
         }
-        
+
         if spec_power:
             analysis["spec_power_w"] = spec_power
             if actual_power:
@@ -1883,9 +1883,9 @@ async def get_device_power_analysis(
                         "message": f"Device consuming {actual_power:.1f}W, expected {spec_power:.1f}W",
                         "priority": "medium"
                     })
-        
+
         return analysis
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1896,22 +1896,22 @@ async def get_device_power_analysis(
 @router.get("/api/devices/{device_id}/efficiency")
 async def get_device_efficiency(
     device_id: str,
-    days: int = Query(default=7, ge=1, le=30, description="Days of history"),
+    days: int = Query(default=7, ge=1, le=30, description="Days of history"),  # noqa: ARG001
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get efficiency report for a device.
-    
+
     Phase 1.3: Calculates device efficiency score based on power consumption.
     """
     try:
         device = await db.get(Device, device_id)
         if not device:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         spec_power = device.power_consumption_active_w
         actual_power = None  # Would come from energy-correlator
-        
+
         if not spec_power:
             return {
                 "device_id": device_id,
@@ -1919,12 +1919,12 @@ async def get_device_efficiency(
                 "efficiency_score": None,
                 "message": "No power specification available for device"
             }
-        
+
         efficiency_score = None
         if actual_power and spec_power:
             # Efficiency is how close actual is to spec (100% = perfect match)
             efficiency_score = max(0, min(100, (spec_power / actual_power * 100))) if actual_power > 0 else None
-        
+
         return {
             "device_id": device_id,
             "device_name": device.name,
@@ -1933,7 +1933,7 @@ async def get_device_efficiency(
             "efficiency_score": efficiency_score,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1948,7 +1948,7 @@ async def get_power_anomalies(
 ):
     """
     Get devices with power consumption anomalies.
-    
+
     Phase 1.3: Returns devices consuming more power than expected.
     """
     try:
@@ -1958,15 +1958,14 @@ async def get_power_anomalies(
         ).limit(limit * 2)
         devices_result = await db.execute(devices_query)
         devices = devices_result.scalars().all()
-        
+
         anomalies = []
-        
+
         for device in devices:
             spec_power = device.power_consumption_active_w
             actual_power = None  # Would come from energy-correlator
-            
-            if spec_power and actual_power:
-                if actual_power > spec_power * 1.5:
+
+            if spec_power and actual_power and actual_power > spec_power * 1.5:
                     anomalies.append({
                         "device_id": device.device_id,
                         "device_name": device.name,
@@ -1977,16 +1976,16 @@ async def get_power_anomalies(
                         "severity": "high" if actual_power > spec_power * 2 else "medium",
                         "timestamp": datetime.now().isoformat()
                     })
-            
+
             if len(anomalies) >= limit:
                 break
-        
+
         return {
             "anomalies": anomalies[:limit],
             "count": len(anomalies[:limit]),
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting power anomalies: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get power anomalies: {str(e)}") from e
@@ -2000,7 +1999,7 @@ async def classify_device(
 ):
     """
     Classify a device based on its entities.
-    
+
     Phase 2.1: Analyzes device entities to infer device type and category,
     then updates the Device model.
     """
@@ -2009,22 +2008,22 @@ async def classify_device(
         device = await db.get(Device, device_id)
         if not device:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Get entities for this device
         entities_query = select(Entity).where(Entity.device_id == device_id)
         entities_result = await db.execute(entities_query)
         entities = entities_result.scalars().all()
-        
+
         # Extract entity domains directly from database
         entity_domains = [e.domain for e in entities if e.domain]
         entity_ids = [e.entity_id for e in entities]
-        
+
         # Classify device - use domains if available, otherwise use metadata
         classifier_service = get_classifier_service()
         if entity_domains:
             classification = await classifier_service.classify_device_from_domains(
-                device_id, 
-                entity_domains, 
+                device_id,
+                entity_domains,
                 entity_ids
             )
         else:
@@ -2035,13 +2034,13 @@ async def classify_device(
                 device.manufacturer,
                 device.model
             )
-        
+
         # Update device with classification
         if classification.get("device_type"):
             device.device_type = classification.get("device_type")
             device.device_category = classification.get("device_category")
             await db.commit()
-        
+
         return {
             "device_id": device_id,
             "device_name": device.name,
@@ -2049,7 +2048,7 @@ async def classify_device(
             "device_category": device.device_category,
             "timestamp": datetime.now().isoformat()
         }
-        
+
         return {
             "device_id": device_id,
             "device_name": device.name,
@@ -2057,7 +2056,7 @@ async def classify_device(
             "device_category": device.device_category,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -2075,22 +2074,23 @@ async def link_entities_to_devices(
 ):
     """
     Re-link entities to devices using Home Assistant API.
-    
+
     Queries HA entity registry to get device_id for each entity, then updates the database.
     """
     try:
         import os
+
         import aiohttp
-        
+
         ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
         ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
-        
+
         if not ha_url or not ha_token:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Home Assistant URL or token not configured"
             )
-        
+
         # Get all entities without device_id (NULL or empty)
         unlinked_query = select(Entity).where(
             or_(
@@ -2098,23 +2098,23 @@ async def link_entities_to_devices(
                 Entity.device_id == ''
             )
         ).limit(limit)
-        
+
         result = await db.execute(unlinked_query)
         entities = result.scalars().all()
-        
+
         if not entities:
             return {
                 "message": "All entities are already linked to devices",
                 "linked": 0,
                 "total": 0
             }
-        
+
         linked_count = 0
         headers = {
             "Authorization": f"Bearer {ha_token}",
             "Content-Type": "application/json"
         }
-        
+
         async with aiohttp.ClientSession(headers=headers) as session:
             # Get entity registry from Home Assistant
             # HA REST API endpoint: /api/config/entity_registry/list (returns list of entities)
@@ -2137,7 +2137,7 @@ async def link_entities_to_devices(
                         ha_entities_list = registry_data if isinstance(registry_data, list) else registry_data.get("entities", [])
                         ha_entities = {e.get("entity_id"): e for e in ha_entities_list}
                         logger.info(f"Fetched {len(ha_entities)} entities from Home Assistant entity registry")
-        
+
         # Link entities to devices
         if not ha_entities:
             # Fallback: Match by config_entry_id and area_id if HA API not available
@@ -2146,17 +2146,17 @@ async def link_entities_to_devices(
                 try:
                     if not entity.config_entry_id:
                         continue
-                    
+
                     # Find devices with same config_entry_id
                     device_query = select(Device).where(Device.config_entry_id == entity.config_entry_id)
                     device_result = await db.execute(device_query)
                     device = device_result.scalar_one_or_none()
-                    
+
                     if device:
                         entity.device_id = device.device_id
                         linked_count += 1
                         logger.debug(f"Linked entity {entity.entity_id} to device {device.device_id} via config_entry_id")
-                    
+
                 except Exception as e:
                     logger.warning(f"Failed to link entity {entity.entity_id}: {e}")
                     continue
@@ -2173,45 +2173,45 @@ async def link_entities_to_devices(
                                 select(Device).where(Device.device_id == device_id)
                             )
                             device = device_check.scalar_one_or_none()
-                            
+
                             if device:
                                 entity.device_id = device_id
                                 linked_count += 1
                             else:
                                 logger.debug(f"Device {device_id} not found for entity {entity.entity_id}")
-                    
+
                 except Exception as e:
                     logger.warning(f"Failed to link entity {entity.entity_id}: {e}")
                     continue
-        
+
         # Commit all changes
         await db.commit()
-        
+
         # After linking entities, trigger classification for affected devices
         if linked_count > 0:
             try:
-                logger.info(f"Triggering automatic classification for devices with newly linked entities")
+                logger.info("Triggering automatic classification for devices with newly linked entities")
                 classifier_service = get_classifier_service()
-                
+
                 # Get devices that had entities linked
                 device_ids_with_linked_entities = {entity.device_id for entity in entities if entity.device_id}
-                
+
                 classified_count = 0
                 for device_id in device_ids_with_linked_entities:
                     try:
                         device = await db.get(Device, device_id)
                         if not device or (device.device_type and device.device_type != ''):
                             continue  # Skip if already classified
-                        
+
                         # Get entities for this device
                         entities_query = select(Entity).where(Entity.device_id == device_id)
                         entities_result = await db.execute(entities_query)
                         device_entities = entities_result.scalars().all()
-                        
+
                         # Extract entity domains
                         entity_domains = [e.domain for e in device_entities if e.domain]
                         entity_ids = [e.entity_id for e in device_entities]
-                        
+
                         # Classify device using domains (now that entities are linked)
                         if entity_domains:
                             classification = await classifier_service.classify_device_from_domains(
@@ -2219,7 +2219,7 @@ async def link_entities_to_devices(
                                 entity_domains,
                                 entity_ids
                             )
-                            
+
                             if classification.get("device_type"):
                                 device.device_type = classification.get("device_type")
                                 device.device_category = classification.get("device_category")
@@ -2228,21 +2228,21 @@ async def link_entities_to_devices(
                     except Exception as e:
                         logger.warning(f"Failed to classify device {device_id} after linking: {e}")
                         continue
-                
+
                 if classified_count > 0:
                     await db.commit()
                     logger.info(f"Auto-classified {classified_count} devices after entity linking")
             except Exception as e:
                 # Don't fail entity linking if classification fails
                 logger.warning(f"Automatic classification after entity linking failed: {e}")
-        
+
         return {
             "message": f"Linked {linked_count} entities to devices",
             "linked": linked_count,
             "total": len(entities),
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -2261,7 +2261,7 @@ async def classify_all_devices(
 ):
     """
     Classify all devices that don't have a device_type assigned.
-    
+
     Uses domain-based classification from entity domains (no HA API calls needed).
     """
     try:
@@ -2272,36 +2272,36 @@ async def classify_all_devices(
                 Device.device_type == ''
             )
         ).limit(limit)
-        
+
         result = await db.execute(unclassified_query)
         devices = result.scalars().all()
-        
+
         if not devices:
             return {
                 "message": "All devices are already classified",
                 "classified": 0,
                 "total": 0
             }
-        
+
         classifier_service = get_classifier_service()
         classified_count = 0
-        
+
         for device in devices:
             try:
                 # Get entities for this device
                 entities_query = select(Entity).where(Entity.device_id == device.device_id)
                 entities_result = await db.execute(entities_query)
                 entities = entities_result.scalars().all()
-                
+
                 # Extract entity domains directly from database
                 entity_domains = [e.domain for e in entities if e.domain]
                 entity_ids = [e.entity_id for e in entities]
-                
+
                 # Classify device - use domains if available, otherwise use metadata
                 if entity_domains:
                     classification = await classifier_service.classify_device_from_domains(
-                        device.device_id, 
-                        entity_domains, 
+                        device.device_id,
+                        entity_domains,
                         entity_ids
                     )
                 else:
@@ -2313,7 +2313,7 @@ async def classify_all_devices(
                         device.manufacturer,
                         device.model
                     )
-                
+
                 # Update device
                 if classification.get("device_type"):
                     device.device_type = classification.get("device_type")
@@ -2322,24 +2322,24 @@ async def classify_all_devices(
                     logger.debug(f"Classified device {device.device_id} ({device.name}) as {classification.get('device_type')}")
                 else:
                     logger.debug(f"Could not classify device {device.device_id} ({device.name})")
-                    
+
             except Exception as e:
                 logger.warning(f"Failed to classify device {device.device_id}: {e}", exc_info=True)
                 continue
-        
+
         # Commit all changes
         await db.commit()
-        
+
         # Note: Cache will expire naturally (5 minute TTL)
         # Devices list queries will get fresh data after cache expires
-        
+
         return {
             "message": f"Classified {classified_count} devices",
             "classified": classified_count,
             "total": len(devices),
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error classifying all devices: {e}", exc_info=True)
         await db.rollback()
@@ -2347,10 +2347,6 @@ async def classify_all_devices(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to classify devices: {str(e)}"
         ) from e
-    except Exception as e:
-        await db.rollback()
-        logger.error(f"Error classifying device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to classify device: {str(e)}") from e
 
 
 # Phase 2.3: Device Setup Assistant Endpoints
@@ -2361,7 +2357,7 @@ async def get_setup_guide(
 ):
     """
     Get setup guide for a device.
-    
+
     Phase 2.3: Returns step-by-step setup instructions for the device.
     """
     try:
@@ -2369,7 +2365,7 @@ async def get_setup_guide(
         device = await db.get(Device, device_id)
         if not device:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Generate setup guide
         setup_assistant = get_setup_assistant()
         guide = setup_assistant.generate_setup_guide(
@@ -2379,9 +2375,9 @@ async def get_setup_guide(
             integration=device.integration,
             setup_instructions_url=device.setup_instructions_url
         )
-        
+
         return guide
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -2396,7 +2392,7 @@ async def get_setup_issues(
 ):
     """
     Get detected setup issues for a device.
-    
+
     Phase 2.3: Returns list of detected setup problems.
     """
     try:
@@ -2404,13 +2400,13 @@ async def get_setup_issues(
         device = await db.get(Device, device_id)
         if not device:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Get entities for this device
         entities_query = select(Entity).where(Entity.device_id == device_id)
         entities_result = await db.execute(entities_query)
         entities = entities_result.scalars().all()
         entity_ids = [e.entity_id for e in entities]
-        
+
         # Detect setup issues
         setup_assistant = get_setup_assistant()
         issues = await setup_assistant.detect_setup_issues(
@@ -2418,7 +2414,7 @@ async def get_setup_issues(
             device_name=device.name,
             entity_ids=entity_ids
         )
-        
+
         return {
             "device_id": device_id,
             "device_name": device.name,
@@ -2426,7 +2422,7 @@ async def get_setup_issues(
             "count": len(issues),
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -2441,7 +2437,7 @@ async def mark_setup_complete(
 ):
     """
     Mark device setup as complete.
-    
+
     Phase 2.3: Marks device setup as complete (for tracking purposes).
     """
     try:
@@ -2449,7 +2445,7 @@ async def mark_setup_complete(
         device = await db.get(Device, device_id)
         if not device:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Could add a setup_complete field to Device model if needed
         # For now, just return success
         return {
@@ -2458,7 +2454,7 @@ async def mark_setup_complete(
             "setup_complete": True,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -2474,7 +2470,7 @@ async def discover_device_capabilities(
 ):
     """
     Discover device capabilities from HA API.
-    
+
     Phase 3.2: Analyzes device entities to infer capabilities and features,
     then updates the Device model with device_features_json.
     """
@@ -2483,13 +2479,13 @@ async def discover_device_capabilities(
         device = await db.get(Device, device_id)
         if not device:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Get entities for this device
         entities_query = select(Entity).where(Entity.device_id == device_id)
         entities_result = await db.execute(entities_query)
         entities = entities_result.scalars().all()
         entity_ids = [e.entity_id for e in entities]
-        
+
         if not entity_ids:
             return {
                 "device_id": device_id,
@@ -2497,16 +2493,16 @@ async def discover_device_capabilities(
                 "capabilities": [],
                 "features": {}
             }
-        
+
         # Discover capabilities
         capability_service = get_capability_service()
         capabilities_data = await capability_service.discover_device_capabilities(device_id, entity_ids)
-        
+
         # Update device with capabilities
         device.device_features_json = capability_service.format_capabilities_for_storage(capabilities_data)
         device.last_capability_sync = datetime.now()
         await db.commit()
-        
+
         return {
             "device_id": device_id,
             "device_name": device.name,
@@ -2516,7 +2512,7 @@ async def discover_device_capabilities(
             "state_classes": capabilities_data.get("state_classes", []),
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -2534,11 +2530,11 @@ async def enrich_entities(
 ):
     """
     Enrich entities with capabilities and available services from HA API.
-    
+
     Args:
         request: FastAPI request (may contain entity_ids in body)
         limit: Maximum number of entities to enrich (default: 100)
-        
+
     Returns:
         Dictionary with enrichment results
     """
@@ -2548,13 +2544,13 @@ async def enrich_entities(
         try:
             body = await request.json()
             entity_ids = body.get("entity_ids") if isinstance(body, dict) else None
-        except Exception:
+        except Exception:  # noqa: B110
             pass  # No body or invalid JSON - will enrich all entities without capabilities
-        
+
         enrichment_service = get_entity_enrichment_service()
         enriched_count = 0
         failed_count = 0
-        
+
         if entity_ids:
             # Enrich specific entities
             entities_query = select(Entity).where(Entity.entity_id.in_(entity_ids))
@@ -2566,10 +2562,10 @@ async def enrich_entities(
                     Entity.available_services.is_(None)
                 )
             ).limit(limit)
-        
+
         result = await db.execute(entities_query)
         entities_to_enrich = result.scalars().all()
-        
+
         for entity in entities_to_enrich:
             try:
                 # Enrich capabilities from HA state API
@@ -2577,13 +2573,13 @@ async def enrich_entities(
                     entity.entity_id,
                     entity.domain
                 )
-                
+
                 # Get available services from Service table
                 available_services = await enrichment_service.get_available_services_for_domain(
                     entity.domain,
                     db
                 )
-                
+
                 # Update entity
                 if capabilities_data.get("supported_features") is not None:
                     entity.supported_features = capabilities_data.get("supported_features")
@@ -2591,24 +2587,24 @@ async def enrich_entities(
                     entity.capabilities = capabilities_data.get("capabilities")
                 if available_services:
                     entity.available_services = available_services
-                
+
                 entity.updated_at = datetime.now()
                 enriched_count += 1
-                
+
             except Exception as e:
                 logger.warning(f"Failed to enrich entity {entity.entity_id}: {e}")
                 failed_count += 1
                 continue
-        
+
         await db.commit()
-        
+
         return {
             "success": True,
             "enriched": enriched_count,
             "failed": failed_count,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         await db.rollback()
         logger.error(f"Error enriching entities: {e}")
@@ -2625,7 +2621,7 @@ async def get_device_recommendations(
 ):
     """
     Get device recommendations.
-    
+
     Phase 3.3: Returns device recommendations based on device type and requirements.
     """
     try:
@@ -2633,7 +2629,7 @@ async def get_device_recommendations(
         devices_query = select(Device)
         devices_result = await db.execute(devices_query)
         devices = devices_result.scalars().all()
-        
+
         user_devices = [
             {
                 "device_id": d.device_id,
@@ -2645,7 +2641,7 @@ async def get_device_recommendations(
             }
             for d in devices
         ]
-        
+
         # Get recommendations
         recommender_service = get_recommender_service()
         recommendations = await recommender_service.recommend_devices(
@@ -2653,14 +2649,14 @@ async def get_device_recommendations(
             requirements=None,  # Could add query params for requirements
             user_devices=user_devices
         )
-        
+
         return {
             "device_type": device_type,
             "recommendations": recommendations,
             "count": len(recommendations),
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting recommendations: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get recommendations: {str(e)}") from e
@@ -2673,30 +2669,30 @@ async def compare_devices(
 ):
     """
     Compare devices.
-    
+
     Phase 3.3: Returns side-by-side comparison of devices.
     """
     try:
         # Parse device IDs
         device_id_list = [d.strip() for d in device_ids.split(",")]
-        
+
         if len(device_id_list) < 2:
             raise HTTPException(
                 status_code=400,
                 detail="Need at least 2 device IDs to compare"
             )
-        
+
         # Get devices from database
         devices_query = select(Device).where(Device.device_id.in_(device_id_list))
         devices_result = await db.execute(devices_query)
         devices = devices_result.scalars().all()
-        
+
         if len(devices) < 2:
             raise HTTPException(
                 status_code=404,
                 detail="Not all devices found"
             )
-        
+
         # Convert to dicts
         device_dicts = [
             {
@@ -2712,13 +2708,13 @@ async def compare_devices(
             }
             for d in devices
         ]
-        
+
         # Compare devices
         recommender_service = get_recommender_service()
         comparison = recommender_service.compare_devices(device_id_list, device_dicts)
-        
+
         return comparison
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -2733,7 +2729,7 @@ async def find_similar_devices(
 ):
     """
     Find similar devices.
-    
+
     Phase 3.3: Returns devices similar to the specified device.
     """
     try:
@@ -2741,12 +2737,12 @@ async def find_similar_devices(
         device = await db.get(Device, device_id)
         if not device:
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-        
+
         # Get all devices
         devices_query = select(Device)
         devices_result = await db.execute(devices_query)
         all_devices = devices_result.scalars().all()
-        
+
         # Convert to dicts
         device_dicts = [
             {
@@ -2759,11 +2755,11 @@ async def find_similar_devices(
             }
             for d in all_devices
         ]
-        
+
         # Find similar devices
         recommender_service = get_recommender_service()
         similar = recommender_service.find_similar_devices(device_id, device_dicts)
-        
+
         return {
             "reference_device_id": device_id,
             "reference_device_name": device.name,
@@ -2771,7 +2767,7 @@ async def find_similar_devices(
             "count": len(similar),
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:

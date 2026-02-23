@@ -5,7 +5,7 @@ Represents the result of entity resolution with matched entities and confidence 
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -16,7 +16,7 @@ class EntityResolutionResult:
     matched_entities: list[str] = field(default_factory=list)
     matched_areas: list[str] = field(default_factory=list)
     confidence_score: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:

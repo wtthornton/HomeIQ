@@ -7,7 +7,6 @@ Thread-safe in-memory counters for RAG Status Monitor integration.
 
 import logging
 import threading
-import time
 from collections import deque
 from typing import Any
 
@@ -17,7 +16,7 @@ logger = logging.getLogger(__name__)
 class RAGMetrics:
     """
     Thread-safe metrics tracker for RAG operations.
-    
+
     Tracks:
     - Total calls (store, retrieve)
     - Cache hits/misses
@@ -38,20 +37,20 @@ class RAGMetrics:
         self.store_calls = 0
         self.retrieve_calls = 0
         self.search_calls = 0
-        
+
         # Cache metrics
         self.cache_hits = 0
         self.cache_misses = 0
-        
+
         # Latency tracking (using deque for rolling window)
         self._latencies: deque[float] = deque(maxlen=1000)  # Keep last 1000 latencies
         self.total_latency_ms = 0.0
-        
+
         # Errors
         self.errors = 0
         self.embedding_errors = 0
         self.storage_errors = 0
-        
+
         # Success scores (for tracking quality)
         self._success_scores: deque[float] = deque(maxlen=1000)
         self.total_success_score = 0.0
@@ -59,7 +58,7 @@ class RAGMetrics:
     def record_call(self, operation: str, latency_ms: float, cache_hit: bool = False) -> None:
         """
         Record a RAG operation call.
-        
+
         Args:
             operation: Operation type ('store', 'retrieve', 'search')
             latency_ms: Operation latency in milliseconds
@@ -67,26 +66,26 @@ class RAGMetrics:
         """
         with self._lock:
             self.total_calls += 1
-            
+
             if operation == 'store':
                 self.store_calls += 1
             elif operation == 'retrieve':
                 self.retrieve_calls += 1
             elif operation == 'search':
                 self.search_calls += 1
-            
+
             if cache_hit:
                 self.cache_hits += 1
             else:
                 self.cache_misses += 1
-            
+
             self._latencies.append(latency_ms)
             self.total_latency_ms += latency_ms
 
     def record_error(self, error_type: str) -> None:
         """
         Record an error.
-        
+
         Args:
             error_type: Error type ('embedding', 'storage', 'other')
         """
@@ -100,7 +99,7 @@ class RAGMetrics:
     def record_success_score(self, score: float) -> None:
         """
         Record a success score.
-        
+
         Args:
             score: Success score (0.0-1.0)
         """
@@ -111,7 +110,7 @@ class RAGMetrics:
     def get_metrics(self) -> dict[str, Any]:
         """
         Get current metrics snapshot.
-        
+
         Returns:
             Dictionary with all metrics
         """
@@ -123,22 +122,22 @@ class RAGMetrics:
             )
             min_latency_ms = min(latencies_list) if latencies_list else 0.0
             max_latency_ms = max(latencies_list) if latencies_list else 0.0
-            
+
             cache_hit_rate = (
                 self.cache_hits / (self.cache_hits + self.cache_misses)
                 if (self.cache_hits + self.cache_misses) > 0 else 0.0
             )
-            
+
             avg_success_score = (
                 sum(self._success_scores) / len(self._success_scores)
                 if self._success_scores else 0.5
             )
-            
+
             error_rate = (
                 self.errors / self.total_calls
                 if self.total_calls > 0 else 0.0
             )
-            
+
             return {
                 'total_calls': self.total_calls,
                 'store_calls': self.store_calls,

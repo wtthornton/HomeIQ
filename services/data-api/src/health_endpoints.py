@@ -8,12 +8,13 @@ import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import aiohttp
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(str(Path(__file__).resolve().parent, '../../shared'))
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -134,7 +135,7 @@ class HealthEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get health status"
-                )
+                ) from e
 
         @self.router.get("/health/services", response_model=dict[str, ServiceHealth])
         async def get_services_health():
@@ -147,7 +148,7 @@ class HealthEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get services health"
-                )
+                ) from e
 
         @self.router.get("/health/dependencies", response_model=dict[str, Any])
         async def get_dependencies_health():
@@ -160,7 +161,7 @@ class HealthEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get dependencies health"
-                )
+                ) from e
 
         @self.router.get("/health/metrics", response_model=dict[str, Any])
         async def get_health_metrics():
@@ -173,7 +174,84 @@ class HealthEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get health metrics"
-                )
+                ) from e
+
+        @self.router.get("/event-rate", response_model=dict[str, Any])
+        async def get_event_rate():
+            """Get standardized event rate metrics for data-api service"""
+            try:
+                # Get current time for uptime calculation
+                current_time = datetime.now()
+
+                # Story 24.1: Calculate uptime from service start time
+                try:
+                    from .main import SERVICE_START_TIME
+                    uptime_seconds = (datetime.utcnow() - SERVICE_START_TIME).total_seconds()
+                except Exception as e:
+                    logger.warning(f"Could not get SERVICE_START_TIME: {e}")
+                    uptime_seconds = 3600  # Fallback estimate
+
+                # Simulate some realistic metrics for data-api
+                # In production, these would come from actual request tracking
+                import random
+                events_per_second = random.uniform(0.5, 5.0)  # noqa: S311 - Simulation, not security
+                events_per_hour = events_per_second * 3600
+
+                # Simulate some processing statistics
+                processed_events = int(events_per_second * uptime_seconds)
+                failed_events = int(processed_events * 0.01)  # 1% failure rate
+                success_rate = 99.0
+
+                # Build response
+                response_data = {
+                    "service": "data-api",
+                    "events_per_second": round(events_per_second, 2),
+                    "events_per_hour": round(events_per_hour, 2),
+                    "total_events_processed": processed_events,
+                    "uptime_seconds": round(uptime_seconds, 2),
+                    "processing_stats": {
+                        "is_running": True,
+                        "max_workers": 6,
+                        "active_workers": 4,
+                        "processed_events": processed_events,
+                        "failed_events": failed_events,
+                        "success_rate": success_rate,
+                        "processing_rate_per_second": events_per_second,
+                        "average_processing_time_ms": random.uniform(100, 500),  # noqa: S311
+                        "queue_size": random.randint(0, 20),  # noqa: S311
+                        "queue_maxsize": 2000,
+                        "uptime_seconds": uptime_seconds,
+                        "last_processing_time": current_time.isoformat(),
+                        "event_handlers_count": 12
+                    },
+                    "connection_stats": {
+                        "is_connected": True,
+                        "is_subscribed": False,
+                        "total_events_received": processed_events,
+                        "events_by_type": {
+                            "events_query": int(processed_events * 0.3),
+                            "devices_query": int(processed_events * 0.2),
+                            "sports_query": int(processed_events * 0.2),
+                            "analytics_query": int(processed_events * 0.15),
+                            "ha_automation": int(processed_events * 0.1),
+                            "health_check": int(processed_events * 0.05)
+                        },
+                        "last_event_time": current_time.isoformat()
+                    },
+                    "timestamp": current_time.isoformat()
+                }
+
+                return response_data
+
+            except Exception as e:
+                logger.error(f"Error getting event rate: {e}")
+                return {
+                    "service": "data-api",
+                    "error": str(e),
+                    "events_per_second": 0,
+                    "events_per_hour": 0,
+                    "timestamp": datetime.now().isoformat()
+                }
 
     async def _check_services(self) -> dict[str, ServiceHealth]:
         """Check health of all services"""
@@ -183,7 +261,7 @@ class HealthEndpoints:
             try:
                 start_time = datetime.now()
 
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:  # noqa: SIM117
                     async with session.get(f"{service_url}/health") as response:
                         response_time = (datetime.now() - start_time).total_seconds() * 1000
 
@@ -228,7 +306,7 @@ class HealthEndpoints:
             if not websocket_url:
                 return {}
 
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
                 async with session.get(f"{websocket_url}/health") as response:
                     if response.status == 200:
                         return await response.json()
@@ -246,7 +324,7 @@ class HealthEndpoints:
         # Check InfluxDB
         try:
             influxdb_url = self.service_urls["influxdb"]
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
                 async with session.get(f"{influxdb_url}/health") as response:
                     dependencies_health["influxdb"] = {
                         "status": "healthy" if response.status == 200 else "unhealthy",
@@ -265,7 +343,7 @@ class HealthEndpoints:
             weather_api_key = os.getenv("WEATHER_API_KEY")
             if weather_api_key:
                 weather_url = self.service_urls["weather-api"]
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
                     async with session.get(f"{weather_url}/weather?q=London&appid={weather_api_key}") as response:
                         dependencies_health["weather_api"] = {
                             "status": "healthy" if response.status == 200 else "unhealthy",
@@ -305,7 +383,7 @@ class HealthEndpoints:
         """Check InfluxDB health"""
         try:
             influxdb_url = self.service_urls["influxdb"]
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession() as session:  # noqa: SIM117
                 async with session.get(f"{influxdb_url}/health") as response:
                     return response.status == 200
         except Exception as e:
@@ -315,7 +393,7 @@ class HealthEndpoints:
     async def _check_service_health(self, service_url: str) -> bool:
         """Check service health via HTTP"""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession() as session:  # noqa: SIM117
                 async with session.get(service_url) as response:
                     return response.status == 200
         except Exception as e:
@@ -380,79 +458,3 @@ class HealthEndpoints:
         except ImportError:
             return {"error": "psutil not available"}
 
-    @self.router.get("/event-rate", response_model=dict[str, Any])
-    async def get_event_rate(self):
-        """Get standardized event rate metrics for data-api service"""
-        try:
-            # Get current time for uptime calculation
-            current_time = datetime.now()
-
-            # Story 24.1: Calculate uptime from service start time
-            try:
-                from .main import SERVICE_START_TIME
-                uptime_seconds = (datetime.utcnow() - SERVICE_START_TIME).total_seconds()
-            except Exception as e:
-                logger.warning(f"Could not get SERVICE_START_TIME: {e}")
-                uptime_seconds = 3600  # Fallback estimate
-
-            # Simulate some realistic metrics for data-api
-            # In production, these would come from actual request tracking
-            import random
-            events_per_second = random.uniform(0.5, 5.0)  # Simulate 0.5-5.0 req/sec
-            events_per_hour = events_per_second * 3600
-
-            # Simulate some processing statistics
-            processed_events = int(events_per_second * uptime_seconds)
-            failed_events = int(processed_events * 0.01)  # 1% failure rate
-            success_rate = 99.0
-
-            # Build response
-            response_data = {
-                "service": "data-api",
-                "events_per_second": round(events_per_second, 2),
-                "events_per_hour": round(events_per_hour, 2),
-                "total_events_processed": processed_events,
-                "uptime_seconds": round(uptime_seconds, 2),
-                "processing_stats": {
-                    "is_running": True,
-                    "max_workers": 6,
-                    "active_workers": 4,
-                    "processed_events": processed_events,
-                    "failed_events": failed_events,
-                    "success_rate": success_rate,
-                    "processing_rate_per_second": events_per_second,
-                    "average_processing_time_ms": random.uniform(100, 500),  # 100-500ms response time
-                    "queue_size": random.randint(0, 20),
-                    "queue_maxsize": 2000,
-                    "uptime_seconds": uptime_seconds,
-                    "last_processing_time": current_time.isoformat(),
-                    "event_handlers_count": 12
-                },
-                "connection_stats": {
-                    "is_connected": True,
-                    "is_subscribed": False,
-                    "total_events_received": processed_events,
-                    "events_by_type": {
-                        "events_query": int(processed_events * 0.3),
-                        "devices_query": int(processed_events * 0.2),
-                        "sports_query": int(processed_events * 0.2),
-                        "analytics_query": int(processed_events * 0.15),
-                        "ha_automation": int(processed_events * 0.1),
-                        "health_check": int(processed_events * 0.05)
-                    },
-                    "last_event_time": current_time.isoformat()
-                },
-                "timestamp": current_time.isoformat()
-            }
-
-            return response_data
-
-        except Exception as e:
-            logger.error(f"Error getting event rate: {e}")
-            return {
-                "service": "data-api",
-                "error": str(e),
-                "events_per_second": 0,
-                "events_per_hour": 0,
-                "timestamp": datetime.now().isoformat()
-            }

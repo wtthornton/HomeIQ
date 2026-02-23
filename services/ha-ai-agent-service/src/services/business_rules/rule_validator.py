@@ -6,10 +6,10 @@ automation creation requests.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
-from ..entity_resolution.entity_resolution_service import EntityResolutionService
 from ..entity_resolution.entity_resolution_result import EntityResolutionResult
+from ..entity_resolution.entity_resolution_service import EntityResolutionService
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class BusinessRuleValidator:
 
     def __init__(
         self,
-        entity_resolution_service: Optional[EntityResolutionService] = None,
+        entity_resolution_service: EntityResolutionService | None = None,
     ):
         """
         Initialize business rule validator.
@@ -57,8 +57,8 @@ class BusinessRuleValidator:
     async def validate_entity_resolution(
         self,
         user_prompt: str,
-        context_entities: Optional[list[dict[str, Any]]] = None,
-        target_domain: Optional[str] = None,
+        context_entities: list[dict[str, Any]] | None = None,
+        target_domain: str | None = None,
     ) -> EntityResolutionResult:
         """
         Validate entity resolution from user prompt.
@@ -92,7 +92,7 @@ class BusinessRuleValidator:
         self,
         effect_name: str,
         available_effects: list[str],
-    ) -> tuple[bool, Optional[str], list[str]]:
+    ) -> tuple[bool, str | None, list[str]]:
         """
         Validate effect name is exact and case-sensitive.
 
@@ -133,11 +133,11 @@ class BusinessRuleValidator:
 
     def validate_context_completeness(
         self,
-        user_prompt: str,
+        _user_prompt: str,
         required_entities: list[str],
         context_entities: list[dict[str, Any]],
-        required_areas: Optional[list[str]] = None,
-        context_areas: Optional[list[dict[str, Any]]] = None,
+        required_areas: list[str] | None = None,
+        context_areas: list[dict[str, Any]] | None = None,
     ) -> tuple[bool, list[str]]:
         """
         Validate that all mentioned entities/areas exist in context.
@@ -231,17 +231,14 @@ class BusinessRuleValidator:
         # Check for time-based triggers with security entities
         trigger = automation_dict.get("trigger", [])
         has_time_trigger = False
-        trigger_platforms = []
         if isinstance(trigger, list):
             has_time_trigger = any(
                 t.get("platform") in ["time", "time_pattern", "sun", "calendar"]
                 for t in trigger
             )
-            trigger_platforms = [t.get("platform") for t in trigger]
         elif isinstance(trigger, dict):
             platform = trigger.get("platform")
             has_time_trigger = platform in ["time", "time_pattern", "sun", "calendar"]
-            trigger_platforms = [platform] if platform else []
 
         # Enhanced time constraint validation for security automations
         if security_entities:

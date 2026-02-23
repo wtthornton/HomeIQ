@@ -6,7 +6,6 @@ Monitor service health and performance metrics
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List
 
 import pandas as pd
 import plotly.express as px
@@ -27,7 +26,7 @@ if "jaeger_client" not in st.session_state:
 def show() -> None:
     """
     Display service performance monitoring dashboard.
-    
+
     Shows service health, latency metrics, error rates, and dependencies.
     """
     st.header("⚡ Service Performance Monitoring")
@@ -165,10 +164,10 @@ def show() -> None:
         st.info("👆 Click 'Load Performance Data' to analyze service performance")
 
 
-async def _get_services() -> List[Service]:
+async def _get_services() -> list[Service]:
     """
     Get list of services from Jaeger.
-    
+
     Returns:
         List of Service objects
     """
@@ -176,9 +175,9 @@ async def _get_services() -> List[Service]:
     return await client.get_services()
 
 
-def _calculate_service_metrics(traces: List[Trace]) -> Dict[str, Dict]:
+def _calculate_service_metrics(traces: list[Trace]) -> dict[str, dict]:
     """Calculate performance metrics for each service."""
-    service_metrics: Dict[str, Dict] = {}
+    service_metrics: dict[str, dict] = {}
 
     for trace in traces:
         for span in trace.spans:
@@ -202,7 +201,7 @@ def _calculate_service_metrics(traces: List[Trace]) -> Dict[str, Dict]:
                     break
 
     # Calculate percentiles and error rates
-    for service_name, metrics in service_metrics.items():
+    for _service_name, metrics in service_metrics.items():
         durations = sorted(metrics["durations"])
         if durations:
             metrics["p50"] = durations[int(len(durations) * 0.50)]
@@ -221,13 +220,13 @@ def _calculate_service_metrics(traces: List[Trace]) -> Dict[str, Dict]:
     return service_metrics
 
 
-def _create_health_dataframe(service_metrics: Dict[str, Dict[str, float]]) -> pd.DataFrame:
+def _create_health_dataframe(service_metrics: dict[str, dict[str, float]]) -> pd.DataFrame:
     """
     Create service health DataFrame.
-    
+
     Args:
         service_metrics: Dictionary of service metrics
-        
+
     Returns:
         DataFrame with service health information
     """
@@ -236,9 +235,7 @@ def _create_health_dataframe(service_metrics: Dict[str, Dict[str, float]]) -> pd
         # Determine health status
         if metrics["error_rate"] > 10:
             health_status = "🔴 Critical"
-        elif metrics["error_rate"] > 5:
-            health_status = "🟡 Warning"
-        elif metrics["p95"] > 1000:  # p95 > 1 second
+        elif metrics["error_rate"] > 5 or metrics["p95"] > 1000:
             health_status = "🟡 Warning"
         else:
             health_status = "🟢 Healthy"
@@ -258,13 +255,13 @@ def _create_health_dataframe(service_metrics: Dict[str, Dict[str, float]]) -> pd
     return pd.DataFrame(data).sort_values("Service")
 
 
-def _create_latency_dataframe(service_metrics: Dict[str, Dict[str, float]]) -> pd.DataFrame:
+def _create_latency_dataframe(service_metrics: dict[str, dict[str, float]]) -> pd.DataFrame:
     """
     Create latency percentiles DataFrame.
-    
+
     Args:
         service_metrics: Dictionary of service metrics
-        
+
     Returns:
         DataFrame with latency percentile data
     """
@@ -282,13 +279,13 @@ def _create_latency_dataframe(service_metrics: Dict[str, Dict[str, float]]) -> p
     return pd.DataFrame(data).sort_values("Service")
 
 
-def _create_error_dataframe(service_metrics: Dict[str, Dict[str, float]]) -> pd.DataFrame:
+def _create_error_dataframe(service_metrics: dict[str, dict[str, float]]) -> pd.DataFrame:
     """
     Create error rate DataFrame.
-    
+
     Args:
         service_metrics: Dictionary of service metrics
-        
+
     Returns:
         DataFrame with error rate information
     """

@@ -17,6 +17,22 @@
 
 ---
 
+## Quality Pipeline (TAPPS)
+
+This project uses TAPPS for automated code quality enforcement. When TappsMCP is configured:
+
+- Call `tapps_session_start()` at the start of every session
+- Call `tapps_quick_check(file_path)` after editing any Python file
+- Call `tapps_validate_changed()` before declaring work complete
+- Call `tapps_checklist(task_type)` as the final step
+- Call `tapps_lookup_docs(library)` before using external library APIs
+- Call `tapps_consult_expert(question)` for domain-specific decisions
+- Call `tapps_impact_analysis(file_path)` before refactoring or deleting files
+
+See AGENTS.md for the full tool reference.
+
+---
+
 ## 📁 Repository Structure
 
 ```

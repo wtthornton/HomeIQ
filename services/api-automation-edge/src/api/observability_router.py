@@ -4,9 +4,8 @@ Observability Router
 Endpoints for metrics and explainability
 """
 
-from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, Body, HTTPException
 
 from ..observability.explainer import Explainer
 from ..rollout.kill_switch import KillSwitch
@@ -38,7 +37,7 @@ async def pause_kill_switch(request_data: dict = Body(default={})):
     global_pause = request_data.get("global_pause", False)
     home_id = request_data.get("home_id")
     spec_id = request_data.get("spec_id")
-    
+
     if global_pause:
         kill_switch.pause_global()
     elif home_id:
@@ -56,7 +55,7 @@ async def resume_kill_switch(request_data: dict = Body(default={})):
     global_resume = request_data.get("global_resume", False)
     home_id = request_data.get("home_id")
     spec_id = request_data.get("spec_id")
-    
+
     if global_resume:
         kill_switch.resume_global()
     elif home_id:

@@ -6,7 +6,6 @@ Live trace streaming and real-time service health monitoring
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List
 
 import pandas as pd
 import plotly.express as px
@@ -32,7 +31,7 @@ if "auto_refresh" not in st.session_state:
 def show() -> None:
     """
     Display real-time observability dashboard.
-    
+
     Shows live trace streaming with auto-refresh and anomaly detection.
     """
     st.header("📡 Real-Time Observability")
@@ -142,14 +141,14 @@ def show() -> None:
         st.info("👆 Enable auto-refresh to start monitoring")
 
 
-async def _get_latest_traces(limit: int = 50, lookback_minutes: int = 5) -> List[Trace]:
+async def _get_latest_traces(limit: int = 50, lookback_minutes: int = 5) -> list[Trace]:
     """
     Get latest traces from Jaeger.
-    
+
     Args:
         limit: Maximum number of traces to return
         lookback_minutes: Minutes to look back for traces
-        
+
     Returns:
         List of Trace objects
     """
@@ -174,13 +173,13 @@ def _has_errors(trace: Trace) -> bool:
     return False
 
 
-def _detect_anomalies(traces: List[Trace]) -> List[Dict[str, str]]:
+def _detect_anomalies(traces: list[Trace]) -> list[dict[str, str]]:
     """
     Detect anomalies in traces (high latency, errors).
-    
+
     Args:
         traces: List of traces to analyze
-        
+
     Returns:
         List of anomaly dictionaries
     """
@@ -217,13 +216,13 @@ def _detect_anomalies(traces: List[Trace]) -> List[Dict[str, str]]:
     return anomalies
 
 
-def _create_realtime_dataframe(traces: List[Trace]) -> pd.DataFrame:
+def _create_realtime_dataframe(traces: list[Trace]) -> pd.DataFrame:
     """
     Create real-time trace DataFrame.
-    
+
     Args:
         traces: List of traces to convert to DataFrame
-        
+
     Returns:
         DataFrame with trace information
     """
@@ -248,13 +247,13 @@ def _create_realtime_dataframe(traces: List[Trace]) -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
-def _calculate_service_health(traces: List[Trace]) -> List[Dict[str, float]]:
+def _calculate_service_health(traces: list[Trace]) -> list[dict[str, float]]:
     """
     Calculate real-time service health scores.
-    
+
     Args:
         traces: List of traces to analyze
-        
+
     Returns:
         List of service health dictionaries
     """

@@ -91,7 +91,7 @@ async def list_devices(
 ):
     """
     List all discovered devices from Device Intelligence Service
-    
+
     Returns devices with their metadata, optionally filtered by manufacturer, model, or area.
     """
     try:
@@ -155,10 +155,10 @@ async def list_devices(
 async def get_device(device_id: str):
     """
     Get details for a specific device from Device Intelligence Service
-    
+
     Args:
         device_id: Device identifier
-        
+
     Returns:
         Device details
     """
@@ -191,7 +191,7 @@ async def get_device(device_id: str):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Device {device_id} not found"
-            )
+            ) from None
         record = records[0]
         return DeviceResponse(
             device_id=record.get("device_id", device_id),
@@ -214,7 +214,7 @@ async def list_entities(
 ):
     """
     List all discovered entities from Home Assistant
-    
+
     Returns entities with their configuration, optionally filtered by domain, platform, or device.
     """
     try:
@@ -257,17 +257,17 @@ async def list_entities(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve entities: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/entities/{entity_id}", response_model=EntityResponse)
 async def get_entity(entity_id: str):
     """
     Get details for a specific entity
-    
+
     Args:
         entity_id: Entity identifier (e.g., light.living_room)
-        
+
     Returns:
         Entity details
     """
@@ -311,7 +311,7 @@ async def get_entity(entity_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve entity: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/api/integrations", response_model=IntegrationsListResponse)
@@ -320,7 +320,7 @@ async def list_integrations(
 ):
     """
     List all Home Assistant integrations (config entries)
-    
+
     Returns all discovered integrations with their setup status.
     """
     try:
@@ -358,7 +358,7 @@ async def list_integrations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve integrations: {str(e)}"
-        )
+        ) from e
 
 
 # Helper functions

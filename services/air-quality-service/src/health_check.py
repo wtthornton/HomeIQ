@@ -21,7 +21,7 @@ class HealthCheckHandler:
         self.last_api_success = False
         self.last_influxdb_success = False
 
-    async def handle(self, request):
+    async def handle(self, _request):
         """Handle health check request"""
 
         uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()

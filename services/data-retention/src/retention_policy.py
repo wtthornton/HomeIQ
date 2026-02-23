@@ -37,10 +37,10 @@ class RetentionPolicy:
     def get_expiration_date(self, from_date: datetime | None = None) -> datetime:
         """
         Calculate expiration date based on retention policy.
-        
+
         Args:
             from_date: Base date for calculation (defaults to now)
-            
+
         Returns:
             datetime: Expiration date
         """
@@ -139,7 +139,7 @@ class RetentionPolicyManager:
     def remove_policy(self, policy_name: str) -> None:
         """
         Remove a retention policy.
-        
+
         Args:
             policy_name: Name of policy to remove
         """
@@ -155,10 +155,10 @@ class RetentionPolicyManager:
     def get_policy(self, policy_name: str) -> RetentionPolicy | None:
         """
         Get a retention policy by name.
-        
+
         Args:
             policy_name: Name of policy to get
-            
+
         Returns:
             RetentionPolicy or None if not found
         """
@@ -167,7 +167,7 @@ class RetentionPolicyManager:
     def get_all_policies(self) -> list[RetentionPolicy]:
         """
         Get all retention policies.
-        
+
         Returns:
             List of all retention policies
         """
@@ -176,7 +176,7 @@ class RetentionPolicyManager:
     def get_enabled_policies(self) -> list[RetentionPolicy]:
         """
         Get all enabled retention policies.
-        
+
         Returns:
             List of enabled retention policies
         """
@@ -185,10 +185,10 @@ class RetentionPolicyManager:
     def validate_policy(self, policy: RetentionPolicy) -> list[str]:
         """
         Validate a retention policy.
-        
+
         Args:
             policy: Policy to validate
-            
+
         Returns:
             List of validation errors (empty if valid)
         """
@@ -211,7 +211,7 @@ class RetentionPolicyManager:
     def export_policies(self) -> str:
         """
         Export all policies to JSON string.
-        
+
         Returns:
             JSON string containing all policies
         """
@@ -224,7 +224,7 @@ class RetentionPolicyManager:
     def import_policies(self, policies_json: str) -> None:
         """
         Import policies from JSON string.
-        
+
         Args:
             policies_json: JSON string containing policies
         """
@@ -244,12 +244,12 @@ class RetentionPolicyManager:
 
         except Exception as e:
             logger.error(f"Failed to import policies: {e}")
-            raise ValueError(f"Invalid policies JSON: {e}")
+            raise ValueError(f"Invalid policies JSON: {e}") from e
 
     def get_policy_statistics(self) -> dict[str, Any]:
         """
         Get statistics about retention policies.
-        
+
         Returns:
             Dictionary containing policy statistics
         """

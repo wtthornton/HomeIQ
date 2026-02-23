@@ -7,8 +7,7 @@ Supports filtering by entity ID patterns, domain, device class, and area.
 
 import logging
 import re
-from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -20,7 +19,7 @@ class EntityFilter:
     def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize entity filter
-        
+
         Args:
             config: Filter configuration dictionary
                 - mode: "exclude" (opt-out) or "include" (opt-in)
@@ -31,18 +30,18 @@ class EntityFilter:
         self.mode = self.config.get("mode", "exclude")  # Default: opt-out
         self.patterns = self.config.get("patterns", [])
         self.exceptions = self.config.get("exceptions", [])
-        
+
         # Statistics tracking
         self.filtered_count = 0
         self.passed_count = 0
         self.exception_count = 0
         self.start_time = datetime.now(timezone.utc)
-        
+
         # Compile regex patterns for performance
         self._compiled_patterns: list[tuple[re.Pattern, dict[str, Any]]] = []
         self._compiled_exceptions: list[tuple[re.Pattern, dict[str, Any]]] = []
         self._compile_patterns()
-        
+
         logger.info(f"Entity filter initialized: mode={self.mode}, patterns={len(self.patterns)}, exceptions={len(self.exceptions)}")
 
     def _compile_patterns(self):
@@ -52,7 +51,7 @@ class EntityFilter:
             compiled = self._compile_pattern(pattern)
             if compiled:
                 self._compiled_patterns.append(compiled)
-        
+
         # Compile exception patterns
         for exception in self.exceptions:
             compiled = self._compile_pattern(exception)
@@ -62,10 +61,10 @@ class EntityFilter:
     def _compile_pattern(self, pattern: dict[str, Any]) -> tuple[re.Pattern, dict[str, Any]] | None:
         """
         Compile a single pattern into regex
-        
+
         Args:
             pattern: Pattern dictionary with entity_id, domain, device_class, or area_id
-            
+
         Returns:
             Tuple of (compiled_regex, pattern_dict) or None if invalid
         """
@@ -84,10 +83,10 @@ class EntityFilter:
     def _glob_to_regex(self, pattern: str) -> str:
         """
         Convert glob pattern to regex
-        
+
         Args:
             pattern: Glob pattern (e.g., "sensor.*_battery")
-            
+
         Returns:
             Regex pattern string
         """
@@ -102,10 +101,10 @@ class EntityFilter:
     def should_include(self, event_data: dict[str, Any]) -> bool:
         """
         Determine if an event should be included (not filtered)
-        
+
         Args:
             event_data: Event data dictionary with entity_id, domain, device_class, area_id
-            
+
         Returns:
             True if event should be included, False if filtered
         """
@@ -114,20 +113,20 @@ class EntityFilter:
         if not entity_id:
             # If no entity_id, include by default (non-entity events)
             return True
-        
+
         domain = self._extract_domain(entity_id)
         device_class = event_data.get("device_class") or event_data.get("attributes", {}).get("device_class")
         area_id = event_data.get("area_id") or event_data.get("attributes", {}).get("area_id")
-        
+
         # Check exceptions first (always override)
         if self._matches_exceptions(entity_id, domain, device_class, area_id):
             self.exception_count += 1
             logger.debug(f"Entity {entity_id} matches exception - including")
             return True
-        
+
         # Check if entity matches filter patterns
         matches_pattern = self._matches_patterns(entity_id, domain, device_class, area_id)
-        
+
         if self.mode == "exclude":
             # Opt-out: Exclude if matches pattern
             if matches_pattern:
@@ -177,68 +176,60 @@ class EntityFilter:
         for compiled_pattern, pattern_dict in self._compiled_patterns:
             if self._entity_matches_pattern(entity_id, domain, device_class, area_id, compiled_pattern, pattern_dict):
                 return True
-        
+
         # Also check non-regex patterns (domain, device_class, area_id)
         for pattern in self.patterns:
-            if not pattern.get("entity_id"):  # Skip regex patterns (already checked)
-                if self._entity_matches_simple_pattern(entity_id, domain, device_class, area_id, pattern):
-                    return True
-        return False
-    
-    def _entity_matches_simple_pattern(self, entity_id: str, domain: str | None, device_class: str | None, area_id: str | None, pattern: dict[str, Any]) -> bool:
-        """Check if entity matches a simple pattern (non-regex)"""
-        # Check domain
-        if pattern.get("domain") and domain:
-            if pattern["domain"] == domain:
+            if not pattern.get("entity_id") and self._entity_matches_simple_pattern(entity_id, domain, device_class, area_id, pattern):
                 return True
-        
-        # Check device_class
-        if pattern.get("device_class") and device_class:
-            if pattern["device_class"] == device_class:
-                return True
-        
-        # Check area_id
-        if pattern.get("area_id") and area_id:
-            if pattern["area_id"] == area_id:
-                return True
-        
         return False
 
-    def _entity_matches_pattern(self, entity_id: str, domain: str | None, device_class: str | None, area_id: str | None, 
+    def _entity_matches_simple_pattern(self, _entity_id: str, domain: str | None, device_class: str | None, area_id: str | None, pattern: dict[str, Any]) -> bool:
+        """Check if entity matches a simple pattern (non-regex)"""
+        # Check domain
+        if pattern.get("domain") and domain and pattern["domain"] == domain:
+            return True
+
+        # Check device_class
+        if pattern.get("device_class") and device_class and pattern["device_class"] == device_class:
+            return True
+
+        # Check area_id
+        if pattern.get("area_id") and area_id and pattern["area_id"] == area_id:
+            return True
+
+        return False
+
+    def _entity_matches_pattern(self, entity_id: str, domain: str | None, device_class: str | None, area_id: str | None,
                                 compiled_pattern: re.Pattern, pattern_dict: dict[str, Any]) -> bool:
         """Check if entity matches a specific pattern"""
         # Check entity_id pattern
-        if pattern_dict.get("entity_id") and compiled_pattern:
-            if compiled_pattern.match(entity_id):
-                return True
-        
+        if pattern_dict.get("entity_id") and compiled_pattern and compiled_pattern.match(entity_id):
+            return True
+
         # Check domain
-        if pattern_dict.get("domain") and domain:
-            if pattern_dict["domain"] == domain:
-                return True
-        
+        if pattern_dict.get("domain") and domain and pattern_dict["domain"] == domain:
+            return True
+
         # Check device_class
-        if pattern_dict.get("device_class") and device_class:
-            if pattern_dict["device_class"] == device_class:
-                return True
-        
+        if pattern_dict.get("device_class") and device_class and pattern_dict["device_class"] == device_class:
+            return True
+
         # Check area_id
-        if pattern_dict.get("area_id") and area_id:
-            if pattern_dict["area_id"] == area_id:
-                return True
-        
+        if pattern_dict.get("area_id") and area_id and pattern_dict["area_id"] == area_id:
+            return True
+
         return False
 
     def get_statistics(self) -> dict[str, Any]:
         """
         Get filter statistics
-        
+
         Returns:
             Dictionary with filter statistics
         """
         uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()
         total_processed = self.filtered_count + self.passed_count + self.exception_count
-        
+
         return {
             "filtered_count": self.filtered_count,
             "passed_count": self.passed_count,
@@ -254,7 +245,7 @@ class EntityFilter:
     def reload_config(self, new_config: dict[str, Any]):
         """
         Reload filter configuration without restart
-        
+
         Args:
             new_config: New filter configuration
         """
@@ -262,11 +253,11 @@ class EntityFilter:
         self.mode = self.config.get("mode", "exclude")
         self.patterns = self.config.get("patterns", [])
         self.exceptions = self.config.get("exceptions", [])
-        
+
         # Recompile patterns
         self._compiled_patterns.clear()
         self._compiled_exceptions.clear()
         self._compile_patterns()
-        
+
         logger.info(f"Entity filter configuration reloaded: mode={self.mode}, patterns={len(self.patterns)}")
 

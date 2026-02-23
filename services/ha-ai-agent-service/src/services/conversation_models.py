@@ -159,11 +159,11 @@ class Conversation:
             "message_count": self.message_count,
             "messages": [msg.to_dict() for msg in self.messages],
         }
-    
+
     def generate_title_from_first_message(self) -> str | None:
         """
         Generate a title from the first user message.
-        
+
         Returns:
             Generated title (max 50 chars) or None if no user messages
         """
@@ -174,12 +174,12 @@ class Conversation:
                     return content[:47] + "..."
                 return content
         return None
-    
+
     def set_title(self, title: str | None) -> None:
         """Set the conversation title"""
         self.title = title[:200] if title and len(title) > 200 else title
         self.updated_at = datetime.now()
-    
+
     def set_source(self, source: str) -> None:
         """Set the conversation source"""
         valid_sources = [s.value for s in ConversationSource]

@@ -3,6 +3,7 @@ InfluxDB Client for Time-Series Data Storage
 """
 
 import asyncio
+import contextlib
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -36,7 +37,7 @@ class InfluxDBConnectionManager:
                  retry_delay: float = 1.0):
         """
         Initialize InfluxDB connection manager
-        
+
         Args:
             url: InfluxDB server URL
             token: InfluxDB authentication token
@@ -99,10 +100,8 @@ class InfluxDBConnectionManager:
         # Stop health check task
         if self.health_check_task:
             self.health_check_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.health_check_task
-            except asyncio.CancelledError:
-                pass
 
         # Close connection
         await self._disconnect()
@@ -172,7 +171,7 @@ class InfluxDBConnectionManager:
                         else:
                             raise Exception(f"InfluxDB ping check failed with status {response.status}")
             except Exception as ping_error:
-                raise Exception(f"InfluxDB connection test failed: {e}, ping also failed: {ping_error}")
+                raise Exception(f"InfluxDB connection test failed: {e}, ping also failed: {ping_error}") from ping_error
 
     async def _disconnect(self):
         """Disconnect from InfluxDB"""
@@ -229,10 +228,10 @@ class InfluxDBConnectionManager:
     async def write_points(self, points: list[Point]) -> bool:
         """
         Write points to InfluxDB
-        
+
         Args:
             points: List of InfluxDB Point objects
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -260,10 +259,10 @@ class InfluxDBConnectionManager:
     async def query_data(self, query: str) -> list[dict[str, Any]]:
         """
         Query data from InfluxDB
-        
+
         Args:
             query: InfluxDB query string
-            
+
         Returns:
             List of query results
         """
@@ -301,11 +300,11 @@ class InfluxDBConnectionManager:
     async def write_device(self, device_point: dict[str, Any], bucket: str = None) -> bool:
         """
         Write device data to InfluxDB
-        
+
         Args:
             device_point: Device data in InfluxDB point format
             bucket: Bucket name (defaults to self.bucket)
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -335,11 +334,11 @@ class InfluxDBConnectionManager:
     async def write_entity(self, entity_point: dict[str, Any], bucket: str = None) -> bool:
         """
         Write entity data to InfluxDB
-        
+
         Args:
             entity_point: Entity data in InfluxDB point format
             bucket: Bucket name (defaults to self.bucket)
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -369,11 +368,11 @@ class InfluxDBConnectionManager:
     async def batch_write_devices(self, device_points: list[dict[str, Any]], bucket: str = None) -> bool:
         """
         Batch write multiple devices to InfluxDB
-        
+
         Args:
             device_points: List of device data in InfluxDB point format
             bucket: Bucket name (defaults to self.bucket)
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -404,11 +403,11 @@ class InfluxDBConnectionManager:
     async def batch_write_entities(self, entity_points: list[dict[str, Any]], bucket: str = None) -> bool:
         """
         Batch write multiple entities to InfluxDB
-        
+
         Args:
             entity_points: List of entity data in InfluxDB point format
             bucket: Bucket name (defaults to self.bucket)
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -480,11 +479,11 @@ class InfluxDBConnectionManager:
     async def query_devices(self, filters: dict[str, Any] = None, bucket: str = "devices") -> list[dict[str, Any]]:
         """
         Query devices from InfluxDB
-        
+
         Args:
             filters: Optional filters (manufacturer, model, area_id)
             bucket: Bucket name (defaults to 'devices')
-            
+
         Returns:
             List of device dictionaries
         """
@@ -512,11 +511,11 @@ class InfluxDBConnectionManager:
     async def query_entities(self, filters: dict[str, Any] = None, bucket: str = "entities") -> list[dict[str, Any]]:
         """
         Query entities from InfluxDB
-        
+
         Args:
             filters: Optional filters (domain, platform, device_id)
             bucket: Bucket name (defaults to 'entities')
-            
+
         Returns:
             List of entity dictionaries
         """

@@ -6,15 +6,15 @@ Epic 39, Story 39.5: Pattern Service Foundation
 
 import logging
 from typing import Any
+
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..database.integrity import (
-    check_database_integrity,
     attempt_database_repair,
-    DatabaseIntegrityError
+    check_database_integrity,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,15 +26,15 @@ router = APIRouter()
 async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """
     Health check endpoint.
-    
+
     Verifies database connectivity by executing a simple query.
-    
+
     Args:
         db: Database session dependency
-        
+
     Returns:
         dict: Health status with database connection status
-        
+
     Raises:
         HTTPException: If database connection fails (500 status)
     """
@@ -48,16 +48,16 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database connection failed"  # Generic error message
-        )
+        ) from e
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)
 async def readiness_check() -> dict[str, str]:
     """
     Readiness check endpoint.
-    
+
     Indicates whether the service is ready to accept traffic.
-    
+
     Returns:
         dict: Readiness status
     """
@@ -68,9 +68,9 @@ async def readiness_check() -> dict[str, str]:
 async def liveness_check() -> dict[str, str]:
     """
     Liveness check endpoint.
-    
+
     Indicates whether the service is alive and running.
-    
+
     Returns:
         dict: Liveness status
     """
@@ -83,18 +83,18 @@ async def check_database_integrity_endpoint(
 ) -> dict[str, Any]:
     """
     Check database integrity.
-    
+
     Returns database integrity status and health information.
-    
+
     Args:
         db: Database session dependency
-        
+
     Returns:
         dict: Integrity check results
     """
     try:
         is_healthy, error_msg = await check_database_integrity(db)
-        
+
         if is_healthy:
             return {
                 "status": "healthy",
@@ -114,7 +114,7 @@ async def check_database_integrity_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to check database integrity: {str(e)}"
-        )
+        ) from e
 
 
 @router.post("/database/repair", status_code=status.HTTP_200_OK)
@@ -133,17 +133,18 @@ async def repair_database_endpoint(
     """
     try:
         from pathlib import Path
+
         from ..config import settings
 
         if x_internal_token != settings.internal_api_token:
             raise HTTPException(status_code=403, detail="Forbidden")
-        
+
         db_path = Path(settings.database_path)
         logger.info(f"Attempting database repair for: {db_path}")
-        
+
         # Run repair (synchronous operation)
         repair_success = await attempt_database_repair(db_path)
-        
+
         if repair_success:
             return {
                 "status": "success",
@@ -161,5 +162,5 @@ async def repair_database_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to repair database: {str(e)}"
-        )
+        ) from e
 

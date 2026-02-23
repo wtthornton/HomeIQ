@@ -36,9 +36,9 @@ async def lifespan(app: FastAPI):
     async with get_db_context() as db:
         await init_schema_cache(db)
     logger.info("Blueprint Suggestion Service started successfully")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Blueprint Suggestion Service...")
     await close_db()
@@ -93,7 +93,7 @@ async def health() -> dict[str, str]:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "src.main:app",
         host="0.0.0.0",

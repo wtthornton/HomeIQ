@@ -95,7 +95,7 @@ class PromptAssemblyService:
             )
             try:
                 system_prompt = await self.context_builder.build_complete_system_prompt()
-                
+
                 # Verify system prompt was built correctly
                 if not system_prompt or len(system_prompt.strip()) < 100:
                     logger.error(
@@ -109,7 +109,7 @@ class PromptAssemblyService:
                         f"Contains 'CRITICAL': {'CRITICAL' in system_prompt}, "
                         f"Contains 'HOME ASSISTANT CONTEXT': {'HOME ASSISTANT CONTEXT' in system_prompt}"
                     )
-                
+
                 conversation.set_context_cache(system_prompt)
             except RuntimeError as e:
                 if "not initialized" in str(e):
@@ -118,12 +118,11 @@ class PromptAssemblyService:
                         f"❌ CRITICAL: Context builder not initialized! Error: {e}"
                     )
                     raise
-                else:
-                    logger.error(
-                        f"[Context Building] Conversation {conversation_id}: "
-                        f"❌ Error building context: {e}"
-                    )
-                    raise
+                logger.error(
+                    f"[Context Building] Conversation {conversation_id}: "
+                    f"❌ Error building context: {e}"
+                )
+                raise
             except Exception as e:
                 logger.error(
                     f"[Context Building] Conversation {conversation_id}: "
@@ -134,7 +133,7 @@ class PromptAssemblyService:
         else:
             logger.debug(f"Using cached context for conversation {conversation_id}")
             system_prompt = conversation.get_context_cache()
-            
+
             # Verify cached prompt is valid
             if not system_prompt or len(system_prompt.strip()) < 100:
                 logger.warning(
@@ -163,7 +162,7 @@ class PromptAssemblyService:
         filtered_history = []
         filtered_count = 0
         original_count = len(history_messages)
-        
+
         for msg in history_messages:
             if msg["role"] == "assistant":
                 if is_generic_welcome_message(msg.get("content", "")):
@@ -175,9 +174,9 @@ class PromptAssemblyService:
                     )
                     continue  # Skip this generic message
             filtered_history.append(msg)
-        
+
         history_messages = filtered_history
-        
+
         if filtered_count > 0:
             logger.info(
                 f"[Generic Message Filter] Conversation {conversation_id}: "
@@ -187,7 +186,7 @@ class PromptAssemblyService:
 
         # Emphasize the user's current request (the last message, which should be the one we just added)
         emphasized_messages = history_messages.copy()
-        
+
         # The user message we just added should be the last message in the history
         # Check if the last message is a user message (it should be)
         if history_messages and history_messages[-1]["role"] == "user":
@@ -197,13 +196,13 @@ class PromptAssemblyService:
 {original_user_message}
 
 Instructions: Process this request now. Use tools if needed. Do not respond with generic welcome messages."""
-            
+
             # Replace the last message with emphasized version
             emphasized_messages[-1] = {
                 "role": "user",
                 "content": emphasized_user_message
             }
-            
+
             logger.debug(
                 f"[Message Emphasis] Conversation {conversation_id}: "
                 f"Emphasized user request (last message). "
@@ -218,13 +217,13 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                 f"Last message is not a user message (role: {history_messages[-1]['role'] if history_messages else 'none'}). "
                 f"Using fallback to find last user message."
             )
-            
+
             last_user_idx = -1
             for i in range(len(history_messages) - 1, -1, -1):
                 if history_messages[i]["role"] == "user":
                     last_user_idx = i
                     break
-            
+
             if last_user_idx >= 0:
                 original_user_message = history_messages[last_user_idx]["content"]
                 emphasized_user_message = f"""USER REQUEST (process this immediately):
@@ -235,7 +234,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                     "role": "user",
                     "content": emphasized_user_message
                 }
-                
+
                 logger.info(
                     f"[Message Emphasis] Conversation {conversation_id}: "
                     f"Emphasized user request using fallback (index {last_user_idx}). "
@@ -255,14 +254,14 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                 f"❌ CRITICAL: System prompt is None or empty!"
             )
             raise ValueError("System prompt is required but was None or empty")
-        
+
         if len(system_prompt.strip()) < 100:
             logger.error(
                 f"[Message Assembly] Conversation {conversation_id}: "
                 f"❌ CRITICAL: System prompt is too short ({len(system_prompt)} chars)! "
                 f"Expected at least 100 chars."
             )
-        
+
         # Assemble complete message list
         messages = [
             {"role": "system", "content": system_prompt},
@@ -285,7 +284,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
 
         # Enforce token budget
         messages = await self._enforce_token_budget(messages, conversation)
-        
+
         if len(messages) < len([{"role": "system", "content": system_prompt}, *emphasized_messages]):
             logger.info(
                 f"[Token Budget] Conversation {conversation_id}: "
@@ -510,7 +509,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             preview.get('automation_yaml', ''),
             "```",
         ]
-        
+
         details = preview.get('details', {})
         if details:
             lines.extend([
@@ -520,19 +519,19 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                 f"- Action: {details.get('action_description', 'Unknown')}",
                 f"- Mode: {details.get('mode', 'single')}",
             ])
-        
+
         entities = preview.get('entities_affected', [])
         if entities:
             lines.append(f"- Entities Affected: {', '.join(entities)}")
-        
+
         areas = preview.get('areas_affected', [])
         if areas:
             lines.append(f"- Areas Affected: {', '.join(areas)}")
-        
+
         services = preview.get('services_used', [])
         if services:
             lines.append(f"- Services Used: {', '.join(services)}")
-        
+
         warnings = preview.get('safety_warnings', [])
         if warnings:
             lines.extend([
@@ -541,7 +540,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             ])
             for warning in warnings:
                 lines.append(f"- {warning}")
-        
+
         validation = preview.get('validation', {})
         if validation:
             errors = validation.get('errors', [])
@@ -560,6 +559,6 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                 ])
                 for warning in warnings_list:
                     lines.append(f"- {warning}")
-        
+
         return "\n".join(lines)
 

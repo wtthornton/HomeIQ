@@ -2,6 +2,8 @@
 WebSocket Ingestion Service Main Entry Point
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -9,7 +11,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
 
@@ -61,8 +63,10 @@ from .entity_filter import EntityFilter  # Epic 45.2
 from .event_queue import EventQueue
 from .health_check import HealthCheckHandler
 from .historical_event_counter import HistoricalEventCounter
-from .http_client import SimpleHTTPClient
 from .influxdb_wrapper import InfluxDBConnectionManager
+
+if TYPE_CHECKING:
+    from .http_client import SimpleHTTPClient
 from .memory_manager import MemoryManager
 
 # Load environment variables
@@ -143,16 +147,16 @@ class WebSocketIngestionService:
                 self.entity_filter = EntityFilter(filter_config)
                 logger.info("Entity filter initialized from ENTITY_FILTER_CONFIG environment variable")
                 return
-            
+
             # Try loading from config file
-            config_file = os.getenv('ENTITY_FILTER_CONFIG_FILE', 'config/entity_filter.json')
-            if os.path.exists(config_file):
-                with open(config_file, 'r') as f:
+            config_file = Path(os.getenv('ENTITY_FILTER_CONFIG_FILE', 'config/entity_filter.json'))
+            if config_file.exists():
+                with config_file.open() as f:
                     filter_config = json.load(f)
                     self.entity_filter = EntityFilter(filter_config)
                     logger.info(f"Entity filter initialized from {config_file}")
                     return
-            
+
             # Default: No filtering (include all entities)
             logger.info("Entity filter not configured - all entities will be included")
             self.entity_filter = None
@@ -449,7 +453,7 @@ class WebSocketIngestionService:
                     entity_id=entity_id
                 )
                 return  # Skip filtered events
-            
+
             # Add to batch processor for high-volume processing
             if self.batch_processor:
                 await self.batch_processor.add_event(processed_event)
@@ -547,12 +551,12 @@ from .api.app import app
 def main():
     """Main entry point - uses uvicorn to run FastAPI app"""
     import uvicorn
-    
+
     port = int(os.getenv('WEBSOCKET_INGESTION_PORT', '8000'))
     host = os.getenv('WEBSOCKET_INGESTION_HOST', '0.0.0.0')
-    
+
     logger.info(f"Starting WebSocket Ingestion Service on {host}:{port}...")
-    
+
     # Run with uvicorn
     uvicorn.run(
         app,

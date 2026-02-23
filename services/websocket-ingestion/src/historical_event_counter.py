@@ -17,7 +17,7 @@ class HistoricalEventCounter:
     def __init__(self, influxdb_manager: InfluxDBConnectionManager):
         """
         Initialize historical event counter
-        
+
         Args:
             influxdb_manager: InfluxDB connection manager
         """
@@ -33,7 +33,7 @@ class HistoricalEventCounter:
     async def initialize_historical_totals(self) -> dict[str, Any]:
         """
         Query InfluxDB for historical event totals and initialize counters
-        
+
         Returns:
             Dictionary with historical totals
         """

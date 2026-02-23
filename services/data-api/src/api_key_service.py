@@ -88,7 +88,7 @@ class APIKeyService:
     async def get_api_keys(self) -> list[APIKeyInfo]:
         """
         Get current API key status for all services
-        
+
         Returns:
             List of APIKeyInfo objects
         """
@@ -129,11 +129,11 @@ class APIKeyService:
     async def update_api_key(self, service: str, api_key: str) -> tuple[bool, str]:
         """
         Update API key for a service
-        
+
         Args:
             service: Service name
             api_key: New API key value
-            
+
         Returns:
             Tuple of (success, message)
         """
@@ -169,11 +169,11 @@ class APIKeyService:
     async def test_api_key(self, service: str, api_key: str) -> tuple[bool, str]:
         """
         Test an API key without saving it
-        
+
         Args:
             service: Service name
             api_key: API key to test
-            
+
         Returns:
             Tuple of (success, message)
         """
@@ -200,10 +200,10 @@ class APIKeyService:
     def get_api_key_status(self, service: str) -> APIKeyStatus:
         """
         Get API key status for a specific service
-        
+
         Args:
             service: Service name
-            
+
         Returns:
             APIKeyStatus enum value
         """
@@ -221,11 +221,11 @@ class APIKeyService:
     async def _test_api_key(self, service: str, api_key: str) -> bool:
         """
         Test API key validity by making a test request
-        
+
         Args:
             service: Service name
             api_key: API key to test
-            
+
         Returns:
             True if valid, False otherwise
         """
@@ -240,7 +240,7 @@ class APIKeyService:
 
             # Make test request
             timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with aiohttp.ClientSession(timeout=timeout) as session:  # noqa: SIM117
                 async with session.get(test_url) as response:
                     if response.status == 200:
                         # Check for expected response structure
@@ -261,11 +261,11 @@ class APIKeyService:
     def _validate_key_format(self, service: str, api_key: str) -> bool:
         """
         Validate API key format based on service requirements
-        
+
         Args:
             service: Service name
             api_key: API key to validate
-            
+
         Returns:
             True if format is valid, False otherwise
         """
@@ -289,10 +289,10 @@ class APIKeyService:
     def _mask_api_key(self, api_key: str) -> str:
         """
         Mask API key for display purposes
-        
+
         Args:
             api_key: API key to mask
-            
+
         Returns:
             Masked API key string
         """
@@ -308,7 +308,7 @@ class APIKeyService:
     async def _update_config_file(self, env_var: str, value: str) -> None:
         """
         Update environment variable in config file
-        
+
         Args:
             env_var: Environment variable name
             value: New value

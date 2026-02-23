@@ -12,8 +12,8 @@ This service provides:
 """
 
 import logging
-import os
 import sys
+from typing import Any
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -78,18 +78,18 @@ async def _setup_observability() -> None:
 async def lifespan(app: FastAPI):
     """
     Initialize service on startup and cleanup on shutdown.
-    
+
     This lifespan context manager handles:
     - Database initialization
     - Observability setup (if available)
     - Graceful shutdown
-    
+
     Args:
         app: FastAPI application instance
-    
+
     Yields:
         None: Control is yielded to the application runtime
-    
+
     Raises:
         Exception: If database initialization fails (prevents service startup)
     """
@@ -101,7 +101,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"OpenVINO Service: {settings.openvino_service_url}")
     logger.info(f"Embedding Cache Size: {settings.embedding_cache_size}")
     logger.info("=" * 60)
-    
+
     # Initialize database
     await _initialize_database()
 
@@ -164,7 +164,7 @@ app.include_router(metrics_router.router)
 async def root() -> dict[str, str]:
     """
     Root endpoint.
-    
+
     Returns:
         Service information including name, version, and status.
     """

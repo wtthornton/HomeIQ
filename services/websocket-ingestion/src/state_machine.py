@@ -54,7 +54,7 @@ except ImportError:
         StateMachine = shared_sm.StateMachine
         InvalidStateTransition = shared_sm.InvalidStateTransition
     else:
-        raise ImportError("Cannot find shared state_machine module")
+        raise ImportError("Cannot find shared state_machine module") from None
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +72,11 @@ class ConnectionState(Enum):
 class ConnectionStateMachine(StateMachine):
     """
     State machine for connection management with transition validation.
-    
+
     Provides formal state management for WebSocket connection lifecycle, preventing
     invalid state transitions and ensuring reliable connection handling. Based on
     the shared StateMachine base class from shared/state_machine.py.
-    
+
     State Flow:
     1. DISCONNECTED → CONNECTING (initial connection attempt)
     2. CONNECTING → AUTHENTICATING (WebSocket established, authenticating)
@@ -85,7 +85,7 @@ class ConnectionStateMachine(StateMachine):
     5. RECONNECTING → CONNECTING (reconnection attempt started)
     6. Any state → FAILED (critical error occurred)
     7. FAILED → RECONNECTING (automatic recovery)
-    
+
     Valid Transitions:
     - DISCONNECTED → CONNECTING
     - CONNECTING → AUTHENTICATING, FAILED
@@ -93,9 +93,9 @@ class ConnectionStateMachine(StateMachine):
     - CONNECTED → RECONNECTING, DISCONNECTED
     - RECONNECTING → CONNECTING, FAILED
     - FAILED → RECONNECTING
-    
+
     Invalid transitions raise InvalidStateTransition exception.
-    
+
     Example:
         machine = ConnectionStateMachine()
         machine.transition(ConnectionState.CONNECTING)  # Valid
@@ -128,7 +128,7 @@ class ProcessingState(Enum):
 class ProcessingStateMachine(StateMachine):
     """
     State machine for batch/event processing.
-    
+
     Valid transitions:
     - STOPPED → STARTING
     - STARTING → RUNNING, ERROR

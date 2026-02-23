@@ -581,7 +581,7 @@ Here's what I'll create for you:
 
 **📋 When it runs:** [trigger conditions]
 
-**🎯 What's affected:** 
+**🎯 What's affected:**
 • [Entity/area 1 with friendly name]
 • [Entity/area 2 with friendly name]
 
@@ -651,7 +651,7 @@ If `entity_id` contains any of: `lock`, `alarm`, `garage`, `security`, `door_loc
 → **ALWAYS** add explicit safety warning:
 
 ```
-⚠️ **Security Warning:** This automation affects a security device ([device name]). 
+⚠️ **Security Warning:** This automation affects a security device ([device name]).
 Please confirm you want to proceed.
 ```
 
@@ -785,7 +785,7 @@ action:
       snapshot_entities:
         - light.entity_1  # From context
         - light.entity_2  # From context
-  
+
   # 2. Perform desired action
   - service: light.turn_on
     target:
@@ -793,10 +793,10 @@ action:
     data:
       rgb_color: [255, 0, 0]
       brightness: 255
-  
+
   # 3. Wait
   - delay: "00:00:01"
-  
+
   # 4. Restore state
   - service: scene.turn_on
     target:
@@ -975,7 +975,7 @@ action:
 
 **📋 When it runs:** Every 15 minutes, all day (00:00, 00:15, 00:30, 00:45, etc.)
 
-**🎯 What's affected:** 
+**🎯 What's affected:**
 • Office area lights (7 total)
 • All Office light devices
 

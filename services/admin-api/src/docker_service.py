@@ -104,7 +104,7 @@ class DockerService:
     async def list_containers(self) -> list[ContainerInfo]:
         """
         List all project containers with their status
-        
+
         Returns:
             List of ContainerInfo objects
         """
@@ -161,10 +161,10 @@ class DockerService:
     async def start_container(self, service_name: str) -> tuple[bool, str]:
         """
         Start a Docker container
-        
+
         Args:
             service_name: Service name to start
-            
+
         Returns:
             Tuple of (success, message)
         """
@@ -296,11 +296,11 @@ class DockerService:
     async def get_container_logs(self, service_name: str, tail: int = 100) -> str:
         """
         Get container logs
-        
+
         Args:
             service_name: Service name
             tail: Number of lines to return
-            
+
         Returns:
             Container logs as string
         """
@@ -355,10 +355,10 @@ class DockerService:
     async def get_container_stats(self, service_name: str) -> dict | None:
         """
         Get container resource usage statistics
-        
+
         Args:
             service_name: Service name
-            
+
         Returns:
             Container stats or None if not running
         """
@@ -409,7 +409,7 @@ class DockerService:
     async def _get_mock_containers(self) -> list[ContainerInfo]:
         """
         Get mock container data when Docker is not available
-        
+
         Returns:
             List of mock ContainerInfo objects
         """

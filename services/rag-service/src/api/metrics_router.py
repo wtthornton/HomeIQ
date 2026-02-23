@@ -43,13 +43,13 @@ class MetricsResponse(BaseModel):
 async def get_metrics_endpoint() -> MetricsResponse:
     """
     Get RAG service metrics.
-    
+
     Returns:
         Current metrics snapshot
     """
     metrics = get_metrics()
     metrics_data = metrics.get_metrics()
-    
+
     return MetricsResponse(**metrics_data)
 
 
@@ -57,7 +57,7 @@ async def get_metrics_endpoint() -> MetricsResponse:
 async def get_stats() -> dict[str, Any]:
     """
     Get detailed statistics (alias for metrics endpoint with different format).
-    
+
     Returns:
         Detailed metrics dictionary
     """
@@ -69,7 +69,7 @@ async def get_stats() -> dict[str, Any]:
 async def reset_metrics() -> dict[str, str]:
     """
     Reset all metrics (useful for testing and debugging).
-    
+
     Returns:
         Success message
     """

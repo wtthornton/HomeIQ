@@ -19,7 +19,8 @@ import time
 from collections import defaultdict
 from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
-from typing import Any, Literal
+from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 import aiohttp
@@ -30,7 +31,7 @@ from influxdb_client_3 import InfluxDBClient3, Point
 from pydantic import BaseModel
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(str(Path(__file__).resolve().parent / '../../shared'))
 
 from shared.logging_config import setup_logging
 
@@ -119,10 +120,10 @@ class SportsService:
         parsed_url = self._parse_influxdb_url(influxdb_url)
         self.influxdb_host = parsed_url['host']
         self.influxdb_port = parsed_url['port']
-        
+
         fallback_hosts = self._parse_fallback_hosts()
         self.influxdb_urls = self._build_influxdb_urls(influxdb_url, fallback_hosts)
-        
+
         logger.info(f"InfluxDB fallback URLs configured: {len(self.influxdb_urls)} URLs")
         self.influxdb_url = influxdb_url
         self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
@@ -133,10 +134,10 @@ class SportsService:
 
     def _parse_influxdb_url(self, url: str) -> dict[str, str]:
         """Parse InfluxDB URL to extract host and port.
-        
+
         Args:
             url: InfluxDB URL (e.g., 'http://influxdb:8086')
-            
+
         Returns:
             Dictionary with 'host' and 'port' keys
         """
@@ -148,7 +149,7 @@ class SportsService:
 
     def _parse_fallback_hosts(self) -> list[str]:
         """Parse fallback hosts from environment variable.
-        
+
         Returns:
             List of fallback hostnames
         """
@@ -157,11 +158,11 @@ class SportsService:
 
     def _build_influxdb_urls(self, primary_url: str, fallback_hosts: list[str]) -> list[str]:
         """Build list of InfluxDB URLs including primary and fallback hosts.
-        
+
         Args:
             primary_url: Primary InfluxDB URL
             fallback_hosts: List of fallback hostnames
-            
+
         Returns:
             List of InfluxDB URLs
         """
@@ -204,16 +205,16 @@ class SportsService:
     async def startup(self) -> None:
         """Initialize service components."""
         logger.info("Initializing Sports API Service...")
-        
+
         connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
         self.session = aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=10))
-        
+
         # Try to connect to InfluxDB with fallback hostnames
         self.influxdb_client = await self._initialize_influxdb()
-        
+
         if not self.influxdb_client:
             logger.warning("InfluxDB client initialization failed - service will continue but writes will fail")
-        
+
         logger.info("Sports API Service initialized")
 
     async def _initialize_influxdb(self) -> InfluxDBClient3 | None:
@@ -221,26 +222,26 @@ class SportsService:
         if not self.influxdb_token:
             logger.error("INFLUXDB_TOKEN not set - cannot initialize InfluxDB client")
             return None
-        
+
         for url in self.influxdb_urls:
             try:
                 logger.info(f"Attempting to connect to InfluxDB at {url}")
-                
+
                 client = InfluxDBClient3(
                     host=url,
                     token=self.influxdb_token,
                     database=self.influxdb_bucket,
                     org=self.influxdb_org
                 )
-                
+
                 self.working_influxdb_host = url
                 logger.info(f"✅ Successfully initialized InfluxDB client with URL: {url}")
                 return client
-                
+
             except Exception as e:
                 logger.warning(f"Failed to connect to InfluxDB at {url}: {e}")
                 continue
-        
+
         logger.error(f"❌ Failed to connect to InfluxDB with any URL: {self.influxdb_urls}")
         return None
 
@@ -248,10 +249,10 @@ class SportsService:
         """Cleanup service resources."""
         logger.info("Shutting down Sports API Service...")
         await self.stop_background_task()
-        
+
         if self.session and not self.session.closed:
             await self.session.close()
-        
+
         if self.influxdb_client:
             self.influxdb_client.close()
 
@@ -259,22 +260,22 @@ class SportsService:
         """Fetch Team Tracker sensors from Home Assistant"""
         if not self.ha_token:
             return []
-        
+
         if not self.session or self.session.closed:
             raise RuntimeError("HTTP session not initialized")
-        
+
         try:
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
                 "Content-Type": "application/json"
             }
-            
+
             # Fetch all states and filter for Team Tracker sensors
             url = f"{self.ha_url}/api/states"
             async with self.session.get(url, headers=headers) as response:
                 if response.status == 200:
                     states = await response.json()
-                    
+
                     # Filter for Team Tracker sensors
                     # Team Tracker sensors can be named:
                     # - sensor.<team>_team_tracker (e.g., sensor.vgk_team_tracker)
@@ -282,17 +283,17 @@ class SportsService:
                     # We detect them by checking if entity_id contains 'team_tracker'
                     team_tracker_sensors = [
                         state for state in states
-                        if state.get('entity_id', '').startswith('sensor.') 
+                        if state.get('entity_id', '').startswith('sensor.')
                         and 'team_tracker' in state.get('entity_id', '')
                     ]
-                    
+
                     logger.info(f"Fetched {len(team_tracker_sensors)} Team Tracker sensors from HA")
                     return team_tracker_sensors
                 else:
                     body = await response.text()
                     logger.error(f"HA API error: {response.status} - {body[:500]}")
                     return []
-        
+
         except Exception as e:
             safe_msg = str(e)
             if self.ha_token:
@@ -302,14 +303,14 @@ class SportsService:
 
     def parse_sensor_data(self, sensor: dict[str, Any]) -> dict[str, Any]:
         """Parse Team Tracker sensor data into normalized format.
-        
+
         Captures all automation-relevant attributes from Team Tracker sensors.
         See: https://github.com/vasqued2/ha-teamtracker for full attribute list.
         """
         entity_id = sensor.get('entity_id', '')
         state = sensor.get('state', 'NOT_FOUND')
         attributes = sensor.get('attributes', {})
-        
+
         # Extract key attributes (existing)
         parsed = {
             'entity_id': entity_id,
@@ -334,42 +335,42 @@ class SportsService:
             'last_update': attributes.get('last_update', sensor.get('last_updated', '')),
             'last_updated': sensor.get('last_updated', ''),
             'last_changed': sensor.get('last_changed', ''),
-            
+
             # NEW: 6 high-value automation attributes
             # 1. Home/away status - for different lighting scenes
             'team_homeaway': attributes.get('team_homeaway', ''),
-            
+
             # 2. Team colors - for smart light integration (array of 2 hex colors)
             'team_colors': attributes.get('team_colors', []),
-            
+
             # 3. Team winner flag - for celebration automations
             'team_winner': attributes.get('team_winner'),
-            
+
             # 4. Opponent winner flag - for "better luck" automations
             'opponent_winner': attributes.get('opponent_winner'),
-            
+
             # 5. Event name - for rich notifications ("CBJ @ VGK")
             'event_name': attributes.get('event_name', ''),
-            
+
             # 6. Last play - for real-time play reactions (touchdowns, goals)
             'last_play': attributes.get('last_play', ''),
         }
-        
+
         return parsed
 
     async def store_in_influxdb(self, sensors: list[dict[str, Any]]) -> None:
         """Store sports data in InfluxDB.
-        
+
         Args:
             sensors: List of parsed sensor data dictionaries
         """
         if not sensors:
             return
-        
+
         if not self.influxdb_client:
             logger.warning("InfluxDB client not initialized, skipping write")
             return
-        
+
         try:
             points = self._create_influxdb_points(sensors)
             if points:
@@ -379,29 +380,29 @@ class SportsService:
 
     def _create_influxdb_points(self, sensors: list[dict[str, Any]]) -> list[Point]:
         """Create InfluxDB Point objects from sensor data.
-        
+
         Args:
             sensors: List of parsed sensor data dictionaries
-            
+
         Returns:
             List of InfluxDB Point objects
         """
         points: list[Point] = []
         timestamp = datetime.now(timezone.utc)
-        
+
         for sensor_data in sensors:
             point = self._create_point_from_sensor(sensor_data, timestamp)
             points.append(point)
-        
+
         return points
 
     def _create_point_from_sensor(self, sensor_data: dict[str, Any], timestamp: datetime) -> Point:
         """Create a single InfluxDB Point from sensor data.
-        
+
         Args:
             sensor_data: Parsed sensor data dictionary
             timestamp: Timestamp for the data point
-            
+
         Returns:
             InfluxDB Point object
         """
@@ -420,18 +421,18 @@ class SportsService:
         opponent_score = self._safe_int(sensor_data.get('opponent_score'))
         if opponent_score is not None:
             point = point.field("opponent_score", opponent_score)
-        
+
         # Add optional fields
         point = self._add_optional_fields(point, sensor_data)
-        
+
         return point
 
     def _safe_int(self, value: Any) -> int | None:
         """Safely convert value to int, returning None if conversion fails.
-        
+
         Args:
             value: Value to convert
-            
+
         Returns:
             Integer value or None
         """
@@ -444,11 +445,11 @@ class SportsService:
 
     def _add_optional_fields(self, point: Point, sensor_data: dict[str, Any]) -> Point:
         """Add optional fields and tags to InfluxDB Point.
-        
+
         Args:
             point: InfluxDB Point object
             sensor_data: Parsed sensor data dictionary
-            
+
         Returns:
             Updated InfluxDB Point object
         """
@@ -463,43 +464,43 @@ class SportsService:
             point = point.tag("opponent_id", str(sensor_data['opponent_id']))
         if sensor_data.get('venue'):
             point = point.tag("venue", sensor_data['venue'])
-        
+
         # NEW: 6 high-value automation attributes
-        
+
         # 1. Home/away status (tag for filtering)
         if sensor_data.get('team_homeaway'):
             point = point.tag("team_homeaway", sensor_data['team_homeaway'])
-        
+
         # 2. Team colors (field - stored as comma-separated hex values)
         team_colors = sensor_data.get('team_colors', [])
         if team_colors and isinstance(team_colors, list) and len(team_colors) >= 1:
             point = point.field("team_color_primary", team_colors[0])
             if len(team_colors) >= 2:
                 point = point.field("team_color_secondary", team_colors[1])
-        
+
         # 3. Team winner (field - boolean as string for InfluxDB compatibility)
         team_winner = sensor_data.get('team_winner')
         if team_winner is not None:
             point = point.field("team_winner", str(team_winner).lower())
-        
+
         # 4. Opponent winner (field - boolean as string)
         opponent_winner = sensor_data.get('opponent_winner')
         if opponent_winner is not None:
             point = point.field("opponent_winner", str(opponent_winner).lower())
-        
+
         # 5. Event name (field - for notifications)
         if sensor_data.get('event_name'):
             point = point.field("event_name", sensor_data['event_name'])
-        
+
         # 6. Last play (field - for real-time reactions)
         if sensor_data.get('last_play'):
             point = point.field("last_play", sensor_data['last_play'])
-        
+
         return point
 
     async def _write_points_with_retry(self, points: list[Point]) -> None:
         """Write points to InfluxDB with retry logic.
-        
+
         Args:
             points: List of InfluxDB Point objects to write
         """
@@ -512,14 +513,14 @@ class SportsService:
             except Exception as e:
                 error_str = str(e)
                 self.last_influx_write_error = error_str
-                
+
                 if self._is_dns_error(error_str):
                     await self._handle_dns_error(attempt, e)
                     if attempt >= self.max_influx_retries:
                         self._record_failed_write()
                         return
                     continue
-                
+
                 if attempt >= self.max_influx_retries:
                     self._record_failed_write()
                     logger.error(f"Failed to write to InfluxDB after {attempt} attempts: {e}")
@@ -530,28 +531,28 @@ class SportsService:
 
     def _is_dns_error(self, error_str: str) -> bool:
         """Check if error is a DNS resolution error.
-        
+
         Args:
             error_str: Error message string
-            
+
         Returns:
             True if error is DNS-related
         """
         return "Name does not resolve" in error_str or "Failed to resolve" in error_str
 
-    async def _handle_dns_error(self, attempt: int, error: Exception) -> None:
+    async def _handle_dns_error(self, attempt: int, _error: Exception) -> None:
         """Handle DNS resolution error by attempting to reconnect.
-        
+
         Args:
             attempt: Current retry attempt number
-            error: The exception that occurred
+            _error: The exception that occurred (logged at call site)
         """
         logger.warning(f"DNS resolution failed (attempt {attempt}/{self.max_influx_retries}), attempting to reconnect...")
         self.influxdb_client = await self._initialize_influxdb()
 
     def _record_successful_write(self, point_count: int) -> None:
         """Record successful InfluxDB write.
-        
+
         Args:
             point_count: Number of points written
         """
@@ -567,22 +568,22 @@ class SportsService:
     async def get_current_sports_data(self) -> list[dict[str, Any]]:
         """Get current sports data (fetch from HA, parse, store)"""
         sensors = await self.fetch_team_tracker_sensors()
-        
+
         if not sensors:
             return self.cached_sensors or []
-        
+
         # Parse sensor data
         parsed_sensors = [self.parse_sensor_data(sensor) for sensor in sensors]
-        
+
         # Update cache
         self.cached_sensors = parsed_sensors
         self.cache_time = datetime.now(timezone.utc)
         self.last_successful_fetch = self.cache_time
         self.fetch_count += 1
-        
+
         # Write to InfluxDB
         await self.store_in_influxdb(parsed_sensors)
-        
+
         return parsed_sensors
 
     async def run_continuous(self):
@@ -602,14 +603,14 @@ class SportsService:
                 consecutive_errors += 1
                 self.last_background_error = str(e)
                 logger.error(f"Error in continuous loop: {e}")
-                backoff = min(300, (2 ** consecutive_errors) + random.uniform(0, 1))
+                backoff = min(300, (2 ** consecutive_errors) + random.uniform(0, 1))  # noqa: S311
                 await asyncio.sleep(backoff)
 
     def start_background_task(self) -> asyncio.Task:
         """Start guarded background task"""
         if self.background_task and not self.background_task.done():
             return self.background_task
-        
+
         async def _run():
             try:
                 await self.run_continuous()
@@ -618,7 +619,7 @@ class SportsService:
             except Exception as exc:
                 self.last_background_error = str(exc)
                 logger.exception("Sports background task failed")
-        
+
         self.background_task = asyncio.create_task(_run(), name="sports-fetch-loop")
         return self.background_task
 
@@ -636,7 +637,7 @@ sports_service = None
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     global sports_service
     service = SportsService()
     await service.startup()
@@ -683,7 +684,7 @@ async def health() -> dict[str, Any]:
     """Health check endpoint."""
     if not sports_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     return await sports_service.health_handler.handle(sports_service)
 
 
@@ -710,7 +711,7 @@ async def stats(_api_key: str = Depends(verify_api_key)) -> dict[str, Any]:
     """Service statistics endpoint."""
     if not sports_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     return {
         "fetch_count": sports_service.fetch_count,
         "sensors_processed": sports_service.sensors_processed,
@@ -725,6 +726,7 @@ async def stats(_api_key: str = Depends(verify_api_key)) -> dict[str, Any]:
 
 if __name__ == "__main__":
     import uvicorn
+    host = os.getenv('SERVICE_HOST', '0.0.0.0')  # noqa: S104
     port = int(os.getenv('SERVICE_PORT', '8005'))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    uvicorn.run(app, host=host, port=port, log_level="info")
 

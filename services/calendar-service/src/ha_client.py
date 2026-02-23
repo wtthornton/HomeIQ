@@ -22,7 +22,7 @@ class HomeAssistantCalendarClient:
     def __init__(self, base_url: str, token: str, timeout: int = 10):
         """
         Initialize Home Assistant Calendar Client
-        
+
         Args:
             base_url: Home Assistant base URL (e.g., http://homeassistant.local:8123)
             token: Long-lived access token
@@ -72,7 +72,7 @@ class HomeAssistantCalendarClient:
     async def test_connection(self) -> bool:
         """
         Test connection to Home Assistant
-        
+
         Returns:
             True if connection successful, False otherwise
         """
@@ -92,7 +92,7 @@ class HomeAssistantCalendarClient:
     async def get_calendars(self) -> list[str]:
         """
         Get list of available calendar entities
-        
+
         Returns:
             List of calendar entity IDs (e.g., ['calendar.primary', 'calendar.work'])
         """
@@ -123,12 +123,12 @@ class HomeAssistantCalendarClient:
     ) -> list[dict[str, Any]]:
         """
         Get calendar events within time range
-        
+
         Args:
             calendar_id: Calendar entity ID (with or without 'calendar.' prefix)
             start: Start datetime (timezone-aware)
             end: End datetime (timezone-aware)
-        
+
         Returns:
             List of calendar events with structure:
             [
@@ -184,10 +184,10 @@ class HomeAssistantCalendarClient:
     async def get_calendar_state(self, calendar_id: str) -> dict[str, Any] | None:
         """
         Get current calendar entity state
-        
+
         Args:
             calendar_id: Calendar entity ID (with or without 'calendar.' prefix)
-        
+
         Returns:
             Calendar state dict with current event info, or None if not found
             {
@@ -240,12 +240,12 @@ class HomeAssistantCalendarClient:
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Get events from multiple calendars concurrently
-        
+
         Args:
             calendar_ids: List of calendar entity IDs
             start: Start datetime
             end: End datetime
-        
+
         Returns:
             Dict mapping calendar_id to list of events
             {
@@ -261,7 +261,7 @@ class HomeAssistantCalendarClient:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         events_by_calendar = {}
-        for calendar_id, result in zip(calendar_ids, results):
+        for calendar_id, result in zip(calendar_ids, results, strict=True):
             if isinstance(result, Exception):
                 logger.error(f"Error fetching events from {calendar_id}: {result}")
                 events_by_calendar[calendar_id] = []

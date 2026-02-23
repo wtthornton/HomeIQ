@@ -55,16 +55,16 @@ class ContextBuilder:
         """Initialize context builder and all services"""
         # Lazy imports to avoid circular dependencies
         from .areas_service import AreasService
+        from .automation_patterns_service import AutomationPatternsService
         from .capability_patterns_service import CapabilityPatternsService
+        from .context_filtering_service import ContextFilteringService
+        from .context_prioritization_service import ContextPrioritizationService
+        from .device_state_context_service import DeviceStateContextService
         from .devices_summary_service import DevicesSummaryService
         from .entity_attributes_service import EntityAttributesService
-        from .device_state_context_service import DeviceStateContextService
         from .entity_inventory_service import EntityInventoryService
         from .helpers_scenes_service import HelpersScenesService
         from .services_summary_service import ServicesSummaryService
-        from .automation_patterns_service import AutomationPatternsService
-        from .context_prioritization_service import ContextPrioritizationService
-        from .context_filtering_service import ContextFilteringService
 
         self._entity_inventory_service = EntityInventoryService(
             settings=self.settings,
@@ -102,15 +102,16 @@ class ContextBuilder:
             settings=self.settings,
             context_builder=self
         )
-        from .automation_rag_service import AutomationRAGService
-        from .energy_rag_service import EnergyRAGService
-        from .blueprint_rag_service import BlueprintRAGService
-        from .device_setup_rag_service import DeviceSetupRAGService
-        from .security_rag_service import SecurityRAGService
-        from .comfort_rag_service import ComfortRAGService
-        from .scene_script_rag_service import SceneScriptRAGService
-        from .device_capability_rag_service import DeviceCapabilityRAGService
         from shared.patterns import RAGContextRegistry
+
+        from .automation_rag_service import AutomationRAGService
+        from .blueprint_rag_service import BlueprintRAGService
+        from .comfort_rag_service import ComfortRAGService
+        from .device_capability_rag_service import DeviceCapabilityRAGService
+        from .device_setup_rag_service import DeviceSetupRAGService
+        from .energy_rag_service import EnergyRAGService
+        from .scene_script_rag_service import SceneScriptRAGService
+        from .security_rag_service import SecurityRAGService
         self._automation_rag_service = AutomationRAGService()
         # Reusable Pattern Framework: Initialize RAG registry and register services
         self._rag_registry = RAGContextRegistry()
@@ -264,13 +265,13 @@ class ContextBuilder:
                 if binary_sensor_context and "Unavailable" not in binary_sensor_context:
                     context_parts.append(f"\n{binary_sensor_context}")
                     logger.info("✅ Added binary sensor context for motion/presence detection")
-                
+
                 # Add existing automations (for duplicate detection)
                 automations_context = await self._enhanced_context_builder.build_existing_automations_context()
                 if automations_context and "Unavailable" not in automations_context:
                     context_parts.append(f"\n{automations_context}")
                     logger.info("✅ Added existing automations context for duplicate detection")
-                
+
                 # Add trigger platforms reference
                 trigger_ref = self._enhanced_context_builder.build_trigger_platforms_reference()
                 context_parts.append(f"\n{trigger_ref}")
@@ -279,11 +280,11 @@ class ContextBuilder:
             logger.warning(f"⚠️ Failed to add enhanced context: {e}")
 
         context = "\n".join(context_parts)
-        
+
         # Log context building result
         context_length = len(context)
         unavailable_count = context.count("(unavailable)")
-        
+
         if unavailable_count > 0:
             logger.warning(
                 f"⚠️ Context built with {unavailable_count} unavailable section(s). "
@@ -293,7 +294,7 @@ class ContextBuilder:
             logger.info(
                 f"✅ Context built successfully. Total length: {context_length} chars"
             )
-        
+
         return context
 
     def get_system_prompt(self) -> str:
@@ -329,7 +330,7 @@ class ContextBuilder:
         if not self._device_state_context_service:
             logger.warning("DeviceStateContextService not initialized")
             return ""
-        
+
         return await self._device_state_context_service.get_state_context(
             entity_ids=entity_ids,
             user_prompt=user_prompt,
@@ -343,33 +344,32 @@ class ContextBuilder:
     ) -> str:
         """
         Build context with Phase 3 filtering and prioritization.
-        
+
         Args:
             user_prompt: Optional user prompt for intent extraction and prioritization
             skip_truncation: If True, skip truncation in all services
-            
+
         Returns:
             Filtered and prioritized context string
         """
         if not user_prompt:
             # No user prompt - return standard context
             return await self.build_context(skip_truncation=skip_truncation)
-        
+
         # Phase 3.2: Extract intent from user prompt
         intent = self._context_filtering_service.extract_intent(user_prompt)
         logger.info(f"🔍 Extracted intent: areas={intent.get('areas')}, domains={intent.get('domains')}, services={intent.get('services')}")
-        
+
         # Build standard context first
-        context = await self.build_context(skip_truncation=skip_truncation)
-        
+        return await self.build_context(skip_truncation=skip_truncation)
+
         # Phase 3.1 & 3.2: Apply filtering and prioritization to entity inventory
         # Note: Other context sections (devices, areas, services) are already filtered
         # by the individual services, but we can add prioritization here if needed
-        
+
         # For now, filtering is handled at the service level (entity_inventory_service)
         # and prioritization can be applied when building entity examples
-        
-        return context
+
 
     async def build_complete_system_prompt(self, skip_truncation: bool = False) -> str:
         """
@@ -385,11 +385,11 @@ class ContextBuilder:
             Complete system prompt with context injected
         """
         logger.debug(f"Building complete system prompt with context injection - skip_truncation={skip_truncation}")
-        
+
         base_prompt = self.get_system_prompt()
         base_length = len(base_prompt)
         logger.debug(f"Base system prompt length: {base_length} chars")
-        
+
         context = await self.build_context(skip_truncation=skip_truncation)
         context_length = len(context)
         logger.debug(f"Context length: {context_length} chars")
@@ -430,8 +430,7 @@ class ContextBuilder:
                     ContextCache.expires_at > now
                 )
                 result = await session.execute(stmt)
-                row = result.scalar_one_or_none()
-                return row
+                return result.scalar_one_or_none()
         except Exception as e:
             logger.warning(f"⚠️ Error reading cache for {cache_key}: {e}")
         return None

@@ -80,16 +80,16 @@ Index("idx_suggestions_context_type_status", Suggestion.context_type, Suggestion
 class InvalidSuggestionReport(Base):
     """
     Model for tracking invalid suggestion reports.
-    
+
     Allows users to report suggestions that are invalid (e.g., reference
     non-existent devices) for tracking and improvement.
-    
+
     Epic: Proactive Suggestions Device Validation
     Story: User Feedback for Invalid Suggestions (P2)
     """
-    
+
     __tablename__ = "invalid_suggestion_reports"
-    
+
     id: Mapped[str] = mapped_column(
         String(36),
         primary_key=True,
@@ -113,13 +113,13 @@ class InvalidSuggestionReport(Base):
         nullable=False,
         index=True,
     )
-    
+
     # Relationship
-    suggestion: Mapped["Suggestion"] = relationship(
+    suggestion: Mapped[Suggestion] = relationship(
         "Suggestion",
         backref="invalid_reports",
     )
-    
+
     def __repr__(self) -> str:
         return (
             f"<InvalidSuggestionReport(id={self.id}, "

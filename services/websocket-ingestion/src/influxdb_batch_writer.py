@@ -3,6 +3,7 @@ InfluxDB Batch Writer for Optimal Performance
 """
 
 import asyncio
+import contextlib
 import logging
 from collections import deque
 from collections.abc import Callable
@@ -33,7 +34,7 @@ class InfluxDBBatchWriter:
                  overflow_strategy: str = "drop_oldest"):
         """
         Initialize InfluxDB batch writer
-        
+
         Args:
             connection_manager: InfluxDB connection manager
             batch_size: Maximum number of points per batch
@@ -104,20 +105,18 @@ class InfluxDBBatchWriter:
         # Cancel processing task
         if self.processing_task:
             self.processing_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.processing_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Stopped InfluxDB batch writer")
 
     async def write_event(self, event_data: dict[str, Any]) -> bool:
         """
         Write event data to InfluxDB
-        
+
         Args:
             event_data: Event data to write
-            
+
         Returns:
             True if event was queued successfully, False otherwise
         """
@@ -137,11 +136,11 @@ class InfluxDBBatchWriter:
     async def write_weather_data(self, weather_data: dict[str, Any], location: str) -> bool:
         """
         Write weather data to InfluxDB
-        
+
         Args:
             weather_data: Weather data to write
             location: Location string
-            
+
         Returns:
             True if weather data was queued successfully, False otherwise
         """
@@ -283,10 +282,10 @@ class InfluxDBBatchWriter:
     async def _write_batch(self, batch: list[Point]) -> bool:
         """
         Write a batch of points to InfluxDB
-        
+
         Args:
             batch: List of InfluxDB points to write
-            
+
         Returns:
             True if batch was written successfully, False otherwise
         """

@@ -8,11 +8,10 @@ Modern time series forecasting using the Darts library with:
 """
 
 import json
-import pickle
+import pickle  # noqa: S403 - pickle needed for Darts model serialization (trusted internal data only)
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -66,8 +65,8 @@ class EnergyForecaster:
         """Initialize the forecasting model."""
         try:
             from darts.dataprocessing.transformers import Scaler
-        except ImportError:
-            raise ImportError("Please install darts: pip install darts>=0.30.0")
+        except ImportError as err:
+            raise ImportError("Please install darts: pip install darts>=0.30.0") from err
 
         self.scaler = Scaler()
 
@@ -245,7 +244,7 @@ class EnergyForecaster:
         Returns:
             Dictionary of metric values
         """
-        from darts.metrics import mape, rmse, mae
+        from darts.metrics import mae, mape, rmse
 
         if metrics is None:
             metrics = ["mape", "rmse", "mae"]
@@ -286,7 +285,7 @@ class EnergyForecaster:
             "output_chunk_length": self.output_chunk_length,
             "model_kwargs": self.model_kwargs,
         }
-        with open(path.with_suffix(".config.json"), "w") as f:
+        with path.with_suffix(".config.json").open("w") as f:
             json.dump(config, f, indent=2)
 
         # Save model
@@ -295,11 +294,11 @@ class EnergyForecaster:
         else:
             # Model and scaler still use pickle (Darts objects are complex),
             # but should only be loaded from trusted sources
-            with open(path.with_suffix(".pkl"), "wb") as f:
+            with path.with_suffix(".pkl").open("wb") as f:
                 pickle.dump(self.model, f)
 
         # Save scaler
-        with open(path.with_suffix(".scaler.pkl"), "wb") as f:
+        with path.with_suffix(".scaler.pkl").open("wb") as f:
             pickle.dump(self.scaler, f)
 
         logger.info("Saved model", path=str(path))
@@ -314,7 +313,7 @@ class EnergyForecaster:
         config_path_pkl = path.with_suffix(".config.pkl")
 
         if config_path_json.exists():
-            with open(config_path_json, "r") as f:
+            with config_path_json.open() as f:
                 config = json.load(f)
         elif config_path_pkl.exists():
             # Fallback to pickle for backward compatibility, but log warning
@@ -322,8 +321,8 @@ class EnergyForecaster:
                 "Loading config from pickle (deprecated). "
                 "Re-save model to migrate to JSON config."
             )
-            with open(config_path_pkl, "rb") as f:
-                config = pickle.load(f)
+            with config_path_pkl.open("rb") as f:
+                config = pickle.load(f)  # noqa: S301
         else:
             raise FileNotFoundError(f"No model config found at {path}")
 
@@ -351,12 +350,12 @@ class EnergyForecaster:
             model_class = NHiTSModel if config["model_type"] == "nhits" else TFTModel
             instance.model = model_class.load(str(path.with_suffix(".pt")))
         else:
-            with open(path.with_suffix(".pkl"), "rb") as f:
-                instance.model = pickle.load(f)
+            with path.with_suffix(".pkl").open("rb") as f:
+                instance.model = pickle.load(f)  # noqa: S301
 
         # Load scaler
-        with open(path.with_suffix(".scaler.pkl"), "rb") as f:
-            instance.scaler = pickle.load(f)
+        with path.with_suffix(".scaler.pkl").open("rb") as f:
+            instance.scaler = pickle.load(f)  # noqa: S301
 
         instance._is_fitted = True
 

@@ -45,10 +45,10 @@ class CalendarEventParser:
     def parse_datetime(dt_value: Any) -> datetime | None:
         """
         Parse datetime from various formats
-        
+
         Args:
             dt_value: Can be datetime object, ISO string, or dict with 'dateTime' or 'date'
-        
+
         Returns:
             Parsed datetime object (timezone-aware) or None
         """
@@ -100,7 +100,7 @@ class CalendarEventParser:
     def parse_ha_event(event: dict[str, Any]) -> dict[str, Any]:
         """
         Parse Home Assistant calendar event to standardized format
-        
+
         Args:
             event: Raw event from HA calendar API
             {
@@ -110,7 +110,7 @@ class CalendarEventParser:
                 "description": "...",
                 "location": "..."
             }
-        
+
         Returns:
             Parsed event dict with structure:
             {
@@ -167,20 +167,16 @@ class CalendarEventParser:
         if not text:
             return False
 
-        for pattern in patterns:
-            if pattern.search(text):
-                return True
-
-        return False
+        return any(pattern.search(text) for pattern in patterns)
 
     @staticmethod
     def detect_occupancy_indicators(event: dict[str, Any]) -> dict[str, bool]:
         """
         Detect home/WFH/away indicators in event
-        
+
         Args:
             event: Parsed event dict (from parse_ha_event)
-        
+
         Returns:
             Dict with occupancy indicators:
             {
@@ -232,10 +228,10 @@ class CalendarEventParser:
     def parse_and_enrich_event(event: dict[str, Any]) -> dict[str, Any]:
         """
         Parse and enrich event with occupancy indicators in one call
-        
+
         Args:
             event: Raw event from HA calendar API
-        
+
         Returns:
             Fully parsed and enriched event dict
         """
@@ -252,10 +248,10 @@ class CalendarEventParser:
     def parse_multiple_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Parse and enrich multiple events
-        
+
         Args:
             events: List of raw events from HA calendar API
-        
+
         Returns:
             List of parsed and enriched events
         """
@@ -281,12 +277,12 @@ class CalendarEventParser:
     ) -> list[dict[str, Any]]:
         """
         Filter events by time range
-        
+
         Args:
             events: List of parsed events
             start_time: Filter events starting after this time (inclusive)
             end_time: Filter events starting before this time (exclusive)
-        
+
         Returns:
             Filtered list of events
         """
@@ -306,11 +302,11 @@ class CalendarEventParser:
     def get_current_events(events: list[dict[str, Any]], now: datetime | None = None) -> list[dict[str, Any]]:
         """
         Get events that are currently active
-        
+
         Args:
             events: List of parsed events
             now: Current time (defaults to datetime.now(timezone.utc))
-        
+
         Returns:
             List of events where start <= now < end
         """
@@ -335,12 +331,12 @@ class CalendarEventParser:
     ) -> list[dict[str, Any]]:
         """
         Get upcoming events (sorted by start time)
-        
+
         Args:
             events: List of parsed events
             now: Current time (defaults to datetime.now(timezone.utc))
             limit: Maximum number of events to return
-        
+
         Returns:
             List of upcoming events, sorted by start time
         """

@@ -146,25 +146,25 @@ class GitHubClient:
     ) -> dict[str, Any]:
         """
         Get repository metadata
-        
+
         Args:
             owner: Repository owner (username/organization)
             repo: Repository name
             correlation_id: Optional correlation ID for logging
-        
+
         Returns:
             Repository metadata dictionary
         """
         correlation_id = correlation_id or str(uuid4())
-        
+
         logger.debug(f"[{correlation_id}] Fetching repository: {owner}/{repo}")
-        
+
         data = await self._request(
             "GET",
             f"/repos/{owner}/{repo}",
             correlation_id=correlation_id
         )
-        
+
         return data
 
     async def get_repository_contents(
@@ -176,26 +176,26 @@ class GitHubClient:
     ) -> list[dict[str, Any]]:
         """
         Get repository contents (files and directories)
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             path: Path in repository (empty for root)
             correlation_id: Optional correlation ID
-        
+
         Returns:
             List of file/directory metadata
         """
         correlation_id = correlation_id or str(uuid4())
-        
+
         logger.debug(f"[{correlation_id}] Fetching contents: {owner}/{repo}/{path}")
-        
+
         data = await self._request(
             "GET",
             f"/repos/{owner}/{repo}/contents/{path}",
             correlation_id=correlation_id
         )
-        
+
         if isinstance(data, dict):
             # Single file returned
             return [data]
@@ -214,26 +214,26 @@ class GitHubClient:
     ) -> str:
         """
         Get raw file content from repository
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             path: File path in repository
             correlation_id: Optional correlation ID
-        
+
         Returns:
             File content as string
         """
         correlation_id = correlation_id or str(uuid4())
-        
+
         logger.debug(f"[{correlation_id}] Fetching file: {owner}/{repo}/{path}")
-        
+
         data = await self._request(
             "GET",
             f"/repos/{owner}/{repo}/contents/{path}",
             correlation_id=correlation_id
         )
-        
+
         if isinstance(data, dict) and data.get("encoding") == "base64":
             content = base64.b64decode(data.get("content", "")).decode("utf-8")
             return content
@@ -327,36 +327,36 @@ class GitHubClient:
     ) -> list[dict[str, Any]]:
         """
         Crawl a GitHub repository and extract blueprint data
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             correlation_id: Optional correlation ID
-        
+
         Returns:
             List of blueprint post data (compatible with Discourse format)
         """
         correlation_id = correlation_id or str(uuid4())
-        
+
         logger.info(f"[{correlation_id}] Crawling repository: {owner}/{repo}")
-        
+
         # Get repository metadata
         repo_data = await self.get_repository(owner, repo, correlation_id)
         if not repo_data:
             logger.warning(f"[{correlation_id}] Repository not found: {owner}/{repo}")
             return []
-        
+
         # Find blueprint files
         blueprint_files = await self.find_blueprint_files(owner, repo, "", correlation_id)
-        
+
         logger.info(f"[{correlation_id}] Found {len(blueprint_files)} blueprints in {owner}/{repo}")
-        
+
         # Convert to post-like format for parser compatibility
         results = []
         for blueprint_file in blueprint_files:
             # Extract title from filename or first line of blueprint
             title = blueprint_file["name"].replace(".yaml", "").replace(".yml", "").replace("_", " ").replace("-", " ")
-            
+
             # Try to extract description from blueprint metadata
             content = blueprint_file["content"]
             description = ""
@@ -365,10 +365,10 @@ class GitHubClient:
                 desc_match = re.search(r'description:\s*["\']([^"\']+)["\']', content, re.IGNORECASE)
                 if desc_match:
                     description = desc_match.group(1)
-            
+
             # Get repository stars for quality score
             stars = repo_data.get("stargazers_count", 0)
-            
+
             # Create post-like structure
             result = {
                 "id": f"{owner}/{repo}:{blueprint_file['path']}",  # Unique ID
@@ -385,9 +385,9 @@ class GitHubClient:
                 "source_url": repo_data.get("html_url", ""),
                 "file_path": blueprint_file["path"]
             }
-            
+
             results.append(result)
-        
+
         return results
 
 

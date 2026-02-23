@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class DeviceSuggestionContext(BaseModel):
     """Context configuration for suggestion generation"""
-    
+
     include_synergies: bool = Field(default=True, description="Include device synergies")
     include_blueprints: bool = Field(default=True, description="Include Home Assistant blueprints")
     include_sports: bool = Field(default=True, description="Include sports data (Team Tracker)")
@@ -21,7 +21,7 @@ class DeviceSuggestionContext(BaseModel):
 
 class DeviceSuggestionsRequest(BaseModel):
     """Request model for device suggestions endpoint"""
-    
+
     device_id: str = Field(..., description="Device ID to generate suggestions for")
     conversation_id: str | None = Field(
         None, description="Optional conversation ID for context"
@@ -30,7 +30,7 @@ class DeviceSuggestionsRequest(BaseModel):
         default_factory=DeviceSuggestionContext,
         description="Context configuration for data aggregation"
     )
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -49,7 +49,7 @@ class DeviceSuggestionsRequest(BaseModel):
 
 class AutomationPreview(BaseModel):
     """Automation preview information"""
-    
+
     trigger: str = Field(..., description="Home Assistant trigger description")
     action: str = Field(..., description="Home Assistant action description")
     yaml_preview: str | None = Field(
@@ -59,7 +59,7 @@ class AutomationPreview(BaseModel):
 
 class DataSources(BaseModel):
     """Data sources used for suggestion generation"""
-    
+
     synergies: list[str] | None = Field(
         None, description="Synergy IDs used in suggestion"
     )
@@ -75,7 +75,7 @@ class DataSources(BaseModel):
 
 class HomeAssistantEntities(BaseModel):
     """Home Assistant entities involved in automation"""
-    
+
     trigger_entities: list[str] = Field(
         default_factory=list, description="Trigger entity IDs"
     )
@@ -89,7 +89,7 @@ class HomeAssistantEntities(BaseModel):
 
 class HomeAssistantServices(BaseModel):
     """Home Assistant services used in automation"""
-    
+
     actions: list[str] = Field(
         default_factory=list, description="Service calls (e.g., 'switch.turn_on')"
     )
@@ -100,7 +100,7 @@ class HomeAssistantServices(BaseModel):
 
 class DeviceSuggestion(BaseModel):
     """Single automation suggestion"""
-    
+
     suggestion_id: str = Field(..., description="Unique suggestion ID")
     title: str = Field(..., description="Suggestion title")
     description: str = Field(..., description="Detailed description")
@@ -128,7 +128,7 @@ class DeviceSuggestion(BaseModel):
 
 class DeviceContext(BaseModel):
     """Device context information"""
-    
+
     device_id: str = Field(..., description="Device ID")
     capabilities: list[dict[str, Any]] = Field(
         default_factory=list, description="Device capabilities"
@@ -149,12 +149,12 @@ class DeviceContext(BaseModel):
 
 class DeviceSuggestionsResponse(BaseModel):
     """Response model for device suggestions endpoint"""
-    
+
     suggestions: list[DeviceSuggestion] = Field(
         ..., description="List of automation suggestions (3-5)"
     )
     device_context: DeviceContext = Field(..., description="Device context information")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

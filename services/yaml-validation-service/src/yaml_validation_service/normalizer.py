@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class YAMLNormalizer:
     """
     Normalizes Home Assistant automation YAML to canonical format.
-    
+
     Fixes common format errors:
     - triggers: → trigger:
     - actions: → action:
@@ -39,24 +39,24 @@ class YAMLNormalizer:
     def normalize(self, yaml_content: str) -> tuple[str, list[str]]:
         """
         Normalize YAML content to canonical format.
-        
+
         Args:
             yaml_content: Raw YAML string (may contain format errors)
-            
+
         Returns:
             Tuple of (normalized_yaml, fixes_applied)
         """
         fixes_applied: list[str] = []
-        
+
         try:
             # Parse YAML
             data = yaml.safe_load(yaml_content)
             if not isinstance(data, dict):
                 return (yaml_content, fixes_applied)
-            
+
             # Apply normalizations
             normalized_data = self._normalize_dict(data, fixes_applied)
-            
+
             # Render back to YAML
             normalized_yaml = yaml.safe_dump(
                 normalized_data,
@@ -66,9 +66,9 @@ class YAMLNormalizer:
                 width=1000,
                 indent=2
             )
-            
+
             return (normalized_yaml.strip(), fixes_applied)
-            
+
         except yaml.YAMLError as e:
             logger.error(f"Failed to normalize YAML: {e}")
             return (yaml_content, fixes_applied)
@@ -79,7 +79,7 @@ class YAMLNormalizer:
     def _normalize_dict(self, data: dict[str, Any], fixes_applied: list[str]) -> dict[str, Any]:
         """Recursively normalize dictionary."""
         result: dict[str, Any] = {}
-        
+
         for key, value in data.items():
             # Fix plural keys → singular
             if key == "triggers":
@@ -103,20 +103,20 @@ class YAMLNormalizer:
             else:
                 # Normalize value recursively
                 result[key] = self._normalize_value(value, fixes_applied, f"key '{key}'")
-        
+
         # Normalize trigger items
         if "trigger" in result and isinstance(result["trigger"], list):
             result["trigger"] = [self._normalize_trigger_item(item, fixes_applied) for item in result["trigger"]]
-        
+
         # Normalize action items
         if "action" in result and isinstance(result["action"], list):
             result["action"] = [self._normalize_action_item(item, fixes_applied) for item in result["action"]]
-        
+
         # Ensure initial_state: true for 2025.10+ compliance
         if "initial_state" not in result:
             result["initial_state"] = True
             fixes_applied.append("Added: 'initial_state: true' (required for 2025.10+ compliance)")
-        
+
         return result
 
     def _normalize_value(self, value: Any, fixes_applied: list[str], context: str) -> Any:
@@ -180,9 +180,9 @@ class YAMLNormalizer:
         """Normalize an action item."""
         if not isinstance(item, dict):
             return item
-        
+
         result: dict[str, Any] = {}
-        
+
         for key, value in item.items():
             # Fix action: field → service:
             if key == "action":
@@ -225,6 +225,6 @@ class YAMLNormalizer:
                     result[key] = self._normalize_value(value, fixes_applied, f"action.{key}")
             else:
                 result[key] = self._normalize_value(value, fixes_applied, f"action.{key}")
-        
+
         return result
 

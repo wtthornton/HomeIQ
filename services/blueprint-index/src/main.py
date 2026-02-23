@@ -33,9 +33,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.service_name} on port {settings.service_port}")
     await init_db()
     logger.info("Blueprint Index Service started successfully")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Blueprint Index Service...")
     await close_db()
@@ -91,7 +91,7 @@ async def health() -> dict[str, str]:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "src.main:app",
         host="0.0.0.0",

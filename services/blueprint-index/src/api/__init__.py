@@ -2,9 +2,9 @@
 
 from .routes import router
 from .schemas import (
+    BlueprintResponse,
     BlueprintSearchRequest,
     BlueprintSearchResponse,
-    BlueprintResponse,
     BlueprintSummary,
     IndexingStatusResponse,
 )

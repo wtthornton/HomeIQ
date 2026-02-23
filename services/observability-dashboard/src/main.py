@@ -49,7 +49,7 @@ if "config" not in st.session_state:
 def main() -> None:
     """
     Main Streamlit application entry point.
-    
+
     Initializes the dashboard and routes to appropriate pages.
     """
     st.title("📊 HomeIQ Observability Dashboard")
@@ -88,7 +88,7 @@ def main() -> None:
 def show_home() -> None:
     """
     Display home page with overview.
-    
+
     Shows welcome message and configuration status.
     """
     st.header("Welcome to HomeIQ Observability Dashboard")
@@ -96,13 +96,13 @@ def show_home() -> None:
         """
         This dashboard provides internal/admin tools for observability, automation debugging,
         and operational excellence using OpenTelemetry.
-        
+
         **Available Dashboards:**
         - **Trace Visualization**: Visualize distributed traces across 30+ services
         - **Automation Debugging**: Debug automation execution with end-to-end traces
         - **Service Performance**: Monitor service health and performance metrics
         - **Real-Time Monitoring**: Live observability with auto-refresh
-        
+
         **Note:** This is an internal tool only. Customer-facing dashboards remain in React.
         """
     )

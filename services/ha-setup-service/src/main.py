@@ -8,10 +8,9 @@ Context7 Best Practices Applied:
 - Proper exception handling
 """
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-
-import os
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -179,7 +178,7 @@ async def get_environment_health(
 ) -> EnvironmentHealthResponse:
     """
     Get comprehensive environment health status
-    
+
     Returns:
         Complete health status including:
         - Overall health score (0-100)
@@ -247,10 +246,10 @@ async def get_health_trends(
 ):
     """
     Get health trends over specified time period
-    
+
     Args:
         hours: Number of hours to analyze (default: 24)
-        
+
     Returns:
         Trend analysis including average score, min/max, and trend direction
     """
@@ -286,14 +285,14 @@ async def get_integrations_health(
 ):
     """
     Get detailed health status for all integrations
-    
+
     Checks:
     - Home Assistant authentication
     - MQTT broker connectivity
     - Zigbee2MQTT status
     - Device discovery
     - HA Ingestor services (Data API, Admin API)
-    
+
     Returns:
         List of integration health results with detailed diagnostics
     """
@@ -374,7 +373,7 @@ async def _store_integration_health_results(
 async def start_setup_wizard(request: Request, integration_type: str):
     """
     Start a setup wizard for specified integration type
-    
+
     Supported types:
     - zigbee2mqtt
     - mqtt
@@ -464,7 +463,7 @@ async def execute_wizard_step(
 async def analyze_performance(request: Request):
     """
     Run comprehensive performance analysis
-    
+
     Returns:
         Performance analysis with bottlenecks identified
     """
@@ -497,7 +496,7 @@ async def analyze_performance(request: Request):
 async def get_optimization_recommendations(request: Request):
     """
     Generate optimization recommendations based on performance analysis
-    
+
     Returns:
         Prioritized list of optimization recommendations
     """
@@ -742,15 +741,15 @@ async def get_ha_config_validation(
 ):
     """
     Validate Home Assistant configuration and get suggestions
-    
+
     Checks for:
     - Missing area assignments
     - Incorrect area assignments
-    
+
     Args:
         category: Optional filter by issue category (e.g., "missing_area_assignment")
         min_confidence: Minimum confidence score (0-100) for suggestions
-        
+
     Returns:
         Validation results with issues and suggestions
     """
@@ -766,9 +765,9 @@ async def get_ha_config_validation(
             category=category,
             min_confidence=min_confidence
         )
-        
+
         return result.model_dump()
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -817,19 +816,19 @@ async def apply_validation_fix(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Validation service not initialized"
             )
-        
+
         result = await validation_service.apply_fix(request.entity_id, request.area_id)
-        
+
         # Clear cache after applying fix
         validation_service.clear_cache()
-        
+
         logger.info(
             f"Applied area fix: {request.entity_id} -> {request.area_id}",
             extra={"entity_id": request.entity_id, "area_id": request.area_id}
         )
-        
+
         return result
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -866,18 +865,18 @@ async def apply_bulk_validation_fixes(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Validation service not initialized"
             )
-        
+
         result = await validation_service.apply_bulk_fixes(request.fixes)
-        
+
         # Clear cache after applying fixes
         validation_service.clear_cache()
-        
+
         logger.info(
             f"Applied bulk fixes: {result['applied']} applied, {result['failed']} failed"
         )
-        
+
         return result
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -931,7 +930,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
+        host=os.getenv("BIND_HOST", "0.0.0.0"),  # noqa: S104 - Intentional for Docker container
         port=settings.service_port,
         reload=True
     )

@@ -18,7 +18,7 @@ class ConfigManager:
     def __init__(self, config_dir: str = "infrastructure"):
         """
         Initialize config manager
-        
+
         Args:
             config_dir: Directory containing .env files
         """
@@ -30,7 +30,7 @@ class ConfigManager:
     def list_services(self) -> list[str]:
         """
         List all available service configurations
-        
+
         Returns:
             List of service names
         """
@@ -52,13 +52,13 @@ class ConfigManager:
     def read_config(self, service: str) -> dict[str, str]:
         """
         Read configuration for a service
-        
+
         Args:
             service: Service name (e.g., 'websocket', 'weather')
-            
+
         Returns:
             Dictionary of configuration key-value pairs
-            
+
         Raises:
             FileNotFoundError: If config file doesn't exist
         """
@@ -68,7 +68,7 @@ class ConfigManager:
             raise FileNotFoundError(f"Configuration file not found: {env_file}")
 
         config = {}
-        with open(env_file) as f:
+        with env_file.open() as f:
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
 
@@ -96,15 +96,15 @@ class ConfigManager:
     ) -> dict[str, str]:
         """
         Update configuration for a service
-        
+
         Args:
             service: Service name
             updates: Dictionary of key-value pairs to update
             create_if_missing: Create file if it doesn't exist
-            
+
         Returns:
             Updated configuration dictionary
-            
+
         Raises:
             FileNotFoundError: If config file doesn't exist and create_if_missing=False
         """
@@ -123,7 +123,7 @@ class ConfigManager:
         # Read existing config if file exists
         lines = []
         if env_file.exists():
-            with open(env_file) as f:
+            with env_file.open() as f:
                 lines = f.readlines()
 
         # Update or add new values
@@ -156,12 +156,12 @@ class ConfigManager:
                 updated_keys.add(key)
 
         # Write back
-        with open(env_file, 'w') as f:
+        with env_file.open('w') as f:
             f.writelines(new_lines)
 
         # Set secure permissions (owner read/write only) - ignore errors for mounted volumes
         try:
-            os.chmod(env_file, 0o600)
+            env_file.chmod(0o600)
         except PermissionError:
             # Ignore permission errors for mounted volumes (like Docker bind mounts)
             logger.debug(f"Could not change permissions for {env_file} (mounted volume)")
@@ -178,11 +178,11 @@ class ConfigManager:
     def validate_config(self, service: str, config: dict[str, str]) -> dict[str, list[str]]:
         """
         Validate configuration values
-        
+
         Args:
             service: Service name
             config: Configuration to validate
-            
+
         Returns:
             Dictionary with 'errors' and 'warnings' lists
         """
@@ -243,10 +243,10 @@ class ConfigManager:
     def get_config_template(self, service: str) -> dict[str, dict[str, str]]:
         """
         Get configuration template with field metadata
-        
+
         Args:
             service: Service name
-            
+
         Returns:
             Dictionary with field definitions
         """

@@ -5,7 +5,6 @@ RAGKnowledge model for storing semantic knowledge with embeddings.
 Following 2025 patterns: SQLAlchemy async with type hints.
 """
 
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Column, DateTime, Float, Index, Integer, JSON, String, Text
@@ -17,7 +16,7 @@ from .session import Base
 class RAGKnowledge(Base):
     """
     Semantic knowledge storage for RAG (Retrieval-Augmented Generation).
-    
+
     Stores text with embeddings for semantic similarity search.
     Used for:
     - Query clarification (learn from successful queries)
@@ -48,7 +47,7 @@ class RAGKnowledge(Base):
             f"<RAGKnowledge(id={self.id}, type='{self.knowledge_type}', "
             f"text='{self.text[:50]}...', success={self.success_score})>"
         )
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert model instance to dictionary."""
         return {

@@ -178,11 +178,11 @@ class ContextBuilder:
         logger.debug("⏭️ Skipping entity attributes (merged into entity inventory for token efficiency)")
 
         context = "\n".join(context_parts)
-        
+
         # Log context building result
         context_length = len(context)
         unavailable_count = context.count("(unavailable)")
-        
+
         if unavailable_count > 0:
             logger.warning(
                 f"⚠️ Context built with {unavailable_count} unavailable section(s). "
@@ -192,7 +192,7 @@ class ContextBuilder:
             logger.info(
                 f"✅ Context built successfully. Total length: {context_length} chars"
             )
-        
+
         return context
 
     def get_system_prompt(self) -> str:
@@ -218,11 +218,11 @@ class ContextBuilder:
             Complete system prompt with context injected
         """
         logger.debug(f"Building complete system prompt with context injection - skip_truncation={skip_truncation}")
-        
+
         base_prompt = self.get_system_prompt()
         base_length = len(base_prompt)
         logger.debug(f"Base system prompt length: {base_length} chars")
-        
+
         context = await self.build_context(skip_truncation=skip_truncation)
         context_length = len(context)
         logger.debug(f"Context length: {context_length} chars")
@@ -263,8 +263,7 @@ class ContextBuilder:
                     ContextCache.expires_at > now
                 )
                 result = await session.execute(stmt)
-                row = result.scalar_one_or_none()
-                return row
+                return result.scalar_one_or_none()
         except Exception as e:
             logger.warning(f"⚠️ Error reading cache for {cache_key}: {e}")
         return None

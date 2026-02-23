@@ -6,7 +6,6 @@ Debug automation execution with end-to-end traces
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
 
 import pandas as pd
 import plotly.express as px
@@ -26,7 +25,7 @@ if "jaeger_client" not in st.session_state:
 def show() -> None:
     """
     Display automation debugging dashboard.
-    
+
     Shows automation execution traces with filtering and performance analysis.
     """
     st.header("🤖 Automation Debugging")
@@ -144,12 +143,12 @@ def show() -> None:
 
 
 async def _query_automation_traces(
-    automation_id: Optional[str] = None,
-    home_id: Optional[str] = None,
-    correlation_id: Optional[str] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-) -> List[Trace]:
+    automation_id: str | None = None,
+    home_id: str | None = None,
+    correlation_id: str | None = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+) -> list[Trace]:
     """Query automation traces from Jaeger."""
     client = st.session_state.jaeger_client
 
@@ -180,13 +179,7 @@ async def _query_automation_traces(
                 tag_key = tag.get("key", "")
                 tag_value = tag.get("value", "")
 
-                if automation_id and tag_key == "automation_id" and tag_value == automation_id:
-                    filtered_traces.append(trace)
-                    break
-                elif home_id and tag_key == "home_id" and tag_value == home_id:
-                    filtered_traces.append(trace)
-                    break
-                elif correlation_id and tag_key == "correlation_id" and tag_value == correlation_id:
+                if automation_id and tag_key == "automation_id" and tag_value == automation_id or home_id and tag_key == "home_id" and tag_value == home_id or correlation_id and tag_key == "correlation_id" and tag_value == correlation_id:
                     filtered_traces.append(trace)
                     break
 
@@ -196,10 +189,10 @@ async def _query_automation_traces(
 def _is_automation_success(trace: Trace) -> bool:
     """
     Check if automation execution was successful.
-    
+
     Args:
         trace: Trace object to check
-        
+
     Returns:
         True if automation succeeded, False otherwise
     """
@@ -215,7 +208,7 @@ def _is_automation_success(trace: Trace) -> bool:
 def _show_automation_flow(trace: Trace) -> None:
     """
     Show automation execution flow.
-    
+
     Args:
         trace: Trace object to display
     """
@@ -261,7 +254,7 @@ def _show_automation_flow(trace: Trace) -> None:
         st.json(trace.model_dump())
 
 
-def _create_performance_dataframe(traces: List[Trace]) -> pd.DataFrame:
+def _create_performance_dataframe(traces: list[Trace]) -> pd.DataFrame:
     """Create performance metrics DataFrame."""
     data = []
     for i, trace in enumerate(traces):

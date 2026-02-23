@@ -1,0 +1,21 @@
+---
+alwaysApply: true
+---
+
+# TAPPS Quality Pipeline
+
+This project uses the TAPPS MCP server for code quality enforcement.
+
+## Session Start (REQUIRED)
+
+Call `tapps_session_start()` as the FIRST action in every session.
+
+## After Editing Python Files (REQUIRED)
+
+Call `tapps_quick_check(file_path)` after editing any Python file.
+
+## Before Declaring Work Complete (BLOCKING)
+
+Call `tapps_validate_changed()` to batch-validate all changed files.
+The quality gate MUST pass before work is declared complete.
+Call `tapps_checklist(task_type)` as the FINAL verification step.

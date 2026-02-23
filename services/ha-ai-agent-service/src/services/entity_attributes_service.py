@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class EntityAttributesService:
     """
     Service for extracting and formatting entity state attributes.
-    
+
     Extracts dynamic attributes from entity states:
     - effect_list for lights (WLED, Hue effects)
     - preset_list, theme_list if available
@@ -66,7 +66,7 @@ class EntityAttributesService:
             # Fetch entity states from Home Assistant
             logger.info("📊 Fetching entity states for attributes...")
             states = await self.ha_client.get_states()
-            
+
             if not states:
                 summary = "No entity states available."
                 await self.context_builder._set_cached_value(
@@ -81,37 +81,37 @@ class EntityAttributesService:
                 entity_id = state.get("entity_id", "")
                 if not entity_id:
                     continue
-                
+
                 domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
                 attributes = state.get("attributes", {})
-                
+
                 # Extract relevant attributes based on domain
                 entity_attrs = {}
-                
+
                 if domain == "light":
                     # Extract light-specific attributes
                     effect_list = attributes.get("effect_list", [])
                     if effect_list:
                         entity_attrs["effect_list"] = effect_list
                         entity_attrs["effect_list_count"] = len(effect_list)
-                    
+
                     current_effect = attributes.get("effect")
                     if current_effect:
                         entity_attrs["current_effect"] = current_effect
-                    
+
                     supported_color_modes = attributes.get("supported_color_modes", [])
                     if supported_color_modes:
                         entity_attrs["supported_color_modes"] = supported_color_modes
-                    
+
                     # Extract preset/theme lists if available
                     preset_list = attributes.get("preset_list", [])
                     if preset_list:
                         entity_attrs["preset_list"] = preset_list
-                    
+
                     theme_list = attributes.get("theme_list", [])
                     if theme_list:
                         entity_attrs["theme_list"] = theme_list
-                
+
                 # Only add if we found relevant attributes
                 if entity_attrs:
                     entity_attrs["entity_id"] = entity_id
@@ -120,18 +120,18 @@ class EntityAttributesService:
 
             # Format summary
             summary_parts = []
-            
+
             # Focus on light domain (most common use case)
             if "light" in domain_attributes:
                 light_attrs = domain_attributes["light"]
                 summary_parts.append("LIGHT ENTITY ATTRIBUTES:")
-                
+
                 # Limit to 10 lights to avoid overwhelming context
                 for light_attr in light_attrs[:10]:
                     entity_id = light_attr["entity_id"]
                     friendly_name = light_attr.get("friendly_name", entity_id)
                     attr_parts = [f"{friendly_name} ({entity_id}):"]
-                    
+
                     # Add effect_list
                     if "effect_list" in light_attr:
                         effect_list = light_attr["effect_list"]
@@ -142,16 +142,16 @@ class EntityAttributesService:
                         else:
                             effects_preview = ", ".join(effect_list[:8])
                             attr_parts.append(f"  effect_list: [{effects_preview}, ... ({effect_count} total)]")
-                    
+
                     # Add current effect
                     if "current_effect" in light_attr:
                         attr_parts.append(f"  current_effect: {light_attr['current_effect']}")
-                    
+
                     # Add color modes
                     if "supported_color_modes" in light_attr:
                         color_modes = light_attr["supported_color_modes"]
                         attr_parts.append(f"  supported_color_modes: [{', '.join(color_modes)}]")
-                    
+
                     # Add preset/theme lists if available
                     if "preset_list" in light_attr:
                         preset_list = light_attr["preset_list"]
@@ -161,7 +161,7 @@ class EntityAttributesService:
                         else:
                             presets_preview = ", ".join(preset_list[:5])
                             attr_parts.append(f"  preset_list: [{presets_preview}, ... ({len(preset_list)} total)]")
-                    
+
                     if "theme_list" in light_attr:
                         theme_list = light_attr["theme_list"]
                         if len(theme_list) <= 10:
@@ -170,14 +170,14 @@ class EntityAttributesService:
                         else:
                             themes_preview = ", ".join(theme_list[:5])
                             attr_parts.append(f"  theme_list: [{themes_preview}, ... ({len(theme_list)} total)]")
-                    
+
                     summary_parts.append("\n".join(attr_parts))
-                
+
                 if len(light_attrs) > 10:
                     summary_parts.append(f"... ({len(light_attrs)} total lights with attributes)")
 
             summary = "\n".join(summary_parts)
-            
+
             # Truncate if too long (max 2500 chars)
             if len(summary) > 2500:
                 summary = summary[:2500] + "... (truncated)"

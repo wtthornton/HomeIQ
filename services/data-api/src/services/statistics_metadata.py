@@ -25,11 +25,11 @@ class StatisticsMetadataService:
     async def is_statistics_eligible(entity_id: str, session: AsyncSession) -> bool:
         """
         Check if an entity is eligible for statistics aggregation.
-        
+
         Args:
             entity_id: Entity ID to check
             session: Database session
-            
+
         Returns:
             True if entity is eligible, False otherwise
         """
@@ -43,11 +43,11 @@ class StatisticsMetadataService:
     async def get_metadata(entity_id: str, session: AsyncSession) -> Optional[StatisticsMeta]:
         """
         Get statistics metadata for an entity.
-        
+
         Args:
             entity_id: Entity ID
             session: Database session
-            
+
         Returns:
             StatisticsMeta instance or None
         """
@@ -65,13 +65,13 @@ class StatisticsMetadataService:
     ) -> StatisticsMeta:
         """
         Sync statistics metadata from entity registry entry.
-        
+
         Args:
             entity: Entity model instance
             state_class: State class from Home Assistant state attributes
             unit_of_measurement: Unit of measurement (from entity or state)
             session: Database session (optional, will create if not provided)
-            
+
         Returns:
             StatisticsMeta instance
         """
@@ -151,12 +151,12 @@ class StatisticsMetadataService:
     async def sync_all_eligible_entities(session: AsyncSession) -> int:
         """
         Sync statistics metadata for all eligible entities.
-        
+
         This should be called after device/entity registry updates.
-        
+
         Args:
             session: Database session
-            
+
         Returns:
             Number of entities synced
         """
@@ -186,10 +186,10 @@ class StatisticsMetadataService:
     async def get_all_eligible_entity_ids(session: AsyncSession) -> list[str]:
         """
         Get list of all entity IDs eligible for statistics.
-        
+
         Args:
             session: Database session
-            
+
         Returns:
             List of entity IDs
         """

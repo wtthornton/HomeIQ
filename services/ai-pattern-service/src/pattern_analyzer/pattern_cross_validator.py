@@ -23,10 +23,10 @@ class PatternCrossValidator:
         1. Contradictions (pattern A says X, pattern B says not X)
         2. Redundancies (patterns that overlap)
         3. Reinforcements (patterns that support each other)
-        
+
         Args:
             patterns: List of pattern dictionaries
-            
+
         Returns:
             Dictionary with validation results and quality score
         """
@@ -130,7 +130,7 @@ class PatternCrossValidator:
                         pair_patterns[pair].append(co_p)
 
                 # Find redundant pairs (same devices, similar confidence)
-                for pair, pair_list in pair_patterns.items():
+                for _pair, pair_list in pair_patterns.items():
                     if len(pair_list) > 1:
                         # Check if patterns are very similar
                         for i, p1 in enumerate(pair_list):

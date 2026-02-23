@@ -61,11 +61,11 @@ class WeatherAPIClient:
             error_msg = f"Weather API returned {e.response.status_code}: {e.response.text[:200]}"
             logger.error(f"HTTP error fetching weather: {error_msg}")
             return None  # Graceful degradation
-        except httpx.ConnectError as e:
+        except httpx.ConnectError:
             error_msg = f"Could not connect to Weather API at {self.base_url}"
             logger.warning(f"Connection error: {error_msg}")
             return None  # Graceful degradation
-        except httpx.TimeoutException as e:
+        except httpx.TimeoutException:
             error_msg = "Weather API request timed out after 30 seconds"
             logger.warning(f"Timeout error: {error_msg}")
             return None  # Graceful degradation

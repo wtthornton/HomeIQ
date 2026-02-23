@@ -6,7 +6,7 @@ responses, and validation results.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -17,10 +17,10 @@ class ValidationResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     score: float = 0.0
-    fixed_yaml: Optional[str] = None
-    fixes_applied: Optional[list[str]] = None
-    strategy_name: Optional[str] = None  # Name of validation strategy that succeeded
-    services_unavailable: Optional[list[str]] = None  # List of services that were unavailable
+    fixed_yaml: str | None = None
+    fixes_applied: list[str] | None = None
+    strategy_name: str | None = None  # Name of validation strategy that succeeded
+    services_unavailable: list[str] | None = None  # List of services that were unavailable
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
@@ -46,11 +46,11 @@ class AutomationPreview:
     """Preview details for an automation."""
 
     alias: str
-    description: Optional[str] = None
-    trigger_description: Optional[str] = None
-    action_description: Optional[str] = None
+    description: str | None = None
+    trigger_description: str | None = None
+    action_description: str | None = None
     mode: str = "single"
-    initial_state: Optional[bool] = None
+    initial_state: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
@@ -86,7 +86,7 @@ class AutomationPreviewRequest:
             alias=data.get("alias", ""),
         )
 
-    def validate(self) -> tuple[bool, Optional[str]]:
+    def validate(self) -> tuple[bool, str | None]:
         """
         Validate request parameters.
 
@@ -111,17 +111,17 @@ class AutomationPreviewResponse:
     """Response from automation preview generation."""
 
     success: bool
-    preview: Optional[AutomationPreview] = None
-    validation: Optional[ValidationResult] = None
+    preview: AutomationPreview | None = None
+    validation: ValidationResult | None = None
     entities_affected: list[str] = field(default_factory=list)
     areas_affected: list[str] = field(default_factory=list)
     services_used: list[str] = field(default_factory=list)
     safety_warnings: list[str] = field(default_factory=list)
-    user_prompt: Optional[str] = None
-    automation_yaml: Optional[str] = None
-    alias: Optional[str] = None
-    error: Optional[str] = None
-    message: Optional[str] = None
+    user_prompt: str | None = None
+    automation_yaml: str | None = None
+    alias: str | None = None
+    error: str | None = None
+    message: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
@@ -164,8 +164,8 @@ class AutomationPreviewResponse:
     def error_response(
         cls,
         error: str,
-        user_prompt: Optional[str] = None,
-        alias: Optional[str] = None,
+        user_prompt: str | None = None,
+        alias: str | None = None,
     ) -> "AutomationPreviewResponse":
         """Create an error response."""
         return cls(

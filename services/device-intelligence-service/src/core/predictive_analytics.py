@@ -15,6 +15,7 @@ import logging
 import os
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import joblib
@@ -28,9 +29,9 @@ from sklearn.preprocessing import StandardScaler
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import Settings
 from ..core.database import get_db_session
 from ..models.database import Device, DeviceHealthMetric
-from ..config import Settings
 
 # Optional import - only needed if ML_FAILURE_MODEL=tabpfn
 try:
@@ -49,7 +50,7 @@ class PredictiveAnalyticsEngine:
     def __init__(self, settings: Settings | None = None):
         """
         Initialize predictive analytics engine.
-        
+
         Args:
             settings: Optional settings instance (defaults to global settings)
         """
@@ -84,8 +85,8 @@ class PredictiveAnalyticsEngine:
         }
 
         # Ensure models directory exists
-        os.makedirs(self.models_dir, exist_ok=True)
-        
+        Path(self.models_dir).mkdir(parents=True, exist_ok=True)
+
         # Initialize metrics tracker
         try:
             from .ml_metrics import MLMetricsTracker
@@ -99,22 +100,23 @@ class PredictiveAnalyticsEngine:
         """Initialize and load pre-trained models."""
         try:
             # Load pre-trained models if available
-            failure_model_path = os.path.join(self.models_dir, "failure_prediction_model.pkl")
-            anomaly_model_path = os.path.join(self.models_dir, "anomaly_detection_model.pkl")
-            failure_scaler_path = os.path.join(self.models_dir, "failure_prediction_scaler.pkl")
-            anomaly_scaler_path = os.path.join(self.models_dir, "anomaly_detection_scaler.pkl")
-            metadata_path = os.path.join(self.models_dir, "model_metadata.json")
+            models_dir = Path(self.models_dir)
+            failure_model_path = models_dir / "failure_prediction_model.pkl"
+            anomaly_model_path = models_dir / "anomaly_detection_model.pkl"
+            failure_scaler_path = models_dir / "failure_prediction_scaler.pkl"
+            anomaly_scaler_path = models_dir / "anomaly_detection_scaler.pkl"
+            metadata_path = models_dir / "model_metadata.json"
 
-            if all(os.path.exists(p) for p in [failure_model_path, anomaly_model_path, failure_scaler_path, anomaly_scaler_path]):
+            if all(p.exists() for p in [failure_model_path, anomaly_model_path, failure_scaler_path, anomaly_scaler_path]):
                 self.models["failure_prediction"] = joblib.load(failure_model_path)
                 self.models["anomaly_detection"] = joblib.load(anomaly_model_path)
                 self.scalers["failure_prediction"] = joblib.load(failure_scaler_path)
                 self.scalers["anomaly_detection"] = joblib.load(anomaly_scaler_path)
 
                 # Load metadata if available
-                if os.path.exists(metadata_path):
+                if metadata_path.exists():
                     try:
-                        with open(metadata_path) as f:
+                        with metadata_path.open() as f:
                             self.model_metadata = json.load(f)
                         logger.info(f"Model metadata loaded: version {self.model_metadata.get('version', 'unknown')}")
                     except Exception as e:
@@ -154,7 +156,7 @@ class PredictiveAnalyticsEngine:
                 return
 
             # Calculate training data statistics
-            unique_devices = len(set(d.get("device_id", "") for d in historical_data))
+            unique_devices = len({d.get("device_id", "") for d in historical_data})
             date_range = None
             if historical_data:
                 timestamps = [d.get("timestamp") for d in historical_data if d.get("timestamp")]
@@ -191,7 +193,7 @@ class PredictiveAnalyticsEngine:
 
             # Train failure prediction model based on configuration
             model_type = self.settings.ML_FAILURE_MODEL.lower()
-            
+
             # Check if incremental learning is enabled
             if self.settings.ML_USE_INCREMENTAL:
                 try:
@@ -207,10 +209,10 @@ class PredictiveAnalyticsEngine:
                 except ImportError:
                     logger.warning("River library not available, falling back to configured model type")
                     model_type = self.settings.ML_FAILURE_MODEL.lower()
-            
+
             if model_type != "incremental":
                 logger.info(f"Training failure prediction model: {model_type}")
-            
+
             if model_type == "tabpfn":
                 # TabPFN v2.5 - instant training, high accuracy
                 if not TABPFN_AVAILABLE or TabPFNFailurePredictor is None:
@@ -244,7 +246,7 @@ class PredictiveAnalyticsEngine:
                 except ImportError:
                     logger.warning("LightGBM not available, falling back to RandomForest")
                     model_type = "randomforest"
-            
+
             if model_type == "randomforest" or self.models["failure_prediction"] is None:
                 # RandomForest - default/fallback
                 self.models["failure_prediction"] = RandomForestClassifier(
@@ -255,7 +257,7 @@ class PredictiveAnalyticsEngine:
                 )
                 self.models["failure_prediction"].fit(X_train_scaled, y_failure_train)
                 logger.info("RandomForest model trained")
-            
+
             # Update metadata with model type
             self.model_metadata["model_type"] = model_type
             training_params["model_type"] = model_type
@@ -338,7 +340,7 @@ class PredictiveAnalyticsEngine:
         try:
             # Prepare features
             features = self._extract_features(metrics)
-            
+
             # Check if model is TabPFN (doesn't need scaling)
             model_type = self.model_metadata.get("model_type", "randomforest")
             if model_type == "tabpfn":
@@ -473,7 +475,7 @@ class PredictiveAnalyticsEngine:
                     logger.warning("Training data validation failed, using sample data")
                     return await self._generate_sample_training_data()
 
-                logger.info(f"Collected {len(training_data)} training samples from {len(set(d['device_id'] for d in training_data))} devices")
+                logger.info(f"Collected {len(training_data)} training samples from {len({d['device_id'] for d in training_data})} devices")
                 return training_data
 
         except RuntimeError as e:
@@ -491,7 +493,7 @@ class PredictiveAnalyticsEngine:
         self,
         session: AsyncSession,
         metrics: list[DeviceHealthMetric],
-        days_back: int
+        _days_back: int
     ) -> list[dict[str, Any]]:
         """Aggregate metrics by device into training samples."""
         # Group metrics by device_id
@@ -688,7 +690,7 @@ class PredictiveAnalyticsEngine:
 
     async def _generate_maintenance_recommendations(
         self,
-        device_id: str,
+        _device_id: str,
         metrics: dict[str, Any],
         failure_probability: float,
         anomaly_score: float
@@ -719,10 +721,10 @@ class PredictiveAnalyticsEngine:
 
         return recommendations
 
-    async def _evaluate_models(self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True):
+    async def _evaluate_models(self, X_test: np.ndarray, y_test: np.ndarray, _use_scaled: bool = True):
         """
         Evaluate model performance.
-        
+
         Args:
             X_test: Test features
             y_test: Test labels
@@ -753,10 +755,10 @@ class PredictiveAnalyticsEngine:
                 "evaluated_at": datetime.now(timezone.utc).isoformat()
             }
 
-    async def _validate_models(self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True) -> dict[str, Any]:
+    async def _validate_models(self, X_test: np.ndarray, _y_test: np.ndarray, _use_scaled: bool = True) -> dict[str, Any]:
         """
         Validate models meet minimum performance thresholds.
-        
+
         Args:
             X_test: Test features
             y_test: Test labels
@@ -877,10 +879,11 @@ class PredictiveAnalyticsEngine:
     async def _verify_saved_models(self) -> bool:
         """Verify that saved models can be loaded and used."""
         try:
-            failure_model_path = os.path.join(self.models_dir, "failure_prediction_model.pkl")
-            anomaly_model_path = os.path.join(self.models_dir, "anomaly_detection_model.pkl")
-            failure_scaler_path = os.path.join(self.models_dir, "failure_prediction_scaler.pkl")
-            anomaly_scaler_path = os.path.join(self.models_dir, "anomaly_detection_scaler.pkl")
+            models_dir = Path(self.models_dir)
+            failure_model_path = models_dir / "failure_prediction_model.pkl"
+            anomaly_model_path = models_dir / "anomaly_detection_model.pkl"
+            failure_scaler_path = models_dir / "failure_prediction_scaler.pkl"
+            anomaly_scaler_path = models_dir / "anomaly_detection_scaler.pkl"
 
             # Try to load models
             test_failure_model = joblib.load(failure_model_path)
@@ -890,7 +893,7 @@ class PredictiveAnalyticsEngine:
 
             # Test with dummy data
             dummy_features = np.random.rand(1, len(self.feature_columns))
-            
+
             # Handle different model types for scaling
             model_type = self.model_metadata.get("model_type", "randomforest")
             if model_type == "tabpfn":
@@ -904,7 +907,7 @@ class PredictiveAnalyticsEngine:
             # Test predictions
             _ = test_failure_model.predict(dummy_for_prediction)
             _ = test_failure_model.predict_proba(dummy_for_prediction)
-            
+
             # Anomaly detection always uses scaled features
             if model_type != "tabpfn":
                 dummy_anomaly = dummy_scaled
@@ -923,15 +926,16 @@ class PredictiveAnalyticsEngine:
     async def _save_models(self):
         """Save trained models and metadata."""
         try:
-            failure_model_path = os.path.join(self.models_dir, "failure_prediction_model.pkl")
-            anomaly_model_path = os.path.join(self.models_dir, "anomaly_detection_model.pkl")
-            failure_scaler_path = os.path.join(self.models_dir, "failure_prediction_scaler.pkl")
-            anomaly_scaler_path = os.path.join(self.models_dir, "anomaly_detection_scaler.pkl")
-            metadata_path = os.path.join(self.models_dir, "model_metadata.json")
+            models_dir = Path(self.models_dir)
+            failure_model_path = models_dir / "failure_prediction_model.pkl"
+            anomaly_model_path = models_dir / "anomaly_detection_model.pkl"
+            failure_scaler_path = models_dir / "failure_prediction_scaler.pkl"
+            anomaly_scaler_path = models_dir / "anomaly_detection_scaler.pkl"
+            metadata_path = models_dir / "model_metadata.json"
 
             # Backup existing models if they exist
             backup_suffix = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-            if os.path.exists(failure_model_path):
+            if failure_model_path.exists():
                 backup_path = f"{failure_model_path}.backup_{backup_suffix}"
                 try:
                     import shutil
@@ -939,7 +943,7 @@ class PredictiveAnalyticsEngine:
                     logger.info(f"Backed up existing model to {backup_path}")
 
                     # Also backup metadata if it exists
-                    if os.path.exists(metadata_path):
+                    if metadata_path.exists():
                         backup_metadata_path = f"{metadata_path}.backup_{backup_suffix}"
                         shutil.copy2(metadata_path, backup_metadata_path)
                         logger.info(f"Backed up model metadata to {backup_metadata_path}")
@@ -948,7 +952,7 @@ class PredictiveAnalyticsEngine:
 
             # Save models (handle different model types)
             model_type = self.model_metadata.get("model_type", "randomforest")
-            
+
             # TabPFN and Incremental models can be saved with joblib (they're Python objects)
             # But we need to handle them carefully
             if model_type in ["tabpfn", "incremental"]:
@@ -958,18 +962,18 @@ class PredictiveAnalyticsEngine:
                 except Exception as e:
                     logger.warning(f"Could not save {model_type} model with joblib: {e}")
                     logger.info("{model_type} models may need to be retrained on restart")
-            
+
             # Standard models (RandomForest, LightGBM, IsolationForest)
             if model_type not in ["tabpfn", "incremental"]:
                 joblib.dump(self.models["failure_prediction"], failure_model_path)
-            
+
             # Anomaly detection and scalers (always save)
             joblib.dump(self.models["anomaly_detection"], anomaly_model_path)
             joblib.dump(self.scalers["failure_prediction"], failure_scaler_path)
             joblib.dump(self.scalers["anomaly_detection"], anomaly_scaler_path)
 
             # Save metadata
-            with open(metadata_path, 'w') as f:
+            with metadata_path.open('w') as f:
                 json.dump(self.model_metadata, f, indent=2)
 
             logger.info(f"Models and metadata saved successfully (version {self.model_metadata.get('version', 'unknown')})")
@@ -990,21 +994,21 @@ class PredictiveAnalyticsEngine:
     async def incremental_update(self, new_data: list[dict[str, Any]]):
         """
         Update model incrementally with new data (10-50x faster than full retrain).
-        
+
         Args:
             new_data: List of new training samples (same format as historical_data)
         """
         if not self.settings.ML_USE_INCREMENTAL:
             logger.warning("Incremental learning not enabled in configuration")
             return
-        
+
         if not self.is_trained:
             logger.warning("Model not trained, cannot perform incremental update")
             return
-        
+
         try:
             from .incremental_predictor import IncrementalFailurePredictor
-            
+
             # Check if current model supports incremental updates
             if not isinstance(self.models["failure_prediction"], IncrementalFailurePredictor):
                 logger.info("Converting to incremental model for updates...")
@@ -1013,27 +1017,27 @@ class PredictiveAnalyticsEngine:
                 # In future, could implement model conversion
                 logger.warning("Current model doesn't support incremental updates. Use incremental model from start.")
                 return
-            
+
             # Prepare new data
             df = pd.DataFrame(new_data)
             X_new, y_new, _ = self._prepare_training_data(df)
-            
+
             # Update incrementally
             logger.info(f"Updating model incrementally with {len(X_new)} new samples...")
             start_time = time.time()
-            
+
             # Use incremental update
             self.models["failure_prediction"].learn_many(X_new, y_new)
-            
+
             update_time = time.time() - start_time
             accuracy = self.models["failure_prediction"].get_accuracy()
-            
+
             logger.info(f"Incremental update complete in {update_time:.3f}s. Current accuracy: {accuracy:.3f}")
-            
+
             # Update metadata
             self.model_metadata["last_incremental_update"] = datetime.now(timezone.utc).isoformat()
             self.model_metadata["incremental_update_count"] = self.model_metadata.get("incremental_update_count", 0) + 1
-            
+
             # Record incremental update metrics
             if self.metrics_tracker:
                 self.metrics_tracker.record_incremental_update(
@@ -1041,12 +1045,12 @@ class PredictiveAnalyticsEngine:
                     update_time=update_time,
                     accuracy=accuracy
                 )
-            
+
         except ImportError:
             logger.error("River library not available for incremental learning")
         except Exception as e:
             logger.error(f"Error in incremental update: {e}", exc_info=True)
-    
+
     async def shutdown(self):
         """Release any resources held by the analytics engine."""
         self.models = dict.fromkeys(self.models)

@@ -96,7 +96,7 @@ async def get_discovery_status(
 ) -> DiscoveryStatusResponse:
     """
     Get discovery service status.
-    
+
     Returns:
         DiscoveryStatusResponse: Current status of the discovery service
     """
@@ -115,7 +115,7 @@ async def get_discovery_status(
 
     except Exception as e:
         logger.error(f"Error getting discovery status: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/sources", response_model=DiscoverySourcesResponse)
@@ -124,7 +124,7 @@ async def get_discovery_sources(
 ) -> DiscoverySourcesResponse:
     """
     Get available discovery sources and their status.
-    
+
     Returns:
         DiscoverySourcesResponse: Available discovery sources
     """
@@ -150,7 +150,7 @@ async def get_discovery_sources(
 
     except Exception as e:
         logger.error(f"Error getting discovery sources: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post("/refresh")
@@ -159,7 +159,7 @@ async def refresh_discovery(
 ) -> dict[str, Any]:
     """
     Force a complete discovery refresh.
-    
+
     Returns:
         Dict[str, Any]: Refresh operation result
     """
@@ -185,7 +185,7 @@ async def refresh_discovery(
 
     except Exception as e:
         logger.error(f"Error during discovery refresh: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/devices", response_model=DeviceSummaryResponse)
@@ -194,13 +194,12 @@ async def get_devices_summary(
 ) -> DeviceSummaryResponse:
     """
     Get summary of discovered devices.
-    
+
     Returns:
         DeviceSummaryResponse: Device discovery summary
     """
     try:
         devices = discovery_service.get_devices()
-        areas = discovery_service.get_areas()
 
         # Count devices by integration
         devices_by_integration = {}
@@ -227,7 +226,7 @@ async def get_devices_summary(
 
     except Exception as e:
         logger.error(f"Error getting devices summary: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/devices/{device_id}", response_model=DeviceResponse)
@@ -237,13 +236,13 @@ async def get_device(
 ) -> DeviceResponse:
     """
     Get specific device by ID.
-    
+
     Args:
         device_id: Device identifier
-        
+
     Returns:
         DeviceResponse: Device information
-        
+
     Raises:
         HTTPException: If device not found
     """
@@ -273,7 +272,7 @@ async def get_device(
         raise
     except Exception as e:
         logger.error(f"Error getting device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/devices/list", response_model=list[DeviceResponse])
@@ -330,7 +329,7 @@ async def get_all_devices(
 
     except Exception as e:
         logger.error("Error getting devices: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/areas")
@@ -339,7 +338,7 @@ async def get_areas(
 ) -> list[dict[str, Any]]:
     """
     Get all discovered areas.
-    
+
     Returns:
         List[Dict[str, Any]]: List of areas
     """
@@ -360,7 +359,7 @@ async def get_areas(
 
     except Exception as e:
         logger.error(f"Error getting areas: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/groups")
@@ -369,7 +368,7 @@ async def get_zigbee_groups(
 ) -> list[dict[str, Any]]:
     """
     Get all discovered Zigbee groups.
-    
+
     Returns:
         List[Dict[str, Any]]: List of Zigbee groups
     """
@@ -388,4 +387,4 @@ async def get_zigbee_groups(
 
     except Exception as e:
         logger.error(f"Error getting Zigbee groups: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e

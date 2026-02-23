@@ -9,11 +9,10 @@ Based on PATTERNS_SYNERGIES_IMPROVEMENT_RECOMMENDATIONS.md - Recommendation 2.2
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -21,30 +20,30 @@ logger = logging.getLogger(__name__)
 class AutomationTracker:
     """
     Track automation execution and learn from success/failure.
-    
+
     Integrates with Home Assistant to monitor automation runs
     and update pattern/synergy confidence based on outcomes.
     """
-    
-    def __init__(self, db: Optional[AsyncSession] = None):
+
+    def __init__(self, db: AsyncSession | None = None):
         """
         Initialize automation tracker.
-        
+
         Args:
             db: Optional database session for storing execution data
         """
         self.db = db
-    
+
     async def track_automation_execution(
         self,
         automation_id: str,
         synergy_id: str,
         execution_result: dict[str, Any],
-        db: Optional[AsyncSession] = None
+        db: AsyncSession | None = None
     ) -> None:
         """
         Track automation execution and update synergy confidence.
-        
+
         Args:
             automation_id: Home Assistant automation entity ID
             synergy_id: Synergy ID that generated this automation
@@ -60,13 +59,13 @@ class AutomationTracker:
         if not session:
             logger.warning("No database session available for tracking automation execution")
             return
-        
+
         try:
             success = execution_result.get('success', False)
             error = execution_result.get('error')
             execution_time_ms = execution_result.get('execution_time_ms', 0)
             triggered_count = execution_result.get('triggered_count', 0)
-            
+
             # Store execution record
             await self._store_execution_record(
                 session,
@@ -77,7 +76,7 @@ class AutomationTracker:
                 execution_time_ms,
                 triggered_count
             )
-            
+
             # Update synergy confidence based on execution
             await self._update_synergy_confidence(
                 session,
@@ -85,21 +84,21 @@ class AutomationTracker:
                 success,
                 triggered_count
             )
-            
+
             logger.info(
                 f"✅ Tracked automation execution: automation_id={automation_id}, "
                 f"synergy_id={synergy_id}, success={success}, triggered={triggered_count}"
             )
         except Exception as e:
             logger.error(f"Failed to track automation execution: {e}", exc_info=True)
-    
+
     async def _store_execution_record(
         self,
         db: AsyncSession,
         automation_id: str,
         synergy_id: str,
         success: bool,
-        error: Optional[str],
+        error: str | None,
         execution_time_ms: int,
         triggered_count: int
     ) -> None:
@@ -121,10 +120,10 @@ class AutomationTracker:
             """)
             await db.execute(create_table_query)
             await db.commit()
-            
+
             # Insert execution record
             insert_query = text("""
-                INSERT INTO automation_executions 
+                INSERT INTO automation_executions
                 (automation_id, synergy_id, success, error, execution_time_ms, triggered_count, created_at)
                 VALUES (:automation_id, :synergy_id, :success, :error, :execution_time_ms, :triggered_count, datetime('now'))
             """)
@@ -143,7 +142,7 @@ class AutomationTracker:
         except Exception as e:
             logger.warning(f"Failed to store execution record: {e}")
             await db.rollback()
-    
+
     async def _update_synergy_confidence(
         self,
         db: AsyncSession,
@@ -153,7 +152,7 @@ class AutomationTracker:
     ) -> None:
         """
         Update synergy confidence based on execution outcomes.
-        
+
         Positive outcomes → increase confidence
         Negative outcomes → decrease confidence
         """
@@ -166,14 +165,14 @@ class AutomationTracker:
             """)
             result = await db.execute(get_synergy_query, {"synergy_id": synergy_id})
             row = result.fetchone()
-            
+
             if not row:
                 logger.warning(f"Synergy {synergy_id} not found for confidence update")
                 return
-            
+
             current_confidence = row[0] or 0.5
             current_impact = row[1] or 0.5
-            
+
             # Calculate confidence adjustment
             # Success with triggers → +0.05 confidence, +0.03 impact
             # Failure → -0.1 confidence, -0.05 impact
@@ -191,10 +190,10 @@ class AutomationTracker:
                 # Failure → negative signal
                 confidence_adjustment = max(-0.1, -current_confidence)
                 impact_adjustment = max(-0.05, -current_impact)
-            
+
             new_confidence = max(0.0, min(1.0, current_confidence + confidence_adjustment))
             new_impact = max(0.0, min(1.0, current_impact + impact_adjustment))
-            
+
             # Update synergy confidence
             update_query = text("""
                 UPDATE synergy_opportunities
@@ -212,7 +211,7 @@ class AutomationTracker:
                 }
             )
             await db.commit()
-            
+
             logger.info(
                 f"Updated synergy {synergy_id} confidence: {current_confidence:.2f} → {new_confidence:.2f} "
                 f"(adjustment: {confidence_adjustment:+.2f})"
@@ -220,19 +219,19 @@ class AutomationTracker:
         except Exception as e:
             logger.warning(f"Failed to update synergy confidence: {e}")
             await db.rollback()
-    
+
     async def get_execution_stats(
         self,
         synergy_id: str,
-        db: Optional[AsyncSession] = None
+        db: AsyncSession | None = None
     ) -> dict[str, Any]:
         """
         Get execution statistics for a synergy.
-        
+
         Args:
             synergy_id: Synergy ID to get stats for
             db: Optional database session
-        
+
         Returns:
             {
                 'total_executions': int,
@@ -253,10 +252,10 @@ class AutomationTracker:
                 'avg_execution_time_ms': 0.0,
                 'success_rate': 0.0
             }
-        
+
         try:
             stats_query = text("""
-                SELECT 
+                SELECT
                     COUNT(*) as total_executions,
                     SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_executions,
                     SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed_executions,
@@ -267,14 +266,14 @@ class AutomationTracker:
             """)
             result = await session.execute(stats_query, {"synergy_id": synergy_id})
             row = result.fetchone()
-            
+
             if row and row[0]:
                 total = row[0] or 0
                 successful = row[1] or 0
                 failed = row[2] or 0
                 total_triggered = row[3] or 0
                 avg_time = row[4] or 0.0
-                
+
                 return {
                     'total_executions': total,
                     'successful_executions': successful,

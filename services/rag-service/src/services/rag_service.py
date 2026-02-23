@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """
     Calculate cosine similarity between two vectors.
-    
+
     Args:
         a: First vector (numpy array)
         b: Second vector (numpy array)
-    
+
     Returns:
         Cosine similarity score (0.0-1.0)
     """
@@ -37,7 +37,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 class RAGService:
     """
     Service for semantic knowledge storage and retrieval.
-    
+
     Features:
     - Store text with embeddings
     - Retrieve similar knowledge using semantic similarity
@@ -70,15 +70,15 @@ class RAGService:
     async def _get_embedding(self, text: str) -> tuple[np.ndarray, bool]:
         """
         Get embedding for text (with cache).
-        
+
         Args:
             text: Text to embed
-        
+
         Returns:
             Tuple of (embedding vector, cache_hit bool)
             - embedding: 1024-dim numpy array
             - cache_hit: True if embedding was from cache, False if newly generated
-        
+
         Raises:
             EmbeddingGenerationError: If embedding generation fails
         """
@@ -92,7 +92,7 @@ class RAGService:
             embeddings = await self.openvino_client.get_embeddings([text], normalize=True)
             if not embeddings:
                 raise EmbeddingGenerationError("No embeddings returned from OpenVINO service")
-            
+
             embedding = np.array(embeddings[0])
 
             # Cache embedding (simple LRU: remove oldest if cache full)
@@ -120,18 +120,18 @@ class RAGService:
     ) -> tuple[int, bool]:
         """
         Store text with semantic embedding.
-        
+
         Args:
             text: Text to store
             knowledge_type: Type ('query', 'pattern', 'blueprint', 'automation', etc.)
             metadata: Additional metadata (optional)
             success_score: Success score (0.0-1.0, default: 0.5)
-        
+
         Returns:
             Tuple of (entry ID, cache_hit bool)
             - entry ID: ID of stored entry
             - cache_hit: True if embedding was from cache, False if newly generated
-        
+
         Raises:
             EmbeddingGenerationError: If embedding generation fails
         """
@@ -171,19 +171,19 @@ class RAGService:
     ) -> tuple[list[dict[str, Any]], bool]:
         """
         Retrieve similar entries using semantic similarity.
-        
+
         Args:
             query: Query text
             knowledge_type: Filter by type (optional)
             top_k: Number of results to return
             min_similarity: Minimum similarity threshold (0.0-1.0)
-        
+
         Returns:
             Tuple of (results list, cache_hit bool)
             - results: List of similar entries with similarity scores, sorted by similarity (descending)
               Each entry contains: id, text, similarity, knowledge_type, metadata, success_score
             - cache_hit: True if query embedding was from cache, False if newly generated
-        
+
         Raises:
             EmbeddingGenerationError: If embedding generation fails
         """
@@ -204,7 +204,7 @@ class RAGService:
             for entry in entries:
                 entry_embedding = np.array(entry.embedding)
                 similarity = cosine_similarity(query_embedding, entry_embedding)
-                
+
                 if similarity >= min_similarity:
                     results.append({
                         'id': entry.id,
@@ -238,13 +238,13 @@ class RAGService:
     ) -> tuple[list[dict[str, Any]], bool]:
         """
         Search with optional filters (alias for retrieve with filters).
-        
+
         Args:
             query: Query text
             filters: Optional filters (knowledge_type, metadata keys, etc.)
             top_k: Number of results to return
             min_similarity: Minimum similarity threshold (0.0-1.0)
-        
+
         Returns:
             Tuple of (results list, cache_hit bool)
             - results: List of similar entries with similarity scores
@@ -256,11 +256,11 @@ class RAGService:
     async def update_success_score(self, id: int, score: float) -> None:
         """
         Update success score for an entry.
-        
+
         Args:
             id: Entry ID
             score: New success score (0.0-1.0)
-        
+
         Raises:
             ValueError: If entry not found
         """
@@ -268,11 +268,11 @@ class RAGService:
             result = await self.db.get(RAGKnowledge, id)
             if not result:
                 raise ValueError(f"RAG knowledge entry not found: id={id}")
-            
+
             result.success_score = score
             await self.db.commit()
             await self.db.refresh(result)
-            
+
             logger.info(f"Updated success score for entry {id}: {score}")
         except ValueError:
             raise

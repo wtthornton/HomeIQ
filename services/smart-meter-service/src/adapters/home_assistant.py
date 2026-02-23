@@ -21,7 +21,7 @@ class HomeAssistantAdapter(MeterAdapter):
     def __init__(self, ha_url: str, ha_token: str):
         """
         Initialize Home Assistant adapter
-        
+
         Args:
             ha_url: Home Assistant URL (e.g., http://homeassistant:8123)
             ha_token: Long-lived access token
@@ -44,22 +44,22 @@ class HomeAssistantAdapter(MeterAdapter):
     async def fetch_consumption(
         self,
         session: aiohttp.ClientSession,
-        api_token: str,
-        device_id: str
+        _api_token: str,
+        _device_id: str,
     ) -> dict[str, Any]:
         """
         Fetch power consumption from Home Assistant sensors
-        
+
         Expected HA sensors (configure based on your HA setup):
         - sensor.total_power or sensor.power_total (whole-home power in watts)
         - sensor.daily_energy or sensor.energy_daily (daily energy in kWh)
         - sensor.power_* (individual circuit/device sensors)
-        
+
         Args:
             session: aiohttp session
-            api_token: Not used (HA token from init)
-            device_id: Not used (HA sensors are discovered)
-            
+            _api_token: Not used (HA token from init)
+            _device_id: Not used (HA sensors are discovered)
+
         Returns:
             Dict with total_power_w, daily_kwh, circuits, timestamp
         """
@@ -95,7 +95,7 @@ class HomeAssistantAdapter(MeterAdapter):
     async def _get_power_sensor(self, session: aiohttp.ClientSession) -> float:
         """
         Get whole-home power consumption
-        
+
         Tries multiple common sensor names:
         - sensor.total_power
         - sensor.power_total
@@ -121,7 +121,7 @@ class HomeAssistantAdapter(MeterAdapter):
     async def _get_energy_sensor(self, session: aiohttp.ClientSession) -> float:
         """
         Get daily energy consumption
-        
+
         Tries multiple common sensor names:
         - sensor.daily_energy
         - sensor.energy_daily
@@ -149,11 +149,11 @@ class HomeAssistantAdapter(MeterAdapter):
     ) -> str | None:
         """
         Get state of a single HA sensor
-        
+
         Args:
             session: aiohttp session
             entity_id: Entity ID (e.g., sensor.total_power)
-            
+
         Returns:
             Sensor state as string, or None if not found
         """

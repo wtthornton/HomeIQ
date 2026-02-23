@@ -85,12 +85,12 @@ class DataAPIClient:
             error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
             logger.warning(f"HTTP error fetching events: {error_msg}")
             return []  # Graceful degradation
-        except httpx.ConnectError as e:
+        except httpx.ConnectError:
             error_msg = f"Could not connect to Data API at {self.base_url}"
             logger.warning(f"Connection error: {error_msg}")
             return []  # Graceful degradation
-        except Exception as e:
-            logger.warning(f"Error fetching events: {str(e)}", exc_info=True)
+        except Exception:
+            logger.warning("Error fetching events", exc_info=True)
             return []  # Graceful degradation
 
     async def get_activity(self) -> dict[str, Any] | None:
@@ -132,8 +132,8 @@ class DataAPIClient:
 
     async def get_patterns(
         self,
-        pattern_type: str | None = None,
-        limit: int = 100
+        pattern_type: str | None = None,  # noqa: ARG002
+        limit: int = 100,  # noqa: ARG002
     ) -> list[dict[str, Any]]:
         """
         Get historical patterns (if available via data-api).

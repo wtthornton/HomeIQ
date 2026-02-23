@@ -54,16 +54,15 @@ class PatternsClient:
                 "min_confidence": min_confidence,
                 "limit": limit
             }
-            
+
             if pattern_type:
                 params["pattern_type"] = pattern_type
 
             headers = {}
             if self.api_key:
                 headers["X-HomeIQ-API-Key"] = self.api_key
-            
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(
+
+            async with aiohttp.ClientSession(timeout=self.timeout) as session, session.get(
                     f"{self.base_url}/api/patterns/list",
                     params=params,
                     headers=headers
@@ -71,7 +70,7 @@ class PatternsClient:
                     if response.status == 200:
                         data = await response.json()
                         patterns = data.get("data", {}).get("patterns", [])
-                        
+
                         # Filter by device_ids if provided
                         if device_ids:
                             filtered_patterns = []
@@ -80,13 +79,12 @@ class PatternsClient:
                                 if pattern_device_id in device_ids:
                                     filtered_patterns.append(pattern)
                             patterns = filtered_patterns
-                        
+
                         logger.info(f"Retrieved {len(patterns)} patterns from API")
                         return patterns
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"Failed to fetch patterns: {response.status} - {error_text}")
-                        return []
+                    error_text = await response.text()
+                    logger.error(f"Failed to fetch patterns: {response.status} - {error_text}")
+                    return []
         except Exception as e:
             logger.error(f"Error fetching patterns: {e}", exc_info=True)
             return []

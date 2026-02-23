@@ -127,19 +127,16 @@ class DeviceStateContextService:
         availability_warning = ""
         if state_value in ("unavailable", "unknown"):
             availability_warning = f" [⚠️ {state_value}]"
-        
+
         # Build formatted string
-        if attr_parts:
-            attr_str = " (" + ", ".join(attr_parts) + ")"
-        else:
-            attr_str = ""
+        attr_str = " (" + ", ".join(attr_parts) + ")" if attr_parts else ""
 
         return f"- {entity_id}: {state_value}{attr_str}{availability_warning}"
 
     async def get_state_context(
         self,
         entity_ids: list[str] | None = None,
-        user_prompt: str | None = None,
+        _user_prompt: str | None = None,
         skip_truncation: bool = False,
     ) -> str:
         """
@@ -195,7 +192,7 @@ class DeviceStateContextService:
                     # Entity not found in states - treat as unavailable
                     unavailable_entities.append(entity_id)
                     logger.debug(f"⚠️ Entity {entity_id} not found in states (may be unavailable)")
-            
+
             # Phase 1.3: Log unavailable entities count
             if unavailable_entities:
                 logger.warning(f"⚠️ Found {len(unavailable_entities)} unavailable/unknown entities: {unavailable_entities[:5]}...")

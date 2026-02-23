@@ -4,7 +4,7 @@ Story AI5.9 - Data Retention Policies & Cleanup
 
 Manages retention policies for Epic AI-5 pattern aggregates:
 - pattern_aggregates_daily: 90 days
-- pattern_aggregates_weekly: 365 days  
+- pattern_aggregates_weekly: 365 days
 """
 
 import logging
@@ -30,7 +30,7 @@ class PatternAggregateRetention:
     def __init__(self, influxdb_client=None):
         """
         Initialize pattern aggregate retention manager.
-        
+
         Args:
             influxdb_client: InfluxDB client instance
         """
@@ -58,7 +58,7 @@ class PatternAggregateRetention:
     async def run_cleanup(self) -> dict[str, Any]:
         """
         Run cleanup for all pattern aggregate buckets.
-        
+
         Returns:
             Dict with cleanup results for each bucket
         """
@@ -96,10 +96,10 @@ class PatternAggregateRetention:
     async def _cleanup_bucket(self, config: RetentionConfig) -> dict[str, Any]:
         """
         Clean up expired data from a bucket.
-        
+
         Args:
             config: Retention configuration
-            
+
         Returns:
             Dict with cleanup results
         """
@@ -146,7 +146,7 @@ class PatternAggregateRetention:
     def get_retention_summary(self) -> dict[str, Any]:
         """
         Get summary of retention policies.
-        
+
         Returns:
             Dict with retention policy summary
         """
@@ -172,10 +172,10 @@ class PatternAggregateRetention:
 async def run_pattern_aggregate_retention(influxdb_client=None) -> dict[str, Any]:
     """
     Run pattern aggregate retention cleanup.
-    
+
     Args:
         influxdb_client: InfluxDB client instance
-        
+
     Returns:
         Dict with cleanup results
     """

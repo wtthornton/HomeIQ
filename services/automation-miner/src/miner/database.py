@@ -7,7 +7,17 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -20,7 +30,7 @@ Base = declarative_base()
 class CommunityAutomation(Base):
     """
     Community automation storage model
-    
+
     Stores normalized automation metadata from community sources.
     """
     __tablename__ = "community_automations"
@@ -78,7 +88,7 @@ class CommunityAutomation(Base):
 class MinerState(Base):
     """
     Miner state tracking
-    
+
     Stores crawler state (last_crawl_timestamp, etc.)
     """
     __tablename__ = "miner_state"
@@ -98,7 +108,7 @@ class Database:
     def __init__(self, db_path: str = None):
         """
         Initialize database connection
-        
+
         Args:
             db_path: Path to SQLite database file (default from settings)
         """
@@ -113,7 +123,7 @@ class Database:
             try:
                 db_dir.mkdir(parents=True, exist_ok=True)
             except OSError as e:
-                raise RuntimeError(f"Failed to create database directory {db_dir}: {e}")
+                raise RuntimeError(f"Failed to create database directory {db_dir}: {e}") from e
 
         # Check if directory is writable
         if not os.access(db_dir, os.W_OK):
@@ -175,7 +185,7 @@ def reset_database() -> None:
 async def get_db_session():
     """
     Dependency for FastAPI to get database session
-    
+
     Usage:
         @app.get("/...")
         async def endpoint(db: AsyncSession = Depends(get_db_session)):

@@ -36,9 +36,9 @@ for p in candidate_paths:
 if shared_path and str(shared_path) not in sys.path:
     sys.path.insert(0, str(shared_path))
 
-import logging
+import logging  # noqa: E402
 
-from cache import BaseCache
+from cache import BaseCache  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class SimpleCache(BaseCache):
     - Automatic cleanup of expired entries
     - Thread-safe operations
     - LRU eviction when max size reached
-    
+
     Inherits from shared BaseCache for consistency.
     """
 

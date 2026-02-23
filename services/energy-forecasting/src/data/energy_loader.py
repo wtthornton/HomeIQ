@@ -99,16 +99,17 @@ class EnergyDataLoader:
             Polars DataFrame with energy data
         """
         try:
-            from influxdb_client_3 import InfluxDBClient3
             import os
-        except ImportError:
+
+            from influxdb_client_3 import InfluxDBClient3
+        except ImportError as err:
             if allow_synthetic_fallback:
                 logger.warning("influxdb_client_3 not installed, using synthetic data")
                 return self._create_synthetic_data()
             raise ImportError(
                 "influxdb3-python is required for InfluxDB queries. "
                 "Install with: pip install influxdb3-python"
-            )
+            ) from err
 
         host = os.getenv("INFLUXDB_URL", "http://localhost:8086")
         token = os.getenv("INFLUXDB_TOKEN", "")
@@ -132,14 +133,14 @@ class EnergyDataLoader:
         if end_time is None:
             end_time = datetime.now()
 
-        # Convert to SQL query
-        query = f'''
+        # Convert to SQL query (field/measurement validated by _validate_identifier above)
+        query = f"""
         SELECT time, {field}
         FROM {measurement}
         WHERE time >= '{start_time.isoformat()}'
           AND time <= '{end_time.isoformat()}'
         ORDER BY time
-        '''
+        """  # noqa: S608 - identifiers validated via _validate_identifier()
 
         try:
             # New API: InfluxDBClient3 with host/database parameters
@@ -349,8 +350,8 @@ class EnergyDataLoader:
         """
         try:
             from darts import TimeSeries
-        except ImportError:
-            raise ImportError("Please install darts: pip install darts>=0.30.0")
+        except ImportError as err:
+            raise ImportError("Please install darts: pip install darts>=0.30.0") from err
 
         if "timestamp" not in df.columns:
             raise ValueError(

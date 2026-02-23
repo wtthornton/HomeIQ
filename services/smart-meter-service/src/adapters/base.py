@@ -14,7 +14,7 @@ class MeterAdapter(ABC):
         """Fetch consumption data from meter API"""
         pass
 
-    async def test_connection(self, session: aiohttp.ClientSession) -> bool:
+    async def test_connection(self, _session: aiohttp.ClientSession) -> bool:
         """Test connection to meter API. Override in subclasses."""
         return True
 

@@ -6,6 +6,7 @@ Queries external Device Database API (when available), caches device information
 and falls back to local intelligence if Device Database unavailable.
 """
 
+import contextlib
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -103,10 +104,8 @@ async def health_check() -> dict[str, Any]:
 
     # Check if cache directory is writable
     cache_writable = False
-    try:
+    with contextlib.suppress(OSError):
         cache_writable = os.access(str(cache.cache_dir), os.W_OK)
-    except Exception:
-        pass
 
     # Check if API is configured
     api_configured = db_client.is_configured()

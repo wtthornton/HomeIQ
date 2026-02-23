@@ -223,7 +223,7 @@ class DockerEndpoints:
         @self.router.get("/containers/{service_name}/stats", response_model=ContainerStatsResponse)
         async def get_container_stats(
             service_name: str = Path(..., description="Service name"),
-            current_user: User = Depends(self.auth_manager.get_current_user),
+            current_user: User = Depends(self.auth_manager.get_current_user),  # noqa: ARG001
         ):
             """Get container resource usage statistics"""
             try:
@@ -251,7 +251,7 @@ class DockerEndpoints:
 
         @self.router.get("/api-keys", response_model=list[APIKeyResponse])
         async def get_api_keys(
-            current_user: User = Depends(self.auth_manager.get_current_user),
+            current_user: User = Depends(self.auth_manager.get_current_user),  # noqa: ARG001
         ):
             """Get current API key status for all services"""
             try:
@@ -309,7 +309,7 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=str(exc),
-                )
+                ) from exc
             except HTTPException:
                 raise
             except Exception as e:
@@ -317,13 +317,13 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to update API key: {str(e)}"
-                )
+                ) from e
 
         @self.router.post("/api-keys/{service}/test", response_model=APIKeyTestResponse)
         async def test_api_key(
             service: str = Path(..., description="Service name"),
             request: APIKeyUpdateRequest = None,
-            current_user: User = Depends(self.auth_manager.get_current_user),
+            current_user: User = Depends(self.auth_manager.get_current_user),  # noqa: ARG001
         ):
             """Test an API key without saving it"""
             try:
@@ -354,12 +354,12 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to test API key: {str(e)}"
-                )
+                ) from e
 
         @self.router.get("/api-keys/{service}/status")
         async def get_api_key_status(
             service: str = Path(..., description="Service name"),
-            current_user: User = Depends(self.auth_manager.get_current_user),
+            current_user: User = Depends(self.auth_manager.get_current_user),  # noqa: ARG001
         ):
             """Get API key status for a specific service"""
             try:
@@ -371,7 +371,7 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get API key status: {str(e)}"
-                )
+                ) from e
 
     def _ensure_allowed_service(self, service_name: str) -> None:
         """Validate that the requested container belongs to the HomeIQ project."""

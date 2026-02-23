@@ -6,7 +6,6 @@ when YAML Validation Service is unavailable.
 """
 
 import logging
-from typing import Optional
 
 from ...clients.ai_automation_client import AIAutomationClient
 from ...models.automation_models import ValidationResult
@@ -18,7 +17,7 @@ logger = logging.getLogger(__name__)
 class AIAutomationValidationStrategy(ValidationStrategy):
     """Validation strategy using AI Automation Service."""
 
-    def __init__(self, ai_automation_client: Optional[AIAutomationClient]):
+    def __init__(self, ai_automation_client: AIAutomationClient | None):
         """
         Initialize AI Automation validation strategy.
 

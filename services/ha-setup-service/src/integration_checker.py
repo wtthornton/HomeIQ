@@ -37,7 +37,7 @@ class CheckResult(BaseModel):
 class IntegrationHealthChecker:
     """
     Comprehensive integration health checker
-    
+
     Implements detailed health checks for:
     - MQTT broker connectivity
     - Zigbee2MQTT addon status
@@ -55,7 +55,7 @@ class IntegrationHealthChecker:
     async def check_all_integrations(self) -> list[CheckResult]:
         """
         Check all integrations in parallel
-        
+
         Returns:
             List of CheckResult for each integration
         """
@@ -89,7 +89,7 @@ class IntegrationHealthChecker:
     async def check_ha_authentication(self) -> CheckResult:
         """
         Validate Home Assistant authentication token
-        
+
         Checks:
         - Token is present
         - Token is valid
@@ -190,7 +190,7 @@ class IntegrationHealthChecker:
     async def check_mqtt_integration(self) -> CheckResult:
         """
         Check MQTT integration status
-        
+
         Checks:
         - MQTT integration configured in HA
         - MQTT broker connectivity
@@ -281,11 +281,11 @@ class IntegrationHealthChecker:
     async def _check_mqtt_broker_connectivity(self, broker: str, port: int) -> bool:
         """
         Test MQTT broker TCP connectivity
-        
+
         Args:
             broker: MQTT broker hostname/IP
             port: MQTT broker port
-            
+
         Returns:
             True if broker is reachable
         """
@@ -305,12 +305,12 @@ class IntegrationHealthChecker:
     async def check_zigbee2mqtt_integration(self) -> CheckResult:
         """
         Check Zigbee2MQTT integration status via Home Assistant API.
-        
+
         Checks:
         - Zigbee2MQTT addon installed (via HA API)
         - Zigbee2MQTT entities present
         - Bridge state entity (sensor.zigbee2mqtt_bridge_state)
-        
+
         This is the primary method for health monitoring, using HA API
         which is simpler and more reliable than MQTT subscription.
         """
@@ -388,7 +388,7 @@ class IntegrationHealthChecker:
     async def check_device_discovery(self) -> CheckResult:
         """
         Validate device discovery functionality
-        
+
         Checks:
         - Device registry accessible
         - Devices being discovered
@@ -600,10 +600,10 @@ class IntegrationHealthChecker:
     async def check_hacs_integration(self) -> CheckResult:
         """
         Check HACS (Home Assistant Community Store) installation and status
-        
+
         Note: HACS cannot be installed via HA API - it requires manual installation.
         This method checks if HACS is already installed.
-        
+
         Checks:
         - HACS integration exists in HA config entries
         - HACS sensors/entities exist (indicator of installation)

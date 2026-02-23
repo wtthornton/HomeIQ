@@ -20,12 +20,12 @@ class DataAPIClient:
     def __init__(self, base_url: str | None = None):
         """
         Initialize Data API client.
-        
+
         Args:
             base_url: Base URL for Data API (default: from env or http://data-api:8006)
         """
         self.base_url = (base_url or os.getenv("DATA_API_URL") or "http://data-api:8006").rstrip('/')
-        
+
         # Optional API key for authenticated Data API access
         api_key = os.getenv("DATA_API_API_KEY") or os.getenv("DATA_API_KEY") or os.getenv("API_KEY")
         default_headers = {}
@@ -58,17 +58,17 @@ class DataAPIClient:
     ) -> list[dict[str, Any]]:
         """
         Fetch entities from Data API.
-        
+
         Args:
             device_id: Optional filter by device ID
             domain: Optional filter by domain (light, sensor, switch, etc)
             platform: Optional filter by integration platform
             area_id: Optional filter by area/room
             limit: Maximum number of entities to return
-        
+
         Returns:
             List of entity dictionaries with keys: entity_id, device_id, domain, platform, area_id, etc.
-        
+
         Raises:
             httpx.HTTPError: If API request fails
         """
@@ -115,7 +115,7 @@ class DataAPIClient:
             logger.error(f"Connection error: {error_msg}")
             raise Exception(error_msg) from e
         except httpx.TimeoutException as e:
-            error_msg = f"Data API request timed out after 30 seconds"
+            error_msg = "Data API request timed out after 30 seconds"
             logger.error(f"Timeout error: {error_msg}")
             raise Exception(error_msg) from e
         except httpx.HTTPError as e:

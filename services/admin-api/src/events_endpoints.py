@@ -9,6 +9,7 @@ from typing import Any
 
 import aiohttp
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -96,7 +97,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get recent events"
-                )
+                ) from e
 
         @self.router.get("/events/{event_id}", response_model=EventData)
         async def get_event_by_id(event_id: str):
@@ -133,7 +134,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to search events"
-                )
+                ) from e
 
         @self.router.get("/events/stats", response_model=dict[str, Any])
         async def get_events_stats(
@@ -154,7 +155,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get events statistics"
-                )
+                ) from e
 
         @self.router.get("/events/entities", response_model=list[dict[str, Any]])
         async def get_active_entities(
@@ -175,7 +176,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get active entities"
-                )
+                ) from e
 
         @self.router.get("/events/types", response_model=list[dict[str, Any]])
         async def get_event_types(
@@ -196,7 +197,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get event types"
-                )
+                ) from e
 
         @self.router.get("/events/stream", response_model=dict[str, Any])
         async def get_events_stream(
@@ -213,7 +214,7 @@ class EventsEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get events stream"
-                )
+                ) from e
 
     async def _get_all_events(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
         """Get events from InfluxDB directly"""
@@ -260,7 +261,7 @@ class EventsEndpoints:
         """Get a specific event by ID"""
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
                     async with session.get(f"{service_url}/events/{event_id}") as response:
                         if response.status == 200:
                             data = await response.json()
@@ -282,7 +283,7 @@ class EventsEndpoints:
 
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
                     async with session.post(f"{service_url}/events/search", json=search.model_dump()) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -310,7 +311,7 @@ class EventsEndpoints:
             "services": {}
         }
 
-        for service_name, service_url in self.service_urls.items():
+        for service_name, _service_url in self.service_urls.items():
             try:
                 stats = await self._get_service_events_stats(service_name, period)
                 all_stats["services"][service_name] = stats
@@ -347,7 +348,7 @@ class EventsEndpoints:
         """Get active entities from all services"""
         all_entities = []
 
-        for service_name, service_url in self.service_urls.items():
+        for service_name, _service_url in self.service_urls.items():
             try:
                 entities = await self._get_service_active_entities(service_name, limit)
                 for entity in entities:
@@ -388,7 +389,7 @@ class EventsEndpoints:
         """Get event types from all services"""
         all_event_types = {}
 
-        for service_name, service_url in self.service_urls.items():
+        for service_name, _service_url in self.service_urls.items():
             try:
                 event_types = await self._get_service_event_types(service_name, limit)
                 for event_type in event_types:

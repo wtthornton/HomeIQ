@@ -7,7 +7,7 @@ Based on Home Assistant's statistics_meta table pattern.
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Index, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Index, String
 
 from ..database import Base
 

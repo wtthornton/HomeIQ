@@ -35,7 +35,7 @@ class NameEnhancementBatchProcessor:
     def start(self, schedule: str = "0 4 * * *"):
         """
         Start batch processor scheduler.
-        
+
         Default schedule: 4 AM daily (after device discovery at 3 AM)
         """
         try:
@@ -68,14 +68,14 @@ class NameEnhancementBatchProcessor:
     ):
         """
         Process devices that need name enhancement.
-        
+
         Strategy:
         1. Find devices without name_by_user OR low-quality names
         2. Process in batches of 10-20 devices
         3. Use pattern-based first (fast)
         4. Use AI only for complex cases
         5. Store suggestions (user reviews later)
-        
+
         Performance:
         - 100 devices: 10-30 seconds (pattern-based)
         - 100 devices: 2-5 minutes (with AI, cached)
@@ -87,7 +87,7 @@ class NameEnhancementBatchProcessor:
             async for session in get_db_session():
                 # Find devices that need enhancement
                 devices_to_process = await self._find_devices_needing_enhancement(session)
-                
+
                 if not devices_to_process:
                     logger.info("No devices need name enhancement")
                     return
@@ -158,7 +158,7 @@ class NameEnhancementBatchProcessor:
     ) -> list[NameSuggestion]:
         """
         Process batch of devices efficiently.
-        
+
         Optimization:
         - Parallel pattern-based generation (async)
         - Sequential AI generation (rate limit friendly)
@@ -186,7 +186,7 @@ class NameEnhancementBatchProcessor:
 
             if result:
                 suggestion, device = result
-                
+
                 # Check if suggestion already exists
                 existing_result = await session.execute(
                     select(NameSuggestion).where(

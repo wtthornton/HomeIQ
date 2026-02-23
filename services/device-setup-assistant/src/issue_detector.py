@@ -3,9 +3,14 @@ Setup Issue Detector
 Phase 2.3: Detect common setup problems
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.ha_client import HAClient
 
 logger = logging.getLogger("device-setup-assistant")
 
@@ -13,7 +18,7 @@ logger = logging.getLogger("device-setup-assistant")
 class SetupIssueDetector:
     """Detects setup issues for devices"""
 
-    def __init__(self, ha_client: 'HAClient'):
+    def __init__(self, ha_client: HAClient):
         """
         Initialize issue detector with a shared HAClient.
 
@@ -147,8 +152,8 @@ class SetupIssueDetector:
                                 max_hours_since = max(max_hours_since, hours_ago)
                                 if hours_ago < 24:
                                     any_active = True
-                            except Exception:
-                                pass
+                            except (ValueError, TypeError) as exc:
+                                logger.debug("Could not parse last_changed for %s: %s", entity_id, exc)
             except Exception as e:
                 logger.error(f"Error checking activity for entity {entity_id}: {e}")
                 return None

@@ -7,7 +7,6 @@ the Wyze Rule Recommendation dataset.
 Port: 8035
 """
 
-import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -16,7 +15,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.routes import router, load_model
+from .api.routes import load_model, router
 
 
 def _configure_logging() -> None:
@@ -70,12 +69,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     logger.info("Starting Rule Recommendation ML Service...")
-    
+
     # Load model if it exists
     _load_recommendation_model()
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Rule Recommendation ML Service...")
 
@@ -115,10 +114,10 @@ async def root() -> dict[str, str]:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "src.main:app",
-        host=os.getenv("HOST", "0.0.0.0"),
+        host=os.getenv("HOST", "0.0.0.0"),  # noqa: S104  # Docker requires binding to all interfaces
         port=int(os.getenv("PORT", "8035")),
         reload=os.getenv("DEBUG", "false").lower() == "true",
     )

@@ -3,6 +3,7 @@
 # Import all models to ensure they're registered with Base
 from .database import (
     Base,
+    CacheStats,
     Device,
     DeviceCapability,
     DeviceEntity,
@@ -10,9 +11,8 @@ from .database import (
     DeviceHygieneIssue,
     DeviceRelationship,
     DiscoverySession,
-    CacheStats,
 )
-from .name_enhancement import NameSuggestion, NamePreference
+from .name_enhancement import NamePreference, NameSuggestion
 
 __all__ = [
     "Base",

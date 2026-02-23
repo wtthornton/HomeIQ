@@ -167,7 +167,7 @@ class ContextAnalysisService:
             # REMOVED: Generic humidity insight that suggests non-existent devices
             # if humidity and humidity > 70:
             #     insights.append("High humidity - consider dehumidifier automation")
-            # 
+            #
             # Device-specific insights are now generated in AIPromptGenerationService
             # based on actual device inventory. This prevents suggesting devices
             # the user doesn't have. See: device_validation_service.py
@@ -228,7 +228,7 @@ class ContextAnalysisService:
                 next_game = upcoming_games[0] if upcoming_games else None
                 if next_game:
                     insights.append(
-                        f"Upcoming game scheduled - consider pre-game automation (lights, temperature)"
+                        "Upcoming game scheduled - consider pre-game automation (lights, temperature)"
                     )
             else:
                 # Generate insights even when no games scheduled
@@ -278,7 +278,7 @@ class ContextAnalysisService:
                     insights.append("Low carbon intensity - good time for energy-intensive tasks")
                 elif intensity_value and intensity_value > 400:
                     insights.append("High carbon intensity - consider delaying energy-intensive tasks")
-                
+
                 # Add trend-based insights
                 if trends_data:
                     trend = trends_data.get("trend", "stable")
@@ -515,7 +515,7 @@ class ContextAnalysisService:
                 {
                     "type": "frequent_entities",
                     "entities": frequent_entities[:10],  # Top 10
-                    "description": f"Most frequently used entities in last period",
+                    "description": "Most frequently used entities in last period",
                 }
             )
 
@@ -568,7 +568,7 @@ class ContextAnalysisService:
         return patterns
 
     def _generate_pattern_insights(
-        self, patterns: list[dict[str, Any]], events: list[dict[str, Any]]
+        self, patterns: list[dict[str, Any]], events: list[dict[str, Any]]  # noqa: ARG002
     ) -> list[str]:
         """
         Generate insights from detected patterns.

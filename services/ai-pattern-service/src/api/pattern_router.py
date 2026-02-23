@@ -13,10 +13,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
+from ..config import settings
 from ..crud.patterns import get_patterns
 from ..database import get_db
 from ..services.device_activity import DeviceActivityService
-from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ async def list_patterns(
 ) -> dict[str, Any]:
     """
     List detected patterns with optional filters.
-    
+
     Returns patterns with safely parsed metadata.
     Optionally filters by device activity (default: only active devices).
     """
@@ -47,7 +47,7 @@ async def list_patterns(
             min_confidence=min_confidence,
             limit=limit
         )
-        
+
         # Filter by device activity if requested
         if not include_inactive:
             try:
@@ -57,7 +57,7 @@ async def list_patterns(
                         window_days=activity_window_days,
                         data_api_client=data_client
                     )
-                    
+
                     if active_devices:
                         # Convert patterns to dict format for filtering
                         patterns_dict = []
@@ -73,17 +73,17 @@ async def list_patterns(
                                     "confidence": p.confidence,
                                     "occurrences": p.occurrences,
                                 })
-                        
+
                         # Filter patterns by activity
                         filtered_patterns = activity_service.filter_patterns_by_activity(
                             patterns_dict,
                             active_devices
                         )
-                        
+
                         # Convert back to original format (keep original objects if possible)
                         active_pattern_ids = {p.get("id") if isinstance(p, dict) else p.id for p in filtered_patterns}
                         patterns = [p for p in patterns if (p.id if hasattr(p, 'id') else p.get("id")) in active_pattern_ids]
-                        
+
                         logger.info(
                             f"Filtered patterns by activity: {len(patterns_dict)} → {len(filtered_patterns)} "
                             f"(window: {activity_window_days} days)"
@@ -139,7 +139,7 @@ async def list_patterns(
                     metadata = {}
                 elif metadata is None:
                     metadata = {}
-                
+
                 patterns_list.append({
                     "id": p.id,
                     "pattern_type": p.pattern_type,
@@ -167,15 +167,14 @@ async def list_patterns(
 
     except Exception as e:
         # Check for database corruption errors
-        from ..database.integrity import (
-            DatabaseIntegrityError,
-            is_database_corruption_error,
-            attempt_database_repair,
-            check_database_integrity
-        )
-        from ..config import settings
         from pathlib import Path
-        
+
+        from ..config import settings
+        from ..database.integrity import (
+            attempt_database_repair,
+            is_database_corruption_error,
+        )
+
         if is_database_corruption_error(e):
             logger.error(f"Database corruption detected while listing patterns: {e}", exc_info=True)
             # Attempt automatic repair
@@ -282,14 +281,15 @@ async def get_pattern_stats(
     Returns summary statistics about detected patterns.
     Handles database corruption gracefully with automatic recovery attempts.
     """
+    from pathlib import Path
+
+    from ..config import settings
     from ..database.integrity import (
         DatabaseIntegrityError,
-        is_database_corruption_error,
+        attempt_database_repair,
         check_database_integrity,
-        attempt_database_repair
+        is_database_corruption_error,
     )
-    from ..config import settings
-    from pathlib import Path
 
     _empty_stats = {
         "total_patterns": 0,
@@ -419,24 +419,22 @@ async def repair_database(
 ) -> dict[str, Any]:
     """
     Repair corrupted database.
-    
+
     Attempts to repair database corruption by dumping and recreating the database.
     Creates a backup before attempting repair.
-    
+
     Returns:
         Repair status and result
     """
-    from ..database.integrity import (
-        attempt_database_repair,
-        check_database_integrity
-    )
-    from ..config import settings
     from pathlib import Path
-    
+
+    from ..config import settings
+    from ..database.integrity import attempt_database_repair, check_database_integrity
+
     try:
         # Check current integrity status
         is_healthy, error_msg = await check_database_integrity(db)
-        
+
         if is_healthy:
             return {
                 "success": True,
@@ -446,17 +444,17 @@ async def repair_database(
                     "repair_performed": False
                 }
             }
-        
+
         logger.info(f"Database integrity check failed: {error_msg}. Attempting repair...")
-        
+
         # Attempt repair
         db_path = Path(settings.database_path)
         repair_success = await attempt_database_repair(db_path)
-        
+
         if repair_success:
             # Verify repair
             is_healthy_after, error_msg_after = await check_database_integrity(db)
-            
+
             if is_healthy_after:
                 return {
                     "success": True,
@@ -491,7 +489,7 @@ async def repair_database(
                 },
                 "error": "Repair operation failed. Database may need manual intervention."
             }
-            
+
     except Exception as e:
         logger.error(f"Failed to repair database: {e}", exc_info=True)
         raise HTTPException(

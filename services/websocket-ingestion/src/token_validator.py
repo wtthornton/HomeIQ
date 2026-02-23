@@ -22,10 +22,10 @@ class TokenValidator:
     def validate_token_format(self, token: str) -> tuple[bool, str]:
         """
         Validate token format
-        
+
         Args:
             token: The token to validate
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -49,10 +49,10 @@ class TokenValidator:
     def mask_token(self, token: str) -> str:
         """
         Mask token for logging (show only last 4 characters)
-        
+
         Args:
             token: The token to mask
-            
+
         Returns:
             Masked token string
         """
@@ -64,10 +64,10 @@ class TokenValidator:
     def validate_token(self, token: str) -> tuple[bool, str]:
         """
         Complete token validation
-        
+
         Args:
             token: The token to validate
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -85,10 +85,10 @@ class TokenValidator:
     def get_token_info(self, token: str) -> dict:
         """
         Get information about the token
-        
+
         Args:
             token: The token to analyze
-            
+
         Returns:
             Dictionary with token information
         """

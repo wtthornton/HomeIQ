@@ -41,13 +41,13 @@ async def get_devices(
 ) -> DeviceListResponse:
     """
     Get all devices (placeholder implementation).
-    
+
     Args:
         skip: Number of devices to skip
         limit: Maximum number of devices to return
         area_id: Filter by area ID
         integration: Filter by integration type
-        
+
     Returns:
         DeviceListResponse: List of devices with pagination
     """
@@ -101,13 +101,13 @@ async def get_devices(
 async def get_device(device_id: str) -> Device:
     """
     Get specific device by ID (placeholder implementation).
-    
+
     Args:
         device_id: Device identifier
-        
+
     Returns:
         Device: Device information
-        
+
     Raises:
         HTTPException: If device not found
     """
@@ -133,13 +133,13 @@ async def get_device(device_id: str) -> Device:
 async def get_device_capabilities(device_id: str) -> dict[str, Any]:
     """
     Get device capabilities (placeholder implementation).
-    
+
     Args:
         device_id: Device identifier
-        
+
     Returns:
         Dict[str, Any]: Device capabilities
-        
+
     Raises:
         HTTPException: If device not found
     """
@@ -174,13 +174,13 @@ async def get_device_capabilities(device_id: str) -> dict[str, Any]:
 async def get_device_health(device_id: str) -> dict[str, Any]:
     """
     Get device health metrics (placeholder implementation).
-    
+
     Args:
         device_id: Device identifier
-        
+
     Returns:
         Dict[str, Any]: Device health information
-        
+
     Raises:
         HTTPException: If device not found
     """

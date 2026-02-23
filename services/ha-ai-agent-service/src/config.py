@@ -44,7 +44,7 @@ class Settings(BaseSettings):
         default=None,
         description="API key for AI Automation Service (required for patterns/synergies endpoints)"
     )
-    
+
     # Hybrid Flow Configuration
     use_hybrid_flow: bool = Field(
         default=True,

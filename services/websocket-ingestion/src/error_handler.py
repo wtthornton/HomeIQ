@@ -44,15 +44,14 @@ class ErrorHandler:
     def categorize_error(self, error: Exception) -> tuple[ErrorCategory, ErrorSeverity]:
         """
         Categorize an error and determine its severity
-        
+
         Args:
             error: The exception to categorize
-            
+
         Returns:
             Tuple of (category, severity)
         """
         error_str = str(error).lower()
-        error_type = type(error).__name__.lower()
 
         # Network errors
         if any(keyword in error_str for keyword in ['connection', 'network', 'unreachable', 'timeout', 'refused']):
@@ -78,11 +77,11 @@ class ErrorHandler:
     def log_error(self, error: Exception, context: dict[str, Any] = None) -> dict[str, Any]:
         """
         Log an error with categorization and context
-        
+
         Args:
             error: The exception to log
             context: Additional context information
-            
+
         Returns:
             Dictionary with error information
         """
@@ -136,7 +135,7 @@ class ErrorHandler:
     def get_error_rate(self) -> float:
         """
         Get current error rate (errors per minute)
-        
+
         Returns:
             Error rate in errors per minute
         """
@@ -146,7 +145,7 @@ class ErrorHandler:
     def get_error_statistics(self) -> dict[str, Any]:
         """
         Get comprehensive error statistics
-        
+
         Returns:
             Dictionary with error statistics
         """
@@ -167,10 +166,10 @@ class ErrorHandler:
     def get_recent_errors(self, limit: int = 10) -> list:
         """
         Get recent error records
-        
+
         Args:
             limit: Maximum number of errors to return
-            
+
         Returns:
             List of recent error records
         """
@@ -187,10 +186,10 @@ class ErrorHandler:
     def should_alert(self, threshold_rate: float = 5.0) -> bool:
         """
         Check if error rate exceeds alert threshold
-        
+
         Args:
             threshold_rate: Error rate threshold (errors per minute)
-            
+
         Returns:
             True if alert should be triggered
         """

@@ -30,7 +30,7 @@ def _sanitize_for_log(text: str, max_length: int = 100) -> str:
 class QueryProcessor:
     """
     Core query processing service.
-    
+
     Handles:
     - Query validation
     - Entity extraction
@@ -38,7 +38,7 @@ class QueryProcessor:
     - Suggestion generation
     - Response building
     """
-    
+
     def __init__(
         self,
         entity_extractor=None,
@@ -48,7 +48,7 @@ class QueryProcessor:
         self.entity_extractor = entity_extractor
         self.clarification_service = clarification_service
         self.suggestion_generator = suggestion_generator
-    
+
     async def process_query(
         self,
         query: str,
@@ -58,35 +58,35 @@ class QueryProcessor:
     ) -> dict[str, Any]:
         """
         Process a natural language query and generate automation suggestions.
-        
+
         Args:
             query: Natural language query string
             user_id: User ID for personalization
             db: Database session
             area_filter: Optional area filter (e.g., "office" or "office,kitchen")
-            
+
         Returns:
             Dictionary with query_id, entities, suggestions, confidence, etc.
         """
         start_time = datetime.now()
         query_id = f"query-{uuid.uuid4().hex[:8]}"
-        
+
         # Validate query
         if not query or not isinstance(query, str) or not query.strip():
             raise ValueError("Query is required and must be a non-empty string")
-        
+
         if len(query) > settings.max_query_length:
             raise ValueError(f"Query exceeds maximum length of {settings.max_query_length} characters")
-        
+
         logger.info(f"[QUERY] Processing query: {_sanitize_for_log(query)}...")
-        
+
         try:
             # Step 1: Extract entities
             entities = []
             if self.entity_extractor:
                 entities = await self.entity_extractor.extract(query, area_filter=area_filter)
                 logger.info(f"✅ Extracted {len(entities)} entities")
-            
+
             # Step 2: Check for clarification needs
             clarification_result = None
             if self.clarification_service:
@@ -96,7 +96,7 @@ class QueryProcessor:
                     db=db
                 )
                 logger.info(f"🔍 Clarification check: needed={clarification_result.get('needed', False)}")
-            
+
             # Step 3: Generate suggestions
             suggestions = []
             if self.suggestion_generator:
@@ -110,13 +110,13 @@ class QueryProcessor:
                     db=db
                 )
                 logger.info(f"✅ Generated {len(suggestions)} suggestions")
-            
+
             # Step 4: Calculate confidence
             confidence = self._calculate_confidence(entities, suggestions, clarification_result)
-            
+
             # Step 5: Build response
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            
+
             response = {
                 "query_id": query_id,
                 "original_query": query,
@@ -130,15 +130,15 @@ class QueryProcessor:
                 "questions": clarification_result.get("questions") if clarification_result else None,
                 "message": self._build_message(entities, suggestions, clarification_result)
             }
-            
+
             logger.info(f"✅ Query processed: {len(suggestions)} suggestions, {confidence:.2f} confidence, {processing_time:.0f}ms")
-            
+
             return response
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to process query: {e}", exc_info=True)
             raise
-    
+
     def _calculate_confidence(
         self,
         entities: list[dict[str, Any]],
@@ -157,7 +157,7 @@ class QueryProcessor:
             base_confidence = max(0.3, base_confidence - 0.2)
 
         return min(0.95, base_confidence)
-    
+
     def _build_message(
         self,
         entities: list[dict[str, Any]],

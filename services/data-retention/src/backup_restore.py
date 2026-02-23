@@ -2,13 +2,14 @@
 
 import asyncio
 import collections
+import contextlib
 import json
 import logging
 import os
 import shutil
 import tarfile
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -46,11 +47,10 @@ ALLOWED_CONFIG_FILES = {"config.yaml", ".env", "influxdb.conf"}
 
 def _safe_extract(tar: tarfile.TarFile, path: str | Path) -> None:
     """Safely extract tar archive, preventing path traversal (Zip Slip)."""
-    abs_target = os.path.realpath(str(path))
+    target_path = Path(path).resolve()
     for member in tar.getmembers():
-        member_path = os.path.join(path, member.name)
-        abs_path = os.path.realpath(member_path)
-        if not abs_path.startswith(abs_target + os.sep) and abs_path != abs_target:
+        member_path = (target_path / member.name).resolve()
+        if not (str(member_path).startswith(str(target_path) + os.sep) or member_path == target_path):
             raise ValueError(f"Path traversal detected in archive: {member.name}")
     tar.extractall(path, filter='data')
 
@@ -61,7 +61,7 @@ class BackupRestoreService:
     def __init__(self, influxdb_client=None, backup_dir: str = "/backups"):
         """
         Initialize backup restore service.
-        
+
         Args:
             influxdb_client: InfluxDB client for data operations
             backup_dir: Directory for storing backups
@@ -94,10 +94,8 @@ class BackupRestoreService:
 
         if self.backup_task and not self.backup_task.done():
             self.backup_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.backup_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Backup restore service stopped")
 
@@ -107,13 +105,13 @@ class BackupRestoreService:
                           include_logs: bool = False) -> BackupInfo:
         """
         Create a backup.
-        
+
         Args:
             backup_type: Type of backup (full, incremental, config)
             include_data: Whether to include data
             include_config: Whether to include configuration
             include_logs: Whether to include logs
-            
+
         Returns:
             BackupInfo: Information about the created backup
         """
@@ -150,7 +148,7 @@ class BackupRestoreService:
 
                 # Create backup metadata file
                 metadata_file = temp_path / "backup_metadata.json"
-                with open(metadata_file, 'w') as f:
+                with metadata_file.open('w') as f:
                     json.dump(metadata, f, indent=2)
 
                 # Create compressed archive
@@ -195,7 +193,7 @@ class BackupRestoreService:
     async def _backup_data(self, backup_path: Path, metadata: dict[str, Any]) -> None:
         """
         Backup data from InfluxDB.
-        
+
         Args:
             backup_path: Path to store backup files
             metadata: Backup metadata dictionary
@@ -210,7 +208,7 @@ class BackupRestoreService:
                 ]
             }
 
-            with open(data_file, 'w') as f:
+            with data_file.open('w') as f:
                 json.dump(mock_data, f, indent=2)
 
             metadata["data_records"] = len(mock_data["events"])
@@ -240,7 +238,7 @@ class BackupRestoreService:
                         "tags": record.values
                     })
 
-            with open(data_file, 'w') as f:
+            with data_file.open('w') as f:
                 json.dump({"events": exported_data}, f, indent=2)
 
             metadata["data_records"] = len(exported_data)
@@ -253,7 +251,7 @@ class BackupRestoreService:
     async def _backup_config(self, backup_path: Path, metadata: dict[str, Any]) -> None:
         """
         Backup configuration files.
-        
+
         Args:
             backup_path: Path to store backup files
             metadata: Backup metadata dictionary
@@ -271,8 +269,9 @@ class BackupRestoreService:
 
             copied_files = []
             for config_file in config_files:
-                if os.path.exists(config_file):
-                    dest_file = config_dir / os.path.basename(config_file)
+                config_path = Path(config_file)
+                if config_path.exists():
+                    dest_file = config_dir / config_path.name
                     shutil.copy2(config_file, dest_file)
                     copied_files.append(config_file)
 
@@ -286,7 +285,7 @@ class BackupRestoreService:
     async def _backup_logs(self, backup_path: Path, metadata: dict[str, Any]) -> None:
         """
         Backup log files.
-        
+
         Args:
             backup_path: Path to store backup files
             metadata: Backup metadata dictionary
@@ -300,17 +299,18 @@ class BackupRestoreService:
             copied_logs = []
 
             for log_dir in log_dirs:
-                if os.path.exists(log_dir):
-                    for root, dirs, files in os.walk(log_dir):
+                log_dir_path = Path(log_dir)
+                if log_dir_path.exists():
+                    for root, _dirs, files in os.walk(log_dir):
                         for file in files:
                             if file.endswith('.log'):
-                                src_file = os.path.join(root, file)
-                                rel_path = os.path.relpath(src_file, log_dir)
+                                src_file = Path(root) / file
+                                rel_path = src_file.relative_to(log_dir_path)
                                 dest_file = logs_dir / rel_path
                                 dest_file.parent.mkdir(parents=True, exist_ok=True)
 
                                 shutil.copy2(src_file, dest_file)
-                                copied_logs.append(src_file)
+                                copied_logs.append(str(src_file))
 
             metadata["log_files"] = copied_logs
             logger.info(f"Backed up {len(copied_logs)} log files")
@@ -323,13 +323,13 @@ class BackupRestoreService:
                            restore_config: bool = True, restore_logs: bool = False) -> bool:
         """
         Restore from a backup.
-        
+
         Args:
             backup_id: ID of backup to restore
             restore_data: Whether to restore data
             restore_config: Whether to restore configuration
             restore_logs: Whether to restore logs
-            
+
         Returns:
             bool: True if restore was successful
         """
@@ -352,7 +352,7 @@ class BackupRestoreService:
                 # Read backup metadata
                 metadata_file = temp_path / "backup_metadata.json"
                 if metadata_file.exists():
-                    with open(metadata_file) as f:
+                    with metadata_file.open() as f:
                         metadata = json.load(f)
                 else:
                     metadata = {}
@@ -379,7 +379,7 @@ class BackupRestoreService:
     async def _restore_data(self, backup_path: Path) -> None:
         """
         Restore data to InfluxDB.
-        
+
         Args:
             backup_path: Path containing backup files
         """
@@ -393,7 +393,7 @@ class BackupRestoreService:
             return
 
         try:
-            with open(data_file) as f:
+            with data_file.open() as f:
                 data = json.load(f)
 
             events = data.get("events", [])
@@ -426,7 +426,7 @@ class BackupRestoreService:
     async def _restore_config(self, backup_path: Path) -> None:
         """
         Restore configuration files.
-        
+
         Args:
             backup_path: Path containing backup files
         """
@@ -456,7 +456,7 @@ class BackupRestoreService:
     async def _restore_logs(self, backup_path: Path) -> None:
         """
         Restore log files.
-        
+
         Args:
             backup_path: Path containing backup files
         """
@@ -482,7 +482,7 @@ class BackupRestoreService:
                              backup_type: str = "full") -> None:
         """
         Schedule periodic backups.
-        
+
         Args:
             interval_hours: Interval between backups in hours
             backup_type: Type of backup to create
@@ -514,10 +514,10 @@ class BackupRestoreService:
     def get_backup_history(self, limit: int = 100) -> list[BackupInfo]:
         """
         Get backup history.
-        
+
         Args:
             limit: Maximum number of history entries to return
-            
+
         Returns:
             List of backup information
         """
@@ -526,7 +526,7 @@ class BackupRestoreService:
     def get_backup_statistics(self) -> dict[str, Any]:
         """
         Get backup statistics.
-        
+
         Returns:
             Dictionary containing backup statistics
         """
@@ -559,10 +559,10 @@ class BackupRestoreService:
     def cleanup_old_backups(self, days_to_keep: int = 30) -> int:
         """
         Clean up old backup files.
-        
+
         Args:
             days_to_keep: Number of days of backups to keep
-            
+
         Returns:
             Number of backup files deleted
         """

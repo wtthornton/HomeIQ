@@ -152,7 +152,7 @@ class ServiceManager:
 
         if fail_on_unhealthy and unavailable:
             raise RuntimeError(
-                "Critical dependencies unavailable: %s" % ", ".join(sorted(unavailable))
+                f"Critical dependencies unavailable: {', '.join(sorted(unavailable))}"
             )
 
     async def get_service_status(self) -> dict[str, Any]:
@@ -197,7 +197,7 @@ class ServiceManager:
 
         cb = self.circuit_breakers.get(service_name)
         if cb and not cb.can_execute():
-            raise RuntimeError("Circuit breaker open for service: %s" % service_name)
+            raise RuntimeError(f"Circuit breaker open for service: {service_name}")
 
         try:
             effective_timeout = timeout or self.client.timeout
@@ -242,45 +242,43 @@ class ServiceManager:
                     logger.warning("OpenVINO service failed, skipping embeddings: %s", e)
 
             # Step 2: Route based on analysis type
-            if analysis_type in ("clustering", "pattern_detection", "basic"):
-                if self.service_health["ml"] and "embeddings" in results:
-                    try:
-                        clustering_response = await self._call_service(
-                            "ml",
-                            self.ml_url,
-                            "/cluster",
-                            {
-                                "data": results["embeddings"],
-                                "algorithm": "kmeans",
-                                "n_clusters": options.get("n_clusters", 5),
-                            },
-                        )
-                        results["clusters"] = clustering_response["labels"]
-                        results["n_clusters"] = clustering_response["n_clusters"]
-                        if "ml" not in services_used:
-                            services_used.append("ml")
-                    except Exception as e:
-                        logger.warning("ML service failed, skipping clustering: %s", e)
+            if analysis_type in ("clustering", "pattern_detection", "basic") and self.service_health["ml"] and "embeddings" in results:
+                try:
+                    clustering_response = await self._call_service(
+                        "ml",
+                        self.ml_url,
+                        "/cluster",
+                        {
+                            "data": results["embeddings"],
+                            "algorithm": "kmeans",
+                            "n_clusters": options.get("n_clusters", 5),
+                        },
+                    )
+                    results["clusters"] = clustering_response["labels"]
+                    results["n_clusters"] = clustering_response["n_clusters"]
+                    if "ml" not in services_used:
+                        services_used.append("ml")
+                except Exception as e:
+                    logger.warning("ML service failed, skipping clustering: %s", e)
 
-            if analysis_type in ("anomaly_detection", "pattern_detection", "basic"):
-                if self.service_health["ml"] and "embeddings" in results:
-                    try:
-                        anomaly_response = await self._call_service(
-                            "ml",
-                            self.ml_url,
-                            "/anomaly",
-                            {
-                                "data": results["embeddings"],
-                                "contamination": options.get("contamination", 0.1),
-                            },
-                        )
-                        results["anomalies"] = anomaly_response["labels"]
-                        results["anomaly_scores"] = anomaly_response["scores"]
-                        results["n_anomalies"] = anomaly_response["n_anomalies"]
-                        if "ml" not in services_used:
-                            services_used.append("ml")
-                    except Exception as e:
-                        logger.warning("ML service failed, skipping anomaly detection: %s", e)
+            if analysis_type in ("anomaly_detection", "pattern_detection", "basic") and self.service_health["ml"] and "embeddings" in results:
+                try:
+                    anomaly_response = await self._call_service(
+                        "ml",
+                        self.ml_url,
+                        "/anomaly",
+                        {
+                            "data": results["embeddings"],
+                            "contamination": options.get("contamination", 0.1),
+                        },
+                    )
+                    results["anomalies"] = anomaly_response["labels"]
+                    results["anomaly_scores"] = anomaly_response["scores"]
+                    results["n_anomalies"] = anomaly_response["n_anomalies"]
+                    if "ml" not in services_used:
+                        services_used.append("ml")
+                except Exception as e:
+                    logger.warning("ML service failed, skipping anomaly detection: %s", e)
 
             return results, services_used
 
@@ -427,8 +425,7 @@ class ServiceManager:
         return [
             {
                 "title": "Basic Suggestion",
-                "description": "Consider reviewing your %s configuration based on: %s"
-                % (suggestion_type, context_keys),
+                "description": f"Consider reviewing your {suggestion_type} configuration based on: {context_keys}",
                 "priority": "medium",
                 "category": "convenience",
             }

@@ -1,7 +1,6 @@
 """API routes for Blueprint Index Service."""
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +11,6 @@ from .schemas import (
     BlueprintResponse,
     BlueprintSearchRequest,
     BlueprintSearchResponse,
-    BlueprintSummary,
     IndexingJobResponse,
     IndexingStatusResponse,
     PatternMatchRequest,
@@ -40,7 +38,7 @@ async def get_indexing_status(db: AsyncSession = Depends(get_db)):
         search_engine = BlueprintSearchEngine(db)
         status = await search_engine.get_indexing_status()
         return status
-        
+
     except Exception as e:
         logger.error(f"Get status failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Get status failed: {str(e)}")
@@ -48,12 +46,12 @@ async def get_indexing_status(db: AsyncSession = Depends(get_db)):
 
 @router.get("/search", response_model=BlueprintSearchResponse)
 async def search_blueprints(
-    domains: Optional[str] = Query(default=None, description="Comma-separated required domains"),
-    device_classes: Optional[str] = Query(default=None, description="Comma-separated device classes"),
-    trigger_domain: Optional[str] = Query(default=None),
-    action_domain: Optional[str] = Query(default=None),
-    use_case: Optional[str] = Query(default=None),
-    query: Optional[str] = Query(default=None, description="Text search query"),
+    domains: str | None = Query(default=None, description="Comma-separated required domains"),
+    device_classes: str | None = Query(default=None, description="Comma-separated device classes"),
+    trigger_domain: str | None = Query(default=None),
+    action_domain: str | None = Query(default=None),
+    use_case: str | None = Query(default=None),
+    query: str | None = Query(default=None, description="Text search query"),
     min_quality_score: float = Query(default=0.5, ge=0.0, le=1.0),
     min_community_rating: float = Query(default=0.0, ge=0.0, le=1.0),
     limit: int = Query(default=50, ge=1, le=200),
@@ -64,7 +62,7 @@ async def search_blueprints(
 ):
     """
     Search blueprints by device requirements, use case, and text query.
-    
+
     Examples:
     - GET /api/blueprints/search?domains=binary_sensor,light&device_classes=motion
     - GET /api/blueprints/search?use_case=security&min_quality_score=0.7
@@ -72,11 +70,11 @@ async def search_blueprints(
     """
     try:
         search_engine = BlueprintSearchEngine(db)
-        
+
         # Parse comma-separated values
         domain_list = domains.split(",") if domains else None
         device_class_list = device_classes.split(",") if device_classes else None
-        
+
         request = BlueprintSearchRequest(
             domains=domain_list,
             device_classes=device_class_list,
@@ -91,10 +89,10 @@ async def search_blueprints(
             sort_by=sort_by,
             sort_order=sort_order,
         )
-        
+
         results = await search_engine.search(request)
         return results
-        
+
     except Exception as e:
         logger.error(f"Search failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
@@ -104,24 +102,24 @@ async def search_blueprints(
 async def find_by_pattern(
     trigger_domain: str = Query(..., description="Trigger entity domain"),
     action_domain: str = Query(..., description="Action entity domain"),
-    trigger_device_class: Optional[str] = Query(default=None),
-    action_device_class: Optional[str] = Query(default=None),
+    trigger_device_class: str | None = Query(default=None),
+    action_device_class: str | None = Query(default=None),
     min_quality_score: float = Query(default=0.7, ge=0.0, le=1.0),
     limit: int = Query(default=10, ge=1, le=50),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Find blueprints matching a trigger-action pattern.
-    
+
     This endpoint is optimized for synergy-to-blueprint matching.
-    
+
     Examples:
     - GET /api/blueprints/by-pattern?trigger_domain=binary_sensor&action_domain=light
     - GET /api/blueprints/by-pattern?trigger_domain=binary_sensor&trigger_device_class=motion&action_domain=light
     """
     try:
         search_engine = BlueprintSearchEngine(db)
-        
+
         request = PatternMatchRequest(
             trigger_domain=trigger_domain,
             action_domain=action_domain,
@@ -130,10 +128,10 @@ async def find_by_pattern(
             min_quality_score=min_quality_score,
             limit=limit,
         )
-        
+
         results = await search_engine.find_by_pattern(request)
         return results
-        
+
     except Exception as e:
         logger.error(f"Pattern match failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Pattern match failed: {str(e)}")
@@ -150,12 +148,12 @@ async def get_blueprint(
     try:
         search_engine = BlueprintSearchEngine(db)
         blueprint = await search_engine.get_by_id(blueprint_id)
-        
+
         if not blueprint:
             raise HTTPException(status_code=404, detail=f"Blueprint not found: {blueprint_id}")
-        
+
         return blueprint
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -170,7 +168,7 @@ async def trigger_indexing(
 ):
     """
     Trigger a new indexing job.
-    
+
     Job types:
     - 'github': Index from GitHub repositories
     - 'discourse': Index from Home Assistant Community forums
@@ -179,13 +177,13 @@ async def trigger_indexing(
     try:
         # Import here to avoid circular imports
         from ..indexer.index_manager import IndexManager
-        
+
         index_manager = IndexManager(db)
         job = await index_manager.start_indexing_job(
             job_type=request.job_type,
             force_refresh=request.force_refresh
         )
-        
+
         return IndexingJobResponse(
             id=job.id,
             job_type=job.job_type,
@@ -198,7 +196,7 @@ async def trigger_indexing(
             completed_at=job.completed_at,
             error_message=job.error_message,
         )
-        
+
     except Exception as e:
         logger.error(f"Trigger indexing failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Trigger indexing failed: {str(e)}")
@@ -214,13 +212,13 @@ async def get_indexing_job(
     """
     try:
         from ..indexer.index_manager import IndexManager
-        
+
         index_manager = IndexManager(db)
         job = await index_manager.get_job(job_id)
-        
+
         if not job:
             raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
-        
+
         return IndexingJobResponse(
             id=job.id,
             job_type=job.job_type,
@@ -233,7 +231,7 @@ async def get_indexing_job(
             completed_at=job.completed_at,
             error_message=job.error_message,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

@@ -3,6 +3,7 @@ Batch Processor for High-Volume Event Processing
 """
 
 import asyncio
+import contextlib
 import logging
 from collections import deque
 from collections.abc import Callable
@@ -17,30 +18,30 @@ logger = logging.getLogger(__name__)
 class BatchProcessor:
     """
     High-performance batch processor for database operations.
-    
+
     Processes events in batches to optimize database write performance and reduce
     overhead. Uses a state machine pattern for reliable processing lifecycle management.
-    
+
     Batch Strategy:
     - Collects events until batch_size reached OR batch_timeout elapsed
     - Processes batches asynchronously to avoid blocking event ingestion
     - Implements overflow protection to prevent memory exhaustion
     - Tracks performance metrics for monitoring
-    
+
     Overflow Protection:
     - When queue exceeds capacity, oldest events are dropped
     - Logs warnings when approaching capacity thresholds
     - Prevents runaway memory usage during high event rates
-    
+
     Performance:
     - Typical batch processing: 10-30ms per batch
     - Throughput: 10,000+ events/second capability
     - Memory efficient: Uses deque for O(1) operations
-    
+
     State Machine:
     - STOPPED → STARTING → RUNNING → STOPPING
     - Ensures graceful shutdown and prevents race conditions
-    
+
     Example:
         processor = BatchProcessor(batch_size=100, batch_timeout=5.0)
         processor.add_batch_handler(write_to_influxdb)
@@ -51,11 +52,11 @@ class BatchProcessor:
     def __init__(self, batch_size: int = 100, batch_timeout: float = 5.0):
         """
         Initialize batch processor.
-        
+
         Args:
             batch_size: Maximum number of events per batch (default: 100)
             batch_timeout: Maximum time to wait before processing partial batch in seconds (default: 5.0)
-            
+
         Note:
             Batch is processed when either:
             - batch_size events collected, OR
@@ -135,10 +136,8 @@ class BatchProcessor:
         # Cancel processing task
         if self.processing_task:
             self.processing_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.processing_task
-            except asyncio.CancelledError:
-                pass
 
         # Transition to stopped
         try:
@@ -151,10 +150,10 @@ class BatchProcessor:
     async def add_event(self, event_data: dict[str, Any]) -> bool:
         """
         Add an event to the current batch
-        
+
         Args:
             event_data: Event data to add to batch
-            
+
         Returns:
             True if event was added successfully, False otherwise
         """
@@ -192,15 +191,11 @@ class BatchProcessor:
                 break
             except Exception as e:
                 logger.error(f"Error in processing loop: {e}")
-                try:
+                with contextlib.suppress(InvalidStateTransition):
                     self.state_machine.transition(ProcessingState.ERROR)
-                except InvalidStateTransition:
-                    pass
                 # Try to recover
-                try:
+                with contextlib.suppress(InvalidStateTransition):
                     self.state_machine.transition(ProcessingState.RUNNING)
-                except InvalidStateTransition:
-                    pass
 
             # Update current state for loop condition
             current_state = self.state_machine.get_state()
@@ -250,10 +245,10 @@ class BatchProcessor:
     async def _process_batch(self, batch: list[dict[str, Any]]) -> bool:
         """
         Process a batch of events
-        
+
         Args:
             batch: List of events to process
-            
+
         Returns:
             True if batch was processed successfully, False otherwise
         """

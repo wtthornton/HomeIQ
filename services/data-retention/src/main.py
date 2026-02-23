@@ -1,14 +1,19 @@
 """Main data retention service."""
 
 import asyncio
-import logging
 import os
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+try:
+    _shared_path = str(Path(__file__).resolve().parents[2] / "shared")
+    if _shared_path not in sys.path:
+        sys.path.insert(0, _shared_path)
+except IndexError:
+    pass  # Docker: PYTHONPATH already includes /app
 
 from shared.logging_config import setup_logging
 
@@ -95,10 +100,10 @@ class DataRetentionService:
         self.scheduler.schedule_daily(3, 0, self.archival_manager.archive_to_s3, "S3 Archival")
         self.scheduler.schedule_daily(4, 0, self.view_manager.refresh_all_views, "Refresh Views")
         self.scheduler.schedule_daily(5, 0, self.analytics.calculate_storage_metrics, "Calculate Metrics")
-        
+
         # Epic 45.3: Schedule short-term statistics aggregation (every 5 minutes)
         self.scheduler.schedule_periodic(5, self.statistics_aggregator.aggregate_short_term, "Short-Term Statistics Aggregation")
-        
+
         # Epic 45.4: Schedule long-term statistics aggregation (every hour)
         self.scheduler.schedule_periodic(60, self.statistics_aggregator.aggregate_long_term, "Long-Term Statistics Aggregation")
 
@@ -281,18 +286,18 @@ class DataRetentionService:
         return stats
 
 # Import FastAPI app from api module
-from .api.app import app
+from .api.app import app  # noqa: E402
 
 
 def main():
     """Main entry point - uses uvicorn to run FastAPI app"""
     import uvicorn
-    
+
     port = int(os.getenv('PORT', '8080'))
-    host = os.getenv('HOST', '0.0.0.0')
-    
+    host = os.getenv('HOST', '0.0.0.0')  # noqa: S104
+
     logger.info(f"Starting Data Retention Service on {host}:{port}...")
-    
+
     # Run with uvicorn
     uvicorn.run(
         app,

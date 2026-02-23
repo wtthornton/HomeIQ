@@ -6,7 +6,8 @@ Provides safe async execution helpers that work with Streamlit's execution model
 
 import asyncio
 import concurrent.futures
-from typing import Any, Callable, Coroutine, TypeVar
+from collections.abc import Coroutine
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 
@@ -14,16 +15,16 @@ T = TypeVar("T")
 def run_async_safe(coro: Coroutine[Any, Any, T], timeout: float = 30.0) -> T:
     """
     Run async coroutine safely in Streamlit context.
-    
+
     Handles cases where an event loop may already be running.
-    
+
     Args:
         coro: Async coroutine to execute
         timeout: Timeout in seconds
-        
+
     Returns:
         Result of coroutine execution
-        
+
     Raises:
         TimeoutError: If execution exceeds timeout
         Exception: Any exception raised by the coroutine

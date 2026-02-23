@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from . import __version__
-from .api.routes import router, load_model
+from .api.routes import load_model, router
 
 
 def _configure_logging() -> None:
@@ -93,7 +93,7 @@ def _load_forecasting_model() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Application lifespan handler."""
     # Startup
     logger.info("Starting Energy Forecasting Service...")
@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "src.main:app",
-        host=os.getenv("HOST", "0.0.0.0"),
+        host=os.getenv("HOST", "0.0.0.0"),  # noqa: S104 - binding to all interfaces is intentional for Docker
         port=int(os.getenv("PORT", "8037")),
         reload=os.getenv("DEBUG", "false").lower() == "true",
     )

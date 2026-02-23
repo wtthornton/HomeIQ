@@ -54,12 +54,12 @@ class AINameSuggester:
     ) -> list[NameSuggestion]:
         """
         Generate name suggestions with 2025 optimizations.
-        
+
         Cost Strategy:
         - Use GPT-4o-mini: $0.15/1M input (cost-optimized)
         - Enable prompt caching: 90% discount on cached inputs
         - Generate 3 suggestions per device
-        
+
         Performance:
         - With caching: 0.5-1s per device
         - Without caching: 1-2s per device
@@ -71,14 +71,14 @@ class AINameSuggester:
                 return await self._suggest_with_openai(device, entity, context)
             except Exception as e:
                 logger.warning(f"OpenAI suggestion failed: {e}, trying local LLM")
-        
+
         # Fallback to local LLM (if available)
         if self.local_llm_client:
             try:
                 return await self._suggest_with_local_llm(device, entity)
             except Exception as e:
                 logger.warning(f"Local LLM suggestion failed: {e}")
-        
+
         # No AI available, return empty list
         logger.warning("No AI client available for name suggestion")
         return []
@@ -177,7 +177,7 @@ class AINameSuggester:
 
             # Parse response (local LLM may not return JSON)
             content = response.choices[0].message.content.strip()
-            
+
             # Try to extract name from response
             # Simple extraction: look for quoted text or first line
             import re
@@ -204,7 +204,7 @@ class AINameSuggester:
     def _get_system_prompt(self) -> str:
         """
         System prompt (cached - 90% discount on repeated calls).
-        
+
         Keep under 500 tokens for optimal caching.
         """
         return """You are a device naming expert for home automation systems. Generate human-readable, descriptive names for smart home devices.
@@ -236,13 +236,13 @@ Return your response as JSON with this structure:
     ) -> str:
         """
         Build optimized prompt for name generation.
-        
+
         Prompt structure (optimized for caching):
         1. System prompt (cached - 90% discount)
         2. Device information (varies per device)
         3. Existing names in area (for uniqueness)
         4. Instructions (cached)
-        
+
         Token optimization:
         - Keep system prompt under 500 tokens (cached)
         - Device info: ~200 tokens

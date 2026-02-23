@@ -8,8 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
-
-from providers import ProviderAPIError, ProviderParseError
+from providers.exceptions import ProviderAPIError, ProviderParseError
 
 logger = logging.getLogger(__name__)
 

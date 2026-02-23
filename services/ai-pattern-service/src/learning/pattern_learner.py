@@ -22,12 +22,12 @@ logger = logging.getLogger(__name__)
 class PatternLearner:
     """
     Learns patterns from Q&A → automation type correlations.
-    
+
     Analyzes successful automations to learn:
     - Which Q&A patterns lead to which automation types
     - User intent prediction from Q&A history
     - Suggestion quality improvements
-    
+
     Epic 39, Story 39.7: Extracted to pattern service.
     Note: RAGClient dependency will need to be addressed (shared service or API call).
     """
@@ -44,9 +44,9 @@ class PatternLearner:
     ) -> bool:
         """
         Learn from successful automation.
-        
+
         Analyzes Q&A patterns that led to successful automations.
-        
+
         Args:
             db: Database session
             session_id: Clarification session ID
@@ -55,7 +55,7 @@ class PatternLearner:
             automation_category: Category (e.g., 'energy', 'comfort', 'security')
             user_satisfaction: User satisfaction score (0.0-1.0)
             days_active: Days automation was active
-            
+
         Returns:
             True if learned successfully, False otherwise
         """
@@ -79,7 +79,7 @@ class PatternLearner:
 
             # Build pattern signature from Q&A pairs
             qa_pattern = self._build_qa_pattern(qa_pairs)
-            
+
             # Store pattern → automation type correlation
             # Note: RAGClient dependency - will need to be addressed
             # Options: 1) Shared service, 2) API call, 3) Direct database access
@@ -91,11 +91,11 @@ class PatternLearner:
                         openvino_service_url=None,  # Will use default
                         db_session=db
                     )
-                    
+
                     pattern_text = f"Q&A Pattern: {qa_pattern}\nAutomation Type: {automation_type}"
                     if automation_category:
                         pattern_text += f"\nCategory: {automation_category}"
-                    
+
                     # Calculate success score based on satisfaction and days active
                     success_score = 0.5  # Default
                     if user_satisfaction is not None:
@@ -103,7 +103,7 @@ class PatternLearner:
                     elif days_active is not None:
                         # More days active = higher success
                         success_score = min(1.0, 0.5 + (days_active / 60.0))  # 60 days = 1.0
-                    
+
                     await rag_client.store(
                         text=pattern_text,
                         knowledge_type='qa_automation_pattern',
@@ -119,7 +119,7 @@ class PatternLearner:
                         },
                         success_score=success_score
                     )
-                    
+
                     logger.debug(
                         f"✅ Learned pattern: {qa_pattern} → {automation_type} "
                         f"(satisfaction={user_satisfaction}, days={days_active})"
@@ -141,25 +141,25 @@ class PatternLearner:
     def _build_qa_pattern(self, qa_pairs: list[dict[str, Any]]) -> str:
         """
         Build normalized Q&A pattern signature.
-        
+
         Creates a pattern string that can be matched against similar Q&A sessions.
-        
+
         Args:
             qa_pairs: List of Q&A pairs
-            
+
         Returns:
             Normalized pattern string
         """
         if not qa_pairs:
             return "empty"
-        
+
         # Extract question categories and answer types
         pattern_parts = []
         for qa in qa_pairs:
             question = qa.get('question', '')
             answer = qa.get('answer', '')
             category = qa.get('category', 'unknown')
-            
+
             # Normalize: Extract key information
             # Question type (device_selection, action_type, etc.)
             if 'device' in question.lower() or 'which' in question.lower():
@@ -170,7 +170,7 @@ class PatternLearner:
                 pattern_parts.append(f"timing:{category}")
             else:
                 pattern_parts.append(f"other:{category}")
-            
+
             # Answer type (entity_selected, text_answer, etc.)
             if qa.get('selected_entities'):
                 pattern_parts.append(f"entities:{len(qa['selected_entities'])}")
@@ -182,7 +182,7 @@ class PatternLearner:
                     pattern_parts.append("numeric")
                 else:
                     pattern_parts.append("text")
-        
+
         return "|".join(pattern_parts)
 
     async def predict_automation_type(
@@ -192,13 +192,13 @@ class PatternLearner:
     ) -> dict[str, Any] | None:
         """
         Predict automation type from Q&A pattern.
-        
+
         Uses learned patterns to predict what type of automation the user wants.
-        
+
         Args:
             db: Database session
             qa_pairs: Current Q&A pairs
-            
+
         Returns:
             Predicted automation type and confidence, or None if no match
         """
@@ -212,21 +212,21 @@ class PatternLearner:
 
             # Build pattern from current Q&A
             current_pattern = self._build_qa_pattern(qa_pairs)
-            
+
             # Search for similar patterns in knowledge base
             try:
                 rag_client = RAGClient(
                     openvino_service_url=None,
                     db_session=db
                 )
-                
+
                 # Search for similar patterns
                 results = await rag_client.retrieve_hybrid(
                     query=f"Q&A Pattern: {current_pattern}",
                     knowledge_type='qa_automation_pattern',
                     top_k=5
                 )
-                
+
                 if results:
                     # Find most common automation type
                     automation_types = {}
@@ -234,33 +234,33 @@ class PatternLearner:
                         metadata = result.get('metadata', {})
                         automation_type = metadata.get('automation_type')
                         success_score = result.get('score', 0.5)
-                        
+
                         if automation_type:
                             if automation_type not in automation_types:
                                 automation_types[automation_type] = []
                             automation_types[automation_type].append(success_score)
-                    
+
                     # Calculate average confidence per type
                     best_type = None
                     best_confidence = 0.0
-                    
+
                     for automation_type, scores in automation_types.items():
                         avg_score = sum(scores) / len(scores)
                         if avg_score > best_confidence:
                             best_confidence = avg_score
                             best_type = automation_type
-                    
+
                     if best_type:
                         return {
                             'automation_type': best_type,
                             'confidence': best_confidence,
                             'pattern_match': current_pattern
                         }
-                
+
             except Exception as e:
                 logger.warning(f"Failed to predict automation type: {e}")
                 # Non-critical: return None
-            
+
             return None
 
         except Exception as e:
@@ -274,18 +274,18 @@ class PatternLearner:
     ) -> dict[str, Any]:
         """
         Get pattern learning statistics.
-        
+
         Args:
             db: Database session
             days: Number of days to look back
-            
+
         Returns:
             Statistics dictionary
         """
         try:
             # Note: QAOutcome and ClarificationSessionDB models are in shared database
             try:
-                from ...database.models import QAOutcome, ClarificationSessionDB
+                from ...database.models import ClarificationSessionDB, QAOutcome
             except ImportError:
                 logger.warning("QAOutcome/ClarificationSessionDB models not available")
                 return {}
@@ -306,7 +306,7 @@ class PatternLearner:
             rows = result.all()
 
             pattern_counts = {}
-            for outcome, session in rows:
+            for _outcome, session in rows:
                 # Build pattern from session Q&A
                 qa_pairs = [
                     {
@@ -319,7 +319,7 @@ class PatternLearner:
                     }
                     for q in (session.questions or [])
                 ]
-                
+
                 pattern = self._build_qa_pattern(qa_pairs)
                 pattern_counts[pattern] = pattern_counts.get(pattern, 0) + 1
 

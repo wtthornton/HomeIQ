@@ -3,6 +3,7 @@ Admin REST API Service
 """
 
 import asyncio
+import contextlib
 import os
 import secrets
 import sys
@@ -13,20 +14,20 @@ from typing import Any
 
 import aiohttp
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 # Add shared directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from pathlib import Path as _Path
+sys.path.append(str(_Path(__file__).parent / '../../shared'))
 
 from shared.correlation_middleware import FastAPICorrelationMiddleware
 from shared.logging_config import setup_logging
 
 # Load environment variables
-from dotenv import load_dotenv
-
 load_dotenv()
 
 # Configure enhanced logging (must be done before any logger usage)
@@ -48,9 +49,7 @@ except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
-from shared.auth import AuthManager  # Moved to shared
-
-# WebSocket endpoints removed - using HTTP polling only
+from shared.auth import AuthManager
 from shared.monitoring import (
     MonitoringEndpoints,
     StatsEndpoints,
@@ -94,7 +93,7 @@ async def _check_dependency(name: str, url: str, timeout: float = 5.0) -> dict:
     """Check the health of a dependency service."""
     try:
         start = time.time()
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:  # noqa: SIM117
             async with session.get(f"{url}/health") as response:
                 elapsed = (time.time() - start) * 1000
                 return {
@@ -231,10 +230,8 @@ class AdminAPIService:
 
         if self.server_task:
             self.server_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.server_task
-            except asyncio.CancelledError:
-                pass
 
         # Close InfluxDB connection
         try:
@@ -423,7 +420,7 @@ class AdminAPIService:
                 event_rate = await self.stats_endpoints._get_current_event_rate()
                 api_stats = await self.stats_endpoints._get_all_api_metrics()
                 data_sources = await self.stats_endpoints._get_active_data_sources()
-                
+
                 return {
                     "events_per_hour": event_rate * 3600,
                     "api_calls_active": api_stats["active_calls"],
@@ -646,7 +643,7 @@ admin_api_service = AdminAPIService()
 
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # noqa: ARG001
     """Handle application startup and shutdown"""
     # Startup
     logger.info("Starting Admin API service...")

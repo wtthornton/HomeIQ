@@ -10,13 +10,12 @@ logger = logging.getLogger(__name__)
 
 from ..models import (
     BackupCreateRequest,
+    BackupHistoryResponse,
     BackupResponse,
+    BackupStatisticsResponse,
+    CleanupBackupsResponse,
     RestoreRequest,
     RestoreResponse,
-    BackupHistoryResponse,
-    BackupStatisticsResponse,
-    CleanupBackupsRequest,
-    CleanupBackupsResponse
 )
 
 router = APIRouter(prefix="/backup", tags=["backup"])
@@ -26,7 +25,7 @@ router = APIRouter(prefix="/backup", tags=["backup"])
 async def create_backup(request: Request, backup_request: BackupCreateRequest):
     """
     Create a backup.
-    
+
     Creates a new backup with the specified configuration.
     """
     try:
@@ -40,14 +39,14 @@ async def create_backup(request: Request, backup_request: BackupCreateRequest):
         return backup_info
     except Exception as e:
         logger.error(f"Backup creation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 
 
 @router.post("/restore", response_model=RestoreResponse)
 async def restore_backup(request: Request, restore_request: RestoreRequest):
     """
     Restore from a backup.
-    
+
     Restores data, configuration, and/or logs from the specified backup.
     """
     try:
@@ -67,7 +66,7 @@ async def restore_backup(request: Request, restore_request: RestoreRequest):
         raise
     except Exception as e:
         logger.error(f"Backup restore failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 
 
 @router.get("/backups", response_model=BackupHistoryResponse)
@@ -77,7 +76,7 @@ async def get_backup_history(
 ):
     """
     Get backup history.
-    
+
     Returns a list of recent backups.
     """
     try:
@@ -86,14 +85,14 @@ async def get_backup_history(
         return {"backups": history}
     except Exception as e:
         logger.error(f"Get backup history failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 
 
 @router.get("/stats", response_model=BackupStatisticsResponse)
 async def get_backup_statistics(request: Request):
     """
     Get backup statistics.
-    
+
     Returns statistics about backups including total count, size, and date range.
     """
     try:
@@ -102,7 +101,7 @@ async def get_backup_statistics(request: Request):
         return stats
     except Exception as e:
         logger.error(f"Get backup statistics failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 
 
 @router.delete("/cleanup", response_model=CleanupBackupsResponse)
@@ -112,7 +111,7 @@ async def cleanup_old_backups(
 ):
     """
     Clean up old backup files.
-    
+
     Deletes backup files older than the specified number of days.
     """
     try:
@@ -124,5 +123,5 @@ async def cleanup_old_backups(
         }
     except Exception as e:
         logger.error(f"Backup cleanup failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
 

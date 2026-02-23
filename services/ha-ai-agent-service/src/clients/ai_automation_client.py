@@ -44,7 +44,7 @@ class AIAutomationClient:
         yaml_content: str,
         validate_entities: bool = True,
         validate_safety: bool = True,
-        context: dict[str, Any] | None = None
+        _context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Validate Home Assistant automation YAML via unified endpoint.

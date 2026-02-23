@@ -13,20 +13,19 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from ..utils.performance_tracker import (
-    start_tracking,
-    end_tracking,
-    create_report,
-)
-
+from ..services.approval_recognizer import is_approval_command, is_rejection_command
+from ..services.conversation_service import is_generic_welcome_message
 from ..services.openai_client import (
     OpenAIError,
     OpenAIRateLimitError,
     OpenAITokenBudgetExceededError,
 )
-from ..services.conversation_service import is_generic_welcome_message
-from ..services.approval_recognizer import is_approval_command, is_rejection_command
 from ..tools.tool_schemas import get_tool_schemas
+from ..utils.performance_tracker import (
+    create_report,
+    end_tracking,
+    start_tracking,
+)
 from .dependencies import (
     get_conversation_service,
     get_openai_client,
@@ -38,7 +37,7 @@ from .models import ChatRequest, ChatResponse, ToolCall
 
 # Agent Evaluation Framework: SessionTracer wiring (E3.S4)
 try:
-    from shared.patterns.evaluation.session_tracer import trace_session, InMemorySink
+    from shared.patterns.evaluation.session_tracer import InMemorySink, trace_session
     _eval_sink = InMemorySink()  # TODO: replace with persistent sink when E4 is implemented
     _TRACING_AVAILABLE = True
 except ImportError:
@@ -93,32 +92,31 @@ _rate_limiter = SimpleRateLimiter(requests_per_minute=100)
 def _safe_parse_tool_arguments(arguments: Any) -> dict[str, Any]:
     """
     Safely parse tool call arguments from OpenAI format.
-    
+
     OpenAI may return arguments as either:
     - dict: Already parsed arguments
     - str: JSON string that needs parsing
-    
+
     Args:
         arguments: Tool call arguments (dict or str)
-        
+
     Returns:
         Parsed arguments as dict, or empty dict if parsing fails
     """
     if isinstance(arguments, dict):
         return arguments
-    
+
     if isinstance(arguments, str):
         try:
             parsed = json.loads(arguments)
             if isinstance(parsed, dict):
                 return parsed
-            else:
-                logger.warning(f"Parsed tool arguments are not a dict, got {type(parsed)}: {parsed}")
-                return {}
+            logger.warning(f"Parsed tool arguments are not a dict, got {type(parsed)}: {parsed}")
+            return {}
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse tool arguments as JSON: {e}, arguments: {arguments[:200] if len(str(arguments)) > 200 else arguments}")
             return {}
-    
+
     # If it's neither dict nor str, log and return empty dict
     logger.warning(f"Unexpected tool arguments type {type(arguments)}, expected dict or str")
     return {}
@@ -137,23 +135,21 @@ async def _process_tool_result(
     format the result for OpenAI, and append to tracking lists.
     """
     # Handle preview tool: store pending preview (Preview-and-Approval Workflow)
-    if tool_call.function.name == "preview_automation_from_prompt":
-        if tool_result.get("result", {}).get("success") and tool_result.get("result", {}).get("preview"):
-            preview_data = tool_result.get("result", {})
-            await conversation_service.set_pending_preview(conversation_id, preview_data)
-            logger.info(
-                f"[Preview] Conversation {conversation_id}: "
-                f"Stored pending preview for automation '{preview_data.get('alias', 'unknown')}'"
-            )
+    if tool_call.function.name == "preview_automation_from_prompt" and tool_result.get("result", {}).get("success") and tool_result.get("result", {}).get("preview"):
+        preview_data = tool_result.get("result", {})
+        await conversation_service.set_pending_preview(conversation_id, preview_data)
+        logger.info(
+            f"[Preview] Conversation {conversation_id}: "
+            f"Stored pending preview for automation '{preview_data.get('alias', 'unknown')}'"
+        )
 
     # Handle create tool: clear pending preview after execution (Preview-and-Approval Workflow)
-    if tool_call.function.name == "create_automation_from_prompt":
-        if tool_result.get("result", {}).get("success"):
-            await conversation_service.clear_pending_preview(conversation_id)
-            logger.info(
-                f"[Execution] Conversation {conversation_id}: "
-                f"Cleared pending preview after successful automation creation"
-            )
+    if tool_call.function.name == "create_automation_from_prompt" and tool_result.get("result", {}).get("success"):
+        await conversation_service.clear_pending_preview(conversation_id)
+        logger.info(
+            f"[Execution] Conversation {conversation_id}: "
+            f"Cleared pending preview after successful automation creation"
+        )
 
     # Format tool result for OpenAI
     tool_result_str = str(tool_result.get("result", ""))
@@ -211,11 +207,11 @@ async def chat(
     **Rate Limit:** 100 requests per minute per IP address
     """
     start_time = time.time()
-    
+
     # Start performance tracking
     operation_id = f"chat_request_{int(time.time() * 1000)}"
     rate_limit_id = start_tracking("rate_limit_check")
-    
+
     # Rate limiting
     client_ip = http_request.client.host if http_request.client else "unknown"
     if not _rate_limiter.check_rate_limit(client_ip):
@@ -240,11 +236,8 @@ async def chat(
             if not title:
                 # Generate title from first 50 chars of user message
                 msg_text = request.message.strip()
-                if len(msg_text) > 50:
-                    title = msg_text[:47] + "..."
-                else:
-                    title = msg_text
-            
+                title = msg_text[:47] + "..." if len(msg_text) > 50 else msg_text
+
             # Epic AI-20.9: Pass title and source for new conversations
             conversation = await conversation_service.create_conversation(
                 title=title,
@@ -303,8 +296,8 @@ async def chat(
             "has_hidden_context": request.hidden_context is not None
         })
         messages = await prompt_assembly_service.assemble_messages(
-            conversation_id, 
-            request.message, 
+            conversation_id,
+            request.message,
             refresh_context=request.refresh_context,
             hidden_context=request.hidden_context  # Pass proactive agent context
         )
@@ -312,7 +305,7 @@ async def chat(
             "message_count": len(messages),
             "system_message_length": len(messages[0].get("content", "")) if messages else 0
         })
-        
+
         # Verify messages are properly assembled
         if not messages:
             logger.error(
@@ -320,7 +313,7 @@ async def chat(
                 f"❌ CRITICAL: No messages assembled!"
             )
             raise ValueError("No messages assembled for OpenAI API call")
-        
+
         # Verify system message is present
         system_msg = messages[0] if messages else None
         if not system_msg or system_msg.get("role") != "system":
@@ -330,7 +323,7 @@ async def chat(
                 f"First message: {system_msg}"
             )
             raise ValueError("System message is required as first message")
-        
+
         system_content = system_msg.get("content", "")
         logger.info(
             f"[Chat Request] Conversation {conversation_id}: "
@@ -358,11 +351,10 @@ async def chat(
         tool_calls = []
         total_tokens = 0
         assistant_content = ""
-        final_assistant_message = None
         tool_results = []  # Store tool results in memory for this conversation round
         previous_assistant_message = None  # Store assistant message with tool_calls from previous iteration
         base_messages = None  # Store base conversation history (system + user messages)
-        
+
         # Track OpenAI API calls
         openai_call_ids = []
         tool_execution_ids = []
@@ -386,7 +378,7 @@ async def chat(
                 # Subsequent iterations: rebuild messages from base + tool context
                 # 2025 Pattern: Always include full conversation history
                 messages = base_messages.copy() if base_messages else []
-                
+
                 # Remove last assistant message if present (we'll add it with tool_calls)
                 # This prevents duplication if assistant message was persisted with content
                 while messages and messages[-1].get("role") == "assistant":
@@ -396,7 +388,7 @@ async def chat(
                         f"Iteration {iteration}: Removed assistant message from base to avoid duplication: "
                         f"{removed.get('content', '')[:50]}..."
                     )
-                
+
                 # Add assistant message with tool_calls from previous iteration
                 if previous_assistant_message:
                     assistant_msg_dict = {
@@ -417,7 +409,7 @@ async def chat(
                             for tc in previous_assistant_message.tool_calls
                         ]
                     messages.append(assistant_msg_dict)
-                    
+
                     # Add tool results immediately after assistant message with tool_calls
                     for tool_result in tool_results:
                         messages.append({
@@ -425,7 +417,7 @@ async def chat(
                             "content": tool_result["content"],
                             "tool_call_id": tool_result["tool_call_id"]
                         })
-                
+
                 logger.debug(
                     f"[Chat Loop] Conversation {conversation_id}: "
                     f"Iteration {iteration}: Rebuilt messages array. "
@@ -471,7 +463,7 @@ async def chat(
             assistant_content = assistant_message.content or ""
             tokens_used = completion.usage.total_tokens if completion.usage else 0
             total_tokens += tokens_used
-            
+
             end_tracking(openai_call_id, {
                 "tokens_used": tokens_used,
                 "prompt_tokens": completion.usage.prompt_tokens if completion.usage else 0,
@@ -479,7 +471,7 @@ async def chat(
                 "has_tool_calls": bool(assistant_message.tool_calls),
                 "tool_calls_count": len(assistant_message.tool_calls) if assistant_message.tool_calls else 0
             })
-            
+
             # Store assistant message for next iteration (needed for tool_calls)
             previous_assistant_message = assistant_message
 
@@ -507,10 +499,10 @@ async def chat(
                     f"Iteration {iteration}: Processing {len(assistant_message.tool_calls)} tool call(s). "
                     f"Tools: {[tc.function.name for tc in assistant_message.tool_calls]}"
                 )
-                
+
                 # Clear tool results from previous iteration
                 tool_results = []
-                
+
                 # P2: 2025 Optimization - Execute independent tool calls in parallel
                 # Tools are typically independent (e.g., preview_automation, suggest_enhancements)
                 # Use asyncio.gather() for parallel execution when multiple tool calls exist
@@ -521,11 +513,11 @@ async def chat(
                         f"Executing {len(assistant_message.tool_calls)} tool calls in parallel"
                     )
 
-                    async def execute_single_tool(tc):
+                    async def execute_single_tool(tc, _iteration=iteration):
                         """Execute a single tool call with tracking"""
                         tool_exec_id = start_tracking("tool_execution", {
                             "tool_name": tc.function.name,
-                            "iteration": iteration
+                            "iteration": _iteration
                         })
                         tool_execution_ids.append(tool_exec_id)
                         try:
@@ -583,18 +575,16 @@ async def chat(
                         tool_call, tool_result, conversation_id,
                         conversation_service, tool_calls, tool_results,
                     )
-                
+
                 # Continue loop to process tool results
                 continue
-            else:
-                # No more tool calls - this is the final response
-                logger.debug(
-                    f"[Tool Calls] Conversation {conversation_id}: "
-                    f"Iteration {iteration}: No tool calls - final response. "
-                    f"User requested: {request.message[:50]}..."
-                )
-                final_assistant_message = assistant_message
-                break
+            # No more tool calls - this is the final response
+            logger.debug(
+                f"[Tool Calls] Conversation {conversation_id}: "
+                f"Iteration {iteration}: No tool calls - final response. "
+                f"User requested: {request.message[:50]}..."
+            )
+            break
 
         if iteration >= max_iterations:
             logger.warning(
@@ -620,8 +610,8 @@ async def chat(
             conversation_id=conversation_id,
             tool_calls=tool_calls,
             metadata={
-                "model": model_config.model,
-                "reasoning_effort": model_config.reasoning_effort,
+                "model": openai_client.model,
+                "reasoning_effort": openai_client.reasoning_effort,
                 "tokens_used": total_tokens,
                 "response_time_ms": response_time_ms,
                 "token_breakdown": token_counts,
@@ -637,7 +627,7 @@ async def chat(
             message_assembly_id,
             token_counts_id,
         ] + openai_call_ids + tool_execution_ids
-        
+
         create_report(
             operation_id,
             all_metric_ids,

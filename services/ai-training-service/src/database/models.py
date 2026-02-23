@@ -6,13 +6,14 @@ Extracted from ai-automation-service for shared database access.
 """
 
 from datetime import datetime, timezone
+
 from sqlalchemy import (
+    JSON,
     Column,
     DateTime,
     Float,
-    Integer,
     Index,
-    JSON,
+    Integer,
     String,
     Text,
 )

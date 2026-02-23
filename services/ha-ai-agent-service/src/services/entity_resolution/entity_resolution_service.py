@@ -6,7 +6,7 @@ entities from user prompts based on area, keywords, and device types.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from ...clients.data_api_client import DataAPIClient
 from .entity_resolution_result import EntityResolutionResult
@@ -59,7 +59,7 @@ class EntityResolutionService:
         "switch_button": ["switch button", "button on switch"],
     }
 
-    def __init__(self, data_api_client: Optional[DataAPIClient] = None):
+    def __init__(self, data_api_client: DataAPIClient | None = None):
         """
         Initialize entity resolution service.
 
@@ -71,8 +71,8 @@ class EntityResolutionService:
     async def resolve_entities(
         self,
         user_prompt: str,
-        context_entities: Optional[list[dict[str, Any]]] = None,
-        target_domain: Optional[str] = None,
+        context_entities: list[dict[str, Any]] | None = None,
+        target_domain: str | None = None,
     ) -> EntityResolutionResult:
         """
         Resolve entities from user prompt using business rules.
@@ -160,7 +160,7 @@ class EntityResolutionService:
                 error=f"Entity resolution failed: {str(e)}",
             )
 
-    def _extract_area_from_prompt(self, user_prompt: str) -> Optional[str]:
+    def _extract_area_from_prompt(self, user_prompt: str) -> str | None:
         """
         Extract area ID from user prompt.
 
@@ -279,7 +279,7 @@ class EntityResolutionService:
         Extract pattern keywords from user prompt.
 
         Example: "switch LED" = LED indicator on switch.
-        
+
         Pattern keywords are checked BEFORE device type keywords to prevent false matches.
         For example, "office switch led" should match switch LED attributes, not LED devices.
 
@@ -373,7 +373,7 @@ class EntityResolutionService:
         return scored
 
     def _select_matches(
-        self, scored_entities: list[dict[str, Any]], user_prompt: str
+        self, scored_entities: list[dict[str, Any]], _user_prompt: str
     ) -> list[dict[str, Any]]:
         """
         Select best matching entities based on scores.
@@ -401,20 +401,19 @@ class EntityResolutionService:
         if len(matched) == 0:
             # No matches - return all entities (validation will handle)
             return sorted_entities[:5]  # Limit to top 5
-        elif len(matched) <= 3:
+        if len(matched) <= 3:
             # 2-3 matches → list all
             return matched
-        else:
-            # 4+ matches → use most specific (highest score)
-            # Return top matches with same score as highest
-            top_score = matched[0]["score"]
-            return [e for e in matched if e["score"] == top_score]
+        # 4+ matches → use most specific (highest score)
+        # Return top matches with same score as highest
+        top_score = matched[0]["score"]
+        return [e for e in matched if e["score"] == top_score]
 
     def _validate_matches(
         self,
         matched_entities: list[dict[str, Any]],
-        user_prompt: str,
-        area_id: Optional[str],
+        _user_prompt: str,
+        _area_id: str | None,
     ) -> dict[str, Any]:
         """
         Validate that matched entities match user's description.

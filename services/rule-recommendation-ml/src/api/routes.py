@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/v1", tags=["recommendations"])
 
 class RuleRecommendation(BaseModel):
     """A single rule recommendation."""
-    
+
     rule_pattern: str = Field(..., description="Rule pattern (e.g., 'binary_sensor_to_light')")
     score: float = Field(..., description="Recommendation confidence score")
     trigger_domain: str = Field(..., description="Home Assistant trigger domain")
@@ -36,7 +36,7 @@ class RuleRecommendation(BaseModel):
 
 class RecommendationResponse(BaseModel):
     """Response containing rule recommendations."""
-    
+
     recommendations: list[RuleRecommendation]
     user_id: str | None = Field(None, description="User ID if personalized")
     method: str = Field(..., description="Method used (collaborative, device-based, popular)")
@@ -45,7 +45,7 @@ class RecommendationResponse(BaseModel):
 
 class RecommendationFeedback(BaseModel):
     """Feedback on a recommendation."""
-    
+
     rule_pattern: str = Field(..., description="The recommended rule pattern")
     user_id: str | None = Field(None, description="User who received the recommendation")
     feedback_type: str = Field(
@@ -64,7 +64,7 @@ class RecommendationFeedback(BaseModel):
 
 class FeedbackResponse(BaseModel):
     """Response after submitting feedback."""
-    
+
     success: bool
     message: str
     feedback_id: str
@@ -72,7 +72,7 @@ class FeedbackResponse(BaseModel):
 
 class ModelInfoResponse(BaseModel):
     """Model information and statistics."""
-    
+
     is_fitted: bool
     factors: int
     iterations: int
@@ -84,7 +84,7 @@ class ModelInfoResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Health check response."""
-    
+
     status: str
     service: str
     version: str
@@ -113,16 +113,16 @@ def get_recommender():
 def load_model(path: Path | str | None = None) -> bool:
     """Load the trained model from disk."""
     global _recommender, _model_path
-    
+
     from ..models.rule_recommender import RuleRecommender
-    
+
     if path is not None:
         _model_path = Path(path)
-    
+
     if not _model_path.exists():
         logger.warning(f"Model file not found at {_model_path}")
         return False
-    
+
     try:
         _recommender = RuleRecommender.load(_model_path)
         logger.info(f"Loaded model from {_model_path}")
@@ -139,13 +139,13 @@ def load_model(path: Path | str | None = None) -> bool:
 def pattern_to_recommendation(pattern: str, score: float) -> RuleRecommendation:
     """Convert a pattern string to a RuleRecommendation object."""
     parts = pattern.split("_to_")
-    
+
     if len(parts) == 2:
         trigger_domain, action_domain = parts
     else:
         trigger_domain = "unknown"
         action_domain = "unknown"
-    
+
     # Generate human-readable description
     trigger_names = {
         "binary_sensor": "motion or door sensor",
@@ -156,7 +156,7 @@ def pattern_to_recommendation(pattern: str, score: float) -> RuleRecommendation:
         "sun": "sunrise/sunset",
         "time": "time",
     }
-    
+
     action_names = {
         "light": "turn lights on/off",
         "switch": "control switches",
@@ -166,11 +166,11 @@ def pattern_to_recommendation(pattern: str, score: float) -> RuleRecommendation:
         "fan": "control fans",
         "scene": "activate scene",
     }
-    
+
     trigger_desc = trigger_names.get(trigger_domain, trigger_domain)
     action_desc = action_names.get(action_domain, action_domain)
     description = f"When {trigger_desc} triggers, {action_desc}"
-    
+
     return RuleRecommendation(
         rule_pattern=pattern,
         score=score,
@@ -200,7 +200,7 @@ async def get_model_info():
     """Get information about the loaded model."""
     recommender = get_recommender()
     info = recommender.get_model_info()
-    
+
     return ModelInfoResponse(
         is_fitted=info["is_fitted"],
         factors=info["factors"],
@@ -212,24 +212,27 @@ async def get_model_info():
     )
 
 
+_default_device_domains: list[str] = Query(
+    default=[],
+    description="Device domains to match (e.g., 'light', 'switch', 'climate')"
+)
+
+
 @router.get("/rule-recommendations", response_model=RecommendationResponse)
 async def get_recommendations(
     user_id: str | None = Query(None, description="User ID for personalized recommendations"),
-    device_domains: list[str] = Query(
-        default=[],
-        description="Device domains to match (e.g., 'light', 'switch', 'climate')"
-    ),
+    device_domains: list[str] = _default_device_domains,
     limit: int = Query(10, ge=1, le=50, description="Maximum number of recommendations"),
 ):
     """
     Get personalized rule recommendations.
-    
+
     If user_id is provided, returns personalized recommendations based on
     the user's history. If device_domains is provided, returns recommendations
     matching those domains. Falls back to popular rules if neither is provided.
     """
     recommender = get_recommender()
-    
+
     if user_id:
         # Personalized recommendations
         try:
@@ -247,12 +250,12 @@ async def get_recommendations(
         # Popular rules fallback
         results = recommender.get_popular_rules(n=limit)
         method = "popular"
-    
+
     recommendations = [
         pattern_to_recommendation(pattern, score)
         for pattern, score in results
     ]
-    
+
     return RecommendationResponse(
         recommendations=recommendations,
         user_id=user_id,
@@ -268,20 +271,20 @@ async def get_similar_rules(
 ):
     """Get rules similar to a given rule pattern."""
     recommender = get_recommender()
-    
+
     results = recommender.get_similar_rules(rule_pattern, n=limit)
-    
+
     if not results:
         raise HTTPException(
             status_code=404,
             detail=f"Rule pattern '{rule_pattern}' not found in model"
         )
-    
+
     recommendations = [
         pattern_to_recommendation(pattern, score)
         for pattern, score in results
     ]
-    
+
     return RecommendationResponse(
         recommendations=recommendations,
         user_id=None,
@@ -296,14 +299,14 @@ async def get_popular_rules(
 ):
     """Get the most popular rule patterns overall."""
     recommender = get_recommender()
-    
+
     results = recommender.get_popular_rules(n=limit)
-    
+
     recommendations = [
         pattern_to_recommendation(pattern, score)
         for pattern, score in results
     ]
-    
+
     return RecommendationResponse(
         recommendations=recommendations,
         user_id=None,
@@ -316,30 +319,30 @@ async def get_popular_rules(
 async def submit_feedback(feedback: RecommendationFeedback):
     """
     Submit feedback on a recommendation.
-    
+
     This feedback is used to improve future recommendations through:
     - Retraining with updated interaction data
     - Adjusting recommendation weights
     - Identifying low-quality patterns
     """
     import uuid
-    
+
     # In production, this would store feedback in a database
     # and potentially trigger model retraining
-    
+
     feedback_id = str(uuid.uuid4())
-    
+
     logger.info(
         f"Received feedback: {feedback.feedback_type} for pattern '{feedback.rule_pattern}' "
         f"from user {feedback.user_id or 'anonymous'} (feedback_id={feedback_id})"
     )
-    
+
     # TODO: Store feedback in database
     # TODO: Trigger incremental model update if enough feedback accumulated
-    
+
     return FeedbackResponse(
         success=True,
-        message=f"Feedback recorded successfully",
+        message="Feedback recorded successfully",
         feedback_id=feedback_id,
     )
 
@@ -351,13 +354,13 @@ async def list_patterns(
 ):
     """List all known rule patterns with their statistics."""
     recommender = get_recommender()
-    
+
     patterns = list(recommender.pattern_to_idx.keys())
     total = len(patterns)
-    
+
     # Paginate
     paginated = patterns[offset:offset + limit]
-    
+
     return {
         "patterns": paginated,
         "total": total,

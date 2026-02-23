@@ -38,7 +38,7 @@ class ValidationResponse(BaseModel):
 async def validate_yaml(request: ValidationRequest) -> ValidationResponse:
     """
     Validate Home Assistant automation YAML.
-    
+
     Performs multi-stage validation:
     1. Syntax validation
     2. Schema validation
@@ -53,22 +53,22 @@ async def validate_yaml(request: ValidationRequest) -> ValidationResponse:
         if request.validate_entities and settings.enable_entity_validation:
             api_key = settings.data_api_key or settings.api_key
             data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=api_key)
-        
+
         ha_client = None  # TODO: Initialize HA client if validate_services
-        
+
         # Create validation pipeline
         pipeline = ValidationPipeline(
             data_api_client=data_api_client,
             ha_client=ha_client,
             validation_level=settings.validation_level
         )
-        
+
         # Validate
         result: ValidationResult = await pipeline.validate(
             request.yaml_content,
             normalize=request.normalize and settings.enable_normalization
         )
-        
+
         return ValidationResponse(
             valid=result.valid,
             errors=result.errors,
@@ -78,17 +78,17 @@ async def validate_yaml(request: ValidationRequest) -> ValidationResponse:
             fixes_applied=result.fixes_applied,
             summary=result.summary
         )
-    
+
     except Exception as e:
         logger.error(f"Validation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Validation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Validation error: {str(e)}") from e
 
 
 @router.post("/normalize")
 async def normalize_yaml(yaml_content: str) -> dict[str, Any]:
     """
     Normalize YAML to canonical format.
-    
+
     Fixes:
     - triggers: → trigger:
     - actions: → action:
@@ -98,16 +98,16 @@ async def normalize_yaml(yaml_content: str) -> dict[str, Any]:
     """
     try:
         from ..yaml_validation_service import YAMLNormalizer
-        
+
         normalizer = YAMLNormalizer()
         normalized_yaml, fixes = normalizer.normalize(yaml_content)
-        
+
         return {
             "normalized_yaml": normalized_yaml,
             "fixes_applied": fixes
         }
-    
+
     except Exception as e:
         logger.error(f"Normalization failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Normalization error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Normalization error: {str(e)}") from e
 

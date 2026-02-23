@@ -109,7 +109,7 @@ class ActionSpec(BaseModel):
 class AutomationSpec(BaseModel):
     """
     Canonical automation specification.
-    
+
     This is the internal representation of a Home Assistant automation.
     YAML is rendered FROM this schema, ensuring consistency and correctness.
     """

@@ -17,7 +17,8 @@ import traceback
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import psutil
 from RestrictedPython import compile_restricted
@@ -34,7 +35,7 @@ def _safe_import_factory(allowed_modules: set[str]) -> Callable[..., Any]:
 
     allowed = set(allowed_modules)
 
-    def _safe_import(name: str, globals: dict[str, Any] | None = None, locals: dict[str, Any] | None = None, fromlist: tuple[str, ...] = (), level: int = 0) -> Any:
+    def _safe_import(name: str, globals: dict[str, Any] | None = None, locals: dict[str, Any] | None = None, fromlist: tuple[str, ...] = (), level: int = 0) -> Any:  # noqa: ARG001
         if level != 0:
             raise ImportError("Relative imports are not permitted inside the sandbox")
 
@@ -281,7 +282,7 @@ class PythonSandbox:
             """Recursively sanitize context values with size tracking."""
             if size_tracker is None:
                 size_tracker = [0]
-            
+
             if depth > MAX_CONTEXT_DEPTH:
                 raise ValueError("Context nesting exceeds allowed depth")
 
@@ -347,7 +348,7 @@ class PythonSandbox:
         )
 
         process.start()
-        
+
         try:
             process.join(self.config.timeout_seconds + 1)
 
@@ -355,13 +356,13 @@ class PythonSandbox:
                 logger.warning(f"Process {process.pid} exceeded timeout, terminating")
                 process.terminate()
                 process.join(timeout=5)
-                
+
                 # Force kill if still alive after terminate
                 if process.is_alive():
                     logger.error(f"Process {process.pid} did not terminate, killing")
                     process.kill()
                     process.join(timeout=2)
-                
+
                 raise TimeoutError(f"Execution exceeded {self.config.timeout_seconds}s timeout")
 
             try:
@@ -380,7 +381,7 @@ class PythonSandbox:
                         process.join(timeout=1)
                 except Exception as cleanup_exc:
                     logger.error(f"Error during process cleanup: {cleanup_exc}")
-            
+
             # Clean up queue resources
             try:
                 result_queue.close()

@@ -20,7 +20,7 @@ class ScoreComponent(Enum):
 class HealthScoringAlgorithm:
     """
     Advanced health scoring with configurable weights and multi-factor analysis
-    
+
     Default Weighting:
     - HA Core: 35% (reduced from 40% to accommodate reliability)
     - Integrations: 35% (reduced from 40%)
@@ -37,7 +37,7 @@ class HealthScoringAlgorithm:
     ):
         """
         Initialize scoring algorithm with configurable weights
-        
+
         Args:
             ha_core_weight: Weight for HA core status (0-1)
             integrations_weight: Weight for integrations health (0-1)
@@ -65,13 +65,13 @@ class HealthScoringAlgorithm:
     ) -> tuple[int, dict[str, int]]:
         """
         Calculate overall health score with component breakdown
-        
+
         Args:
             ha_status: HA core status data
             integrations: List of integration health data
             performance: Performance metrics
             reliability_data: Reliability metrics (optional)
-            
+
         Returns:
             Tuple of (total_score, component_scores_breakdown)
         """
@@ -103,7 +103,7 @@ class HealthScoringAlgorithm:
     def _score_ha_core(self, ha_status: dict) -> int:
         """
         Score HA core status
-        
+
         Scoring:
         - healthy: 100 points
         - warning: 50 points (HA is running but has issues)
@@ -123,7 +123,7 @@ class HealthScoringAlgorithm:
     def _score_integrations(self, integrations: list[dict]) -> int:
         """
         Score integrations health
-        
+
         Scoring:
         - Each healthy integration adds proportional points
         - Warning integrations count as 50% healthy
@@ -161,7 +161,7 @@ class HealthScoringAlgorithm:
     def _score_performance(self, performance: dict) -> int:
         """
         Score performance metrics
-        
+
         Scoring based on response time:
         - 0ms (no data/default): 80 points (assume good performance)
         - < 100ms: 100 points
@@ -189,7 +189,7 @@ class HealthScoringAlgorithm:
     def _score_reliability(self, reliability_data: dict) -> int:
         """
         Score reliability metrics
-        
+
         Scoring:
         - Uptime percentage
         - Error rate (lower is better)
@@ -227,7 +227,7 @@ class HealthScoringAlgorithm:
     ) -> dict:
         """
         Generate human-readable explanation of score breakdown
-        
+
         Returns:
             Dictionary with score explanation and recommendations
         """

@@ -73,18 +73,18 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info("AI Training Service Starting Up")
     logger.info("=" * 60)
-    
+
     # Initialize database
     await _initialize_database()
-    
+
     # Setup observability if available
     await _setup_observability()
-    
+
     logger.info("✅ AI Training Service startup complete")
     logger.info("=" * 60)
-    
+
     yield
-    
+
     # Shutdown
     logger.info("=" * 60)
     logger.info("AI Training Service Shutting Down")

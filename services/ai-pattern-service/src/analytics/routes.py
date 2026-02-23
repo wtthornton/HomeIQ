@@ -7,10 +7,10 @@ Provides endpoints for viewing analytics metrics and progress toward targets.
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-from .blueprint_analytics import BlueprintAnalytics, AnalyticsSummary
+from .blueprint_analytics import BlueprintAnalytics
 from .metrics_collector import MetricsCollector
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ metrics_collector = MetricsCollector()
 # Response Models
 class TargetProgressResponse(BaseModel):
     """Response model for target progress."""
-    
+
     adoption_rate: dict[str, Any] = Field(
         ..., description="Adoption rate progress (target: 30%)"
     )
@@ -42,7 +42,7 @@ class TargetProgressResponse(BaseModel):
 
 class AnalyticsSummaryResponse(BaseModel):
     """Response model for analytics summary."""
-    
+
     period_start: str
     period_end: str
     adoption_rate: float
@@ -55,7 +55,7 @@ class AnalyticsSummaryResponse(BaseModel):
 
 class TrendingBlueprintResponse(BaseModel):
     """Response model for trending blueprint."""
-    
+
     blueprint_id: str
     deployment_count: int
     success_rate: float | None
@@ -64,7 +64,7 @@ class TrendingBlueprintResponse(BaseModel):
 
 class DeploymentRecordRequest(BaseModel):
     """Request model for recording deployment."""
-    
+
     automation_id: str = Field(..., description="Home Assistant automation entity ID")
     blueprint_id: str | None = Field(None, description="Blueprint ID if applicable")
     synergy_id: str | None = Field(None, description="Synergy ID if applicable")
@@ -73,7 +73,7 @@ class DeploymentRecordRequest(BaseModel):
 
 class ExecutionRecordRequest(BaseModel):
     """Request model for recording execution."""
-    
+
     automation_id: str = Field(..., description="Home Assistant automation entity ID")
     success: bool = Field(..., description="Whether execution was successful")
     error_message: str | None = Field(None, description="Error message if failed")
@@ -82,7 +82,7 @@ class ExecutionRecordRequest(BaseModel):
 
 class RatingRecordRequest(BaseModel):
     """Request model for recording rating."""
-    
+
     automation_id: str = Field(..., description="Home Assistant automation entity ID")
     rating: float = Field(..., ge=1.0, le=5.0, description="User rating (1-5)")
     feedback: str | None = Field(None, description="Optional text feedback")
@@ -98,7 +98,7 @@ async def get_target_progress(
 ) -> TargetProgressResponse:
     """
     Get progress toward target metrics from RECOMMENDATIONS_FEASIBILITY_ANALYSIS.md.
-    
+
     Targets:
     - Adoption Rate: 30%
     - Success Rate: 85%
@@ -152,7 +152,7 @@ async def record_deployment(request: DeploymentRecordRequest) -> dict[str, Any]:
         synergy_id=request.synergy_id,
         source=request.source,
     )
-    
+
     # Also record in metrics collector for InfluxDB
     await metrics_collector.record_deployment(
         automation_id=request.automation_id,
@@ -160,7 +160,7 @@ async def record_deployment(request: DeploymentRecordRequest) -> dict[str, Any]:
         synergy_id=request.synergy_id,
         source=request.source,
     )
-    
+
     return {
         "status": "recorded",
         "automation_id": metric.automation_id,
@@ -178,7 +178,7 @@ async def record_execution(request: ExecutionRecordRequest) -> dict[str, Any]:
         success=request.success,
         error_message=request.error_message,
     )
-    
+
     # Also record in metrics collector
     await metrics_collector.record_execution(
         automation_id=request.automation_id,
@@ -186,7 +186,7 @@ async def record_execution(request: ExecutionRecordRequest) -> dict[str, Any]:
         execution_time_ms=request.execution_time_ms,
         error_type=request.error_message.split(":")[0] if request.error_message else None,
     )
-    
+
     return {
         "status": "recorded",
         "automation_id": request.automation_id,
@@ -204,13 +204,13 @@ async def record_rating(request: RatingRecordRequest) -> dict[str, Any]:
         rating=request.rating,
         feedback=request.feedback,
     )
-    
+
     # Also record in metrics collector
     await metrics_collector.record_rating(
         automation_id=request.automation_id,
         rating=request.rating,
     )
-    
+
     return {
         "status": "recorded",
         "automation_id": request.automation_id,
@@ -224,7 +224,7 @@ async def health_check() -> dict[str, Any]:
     Check analytics service health.
     """
     summary = analytics.get_summary(days=1)
-    
+
     return {
         "status": "healthy",
         "deployments_24h": summary.synergies_deployed + summary.blueprint_utilization_rate,
@@ -241,7 +241,7 @@ async def cleanup_old_metrics(
     """
     analytics_removed = analytics.cleanup_old_metrics()
     collector_removed = metrics_collector.cleanup_old_metrics(days=retention_days)
-    
+
     return {
         "status": "cleaned",
         "analytics_metrics_removed": analytics_removed,

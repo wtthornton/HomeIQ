@@ -8,10 +8,10 @@ Based on PATTERNS_SYNERGIES_IMPROVEMENT_RECOMMENDATIONS.md - Recommendation 4.2
 """
 
 import logging
-import yaml
 from typing import Any
 
 import httpx
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -19,24 +19,24 @@ logger = logging.getLogger(__name__)
 class AutomationPreDeploymentValidator:
     """
     Validate automations before deployment using Home Assistant 2025 API.
-    
+
     Uses Home Assistant REST API to validate:
     - Entity IDs exist: GET /api/states/{entity_id}
     - Services are available: GET /api/services
     - Automation config structure is valid
     """
-    
+
     def __init__(self, ha_url: str, ha_token: str):
         """
         Initialize validator.
-        
+
         Args:
             ha_url: Home Assistant URL
             ha_token: Home Assistant long-lived access token
         """
         self.ha_url = ha_url.rstrip('/')
         self.ha_token = ha_token
-    
+
     async def validate_automation(
         self,
         automation_yaml: str,
@@ -44,11 +44,11 @@ class AutomationPreDeploymentValidator:
     ) -> dict[str, Any]:
         """
         Validate automation before deployment using Home Assistant API.
-        
+
         Args:
             automation_yaml: Automation YAML content
             ha_client: HTTP client for Home Assistant API calls
-        
+
         Returns:
             {
                 'valid': bool,
@@ -64,7 +64,7 @@ class AutomationPreDeploymentValidator:
         suggestions = []
         entity_validation = {}
         service_validation = {}
-        
+
         # Parse YAML
         try:
             automation_config = yaml.safe_load(automation_yaml)
@@ -77,7 +77,7 @@ class AutomationPreDeploymentValidator:
                 'entity_validation': {},
                 'service_validation': {}
             }
-        
+
         # Handle list of automations (Home Assistant format)
         if isinstance(automation_config, list):
             if not automation_config:
@@ -90,7 +90,7 @@ class AutomationPreDeploymentValidator:
                     'service_validation': {}
                 }
             automation_config = automation_config[0]  # Validate first automation
-        
+
         if not isinstance(automation_config, dict):
             return {
                 'valid': False,
@@ -100,13 +100,13 @@ class AutomationPreDeploymentValidator:
                 'entity_validation': {},
                 'service_validation': {}
             }
-        
+
         # 1. Validate automation config structure
         required_fields = ['trigger', 'action']
         for field in required_fields:
             if field not in automation_config:
                 errors.append(f"Missing required field: {field}")
-        
+
         # 2. Validate entities exist (2025 API: GET /api/states/{entity_id})
         entities_to_check = self._extract_entity_ids(automation_config)
         for entity_id in entities_to_check:
@@ -130,7 +130,7 @@ class AutomationPreDeploymentValidator:
             except Exception as e:
                 entity_validation[entity_id] = False
                 errors.append(f"Error checking entity {entity_id}: {e}")
-        
+
         # 3. Validate services are available (2025 API: GET /api/services)
         services_to_check = self._extract_services(automation_config)
         try:
@@ -140,7 +140,7 @@ class AutomationPreDeploymentValidator:
                 timeout=5.0
             )
             available_services = response.json() if response.status_code == 200 else {}
-            
+
             for service in services_to_check:
                 domain, service_name = service.split('.', 1) if '.' in service else (service, '')
                 service_validation[service] = (
@@ -153,12 +153,12 @@ class AutomationPreDeploymentValidator:
             warnings.append("Timeout checking services - service validation skipped")
         except Exception as e:
             warnings.append(f"Could not validate services: {e}")
-        
+
         # 4. Check for common issues
         if 'condition' in automation_config:
             if isinstance(automation_config['condition'], list) and not automation_config['condition']:
                 warnings.append("Empty condition list - automation may always trigger")
-        
+
         # 5. Check trigger validity
         triggers = automation_config.get('trigger', [])
         if not triggers:
@@ -169,7 +169,7 @@ class AutomationPreDeploymentValidator:
                     errors.append(f"Trigger {i} is not a valid dictionary")
                 elif 'platform' not in trigger:
                     errors.append(f"Trigger {i} missing required 'platform' field")
-        
+
         # 6. Check action validity
         actions = automation_config.get('action', [])
         if not actions:
@@ -180,14 +180,14 @@ class AutomationPreDeploymentValidator:
                     errors.append(f"Action {i} is not a valid dictionary")
                 elif 'service' not in action and 'scene' not in action:
                     errors.append(f"Action {i} missing required 'service' or 'scene' field")
-        
+
         # 7. Suggestions for improvement
         if 'alias' not in automation_config:
             suggestions.append("Add an 'alias' field for better automation identification")
-        
+
         if 'description' not in automation_config:
             suggestions.append("Add a 'description' field to document automation purpose")
-        
+
         return {
             'valid': len(errors) == 0,
             'errors': errors,
@@ -196,21 +196,21 @@ class AutomationPreDeploymentValidator:
             'entity_validation': entity_validation,
             'service_validation': service_validation
         }
-    
+
     def _extract_entity_ids(self, config: dict[str, Any]) -> list[str]:
         """
         Extract all entity IDs from automation config.
-        
+
         Recursively finds entity_id fields in triggers, conditions, and actions.
         """
         entities = set()
         self._traverse_and_extract_entities(config, entities)
         return list(entities)
-    
+
     def _traverse_and_extract_entities(self, data: Any, entities: set[str]) -> None:
         """
         Recursively traverse automation structure and extract entity IDs.
-        
+
         Args:
             data: Data structure to traverse (dict, list, or value)
             entities: Set to add entity IDs to
@@ -233,21 +233,21 @@ class AutomationPreDeploymentValidator:
         elif isinstance(data, list):
             for item in data:
                 self._traverse_and_extract_entities(item, entities)
-    
+
     def _extract_services(self, config: dict[str, Any]) -> list[str]:
         """
         Extract all service calls from automation config.
-        
+
         Finds service calls in actions.
         """
         services = set()
         self._traverse_and_extract_services(config, services)
         return list(services)
-    
+
     def _traverse_and_extract_services(self, data: Any, services: set[str]) -> None:
         """
         Recursively traverse automation structure and extract service calls.
-        
+
         Args:
             data: Data structure to traverse (dict, list, or value)
             services: Set to add service names to
@@ -261,8 +261,8 @@ class AutomationPreDeploymentValidator:
                 # Scene is also a service call
                 scene_name = data.get('scene')
                 if scene_name:
-                    services.add(f"scene.turn_on")
-            
+                    services.add("scene.turn_on")
+
             for value in data.values():
                 self._traverse_and_extract_services(value, services)
         elif isinstance(data, list):

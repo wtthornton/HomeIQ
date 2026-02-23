@@ -18,7 +18,7 @@ Schema Details:
 This schema IS actively used for:
 - home_assistant_events measurement (primary)
 - weather_data measurement
-- sports_data measurement  
+- sports_data measurement
 - system_metrics measurement
 
 Last Updated: October 2025 (Epic 31 - enrichment-pipeline removed)
@@ -96,10 +96,10 @@ class InfluxDBSchema:
     def create_event_point(self, event_data: dict[str, Any]) -> Point | None:
         """
         Create InfluxDB Point for Home Assistant event
-        
+
         Args:
             event_data: Processed event data
-            
+
         Returns:
             InfluxDB Point object or None if invalid
         """
@@ -149,11 +149,11 @@ class InfluxDBSchema:
     def create_weather_point(self, weather_data: dict[str, Any], location: str) -> Point | None:
         """
         Create InfluxDB Point for weather data
-        
+
         Args:
             weather_data: Weather data dictionary
             location: Location string
-            
+
         Returns:
             InfluxDB Point object or None if invalid
         """
@@ -212,19 +212,19 @@ class InfluxDBSchema:
     def _extract_attributes(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """
         Extract attributes from event data.
-        
+
         Attributes are nested inside new_state.attributes (or old_state.attributes as fallback).
         This is the correct Home Assistant event structure.
-        
+
         Args:
             event_data: Processed event data dictionary
-            
+
         Returns:
             Dictionary of attributes (empty dict if not found)
         """
         # First try to get attributes from top level (for backwards compatibility)
         attributes = event_data.get("attributes", {})
-        
+
         # If not at top level, extract from new_state.attributes (preferred)
         new_state = event_data.get("new_state")
         if isinstance(new_state, dict) and "attributes" in new_state:
@@ -234,7 +234,7 @@ class InfluxDBSchema:
             old_state = event_data.get("old_state")
             if isinstance(old_state, dict) and "attributes" in old_state:
                 attributes = old_state.get("attributes", {})
-        
+
         return attributes if isinstance(attributes, dict) else {}
 
     def _add_event_tags(self, point: Point, event_data: dict[str, Any]) -> Point:
@@ -290,7 +290,7 @@ class InfluxDBSchema:
     def _categorize_event(self, event_data: dict[str, Any]) -> str | None:
         """
         Categorize event based on entity domain and device class.
-        
+
         Returns event category (security, climate, lighting, appliance, monitoring, general)
         or None if categorization is not possible.
         """
@@ -300,30 +300,30 @@ class InfluxDBSchema:
             # FIX: Extract attributes from nested state structure
             attributes = self._extract_attributes(event_data)
             device_class = attributes.get("device_class", "")
-            
+
             # Security category
             if domain in ["alarm_control_panel", "lock"] or device_class in ["door", "window", "motion", "lock"]:
                 return "security"
-            
+
             # Climate category
             if domain == "climate" or device_class in ["temperature", "humidity"]:
                 return "climate"
-            
+
             # Lighting category
             if domain == "light" or device_class == "light":
                 return "lighting"
-            
+
             # Appliance category
             if domain in ["switch", "fan", "vacuum"] or device_class in ["power", "energy"]:
                 return "appliance"
-            
+
             # Monitoring category
             if domain == "sensor" and device_class not in ["temperature", "humidity"]:
                 return "monitoring"
-            
+
             # Default to general
             return "general"
-            
+
         except Exception as e:
             logger.debug(f"Error categorizing event: {e}")
             return None
@@ -402,13 +402,13 @@ class InfluxDBSchema:
                            timestamp: datetime) -> Point | None:
         """
         Create InfluxDB Point for summary data
-        
+
         Args:
             measurement: Measurement name
             tags: Dictionary of tags
             fields: Dictionary of fields
             timestamp: Timestamp for the point
-            
+
         Returns:
             InfluxDB Point object or None if invalid
         """
@@ -498,10 +498,10 @@ class InfluxDBSchema:
     def validate_point(self, point: Point) -> tuple[bool, list[str]]:
         """
         Validate InfluxDB point against schema
-        
+
         Args:
             point: InfluxDB Point to validate
-            
+
         Returns:
             Tuple of (is_valid, error_messages)
         """

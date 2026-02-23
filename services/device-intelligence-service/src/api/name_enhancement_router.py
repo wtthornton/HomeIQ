@@ -20,8 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.database import get_db_session
 from ..models.database import Device, DeviceEntity
 from ..models.name_enhancement import NameSuggestion
-from ..services.name_enhancement import DeviceNameGenerator, NameUniquenessValidator
-from ..config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -82,14 +80,14 @@ async def get_name_suggestions(
 ):
     """
     Get name suggestions for a device.
-    
+
     Returns all pending suggestions for the device, ordered by confidence.
     """
     try:
         # Get device
         result = await session.execute(select(Device).where(Device.id == device_id))
         device = result.scalar_one_or_none()
-        
+
         if not device:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -127,7 +125,7 @@ async def get_name_suggestions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.post("/devices/{device_id}/accept", response_model=AcceptNameResponse)
@@ -138,7 +136,7 @@ async def accept_suggested_name(
 ):
     """
     Accept a suggested name (updates name_by_user).
-    
+
     This updates the device's name_by_user field and marks the suggestion as accepted.
     Optionally syncs the name back to Home Assistant.
     """
@@ -146,7 +144,7 @@ async def accept_suggested_name(
         # Get device
         result = await session.execute(select(Device).where(Device.id == device_id))
         device = result.scalar_one_or_none()
-        
+
         if not device:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -173,7 +171,7 @@ async def accept_suggested_name(
         if suggestion:
             suggestion.status = "accepted"
             suggestion.reviewed_at = datetime.now(timezone.utc)
-            
+
             # Learn from this customization
             try:
                 from ..api.discovery import get_discovery_service
@@ -186,7 +184,7 @@ async def accept_suggested_name(
                         ).limit(1)
                     )
                     entity = entity_result.scalar_one_or_none()
-                    
+
                     await discovery_service.preference_learner.learn_from_customization(
                         original_name=suggestion.original_name,
                         user_customized_name=request.suggested_name,
@@ -229,7 +227,7 @@ async def accept_suggested_name(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.post("/devices/{device_id}/reject")
@@ -249,7 +247,7 @@ async def reject_suggested_name(
             )
         )
         suggestion = result.scalar_one_or_none()
-        
+
         if not suggestion:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -272,7 +270,7 @@ async def reject_suggested_name(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.post("/batch-enhance", response_model=BatchEnhanceResponse)
@@ -282,7 +280,7 @@ async def batch_enhance_names(
 ):
     """
     Trigger batch name enhancement (background job).
-    
+
     This generates name suggestions for multiple devices.
     The actual processing happens in the background.
     """
@@ -294,7 +292,7 @@ async def batch_enhance_names(
         from ..api.discovery import get_discovery_service
         try:
             discovery_service = await get_discovery_service()
-            
+
             if not discovery_service or not discovery_service.batch_processor:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -313,7 +311,7 @@ async def batch_enhance_names(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Name enhancement service not available"
-            )
+            ) from e
 
         return BatchEnhanceResponse(
             success=True,
@@ -328,7 +326,7 @@ async def batch_enhance_names(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
-        )
+        ) from e
 
 @router.get("/status")
 async def get_enhancement_status(
@@ -338,7 +336,7 @@ async def get_enhancement_status(
 ):
     """Get name enhancement status statistics"""
     try:
-        from sqlalchemy import func, case
+        from sqlalchemy import case, func
 
         # Count by status
         result = await session.execute(
@@ -388,7 +386,7 @@ async def get_enhancement_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
-        )
+        ) from e
 
 
 @router.get("/devices/pending")
@@ -398,12 +396,11 @@ async def get_pending_suggestions(
 ):
     """
     Get all devices with pending name suggestions (bulk endpoint for UI).
-    
+
     Returns devices grouped by device_id with their suggestions.
     """
     try:
-        import json
-        
+
         # Get all pending suggestions
         result = await session.execute(
             select(NameSuggestion, Device.name, Device.name_by_user)
@@ -415,12 +412,12 @@ async def get_pending_suggestions(
 
         # Group by device_id
         devices_dict: dict[str, dict[str, Any]] = {}
-        
+
         for row in result:
             suggestion = row[0]
             device_name = row[1]
             name_by_user = row[2]
-            
+
             device_id = suggestion.device_id
             if device_id not in devices_dict:
                 devices_dict[device_id] = {
@@ -428,7 +425,7 @@ async def get_pending_suggestions(
                     "current_name": name_by_user or device_name or "Unknown",
                     "suggestions": []
                 }
-            
+
             devices_dict[device_id]["suggestions"].append({
                 "name": suggestion.suggested_name,
                 "confidence": suggestion.confidence_score or 0.0,
@@ -448,6 +445,6 @@ async def get_pending_suggestions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
-        )
+        ) from e
 
 

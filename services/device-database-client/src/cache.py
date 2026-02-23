@@ -3,6 +3,7 @@ Local Caching Layer
 Phase 3.1: Cache device information locally
 """
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -59,7 +60,7 @@ class DeviceCache:
                 logger.debug(f"Cache expired for {manufacturer} {model}")
                 return None
 
-            with open(cache_path, "r") as f:
+            with cache_path.open() as f:
                 data = json.load(f)
 
             return data.get("device_info")
@@ -94,13 +95,11 @@ class DeviceCache:
             try:
                 with os.fdopen(fd, "w") as f:
                     json.dump(data, f, indent=2)
-                os.replace(tmp_path, str(cache_path))
+                Path(tmp_path).replace(cache_path)
             except Exception:
                 # Clean up temp file on failure
-                try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
+                with contextlib.suppress(OSError):
+                    Path(tmp_path).unlink()
                 raise
 
             logger.debug(f"Cached device info for {manufacturer} {model}")

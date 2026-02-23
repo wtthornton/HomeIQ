@@ -47,7 +47,7 @@ class PreferenceLearner:
                         pattern_data = json.loads(pref.pattern_data)
                     else:
                         pattern_data = pref.pattern_data or {}
-                    
+
                     self.patterns[pattern_type].append({
                         "data": pattern_data,
                         "confidence": pref.confidence,
@@ -72,12 +72,12 @@ class PreferenceLearner:
     ) -> None:
         """
         Learn simple patterns from user customizations.
-        
+
         Examples:
         - "Hue Color Downlight 1 7" → "Office Back Left"
         - Learn: User prefers location-based names
         - Learn: "_1_7" pattern → "Back Left" position
-        
+
         Storage: Simple dict structure, <1KB per pattern
         """
         try:
@@ -131,7 +131,7 @@ class PreferenceLearner:
     ) -> NameSuggestion | None:
         """
         Apply learned preferences to generate suggestion.
-        
+
         Performance: <5ms (in-memory lookup)
         """
         if not self._patterns_loaded and db_session:
@@ -144,19 +144,17 @@ class PreferenceLearner:
             for pattern in sorted(style_patterns, key=lambda p: p["confidence"], reverse=True):
                 style = pattern["data"].get("style")
                 area = pattern["data"].get("area")
-                
-                if area == device.area_name or not area:
-                    # Apply this style
-                    if style == "location_based" and device.area_name:
-                        device_type = self._get_device_type(device, entity)
-                        if device_type:
-                            name = f"{device.area_name} {device_type}"
-                            return NameSuggestion(
-                                name=name,
-                                confidence=pattern["confidence"],
-                                source="preference",
-                                reasoning=f"Applied learned {style} naming style"
-                            )
+
+                if (area == device.area_name or not area) and style == "location_based" and device.area_name:
+                    device_type = self._get_device_type(device, entity)
+                    if device_type:
+                        name = f"{device.area_name} {device_type}"
+                        return NameSuggestion(
+                            name=name,
+                            confidence=pattern["confidence"],
+                            source="preference",
+                            reasoning=f"Applied learned {style} naming style"
+                        )
 
         # Try to apply position mapping
         if entity and "position_mapping" in self.patterns:
@@ -184,11 +182,11 @@ class PreferenceLearner:
         # Check if location-based
         if device.area_name and device.area_name.lower() in name.lower():
             return "location_based"
-        
+
         # Check if descriptive (no location, just description)
         if not any(word.lower() in name.lower() for word in ["room", "office", "kitchen", "bedroom"]):
             return "descriptive"
-        
+
         return None
 
     def _extract_position_mapping(
@@ -205,7 +203,7 @@ class PreferenceLearner:
             if word.lower() in customized_name.lower():
                 found_position = word.title()
                 break
-        
+
         if not found_position:
             return None
 
@@ -217,7 +215,7 @@ class PreferenceLearner:
                 "pattern": pattern,
                 "position": found_position
             }
-        
+
         return None
 
     def _extract_area_pattern(self, name: str) -> str:
@@ -230,12 +228,12 @@ class PreferenceLearner:
         """Extract modifier words (Back, Front, Left, Right, etc.)"""
         modifiers = []
         modifier_words = ["back", "front", "left", "right", "center", "main", "primary", "secondary"]
-        
+
         words = name.lower().split()
         for word in words:
             if word in modifier_words:
                 modifiers.append(word.title())
-        
+
         return modifiers
 
     def _get_device_type(self, device: Device, entity: DeviceEntity | None = None) -> str | None:
@@ -248,10 +246,10 @@ class PreferenceLearner:
                 "binary_sensor": "Sensor",
             }
             return domain_map.get(entity.domain)
-        
+
         if device.device_class:
             return device.device_class.replace("_", " ").title()
-        
+
         return None
 
     async def _update_pattern(

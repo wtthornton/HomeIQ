@@ -14,9 +14,9 @@ class Base(DeclarativeBase):
 
 class BlueprintSuggestion(Base):
     """Blueprint suggestion model."""
-    
+
     __tablename__ = "blueprint_suggestions"
-    
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     blueprint_id = Column(String, nullable=False, index=True)
     blueprint_name = Column(String, nullable=True)  # Blueprint name for display
@@ -30,7 +30,7 @@ class BlueprintSuggestion(Base):
     accepted_at = Column(DateTime, nullable=True)
     declined_at = Column(DateTime, nullable=True)
     conversation_id = Column(String, nullable=True)  # Link to Agent conversation
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert model to dictionary."""
         return {

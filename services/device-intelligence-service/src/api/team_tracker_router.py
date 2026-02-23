@@ -143,7 +143,7 @@ async def detect_team_tracker_entities(
 
     Scans for sensor entities with multiple platform value variations and
     entity_id patterns, then updates the integration status and team configurations.
-    
+
     Uses data-api service to query entities (where they are actually stored).
     """
     try:
@@ -157,7 +157,7 @@ async def detect_team_tracker_entities(
         data_api_client = DataAPIClient()
         team_sensors = []
         data_api_error = None
-        
+
         try:
             logger.info(f"Querying data-api at {data_api_client.base_url} for sensor entities...")
             # Fetch all sensor entities from data-api
@@ -165,9 +165,9 @@ async def detect_team_tracker_entities(
                 domain="sensor",
                 limit=10000
             )
-            
+
             logger.info(f"Received {len(all_sensor_entities)} sensor entities from data-api")
-            
+
             # Filter for Team Tracker entities using multiple strategies
             # NOTE: Platform matching is PRIMARY and works for ANY team configuration.
             # Team Tracker always uses platform="teamtracker" regardless of:
@@ -179,14 +179,14 @@ async def detect_team_tracker_entities(
                 entity_id = entity.get("entity_id", "").lower()
                 platform = entity.get("platform", "").lower() if entity.get("platform") else ""
                 original_entity_id = entity.get("entity_id", "")  # Keep original case for logging
-                
+
                 # PRIMARY: Check platform field (works for ANY team/league/name configuration)
                 # Team Tracker integration always sets platform="teamtracker" in YAML config
                 platform_match = (
                     platform in [p.lower() for p in platform_variations] or
                     ("team" in platform and "tracker" in platform)
                 )
-                
+
                 # FALLBACK: Check entity_id patterns (catches edge cases where platform might be missing)
                 # Entity IDs can vary based on custom "name" parameter:
                 # - name="Cowboys" → sensor.cowboys (no "team_tracker" in ID, but platform match works)
@@ -200,7 +200,7 @@ async def detect_team_tracker_entities(
                     entity_id.startswith("sensor.team_tracker") or  # Starts with team_tracker
                     entity_id.startswith("sensor.teamtracker")  # Starts with teamtracker
                 )
-                
+
                 # Match if platform OR entity_id indicates Team Tracker
                 # Platform match is sufficient for any team configuration
                 if platform_match or entity_id_match:
@@ -209,12 +209,12 @@ async def detect_team_tracker_entities(
                         f" Team Tracker entity detected: entity_id={original_entity_id}, "
                         f"platform={entity.get('platform')}, name={entity.get('friendly_name') or entity.get('name')}"
                     )
-            
+
             logger.info(f"Found {len(team_sensors)} Team Tracker sensors from data-api")
         except Exception as e:
             data_api_error = str(e)
             logger.error(f"Failed to query data-api: {e}", exc_info=True)
-            logger.warning(f"Falling back to local database query...")
+            logger.warning("Falling back to local database query...")
             # Fallback to local database query - use flexible pattern matching
             conditions = [
                 DeviceEntity.domain == "sensor",
@@ -248,7 +248,7 @@ async def detect_team_tracker_entities(
             logger.info(f"Found {len(team_sensors)} Team Tracker sensors from local database")
         finally:
             await data_api_client.close()
-        
+
         # Log details of detected entities for debugging
         if not team_sensors:
             logger.warning("No Team Tracker entities found.")
@@ -290,7 +290,7 @@ async def detect_team_tracker_entities(
                 sensor_name = sensor.get("friendly_name") or sensor.get("name") if isinstance(sensor, dict) else sensor.name
                 unique_id = sensor.get("unique_id") if isinstance(sensor, dict) else sensor.unique_id
                 platform = sensor.get("platform") if isinstance(sensor, dict) else sensor.platform
-                
+
                 # Check if team already exists
                 existing_team_result = await session.execute(
                     select(TeamTrackerTeam).where(TeamTrackerTeam.entity_id == entity_id)
@@ -336,10 +336,10 @@ async def detect_team_tracker_entities(
             "detected_teams": detected_teams,
             "integration_status": integration.installation_status
         }
-        
+
         if data_api_error and len(team_sensors) == 0:
             response["warning"] = f"Data-api query failed, used local database: {data_api_error}"
-        
+
         return response
     except Exception as e:
         logger.error(f"Error detecting Team Tracker entities: {e}", exc_info=True)
@@ -524,7 +524,7 @@ async def get_diagnostics(
 ) -> dict[str, Any]:
     """
     Comprehensive diagnostic endpoint for Team Tracker integration.
-    
+
     Provides detailed information about:
     - Integration status
     - Entity detection status
@@ -534,7 +534,7 @@ async def get_diagnostics(
     - Team Tracker candidates
     """
     logger.info("Generating Team Tracker diagnostics")
-    
+
     diagnostics: dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "integration_status": None,
@@ -554,14 +554,14 @@ async def get_diagnostics(
             "error": None
         }
     }
-    
+
     try:
         # Get integration status
         result = await session.execute(
             select(TeamTrackerIntegration).limit(1)
         )
         integration = result.scalar_one_or_none()
-        
+
         if integration:
             diagnostics["integration_status"] = {
                 "is_installed": integration.is_installed,
@@ -570,13 +570,13 @@ async def get_diagnostics(
                 "last_checked": integration.last_checked.isoformat() if integration.last_checked else None
             }
             diagnostics["database_state"]["integration_records"] = 1
-        
+
         # Get team counts
         teams_result = await session.execute(select(TeamTrackerTeam))
         all_teams = teams_result.scalars().all()
         diagnostics["database_state"]["configured_teams"] = len(all_teams)
         diagnostics["database_state"]["active_teams"] = len([t for t in all_teams if t.is_active])
-        
+
         # Check data-api connectivity and get entity info
         data_api_client = DataAPIClient()
         try:
@@ -585,19 +585,19 @@ async def get_diagnostics(
                 limit=10000
             )
             diagnostics["connectivity"]["data_api"] = True
-            
+
             # Platform distribution
             platform_counts: dict[str, int] = {}
             team_tracker_candidates = []
             platform_variations = ["teamtracker", "team_tracker", "TeamTracker", "TEAMTRACKER", "team-tracker"]
-            
+
             for entity in all_sensor_entities:
                 platform = entity.get("platform", "unknown")
                 platform_counts[platform] = platform_counts.get(platform, 0) + 1
-                
+
                 entity_id = entity.get("entity_id", "").lower()
                 platform_lower = platform.lower() if platform else ""
-                
+
                 # Check if this is a Team Tracker candidate
                 platform_match = (
                     platform_lower in [p.lower() for p in platform_variations] or
@@ -610,7 +610,7 @@ async def get_diagnostics(
                     entity_id.startswith("sensor.team_tracker") or
                     entity_id.startswith("sensor.teamtracker")
                 )
-                
+
                 if platform_match or entity_id_match:
                     team_tracker_candidates.append({
                         "entity_id": entity.get("entity_id"),
@@ -619,7 +619,7 @@ async def get_diagnostics(
                         "domain": entity.get("domain"),
                         "matched_by": "platform" if platform_match else "entity_id"
                     })
-            
+
             diagnostics["entity_detection"]["candidates_found"] = len(team_tracker_candidates)
             diagnostics["entity_detection"]["candidates"] = team_tracker_candidates
             diagnostics["entity_detection"]["platform_distribution"] = dict(sorted(
@@ -627,16 +627,16 @@ async def get_diagnostics(
                 key=lambda x: x[1],
                 reverse=True
             )[:20])  # Top 20 platforms
-            
+
         except Exception as e:
             diagnostics["connectivity"]["data_api"] = False
             diagnostics["connectivity"]["error"] = str(e)
             logger.warning(f"Data API connectivity check failed: {e}")
         finally:
             await data_api_client.close()
-        
+
         return diagnostics
-        
+
     except Exception as e:
         logger.error(f"Error generating diagnostics: {e}", exc_info=True)
         diagnostics["error"] = str(e)
@@ -649,10 +649,10 @@ async def debug_platform_values(
 ) -> dict[str, Any]:
     """
     Debug endpoint to see what platform values exist for sensor entities.
-    
+
     This helps identify the actual platform value used by Team Tracker
     integration in Home Assistant.
-    
+
     Queries data-api service (where entities are actually stored).
     """
     try:
@@ -660,21 +660,21 @@ async def debug_platform_values(
         try:
             # Get all sensor entities from data-api
             all_sensors = await data_api_client.fetch_entities(domain="sensor", limit=10000)
-            
+
             # Count platforms
             platforms = {}
             for sensor in all_sensors:
                 platform = sensor.get("platform", "unknown")
                 platforms[platform] = platforms.get(platform, 0) + 1
-            
+
             # Find team tracker-like entities
             team_like_by_platform = []
             team_like_by_entity_id = []
-            
+
             for sensor in all_sensors:
                 entity_id = sensor.get("entity_id", "")
                 platform = sensor.get("platform", "").lower() if sensor.get("platform") else ""
-                
+
                 # Check by platform
                 if "team" in platform and "tracker" in platform:
                     team_like_by_platform.append({
@@ -683,7 +683,7 @@ async def debug_platform_values(
                         "name": sensor.get("friendly_name") or sensor.get("name"),
                         "domain": sensor.get("domain")
                     })
-                
+
                 # Check by entity_id
                 if "team" in entity_id.lower() and "tracker" in entity_id.lower():
                     team_like_by_entity_id.append({
@@ -692,7 +692,7 @@ async def debug_platform_values(
                         "name": sensor.get("friendly_name") or sensor.get("name"),
                         "domain": sensor.get("domain")
                     })
-            
+
             return {
                 "source": "data-api",
                 "sensor_platforms": platforms,
@@ -716,7 +716,7 @@ async def debug_platform_values(
                 .group_by(DeviceEntity.platform)
             )
             platforms = {row[0]: row[1] for row in result.all() if row[0]}
-            
+
             return {
                 "source": "local-database-fallback",
                 "sensor_platforms": platforms,

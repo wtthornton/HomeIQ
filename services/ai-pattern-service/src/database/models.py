@@ -10,9 +10,8 @@ but the actual tables are managed by ai-automation-service.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Optional
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -24,10 +23,10 @@ class Base(DeclarativeBase):
 class SynergyOpportunity(Base):
     """
     Cross-device synergy opportunities for automation suggestions.
-    
+
     Stores detected device pairs that could work together but currently
     have no automation connecting them.
-    
+
     Story AI3.1: Device Synergy Detector Foundation
     Epic AI-3: Cross-Device Synergy & Contextual Opportunities
     Phase 3.3: Enhanced with 2025 improvements (explanation, context_breakdown)
@@ -49,18 +48,18 @@ class SynergyOpportunity(Base):
     pattern_support_score = Column(Float, default=0.0, nullable=False)
     validated_by_patterns = Column(Boolean, default=False, nullable=False)
     supporting_pattern_ids = Column(Text, nullable=True)  # JSON array of pattern IDs
-    
+
     # Epic AI-4: N-level synergy fields
     synergy_depth = Column(Integer, default=2, nullable=False, server_default='2')
     chain_devices = Column(Text, nullable=True)  # JSON array of entity_ids in automation chain
     embedding_similarity = Column(Float, nullable=True)
     rerank_score = Column(Float, nullable=True)
     final_score = Column(Float, nullable=True)
-    
+
     # 2025 Enhancement: XAI and Multi-modal context (Phase 3.3)
     explanation = Column(JSON, nullable=True)  # XAI explanation (summary, detailed, score_breakdown, evidence, benefits, visualization)
     context_breakdown = Column(JSON, nullable=True)  # Multi-modal context breakdown (temporal_boost, weather_boost, energy_boost, behavior_boost)
-    
+
     # 2025 Enhancement: Quality scoring and filtering (Phase 1)
     quality_score = Column(Float, nullable=True)  # Calculated quality score (0.0-1.0)
     quality_tier = Column(String(20), nullable=True)  # 'high', 'medium', 'low', 'poor'
@@ -76,10 +75,10 @@ class SynergyOpportunity(Base):
 class SynergyFeedback(Base):
     """
     User feedback for synergy opportunities (RL feedback loop).
-    
+
     Stores user feedback on synergy recommendations to enable
     reinforcement learning optimization.
-    
+
     Phase 3.3: Created for RL feedback loop (Phase 4.1)
     """
     __tablename__ = 'synergy_feedback'

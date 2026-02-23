@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 def celsius_to_fahrenheit(celsius: float) -> int:
     """
     Convert Celsius to Fahrenheit and round to whole number.
-    
+
     Args:
         celsius: Temperature in Celsius
-        
+
     Returns:
         Temperature in Fahrenheit as whole number
     """
@@ -278,7 +278,7 @@ class PromptGenerationService:
                 top_entity = entities[0]
                 entity_id = top_entity.get("entity_id", "device")
                 count = top_entity.get("count", 0)
-                
+
                 # Make entity_id more readable (remove domain prefix if present)
                 display_name = entity_id.split(".")[-1].replace("_", " ").title()
 
@@ -305,7 +305,7 @@ class PromptGenerationService:
             if hours:
                 top_hour = hours[0]
                 hour = top_hour.get("hour", 0)
-                
+
                 # Format hour nicely (e.g., "7 AM" or "8 PM")
                 if hour == 0:
                     time_str = "midnight"

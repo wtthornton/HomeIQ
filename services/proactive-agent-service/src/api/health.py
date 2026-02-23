@@ -22,7 +22,7 @@ def set_scheduler_service_for_health(service: Any):
 async def health_check():
     """
     Health check endpoint with scheduler status.
-    
+
     Returns:
         Health status including scheduler information
     """
@@ -31,13 +31,13 @@ async def health_check():
         "service": "proactive-agent-service",
         "version": "1.0.0",
     }
-    
+
     # Add scheduler status if available
     if _scheduler_service is not None:
         try:
             scheduler_running = _scheduler_service.is_running()
             next_run = _scheduler_service.get_next_run_time()
-            
+
             response["scheduler"] = {
                 "enabled": True,
                 "running": scheduler_running,
@@ -55,6 +55,6 @@ async def health_check():
             "running": False,
             "next_run": None,
         }
-    
+
     return response
 

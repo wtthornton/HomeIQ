@@ -1,12 +1,13 @@
 """Database initialization and models for context cache"""
 
+import contextlib
 import logging
 import os
 import stat
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func, JSON, text
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, func, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -62,11 +63,11 @@ class ConversationModel(Base):
 
     # Unique troubleshooting ID for debug screen (stored in DB)
     debug_id: Mapped[str | None] = mapped_column(String(36), unique=True, index=True, nullable=True)
-    
+
     # Conversation title - auto-generated from first message or user-set
     # Epic AI-20.9: Better conversation naming
     title: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    
+
     # Source of conversation creation
     # Values: 'user' (direct chat), 'proactive' (from proactive suggestions), 'pattern' (from pattern-based)
     # Epic AI-20.9: Track conversation origin
@@ -79,7 +80,7 @@ class ConversationModel(Base):
         cascade="all, delete-orphan",
         order_by="MessageModel.created_at",
     )
-    
+
     # Pending automation preview (2025 Preview-and-Approval Workflow)
     pending_preview: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
@@ -141,7 +142,7 @@ async def init_database(database_url: str) -> None:
             path_str = database_url.split("///")[-1]
             db_path = Path(path_str)
             db_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Fix directory permissions if needed (Docker/non-root user)
             # This is critical for Docker volumes which are created as root-owned
             if db_path.parent.exists():
@@ -149,47 +150,41 @@ async def init_database(database_url: str) -> None:
                     # Get current user ID
                     current_uid = os.getuid() if hasattr(os, 'getuid') else None
                     current_gid = os.getgid() if hasattr(os, 'getgid') else None
-                    
+
                     # Make directory writable for owner and group
-                    os.chmod(db_path.parent, stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
-                    
+                    db_path.parent.chmod(stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
+
                     # Try to change ownership if we're not root (in Docker, we're appuser)
                     # Note: This will fail if we don't have permission, but that's OK - chmod should be enough
                     if current_uid is not None and current_uid != 0:
-                        try:
+                        with contextlib.suppress(PermissionError, OSError):
                             os.chown(db_path.parent, current_uid, current_gid)
-                        except (PermissionError, OSError):
-                            # Can't change ownership, but chmod should still work
-                            pass
-                    
+
                     logger.info(f"✅ Set directory permissions for {db_path.parent} (UID: {current_uid}, GID: {current_gid})")
                 except Exception as perm_error:
                     logger.error(f"❌ Could not set directory permissions: {perm_error}", exc_info=True)
                     # Don't fail initialization - try to continue
-            
+
             # Check database file permissions if it exists
             if db_path.exists():
                 # Fix database file permissions if read-only
                 try:
                     current_uid = os.getuid() if hasattr(os, 'getuid') else None
                     current_gid = os.getgid() if hasattr(os, 'getgid') else None
-                    
+
                     # Make file readable and writable for owner and group
-                    os.chmod(db_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
-                    
+                    db_path.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
+
                     # Try to change ownership if we're not root
                     if current_uid is not None and current_uid != 0:
-                        try:
+                        with contextlib.suppress(PermissionError, OSError):
                             os.chown(db_path, current_uid, current_gid)
-                        except (PermissionError, OSError):
-                            # Can't change ownership, but chmod should still work
-                            pass
-                    
+
                     logger.info(f"✅ Set database file permissions for {db_path} (UID: {current_uid}, GID: {current_gid})")
                 except Exception as perm_error:
                     logger.error(f"❌ Could not set database file permissions: {perm_error}", exc_info=True)
                     # Don't fail initialization - try to continue
-            
+
             logger.info(f"✅ Database directory created: {db_path.parent}")
 
         # Create async engine
@@ -210,7 +205,7 @@ async def init_database(database_url: str) -> None:
         # Create tables
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        
+
         # Migrate: Add pending_preview and debug_id columns if they don't exist
         # This handles existing databases that were created before these columns were added
         # Run migration in separate transaction to ensure it commits
@@ -224,7 +219,7 @@ async def init_database(database_url: str) -> None:
                     )
                     table_row = table_result.fetchone()
                     table_exists = table_row is not None
-                    
+
                     if table_exists:
                         # Check and migrate pending_preview column
                         column_result = await conn.execute(
@@ -239,7 +234,7 @@ async def init_database(database_url: str) -> None:
                             logger.info("✅ Successfully added pending_preview column")
                         else:
                             logger.debug("✅ Column pending_preview already exists")
-                        
+
                         # Check and migrate debug_id column
                         debug_id_result = await conn.execute(
                             text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'debug_id'")
@@ -251,7 +246,7 @@ async def init_database(database_url: str) -> None:
                                 text("ALTER TABLE conversations ADD COLUMN debug_id TEXT")
                             )
                             logger.info("✅ Successfully added debug_id column")
-                            
+
                             # Generate debug_ids for existing conversations that don't have one
                             from uuid import uuid4
                             logger.info("🔄 Generating debug_ids for existing conversations...")
@@ -267,7 +262,7 @@ async def init_database(database_url: str) -> None:
                                     {"debug_id": debug_id, "conv_id": conv_id}
                                 )
                             logger.info(f"✅ Generated debug_ids for {len(rows)} existing conversations")
-                            
+
                             # Create index on debug_id
                             try:
                                 await conn.execute(
@@ -278,7 +273,7 @@ async def init_database(database_url: str) -> None:
                                 logger.warning(f"⚠️  Could not create index on debug_id (may already exist): {idx_error}")
                         else:
                             logger.debug("✅ Column debug_id already exists")
-                        
+
                         # Check and migrate title column (Epic AI-20.9)
                         title_result = await conn.execute(
                             text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'title'")
@@ -292,7 +287,7 @@ async def init_database(database_url: str) -> None:
                             logger.info("✅ Successfully added title column")
                         else:
                             logger.debug("✅ Column title already exists")
-                        
+
                         # Check and migrate source column (Epic AI-20.9)
                         source_result = await conn.execute(
                             text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'source'")
@@ -304,7 +299,7 @@ async def init_database(database_url: str) -> None:
                                 text("ALTER TABLE conversations ADD COLUMN source TEXT DEFAULT 'user'")
                             )
                             logger.info("✅ Successfully added source column")
-                            
+
                             # Create index on source
                             try:
                                 await conn.execute(

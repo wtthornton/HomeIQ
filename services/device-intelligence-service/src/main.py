@@ -14,7 +14,6 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security import APIKeyHeader
 
 from .api.database_management import router as database_management_router
 from .api.device_mappings_router import router as device_mappings_router
@@ -72,11 +71,11 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         logger.info("Device Intelligence Service shutting down...")
-        
+
         # Stop training scheduler
         if training_scheduler:
             training_scheduler.stop()
-        
+
         await shutdown_discovery_service()
 
         if analytics_engine:

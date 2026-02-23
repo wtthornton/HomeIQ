@@ -2,6 +2,7 @@
 
 import asyncio
 import collections
+import contextlib
 import gzip
 import json
 import logging
@@ -59,7 +60,7 @@ class DataCompressionService:
     def __init__(self, influxdb_client=None):
         """
         Initialize data compression service.
-        
+
         Args:
             influxdb_client: InfluxDB client for data operations
         """
@@ -95,10 +96,8 @@ class DataCompressionService:
 
         if self.compression_task and not self.compression_task.done():
             self.compression_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.compression_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Data compression service stopped")
 
@@ -178,10 +177,10 @@ class DataCompressionService:
     async def find_best_compression(self, data: bytes) -> CompressionResult:
         """
         Find the best compression algorithm for given data.
-        
+
         Args:
             data: Data to compress
-            
+
         Returns:
             CompressionResult: Best compression result
         """
@@ -208,10 +207,10 @@ class DataCompressionService:
     async def compress_old_data(self, days_old: int = 30) -> list[CompressionResult]:
         """
         Compress old data in the database.
-        
+
         Args:
             days_old: Age of data to compress in days
-            
+
         Returns:
             List of compression results
         """
@@ -240,10 +239,10 @@ class DataCompressionService:
     async def _get_old_data(self, days_old: int) -> list[bytes]:
         """
         Get old data from database.
-        
+
         Args:
             days_old: Age of data to retrieve in days
-            
+
         Returns:
             List of data chunks
         """
@@ -287,10 +286,10 @@ class DataCompressionService:
             logger.error(f"Failed to get old data: {e}")
             return []
 
-    async def _apply_compression_to_database(self, data: bytes, result: CompressionResult) -> None:
+    async def _apply_compression_to_database(self, _data: bytes, result: CompressionResult) -> None:
         """
         Apply compression to database storage.
-        
+
         Args:
             data: Original data
             result: Compression result
@@ -312,7 +311,7 @@ class DataCompressionService:
     async def schedule_compression(self, interval_hours: int = 24) -> None:
         """
         Schedule periodic data compression.
-        
+
         Args:
             interval_hours: Interval between compression runs in hours
         """
@@ -342,10 +341,10 @@ class DataCompressionService:
     def get_compression_history(self, limit: int = 100) -> list[CompressionResult]:
         """
         Get compression history.
-        
+
         Args:
             limit: Maximum number of history entries to return
-            
+
         Returns:
             List of compression results
         """
@@ -354,7 +353,7 @@ class DataCompressionService:
     def get_compression_statistics(self) -> dict[str, Any]:
         """
         Get compression statistics.
-        
+
         Returns:
             Dictionary containing compression statistics
         """
@@ -400,7 +399,7 @@ class DataCompressionService:
     def get_algorithm_performance(self) -> dict[str, Any]:
         """
         Get performance statistics by algorithm.
-        
+
         Returns:
             Dictionary containing algorithm performance statistics
         """

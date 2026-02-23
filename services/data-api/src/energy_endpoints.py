@@ -99,7 +99,7 @@ async def get_energy_correlations(
 ):
     """
     Get event-energy correlations
-    
+
     Shows which events caused significant power changes
     """
 
@@ -167,7 +167,7 @@ async def get_energy_correlations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query correlations: {str(e)}"
-        )
+        ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
@@ -218,7 +218,7 @@ async def get_current_power():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query power: {str(e)}"
-        )
+        ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
@@ -264,7 +264,7 @@ async def get_circuit_power(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query circuits: {str(e)}"
-        )
+        ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
@@ -275,7 +275,7 @@ async def get_device_energy_impact(
 ):
     """
     Get energy impact analysis for a specific device
-    
+
     Returns:
     - Average power change when device turns on/off
     - Total energy attributed to device
@@ -356,10 +356,7 @@ async def get_device_energy_impact(
 
         # Calculate daily usage (assuming average 8 hours on per day)
         hours_on_per_day = 8.0
-        if avg_power_on > 0:
-            daily_kwh = (avg_power_on * hours_on_per_day) / 1000.0
-        else:
-            daily_kwh = 0.0
+        daily_kwh = (avg_power_on * hours_on_per_day) / 1000.0 if avg_power_on > 0 else 0.0
 
         # Estimate monthly cost (assuming $0.12/kWh)
         monthly_cost = daily_kwh * 30 * 0.12
@@ -379,7 +376,7 @@ async def get_device_energy_impact(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query device impact: {str(e)}"
-        )
+        ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
@@ -485,7 +482,7 @@ async def get_energy_statistics(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query statistics: {str(e)}"
-        )
+        ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
@@ -496,7 +493,7 @@ async def get_top_energy_consumers(
 ):
     """
     Get top energy consuming devices based on correlation data
-    
+
     Returns devices sorted by estimated daily energy consumption
     """
 
@@ -551,7 +548,7 @@ async def get_top_energy_consumers(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query top consumers: {str(e)}"
-        )
+        ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
@@ -582,7 +579,7 @@ class CarbonIntensityTrendsResponse(BaseModel):
 async def get_current_carbon_intensity():
     """
     Get current carbon intensity from InfluxDB
-    
+
     Queries the carbon_data bucket for the most recent carbon intensity reading.
     Data is written by carbon-intensity-service.
     """
@@ -593,7 +590,7 @@ async def get_current_carbon_intensity():
 
         # Carbon intensity data is stored in carbon_data bucket
         carbon_bucket = os.getenv("INFLUXDB_CARBON_BUCKET", "carbon_data")
-        
+
         # Query for most recent carbon intensity data
         flux_query = f'''
         from(bucket: "{carbon_bucket}")
@@ -633,7 +630,7 @@ async def get_current_carbon_intensity():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query carbon intensity: {str(e)}"
-        )
+        ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
@@ -641,7 +638,7 @@ async def get_current_carbon_intensity():
 async def get_carbon_intensity_trends():
     """
     Get carbon intensity trends over the last 24 hours
-    
+
     Returns current intensity, 24h average/min/max, trend direction, and forecast.
     """
     client = None
@@ -671,7 +668,7 @@ async def get_carbon_intensity_trends():
           |> limit(n: 1)
         '''
         current_tables = query_api.query(current_flux, org=os.getenv("INFLUXDB_ORG", "homeiq"))
-        
+
         current_data = None
         for current_table in current_tables:
             for current_record in current_table.records:
@@ -709,14 +706,14 @@ async def get_carbon_intensity_trends():
             avg_24h = sum(intensities) / len(intensities)
             min_24h = min(intensities)
             max_24h = max(intensities)
-            
+
             # Determine trend (compare first half to second half)
             if len(intensities) >= 2:
                 first_half = intensities[:len(intensities)//2]
                 second_half = intensities[len(intensities)//2:]
                 first_avg = sum(first_half) / len(first_half)
                 second_avg = sum(second_half) / len(second_half)
-                
+
                 if second_avg > first_avg * 1.05:  # 5% threshold
                     trend = "increasing"
                 elif second_avg < first_avg * 0.95:
@@ -759,5 +756,5 @@ async def get_carbon_intensity_trends():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query carbon intensity trends: {str(e)}"
-        )
+        ) from e
     # Shared client is not closed per-request (HIGH-01)

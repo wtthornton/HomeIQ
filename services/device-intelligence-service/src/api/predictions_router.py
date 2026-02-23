@@ -7,17 +7,19 @@ including failure predictions, maintenance recommendations, and model management
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from starlette.requests import Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
-from ..core.cache import DeviceCache
 from ..core.database import get_db_session
 from ..core.predictive_analytics import PredictiveAnalyticsEngine
 from ..core.repository import DeviceRepository
+
+if TYPE_CHECKING:
+    from ..scheduler.training_scheduler import TrainingScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -113,9 +115,8 @@ async def get_failure_predictions(
         for prediction in predictions:
             probability = prediction.get("failure_probability", 0) / 100
 
-            if min_probability <= probability <= max_probability:
-                if risk_level is None or prediction.get("risk_level") == risk_level:
-                    filtered_predictions.append(prediction)
+            if min_probability <= probability <= max_probability and (risk_level is None or prediction.get("risk_level") == risk_level):
+                filtered_predictions.append(prediction)
 
         return {
             "total_predictions": len(filtered_predictions),
@@ -129,7 +130,7 @@ async def get_failure_predictions(
 
     except Exception as e:
         logger.error("Error getting failure predictions: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/failures/{device_id}")
@@ -172,7 +173,7 @@ async def get_device_failure_prediction(
         raise
     except Exception as e:
         logger.error("Error getting prediction for device %s: %s", device_id, e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/maintenance")
@@ -211,7 +212,7 @@ async def get_maintenance_recommendations(
 
     except Exception as e:
         logger.error("Error getting maintenance recommendations: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post("/train")
@@ -244,7 +245,7 @@ async def trigger_model_training(
 
     except Exception as e:
         logger.error("Error starting model training: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/models/status")
@@ -258,7 +259,7 @@ async def get_model_status(
 
     except Exception as e:
         logger.error("Error getting model status: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/models/compare")
@@ -271,7 +272,6 @@ async def compare_models(
         from pathlib import Path
 
         models_dir = Path(analytics_engine.models_dir)
-        metadata_path = models_dir / "model_metadata.json"
 
         # Get current model metadata
         current_metadata = analytics_engine.model_metadata
@@ -300,7 +300,7 @@ async def compare_models(
         backup_metadata_path = models_dir / f"model_metadata.backup_{backup_timestamp}.json"
         if backup_metadata_path.exists():
             try:
-                with open(backup_metadata_path) as f:
+                with backup_metadata_path.open() as f:
                     backup_metadata = json.load(f)
             except Exception as e:
                 logger.warning(f"Could not load backup metadata: {e}")
@@ -359,7 +359,7 @@ async def compare_models(
 
     except Exception as e:
         logger.error("Error comparing models: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post("/predict")
@@ -378,7 +378,7 @@ async def predict_device_failure(
 
     except Exception as e:
         logger.error("Error predicting failure for device %s: %s", request.device_id, e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post("/incremental-update")
@@ -389,43 +389,43 @@ async def incremental_update(
 ):
     """
     Update model incrementally with new data (10-50x faster than full retrain).
-    
+
     Requires ML_USE_INCREMENTAL=true in configuration.
     """
     try:
         from ..config import Settings
         settings = Settings()
-        
+
         if not settings.ML_USE_INCREMENTAL:
             raise HTTPException(
                 status_code=400,
                 detail="Incremental learning not enabled. Set ML_USE_INCREMENTAL=true"
             )
-        
+
         if not analytics_engine.is_trained:
             raise HTTPException(
                 status_code=400,
                 detail="Model not trained. Train model first before incremental updates."
             )
-        
+
         # Process incremental update in background
         background_tasks.add_task(
             analytics_engine.incremental_update,
             request.new_data
         )
-        
+
         return {
             "message": "Incremental update started",
             "status": "updating",
             "samples": len(request.new_data),
             "started_at": datetime.now(timezone.utc).isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Error starting incremental update: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/health")
@@ -459,12 +459,12 @@ async def trigger_training_now(
 ):
     """
     Manually trigger model training immediately.
-    
+
     Epic 46.2: Built-in Nightly Training Scheduler
-    
+
     Args:
         mode: Optional training mode ('full' or 'incremental'). Uses default from settings if not provided.
-    
+
     Returns:
         Training status and information
     """
@@ -475,34 +475,34 @@ async def trigger_training_now(
                 status_code=503,
                 detail="Training scheduler not available"
             )
-        
+
         scheduler: TrainingScheduler = request.app.state.training_scheduler
-        
+
         # Validate mode if provided
         if mode and mode not in ['full', 'incremental']:
             raise HTTPException(
                 status_code=400,
                 detail="Mode must be 'full' or 'incremental'"
             )
-        
+
         # Trigger training
         result = await scheduler.trigger_training_now(mode=mode)
         return result
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Error triggering training: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/train/status")
 async def get_training_status(request: Request):
     """
     Get training scheduler status and information.
-    
+
     Epic 46.2: Built-in Nightly Training Scheduler
-    
+
     Returns:
         Scheduler status, last training info, and next run time
     """
@@ -513,10 +513,10 @@ async def get_training_status(request: Request):
                 "enabled": False,
                 "message": "Training scheduler not available"
             }
-        
+
         scheduler: TrainingScheduler = request.app.state.training_scheduler
         return scheduler.get_status()
-    
+
     except Exception as e:
         logger.error(f"Error getting training status: {e}")
         return {
@@ -531,7 +531,7 @@ async def get_model_version(
 ):
     """
     Get model version and metadata (2025: Production deployment endpoint).
-    
+
     Returns:
         Model version, training date, and performance metrics
     """
@@ -541,9 +541,9 @@ async def get_model_version(
                 status_code=404,
                 detail="Models not trained or loaded"
             )
-        
+
         metadata = engine.model_metadata.copy() if hasattr(engine, 'model_metadata') else {}
-        
+
         return {
             "version": metadata.get("version", "unknown"),
             "training_date": metadata.get("training_date"),
@@ -557,7 +557,7 @@ async def get_model_version(
         raise
     except Exception as e:
         logger.error(f"Error getting model version: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/models/health")
@@ -566,21 +566,20 @@ async def get_model_health(
 ):
     """
     Health check endpoint for ML models (2025: Production deployment).
-    
+
     Returns:
         Health status with detailed diagnostics
     """
     try:
-        import os
         from pathlib import Path
-        
+
         models_dir = Path(engine.models_dir)
-        
+
         # Check all required files
         failure_model_path = models_dir / "failure_prediction_model.pkl"
         anomaly_model_path = models_dir / "anomaly_detection_model.pkl"
         metadata_path = models_dir / "model_metadata.json"
-        
+
         checks = {
             "models_loaded": engine.is_trained,
             "failure_model_exists": failure_model_path.exists(),
@@ -588,11 +587,11 @@ async def get_model_health(
             "metadata_exists": metadata_path.exists(),
             "models_dir_exists": models_dir.exists()
         }
-        
+
         # Calculate overall health
         all_checks_passed = all(checks.values())
         health_status = "healthy" if all_checks_passed else "unhealthy"
-        
+
         # Get file sizes if they exist
         file_sizes = {}
         if failure_model_path.exists():
@@ -601,17 +600,17 @@ async def get_model_health(
             file_sizes["anomaly_model"] = anomaly_model_path.stat().st_size
         if metadata_path.exists():
             file_sizes["metadata"] = metadata_path.stat().st_size
-        
+
         # Get model metadata if available
         metadata = {}
         if metadata_path.exists():
             try:
                 import json
-                with open(metadata_path, 'r') as f:
+                with metadata_path.open('r') as f:
                     metadata = json.load(f)
             except Exception as e:
                 logger.warning(f"Could not load metadata: {e}")
-        
+
         return {
             "status": health_status,
             "checks": checks,

@@ -21,7 +21,7 @@ class TimeOfDayPatternDetector:
     """
     Detects time-of-day patterns using simple KMeans clustering.
     Finds when devices are consistently used at the same time.
-    
+
     Examples:
         - Bedroom light turns on at 7:00 AM daily
         - Thermostat adjusts at 6:00 PM in evening
@@ -38,7 +38,7 @@ class TimeOfDayPatternDetector:
     ):
         """
         Initialize pattern detector.
-        
+
         Args:
             min_occurrences: Minimum number of occurrences for a pattern (default: 3)
             min_confidence: Minimum confidence threshold (0.0-1.0, default: 0.7)
@@ -60,13 +60,13 @@ class TimeOfDayPatternDetector:
     def detect_patterns(self, events: pd.DataFrame) -> list[dict]:
         """
         Detect time-of-day patterns using KMeans clustering.
-        
+
         Args:
             events: DataFrame with columns [device_id, timestamp, state]
                     device_id: str - Device identifier (e.g., "light.bedroom")
                     timestamp: datetime - Event timestamp
                     state: str - Device state (e.g., "on", "off")
-        
+
         Returns:
             List of pattern dictionaries with keys:
                 - device_id: Device identifier
@@ -108,7 +108,7 @@ class TimeOfDayPatternDetector:
             if self._is_external_data_source(device_id):
                 logger.debug(f"Skipping external data source: {device_id}")
                 continue
-            
+
             device_events = events[events['device_id'] == device_id]
             domain = self._get_domain(device_id)
             required_occurrences = self.domain_occurrence_overrides.get(domain, self.min_occurrences)
@@ -211,15 +211,15 @@ class TimeOfDayPatternDetector:
     def _is_external_data_source(device_id: str) -> bool:
         """
         Check if device_id represents an external data source (sports, weather, etc.).
-        
+
         Args:
             device_id: Entity ID to check
-            
+
         Returns:
             True if external data source, False otherwise
         """
         device_id_lower = device_id.lower()
-        
+
         # External data patterns
         external_patterns = [
             'team_tracker', 'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',
@@ -227,18 +227,15 @@ class TimeOfDayPatternDetector:
             'carbon_intensity_', 'electricity_pricing_', 'national_grid_',
             'calendar_'
         ]
-        
+
         for pattern in external_patterns:
             if pattern in device_id_lower:
                 return True
-        
+
         # Check domain
         domain = TimeOfDayPatternDetector._get_domain(device_id)
-        if domain in ['weather', 'calendar']:
-            return True
-        
-        return False
-    
+        return domain in ['weather', 'calendar']
+
     @staticmethod
     def _get_domain(device_id: str) -> str:
         """Extract entity domain (prefix before dot) from device ID."""
@@ -249,9 +246,9 @@ class TimeOfDayPatternDetector:
     def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         """
         Store daily aggregates to InfluxDB.
-        
+
         Story AI5.3: Incremental pattern processing with aggregate storage.
-        
+
         Args:
             patterns: List of detected patterns
             events: Original events DataFrame
@@ -319,10 +316,10 @@ class TimeOfDayPatternDetector:
     def get_pattern_summary(self, patterns: list[dict]) -> dict:
         """
         Get summary statistics for detected patterns.
-        
+
         Args:
             patterns: List of pattern dictionaries
-        
+
         Returns:
             Summary dictionary with counts and statistics
         """
@@ -336,7 +333,7 @@ class TimeOfDayPatternDetector:
 
         return {
             'total_patterns': len(patterns),
-            'unique_devices': len(set(p['device_id'] for p in patterns)),
+            'unique_devices': len({p['device_id'] for p in patterns}),
             'avg_confidence': float(np.mean([p['confidence'] for p in patterns])),
             'avg_occurrences': float(np.mean([p['occurrences'] for p in patterns])),
             'min_confidence': float(np.min([p['confidence'] for p in patterns])),
@@ -352,29 +349,29 @@ class TimeOfDayPatternDetector:
     SECURITY_SENSITIVE_DOMAINS = frozenset([
         'lock', 'cover', 'garage', 'alarm_control_panel', 'gate', 'door'
     ])
-    
+
     # Safety levels for automation suggestions
     SAFETY_LEVEL_HIGH = 'high'  # Requires confirmation
     SAFETY_LEVEL_NORMAL = 'normal'  # Standard automation
     SAFETY_LEVEL_LOW = 'low'  # Simple, reversible actions
-    
+
     def suggest_automation(self, pattern: dict) -> dict[str, any]:
         """
         Suggest automation from time-of-day pattern with safety checks.
-        
+
         Implements Recommendation 1.2: Pattern-Based Automation Suggestions.
         Converts time-of-day patterns to schedule-based automation suggestions.
-        
+
         Enhanced with safety features (January 2026):
         - Security-sensitive domain detection
         - Safety level classification
         - State conditions to prevent duplicate actions
         - Confirmation requirements for sensitive domains
-        
+
         Example:
             - Pattern: "light.bedroom turns on at 7:00 AM daily"
             - Suggestion: "Schedule: Turn on bedroom light at 7:00 AM"
-        
+
         Args:
             pattern: Pattern dictionary with keys:
                 - device_id: Device identifier (e.g., "light.bedroom")
@@ -383,7 +380,7 @@ class TimeOfDayPatternDetector:
                 - confidence: Confidence score (0.0-1.0)
                 - occurrences: Number of occurrences
                 - metadata: Additional metadata (optional)
-        
+
         Returns:
             Automation suggestion dictionary with keys:
                 - automation_type: "schedule"
@@ -400,28 +397,28 @@ class TimeOfDayPatternDetector:
         if pattern.get('pattern_type') != 'time_of_day':
             logger.warning(f"Pattern type {pattern.get('pattern_type')} is not time_of_day, cannot suggest automation")
             return {}
-        
+
         device_id = pattern.get('device_id', '')
         hour = pattern.get('hour', 0)
         minute = pattern.get('minute', 0)
         confidence = pattern.get('confidence', 0.0)
-        
+
         # Extract domain from device_id (e.g., "light" from "light.bedroom")
         domain = self._get_domain(device_id)
-        
+
         # Determine service and safety parameters based on domain
         service_name, expected_state, safety_level, safety_warnings = self._get_service_config(domain)
-        
+
         # Check if domain is security-sensitive
         requires_confirmation = domain in self.SECURITY_SENSITIVE_DOMAINS
-        
+
         # Format time string (HH:MM:SS)
         time_str = f"{hour:02d}:{minute:02d}:00"
-        
+
         # Create human-readable description
         device_name = device_id.split('.')[-1].replace('_', ' ').title() if '.' in device_id else device_id
         description = f"Schedule: {service_name.replace('_', ' ').title()} {device_name} at {hour:02d}:{minute:02d}"
-        
+
         # Build condition to prevent duplicate actions
         condition = None
         if expected_state:
@@ -432,7 +429,7 @@ class TimeOfDayPatternDetector:
                     'state': expected_state
                 }
             ]
-        
+
         # Build automation suggestion with safety features
         suggestion = {
             'automation_type': 'schedule',
@@ -451,12 +448,12 @@ class TimeOfDayPatternDetector:
             'description': description,
             'device_id': device_id,
             'pattern_id': pattern.get('pattern_id'),
-            
+
             # Safety features (NEW)
             'requires_confirmation': requires_confirmation,
             'safety_level': safety_level,
             'safety_warnings': safety_warnings,
-            
+
             'metadata': {
                 'source': 'time_of_day_pattern',
                 'occurrences': pattern.get('occurrences', 0),
@@ -466,33 +463,33 @@ class TimeOfDayPatternDetector:
                 'is_security_sensitive': requires_confirmation
             }
         }
-        
+
         # Add condition if available
         if condition:
             suggestion['condition'] = condition
-        
+
         # Log with appropriate level based on safety
         if requires_confirmation:
             logger.warning(
                 f"⚠️ Security-sensitive automation suggested for {device_id} - "
                 f"requires user confirmation before deployment"
             )
-        
+
         logger.info(
             f"✅ Suggested automation: {description} "
             f"(confidence={confidence:.0%}, device={device_id}, "
             f"safety={safety_level}, requires_confirmation={requires_confirmation})"
         )
-        
+
         return suggestion
-    
+
     def _get_service_config(self, domain: str) -> tuple[str, str | None, str, list[str]]:
         """
         Get service configuration based on domain.
-        
+
         Args:
             domain: Entity domain (e.g., 'light', 'lock', 'climate')
-            
+
         Returns:
             Tuple of (service_name, expected_state, safety_level, safety_warnings)
             - service_name: Home Assistant service to call
@@ -505,7 +502,7 @@ class TimeOfDayPatternDetector:
             # Lighting - low risk, reversible
             'light': ('turn_on', 'off', self.SAFETY_LEVEL_LOW, []),
             'switch': ('turn_on', 'off', self.SAFETY_LEVEL_LOW, []),
-            
+
             # Climate - normal risk
             'climate': ('set_temperature', None, self.SAFETY_LEVEL_NORMAL, [
                 'Climate automations may affect comfort and energy usage'
@@ -514,7 +511,7 @@ class TimeOfDayPatternDetector:
                 'Thermostat automations may affect comfort and energy usage'
             ]),
             'fan': ('turn_on', 'off', self.SAFETY_LEVEL_LOW, []),
-            
+
             # Security-sensitive - high risk
             'lock': ('unlock', 'locked', self.SAFETY_LEVEL_HIGH, [
                 'SECURITY: Unlocking doors automatically may compromise home security',
@@ -543,15 +540,15 @@ class TimeOfDayPatternDetector:
                 'Strongly recommend presence detection and notification conditions',
                 'Consider manual confirmation requirement'
             ]),
-            
+
             # Media - low risk
             'media_player': ('turn_on', 'off', self.SAFETY_LEVEL_LOW, []),
-            
+
             # Vacuum - normal risk
             'vacuum': ('start', 'docked', self.SAFETY_LEVEL_NORMAL, [
                 'Vacuum may run when house is occupied - consider presence conditions'
             ]),
         }
-        
+
         # Return config for domain, or default for unknown domains
         return config.get(domain, ('turn_on', 'off', self.SAFETY_LEVEL_NORMAL, []))

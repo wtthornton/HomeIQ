@@ -36,10 +36,10 @@ for p in candidate_paths:
 if shared_path and str(shared_path) not in sys.path:
     sys.path.insert(0, str(shared_path))
 
-import asyncio
-import logging
+import asyncio  # noqa: E402
+import logging  # noqa: E402
 
-from cache import BaseCache
+from cache import BaseCache  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class DeviceCache(BaseCache):
     def __init__(self, max_size: int = 1000, default_ttl: int = 300):
         """
         Initialize device cache.
-        
+
         Args:
             max_size: Maximum cache entries
             default_ttl: Default TTL in seconds
@@ -150,7 +150,7 @@ class DeviceCache(BaseCache):
         """Invalidate all device-related cache entries."""
         async with self._lock:
             keys_to_delete = []
-            for key in self.cache.keys():
+            for key in self.cache:
                 if key.startswith("device:") or key.startswith("devices:"):
                     keys_to_delete.append(key)
 

@@ -9,7 +9,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Note: Pattern model is defined in shared database (ai-automation-service)
@@ -25,14 +25,14 @@ async def store_patterns(
 ) -> int:
     """
     Store detected patterns in database.
-    
+
     Simplified version for Story 39.6 - full history tracking in later stories.
-    
+
     Args:
         db: Database session
         patterns: List of pattern dictionaries from detector
         time_window_days: Time window in days (for future use)
-    
+
     Returns:
         Number of patterns stored/updated
     """
@@ -49,10 +49,10 @@ async def store_patterns(
             # Fallback: Use raw SQL if models aren't available
             logger.warning("Pattern model not available, using raw SQL")
             return await _store_patterns_raw_sql(db, patterns)
-        
+
         stored_count = 0
         now = datetime.now(timezone.utc)
-        
+
         # Validate external data patterns against automations if validator provided
         if automation_validator:
             try:
@@ -70,7 +70,7 @@ async def store_patterns(
             )
             result = await db.execute(query)
             existing_pattern = result.scalar_one_or_none()
-            
+
             # Build metadata: start with nested 'metadata' dict, then add top-level fields
             # This ensures hour/minute from TimeOfDayPatternDetector are preserved
             metadata = dict(pattern_data.get('metadata', {}))
@@ -106,7 +106,7 @@ async def store_patterns(
                     pattern.last_seen = now
                 if hasattr(pattern, 'confidence_history_count'):
                     pattern.confidence_history_count = 1
-                
+
                 db.add(pattern)
                 logger.debug(f"Created new pattern for {pattern.device_id}")
 
@@ -124,12 +124,13 @@ async def store_patterns(
 
 async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int:
     """Fallback: Store patterns using raw SQL if models aren't available"""
-    from sqlalchemy import text
     import json
-    
+
+    from sqlalchemy import text
+
     stored_count = 0
     now = datetime.now(timezone.utc).isoformat()
-    
+
     for pattern_data in patterns:
         try:
             # Build metadata: start with nested 'metadata' dict, then add top-level fields
@@ -139,10 +140,10 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
                 if key in pattern_data and key not in metadata:
                     metadata[key] = pattern_data[key]
             metadata_str = json.dumps(metadata)
-            
+
             # Check if pattern exists
             check_query = text("""
-                SELECT id FROM patterns 
+                SELECT id FROM patterns
                 WHERE pattern_type = :pattern_type AND device_id = :device_id
             """)
             result = await db.execute(
@@ -153,11 +154,11 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
                 }
             )
             existing = result.scalar_one_or_none()
-            
+
             if existing:
                 # Update
                 update_query = text("""
-                    UPDATE patterns 
+                    UPDATE patterns
                     SET confidence = MAX(confidence, :confidence),
                         occurrences = :occurrences,
                         pattern_metadata = :metadata,
@@ -177,7 +178,7 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
             else:
                 # Insert
                 insert_query = text("""
-                    INSERT INTO patterns 
+                    INSERT INTO patterns
                     (pattern_type, device_id, pattern_metadata, confidence, occurrences, created_at, updated_at)
                     VALUES (:pattern_type, :device_id, :metadata, :confidence, :occurrences, :created_at, :updated_at)
                 """)
@@ -193,12 +194,12 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
                         "updated_at": now
                     }
                 )
-            
+
             stored_count += 1
         except Exception as e:
             logger.warning(f"Failed to store pattern {pattern_data.get('device_id')}: {e}")
             continue
-    
+
     await db.commit()
     return stored_count
 
@@ -212,14 +213,14 @@ async def get_patterns(
 ) -> list[Any]:
     """
     Retrieve patterns from database with optional filters.
-    
+
     Args:
         db: Database session
         pattern_type: Filter by pattern type
         device_id: Filter by device ID
         min_confidence: Minimum confidence threshold
         limit: Maximum number of patterns to return
-    
+
     Returns:
         List of Pattern objects
     """
@@ -229,7 +230,7 @@ async def get_patterns(
         except ImportError:
             logger.warning("Pattern model not available, using raw SQL")
             return await _get_patterns_raw_sql(db, pattern_type, device_id, min_confidence, limit)
-        
+
         query = select(Pattern)
 
         if pattern_type:
@@ -251,8 +252,8 @@ async def get_patterns(
 
     except Exception as e:
         # Check if this is a database corruption error
-        from ..database.integrity import is_database_corruption_error, DatabaseIntegrityError
-        
+        from ..database.integrity import DatabaseIntegrityError, is_database_corruption_error
+
         if is_database_corruption_error(e):
             logger.error(f"Database corruption detected while retrieving patterns: {e}", exc_info=True)
             raise DatabaseIntegrityError(f"Database corruption detected: {e}") from e
@@ -270,10 +271,10 @@ async def _get_patterns_raw_sql(
 ) -> list[dict]:
     """Fallback: Get patterns using raw SQL"""
     from sqlalchemy import text
-    
+
     conditions = []
     params = {}
-    
+
     if pattern_type:
         conditions.append("pattern_type = :pattern_type")
         params["pattern_type"] = pattern_type
@@ -283,24 +284,24 @@ async def _get_patterns_raw_sql(
     if min_confidence is not None:
         conditions.append("confidence >= :min_confidence")
         params["min_confidence"] = min_confidence
-    
+
     where_clause = " AND ".join(conditions) if conditions else "1=1"
-    
+
     query = text(f"""
-        SELECT * FROM patterns 
+        SELECT * FROM patterns
         WHERE {where_clause}
         ORDER BY confidence DESC
         LIMIT :limit
-    """)
+    """)  # where_clause built from hardcoded column names, not user input
     params["limit"] = limit
-    
+
     result = await db.execute(query, params)
     rows = result.fetchall()
-    
+
     # Convert rows to dicts
     patterns = []
     for row in rows:
         patterns.append(dict(row._mapping))
-    
+
     return patterns
 

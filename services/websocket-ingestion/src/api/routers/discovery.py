@@ -3,10 +3,11 @@ Discovery router for websocket-ingestion service.
 """
 
 from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException, Request
 
-from ...utils.logger import logger
 from ...api.models import DiscoveryTriggerResponse
+from ...utils.logger import logger
 
 router = APIRouter(prefix="/api/v1/discovery", tags=["discovery"])
 
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/api/v1/discovery", tags=["discovery"])
 async def trigger_discovery(request: Request):
     """
     Manually trigger device/entity discovery.
-    
+
     Triggers a full discovery of Home Assistant devices and entities.
     """
     service = request.app.state.service
@@ -70,5 +71,5 @@ async def trigger_discovery(request: Request):
                 "success": False,
                 "error": str(e)
             }
-        )
+        ) from e
 

@@ -100,7 +100,7 @@ class OpenAIClient:
             tool_choice: Optional tool choice mode ('auto', 'none', or tool name)
             max_tokens: Optional max tokens (overrides config default)
             temperature: Optional temperature (overrides config default)
-        
+
         Returns:
             ChatCompletion response from OpenAI
         """
@@ -108,7 +108,7 @@ class OpenAIClient:
         if not messages:
             logger.error("❌ CRITICAL: No messages provided to OpenAI API!")
             raise ValueError("Messages list is empty")
-        
+
         # Verify system message is first
         system_msg = messages[0] if messages else None
         if not system_msg or system_msg.get("role") != "system":
@@ -117,7 +117,7 @@ class OpenAIClient:
                 f"First message: {system_msg}, Total messages: {len(messages)}"
             )
             raise ValueError("System message must be first message")
-        
+
         system_content = system_msg.get("content", "")
         logger.info(
             f"[OpenAI API] Sending {len(messages)} messages to OpenAI. "
@@ -126,7 +126,7 @@ class OpenAIClient:
             f"Contains 'HOME ASSISTANT CONTEXT': {'HOME ASSISTANT CONTEXT' in system_content}, "
             f"Tools: {len(tools) if tools else 0}"
         )
-        
+
         self.total_requests += 1
 
         # Use settings from config (set via environment variables)

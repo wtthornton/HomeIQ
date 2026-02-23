@@ -1,9 +1,9 @@
 """API routes for Blueprint Suggestion Service."""
 
 import logging
-from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path as PathParam, Query
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
+from fastapi import Path as PathParam
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
@@ -55,7 +55,7 @@ def _suggestion_to_response(suggestion: BlueprintSuggestion) -> BlueprintSuggest
     # Use stored blueprint name/description, or empty string if not available
     blueprint_name = suggestion.blueprint_name or ""
     blueprint_description = suggestion.blueprint_description
-    
+
     return BlueprintSuggestionResponse(
         id=suggestion.id,
         blueprint_id=suggestion.blueprint_id,
@@ -103,7 +103,7 @@ async def delete_all_suggestions(
     except Exception as e:
         logger.error(f"Delete all suggestions failed: {e}", exc_info=True)
         await db.rollback()
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
 @router.get("/health/schema")
@@ -136,10 +136,10 @@ async def check_schema_health(db: AsyncSession = Depends(get_db)):
 
 @router.get("/suggestions", response_model=BlueprintSuggestionListResponse)
 async def get_suggestions(
-    min_score: Optional[float] = Query(default=None, ge=0.0, le=1.0),
-    use_case: Optional[str] = Query(default=None),
-    status: Optional[str] = Query(default=None),
-    blueprint_id: Optional[str] = Query(default=None),
+    min_score: float | None = Query(default=None, ge=0.0, le=1.0),
+    use_case: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    blueprint_id: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -205,13 +205,13 @@ async def get_suggestions(
         raise
     except Exception as e:
         logger.error(f"Get suggestions failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
 @router.post("/{suggestion_id}/accept", response_model=AcceptSuggestionResponse)
 async def accept_suggestion(
     suggestion_id: str = PathParam(..., pattern=r"^[0-9a-f\-]{36}$"),
-    conversation_id: Optional[str] = Query(default=None),
+    conversation_id: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     service: SuggestionService = Depends(get_suggestion_service),
 ):
@@ -256,7 +256,7 @@ async def accept_suggestion(
         raise
     except Exception as e:
         logger.error(f"Accept suggestion failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
 @router.post("/{suggestion_id}/decline")
@@ -286,7 +286,7 @@ async def decline_suggestion(
         raise
     except Exception as e:
         logger.error(f"Decline suggestion failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
 @router.get("/stats", response_model=SuggestionStatsResponse)
@@ -307,7 +307,7 @@ async def get_stats(
         return SuggestionStatsResponse(**stats)
     except Exception as e:
         logger.error(f"Get stats failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
 @router.post("/generate", response_model=GenerateSuggestionsResponse)
@@ -346,4 +346,4 @@ async def generate_suggestions(
         )
     except Exception as e:
         logger.error(f"Generate suggestions failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e

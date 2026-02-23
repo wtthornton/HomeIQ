@@ -24,7 +24,7 @@ class EntityRegistry:
     def __init__(self, db: AsyncSession):
         """
         Initialize EntityRegistry service
-        
+
         Args:
             db: Async database session
         """
@@ -36,10 +36,10 @@ class EntityRegistry:
     async def get_entities_by_device(self, device_id: str) -> list[EntityRegistryEntry]:
         """
         Get all entities for a device
-        
+
         Args:
             device_id: Device ID
-            
+
         Returns:
             List of EntityRegistryEntry instances
         """
@@ -82,10 +82,10 @@ class EntityRegistry:
     async def get_device_for_entity(self, entity_id: str) -> Device | None:
         """
         Get device for an entity
-        
+
         Args:
             entity_id: Entity ID
-            
+
         Returns:
             Device instance or None
         """
@@ -112,10 +112,10 @@ class EntityRegistry:
     async def get_sibling_entities(self, entity_id: str) -> list[EntityRegistryEntry]:
         """
         Get entities from same device (siblings)
-        
+
         Args:
             entity_id: Entity ID
-            
+
         Returns:
             List of EntityRegistryEntry instances (sibling entities)
         """
@@ -141,10 +141,10 @@ class EntityRegistry:
     async def get_entities_in_area(self, area_id: str) -> list[EntityRegistryEntry]:
         """
         Get all entities in an area
-        
+
         Args:
             area_id: Area ID
-            
+
         Returns:
             List of EntityRegistryEntry instances
         """
@@ -205,10 +205,10 @@ class EntityRegistry:
     async def get_entities_by_config_entry(self, config_entry_id: str) -> list[EntityRegistryEntry]:
         """
         Get entities by config entry ID
-        
+
         Args:
             config_entry_id: Config entry ID
-            
+
         Returns:
             List of EntityRegistryEntry instances
         """
@@ -269,10 +269,10 @@ class EntityRegistry:
     async def get_device_hierarchy(self, device_id: str) -> dict[str, Any]:
         """
         Get device hierarchy (via_device relationships)
-        
+
         Args:
             device_id: Device ID
-            
+
         Returns:
             Dictionary with device hierarchy information
         """

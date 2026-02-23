@@ -12,7 +12,7 @@ from .spec_registry import Base
 class SpecVersion(Base):
     """Database model for spec versions"""
     __tablename__ = "spec_versions"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     spec_id = Column(String, index=True, nullable=False)
     version = Column(String, nullable=False)

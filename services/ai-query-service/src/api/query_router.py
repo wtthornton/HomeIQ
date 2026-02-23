@@ -17,7 +17,8 @@ will be completed in Story 39.10.
 import logging
 import re
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,23 +64,23 @@ class QueryResponse(BaseModel):
 @router.post("/query", response_model=QueryResponse, status_code=status.HTTP_201_CREATED)
 async def process_query(
     request: QueryRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),  # noqa: ARG001
 ) -> QueryResponse:
     """
     Process natural language query and generate automation suggestions.
-    
+
     This is the main endpoint for the Ask AI tab.
-    
+
     Note: Full implementation will be migrated from ask_ai_router.py in Story 39.10.
     """
     logger.info(f"[QUERY] Processing query: {_sanitize_for_log(request.query)}...")
-    
+
     # TODO: Story 39.10 - Full implementation
     # - Entity extraction using UnifiedExtractionPipeline
     # - Clarification detection
     # - Suggestion generation
     # - Response optimization for <500ms P95 latency
-    
+
     # Placeholder response
     return QueryResponse(
         query_id=f"query-{uuid.uuid4().hex[:8]}",
@@ -93,15 +94,15 @@ async def process_query(
 @router.get("/query/{query_id}/suggestions")
 async def get_query_suggestions(
     query_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),  # noqa: ARG001
 ) -> dict:
     """
     Get all suggestions for a specific query.
-    
+
     Note: Full implementation will be migrated from ask_ai_router.py in Story 39.10.
     """
     logger.info(f"📋 Getting suggestions for query: {query_id}")
-    
+
     # TODO: Story 39.10 - Full implementation
     return {
         "query_id": query_id,
@@ -114,16 +115,16 @@ async def get_query_suggestions(
 @router.post("/query/{query_id}/refine")
 async def refine_query(
     query_id: str,
-    refinement: RefineRequest,
-    db: AsyncSession = Depends(get_db)
+    refinement: RefineRequest,  # noqa: ARG001
+    db: AsyncSession = Depends(get_db),  # noqa: ARG001
 ) -> dict:
     """
     Refine query results based on user feedback.
-    
+
     Note: Full implementation will be migrated from ask_ai_router.py in Story 39.10.
     """
     logger.info(f"✏️ Refining query: {query_id}")
-    
+
     # TODO: Story 39.10 - Full implementation
     return {
         "query_id": query_id,

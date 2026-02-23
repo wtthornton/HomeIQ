@@ -3,14 +3,11 @@ Trace Visualization Dashboard Page
 Visualize distributed traces across HomeIQ services
 """
 
-import asyncio
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
 
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -28,7 +25,7 @@ if "jaeger_client" not in st.session_state:
 def show() -> None:
     """
     Display trace visualization dashboard.
-    
+
     Shows distributed traces with filtering, visualization, and detailed inspection.
     """
     st.header("🔍 Trace Visualization")
@@ -78,7 +75,7 @@ def show() -> None:
 
         # Search
         trace_id_search = st.text_input("Search Trace ID")
-        correlation_id_search = st.text_input("Search Correlation ID")
+        st.text_input("Search Correlation ID")
 
     # Query traces
     if st.button("🔍 Query Traces", type="primary"):
@@ -157,10 +154,10 @@ def show() -> None:
         st.info("👆 Click 'Query Traces' to load traces")
 
 
-def _get_services_safe() -> List[Service]:
+def _get_services_safe() -> list[Service]:
     """
     Get services from Jaeger safely handling async operations.
-    
+
     Returns:
         List of services from Jaeger
     """
@@ -171,10 +168,10 @@ def _get_services_safe() -> List[Service]:
         return []
 
 
-async def _get_services() -> List[Service]:
+async def _get_services() -> list[Service]:
     """
     Get list of services from Jaeger.
-    
+
     Returns:
         List of Service objects
     """
@@ -183,22 +180,22 @@ async def _get_services() -> List[Service]:
 
 
 def _query_traces_safe(
-    service: Optional[str] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
+    service: str | None = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
     limit: int = 100,
-    trace_id: Optional[str] = None,
-) -> List[Trace]:
+    trace_id: str | None = None,
+) -> list[Trace]:
     """
     Query traces from Jaeger safely handling async operations.
-    
+
     Args:
         service: Optional service name filter
         start_time: Optional start time for query
         end_time: Optional end time for query
         limit: Maximum number of traces to return
         trace_id: Optional trace ID to get specific trace
-        
+
     Returns:
         List of Trace objects
     """
@@ -213,22 +210,22 @@ def _query_traces_safe(
 
 
 async def _query_traces(
-    service: Optional[str] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
+    service: str | None = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
     limit: int = 100,
-    trace_id: Optional[str] = None,
-) -> List[Trace]:
+    trace_id: str | None = None,
+) -> list[Trace]:
     """
     Query traces from Jaeger.
-    
+
     Args:
         service: Optional service name filter
         start_time: Optional start time for query
         end_time: Optional end time for query
         limit: Maximum number of traces to return
         trace_id: Optional trace ID to get specific trace
-        
+
     Returns:
         List of Trace objects
     """
@@ -257,7 +254,7 @@ def _has_errors(trace: Trace) -> bool:
     return False
 
 
-def _create_timeline_chart(traces: List[Trace]) -> go.Figure:
+def _create_timeline_chart(traces: list[Trace]) -> go.Figure:
     """Create timeline visualization of traces."""
     data = []
     for trace in traces:
@@ -315,7 +312,7 @@ def _create_timeline_chart(traces: List[Trace]) -> go.Figure:
     return fig
 
 
-def _create_dependency_graph(traces: List[Trace]) -> go.Figure:
+def _create_dependency_graph(traces: list[Trace]) -> go.Figure:
     """Create service dependency graph."""
     # Extract service dependencies from traces
     dependencies = {}
@@ -375,7 +372,7 @@ def _create_dependency_graph(traces: List[Trace]) -> go.Figure:
     return fig
 
 
-def _create_trace_dataframe(traces: List[Trace]) -> pd.DataFrame:
+def _create_trace_dataframe(traces: list[Trace]) -> pd.DataFrame:
     """Create DataFrame from traces."""
     data = []
     for trace in traces:
@@ -403,7 +400,7 @@ def _create_trace_dataframe(traces: List[Trace]) -> pd.DataFrame:
 def _show_trace_details(trace: Trace) -> None:
     """
     Show detailed trace information.
-    
+
     Args:
         trace: Trace object to display
     """

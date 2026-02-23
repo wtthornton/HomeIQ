@@ -46,14 +46,14 @@ class SetupAssistantService:
     ) -> dict[str, Any]:
         """
         Generate setup guide for a device.
-        
+
         Args:
             device_id: Device identifier
             device_name: Device name
             device_type: Device type
             integration: Integration name
             setup_instructions_url: External setup guide URL
-            
+
         Returns:
             Setup guide dictionary
         """
@@ -62,7 +62,7 @@ class SetupAssistantService:
             import sys
             sys.path.append(os.path.join(os.path.dirname(__file__), '../../../device-setup-assistant/src'))
             from setup_guide_generator import SetupGuideGenerator
-            
+
             generator = SetupGuideGenerator()
             return generator.generate_setup_guide(
                 device_id=device_id,
@@ -95,23 +95,23 @@ class SetupAssistantService:
     ) -> list[dict[str, Any]]:
         """
         Detect setup issues for a device.
-        
+
         Args:
             device_id: Device identifier
             device_name: Device name
             entity_ids: List of entity IDs
-            
+
         Returns:
             List of detected issues
         """
         if not self.ha_url or not self.ha_token:
             return []
-        
+
         try:
             import sys
             sys.path.append(os.path.join(os.path.dirname(__file__), '../../../device-setup-assistant/src'))
             from issue_detector import SetupIssueDetector
-            
+
             detector = SetupIssueDetector(self.ha_url, self.ha_token)
             issues = await detector.detect_setup_issues(
                 device_id=device_id,

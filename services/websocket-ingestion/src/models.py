@@ -33,7 +33,7 @@ class Device:
     def to_influx_point(self) -> dict[str, Any]:
         """
         Convert device to InfluxDB point format
-        
+
         Returns:
             Dictionary with measurement, tags, fields, and time
         """
@@ -57,10 +57,10 @@ class Device:
     def from_ha_device(cls, ha_device: dict[str, Any]) -> 'Device':
         """
         Create Device from Home Assistant device registry entry
-        
+
         Args:
             ha_device: Device dictionary from HA registry
-            
+
         Returns:
             Device instance
         """
@@ -97,7 +97,7 @@ class Entity:
     def to_influx_point(self) -> dict[str, Any]:
         """
         Convert entity to InfluxDB point format
-        
+
         Returns:
             Dictionary with measurement, tags, fields, and time
         """
@@ -121,10 +121,10 @@ class Entity:
     def from_ha_entity(cls, ha_entity: dict[str, Any]) -> 'Entity':
         """
         Create Entity from Home Assistant entity registry entry
-        
+
         Args:
             ha_entity: Entity dictionary from HA registry
-            
+
         Returns:
             Entity instance
         """
@@ -164,7 +164,7 @@ class ConfigEntry:
     def to_influx_point(self) -> dict[str, Any]:
         """
         Convert config entry to InfluxDB point format
-        
+
         Returns:
             Dictionary with measurement, tags, fields, and time
         """
@@ -186,10 +186,10 @@ class ConfigEntry:
     def from_ha_config_entry(cls, ha_entry: dict[str, Any]) -> 'ConfigEntry':
         """
         Create ConfigEntry from Home Assistant config entry
-        
+
         Args:
             ha_entry: Config entry dictionary from HA
-            
+
         Returns:
             ConfigEntry instance
         """

@@ -197,10 +197,10 @@ class EventRateMonitor:
     def _get_top_entities(self, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get top entities by event count
-        
+
         Args:
             limit: Maximum number of entities to return
-            
+
         Returns:
             List of dictionaries with entity information
         """

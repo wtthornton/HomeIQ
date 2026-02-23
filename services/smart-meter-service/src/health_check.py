@@ -17,7 +17,7 @@ class HealthCheckHandler:
         self.total_fetches = 0
         self.failed_fetches = 0
 
-    async def handle(self, request):
+    async def handle(self, _request):
         """Handle health check request"""
 
         uptime = (datetime.now() - self.start_time).total_seconds()

@@ -52,18 +52,18 @@ class SuggestionPipelineService:
             quality_threshold: Minimum quality score for suggestions (default: 0.6)
             max_suggestions_per_batch: Maximum suggestions per batch (default: 10)
             use_ai_generation: Use AI-powered generation (default: True)
-            
+
         Raises:
             PipelineInitializationError: If any required service fails to initialize
         """
         self.use_ai_generation = use_ai_generation and os.getenv("OPENAI_API_KEY")
-        
+
         try:
             self.context_service = context_service or ContextAnalysisService()
         except Exception as e:
             logger.error(f"Failed to initialize ContextAnalysisService: {e}", exc_info=True)
             raise PipelineInitializationError(f"ContextAnalysisService initialization failed: {e}") from e
-        
+
         # Initialize AI-powered prompt service (primary)
         if self.use_ai_generation:
             try:
@@ -76,20 +76,20 @@ class SuggestionPipelineService:
         else:
             self.ai_prompt_service = None
             logger.info("⚠️ AI prompt generation DISABLED (no OPENAI_API_KEY)")
-            
+
         # Initialize basic prompt service (fallback)
         try:
             self.prompt_service = prompt_service or PromptGenerationService()
         except Exception as e:
             logger.error(f"Failed to initialize PromptGenerationService: {e}", exc_info=True)
             raise PipelineInitializationError(f"PromptGenerationService initialization failed: {e}") from e
-            
+
         try:
             self.agent_client = agent_client or HAAgentClient()
         except Exception as e:
             logger.error(f"Failed to initialize HAAgentClient: {e}", exc_info=True)
             raise PipelineInitializationError(f"HAAgentClient initialization failed: {e}") from e
-            
+
         try:
             self.storage_service = storage_service or SuggestionStorageService()
         except Exception as e:
@@ -105,7 +105,7 @@ class SuggestionPipelineService:
             raise PipelineInitializationError("HAAgentClient is None after initialization")
         if self.storage_service is None:
             raise PipelineInitializationError("SuggestionStorageService is None after initialization")
-            
+
         self.quality_threshold = quality_threshold
         self.max_suggestions_per_batch = max_suggestions_per_batch
 
@@ -179,14 +179,14 @@ class SuggestionPipelineService:
                         context_analysis, max_prompts=self.max_suggestions_per_batch
                     )
                     generation_mode = "template"
-                
+
                 results["generation_mode"] = generation_mode
-                    
+
             except TypeError as e:
                 logger.error(f"TypeError in prompt generation: {e}", exc_info=True)
                 results["success"] = False
                 results["details"].append({
-                    "step": "prompt_generation", 
+                    "step": "prompt_generation",
                     "error": f"TypeError: {str(e)}",
                     "prompt_service_type": str(type(self.prompt_service)),
                 })
@@ -195,7 +195,7 @@ class SuggestionPipelineService:
                 logger.error(f"Error generating prompts: {e}", exc_info=True)
                 results["success"] = False
                 results["details"].append({
-                    "step": "prompt_generation", 
+                    "step": "prompt_generation",
                     "error": str(e),
                 })
                 return results
@@ -238,7 +238,7 @@ class SuggestionPipelineService:
                         check_duplicates=True,  # Prevent duplicate suggestions
                         duplicate_window_hours=24,  # Check last 24 hours
                     )
-                    
+
                     # Skip if duplicate (None returned)
                     if not suggestion:
                         logger.debug(f"Skipping duplicate prompt: {prompt_data.get('prompt', '')[:50]}...")

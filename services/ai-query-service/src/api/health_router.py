@@ -45,17 +45,17 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
 async def readiness_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """
     Readiness check with database connectivity verification.
-    
+
     Args:
         db: The database session dependency.
-    
+
     Returns:
         dict: Readiness status including database connection status.
     """
     try:
         # Test database connection
         await db.execute(text("SELECT 1"))
-        
+
         return {
             "status": "ready",
             "service": "ai-query-service",
@@ -77,7 +77,7 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
 async def liveness_check() -> dict[str, str]:
     """
     Liveness check endpoint.
-    
+
     Returns:
         dict: Liveness status information.
     """

@@ -54,16 +54,15 @@ class SynergiesClient:
                 "min_confidence": min_confidence,
                 "limit": limit
             }
-            
+
             if area:
                 params["area"] = area
 
             headers = {}
             if self.api_key:
                 headers["X-HomeIQ-API-Key"] = self.api_key
-            
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(
+
+            async with aiohttp.ClientSession(timeout=self.timeout) as session, session.get(
                     f"{self.base_url}/api/synergies",
                     params=params,
                     headers=headers
@@ -71,7 +70,7 @@ class SynergiesClient:
                     if response.status == 200:
                         data = await response.json()
                         synergies = data.get("data", {}).get("synergies", [])
-                        
+
                         # Filter by device_ids if provided
                         if device_ids:
                             filtered_synergies = []
@@ -81,13 +80,12 @@ class SynergiesClient:
                                 if any(did in synergy_device_ids for did in device_ids):
                                     filtered_synergies.append(synergy)
                             synergies = filtered_synergies
-                        
+
                         logger.info(f"Retrieved {len(synergies)} synergies from API")
                         return synergies
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"Failed to fetch synergies: {response.status} - {error_text}")
-                        return []
+                    error_text = await response.text()
+                    logger.error(f"Failed to fetch synergies: {response.status} - {error_text}")
+                    return []
         except Exception as e:
             logger.error(f"Error fetching synergies: {e}", exc_info=True)
             return []

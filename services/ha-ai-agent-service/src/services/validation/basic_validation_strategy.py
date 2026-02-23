@@ -118,9 +118,8 @@ class BasicValidationStrategy(ValidationStrategy):
                 action = automation_dict["action"]
                 if isinstance(action, list) and len(action) == 0:
                     errors.append("Action list cannot be empty")
-                elif isinstance(action, dict):
-                    if "service" not in action and "scene" not in action:
-                        errors.append("Action must have either 'service' or 'scene' field")
+                elif isinstance(action, dict) and "service" not in action and "scene" not in action:
+                    errors.append("Action must have either 'service' or 'scene' field")
 
             # Pattern detection for motion-based dimming automations
             dimming_warnings = self._detect_dimming_pattern_issues(automation_dict)
@@ -174,10 +173,10 @@ class BasicValidationStrategy(ValidationStrategy):
             all_entities = await self.tool_handler.data_api_client.fetch_entities()
             valid_entity_ids = {e.get("entity_id") for e in all_entities if e.get("entity_id")}
             invalid_entities = [
-                eid for eid in entities 
+                eid for eid in entities
                 if eid not in valid_entity_ids and not self.tool_handler._is_group_entity(eid)
             ]
-            
+
             if invalid_entities:
                 # Provide helpful error messages with suggestions (recommendation #8)
                 for invalid_entity in invalid_entities:
@@ -209,21 +208,21 @@ class BasicValidationStrategy(ValidationStrategy):
             Error message string with suggestions if available
         """
         entity_domain = invalid_entity.split(".")[0] if "." in invalid_entity else None
-        
+
         if entity_domain:
             similar_entities = [
-                eid for eid in valid_entity_ids 
-                if eid.startswith(f"{entity_domain}.") and 
+                eid for eid in valid_entity_ids
+                if eid.startswith(f"{entity_domain}.") and
                 abs(len(eid) - len(invalid_entity)) <= 3
             ][:3]  # Limit to 3 suggestions
-            
+
             if similar_entities:
                 suggestions = ", ".join(similar_entities)
                 return (
                     f"Invalid entity ID: '{invalid_entity}'. "
                     f"Did you mean: {suggestions}?"
                 )
-        
+
         return f"Invalid entity ID: '{invalid_entity}' (entity does not exist)"
 
     def _detect_dimming_pattern_issues(
@@ -300,7 +299,7 @@ class BasicValidationStrategy(ValidationStrategy):
                     repeat_block = seq_item["repeat"]
                     if isinstance(repeat_block, dict):
                         repeat_seq = repeat_block.get("sequence", [])
-                        
+
                         # Check if using brightness_step
                         has_brightness_step = False
                         for repeat_item in repeat_seq:
@@ -328,7 +327,6 @@ class BasicValidationStrategy(ValidationStrategy):
                                 next_item = sequence[repeat_index + 1]
                                 if isinstance(next_item, dict):
                                     service = next_item.get("service", "")
-                                    target = next_item.get("target", {})
                                     if service == "light.turn_off":
                                         has_turn_off_after = True
 
@@ -394,7 +392,7 @@ class BasicValidationStrategy(ValidationStrategy):
                             scene_id = data.get("scene_id")
                             if scene_id:
                                 scenes_created.append(scene_id)
-                        
+
                         # Check for scene.turn_on action
                         if action_type == "scene.turn_on":
                             target = action.get("target", {})
@@ -421,9 +419,9 @@ class BasicValidationStrategy(ValidationStrategy):
         # Check for scene ID mismatches
         if scenes_created or scenes_activated:
             created_scene_ids = set(scenes_created)
-            activated_scene_ids = set(
-                [s.replace("scene.", "") for s in scenes_activated]
-            )
+            activated_scene_ids = {
+                s.replace("scene.", "") for s in scenes_activated
+            }
 
             # Check for scenes activated but not created
             missing_scenes = activated_scene_ids - created_scene_ids

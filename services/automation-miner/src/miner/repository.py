@@ -23,7 +23,7 @@ class CorpusRepository:
     def __init__(self, session: AsyncSession):
         """
         Initialize repository with async session
-        
+
         Args:
             session: SQLAlchemy AsyncSession
         """
@@ -148,10 +148,10 @@ class CorpusRepository:
     async def get_by_id(self, automation_id: int) -> dict[str, Any] | None:
         """
         Get automation by ID
-        
+
         Args:
             automation_id: Database ID
-        
+
         Returns:
             Automation dictionary or None
         """
@@ -171,11 +171,11 @@ class CorpusRepository:
     ) -> CommunityAutomation | None:
         """
         Get automation by source and source_id
-        
+
         Args:
             source: 'discourse' or 'github'
             source_id: Unique source identifier
-        
+
         Returns:
             CommunityAutomation or None
         """
@@ -194,7 +194,7 @@ class CorpusRepository:
     ) -> list[dict[str, Any]]:
         """
         Search automations with filters
-        
+
         Args:
             filters: Dictionary with optional keys:
                 - device: Filter by device type
@@ -202,7 +202,7 @@ class CorpusRepository:
                 - use_case: Filter by use case
                 - min_quality: Minimum quality score
                 - limit: Maximum results
-        
+
         Returns:
             List of automation dictionaries
         """
@@ -260,11 +260,11 @@ class CorpusRepository:
     ) -> list[CommunityAutomation]:
         """
         Get all automations (optionally filtered)
-        
+
         Args:
             source: Optional source filter
             min_quality: Minimum quality score
-        
+
         Returns:
             List of CommunityAutomation instances
         """
@@ -339,7 +339,7 @@ class CorpusRepository:
     async def get_stats(self) -> dict[str, Any]:
         """
         Get corpus statistics
-        
+
         Returns:
             Dictionary with stats:
                 - total: Total automation count
@@ -405,8 +405,8 @@ class CorpusRepository:
             'avg_quality': round(avg_quality, 3),
             'device_count': len(unique_devices),
             'integration_count': len(unique_integrations),
-            'devices': sorted(list(unique_devices)),
-            'integrations': sorted(list(unique_integrations)),
+            'devices': sorted(unique_devices),
+            'integrations': sorted(unique_integrations),
             'by_use_case': by_use_case,
             'by_complexity': by_complexity,
             'blueprint_count': blueprint_count,
@@ -452,10 +452,10 @@ class CorpusRepository:
     ) -> bool:
         """
         Quick check if automation already exists
-        
+
         Args:
             metadata: AutomationMetadata to check
-        
+
         Returns:
             True if duplicate exists
         """
@@ -469,15 +469,15 @@ class CorpusRepository:
     ) -> int:
         """
         Prune low-quality automations that are old
-        
+
         Removes automations that:
         - Have quality_score < quality_threshold
         - Are older than age_days
-        
+
         Args:
             quality_threshold: Minimum quality score to keep
             age_days: Minimum age in days for pruning (only prune old low-quality items)
-        
+
         Returns:
             Number of automations pruned
         """

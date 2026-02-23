@@ -11,7 +11,7 @@ Responsibilities:
 import logging
 import os
 import sys
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 # Ensure shared modules are importable (Docker uses PYTHONPATH; local dev needs this)
@@ -23,14 +23,14 @@ except IndexError:
     pass  # Docker: PYTHONPATH already includes /app
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from .api.chat_endpoints import router as chat_router
 from .api.conversation_endpoints import router as conversation_router
-from .api.device_suggestions_endpoints import router as device_suggestions_router
 from .api.dependencies import set_services
+from .api.device_suggestions_endpoints import router as device_suggestions_router
 from .clients.data_api_client import DataAPIClient
 from .clients.ha_client import HomeAssistantClient
 from .config import Settings
@@ -74,46 +74,42 @@ ALLOWED_ORIGINS = _parse_allowed_origins()
 def _fix_database_permissions(settings: Settings) -> None:
     """
     Fix database directory permissions before initialization (Docker volume fix).
-    
+
     Args:
         settings: Application settings containing database URL
     """
     if not settings.database_url.startswith("sqlite"):
         return
-    
-    from pathlib import Path
+
     import os
     import stat
-    
+    from pathlib import Path
+
     path_str = settings.database_url.split("///")[-1]
     db_path = Path(path_str)
     data_dir = db_path.parent
-    
+
     # Fix permissions if directory exists (Docker volume might be root-owned)
     if not data_dir.exists():
         return
-    
+
     try:
         current_uid = os.getuid() if hasattr(os, 'getuid') else None
         current_gid = os.getgid() if hasattr(os, 'getgid') else None
-        
+
         # Try to fix directory permissions
-        os.chmod(data_dir, stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
+        data_dir.chmod(stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
         if current_uid is not None and current_uid != 0:
-            try:
+            with suppress(PermissionError, OSError):
                 os.chown(data_dir, current_uid, current_gid)
-            except (PermissionError, OSError):
-                pass  # Can't change ownership, but chmod should help
-        
+
         # Fix database file if it exists
         if db_path.exists():
-            os.chmod(db_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
+            db_path.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
             if current_uid is not None and current_uid != 0:
-                try:
+                with suppress(PermissionError, OSError):
                     os.chown(db_path, current_uid, current_gid)
-                except (PermissionError, OSError):
-                    pass
-        
+
         logger.info(f"✅ Fixed permissions for {data_dir}")
     except Exception as e:
         logger.warning(f"⚠️  Could not fix permissions (non-fatal): {e}")
@@ -132,7 +128,7 @@ async def lifespan(_app: FastAPI) -> None:
 
         # Fix database directory permissions before initialization (Docker volume fix)
         _fix_database_permissions(settings)
-        
+
         # Initialize database
         await init_database(settings.database_url)
         logger.info("✅ Database initialized")
@@ -152,7 +148,7 @@ async def lifespan(_app: FastAPI) -> None:
             base_url=settings.data_api_url,
             api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None
         )
-        
+
         # Initialize AI Automation Service client for consolidated YAML validation
         from .clients.ai_automation_client import AIAutomationClient
         ai_automation_client = AIAutomationClient(
@@ -160,7 +156,7 @@ async def lifespan(_app: FastAPI) -> None:
             api_key=settings.ai_automation_api_key.get_secret_value() if settings.ai_automation_api_key else None
         )
         logger.info(f"✅ AI Automation Service client initialized ({settings.ai_automation_service_url})")
-        
+
         # Initialize Hybrid Flow Client (Hybrid Flow Implementation)
         from .clients.hybrid_flow_client import HybridFlowClient
         hybrid_flow_client = HybridFlowClient(
@@ -168,7 +164,7 @@ async def lifespan(_app: FastAPI) -> None:
             api_key=settings.ai_automation_api_key.get_secret_value() if settings.ai_automation_api_key else None
         )
         logger.info(f"✅ Hybrid Flow client initialized ({settings.ai_automation_service_url})")
-        
+
         # Initialize YAML Validation Service client (Epic 51, Story 51.5)
         from .clients.yaml_validation_client import YAMLValidationClient
         yaml_validation_client = YAMLValidationClient(
@@ -176,16 +172,16 @@ async def lifespan(_app: FastAPI) -> None:
             api_key=settings.yaml_validation_api_key.get_secret_value() if settings.yaml_validation_api_key else None
         )
         logger.info(f"✅ YAML Validation Service client initialized ({settings.yaml_validation_service_url})")
-        
+
         # Initialize OpenAI client (Epic AI-20) - needed for tool service enhancements
         openai_client = OpenAIClient(settings)
         logger.info("✅ OpenAI client initialized")
-        
+
         tool_service = ToolService(
-            ha_client, 
-            data_api_client, 
-            ai_automation_client, 
-            yaml_validation_client, 
+            ha_client,
+            data_api_client,
+            ai_automation_client,
+            yaml_validation_client,
             openai_client.client if openai_client else None
         )
         # Update tool handler with hybrid flow client and settings
@@ -286,7 +282,7 @@ app.include_router(device_suggestions_router)
 async def health_check() -> dict:
     """
     Comprehensive health check endpoint.
-    
+
     Verifies all dependencies in a single call:
     - Database connectivity
     - Home Assistant connection
@@ -300,20 +296,20 @@ async def health_check() -> dict:
 
     try:
         from .services.health_check_service import HealthCheckService
-        
+
         health_service = HealthCheckService(settings, context_builder)
         health_result = await health_service.comprehensive_health_check()
         await health_service.close()
-        
+
         # Return appropriate status code based on overall health
         status_code = 503 if health_result["status"] == "unhealthy" else 200
         return JSONResponse(content=health_result, status_code=status_code)
-    except Exception:
+    except Exception as e:
         logger.exception("Error during health check")
         raise HTTPException(
             status_code=503,
             detail="Health check failed"
-        )
+        ) from e
 
 
 @app.get("/api/v1/context")
@@ -379,19 +375,19 @@ class ValidationRequest(BaseModel):
 async def validate_yaml(request: ValidationRequest) -> dict:
     """
     Validate automation YAML using validation chain.
-    
+
     This endpoint uses the validation chain which tries multiple validation strategies
     in order (YAML Validation Service, AI Automation Service, Basic Validation) until
     one succeeds or all fail. This provides graceful fallback when validation services
     are unavailable.
-    
+
     Args:
         request: Request body containing:
             - yaml_content: YAML string to validate
             - normalize: Optional, whether to normalize YAML (default: True)
             - validate_entities: Optional, whether to validate entities (default: True)
             - validate_services: Optional, whether to validate services (default: False)
-    
+
     Returns:
         Validation result with:
             - valid: Whether validation passed
@@ -405,14 +401,14 @@ async def validate_yaml(request: ValidationRequest) -> dict:
     """
     if not tool_service:
         raise HTTPException(status_code=503, detail="Service not ready")
-    
+
     try:
         # Use validation chain (handles fallback automatically)
         validation_result = await tool_service.tool_handler.validation_chain.validate(request.yaml_content)
-        
+
         # Convert to dict (includes strategy_name and services_unavailable if available)
         return validation_result.to_dict()
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -461,8 +457,7 @@ async def execute_tool(request: dict) -> dict:
         if not tool_name:
             raise HTTPException(status_code=400, detail="tool_name is required")
 
-        result = await tool_service.execute_tool(tool_name, arguments)
-        return result
+        return await tool_service.execute_tool(tool_name, arguments)
     except HTTPException:
         raise
     except Exception as e:
@@ -489,8 +484,7 @@ async def execute_tool_openai(request: dict) -> dict:
         raise HTTPException(status_code=503, detail="Service not ready")
 
     try:
-        result = await tool_service.execute_tool_call(request)
-        return result
+        return await tool_service.execute_tool_call(request)
     except Exception as e:
         logger.exception("Error executing tool call")
         raise HTTPException(status_code=500, detail="Failed to execute tool call") from e

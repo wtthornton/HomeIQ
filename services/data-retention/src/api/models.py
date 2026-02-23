@@ -2,8 +2,8 @@
 Pydantic models for data-retention API.
 """
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -11,20 +11,20 @@ class HealthResponse(BaseModel):
     """Health check response model."""
     status: str
     timestamp: str
-    service_status: Dict[str, Any]
-    storage_metrics: Optional[Dict[str, Any]] = None
+    service_status: dict[str, Any]
+    storage_metrics: dict[str, Any] | None = None
     active_alerts: int
-    alerts: List[Dict[str, Any]]
+    alerts: list[dict[str, Any]]
 
 
 class StatisticsResponse(BaseModel):
     """Service statistics response model."""
-    service_status: Dict[str, Any]
-    policy_statistics: Dict[str, Any]
-    cleanup_statistics: Optional[Dict[str, Any]] = None
-    storage_statistics: Optional[Dict[str, Any]] = None
-    compression_statistics: Optional[Dict[str, Any]] = None
-    backup_statistics: Optional[Dict[str, Any]] = None
+    service_status: dict[str, Any]
+    policy_statistics: dict[str, Any]
+    cleanup_statistics: dict[str, Any] | None = None
+    storage_statistics: dict[str, Any] | None = None
+    compression_statistics: dict[str, Any] | None = None
+    backup_statistics: dict[str, Any] | None = None
 
 
 class RetentionPolicyModel(BaseModel):
@@ -33,12 +33,12 @@ class RetentionPolicyModel(BaseModel):
     retention_period: int
     retention_unit: str = Field(default="days", description="Retention unit: days, weeks, months, years")
     enabled: bool = True
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class PolicyListResponse(BaseModel):
     """Policy list response model."""
-    policies: List[Dict[str, Any]]
+    policies: list[dict[str, Any]]
 
 
 class PolicyCreateRequest(BaseModel):
@@ -47,16 +47,16 @@ class PolicyCreateRequest(BaseModel):
     retention_period: int
     retention_unit: str = Field(default="days", description="Retention unit: days, weeks, months, years")
     enabled: bool = True
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class PolicyUpdateRequest(BaseModel):
     """Request model for updating a retention policy."""
     name: str  # Required for update
-    retention_period: Optional[int] = None
-    retention_unit: Optional[str] = None
-    enabled: Optional[bool] = None
-    description: Optional[str] = None
+    retention_period: int | None = None
+    retention_unit: str | None = None
+    enabled: bool | None = None
+    description: str | None = None
 
 
 class PolicyResponse(BaseModel):
@@ -66,12 +66,12 @@ class PolicyResponse(BaseModel):
 
 class CleanupRequest(BaseModel):
     """Request model for cleanup operation."""
-    policy_name: Optional[str] = None
+    policy_name: str | None = None
 
 
 class CleanupResponse(BaseModel):
     """Cleanup operation response model."""
-    results: List[Dict[str, Any]]
+    results: list[dict[str, Any]]
 
 
 class BackupCreateRequest(BaseModel):
@@ -115,15 +115,15 @@ class RestoreResponse(BaseModel):
 
 class BackupHistoryResponse(BaseModel):
     """Backup history response model."""
-    backups: List[Dict[str, Any]]
+    backups: list[dict[str, Any]]
 
 
 class BackupStatisticsResponse(BaseModel):
     """Backup statistics response model."""
     total_backups: int
     total_size_bytes: int
-    oldest_backup: Optional[str] = None
-    newest_backup: Optional[str] = None
+    oldest_backup: str | None = None
+    newest_backup: str | None = None
 
 
 class CleanupBackupsRequest(BaseModel):
@@ -139,12 +139,12 @@ class CleanupBackupsResponse(BaseModel):
 
 class RetentionStatsResponse(BaseModel):
     """Retention statistics response model."""
-    metrics: Dict[str, Any]
+    metrics: dict[str, Any]
 
 
 class RetentionOperationResponse(BaseModel):
     """Retention operation response model."""
     success: bool
-    message: Optional[str] = None
-    result: Optional[Dict[str, Any]] = None
+    message: str | None = None
+    result: dict[str, Any] | None = None
 

@@ -6,7 +6,7 @@ Phase 1.1: Enhanced with device intelligence fields
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, JSON, String, Text
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, String, Text
 from sqlalchemy.orm import relationship
 
 from ..database import Base

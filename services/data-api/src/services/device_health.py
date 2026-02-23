@@ -5,7 +5,7 @@ Phase 1.2: Health analysis for devices
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import aiohttp
@@ -46,13 +46,13 @@ class DeviceHealthService:
     ) -> dict[str, Any]:
         """
         Get health report for a device.
-        
+
         Args:
             device_id: Device identifier
             device_name: Device name
             entity_ids: List of entity IDs for this device
             power_spec_w: Expected power consumption
-            
+
         Returns:
             Health report dictionary
         """

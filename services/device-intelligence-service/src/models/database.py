@@ -271,23 +271,23 @@ class ZigbeeDeviceMetadata(Base):
 
     device_id: Mapped[str] = mapped_column(String, ForeignKey('devices.id', ondelete='CASCADE'), primary_key=True)
     ieee_address: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    
+
     # Device identification
     model_id: Mapped[str | None] = mapped_column(String)
     manufacturer_code: Mapped[str | None] = mapped_column(String)
     date_code: Mapped[str | None] = mapped_column(String)
     hardware_version: Mapped[str | None] = mapped_column(String)
     software_build_id: Mapped[str | None] = mapped_column(String)
-    
+
     # Network information
     network_address: Mapped[int | None] = mapped_column(Integer)  # Zigbee network address
     supported: Mapped[bool] = mapped_column(Boolean, default=True)
     interview_completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    
+
     # Configuration
     definition_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)  # Full device definition
     settings_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)  # Device settings
-    
+
     # Timestamps
     last_seen_zigbee: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())

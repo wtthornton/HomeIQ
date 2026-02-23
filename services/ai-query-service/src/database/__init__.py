@@ -27,7 +27,7 @@ if "sqlite" in settings.database_url:
         },
         echo=False,
     )
-    
+
     # Set PRAGMA settings on connection pool initialization
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(dbapi_conn, connection_record):

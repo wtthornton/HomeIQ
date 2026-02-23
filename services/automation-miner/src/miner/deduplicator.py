@@ -20,7 +20,7 @@ class Deduplicator:
     def __init__(self, similarity_threshold: float = None):
         """
         Initialize deduplicator
-        
+
         Args:
             similarity_threshold: Minimum similarity score (0.0-1.0) to consider duplicates
                                  Default from settings (0.85 = 85% similar)
@@ -53,11 +53,11 @@ class Deduplicator:
     def calculate_title_similarity(self, title1: str, title2: str) -> float:
         """
         Calculate similarity between two titles using fuzzy matching
-        
+
         Args:
             title1: First title
             title2: Second title
-        
+
         Returns:
             Similarity score (0.0-1.0)
         """
@@ -74,11 +74,11 @@ class Deduplicator:
     ) -> bool:
         """
         Check if two automations are duplicates
-        
+
         Args:
             metadata: New automation to check
             existing: Existing automation in corpus
-        
+
         Returns:
             True if duplicate, False otherwise
         """
@@ -125,11 +125,11 @@ class Deduplicator:
     ) -> list[AutomationMetadata]:
         """
         Find all duplicates of an automation in existing corpus
-        
+
         Args:
             metadata: Automation to check
             existing_automations: List of existing automations
-        
+
         Returns:
             List of duplicate automations
         """
@@ -147,12 +147,12 @@ class Deduplicator:
     ) -> AutomationMetadata:
         """
         Select the best automation from a list of duplicates
-        
+
         Criteria: highest quality_score
-        
+
         Args:
             automations: List of duplicate automations
-        
+
         Returns:
             Best automation
         """
@@ -178,11 +178,11 @@ class Deduplicator:
     ) -> list[AutomationMetadata]:
         """
         Deduplicate a batch of new automations against existing corpus
-        
+
         Args:
             new_automations: List of new automations to add
             existing_automations: Existing corpus
-        
+
         Returns:
             Deduplicated list of automations to add
         """

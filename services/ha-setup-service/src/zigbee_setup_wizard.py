@@ -120,10 +120,10 @@ class Zigbee2MQTTSetupWizard:
     async def start_setup_wizard(self, request: SetupWizardRequest) -> SetupWizardResponse:
         """
         Start a new Zigbee2MQTT setup wizard
-        
+
         Args:
             request: Setup wizard configuration request
-            
+
         Returns:
             Initial wizard response with first step
         """
@@ -151,10 +151,10 @@ class Zigbee2MQTTSetupWizard:
     async def continue_wizard(self, wizard_id: str) -> SetupWizardResponse:
         """
         Continue the setup wizard to the next step
-        
+
         Args:
             wizard_id: Wizard identifier
-            
+
         Returns:
             Updated wizard response
         """

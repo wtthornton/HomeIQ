@@ -106,11 +106,11 @@ class DevicesSummaryService:
 
             # Initialize device capabilities dict (Phase 2.1)
             device_capabilities: dict[str, dict[str, Any]] = {}
-            
+
             # Fetch entities to count entities per device and aggregate capabilities
             try:
                 entities = await self.data_api_client.fetch_entities(limit=10000)
-                
+
                 # Count entities per device
                 device_entity_count: dict[str, int] = defaultdict(int)
                 # Phase 2.1: Aggregate device capabilities from entities
@@ -119,12 +119,12 @@ class DevicesSummaryService:
                     "color_modes": set(),
                     "presets": set()
                 })
-                
+
                 for entity in entities:
                     device_id = entity.get("device_id")
                     if device_id:
                         device_entity_count[device_id] += 1
-                        
+
                         # Phase 2.1: Aggregate capabilities from entity attributes
                         attributes = entity.get("attributes", {})
                         if "effect_list" in attributes:
@@ -150,7 +150,7 @@ class DevicesSummaryService:
                             device_capabilities[device_id]["color_temp_range"] = (
                                 attributes["min_color_temp"], attributes["max_color_temp"]
                             )
-                
+
                 logger.debug(f"✅ Counted entities for {len(device_entity_count)} devices")
                 logger.debug(f"✅ Aggregated capabilities for {len(device_capabilities)} devices")
             except Exception as e:
@@ -191,13 +191,13 @@ class DevicesSummaryService:
             devices_skipped_no_id = 0
             devices_with_area = 0
             devices_without_area = 0
-            
+
             # Debug: Check first device structure
             if devices:
                 first_device_keys = list(devices[0].keys())
                 logger.info(f"📱 First device keys: {first_device_keys}")
                 logger.info(f"📱 First device sample: device_id={devices[0].get('device_id')}, area_id={devices[0].get('area_id')}, name={devices[0].get('name')}")
-            
+
             for device in devices:
                 device_id = device.get("device_id")
                 if not device_id:
@@ -212,14 +212,14 @@ class DevicesSummaryService:
                 area_id = device.get("area_id")
                 # Prefer entity_count from device response, fallback to manual count
                 entity_count = device.get("entity_count") or device_entity_count.get(device_id, 0)
-                
+
                 # Phase 1.1: Get device health score (if available)
                 health_score = device.get("health_score")
-                
+
                 # Phase 1.2: Get device description/relationships (if available)
                 device_description = device.get("device_description")
                 device_type = device.get("device_type")
-                
+
                 # Phase 1.2: Fetch device context from Device Intelligence Service if description missing
                 if not device_description and self.device_intelligence_client.enabled:
                     try:
@@ -246,7 +246,7 @@ class DevicesSummaryService:
                     except Exception as e:
                         logger.debug(f"⚠️ Could not fetch device context for {device_id}: {e}")
                         # Continue without device description - not critical
-                
+
                 # Phase 2.4: Get energy consumption data from device (if available)
                 power_w = device.get("power_consumption_active_w")
                 daily_kwh = None
@@ -284,7 +284,7 @@ class DevicesSummaryService:
                     # Try matching by IEEE address if available in device identifiers
                     # This would require checking device connections/identifiers
                     pass
-                
+
                 if zigbee_meta:
                     device_info.update(zigbee_meta)
 
@@ -294,11 +294,11 @@ class DevicesSummaryService:
                 else:
                     unassigned_devices.append(device_info)
                     devices_without_area += 1
-                
+
                 devices_processed += 1
 
             logger.info(f"📱 Grouped devices: {devices_processed} processed, {devices_skipped_no_id} skipped (no device_id), {devices_with_area} with area, {devices_without_area} without area, {len(devices_by_area)} areas with devices, {len(unassigned_devices)} unassigned")
-            
+
             # Format devices by area
             summary_parts = []
 
@@ -307,7 +307,7 @@ class DevicesSummaryService:
                 devices_by_area.keys(),
                 key=lambda a: area_name_map.get(a, a).lower()
             )
-            
+
             logger.info(f"📱 Formatting summary: {len(sorted_areas)} areas, {len(unassigned_devices)} unassigned devices, area_name_map has {len(area_name_map)} entries")
 
             # Format devices in each area
@@ -322,24 +322,24 @@ class DevicesSummaryService:
                     area_devices.sort(key=lambda d: d["name"].lower())
 
                     area_parts = [f"{area_name} ({len(area_devices)} devices):"]
-                    
+
                     # Limit devices per area for token efficiency (unless skipping truncation)
                     device_limit = len(area_devices) if skip_truncation else min(20, len(area_devices))
-                    
+
                     for device in area_devices[:device_limit]:
                         # Format: "Device Name (manufacturer model) [X entities]"
                         device_line_parts = [device["name"]]
-                        
+
                         # Add manufacturer/model if available
                         if device["manufacturer"] != "Unknown" or device["model"] != "Unknown":
                             manufacturer_model = f"{device['manufacturer']} {device['model']}".strip()
                             if manufacturer_model and manufacturer_model != "Unknown Unknown":
                                 device_line_parts.append(f"({manufacturer_model})")
-                        
+
                         # Add entity count if available
                         if device["entity_count"] > 0:
                             device_line_parts.append(f"[{device['entity_count']} entities]")
-                        
+
                         # Phase 1.1: Add health score if available
                         if device.get("health_score") is not None:
                             health_score = device["health_score"]
@@ -348,11 +348,11 @@ class DevicesSummaryService:
                                 device_line_parts.append(f"[⚠️ health_score: {health_score}]")
                             else:
                                 device_line_parts.append(f"[health_score: {health_score}]")
-                        
+
                         # Phase 1.2: Add device description/relationships if available
                         if device.get("device_description"):
                             device_line_parts.append(f"[{device['device_description']}]")
-                        
+
                         # Phase 2.1: Add device capabilities summary if available
                         device_id_for_caps = device["device_id"]
                         if device_id_for_caps in device_capabilities:
@@ -373,10 +373,10 @@ class DevicesSummaryService:
                             if "color_temp_range" in caps:
                                 min_temp, max_temp = caps["color_temp_range"]
                                 caps_parts.append(f"color_temp: {min_temp}-{max_temp}")
-                            
+
                             if caps_parts:
                                 device_line_parts.append(f"[{', '.join(caps_parts)}]")
-                        
+
                         # Phase 2.4: Add energy consumption data if available
                         power_w = device.get("power_consumption_active_w")
                         daily_kwh = device.get("daily_kwh")
@@ -389,7 +389,7 @@ class DevicesSummaryService:
                                 estimated_daily = round((power_w * 24) / 1000, 2)
                                 energy_parts.append(f"daily: ~{estimated_daily}kWh")
                             device_line_parts.append(f"[{', '.join(energy_parts)}]")
-                        
+
                         # Add Zigbee2MQTT information if available
                         zigbee_info_parts = []
                         if device.get("lqi") is not None:
@@ -402,18 +402,18 @@ class DevicesSummaryService:
                             zigbee_info_parts.append(f"Battery: {device['battery_level']}%")
                         if device.get("battery_low"):
                             zigbee_info_parts.append("Battery Low")
-                        
+
                         if zigbee_info_parts:
                             device_line_parts.append(f"[{', '.join(zigbee_info_parts)}]")
-                        
+
                         # Add device_id for reference
                         device_line_parts.append(f"[id: {device['device_id']}]")
-                        
+
                         area_parts.append(f"  - {' '.join(device_line_parts)}")
-                    
+
                     if not skip_truncation and len(area_devices) > 20:
                         area_parts.append(f"  ... and {len(area_devices) - 20} more devices")
-                    
+
                     summary_parts.append("\n".join(area_parts))
                     logger.debug(f"📱 Added area {area_id} to summary ({len(area_parts)} lines)")
                 except Exception as e:
@@ -423,19 +423,19 @@ class DevicesSummaryService:
             if unassigned_devices:
                 unassigned_devices.sort(key=lambda d: d["name"].lower())
                 unassigned_limit = len(unassigned_devices) if skip_truncation else min(20, len(unassigned_devices))
-                
+
                 unassigned_parts = [f"Unassigned ({len(unassigned_devices)} devices):"]
                 for device in unassigned_devices[:unassigned_limit]:
                     device_line_parts = [device["name"]]
-                    
+
                     if device["manufacturer"] != "Unknown" or device["model"] != "Unknown":
                         manufacturer_model = f"{device['manufacturer']} {device['model']}".strip()
                         if manufacturer_model and manufacturer_model != "Unknown Unknown":
                             device_line_parts.append(f"({manufacturer_model})")
-                    
+
                     if device["entity_count"] > 0:
                         device_line_parts.append(f"[{device['entity_count']} entities]")
-                    
+
                     # Phase 1.1: Add health score if available
                     if device.get("health_score") is not None:
                         health_score = device["health_score"]
@@ -444,11 +444,11 @@ class DevicesSummaryService:
                             device_line_parts.append(f"[⚠️ health_score: {health_score}]")
                         else:
                             device_line_parts.append(f"[health_score: {health_score}]")
-                    
+
                     # Phase 1.2: Add device description/relationships if available
                     if device.get("device_description"):
                         device_line_parts.append(f"[{device['device_description']}]")
-                    
+
                     # Phase 2.1: Add device capabilities summary if available
                     device_id_for_caps = device["device_id"]
                     if device_id_for_caps in device_capabilities:
@@ -469,10 +469,10 @@ class DevicesSummaryService:
                         if "color_temp_range" in caps:
                             min_temp, max_temp = caps["color_temp_range"]
                             caps_parts.append(f"color_temp: {min_temp}-{max_temp}")
-                        
+
                         if caps_parts:
                             device_line_parts.append(f"[{', '.join(caps_parts)}]")
-                    
+
                     # Phase 2.4: Add energy consumption data if available
                     power_w = device.get("power_consumption_active_w")
                     daily_kwh = device.get("daily_kwh")
@@ -485,7 +485,7 @@ class DevicesSummaryService:
                             estimated_daily = round((power_w * 24) / 1000, 2)
                             energy_parts.append(f"daily: ~{estimated_daily}kWh")
                         device_line_parts.append(f"[{', '.join(energy_parts)}]")
-                    
+
                     # Add Zigbee2MQTT information if available
                     zigbee_info_parts = []
                     if device.get("lqi") is not None:
@@ -498,27 +498,27 @@ class DevicesSummaryService:
                         zigbee_info_parts.append(f"Battery: {device['battery_level']}%")
                     if device.get("battery_low"):
                         zigbee_info_parts.append("Battery Low")
-                    
+
                     if zigbee_info_parts:
                         device_line_parts.append(f"[{', '.join(zigbee_info_parts)}]")
-                    
+
                     device_line_parts.append(f"[id: {device['device_id']}]")
                     unassigned_parts.append(f"  - {' '.join(device_line_parts)}")
-                
+
                 if not skip_truncation and len(unassigned_devices) > 20:
                     unassigned_parts.append(f"  ... and {len(unassigned_devices) - 20} more devices")
-                
+
                 summary_parts.append("\n".join(unassigned_parts))
 
             summary = "\n\n".join(summary_parts)
-            
+
             logger.info(f"📱 Summary built: {len(summary_parts)} parts, {len(summary)} chars")
 
             # Truncate if too long (optimized: max 4000 chars for token efficiency)
             # Skip truncation for debug display
             if not skip_truncation and len(summary) > 4000:
                 summary = summary[:4000] + "\n... (truncated)"
-                logger.info(f"📱 Summary truncated to 4000 chars")
+                logger.info("📱 Summary truncated to 4000 chars")
 
             # Cache the result (only if not skipping truncation)
             if not skip_truncation:

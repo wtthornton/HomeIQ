@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class InfluxDBClient(Protocol):
     """Protocol for InfluxDB client interface."""
-    
+
     async def write_point(
         self,
         measurement: str,
@@ -25,7 +25,7 @@ class InfluxDBClient(Protocol):
     ) -> None:
         """Write a single point to InfluxDB."""
         ...
-    
+
     async def query(self, query: str) -> list[dict[str, Any]]:
         """Execute a query and return results."""
         ...
@@ -34,7 +34,7 @@ class InfluxDBClient(Protocol):
 @dataclass
 class MetricPoint:
     """Represents a single metric data point."""
-    
+
     measurement: str
     tags: dict[str, str]
     fields: dict[str, Any]
@@ -44,10 +44,10 @@ class MetricPoint:
 class MetricsCollector:
     """
     Collects metrics and writes them to storage.
-    
+
     Supports both in-memory storage and InfluxDB for persistence.
     """
-    
+
     def __init__(
         self,
         influx_client: InfluxDBClient | None = None,
@@ -55,7 +55,7 @@ class MetricsCollector:
     ):
         """
         Initialize metrics collector.
-        
+
         Args:
             influx_client: Optional InfluxDB client for persistent storage
             bucket: InfluxDB bucket name
@@ -63,12 +63,12 @@ class MetricsCollector:
         self.influx_client = influx_client
         self.bucket = bucket
         self._in_memory_metrics: list[MetricPoint] = []
-        
+
         logger.info(
             f"MetricsCollector initialized "
             f"(InfluxDB: {'enabled' if influx_client else 'disabled'})"
         )
-    
+
     async def record_deployment(
         self,
         automation_id: str,
@@ -78,7 +78,7 @@ class MetricsCollector:
     ) -> None:
         """
         Record an automation deployment metric.
-        
+
         Args:
             automation_id: Home Assistant automation ID
             blueprint_id: Optional blueprint ID
@@ -100,9 +100,9 @@ class MetricsCollector:
             },
             timestamp=datetime.utcnow(),
         )
-        
+
         await self._write_point(point)
-    
+
     async def record_execution(
         self,
         automation_id: str,
@@ -112,7 +112,7 @@ class MetricsCollector:
     ) -> None:
         """
         Record an automation execution metric.
-        
+
         Args:
             automation_id: Home Assistant automation ID
             success: Whether execution was successful
@@ -134,9 +134,9 @@ class MetricsCollector:
             },
             timestamp=datetime.utcnow(),
         )
-        
+
         await self._write_point(point)
-    
+
     async def record_rating(
         self,
         automation_id: str,
@@ -145,7 +145,7 @@ class MetricsCollector:
     ) -> None:
         """
         Record a user rating metric.
-        
+
         Args:
             automation_id: Home Assistant automation ID
             rating: User rating (1-5)
@@ -163,9 +163,9 @@ class MetricsCollector:
             },
             timestamp=datetime.utcnow(),
         )
-        
+
         await self._write_point(point)
-    
+
     async def record_synergy_view(
         self,
         synergy_id: str,
@@ -173,7 +173,7 @@ class MetricsCollector:
     ) -> None:
         """
         Record a synergy view metric (for adoption tracking).
-        
+
         Args:
             synergy_id: Synergy identifier
             synergy_type: Type of synergy
@@ -189,16 +189,16 @@ class MetricsCollector:
             },
             timestamp=datetime.utcnow(),
         )
-        
+
         await self._write_point(point)
-    
+
     async def get_adoption_rate(self, days: int = 30) -> dict[str, Any]:
         """
         Calculate adoption rate over the specified period.
-        
+
         Args:
             days: Number of days to analyze
-            
+
         Returns:
             Dictionary with adoption metrics
         """
@@ -212,10 +212,10 @@ class MetricsCollector:
                 |> count()
             """
             results = await self.influx_client.query(query)
-            
+
             synergy_views = sum(r.get("_value", 0) for r in results if r.get("_measurement") == "synergy_view")
             deployments = sum(r.get("_value", 0) for r in results if r.get("_measurement") == "automation_deployment")
-            
+
             return {
                 "period_days": days,
                 "synergy_views": synergy_views,
@@ -227,10 +227,10 @@ class MetricsCollector:
             # Calculate from in-memory metrics
             cutoff = datetime.utcnow() - timedelta(days=days)
             period_metrics = [m for m in self._in_memory_metrics if m.timestamp >= cutoff]
-            
+
             synergy_views = len([m for m in period_metrics if m.measurement == "synergy_view"])
             deployments = len([m for m in period_metrics if m.measurement == "automation_deployment"])
-            
+
             return {
                 "period_days": days,
                 "synergy_views": synergy_views,
@@ -238,14 +238,14 @@ class MetricsCollector:
                 "adoption_rate": (deployments / synergy_views * 100) if synergy_views > 0 else 0.0,
                 "target": 30.0,
             }
-    
+
     async def get_success_rate(self, days: int = 30) -> dict[str, Any]:
         """
         Calculate success rate over the specified period.
-        
+
         Args:
             days: Number of days to analyze
-            
+
         Returns:
             Dictionary with success metrics
         """
@@ -258,11 +258,11 @@ class MetricsCollector:
                 |> count()
             """
             results = await self.influx_client.query(query)
-            
+
             successes = sum(r.get("_value", 0) for r in results if r.get("success") == "true")
             failures = sum(r.get("_value", 0) for r in results if r.get("success") == "false")
             total = successes + failures
-            
+
             return {
                 "period_days": days,
                 "total_executions": total,
@@ -277,11 +277,11 @@ class MetricsCollector:
                 m for m in self._in_memory_metrics
                 if m.measurement == "automation_execution" and m.timestamp >= cutoff
             ]
-            
+
             successes = sum(m.fields.get("success", 0) for m in period_metrics)
             failures = sum(m.fields.get("failure", 0) for m in period_metrics)
             total = successes + failures
-            
+
             return {
                 "period_days": days,
                 "total_executions": total,
@@ -290,14 +290,14 @@ class MetricsCollector:
                 "success_rate": (successes / total * 100) if total > 0 else 0.0,
                 "target": 85.0,
             }
-    
+
     async def get_average_rating(self, days: int = 30) -> dict[str, Any]:
         """
         Calculate average user rating over the specified period.
-        
+
         Args:
             days: Number of days to analyze
-            
+
         Returns:
             Dictionary with rating metrics
         """
@@ -309,10 +309,10 @@ class MetricsCollector:
                 |> mean(column: "rating")
             """
             results = await self.influx_client.query(query)
-            
+
             avg_rating = results[0].get("_value", 0.0) if results else 0.0
             count = len(results)
-            
+
             return {
                 "period_days": days,
                 "total_ratings": count,
@@ -325,21 +325,21 @@ class MetricsCollector:
                 m for m in self._in_memory_metrics
                 if m.measurement == "automation_rating" and m.timestamp >= cutoff
             ]
-            
+
             ratings = [m.fields.get("rating", 0) for m in period_metrics]
-            
+
             return {
                 "period_days": days,
                 "total_ratings": len(ratings),
                 "average_rating": sum(ratings) / len(ratings) if ratings else 0.0,
                 "target": 4.0,
             }
-    
+
     async def _write_point(self, point: MetricPoint) -> None:
         """Write a metric point to storage."""
         # Always store in memory
         self._in_memory_metrics.append(point)
-        
+
         # Write to InfluxDB if available
         if self.influx_client:
             try:
@@ -351,27 +351,27 @@ class MetricsCollector:
                 )
             except Exception as e:
                 logger.error(f"Failed to write metric to InfluxDB: {e}")
-    
+
     def cleanup_old_metrics(self, days: int = 90) -> int:
         """
         Remove old in-memory metrics.
-        
+
         Args:
             days: Retention period in days
-            
+
         Returns:
             Number of metrics removed
         """
         cutoff = datetime.utcnow() - timedelta(days=days)
         original_count = len(self._in_memory_metrics)
-        
+
         self._in_memory_metrics = [
             m for m in self._in_memory_metrics
             if m.timestamp >= cutoff
         ]
-        
+
         removed = original_count - len(self._in_memory_metrics)
         if removed > 0:
             logger.info(f"Cleaned up {removed} old metrics")
-        
+
         return removed

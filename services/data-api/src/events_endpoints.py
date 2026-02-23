@@ -8,12 +8,13 @@ import logging
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import aiohttp
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(str(Path(__file__).resolve().parent, '../../shared'))
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
@@ -101,7 +102,7 @@ class EventsEndpoints:
         ):
             """
             Get event categories with counts.
-            
+
             Uses home type to determine category mappings.
             Returns category distribution for the specified time period.
             """
@@ -223,17 +224,17 @@ class EventsEndpoints:
         ):
             """
             Trace automation chain by following context.parent_id relationships
-            
+
             This endpoint finds all events in an automation chain by:
             1. Starting with the provided context_id
             2. Finding all events that have this context_id as their parent
             3. Recursively following the chain up to max_depth levels
-            
+
             Args:
                 context_id: The context ID to trace
                 max_depth: Maximum depth to traverse (default: 10)
                 include_details: Whether to include full event details (default: True)
-            
+
             Returns:
                 List of events in the automation chain, ordered by depth
             """
@@ -270,15 +271,15 @@ class EventsEndpoints:
         ):
             """
             Get recent events with optional filtering
-            
+
             Epic 23.2: Supports filtering by device_id and area_id for spatial analytics
             - device_id: Filter events from a specific device
             - area_id: Filter events from a specific room/area
-            
+
             Epic 23.4: Supports filtering by entity_category to show/hide diagnostic and config entities
             - entity_category: Include only entities with this category
             - exclude_category: Exclude entities with this category (commonly 'diagnostic')
-            
+
             Home Type Integration: Supports filtering by event_category based on home type
             - event_category: Filter by event category (security, climate, lighting, appliance, monitoring, general)
             - home_type: Use home type for category mapping
@@ -393,7 +394,7 @@ class EventsEndpoints:
         # Fallback: query downstream services (legacy compatibility)
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
                     async with session.get(f"{service_url}/events/{event_id}") as response:
                         if response.status == 200:
                             data = await response.json()
@@ -592,7 +593,7 @@ from(bucket: "{influxdb_bucket}")
 
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
                     async with session.post(f"{service_url}/events/search", json=search.model_dump()) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -620,7 +621,7 @@ from(bucket: "{influxdb_bucket}")
             "services": {}
         }
 
-        for service_name, service_url in self.service_urls.items():
+        for service_name, _service_url in self.service_urls.items():
             try:
                 stats = await self._get_service_events_stats(service_name, period)
                 all_stats["services"][service_name] = stats
@@ -657,7 +658,7 @@ from(bucket: "{influxdb_bucket}")
         """Get active entities from all services"""
         all_entities = []
 
-        for service_name, service_url in self.service_urls.items():
+        for service_name, _service_url in self.service_urls.items():
             try:
                 entities = await self._get_service_active_entities(service_name, limit)
                 for entity in entities:
@@ -698,7 +699,7 @@ from(bucket: "{influxdb_bucket}")
         """Get event types from all services"""
         all_event_types = {}
 
-        for service_name, service_url in self.service_urls.items():
+        for service_name, _service_url in self.service_urls.items():
             try:
                 event_types = await self._get_service_event_types(service_name, limit)
                 for event_type in event_types:
@@ -765,11 +766,11 @@ from(bucket: "{influxdb_bucket}")
     async def _get_event_categories(self, home_type: str | None, hours: int) -> dict[str, Any]:
         """
         Get event categories with counts.
-        
+
         Args:
             home_type: Optional home type for category mapping
             hours: Hours of history to analyze
-            
+
         Returns:
             Dictionary with category counts and distribution
         """
@@ -818,7 +819,7 @@ from(bucket: "{influxdb_bucket}")
                 "categories": distribution,
                 "category_count": len(categories)
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting event categories: {e}", exc_info=True)
             # Return default structure on error
@@ -842,7 +843,7 @@ from(bucket: "{influxdb_bucket}")
     def _determine_data_source(self, event_filter: EventFilter) -> tuple[str, str]:
         """
         Determine which data source to use based on time range (Epic 45.5).
-        
+
         Returns:
             Tuple of (measurement_name, field_name)
             - Last 10 days: ("home_assistant_events", "context_id")
@@ -850,7 +851,7 @@ from(bucket: "{influxdb_bucket}")
             - Beyond 30 days: ("statistics", "mean")
         """
         now = datetime.now(timezone.utc)
-        
+
         # Determine time range
         if event_filter.start_time:
             start_dt = event_filter.start_time
@@ -860,7 +861,7 @@ from(bucket: "{influxdb_bucket}")
                 start_dt = start_dt.astimezone(timezone.utc)
         else:
             start_dt = now - timedelta(hours=24)  # Default: last 24 hours
-        
+
         if event_filter.end_time:
             end_dt = event_filter.end_time
             if end_dt.tzinfo is None:
@@ -869,10 +870,10 @@ from(bucket: "{influxdb_bucket}")
                 end_dt = end_dt.astimezone(timezone.utc)
         else:
             end_dt = now
-        
+
         # Calculate days ago
         days_ago = (now - start_dt).days
-        
+
         # Route based on time range
         if days_ago <= 10:
             # Last 10 days: Use raw events
@@ -887,12 +888,12 @@ from(bucket: "{influxdb_bucket}")
     async def _get_events_from_influxdb(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
         """
         Retrieve and transform events from InfluxDB using Flux query language.
-        
+
         Builds optimized Flux queries with tag-based filtering for efficient event retrieval.
         Handles schema transformation from InfluxDB time-series format to EventData objects.
-        
+
         Complexity: C (20) - High complexity due to query building and data transformation
-        
+
         Args:
             event_filter (EventFilter): Filter criteria including:
                 - entity_id: Filter by specific Home Assistant entity
@@ -902,7 +903,7 @@ from(bucket: "{influxdb_bucket}")
                 - area_id: Filter by area ID (Epic 23.2)
             limit (int): Maximum number of events to return
             offset (int): Number of events to skip (pagination)
-            
+
         Returns:
             List[EventData]: List of transformed event objects with:
                 - id: Event identifier
@@ -912,21 +913,21 @@ from(bucket: "{influxdb_bucket}")
                 - state_value: Current state
                 - attributes: Event metadata
                 - domain, device_id, area_id, integration (if available)
-        
+
         Query Strategy:
             1. Filter to single _field (context_id) to avoid duplicates
             2. Use tag-based filtering for efficiency (entity_id, event_type, domain)
             3. Apply time range (-24h default)
             4. Limit and offset for pagination
             5. Sort by _time descending (newest first)
-        
+
         Example:
             >>> filter = EventFilter(entity_id="light.living_room", event_type="state_changed")
             >>> events = await endpoints._get_events_from_influxdb(filter, limit=10, offset=0)
             >>> print(f"Found {len(events)} events")
             >>> for event in events:
             ...     print(f"{event.timestamp}: {event.entity_id} = {event.state_value}")
-        
+
         Note:
             High complexity arises from:
             - Dynamic Flux query construction based on filters
@@ -935,7 +936,7 @@ from(bucket: "{influxdb_bucket}")
             - Null handling for optional fields
             - Pagination logic
             - Error handling for network/query failures
-            
+
         Performance:
             - Tag-based filters are indexed (fast)
             - Field filter reduces duplicate records
@@ -950,8 +951,8 @@ from(bucket: "{influxdb_bucket}")
 
             # Epic 45.5: Smart query routing - determine data source based on time range
             measurement, field_name = self._determine_data_source(event_filter)
-            use_statistics = measurement != "home_assistant_events"
-            
+            _use_statistics = measurement != "home_assistant_events"  # noqa: F841
+
             # Build Flux query - SIMPLIFIED APPROACH (Context7 KB Pattern)
             # Context7 KB: /websites/influxdata-influxdb-v2
             # KEY INSIGHT: entity_id and event_type are TAGS (not fields)
@@ -1107,14 +1108,14 @@ from(bucket: "{influxdb_bucket}")
     async def _trace_automation_chain(self, context_id: str, max_depth: int, include_details: bool) -> list[dict[str, Any]]:
         """
         Trace automation chain by following context.parent_id relationships
-        
+
         Epic 23.1: Implementation of automation causality tracking
-        
+
         Args:
             context_id: Starting context ID
             max_depth: Maximum depth to traverse
             include_details: Whether to include full event details
-        
+
         Returns:
             List of events in the automation chain
         """

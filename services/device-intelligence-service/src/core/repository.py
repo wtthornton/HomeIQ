@@ -277,7 +277,7 @@ class DeviceRepository:
             }
         )
 
-        result = await session.execute(stmt)
+        await session.execute(stmt)
         await session.commit()
 
         logger.info(f"Bulk upserted {len(capabilities_data)} capabilities")

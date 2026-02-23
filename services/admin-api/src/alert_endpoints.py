@@ -89,11 +89,11 @@ class AlertEndpoints:
         ):
             """
             Get all alerts with optional filtering
-            
+
             Args:
                 severity: Filter by severity (info, warning, critical)
                 status_filter: Filter by status (active, acknowledged, resolved)
-                
+
             Returns:
                 List of alerts
             """
@@ -142,10 +142,10 @@ class AlertEndpoints:
         ):
             """
             Get only active alerts with automatic cleanup of stale alerts
-            
+
             Args:
                 severity: Filter by severity (optional)
-                
+
             Returns:
                 List of active alerts
             """
@@ -179,7 +179,7 @@ class AlertEndpoints:
         async def get_alert_summary():
             """
             Get alert summary statistics
-            
+
             Returns:
                 Alert summary with counts by severity and status
             """
@@ -191,16 +191,16 @@ class AlertEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get alert summary: {str(e)}"
-                )
+                ) from e
 
         @self.router.get("/alerts/{alert_id}", response_model=AlertResponse)
         async def get_alert(alert_id: str):
             """
             Get specific alert by ID
-            
+
             Args:
                 alert_id: Alert ID
-                
+
             Returns:
                 Alert details
             """
@@ -220,16 +220,16 @@ class AlertEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get alert: {str(e)}"
-                )
+                ) from e
 
         @self.router.post("/alerts/{alert_id}/acknowledge")
         async def acknowledge_alert(alert_id: str):
             """
             Acknowledge an alert
-            
+
             Args:
                 alert_id: Alert ID to acknowledge
-                
+
             Returns:
                 Success message
             """
@@ -253,16 +253,16 @@ class AlertEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to acknowledge alert: {str(e)}"
-                )
+                ) from e
 
         @self.router.post("/alerts/{alert_id}/resolve")
         async def resolve_alert(alert_id: str):
             """
             Resolve an alert
-            
+
             Args:
                 alert_id: Alert ID to resolve
-                
+
             Returns:
                 Success message
             """
@@ -286,7 +286,7 @@ class AlertEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to resolve alert: {str(e)}"
-                )
+                ) from e
 
         @self.router.delete("/alerts/cleanup")
         async def cleanup_resolved_alerts(
@@ -294,10 +294,10 @@ class AlertEndpoints:
         ):
             """
             Clean up old resolved alerts
-            
+
             Args:
                 older_than_hours: Hours threshold for cleanup
-                
+
             Returns:
                 Success message
             """
@@ -313,16 +313,16 @@ class AlertEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to cleanup alerts: {str(e)}"
-                )
+                ) from e
 
 
 def create_alert_router(alert_manager: AlertManager | None = None) -> APIRouter:
     """
     Create and return alert router
-    
+
     Args:
         alert_manager: Optional alert manager instance
-        
+
     Returns:
         FastAPI APIRouter with alert endpoints
     """

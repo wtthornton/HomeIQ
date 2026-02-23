@@ -117,7 +117,7 @@ async def get_devices(
         )
     except Exception as e:
         logger.error(f"Error retrieving devices: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.get("/devices/{device_id}/capabilities", response_model=list[DeviceCapabilityResponse], summary="Get device capabilities")
 async def get_device_capabilities(
@@ -142,7 +142,7 @@ async def get_device_capabilities(
         ]
     except Exception as e:
         logger.error(f"Error retrieving capabilities for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.get("/devices/{device_id}/health", response_model=list[DeviceHealthResponse], summary="Get device health metrics")
 async def get_device_health(
@@ -166,7 +166,7 @@ async def get_device_health(
         ]
     except Exception as e:
         logger.error(f"Error retrieving health metrics for device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.get("/devices/{device_id}", response_model=DeviceResponse, summary="Get device by ID")
 async def get_device(
@@ -201,7 +201,7 @@ async def get_device(
         raise
     except Exception as e:
         logger.error(f"Error retrieving device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.get("/devices/area/{area_id}", response_model=list[DeviceResponse], summary="Get devices by area")
 async def get_devices_by_area(
@@ -234,7 +234,7 @@ async def get_devices_by_area(
         ]
     except Exception as e:
         logger.error(f"Error retrieving devices for area {area_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.get("/devices/integration/{integration}", response_model=list[DeviceResponse], summary="Get devices by integration")
 async def get_devices_by_integration(
@@ -267,7 +267,7 @@ async def get_devices_by_integration(
         ]
     except Exception as e:
         logger.error(f"Error retrieving devices for integration {integration}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 # Statistics Endpoints
 @router.get("/stats", response_model=DeviceStatsResponse, summary="Get device statistics")
@@ -280,7 +280,7 @@ async def get_device_stats(
         return DeviceStatsResponse(**stats)
     except Exception as e:
         logger.error(f"Error retrieving device statistics: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 # Cache Management Endpoints
 @router.post("/cache/invalidate/{device_id}", summary="Invalidate device cache")

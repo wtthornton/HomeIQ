@@ -3,6 +3,7 @@ Event rate router for websocket-ingestion service.
 """
 
 from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException, Request
 
 from ...api.models import EventRateResponse
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/api/v1", tags=["metrics"])
 async def get_event_rate(request: Request):
     """
     Get standardized event rate metrics.
-    
+
     Returns event processing statistics including events per second and per hour.
     """
     service = request.app.state.service
@@ -73,5 +74,5 @@ async def get_event_rate(request: Request):
                 "events_per_hour": 0,
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-        )
+        ) from e
 

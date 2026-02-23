@@ -5,7 +5,6 @@ Provides Isolation Forest for anomaly detection
 
 import logging
 
-import numpy as np
 from sklearn.ensemble import IsolationForest
 
 from .utils import scale_features

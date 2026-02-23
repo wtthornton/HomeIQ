@@ -8,12 +8,13 @@ import os
 import signal
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 from aiohttp import web
 from dotenv import load_dotenv
 
 # Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+sys.path.append(str(Path(__file__).resolve().parent / '../../shared'))
 
 from shared.logging_config import log_error_with_context, log_with_context, setup_logging
 
@@ -43,10 +44,10 @@ def _parse_int_env(name: str, default: int, min_val: int | None = None) -> int:
     raw = os.getenv(name, str(default))
     try:
         value = int(raw)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as err:
         raise ValueError(
             f"Invalid value for {name}: '{raw}'. Must be an integer."
-        )
+        ) from err
     if min_val is not None and value < min_val:
         raise ValueError(
             f"Invalid value for {name}: {value}. Must be >= {min_val}."
@@ -63,12 +64,12 @@ class EnergyCorrelatorService:
         self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'home_assistant_events')
-        
+
         # Epic 48 Story 48.1: Validate bucket name on startup
         try:
             validate_bucket_name(self.influxdb_bucket)
         except ValueError as e:
-            raise ValueError(f"Invalid InfluxDB bucket configuration: {e}")
+            raise ValueError(f"Invalid InfluxDB bucket configuration: {e}") from e
 
         # Service configuration (with validation)
         self.processing_interval = _parse_int_env('PROCESSING_INTERVAL', 60, min_val=1)
@@ -101,7 +102,7 @@ class EnergyCorrelatorService:
         # Validate configuration
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
-        
+
         # Epic 48 Story 48.1: Get allowed networks for internal request validation
         allowed_networks_env = os.getenv('ALLOWED_NETWORKS', '')
         self.allowed_networks = [
@@ -215,7 +216,7 @@ async def create_app(service: EnergyCorrelatorService):
     app.router.add_get('/health', service.health_handler.handle)
 
     # Statistics endpoint
-    async def get_statistics(request):
+    async def get_statistics(_request):
         """Get correlation statistics"""
         try:
             stats = service.correlator.get_statistics()
@@ -242,7 +243,7 @@ async def create_app(service: EnergyCorrelatorService):
                 {"error": "Forbidden: This endpoint is only accessible from internal networks"},
                 status=403
             )
-        
+
         service.correlator.reset_statistics()
         return web.json_response({"message": "Statistics reset"})
 
@@ -269,9 +270,10 @@ async def main():
         runner = web.AppRunner(app)
         await runner.setup()
 
-        # Start HTTP server
+        # Start HTTP server — bind host configurable for Docker networking
         port = int(os.getenv('SERVICE_PORT', '8017'))
-        site = web.TCPSite(runner, '0.0.0.0', port)
+        host = os.getenv('SERVICE_HOST', '0.0.0.0')  # noqa: S104
+        site = web.TCPSite(runner, host, port)
         await site.start()
 
         logger.info(f"Service running on port {port}")

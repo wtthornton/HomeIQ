@@ -54,17 +54,17 @@ class DeviceDatabaseService:
     ) -> dict[str, Any] | None:
         """
         Enrich device with Device Database information.
-        
+
         Args:
             manufacturer: Device manufacturer
             model: Device model
-            
+
         Returns:
             Enriched device information or None
         """
         if not manufacturer or not model or manufacturer == "Unknown" or model == "Unknown":
             return None
-        
+
         # Check cache first
         cache = self._get_cache()
         if cache:
@@ -72,7 +72,7 @@ class DeviceDatabaseService:
             if cached:
                 logger.debug(f"Using cached device info for {manufacturer} {model}")
                 return cached
-        
+
         # Query Device Database
         db_client = self._get_db_client()
         if db_client and db_client.is_available():
@@ -85,7 +85,7 @@ class DeviceDatabaseService:
                     return device_info
             except Exception as e:
                 logger.warning(f"Failed to query Device Database: {e}")
-        
+
         return None
 
     async def update_device_from_database(
@@ -95,22 +95,22 @@ class DeviceDatabaseService:
     ) -> dict[str, Any]:
         """
         Update device model with Device Database information.
-        
+
         Args:
             device: Device model instance
             device_info: Device Database info (will fetch if None)
-            
+
         Returns:
             Dictionary of updates to apply
         """
         updates = {}
-        
+
         if device_info is None:
             device_info = await self.enrich_device(device.manufacturer, device.model)
-        
+
         if not device_info:
             return updates
-        
+
         # Update power consumption specs
         if "power_consumption" in device_info:
             power = device_info["power_consumption"]
@@ -120,27 +120,27 @@ class DeviceDatabaseService:
                 updates["power_consumption_active_w"] = power["active_w"]
             if "max_w" in power:
                 updates["power_consumption_max_w"] = power["max_w"]
-        
+
         # Update setup instructions
         if "setup_instructions_url" in device_info:
             updates["setup_instructions_url"] = device_info["setup_instructions_url"]
-        
+
         # Update troubleshooting notes
         if "troubleshooting" in device_info:
             updates["troubleshooting_notes"] = json.dumps(device_info["troubleshooting"])
-        
+
         # Update device features
         if "features" in device_info:
             updates["device_features_json"] = json.dumps(device_info["features"])
-        
+
         # Update community rating
         if "rating" in device_info:
             updates["community_rating"] = device_info["rating"]
-        
+
         # Update infrared codes
         if "infrared_codes" in device_info:
             updates["infrared_codes_json"] = json.dumps(device_info["infrared_codes"])
-        
+
         return updates
 
 

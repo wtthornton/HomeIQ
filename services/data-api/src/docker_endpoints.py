@@ -137,7 +137,7 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to stop container: {str(e)}"
-                )
+                ) from e
 
         @self.router.post("/containers/{service_name}/restart", response_model=ContainerOperationResponse)
         async def restart_container(
@@ -158,7 +158,7 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to restart container: {str(e)}"
-                )
+                ) from e
 
         @self.router.get("/containers/{service_name}/logs")
         async def get_container_logs(
@@ -175,7 +175,7 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get logs: {str(e)}"
-                )
+                ) from e
 
         @self.router.get("/containers/{service_name}/stats", response_model=ContainerStatsResponse)
         async def get_container_stats(
@@ -200,7 +200,7 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get stats: {str(e)}"
-                )
+                ) from e
 
         # API Key Management Endpoints
 
@@ -228,7 +228,7 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get API keys: {str(e)}"
-                )
+                ) from e
 
         @self.router.put("/api-keys/{service}", response_model=ContainerOperationResponse)
         async def update_api_key(
@@ -258,7 +258,7 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to update API key: {str(e)}"
-                )
+                ) from e
 
         @self.router.post("/api-keys/{service}/test", response_model=APIKeyTestResponse)
         async def test_api_key(
@@ -288,7 +288,7 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to test API key: {str(e)}"
-                )
+                ) from e
 
         @self.router.get("/api-keys/{service}/status")
         async def get_api_key_status(
@@ -304,4 +304,4 @@ class DockerEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to get API key status: {str(e)}"
-                )
+                ) from e

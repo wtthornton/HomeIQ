@@ -63,7 +63,7 @@ async def search_corpus(
 
     except Exception as e:
         logger.error(f"Search failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/corpus/blueprints", response_model=SearchResponse)
@@ -77,10 +77,10 @@ async def search_blueprints(
 ):
     """
     Search for Home Assistant automation blueprints
-    
+
     Returns only automations that are blueprints (have blueprint metadata).
     Blueprints are reusable automation templates with configurable inputs.
-    
+
     Example:
         GET /api/automation-miner/corpus/blueprints?device=light&use_case=comfort&min_quality=0.8
     """
@@ -112,7 +112,7 @@ async def search_blueprints(
 
     except Exception as e:
         logger.error(f"Blueprint search failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/corpus/stats", response_model=StatsResponse)
@@ -121,7 +121,7 @@ async def get_stats(
 ):
     """
     Get corpus statistics
-    
+
     Returns:
         - Total automation count
         - Average quality score
@@ -148,7 +148,7 @@ async def get_stats(
 
     except Exception as e:
         logger.error(f"Stats request failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/corpus/{automation_id}", response_model=AutomationResponse)
@@ -158,10 +158,10 @@ async def get_automation(
 ):
     """
     Get single automation by ID
-    
+
     Args:
         automation_id: Database ID of automation
-    
+
     Returns:
         Full automation details
     """
@@ -181,5 +181,5 @@ async def get_automation(
         raise
     except Exception as e:
         logger.error(f"Get automation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 

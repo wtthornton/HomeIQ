@@ -129,8 +129,8 @@ class RecommendationEngine:
             return []
 
     async def _generate_energy_recommendations(
-        self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        self, device_id: str, _health_score: dict[str, Any],
+        metrics: dict[str, Any], _historical: list[dict[str, Any]]
     ) -> list[OptimizationRecommendation]:
         """Generate energy optimization recommendations."""
         recommendations = []
@@ -185,8 +185,8 @@ class RecommendationEngine:
         return recommendations
 
     async def _generate_performance_recommendations(
-        self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        self, device_id: str, _health_score: dict[str, Any],
+        metrics: dict[str, Any], _historical: list[dict[str, Any]]
     ) -> list[OptimizationRecommendation]:
         """Generate performance optimization recommendations."""
         recommendations = []
@@ -241,7 +241,7 @@ class RecommendationEngine:
 
     async def _generate_maintenance_recommendations(
         self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        metrics: dict[str, Any], _historical: list[dict[str, Any]]
     ) -> list[OptimizationRecommendation]:
         """Generate maintenance recommendations."""
         recommendations = []
@@ -296,8 +296,8 @@ class RecommendationEngine:
         return recommendations
 
     async def _generate_configuration_recommendations(
-        self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        self, device_id: str, _health_score: dict[str, Any],
+        metrics: dict[str, Any], _historical: list[dict[str, Any]]
     ) -> list[OptimizationRecommendation]:
         """Generate configuration optimization recommendations."""
         recommendations = []
@@ -354,8 +354,8 @@ class RecommendationEngine:
         return recommendations
 
     async def _generate_usage_pattern_recommendations(
-        self, device_id: str, health_score: dict[str, Any],
-        metrics: dict[str, Any], historical: list[dict[str, Any]]
+        self, device_id: str, _health_score: dict[str, Any],
+        metrics: dict[str, Any], _historical: list[dict[str, Any]]
     ) -> list[OptimizationRecommendation]:
         """Generate usage pattern optimization recommendations."""
         recommendations = []

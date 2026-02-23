@@ -133,13 +133,13 @@ class DiscourseClient:
     ) -> list[dict[str, Any]]:
         """
         Fetch blueprint posts from Discourse Blueprints Exchange
-        
+
         Args:
             min_likes: Minimum likes threshold (default from settings)
             since: Only fetch posts updated since this date
             limit: Maximum posts to fetch
             page: Page number for pagination
-        
+
         Returns:
             List of post metadata dictionaries
         """
@@ -217,11 +217,11 @@ class DiscourseClient:
     ) -> dict[str, Any]:
         """
         Fetch full post content including YAML blueprints
-        
+
         Args:
             post_id: Discourse topic ID
             correlation_id: Optional correlation ID for logging
-        
+
         Returns:
             Dictionary with post content and metadata
         """
@@ -294,11 +294,11 @@ class DiscourseClient:
     ) -> dict[str, Any]:
         """
         Fetch only post metadata (for quality score updates)
-        
+
         Args:
             post_id: Discourse topic ID
             correlation_id: Optional correlation ID
-        
+
         Returns:
             Dictionary with updated metadata (likes, views, etc.)
         """

@@ -27,10 +27,10 @@ class DatabaseNotInitializedError(Exception):
 def _get_session_maker():
     """
     Get the async session maker, raising a clear error if not initialized.
-    
+
     Returns:
         The async session maker
-        
+
     Raises:
         DatabaseNotInitializedError: If database not initialized
     """
@@ -81,7 +81,7 @@ class SuggestionStorageService:
         """
         # Extract trigger type from prompt_metadata for smart duplicate detection
         trigger_type = (prompt_metadata or {}).get("trigger")
-        
+
         if db is None:
             async with _get_session_maker()() as session:
                 try:
@@ -97,7 +97,7 @@ class SuggestionStorageService:
                                 f"context: {context_type}, existing_id: {duplicate.id})"
                             )
                             return None
-                    
+
                     suggestion = Suggestion(
                         prompt=prompt,
                         context_type=context_type,
@@ -131,7 +131,7 @@ class SuggestionStorageService:
                             f"context: {context_type}, existing_id: {duplicate.id})"
                         )
                         return None
-                
+
                 suggestion = Suggestion(
                     prompt=prompt,
                     context_type=context_type,
@@ -162,23 +162,23 @@ class SuggestionStorageService:
     ) -> Suggestion | None:
         """
         Check if a duplicate suggestion exists within the time window.
-        
+
         Uses smart duplicate detection:
         1. If trigger_type provided, checks for same context_type + trigger_type
         2. Falls back to exact prompt matching if no trigger_type
-        
+
         Args:
             prompt: Prompt text to check
             context_type: Context type to check
             window_hours: Hours to look back for duplicates
             db: Database session
             trigger_type: Optional trigger type for smarter matching (e.g., "low_temperature")
-            
+
         Returns:
             Existing Suggestion if duplicate found, None otherwise
         """
         cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
-        
+
         # If trigger_type provided, use smarter duplicate detection
         # This prevents duplicates like "44°F" and "45°F" both generating pre-heat suggestions
         if trigger_type:
@@ -190,15 +190,15 @@ class SuggestionStorageService:
                 .order_by(Suggestion.created_at.desc())
             )
             suggestions = result.scalars().all()
-            
+
             # Check if any suggestion has the same trigger type
             for suggestion in suggestions:
                 metadata = suggestion.prompt_metadata or {}
                 if metadata.get("trigger") == trigger_type:
                     return suggestion
-            
+
             return None
-        
+
         # Fallback to exact prompt matching
         result = await db.execute(
             select(Suggestion)
@@ -208,9 +208,9 @@ class SuggestionStorageService:
             .order_by(Suggestion.created_at.desc())
             .limit(1)
         )
-        
+
         return result.scalar_one_or_none()
-    
+
     async def get_suggestion(self, suggestion_id: str, db: AsyncSession | None = None) -> Suggestion | None:
         """
         Get a suggestion by ID.

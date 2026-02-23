@@ -107,7 +107,7 @@ class PromptAssemblyService:
             )
             try:
                 system_prompt = await self.context_builder.build_complete_system_prompt()
-                
+
                 # Verify system prompt was built correctly
                 if not system_prompt or len(system_prompt.strip()) < 100:
                     logger.error(
@@ -121,7 +121,7 @@ class PromptAssemblyService:
                         f"Contains 'CRITICAL': {'CRITICAL' in system_prompt}, "
                         f"Contains 'HOME ASSISTANT CONTEXT': {'HOME ASSISTANT CONTEXT' in system_prompt}"
                     )
-                
+
                 conversation.set_context_cache(system_prompt)
             except RuntimeError as e:
                 if "not initialized" in str(e):
@@ -130,12 +130,11 @@ class PromptAssemblyService:
                         f"❌ CRITICAL: Context builder not initialized! Error: {e}"
                     )
                     raise
-                else:
-                    logger.error(
-                        f"[Context Building] Conversation {conversation_id}: "
-                        f"❌ Error building context: {e}"
-                    )
-                    raise
+                logger.error(
+                    f"[Context Building] Conversation {conversation_id}: "
+                    f"❌ Error building context: {e}"
+                )
+                raise
             except Exception as e:
                 logger.error(
                     f"[Context Building] Conversation {conversation_id}: "
@@ -146,7 +145,7 @@ class PromptAssemblyService:
         else:
             logger.debug(f"Using cached context for conversation {conversation_id}")
             system_prompt = conversation.get_context_cache()
-            
+
             # Verify cached prompt is valid
             if not system_prompt or len(system_prompt.strip()) < 100:
                 logger.warning(
@@ -197,7 +196,7 @@ class PromptAssemblyService:
                         f"[Device State Context] Conversation {conversation_id}: "
                         f"Injected device state context for {len(entity_ids)} entities"
                     )
-                
+
                 # Phase 2.3: Inject recent automation patterns if entities found
                 if entity_result.success and entity_result.matched_entities:
                     try:
@@ -209,7 +208,7 @@ class PromptAssemblyService:
                                 if entity.get("entity_id") in entity_result.matched_entities:
                                     area_id = entity.get("area_id")
                                     break
-                        
+
                         # Get recent automation patterns
                         if hasattr(self.context_builder, '_automation_patterns_service') and \
                            self.context_builder._automation_patterns_service:
@@ -219,13 +218,14 @@ class PromptAssemblyService:
                                 limit=3,
                                 skip_truncation=False
                             )
-                            
+
                             # Inject patterns context if available
                             if patterns_context and patterns_context.strip():
                                 system_prompt = f"{system_prompt}\n\n---\n\n{patterns_context}\n\n---\n"
+                                newline = "\n"
                                 logger.info(
                                     f"[Automation Patterns] Conversation {conversation_id}: "
-                                    f"Injected {len(patterns_context.split('\\n')) - 1} automation patterns"
+                                    f"Injected {len(patterns_context.split(newline)) - 1} automation patterns"
                                 )
 
                         # Reusable Pattern Framework: Inject RAG context via registry
@@ -288,21 +288,20 @@ class PromptAssemblyService:
         filtered_history = []
         filtered_count = 0
         original_count = len(history_messages)
-        
+
         for msg in history_messages:
-            if msg["role"] == "assistant":
-                if is_generic_welcome_message(msg.get("content", "")):
-                    filtered_count += 1
-                    logger.info(
-                        f"[Generic Message Filter] Conversation {conversation_id}: "
-                        f"Filtered generic welcome message (count: {filtered_count}). "
-                        f"Content preview: {msg.get('content', '')[:100]}..."
-                    )
-                    continue  # Skip this generic message
+            if msg["role"] == "assistant" and is_generic_welcome_message(msg.get("content", "")):
+                filtered_count += 1
+                logger.info(
+                    f"[Generic Message Filter] Conversation {conversation_id}: "
+                    f"Filtered generic welcome message (count: {filtered_count}). "
+                    f"Content preview: {msg.get('content', '')[:100]}..."
+                )
+                continue  # Skip this generic message
             filtered_history.append(msg)
-        
+
         history_messages = filtered_history
-        
+
         if filtered_count > 0:
             logger.info(
                 f"[Generic Message Filter] Conversation {conversation_id}: "
@@ -312,7 +311,7 @@ class PromptAssemblyService:
 
         # Emphasize the user's current request (the last message, which should be the one we just added)
         emphasized_messages = history_messages.copy()
-        
+
         # The user message we just added should be the last message in the history
         # Check if the last message is a user message (it should be)
         if history_messages and history_messages[-1]["role"] == "user":
@@ -322,13 +321,13 @@ class PromptAssemblyService:
 {original_user_message}
 
 Instructions: Process this request now. Use tools if needed. Do not respond with generic welcome messages."""
-            
+
             # Replace the last message with emphasized version
             emphasized_messages[-1] = {
                 "role": "user",
                 "content": emphasized_user_message
             }
-            
+
             logger.debug(
                 f"[Message Emphasis] Conversation {conversation_id}: "
                 f"Emphasized user request (last message). "
@@ -343,13 +342,13 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                 f"Last message is not a user message (role: {history_messages[-1]['role'] if history_messages else 'none'}). "
                 f"Using fallback to find last user message."
             )
-            
+
             last_user_idx = -1
             for i in range(len(history_messages) - 1, -1, -1):
                 if history_messages[i]["role"] == "user":
                     last_user_idx = i
                     break
-            
+
             if last_user_idx >= 0:
                 original_user_message = history_messages[last_user_idx]["content"]
                 emphasized_user_message = f"""USER REQUEST (process this immediately):
@@ -360,7 +359,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                     "role": "user",
                     "content": emphasized_user_message
                 }
-                
+
                 logger.info(
                     f"[Message Emphasis] Conversation {conversation_id}: "
                     f"Emphasized user request using fallback (index {last_user_idx}). "
@@ -380,14 +379,14 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                 f"❌ CRITICAL: System prompt is None or empty!"
             )
             raise ValueError("System prompt is required but was None or empty")
-        
+
         if len(system_prompt.strip()) < 100:
             logger.error(
                 f"[Message Assembly] Conversation {conversation_id}: "
                 f"❌ CRITICAL: System prompt is too short ({len(system_prompt)} chars)! "
                 f"Expected at least 100 chars."
             )
-        
+
         # Assemble complete message list
         messages = [
             {"role": "system", "content": system_prompt},
@@ -410,7 +409,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
 
         # Enforce token budget
         messages = await self._enforce_token_budget(messages, conversation)
-        
+
         if len(messages) < len([{"role": "system", "content": system_prompt}, *emphasized_messages]):
             logger.info(
                 f"[Token Budget] Conversation {conversation_id}: "
@@ -635,7 +634,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             preview.get('automation_yaml', ''),
             "```",
         ]
-        
+
         details = preview.get('details', {})
         if details:
             lines.extend([
@@ -645,19 +644,19 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                 f"- Action: {details.get('action_description', 'Unknown')}",
                 f"- Mode: {details.get('mode', 'single')}",
             ])
-        
+
         entities = preview.get('entities_affected', [])
         if entities:
             lines.append(f"- Entities Affected: {', '.join(entities)}")
-        
+
         areas = preview.get('areas_affected', [])
         if areas:
             lines.append(f"- Areas Affected: {', '.join(areas)}")
-        
+
         services = preview.get('services_used', [])
         if services:
             lines.append(f"- Services Used: {', '.join(services)}")
-        
+
         warnings = preview.get('safety_warnings', [])
         if warnings:
             lines.extend([
@@ -666,7 +665,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             ])
             for warning in warnings:
                 lines.append(f"- {warning}")
-        
+
         validation = preview.get('validation', {})
         if validation:
             errors = validation.get('errors', [])
@@ -685,13 +684,13 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                 ])
                 for warning in warnings_list:
                     lines.append(f"- {warning}")
-        
+
         return "\n".join(lines)
 
     def _build_hidden_context(self, hidden_context: dict[str, Any]) -> str:
         """
         Build context string from proactive agent hidden context.
-        
+
         This context is injected into the system prompt but NOT shown to users.
         It helps the LLM make better automation decisions with structured data
         that the proactive agent gathered (game times, team colors, etc.).
@@ -709,42 +708,41 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             "Use this information to create accurate automations:",
             "",
         ]
-        
+
         # Game time (for sports automations)
         if game_time := hidden_context.get("game_time"):
             lines.append(f"- **Game Time**: {game_time}")
-        
+
         # Kickoff countdown
         if kickoff_in := hidden_context.get("kickoff_in"):
             lines.append(f"- **Kickoff In**: {kickoff_in}")
-        
+
         # Team colors (for lighting automations)
-        if team_colors := hidden_context.get("team_colors"):
-            if isinstance(team_colors, list) and len(team_colors) >= 1:
+        if (team_colors := hidden_context.get("team_colors")) and isinstance(team_colors, list) and len(team_colors) >= 1:
                 lines.append(f"- **Team Colors**: Primary: {team_colors[0]}")
                 if len(team_colors) >= 2:
                     lines.append(f"                  Secondary: {team_colors[1]}")
-        
+
         # Trigger type recommendation
         if trigger_type := hidden_context.get("trigger_type"):
             lines.append(f"- **Recommended Trigger Type**: {trigger_type}")
-        
+
         # Trigger entity (e.g., Team Tracker sensor)
         if trigger_entity := hidden_context.get("trigger_entity"):
             lines.append(f"- **Trigger Entity**: {trigger_entity}")
-        
+
         # Trigger condition
         if trigger_condition := hidden_context.get("trigger_condition"):
             lines.append(f"- **Trigger Condition**: {trigger_condition}")
-        
+
         # Target color (RGB)
         if target_color := hidden_context.get("target_color"):
             lines.append(f"- **Target Color**: {target_color}")
-        
+
         # Context type (sports, weather, energy, etc.)
         if context_type := hidden_context.get("context_type"):
             lines.append(f"- **Context Type**: {context_type}")
-        
+
         # Blueprint constraint mode (Epic Blueprint Suggestions)
         if hidden_context.get("constraint_mode") == "blueprint":
             lines.append("")
@@ -752,12 +750,12 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             lines.append("BLUEPRINT CONSTRAINT MODE:")
             lines.append("---")
             lines.append("You are working with a Home Assistant Blueprint.")
-            
+
             blueprint_id = hidden_context.get("blueprint_id")
             blueprint_yaml = hidden_context.get("blueprint_yaml")
             blueprint_inputs = hidden_context.get("blueprint_inputs", {})
             matched_devices = hidden_context.get("matched_devices", [])
-            
+
             if blueprint_id:
                 lines.append(f"Blueprint ID: {blueprint_id}")
             if blueprint_yaml:
@@ -776,7 +774,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                     for d in matched_devices
                 ])
                 lines.append(f"Matched Devices: {device_list}")
-            
+
             lines.append("")
             lines.append("CRITICAL CONSTRAINTS:")
             lines.append("- You MUST stay within the blueprint's input schema")
@@ -786,21 +784,21 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             lines.append("- The blueprint is proven and tested - work within its constraints")
             lines.append("---")
             lines.append("")
-        
+
         # Any additional fields
         standard_fields = {
-            "game_time", "kickoff_in", "team_colors", "trigger_type", 
+            "game_time", "kickoff_in", "team_colors", "trigger_type",
             "trigger_entity", "trigger_condition", "target_color", "context_type",
             "constraint_mode", "blueprint_id", "blueprint_yaml", "blueprint_inputs", "matched_devices"
         }
         for key, value in hidden_context.items():
             if key not in standard_fields and value:
                 lines.append(f"- **{key.replace('_', ' ').title()}**: {value}")
-        
+
         lines.extend([
             "",
             "⚠️ IMPORTANT: Use sensor state triggers for sports events, NOT fixed times.",
             "If game_time is provided, it's for informational display only - trigger on sensor state change.",
         ])
-        
+
         return "\n".join(lines)

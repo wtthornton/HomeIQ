@@ -3,6 +3,7 @@ Async Event Processor for High-Volume Event Processing
 """
 
 import asyncio
+import contextlib
 import logging
 from collections import deque
 from collections.abc import Callable
@@ -20,7 +21,7 @@ class AsyncEventProcessor:
     def __init__(self, max_workers: int = 10, processing_rate_limit: int = 1000):
         """
         Initialize async event processor
-        
+
         Args:
             max_workers: Maximum number of concurrent processing workers
             processing_rate_limit: Maximum events per second to process
@@ -112,10 +113,10 @@ class AsyncEventProcessor:
     async def process_event(self, event_data: dict[str, Any]) -> bool:
         """
         Queue an event for processing
-        
+
         Args:
             event_data: Event data to process
-            
+
         Returns:
             True if event was queued successfully, False otherwise
         """
@@ -169,15 +170,11 @@ class AsyncEventProcessor:
             except Exception as e:
                 logger.error(f"Worker {worker_name} error: {e}")
                 self.failed_events += 1
-                try:
+                with contextlib.suppress(InvalidStateTransition):
                     self.state_machine.transition(ProcessingState.ERROR)
-                except InvalidStateTransition:
-                    pass
                 # Try to recover
-                try:
+                with contextlib.suppress(InvalidStateTransition):
                     self.state_machine.transition(ProcessingState.RUNNING)
-                except InvalidStateTransition:
-                    pass
 
             # Update current state for loop condition
             current_state = self.state_machine.get_state()
@@ -281,7 +278,7 @@ class RateLimiter:
     def __init__(self, rate_limit: int):
         """
         Initialize rate limiter
-        
+
         Args:
             rate_limit: Maximum events per second
         """
@@ -293,7 +290,7 @@ class RateLimiter:
     async def acquire(self) -> bool:
         """
         Acquire a token for processing
-        
+
         Returns:
             True if token was acquired, False if rate limit exceeded
         """

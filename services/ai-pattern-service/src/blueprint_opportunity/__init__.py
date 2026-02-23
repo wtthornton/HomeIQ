@@ -1,13 +1,13 @@
 """Blueprint Opportunity Engine - Proactive blueprint recommendations."""
 
-from .opportunity_engine import BlueprintOpportunityEngine
 from .device_matcher import DeviceMatcher
 from .input_autofill import InputAutofill
+from .opportunity_engine import BlueprintOpportunityEngine
 from .schemas import (
-    BlueprintOpportunity,
-    DeviceSignature,
     AutofilledInput,
     BlueprintDeploymentPreview,
+    BlueprintOpportunity,
+    DeviceSignature,
 )
 
 __all__ = [

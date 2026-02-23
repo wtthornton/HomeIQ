@@ -15,6 +15,7 @@ import aiohttp
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import get_settings
+from .http_client import get_http_session
 from .integration_checker import IntegrationHealthChecker
 from .models import EnvironmentHealth
 from .schemas import (
@@ -24,7 +25,6 @@ from .schemas import (
     IntegrationStatus,
     PerformanceMetrics,
 )
-from .http_client import get_http_session
 from .scoring_algorithm import HealthScoringAlgorithm
 
 settings = get_settings()
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 class HealthMonitoringService:
     """
     Core health monitoring service
-    
+
     Implements Context7 async patterns for Home Assistant health checks.
     Note: Zigbee2MQTT is not checked separately - it uses the same MQTT broker
     as the MQTT integration, just with a different topic prefix.
@@ -54,10 +54,10 @@ class HealthMonitoringService:
     ) -> EnvironmentHealthResponse:
         """
         Comprehensive environment health check
-        
+
         Args:
             db: Async database session
-            
+
         Returns:
             EnvironmentHealthResponse with complete health status
         """
@@ -111,7 +111,7 @@ class HealthMonitoringService:
 
         # Determine overall status
         overall_status = self._determine_overall_status(health_score, issues)
-        
+
         logger.info(
             "Health status determined",
             extra={
@@ -290,7 +290,7 @@ class HealthMonitoringService:
     async def _check_integrations(self) -> list[dict]:
         """
         Check all integrations status - always returns at least MQTT and Data API
-        
+
         Note: Zigbee2MQTT uses the same MQTT broker, so if MQTT is healthy,
         Zigbee2MQTT can work (it's just a different topic prefix)
         """
@@ -394,7 +394,7 @@ class HealthMonitoringService:
     async def _check_zigbee2mqtt_integration(self) -> dict:
         """
         Check Zigbee2MQTT status using Home Assistant API.
-        
+
         Uses HA API to check for Zigbee2MQTT entities, which is simpler
         and more reliable than MQTT subscription for health monitoring.
         """
@@ -470,6 +470,7 @@ class HealthMonitoringService:
         """Check system performance metrics using real system data"""
         try:
             import time
+
             import psutil
 
             process = psutil.Process()
@@ -487,7 +488,7 @@ class HealthMonitoringService:
                     f"{self.ha_url}/api/",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
+                ) as _response:
                     response_time_ms = round((time.monotonic() - start) * 1000, 2)
             except Exception:
                 response_time_ms = 0.0
@@ -540,7 +541,7 @@ class HealthMonitoringService:
 
         return issues
 
-    def _determine_overall_status(self, health_score: int, issues: list[str]) -> str:
+    def _determine_overall_status(self, health_score: int, _issues: list[str]) -> str:
         """Determine overall health status based on score thresholds"""
         if health_score >= 80:
             return HealthStatus.HEALTHY.value

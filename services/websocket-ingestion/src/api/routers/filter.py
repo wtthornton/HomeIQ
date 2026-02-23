@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1/filter", tags=["filter"])
 async def get_filter_stats(request: Request):
     """
     Get entity filter statistics.
-    
+
     Returns statistics about the entity filter if configured.
     """
     service = request.app.state.service
@@ -22,7 +22,7 @@ async def get_filter_stats(request: Request):
             "enabled": False,
             "message": "Entity filter not configured"
         }
-    
+
     stats = service.entity_filter.get_statistics()
     return {
         "enabled": True,

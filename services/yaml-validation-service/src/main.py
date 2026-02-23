@@ -51,9 +51,9 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info("✅ YAML Validation Service startup complete")
     logger.info("=" * 60)
-    
+
     yield
-    
+
     # Shutdown
     logger.info("=" * 60)
     logger.info("YAML Validation Service Shutting Down")

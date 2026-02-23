@@ -69,7 +69,7 @@ class SportsDataClient:
             error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
             logger.warning(f"HTTP error fetching sports data: {error_msg}")
             return []  # Graceful degradation
-        except httpx.ConnectError as e:
+        except httpx.ConnectError:
             error_msg = f"Could not connect to Data API at {self.base_url}"
             logger.warning(f"Connection error: {error_msg}")
             return []  # Graceful degradation

@@ -2,12 +2,16 @@
 Home Assistant WebSocket Client with Authentication
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
-from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from aiohttp import ClientSession, ClientWebSocketResponse, WSMsgType
 
@@ -52,7 +56,7 @@ class HomeAssistantWebSocketClient:
     async def connect(self) -> bool:
         """
         Establish WebSocket connection with Home Assistant
-        
+
         Returns:
             True if connection successful, False otherwise
         """
@@ -200,10 +204,10 @@ class HomeAssistantWebSocketClient:
     async def send_message(self, message: dict[str, Any]) -> bool:
         """
         Send message to Home Assistant
-        
+
         Args:
             message: Message to send
-            
+
         Returns:
             True if message sent successfully, False otherwise
         """
@@ -262,7 +266,7 @@ class HomeAssistantWebSocketClient:
     async def reconnect(self) -> bool:
         """
         Reconnect to Home Assistant with exponential backoff
-        
+
         Returns:
             True if reconnection successful, False otherwise
         """
@@ -282,7 +286,7 @@ class HomeAssistantWebSocketClient:
     def get_connection_status(self) -> dict[str, Any]:
         """
         Get current connection status
-        
+
         Returns:
             Dictionary with connection status information
         """

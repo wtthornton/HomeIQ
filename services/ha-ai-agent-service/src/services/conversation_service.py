@@ -18,6 +18,9 @@ from .conversation_persistence import (
     add_message as db_add_message,
 )
 from .conversation_persistence import (
+    auto_generate_title as db_auto_generate_title,
+)
+from .conversation_persistence import (
     count_conversations as db_count_conversations,
 )
 from .conversation_persistence import (
@@ -28,6 +31,8 @@ from .conversation_persistence import (
 )
 from .conversation_persistence import (
     get_conversation as db_get_conversation,
+)
+from .conversation_persistence import (
     get_conversation_by_debug_id as db_get_conversation_by_debug_id,
 )
 from .conversation_persistence import (
@@ -35,7 +40,6 @@ from .conversation_persistence import (
 )
 from .conversation_persistence import (
     update_conversation_title as db_update_conversation_title,
-    auto_generate_title as db_auto_generate_title,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,16 +48,16 @@ logger = logging.getLogger(__name__)
 def is_generic_welcome_message(content: str) -> bool:
     """
     Detect if message is a generic welcome message.
-    
+
     Args:
         content: Message content to check
-        
+
     Returns:
         True if message appears to be a generic welcome message
     """
     if not content or not content.strip():
         return False
-    
+
     content_lower = content.lower()
     generic_patterns = [
         "how can i assist you",
@@ -64,7 +68,7 @@ def is_generic_welcome_message(content: str) -> bool:
         "how can i assist you with your home assistant automations today",
         "i can help you control your home assistant",
     ]
-    
+
     # Check if content matches generic patterns
     matched_pattern = None
     for pattern in generic_patterns:
@@ -77,14 +81,14 @@ def is_generic_welcome_message(content: str) -> bool:
                     f"(length: {len(content.strip())}). Content: {content[:100]}..."
                 )
                 return True
-    
+
     # Log if pattern matched but message was too long (might be false positive)
     if matched_pattern:
         logger.debug(
             f"[Generic Detection] Pattern '{matched_pattern}' found but message too long "
             f"({len(content.strip())} chars). Not flagged as generic."
         )
-    
+
     return False
 
 
@@ -108,7 +112,7 @@ class ConversationService:
         logger.info("✅ Conversation service initialized (database-backed)")
 
     async def create_conversation(
-        self, 
+        self,
         conversation_id: str | None = None,
         title: str | None = None,
         source: str | None = None,
@@ -126,16 +130,18 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_create_conversation(
-                session, 
-                conversation_id, 
-                title=title, 
+                session,
+                conversation_id,
+                title=title,
                 source=source or "user"
             )
+        return None
 
     async def get_conversation_by_debug_id(self, debug_id: str) -> Conversation | None:
         """Get a conversation by debug_id (troubleshooting ID)"""
         async for session in get_session():
             return await db_get_conversation_by_debug_id(session, debug_id)
+        return None
 
     async def get_conversation(self, conversation_id: str) -> Conversation | None:
         """
@@ -149,6 +155,7 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_get_conversation(session, conversation_id)
+        return None
 
     async def list_conversations(
         self,
@@ -175,6 +182,7 @@ class ConversationService:
             return await db_list_conversations(
                 session, state, limit, offset, start_date, end_date
             )
+        return None
 
     async def count_conversations(
         self,
@@ -195,6 +203,7 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_count_conversations(session, state, start_date, end_date)
+        return None
 
     async def delete_conversation(self, conversation_id: str) -> bool:
         """
@@ -208,6 +217,7 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_delete_conversation(session, conversation_id)
+        return None
 
     async def add_message(
         self, conversation_id: str, role: str, content: str
@@ -225,6 +235,7 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_add_message(session, conversation_id, role, content)
+        return None
 
     async def get_messages(self, conversation_id: str) -> list[Message]:
         """
@@ -256,6 +267,7 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_update_conversation_title(session, conversation_id, title)
+        return None
 
     async def auto_generate_title(self, conversation_id: str) -> str | None:
         """
@@ -269,6 +281,7 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_auto_generate_title(session, conversation_id)
+        return None
 
     async def get_openai_messages(
         self, conversation_id: str, include_system: bool = True
@@ -353,6 +366,7 @@ class ConversationService:
             return await update_conversation_state(
                 session, conversation_id, ConversationState.ARCHIVED
             )
+        return None
 
     async def activate_conversation(self, conversation_id: str) -> bool:
         """
@@ -369,6 +383,7 @@ class ConversationService:
             return await update_conversation_state(
                 session, conversation_id, ConversationState.ACTIVE
             )
+        return None
 
     async def set_pending_preview(self, conversation_id: str, preview: dict) -> bool:
         """
@@ -390,6 +405,7 @@ class ConversationService:
                 if conversation:
                     conversation.set_pending_preview(preview)
             return result
+        return None
 
     async def get_pending_preview(self, conversation_id: str) -> dict | None:
         """
@@ -425,4 +441,5 @@ class ConversationService:
                 if conversation:
                     conversation.clear_pending_preview()
             return result
+        return None
 

@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 class DeviceIntelligenceClient:
     """
     Client for Device Intelligence Service device mapping API.
-    
+
     Provides methods to query device types, relationships, and context
     from the device mapping library.
     """
-    
+
     def __init__(self, settings: Settings | None = None, base_url: str | None = None, enabled: bool = True):
         """
         Initialize the client.
-        
+
         Args:
             settings: Application settings (optional, if provided base_url and enabled are ignored)
             base_url: Base URL for Device Intelligence Service (optional, required if settings not provided)
@@ -39,7 +39,7 @@ class DeviceIntelligenceClient:
                 raise ValueError("Either settings or base_url must be provided")
             self.base_url = base_url.rstrip("/")
             self.enabled = enabled
-        
+
         self.timeout = 10.0
         # Create persistent HTTP client (like DataAPIClient pattern)
         self.client = httpx.AsyncClient(
@@ -48,23 +48,23 @@ class DeviceIntelligenceClient:
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
         )
         logger.debug(f"Device Intelligence Client initialized: {self.base_url} (enabled: {self.enabled})")
-    
+
     async def get_devices(self, limit: int = 1000) -> list[dict[str, Any]]:
         """
         Fetch devices from Device Intelligence Service.
-        
+
         Args:
             limit: Maximum number of devices to return
-            
+
         Returns:
             List of device dictionaries
-            
+
         Raises:
             Exception: If API request fails
         """
         if not self.enabled:
             return []
-        
+
         try:
             params = {"limit": limit}
             response = await self.client.get(
@@ -72,7 +72,7 @@ class DeviceIntelligenceClient:
                 params=params
             )
             response.raise_for_status()
-            
+
             data = response.json()
             # Handle response format
             if isinstance(data, dict) and "devices" in data:
@@ -82,7 +82,7 @@ class DeviceIntelligenceClient:
             else:
                 logger.warning(f"Unexpected devices response format: {type(data)}")
                 devices = []
-            
+
             return devices
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -97,42 +97,41 @@ class DeviceIntelligenceClient:
             logger.error(f"❌ Connection error: {error_msg}")
             raise Exception(error_msg) from e
         except httpx.TimeoutException as e:
-            error_msg = f"Device Intelligence Service request timed out"
+            error_msg = "Device Intelligence Service request timed out"
             logger.error(f"❌ Timeout error: {error_msg}")
             raise Exception(error_msg) from e
         except httpx.HTTPError as e:
             error_msg = f"HTTP error fetching devices: {str(e)}"
             logger.error(f"❌ {error_msg}")
             raise Exception(error_msg) from e
-    
+
     async def get_device_capabilities(self, device_id: str) -> list[dict[str, Any]]:
         """
         Get device capabilities for a device.
-        
+
         Args:
             device_id: Device ID
-            
+
         Returns:
             List of capability dictionaries, or empty list if device not found or service unavailable
         """
         if not self.enabled:
             return []
-        
+
         try:
             response = await self.client.get(
                 f"{self.base_url}/api/devices/{device_id}/capabilities"
             )
             response.raise_for_status()
-            
+
             data = response.json()
             # Handle response format
             if isinstance(data, list):
                 return data
-            elif isinstance(data, dict) and "capabilities" in data:
+            if isinstance(data, dict) and "capabilities" in data:
                 return data["capabilities"]
-            else:
-                logger.warning(f"Unexpected capabilities response format: {type(data)}")
-                return []
+            logger.warning(f"Unexpected capabilities response format: {type(data)}")
+            return []
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 # Device not found - return empty list
@@ -145,7 +144,7 @@ class DeviceIntelligenceClient:
         except Exception as e:
             logger.warning(f"⚠️ Error getting device capabilities: {e}")
             return []
-    
+
     async def get_device_type(
         self,
         device_id: str,
@@ -153,17 +152,17 @@ class DeviceIntelligenceClient:
     ) -> dict[str, Any] | None:
         """
         Get device type for a device.
-        
+
         Args:
             device_id: Device ID
             device_data: Device data dictionary (manufacturer, model, etc.)
-            
+
         Returns:
             Dictionary with device type information, or None if service unavailable
         """
         if not self.enabled:
             return None
-        
+
         try:
             url = f"{self.base_url}/api/device-mappings/{device_id}/type"
             response = await self.client.post(url, json=device_data)
@@ -178,7 +177,7 @@ class DeviceIntelligenceClient:
         except Exception as e:
             logger.warning(f"⚠️ Error getting device type from Device Intelligence Service: {e}")
             return None
-    
+
     async def get_device_relationships(
         self,
         device_id: str,
@@ -187,18 +186,18 @@ class DeviceIntelligenceClient:
     ) -> dict[str, Any] | None:
         """
         Get device relationships for a device.
-        
+
         Args:
             device_id: Device ID
             device_data: Device data dictionary
             all_devices: Optional list of all devices for relationship discovery
-            
+
         Returns:
             Dictionary with device relationships, or None if service unavailable
         """
         if not self.enabled:
             return None
-        
+
         try:
             url = f"{self.base_url}/api/device-mappings/{device_id}/relationships"
             payload = device_data
@@ -206,7 +205,7 @@ class DeviceIntelligenceClient:
                 # Note: The API endpoint accepts all_devices as a query parameter or in body
                 # For now, we'll send it in the body if provided
                 payload = {**device_data, "all_devices": all_devices}
-            
+
             response = await self.client.post(url, json=payload)
             response.raise_for_status()
             return response.json()
@@ -219,7 +218,7 @@ class DeviceIntelligenceClient:
         except Exception as e:
             logger.warning(f"⚠️ Error getting device relationships from Device Intelligence Service: {e}")
             return None
-    
+
     async def get_device_context(
         self,
         device_id: str,
@@ -228,24 +227,24 @@ class DeviceIntelligenceClient:
     ) -> dict[str, Any] | None:
         """
         Get enriched context for a device.
-        
+
         Args:
             device_id: Device ID
             device_data: Device data dictionary
             entities: Optional list of entities associated with the device
-            
+
         Returns:
             Dictionary with enriched device context, or None if service unavailable
         """
         if not self.enabled:
             return None
-        
+
         try:
             url = f"{self.base_url}/api/device-mappings/{device_id}/context"
             payload = device_data
             if entities:
                 payload = {**device_data, "entities": entities}
-            
+
             response = await self.client.post(url, json=payload)
             response.raise_for_status()
             return response.json()
@@ -258,7 +257,7 @@ class DeviceIntelligenceClient:
         except Exception as e:
             logger.warning(f"⚠️ Error getting device context from Device Intelligence Service: {e}")
             return None
-    
+
     async def close(self):
         """Close HTTP client connection pool"""
         await self.client.aclose()

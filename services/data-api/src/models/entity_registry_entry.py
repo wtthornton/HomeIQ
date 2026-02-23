@@ -56,12 +56,12 @@ class EntityRegistryEntry:
     ) -> "EntityRegistryEntry":
         """
         Create EntityRegistryEntry from Entity and Device models
-        
+
         Args:
             entity: Entity model instance
             device: Optional Device model instance
             related_entities: Optional list of sibling entity IDs
-            
+
         Returns:
             EntityRegistryEntry instance
         """

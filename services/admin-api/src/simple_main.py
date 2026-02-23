@@ -7,6 +7,7 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,12 +15,12 @@ from fastapi.middleware.cors import CORSMiddleware
 # Add parent directory to path so we can import shared module
 # In container: /app/shared exists, so add /app to path
 # In dev: ../../../shared exists, so add parent to path
-if os.path.exists('/app/shared'):
+if Path('/app/shared').exists():
     sys.path.insert(0, '/app')
 else:
     # Fallback for local development
-    parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    if os.path.exists(os.path.join(parent_dir, 'shared')):
+    parent_dir = str(Path(__file__).resolve().parents[3])
+    if (Path(parent_dir) / 'shared').exists():
         sys.path.insert(0, parent_dir)
 
 from shared.endpoints import create_integration_router, simple_health_router
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # noqa: ARG001
     """Application lifespan manager"""
     logger.info("Starting simplified Admin API service...")
     yield

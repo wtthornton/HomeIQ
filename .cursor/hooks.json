@@ -1,0 +1,16 @@
+{
+  "hooks": [
+    {
+      "event": "beforeMCPExecution",
+      "command": ".cursor/hooks/tapps-before-mcp.sh"
+    },
+    {
+      "event": "afterFileEdit",
+      "command": ".cursor/hooks/tapps-after-edit.sh"
+    },
+    {
+      "event": "stop",
+      "command": ".cursor/hooks/tapps-stop.sh"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ Client for querying traces from Jaeger
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 from pydantic import BaseModel
@@ -22,26 +22,26 @@ class TraceSpan(BaseModel):
     operationName: str
     startTime: int
     duration: int
-    tags: List[Dict[str, Any]]
-    logs: List[Dict[str, Any]]
-    references: List[Dict[str, Any]]
+    tags: list[dict[str, Any]]
+    logs: list[dict[str, Any]]
+    references: list[dict[str, Any]]
     processID: str
-    warnings: Optional[List[str]] = None
+    warnings: list[str] | None = None
 
 
 class Trace(BaseModel):
     """Represents a complete trace."""
 
     traceID: str
-    spans: List[TraceSpan]
-    processes: Dict[str, Dict[str, Any]]
+    spans: list[TraceSpan]
+    processes: dict[str, dict[str, Any]]
 
 
 class Service(BaseModel):
     """Represents a service in Jaeger."""
 
     name: str
-    operations: Optional[List[str]] = None
+    operations: list[str] | None = None
 
 
 class Dependency(BaseModel):
@@ -59,7 +59,7 @@ class JaegerClient:
     Provides methods to query traces, services, and dependencies from Jaeger.
     """
 
-    def __init__(self, api_url: Optional[str] = None):
+    def __init__(self, api_url: str | None = None):
         """
         Initialize Jaeger client.
 
@@ -68,26 +68,26 @@ class JaegerClient:
         """
         self.api_url = api_url or os.getenv("JAEGER_API_URL", "http://jaeger:16686/api")
         self.client = httpx.AsyncClient(timeout=30.0)
-        self._services_cache: Optional[List[Service]] = None
-        self._services_cache_time: Optional[datetime] = None
+        self._services_cache: list[Service] | None = None
+        self._services_cache_time: datetime | None = None
         self._cache_ttl = timedelta(minutes=5)
 
     async def close(self) -> None:
         """
         Close the HTTP client.
-        
+
         Should be called when client is no longer needed to free resources.
         """
         await self.client.aclose()
 
     async def get_traces(
         self,
-        service: Optional[str] = None,
-        operation: Optional[str] = None,
+        service: str | None = None,
+        operation: str | None = None,
         limit: int = 100,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-    ) -> List[Trace]:
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> list[Trace]:
         """
         Get traces from Jaeger.
 
@@ -103,7 +103,7 @@ class JaegerClient:
         """
         try:
             # Build query parameters
-            params: Dict[str, Any] = {"limit": limit}
+            params: dict[str, Any] = {"limit": limit}
 
             if service:
                 params["service"] = service
@@ -149,7 +149,7 @@ class JaegerClient:
             logger.error(f"Unexpected error querying traces: {e}", exc_info=True)
             return []
 
-    async def get_trace(self, trace_id: str) -> Optional[Trace]:
+    async def get_trace(self, trace_id: str) -> Trace | None:
         """
         Get a specific trace by ID.
 
@@ -177,7 +177,7 @@ class JaegerClient:
             logger.error(f"Unexpected error querying trace {trace_id}: {e}", exc_info=True)
             return None
 
-    async def get_services(self, force_refresh: bool = False) -> List[Service]:
+    async def get_services(self, force_refresh: bool = False) -> list[Service]:
         """
         Get list of services from Jaeger.
 
@@ -221,7 +221,7 @@ class JaegerClient:
             logger.error(f"Unexpected error querying services: {e}", exc_info=True)
             return []
 
-    async def _get_service_operations(self, service_name: str) -> List[str]:
+    async def _get_service_operations(self, service_name: str) -> list[str]:
         """Get operations for a service."""
         try:
             response = await self.client.get(
@@ -240,7 +240,7 @@ class JaegerClient:
 
     async def get_dependencies(
         self, start_time: datetime, end_time: datetime
-    ) -> List[Dependency]:
+    ) -> list[Dependency]:
         """
         Get service dependencies.
 
@@ -282,7 +282,7 @@ class JaegerClient:
             logger.error(f"Unexpected error querying dependencies: {e}", exc_info=True)
             return []
 
-    async def search_traces(self, query_params: Dict[str, Any]) -> List[Trace]:
+    async def search_traces(self, query_params: dict[str, Any]) -> list[Trace]:
         """
         Search traces with custom query parameters.
 

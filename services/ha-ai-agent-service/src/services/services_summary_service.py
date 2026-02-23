@@ -79,9 +79,9 @@ class ServicesSummaryService:
             # Format 1: Dict format {"light": {"turn_on": {...}, "turn_off": {...}}, ...}
             # Format 2: List format [{"domain": "light", "service": "turn_on", ...}, ...]
             # Format 3: Empty dict or unexpected format
-            
+
             logger.debug(f"Services data type: {type(services_data)}, keys: {list(services_data.keys())[:10] if isinstance(services_data, dict) else 'N/A'}")
-            
+
             if isinstance(services_data, list):
                 # Convert list format to dict format
                 logger.debug("Converting services list format to dict format")
@@ -107,15 +107,14 @@ class ServicesSummaryService:
                     logger.warning("Services data is empty dict")
                     # Try to provide fallback with known service patterns
                     return await self._get_fallback_services_summary()
+                # Check if it's nested format {"light": {"turn_on": {...}}}
+                # or flat format with domain keys
+                first_key = list(services_data.keys())[0] if services_data else None
+                if first_key and isinstance(services_data[first_key], dict):
+                    # Expected format - services grouped by domain
+                    logger.debug(f"Services in expected format: {len(services_data)} domains")
                 else:
-                    # Check if it's nested format {"light": {"turn_on": {...}}}
-                    # or flat format with domain keys
-                    first_key = list(services_data.keys())[0] if services_data else None
-                    if first_key and isinstance(services_data[first_key], dict):
-                        # Expected format - services grouped by domain
-                        logger.debug(f"Services in expected format: {len(services_data)} domains")
-                    else:
-                        logger.warning(f"Unexpected services dict structure. First key: {first_key}, type: {type(services_data.get(first_key)) if first_key else 'N/A'}")
+                    logger.warning(f"Unexpected services dict structure. First key: {first_key}, type: {type(services_data.get(first_key)) if first_key else 'N/A'}")
             else:
                 # Unexpected format
                 logger.warning(f"Unexpected services data format: {type(services_data)}")
@@ -123,23 +122,23 @@ class ServicesSummaryService:
 
             # Process ALL domains and ALL services
             summary_parts = []
-            
+
             # Count total services for logging
             total_domains = len(services_data)
             total_services = sum(len(svcs) for svcs in services_data.values() if isinstance(svcs, dict))
             logger.info(f"📊 Processing {total_domains} domains with {total_services} total services")
-            
+
             # Process all domains with all their services
             for domain in sorted(services_data.keys()):
                 domain_services = services_data[domain]
                 if not isinstance(domain_services, dict):
                     logger.warning(f"Domain {domain} services is not a dict: {type(domain_services)}")
                     continue
-                
+
                 # Format all services in this domain
                 domain_parts = []
                 service_count = 0
-                
+
                 for service_name in sorted(domain_services.keys()):
                     service_info = domain_services[service_name]
                     if isinstance(service_info, dict):
@@ -149,7 +148,7 @@ class ServicesSummaryService:
                             service_count += 1
                     else:
                         logger.debug(f"Service {domain}.{service_name} info is not a dict: {type(service_info)}")
-                
+
                 if domain_parts:
                     # Add domain header with service count
                     summary_parts.append(f"{domain} ({service_count} services):")
@@ -157,9 +156,9 @@ class ServicesSummaryService:
                     logger.debug(f"✅ Added {service_count} services for domain {domain}")
 
             summary = "\n".join(summary_parts)
-            
+
             if not summary:
-                logger.warning("⚠️ Services summary is empty after formatting. Services data keys: " + 
+                logger.warning("⚠️ Services summary is empty after formatting. Services data keys: " +
                              str(list(services_data.keys())[:10] if isinstance(services_data, dict) else 'N/A'))
                 # Use fallback if formatting produced empty result
                 return await self._get_fallback_services_summary()
@@ -204,17 +203,16 @@ class ServicesSummaryService:
         # Common parameter hints
         if "brightness_pct" in fields or "brightness" in fields:
             return f"{service_name}(brightness_pct: 0-100)"
-        elif "rgb_color" in fields:
+        if "rgb_color" in fields:
             return f"{service_name}(rgb_color: [r, g, b])"
-        elif "color_temp" in fields:
+        if "color_temp" in fields:
             return f"{service_name}(color_temp: 153-500)"
-        elif "temperature" in fields:
+        if "temperature" in fields:
             return f"{service_name}(temperature: number)"
-        elif "hvac_mode" in fields:
+        if "hvac_mode" in fields:
             return f"{service_name}(hvac_mode: auto|heat|cool|off)"
-        else:
-            # Just return service name if no special formatting needed
-            return service_name
+        # Just return service name if no special formatting needed
+        return service_name
 
     def _format_full_parameter_schema(self, service_name: str, fields: dict[str, Any], description: str = "") -> str:
         """
@@ -312,23 +310,22 @@ class ServicesSummaryService:
     def _format_service_2025(self, domain: str, service: str, info: dict) -> str:
         """
         Format service with 2025 Home Assistant schema format.
-        
+
         Args:
             domain: Service domain (e.g., "light")
             service: Service name (e.g., "turn_on")
             info: Service info dict with fields, description, etc.
-            
+
         Returns:
             Formatted service string with 2025 format
         """
         fields = info.get("fields", {})
-        description = info.get("description", "")
-        
+
         # Extract target options (2025 pattern)
         target_fields = fields.get("target", {})
         target_selector = target_fields.get("selector", {}) if isinstance(target_fields, dict) else {}
         target_options = []
-        
+
         # Check for entity_id, area_id, device_id in target selector
         if isinstance(target_selector, dict):
             if "entity" in target_selector.get("entity", {}):
@@ -337,7 +334,7 @@ class ServicesSummaryService:
                 target_options.append("area_id")
             if "device" in target_selector.get("device", {}):
                 target_options.append("device_id")
-        
+
         # Fallback: check if target fields exist directly
         if not target_options:
             if "entity_id" in fields:
@@ -346,38 +343,37 @@ class ServicesSummaryService:
                 target_options.append("area_id")
             if "device_id" in fields:
                 target_options.append("device_id")
-        
+
         # Collect parameter names (optimized: just names for token efficiency)
         param_names = []
         for param_name, param_info in fields.items():
             if param_name == "target":
                 continue
-                
+
             if not isinstance(param_info, dict):
                 continue
-            
+
             # Add parameter name (limit to 8 params for token efficiency)
             if len(param_names) < 8:
                 param_names.append(param_name)
-        
+
         # Build service format (optimized: compact format for token efficiency)
         # Format: domain.service(target: options, data: param1, param2, ...)
         target_str = "|".join(target_options) if target_options else "N/A"
         param_str = ", ".join(param_names) if param_names else "none"
-        
-        service_format = f"{domain}.{service}(target: {target_str}, data: {param_str})"
-        
-        return service_format
+
+        return f"{domain}.{service}(target: {target_str}, data: {param_str})"
+
 
     async def _get_fallback_services_summary(self) -> str:
         """
         Fallback: Provide known service patterns when API fails.
-        
+
         Returns:
             Formatted services summary with common patterns
         """
         logger.info("Using fallback services summary with known patterns")
-        
+
         fallback_services = """light.turn_on:
     target: entity_id, area_id, device_id
     data:
@@ -404,11 +400,11 @@ scene.turn_on:
 automation.trigger:
     target:
       entity_id: string - Automation entity ID"""
-        
+
         await self.context_builder._set_cached_value(
             self._cache_key, fallback_services, self._cache_ttl
         )
-        
+
         return fallback_services
 
     async def close(self):

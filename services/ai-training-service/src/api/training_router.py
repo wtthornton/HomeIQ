@@ -61,7 +61,7 @@ def _validate_training_script_path() -> Path:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Training script must reside within the repository",
-        )
+        ) from None
 
     expected_hash = getattr(settings, "training_script_sha256", None)
     if expected_hash:
@@ -130,7 +130,7 @@ async def _execute_training_run(
         env = os.environ.copy()
         # Set environment variables for model caching if needed
         # (Add model directory setup if required)
-        
+
         process = await asyncio.create_subprocess_exec(
             *command,
             stdout=asyncio.subprocess.PIPE,
@@ -139,7 +139,7 @@ async def _execute_training_run(
             env=env,
         )
         stdout, stderr = await process.communicate()
-        
+
         if stdout:
             logger.debug("Training script stdout (first 1000 chars):\n%s", stdout[:1000].decode(errors="ignore"))
         if stderr:
@@ -166,12 +166,12 @@ async def _execute_training_run(
         if not success:
             stdout_text = stdout.decode(errors="ignore") if stdout else ""
             stderr_text = stderr.decode(errors="ignore") if stderr else ""
-            
+
             if stderr_text:
                 error_output = f"STDERR:\n{stderr_text}\n\nSTDOUT:\n{stdout_text}"
             else:
                 error_output = stdout_text or "No error output captured"
-            
+
             if process.returncode == -9:
                 error_output = (
                     "⚠️ OUT OF MEMORY (OOM) KILL DETECTED\n"
@@ -183,9 +183,9 @@ async def _execute_training_run(
                     f"Original error output:\n{error_output}"
                 )
                 logger.error("Training script was killed (OOM). Return code: %d", process.returncode)
-            
+
             logger.error("Training script failed with return code %d. Full output:\n%s", process.returncode, error_output)
-            
+
             if len(error_output) > 5000:
                 updates["error_message"] = error_output[:2500] + "\n\n... [truncated] ...\n\n" + error_output[-2500:]
             else:
@@ -219,7 +219,7 @@ async def list_training_runs_endpoint(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}"
             )
-    
+
     try:
         runs = await list_training_runs(db, limit=limit, training_type=training_type)
         return [TrainingRunResponse.model_validate(run, from_attributes=True) for run in runs]
@@ -251,7 +251,7 @@ async def trigger_training_run(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}"
             )
-        
+
         # Get script path based on training type
         if training_type == 'soft_prompt':
             script_path = _resolve_path(settings.training_script_path)
@@ -267,14 +267,14 @@ async def trigger_training_run(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unsupported training type: {training_type}"
             )
-        
+
         # Validate script exists
         if not script_path.exists():
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Training script not found at {script_path}",
             )
-        
+
         # Check for active training of this type
         active = await get_active_training_run(db, training_type=training_type)
         if active:
@@ -367,7 +367,7 @@ async def clear_old_training_runs_endpoint(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}"
             )
-    
+
     try:
         count = await delete_old_training_runs(
             db,

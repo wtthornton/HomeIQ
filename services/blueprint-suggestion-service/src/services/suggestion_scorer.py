@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from ..config import settings
 from .external_schemas import BlueprintSummary, DeviceSignature, UserProfile
@@ -23,7 +23,7 @@ if not DEVICE_MATCHER_AVAILABLE:
 class SuggestionScorer:
     """
     Scores blueprint suggestions using 2025 pattern.
-    
+
     Enhanced scoring combines:
     - DeviceMatcher scoring (50%): domain, device_class, area matching, temporal, user profile
     - Blueprint quality score (15%): blueprint quality_score (0.0-1.0)
@@ -32,7 +32,7 @@ class SuggestionScorer:
     - User profile match (10%): already in DeviceMatcher
     - Complexity bonus (5%): simpler blueprints get bonus
     """
-    
+
     def __init__(self, enable_wyze_scoring: bool = True):
         """Initialize suggestion scorer."""
         self.enable_wyze_scoring = enable_wyze_scoring
@@ -41,46 +41,46 @@ class SuggestionScorer:
         else:
             self.device_matcher = None
             logger.warning("DeviceMatcher not available, scoring will be limited")
-    
+
     def calculate_suggestion_score(
         self,
         blueprint: dict[str, Any],
         devices: list[dict[str, Any]],
-        user_profile: Optional[dict[str, Any]] = None,
-        current_time: Optional[datetime] = None,
+        user_profile: dict[str, Any] | None = None,
+        current_time: datetime | None = None,
     ) -> float:
         """
         Calculate comprehensive suggestion score for a blueprint-device combination.
-        
+
         Args:
-            blueprint: Blueprint dictionary with fields: id, name, required_domains, 
+            blueprint: Blueprint dictionary with fields: id, name, required_domains,
                        required_device_classes, quality_score, community_rating, complexity
             devices: List of device dictionaries from data-api
             user_profile: Optional user profile dictionary
             current_time: Optional current datetime for temporal relevance
-            
+
         Returns:
             Score between 0.0 and 1.0
         """
         if not self.device_matcher:
             # Fallback scoring without DeviceMatcher
             return self._calculate_fallback_score(blueprint, devices)
-        
+
         # Convert blueprint dict to BlueprintSummary
         blueprint_summary = self._dict_to_blueprint_summary(blueprint)
-        
+
         # Convert device dicts to DeviceSignature
         device_signatures = [self._dict_to_device_signature(d) for d in devices]
-        
+
         # Calculate same_area bonus
         area_ids = {d.get("area_id") for d in devices if d.get("area_id")}
         same_area = len(area_ids) <= 1
-        
+
         # Convert user profile if provided
         user_profile_obj = None
         if user_profile:
             user_profile_obj = self._dict_to_user_profile(user_profile)
-        
+
         # Get device match score from DeviceMatcher (includes temporal and profile)
         device_match_score = self.device_matcher.calculate_fit_score(
             blueprint=blueprint_summary,
@@ -89,15 +89,15 @@ class SuggestionScorer:
             current_time=current_time or datetime.now(),
             user_profile=user_profile_obj,
         )
-        
+
         # Extract blueprint-specific scores
         blueprint_quality_score = float(blueprint.get("quality_score", 0.5))
         community_rating = float(blueprint.get("community_rating", 0.0))
         complexity = str(blueprint.get("complexity", "medium")).lower()
-        
+
         # Calculate complexity bonus
         complexity_bonus = self._calculate_complexity_bonus(complexity)
-        
+
         # Calculate final score with normalized weights from config.
         # temporal_relevance and user_profile weights are already included in
         # device_match_score via DeviceMatcher, so we only apply the remaining 4
@@ -116,9 +116,9 @@ class SuggestionScorer:
             community_rating * settings.community_rating_weight * norm +
             complexity_bonus * settings.complexity_bonus_weight * norm
         )
-        
+
         return min(1.0, max(0.0, final_score))
-    
+
     def _calculate_complexity_bonus(self, complexity: str) -> float:
         """Calculate complexity bonus (simpler = better)."""
         complexity_lower = complexity.lower()
@@ -128,7 +128,7 @@ class SuggestionScorer:
             return 0.4  # Partial bonus
         else:
             return 0.0  # No bonus for high complexity
-    
+
     def _calculate_fallback_score(
         self,
         blueprint: dict[str, Any],
@@ -136,7 +136,7 @@ class SuggestionScorer:
     ) -> float:
         """Fallback scoring when DeviceMatcher is not available."""
         score = 0.0
-        
+
         # Basic domain matching (50%)
         required_domains = set(blueprint.get("required_domains", []))
         device_domains = {d.get("domain") for d in devices if d.get("domain")}
@@ -146,22 +146,22 @@ class SuggestionScorer:
             score += domain_coverage * 0.5
         else:
             score += 0.5
-        
+
         # Blueprint quality (30%)
         quality_score = float(blueprint.get("quality_score", 0.5))
         score += quality_score * 0.3
-        
+
         # Community rating (20%)
         community_rating = float(blueprint.get("community_rating", 0.0))
         score += community_rating * 0.2
-        
+
         return min(1.0, score)
-    
+
     def _dict_to_blueprint_summary(self, blueprint_dict: dict[str, Any]) -> Any:
         """Convert blueprint dict to BlueprintSummary object."""
         if not DEVICE_MATCHER_AVAILABLE:
             return blueprint_dict
-        
+
         return BlueprintSummary(
             id=blueprint_dict.get("id", ""),
             name=blueprint_dict.get("name", ""),
@@ -178,16 +178,16 @@ class SuggestionScorer:
             complexity=blueprint_dict.get("complexity", "medium"),
             author=blueprint_dict.get("author"),
         )
-    
+
     def _dict_to_device_signature(self, device_dict: dict[str, Any]) -> Any:
         """Convert device/entity dict to DeviceSignature object."""
         if not DEVICE_MATCHER_AVAILABLE:
             return device_dict
-        
+
         # Handle both entity and device dicts
         entity_id = device_dict.get("entity_id") or device_dict.get("id", "")
         domain = device_dict.get("domain", "")
-        
+
         return DeviceSignature(
             entity_id=entity_id,
             domain=domain,
@@ -200,12 +200,12 @@ class SuggestionScorer:
             model=device_dict.get("model"),
             integration=device_dict.get("integration") or device_dict.get("platform"),
         )
-    
+
     def _dict_to_user_profile(self, profile_dict: dict[str, Any]) -> Any:
         """Convert user profile dict to UserProfile object."""
         if not DEVICE_MATCHER_AVAILABLE:
             return None
-        
+
         return UserProfile(
             preferred_domains=profile_dict.get("preferred_domains", []),
             preferred_use_cases=profile_dict.get("preferred_use_cases", []),

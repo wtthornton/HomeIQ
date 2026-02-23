@@ -8,7 +8,7 @@ such as dimmable lights, color control, scheduling, etc.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -18,17 +18,17 @@ logger = logging.getLogger(__name__)
 class DeviceCapabilityAnalyzer:
     """
     Analyzes device capabilities for capability-based synergy detection.
-    
+
     Integrates with device-intelligence-service to fetch device capabilities
     and suggests synergies based on capability compatibility.
-    
+
     Attributes:
         base_url: Device intelligence service base URL
         enabled: Whether capability analysis is enabled
         timeout: HTTP request timeout in seconds
         _cache: Internal cache for device capabilities
     """
-    
+
     def __init__(
         self,
         base_url: str = "http://device-intelligence-service:8028",
@@ -37,7 +37,7 @@ class DeviceCapabilityAnalyzer:
     ):
         """
         Initialize device capability analyzer.
-        
+
         Args:
             base_url: Device intelligence service base URL
             enabled: Whether capability analysis is enabled
@@ -47,52 +47,52 @@ class DeviceCapabilityAnalyzer:
         self.enabled = enabled
         self.timeout = timeout
         self._cache: dict[str, list[dict[str, Any]]] = {}
-        self._http_client: Optional[httpx.AsyncClient] = None
-    
+        self._http_client: httpx.AsyncClient | None = None
+
     async def _get_client(self) -> httpx.AsyncClient:
         """
         Get or create HTTP client.
-        
+
         Returns:
             httpx.AsyncClient instance
         """
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(timeout=self.timeout)
         return self._http_client
-    
+
     async def close(self) -> None:
         """Close HTTP client."""
         if self._http_client:
             await self._http_client.aclose()
             self._http_client = None
-    
+
     async def analyze_device_capabilities(
         self,
         device_id: str
     ) -> list[dict[str, Any]]:
         """
         Fetch and parse capabilities for a device.
-        
+
         Args:
             device_id: Device identifier
-            
+
         Returns:
             List of capability dictionaries, or empty list if device not found or service unavailable
         """
         if not self.enabled:
             return []
-        
+
         # Check cache first
         if device_id in self._cache:
             return self._cache[device_id]
-        
+
         try:
             client = await self._get_client()
             response = await client.get(
                 f"{self.base_url}/api/devices/{device_id}/capabilities"
             )
             response.raise_for_status()
-            
+
             data = response.json()
             # Handle response format (list of DeviceCapabilityResponse)
             if isinstance(data, list):
@@ -102,11 +102,11 @@ class DeviceCapabilityAnalyzer:
             else:
                 logger.warning(f"Unexpected capabilities response format for device {device_id}: {type(data)}")
                 capabilities = []
-            
+
             # Cache capabilities
             self._cache[device_id] = capabilities
             return capabilities
-            
+
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 # Device not found - return empty list
@@ -120,7 +120,7 @@ class DeviceCapabilityAnalyzer:
         except Exception as e:
             logger.warning(f"⚠️ Error getting device capabilities for {device_id}: {e}")
             return []
-    
+
     def match_capabilities(
         self,
         device1_capabilities: list[dict[str, Any]],
@@ -128,11 +128,11 @@ class DeviceCapabilityAnalyzer:
     ) -> dict[str, Any]:
         """
         Check capability compatibility between two devices.
-        
+
         Args:
             device1_capabilities: List of capability dictionaries for device 1
             device2_capabilities: List of capability dictionaries for device 2
-            
+
         Returns:
             Dictionary with:
             - compatible: bool - Whether devices are compatible
@@ -147,79 +147,77 @@ class DeviceCapabilityAnalyzer:
                 'matching_capabilities': [],
                 'rationale': 'One or both devices have no capabilities'
             }
-        
-        # Extract capability types and names
-        device1_types = {cap.get('capability_type', '') for cap in device1_capabilities}
+
+        # Extract capability names
         device1_names = {cap.get('capability_name', '') for cap in device1_capabilities}
-        device2_types = {cap.get('capability_type', '') for cap in device2_capabilities}
         device2_names = {cap.get('capability_name', '') for cap in device2_capabilities}
-        
+
         # Common compatibility patterns
         matching_pairs = []
         match_score = 0.0
-        
+
         # Pattern 1: Both support dimming (light + light, light + switch)
-        if any('brightness' in name.lower() or 'dimmable' in name.lower() 
+        if any('brightness' in name.lower() or 'dimmable' in name.lower()
                for name in device1_names) and \
-           any('brightness' in name.lower() or 'dimmable' in name.lower() 
+           any('brightness' in name.lower() or 'dimmable' in name.lower()
                for name in device2_names):
             matching_pairs.append(('dimmable', 'dimmable'))
             match_score += 0.3
-        
+
         # Pattern 2: Both support color control (color lights)
-        if any('color' in name.lower() or 'rgb' in name.lower() 
+        if any('color' in name.lower() or 'rgb' in name.lower()
                for name in device1_names) and \
-           any('color' in name.lower() or 'rgb' in name.lower() 
+           any('color' in name.lower() or 'rgb' in name.lower()
                for name in device2_names):
             matching_pairs.append(('color_control', 'color_control'))
             match_score += 0.3
-        
+
         # Pattern 3: Scheduling capabilities
-        if any('schedule' in name.lower() or 'timer' in name.lower() 
+        if any('schedule' in name.lower() or 'timer' in name.lower()
                for name in device1_names) and \
-           any('schedule' in name.lower() or 'timer' in name.lower() 
+           any('schedule' in name.lower() or 'timer' in name.lower()
                for name in device2_names):
             matching_pairs.append(('scheduling', 'scheduling'))
             match_score += 0.2
-        
+
         # Pattern 4: Scene support
         if any('scene' in name.lower() for name in device1_names) and \
            any('scene' in name.lower() for name in device2_names):
             matching_pairs.append(('scene', 'scene'))
             match_score += 0.2
-        
+
         # Normalize match score to 0.0-1.0
         match_score = min(1.0, match_score)
-        
+
         compatible = match_score >= 0.3  # Threshold for compatibility
-        
+
         rationale = f"Capability match score: {match_score:.2f}"
         if matching_pairs:
             rationale += f". Matching capabilities: {', '.join(pair[0] for pair in matching_pairs)}"
-        
+
         return {
             'compatible': compatible,
             'match_score': match_score,
             'matching_capabilities': matching_pairs,
             'rationale': rationale
         }
-    
+
     async def suggest_capability_synergy(
         self,
         device1_id: str,
         device2_id: str,
-        device1_capabilities: Optional[list[dict[str, Any]]] = None,
-        device2_capabilities: Optional[list[dict[str, Any]]] = None
-    ) -> Optional[dict[str, Any]]:
+        device1_capabilities: list[dict[str, Any]] | None = None,
+        device2_capabilities: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any] | None:
         """
         Suggest capability-based synergy between two devices.
-        
+
         Args:
             device1_id: First device identifier
             device2_id: Second device identifier
             device1_capabilities: Optional pre-fetched capabilities for device 1
             device2_capabilities: Optional pre-fetched capabilities for device 2
-            
+
         Returns:
             Synergy dictionary if compatible, None otherwise
         """
@@ -228,13 +226,13 @@ class DeviceCapabilityAnalyzer:
             device1_capabilities = await self.analyze_device_capabilities(device1_id)
         if device2_capabilities is None:
             device2_capabilities = await self.analyze_device_capabilities(device2_id)
-        
+
         # Match capabilities
         match_result = self.match_capabilities(device1_capabilities, device2_capabilities)
-        
+
         if not match_result['compatible']:
             return None
-        
+
         # Create synergy suggestion
         import uuid
         synergy = {
@@ -255,9 +253,9 @@ class DeviceCapabilityAnalyzer:
                 'matching_capabilities': match_result['matching_capabilities']
             }
         }
-        
+
         return synergy
-    
+
     def clear_cache(self) -> None:
         """Clear capability cache."""
         self._cache.clear()

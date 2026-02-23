@@ -9,9 +9,9 @@ import logging
 import os
 
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel
 
 from .cache import cache
-from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 

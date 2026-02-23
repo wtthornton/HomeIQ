@@ -11,9 +11,8 @@ from typing import Any
 import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
-from influxdb_client_3 import InfluxDBClient3, Point
-
 from health_check import HealthCheckHandler
+from influxdb_client_3 import InfluxDBClient3, Point
 from providers import AwattarProvider
 from security import require_internal_network, validate_hours_parameter
 
@@ -41,7 +40,7 @@ class ElectricityPricingService:
         # Service configuration
         self.fetch_interval = int(os.getenv('FETCH_INTERVAL', '3600'))  # seconds
         self.cache_duration = int(os.getenv('CACHE_DURATION', '60'))  # minutes
-        
+
         # Epic 49 Story 49.1: Security configuration
         self.allowed_networks = os.getenv('ALLOWED_NETWORKS', '').split(',') if os.getenv('ALLOWED_NETWORKS') else None
         if self.allowed_networks:
@@ -199,7 +198,7 @@ class ElectricityPricingService:
                 .field("current_price", float(data['current_price'])) \
                 .field("peak_period", bool(data['peak_period'])) \
                 .time(data['timestamp'])
-            
+
             points.append(current_point)
 
             # Store forecast (collect all forecast points)
@@ -242,7 +241,7 @@ class ElectricityPricingService:
             return web.json_response({
                 'error': str(e)
             }, status=400)
-        
+
         # Epic 49 Story 49.1: Require internal network access (if configured)
         try:
             await require_internal_network(request, self.allowed_networks)
@@ -315,7 +314,8 @@ async def main():
 
     # Start health check server
     port = int(os.getenv('SERVICE_PORT', '8011'))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    bind_host = os.getenv("BIND_HOST", "0.0.0.0")  # noqa: S104 — Docker container requires binding to all interfaces
+    site = web.TCPSite(runner, bind_host, port)
     await site.start()
 
     logger.info(f"API endpoints available on port {port}")

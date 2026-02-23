@@ -3,6 +3,8 @@ Device Pattern Definitions
 Phase 2.1: Patterns for identifying device types from entities
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 
@@ -155,7 +157,6 @@ def match_device_pattern(
 
     # Score each pattern
     best_match = None
-    best_score = 0.0
     best_raw_score = 0.0
     best_max_score = 1.0
 

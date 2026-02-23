@@ -3,7 +3,6 @@ Health check router for websocket-ingestion service.
 """
 
 from fastapi import APIRouter, Request
-from typing import Any
 
 from ...api.models import HealthResponse
 
@@ -14,7 +13,7 @@ router = APIRouter(prefix="/health", tags=["health"])
 async def health_check(request: Request):
     """
     Health check endpoint.
-    
+
     Returns service health status including connection and subscription information.
     """
     service = request.app.state.service

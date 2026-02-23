@@ -31,11 +31,11 @@ class EventSubscriptionManager:
     async def subscribe_to_events(self, websocket_client, event_types: list[str] = None) -> bool:
         """
         Subscribe to Home Assistant events
-        
+
         Args:
             websocket_client: The WebSocket client instance
             event_types: List of event types to subscribe to (default: ['state_changed'])
-            
+
         Returns:
             True if subscription successful, False otherwise
         """
@@ -137,10 +137,10 @@ class EventSubscriptionManager:
     async def handle_subscription_result(self, message: dict[str, Any]) -> bool:
         """
         Handle subscription result message from Home Assistant
-        
+
         Args:
             message: The subscription result message
-            
+
         Returns:
             True if subscription was successful, False otherwise
         """
@@ -182,10 +182,10 @@ class EventSubscriptionManager:
     async def handle_event_message(self, message: dict[str, Any]) -> bool:
         """
         Handle incoming event message from Home Assistant
-        
+
         Args:
             message: The event message
-            
+
         Returns:
             True if event was processed successfully, False otherwise
         """
@@ -225,10 +225,10 @@ class EventSubscriptionManager:
     def _extract_event_summary(self, event_data: dict[str, Any]) -> str:
         """
         Extract summary information from event data
-        
+
         Args:
             event_data: The event data dictionary
-            
+
         Returns:
             String summary of the event
         """
@@ -261,7 +261,7 @@ class EventSubscriptionManager:
     def register_event_handler(self, event_type: str, handler: Callable):
         """
         Register a handler for a specific event type
-        
+
         Args:
             event_type: The event type to handle
             handler: The handler function
@@ -272,10 +272,10 @@ class EventSubscriptionManager:
     async def resubscribe_after_reconnection(self, websocket_client) -> bool:
         """
         Resubscribe to events after reconnection
-        
+
         Args:
             websocket_client: The WebSocket client instance
-            
+
         Returns:
             True if resubscription successful, False otherwise
         """
@@ -298,7 +298,7 @@ class EventSubscriptionManager:
     def get_subscription_status(self) -> dict[str, Any]:
         """
         Get current subscription status
-        
+
         Returns:
             Dictionary with subscription status information
         """

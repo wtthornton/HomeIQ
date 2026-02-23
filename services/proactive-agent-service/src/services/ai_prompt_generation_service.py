@@ -56,7 +56,7 @@ except ImportError:
     PromptBuilder = None  # type: ignore
     logging.warning("Could not import PromptBuilder from shared.prompt_guidance.builder - using fallback prompt")
 
-from .device_validation_service import DeviceValidationService
+from .device_validation_service import DeviceValidationService  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -64,14 +64,14 @@ logger = logging.getLogger(__name__)
 class AIPromptGenerationService:
     """
     AI-powered prompt generation using LLM.
-    
+
     Instead of hardcoded templates, this service:
     1. Gathers comprehensive home context from multiple sources
     2. Provides explicit device list to constrain LLM
     3. Sends context to LLM with specialized prompt
     4. Validates suggestions against actual device inventory
     5. LLM generates personalized, intelligent suggestions
-    
+
     Enhanced with DeviceValidationService to prevent hallucination.
     """
 
@@ -84,7 +84,7 @@ class AIPromptGenerationService:
     ):
         """
         Initialize AI Prompt Generation Service.
-        
+
         Args:
             openai_api_key: OpenAI API key (defaults to env var)
             openai_model: Model to use for generation
@@ -94,18 +94,18 @@ class AIPromptGenerationService:
         self.api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         self.model = openai_model
         self.ha_agent_url = ha_agent_url.rstrip("/")
-        
+
         # Initialize device validation service
         self.device_validation = device_validation_service or DeviceValidationService(
             ha_agent_url=ha_agent_url
         )
-        
+
         if not self.api_key:
             logger.warning(
                 "OPENAI_API_KEY not set - AI prompt generation unavailable. "
                 "Falling back to basic template generation."
             )
-        
+
         self.http_client = httpx.AsyncClient(timeout=60.0)
         logger.info(f"AI Prompt Generation Service initialized (model={self.model}, device_validation=enabled)")
 
@@ -116,36 +116,36 @@ class AIPromptGenerationService:
     ) -> list[dict[str, Any]]:
         """
         Generate AI-powered automation suggestions.
-        
+
         Args:
             context_analysis: Context from ContextAnalysisService
             max_prompts: Maximum suggestions to generate
-            
+
         Returns:
             List of suggestion dictionaries (validated against actual devices)
         """
         if not self.api_key:
             logger.warning("No API key - using fallback generation")
             return self._fallback_generation(context_analysis, max_prompts)
-        
+
         try:
             # Step 1: Get device inventory for validation and LLM context
             device_inventory = await self.device_validation.get_device_list_for_llm()
             device_domains = set(device_inventory.get("device_domains_available", []))
             logger.info(f"Device inventory: {device_inventory.get('total_devices', 0)} devices, domains: {device_domains}")
-            
+
             # Step 2: Get rich home context from HA AI Agent
             home_context = await self._get_home_context()
-            
+
             # Step 3: Build comprehensive context for LLM (with explicit device list)
             llm_context = self._build_llm_context(context_analysis, home_context, device_inventory)
-            
+
             # Step 4: Call LLM to generate suggestions
             suggestions = await self._call_llm(llm_context, max_prompts)
-            
+
             # Step 5: Validate suggestions (format check)
             formatted = self._validate_suggestions(suggestions)
-            
+
             # Step 6: Validate against actual device inventory (prevent hallucination)
             validated = []
             rejected_count = 0
@@ -153,7 +153,7 @@ class AIPromptGenerationService:
                 validation_result = await self.device_validation.validate_suggestion(
                     suggestion["prompt"]
                 )
-                
+
                 if validation_result.is_valid:
                     validated.append(suggestion)
                 else:
@@ -162,13 +162,13 @@ class AIPromptGenerationService:
                         f"Rejected suggestion (device validation failed): "
                         f"{suggestion['prompt'][:50]}... Reason: {validation_result.reason}"
                     )
-            
+
             logger.info(
                 f"AI generated {len(formatted)} suggestions, "
                 f"{len(validated)} validated, {rejected_count} rejected"
             )
             return validated
-            
+
         except Exception as e:
             logger.error(f"Error in AI prompt generation: {e}", exc_info=True)
             return self._fallback_generation(context_analysis, max_prompts)
@@ -176,7 +176,7 @@ class AIPromptGenerationService:
     async def _get_home_context(self) -> dict[str, Any]:
         """
         Fetch rich home context from HA AI Agent Service.
-        
+
         This includes:
         - Device inventory with capabilities
         - Areas/rooms
@@ -188,11 +188,8 @@ class AIPromptGenerationService:
             response = await self.http_client.get(
                 f"{self.ha_agent_url}/api/v1/context"
             )
-            if response.status_code == 200:
-                tier1 = response.json()
-            else:
-                tier1 = {}
-            
+            tier1 = response.json() if response.status_code == 200 else {}
+
             # Get system prompt (contains capability patterns)
             response = await self.http_client.get(
                 f"{self.ha_agent_url}/api/v1/system-prompt"
@@ -201,13 +198,13 @@ class AIPromptGenerationService:
                 system_info = response.json()
             else:
                 system_info = {}
-            
+
             return {
                 "tier1_context": tier1.get("context", ""),
                 "system_prompt_length": len(system_info.get("system_prompt", "")),
                 "available": True,
             }
-            
+
         except Exception as e:
             logger.warning(f"Failed to get home context: {e}")
             return {"available": False, "error": str(e)}
@@ -220,14 +217,14 @@ class AIPromptGenerationService:
     ) -> str:
         """
         Build comprehensive context string for LLM.
-        
+
         Args:
             context_analysis: Weather, sports, energy, pattern data
             home_context: Home context from HA AI Agent
             device_inventory: Explicit device list (not truncated) for LLM
         """
         parts = ["## Current Home State\n"]
-        
+
         # CRITICAL: Explicit device list FIRST (not truncated)
         # This ensures LLM knows exactly what devices exist
         if device_inventory:
@@ -236,7 +233,7 @@ class AIPromptGenerationService:
 
 ⚠️ REMINDER: ONLY suggest automations for devices listed above. If a device type is not in this list, DO NOT suggest it.
 """)
-        
+
         # Weather context
         weather = context_analysis.get("weather", {})
         if weather.get("available"):
@@ -254,7 +251,7 @@ class AIPromptGenerationService:
 - Humidity: {current.get('humidity', 'unknown')}%
 - Relevant insights: {', '.join(filtered_insights) if filtered_insights else 'None'}
 """)
-        
+
         # Sports context - ENHANCED with game time, team colors, trigger info
         sports = context_analysis.get("sports", {})
         if sports.get("available"):
@@ -277,7 +274,7 @@ class AIPromptGenerationService:
                     entity_id = g.get('entity_id') or g.get('game_id', '')
                     team_color_primary = g.get('team_color_primary', '')
                     team_color_secondary = g.get('team_color_secondary', '')
-                    
+
                     game_str = f"{team} vs {opponent} ({league}, {status})"
                     if game_date:
                         game_str += f" on {game_date}"
@@ -294,7 +291,7 @@ class AIPromptGenerationService:
                     if entity_id:
                         game_str += f" sensor: {entity_id}"
                     games_info.append(game_str)
-                
+
                 parts.append(f"""### Sports Events
 - Live games: {len(live)}
 - Upcoming games: {len(upcoming)}
@@ -310,7 +307,7 @@ class AIPromptGenerationService:
 - NEVER suggest fixed time triggers - always use sensor state triggers
 - Focus on automation patterns that work for every game automatically
 """)
-        
+
         # Energy context
         energy = context_analysis.get("energy", {})
         if energy.get("available"):
@@ -319,7 +316,7 @@ class AIPromptGenerationService:
 - Carbon intensity: {intensity.get('intensity', 'unknown')} gCO2/kWh
 - Status: {'Clean' if intensity.get('intensity', 500) < 200 else 'High carbon'}
 """)
-        
+
         # Historical patterns
         patterns = context_analysis.get("historical_patterns", {})
         if patterns.get("available"):
@@ -353,7 +350,7 @@ class AIPromptGenerationService:
                     parts.append(f"""### Home Areas
 {areas_section}
 """)
-        
+
         # Summary
         summary = context_analysis.get("summary", {})
         parts.append(f"""### Context Summary
@@ -361,9 +358,9 @@ class AIPromptGenerationService:
 - Total insights: {summary.get('total_insights', 0)}
 - Device count: {device_inventory.get('total_devices', 0) if device_inventory else 'unknown'}
 """)
-        
+
         return "\n".join(parts)
-    
+
     def _filter_weather_insights(
         self,
         insights: list[str],
@@ -371,16 +368,16 @@ class AIPromptGenerationService:
     ) -> list[str]:
         """
         Filter weather insights to remove suggestions for non-existent device types.
-        
+
         Args:
             insights: List of weather insight strings
             device_domains: Set of device domains that exist
-            
+
         Returns:
             Filtered list of insights
         """
         filtered = []
-        
+
         # Keywords that require specific devices
         device_requirements = {
             "humidifier": "humidifier",
@@ -390,10 +387,10 @@ class AIPromptGenerationService:
             "thermostat": "climate",
             "fan": "fan",
         }
-        
+
         for insight in insights:
             insight_lower = insight.lower()
-            
+
             # Check if insight mentions a device type that doesn't exist
             skip = False
             for keyword, required_domain in device_requirements.items():
@@ -401,19 +398,19 @@ class AIPromptGenerationService:
                     logger.debug(f"Filtering insight (no {required_domain}): {insight}")
                     skip = True
                     break
-            
+
             if not skip:
                 filtered.append(insight)
-        
+
         return filtered
-    
+
     def _extract_areas_from_context(self, tier1_context: str) -> str | None:
         """
         Extract areas/rooms section from tier1 context.
-        
+
         Args:
             tier1_context: Full tier1 context string
-            
+
         Returns:
             Areas section if found, None otherwise
         """
@@ -424,10 +421,10 @@ class AIPromptGenerationService:
             tier1_context,
             re.IGNORECASE
         )
-        
+
         if areas_match:
             return areas_match.group(1).strip()[:500]  # Limit length
-        
+
         return None
 
     async def _call_llm(
@@ -438,7 +435,7 @@ class AIPromptGenerationService:
     ) -> list[dict[str, Any]]:
         """
         Call OpenAI to generate suggestions.
-        
+
         Args:
             context: Home context string
             max_prompts: Maximum number of suggestions to generate
@@ -454,7 +451,7 @@ class AIPromptGenerationService:
             # Fallback to basic prompt if PromptBuilder not available
             system_prompt = "You are HomeIQ's Proactive Automation Intelligence. Generate automation suggestions based on the home context."
             logger.warning("Using fallback prompt - PromptBuilder not available")
-        
+
         try:
             response = await self.http_client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -481,17 +478,17 @@ Remember:
                     "response_format": {"type": "json_object"},
                 },
             )
-            
+
             if response.status_code != 200:
                 logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
                 return []
-            
+
             result = response.json()
             content = result["choices"][0]["message"]["content"]
-            
+
             # Parse JSON response
             parsed = json.loads(content)
-            
+
             # Handle both {"suggestions": [...]} and [...] formats
             if isinstance(parsed, list):
                 return parsed
@@ -500,7 +497,7 @@ Remember:
             else:
                 logger.warning(f"Unexpected LLM response format: {type(parsed)}")
                 return []
-                
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
             return []
@@ -517,15 +514,15 @@ Remember:
         Includes automation_hints for structured context passing.
         """
         validated = []
-        
+
         for suggestion in suggestions:
             # Must have a prompt
             if not suggestion.get("prompt"):
                 continue
-            
+
             # Extract automation hints if provided
             automation_hints = suggestion.get("automation_hints", {})
-            
+
             # Normalize structure
             validated.append({
                 "prompt": suggestion["prompt"],
@@ -540,7 +537,7 @@ Remember:
                     "automation_hints": automation_hints,  # Also in metadata for storage
                 },
             })
-        
+
         return validated
 
     def _fallback_generation(
@@ -552,9 +549,9 @@ Remember:
         Fallback to basic template generation when LLM unavailable.
         """
         logger.info("Using fallback template generation (LLM unavailable)")
-        
+
         prompts = []
-        
+
         # Weather-based fallback
         weather = context_analysis.get("weather", {})
         if weather.get("available"):
@@ -576,7 +573,7 @@ Remember:
                         "quality_score": 0.7,
                         "metadata": {"trigger": "high_temperature", "ai_generated": False},
                     })
-        
+
         return prompts[:max_prompts]
 
     async def close(self):
