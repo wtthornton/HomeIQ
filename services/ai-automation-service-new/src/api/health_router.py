@@ -19,25 +19,26 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health")
 async def health_check():
-    """
-    Health check endpoint with basic metrics.
+    """Structured health check with dependency status, database, and metrics."""
+    from ..main import _group_health
 
-    Returns:
-        Health status, database connectivity, and basic metrics
-    """
+    # Build base response from GroupHealthCheck
+    if _group_health is not None:
+        result = await _group_health.to_dict()
+    else:
+        result = {"status": "starting", "service": "ai-automation-service"}
+
     try:
         # Test database connection
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
+        result["database"] = "connected"
 
-        # Get performance metrics
+        # Enrich with performance metrics
         perf_metrics = get_performance_metrics()
         error_counts = get_error_counts()
-
-        # Calculate total errors
         total_errors = sum(error_counts.values())
 
-        # Get key endpoint metrics (if available)
         key_metrics = {}
         for endpoint in [
             "POST /api/suggestions/generate",
@@ -52,23 +53,11 @@ async def health_check():
                     "error_count": error_counts.get(endpoint, 0),
                 }
 
-        return {
-            "status": "healthy",
-            "service": "ai-automation-service",
-            "version": "1.0.0",
-            "database": "connected",
-            "metrics": {"total_errors": total_errors, "endpoints": key_metrics},
-        }
-    except Exception as e:
-        logger.error(f"Health check failed: {e}", exc_info=True)
-        from fastapi.responses import JSONResponse
+        result["metrics"] = {"total_errors": total_errors, "endpoints": key_metrics}
 
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "service": "ai-automation-service",
-                "error": "Health check failed. Check server logs for details.",
-                "database": "disconnected",
-            },
-        )
+    except Exception as e:
+        logger.error("Health check failed: %s", e, exc_info=True)
+        result["database"] = "disconnected"
+        result["status"] = "unhealthy"
+
+    return result

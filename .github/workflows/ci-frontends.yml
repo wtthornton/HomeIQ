@@ -1,0 +1,34 @@
+name: "CI \u2014 Frontends"
+
+on:
+  push:
+    paths:
+      - 'services/observability-dashboard/**'
+      - 'services/ai-automation-ui/**'
+      - 'compose/frontends.yml'
+      - 'shared/patterns/**'
+      - '.github/workflows/ci-frontends.yml'
+      - '.github/workflows/reusable-group-ci.yml'
+  pull_request:
+    paths:
+      - 'services/observability-dashboard/**'
+      - 'services/ai-automation-ui/**'
+      - 'compose/frontends.yml'
+      - 'shared/patterns/**'
+      - '.github/workflows/ci-frontends.yml'
+      - '.github/workflows/reusable-group-ci.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-frontends-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: ./.github/workflows/reusable-group-ci.yml
+    with:
+      group_name: frontends
+      services: '["observability-dashboard","ai-automation-ui"]'

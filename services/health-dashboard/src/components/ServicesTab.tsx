@@ -3,7 +3,7 @@ import { ServiceCard } from './ServiceCard';
 import { ServiceDetailsModal } from './ServiceDetailsModal';
 import { SkeletonCard } from './skeletons';
 import { apiService, ContainerInfo, adminApi } from '../services/api';
-import type { ServiceStatus, ServiceDefinition } from '../types';
+import type { ServiceStatus, ServiceDefinition, ServiceGroupId } from '../types';
 import { fetchAIStats, AIStatsData } from './AIStats';
 import { aiApi } from '../services/api';
 import type { ServicesHealthResponse } from '../types/health';
@@ -13,26 +13,35 @@ interface ServicesTabProps {
 }
 
 // Service definitions with metadata
-const SERVICE_DEFINITIONS: ServiceDefinition[] = [
+export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   // Core Services
-  { id: 'websocket-ingestion', name: 'WebSocket Ingestion', icon: '🏠', type: 'core', port: 8001, description: 'Home Assistant WebSocket client' },
-  { id: 'ai-automation-service', name: 'AI Automation Service', icon: '🤖', type: 'core', port: 8018, description: 'AI-powered automation and entity extraction' },
+  { id: 'websocket-ingestion', name: 'WebSocket Ingestion', icon: '🏠', type: 'core', port: 8001, description: 'Home Assistant WebSocket client', group: 'core-platform' },
+  { id: 'ai-automation-service', name: 'AI Automation Service', icon: '🤖', type: 'core', port: 8018, description: 'AI-powered automation and entity extraction', group: 'automation-intelligence' },
   // DEPRECATED: enrichment-pipeline (Port 8002) - Epic 31: Direct writes to InfluxDB
   // { id: 'enrichment-pipeline', name: 'Enrichment Pipeline', icon: '🔄', type: 'core', port: 8002, description: 'Multi-source data enrichment' },
   // { id: 'data-retention', name: 'Data Retention', icon: '💾', type: 'core', port: 8080, description: 'Storage optimization' }, // TODO: Enable when service is deployed
-  { id: 'admin-api', name: 'Admin API', icon: '🔌', type: 'core', port: 8003, description: 'REST API gateway' },
-  { id: 'health-dashboard', name: 'Health Dashboard', icon: '📊', type: 'core', port: 3000, description: 'Web UI' },
-  { id: 'influxdb', name: 'InfluxDB', icon: '🗄️', type: 'core', port: 8086, description: 'Time-series database' },
-  
+  { id: 'admin-api', name: 'Admin API', icon: '🔌', type: 'core', port: 8003, description: 'REST API gateway', group: 'core-platform' },
+  { id: 'health-dashboard', name: 'Health Dashboard', icon: '📊', type: 'core', port: 3000, description: 'Web UI', group: 'core-platform' },
+  { id: 'influxdb', name: 'InfluxDB', icon: '🗄️', type: 'core', port: 8086, description: 'Time-series database', group: 'core-platform' },
+
   // External Data Services
-  { id: 'weather-api', name: 'Weather API', icon: '☁️', type: 'external', port: 8009, description: 'Weather data integration (OpenWeatherMap)' },
-  { id: 'sports-api', name: 'Sports API', icon: '⚽', type: 'external', port: 8005, description: 'Team Tracker integration' },
-  { id: 'carbon-intensity-service', name: 'Carbon Intensity', icon: '🌱', type: 'external', description: 'Carbon footprint tracking' },
-  { id: 'electricity-pricing-service', name: 'Electricity Pricing', icon: '⚡', type: 'external', description: 'Energy cost monitoring' },
-  { id: 'air-quality-service', name: 'Air Quality', icon: '💨', type: 'external', description: 'Air quality monitoring' },
-  { id: 'calendar-service', name: 'Calendar', icon: '📅', type: 'external', description: 'Event correlation' },
-  { id: 'smart-meter-service', name: 'Smart Meter', icon: '📈', type: 'external', description: 'Energy consumption tracking' },
+  { id: 'weather-api', name: 'Weather API', icon: '☁️', type: 'external', port: 8009, description: 'Weather data integration (OpenWeatherMap)', group: 'data-collectors' },
+  { id: 'sports-api', name: 'Sports API', icon: '⚽', type: 'external', port: 8005, description: 'Team Tracker integration', group: 'data-collectors' },
+  { id: 'carbon-intensity-service', name: 'Carbon Intensity', icon: '🌱', type: 'external', description: 'Carbon footprint tracking', group: 'data-collectors' },
+  { id: 'electricity-pricing-service', name: 'Electricity Pricing', icon: '⚡', type: 'external', description: 'Energy cost monitoring', group: 'data-collectors' },
+  { id: 'air-quality-service', name: 'Air Quality', icon: '💨', type: 'external', description: 'Air quality monitoring', group: 'data-collectors' },
+  { id: 'calendar-service', name: 'Calendar', icon: '📅', type: 'external', description: 'Event correlation', group: 'data-collectors' },
+  { id: 'smart-meter-service', name: 'Smart Meter', icon: '📈', type: 'external', description: 'Energy consumption tracking', group: 'data-collectors' },
 ];
+
+export const GROUP_DEFINITIONS: Record<ServiceGroupId, { label: string; description: string }> = {
+  'core-platform': { label: 'Core Platform', description: 'InfluxDB, Data API, WebSocket Ingestion, Admin API, Health Dashboard' },
+  'data-collectors': { label: 'Data Collectors', description: 'Weather, Sports, Smart Meter, Air Quality, Carbon, Electricity, Calendar' },
+  'ml-engine': { label: 'ML Engine', description: 'OpenVINO, ML Service, NER, AI Core, Device Intelligence' },
+  'automation-intelligence': { label: 'Automation Intelligence', description: 'HA AI Agent, AI Automation, Patterns, Blueprints' },
+  'device-management': { label: 'Device Management', description: 'Device Health, Classifier, Setup, Recommender' },
+  'frontends': { label: 'Frontends', description: 'Jaeger, Observability Dashboard, AI Automation UI' },
+};
 
 export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
   const [services, setServices] = useState<ServiceStatus[]>([]);

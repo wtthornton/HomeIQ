@@ -23,32 +23,27 @@ router = APIRouter()
 
 
 @router.get("/health", status_code=status.HTTP_200_OK)
-async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    """
-    Health check endpoint.
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
+    """Structured health check with dependency status and database check."""
+    # Import the module-level group health from main
+    from ..main import _group_health
 
-    Verifies database connectivity by executing a simple query.
+    # Build base response from GroupHealthCheck
+    if _group_health is not None:
+        result = await _group_health.to_dict()
+    else:
+        result = {"status": "starting", "service": "ai-pattern-service"}
 
-    Args:
-        db: Database session dependency
-
-    Returns:
-        dict: Health status with database connection status
-
-    Raises:
-        HTTPException: If database connection fails (500 status)
-    """
+    # Enrich with local database check
     try:
-        # Attempt to execute a simple query to check database connectivity
         await db.execute(text("SELECT 1"))
-        return {"status": "ok", "database": "connected"}
+        result["database"] = "connected"
     except Exception as e:
-        logger.error(f"Database health check failed: {e}", exc_info=True)
-        # CRITICAL FIX: Don't leak exception details in error response
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database connection failed"  # Generic error message
-        ) from e
+        logger.error("Database health check failed: %s", e, exc_info=True)
+        result["database"] = "disconnected"
+        result["status"] = "unhealthy"
+
+    return result
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)

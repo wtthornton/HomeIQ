@@ -2,62 +2,69 @@
 
 ## Overview
 
-This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated February 7, 2026**: State machine pattern implemented for robust connection and processing state management. Activity-recognition and energy-forecasting added to Docker deployment. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
+This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated February 23, 2026**: Cross-group resilience section added (CircuitBreaker, CrossGroupClient, GroupHealthCheck). Service group boundary annotations added to flow diagrams (Phase 5). State machine pattern implemented for robust connection and processing state management. Activity-recognition and energy-forecasting added to Docker deployment. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
 
-## Service Tiers
+## Service Tiers and Groups
 
-The services involved in event flow are classified by criticality:
+The services involved in event flow are classified by criticality and organized into deployment groups:
 
-| Tier | Services | Role |
-|------|----------|------|
-| **Tier 1** (Critical) | websocket-ingestion, data-api, InfluxDB | Core data pipeline |
-| **Tier 2** (Essential) | weather-api, energy-correlator | Data enrichment |
-| **Tier 3** (AI/ML) | ai-core-service, pattern-service, energy-forecasting | Intelligence layer |
-| **Tier 6** (Device) | activity-recognition | Activity inference |
+| Tier | Services | Role | Deployment Group |
+|------|----------|------|------------------|
+| **Tier 1** (Critical) | websocket-ingestion, data-api, InfluxDB | Core data pipeline | Group 1: core-platform |
+| **Tier 2** (Essential) | weather-api, energy-correlator | Data enrichment | Group 2: data-collectors / Group 4: automation-intelligence |
+| **Tier 3** (AI/ML) | ai-core-service, pattern-service, energy-forecasting | Intelligence layer | Group 3: ml-engine / Group 4: automation-intelligence |
+| **Tier 6** (Device) | activity-recognition | Activity inference | Group 5: device-management |
 
-For complete service ranking and Docker port mapping, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
+For complete service ranking, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
+For the 6-group deployment architecture, see **[Service Groups Architecture](./service-groups.md)**.
 
 ## Event Flow Diagram
 
 ```
-┌─────────────────┐
-│  Home Assistant │
-│   WebSocket     │
-└────────┬────────┘
-         │ Raw HA Event
-         │ (Nested Structure)
-         ↓
-┌─────────────────────────┐
-│  WebSocket Client       │
-│  (HA Connection)        │
-└────────┬────────────────┘
-         │ Raw HA Event
-         ↓
-┌─────────────────────────┐
-│  EventProcessor         │
-│  extract_event_data()   │
-└────────┬────────────────┘
-         │ Flattened Event
-         │ (entity_id at top level)
-         ↓
-┌─────────────────────────┐
-│  InfluxDB Writer        │
-│  write_event()          │
-└────────┬────────────────┘
-         │ InfluxDB Point
-         ↓
-┌─────────────────────────┐
-│  InfluxDB               │
-│  (Time Series Storage)  │
-└────────┬────────────────┘
-         │ Data Available
-         ↓
-┌─────────────────────────┐
-│  External Services       │
-│  (Weather, Energy, etc.) │
-│  Consume from InfluxDB   │
-└─────────────────────────┘
+                         +-------- GROUP 1: core-platform --------+
+                         |                                         |
+┌─────────────────┐      |  ┌─────────────────────────┐           |
+│  Home Assistant │      |  │  WebSocket Client       │           |
+│   WebSocket     │ -------->│  (HA Connection)        │           |
+└─────────────────┘      |  └────────┬────────────────┘           |
+                         |           │ Raw HA Event               |
+                         |           ↓                            |
+                         |  ┌─────────────────────────┐           |
+                         |  │  EventProcessor         │           |
+                         |  │  extract_event_data()   │           |
+                         |  └────────┬────────────────┘           |
+                         |           │ Flattened Event            |
+                         |           ↓                            |
+                         |  ┌─────────────────────────┐           |
+                         |  │  InfluxDB Writer        │           |
+                         |  │  write_event()          │           |
+                         |  └────────┬────────────────┘           |
+                         |           │ InfluxDB Point             |
+                         |           ↓                            |
+                         |  ┌─────────────────────────┐           |
+                         |  │  InfluxDB               │           |
+                         |  │  (Time Series Storage)  │           |
+                         |  └────────┬────────────────┘           |
+                         |           │                            |
+                         +-----------+----------------------------+
+                                     │ Data Available
+                    +----------------+------------------+
+                    │                                   │
+                    ▼                                   ▼
+  +-- GROUP 2: data-collectors --+    +-- GROUP 4: automation-intelligence --+
+  | ┌─────────────────────────┐  |    | ┌─────────────────────────┐          |
+  | │  Weather, Energy,       │  |    | │  AI Pattern Service     │          |
+  | │  Sports, AQI, etc.      │  |    | │  (Pattern Analysis)     │          |
+  | │  Write to InfluxDB      │  |    | │  Reads from InfluxDB    │          |
+  | └─────────────────────────┘  |    | └─────────────────────────┘          |
+  +------------------------------+    +--------------------------------------+
 ```
+
+**Group boundary annotations:**
+- **Group 1 (core-platform):** Owns the entire primary data path from WebSocket to InfluxDB
+- **Group 2 (data-collectors):** Independent enrichment services writing to InfluxDB
+- **Group 4 (automation-intelligence):** Reads InfluxDB data for pattern analysis and automation generation
+- Groups 3, 5, and 6 consume data indirectly via data-api (Group 1)
 
 ## Architecture Change (October 2025)
 
@@ -439,6 +446,44 @@ test_event = {
 - **Circuit Breaker**: Prevents cascade failures
 - **Horizontal Scaling**: Multiple websocket-ingestion instances supported
 
+## Cross-Group Resilience
+
+Services that query data across group boundaries (e.g., G4 automation-intelligence reading from G1 core-platform via data-api) use the `shared/resilience` module for fault tolerance.
+
+### Resilience Components
+
+| Component | Purpose |
+|-----------|---------|
+| `CircuitBreaker` | 3-state breaker (CLOSED → OPEN → HALF_OPEN); prevents cascade failures when a target group is down |
+| `CrossGroupClient` | httpx wrapper with retry + circuit breaker + Bearer auth + OTel trace propagation |
+| `GroupHealthCheck` | Structured `/health` response with dependency probes and group name |
+| `wait_for_dependency` | Non-fatal startup probe for cross-group dependencies |
+
+### Cross-Group Call Pattern in Event Flow
+
+```
++-- GROUP 4: automation-intelligence ---+       +-- GROUP 1: core-platform --+
+| ai-pattern-service                    |       |                            |
+|   CrossGroupClient ─── circuit ──────────────>│  data-api :8006            |
+|   (core-platform breaker)             |       |                            |
+|                                       |       +----------------------------+
+| proactive-agent-service               |       +-- GROUP 2: data-collectors -+
+|   CrossGroupClient ─── circuit ──────────────>│  weather-api :8009          |
+|   (data-collectors breaker)           |       +----------------------------+
++---------------------------------------+
+```
+
+When a target group is unreachable, the circuit breaker opens and services return graceful fallback values (empty lists, None, empty DataFrames) instead of propagating errors.
+
+### Rollout Status
+
+All 6 cross-group callers now use `shared/resilience`:
+- ha-ai-agent-service, blueprint-suggestion-service, ai-pattern-service, ai-automation-service-new (G4 → G1)
+- proactive-agent-service (G4 → G1, G2)
+- device-health-monitor (G5 → G1, G3)
+
+For details, see [`shared/resilience/README.md`](../../shared/resilience/README.md).
+
 ## Monitoring and Observability
 
 ### Key Metrics to Monitor
@@ -446,12 +491,13 @@ test_event = {
 2. **Validation Success Rate**: Percentage of events passing validation
 3. **Normalization Success Rate**: Percentage of events normalized successfully
 4. **InfluxDB Write Success Rate**: Percentage of successful database writes
-5. **Circuit Breaker Status**: Open/closed state and failure count
+5. **Circuit Breaker Status**: Open/closed state and failure count per group
 6. **Processing Latency**: P50, P95, P99 latencies
 
 ### Health Checks (Epic 31)
 - **WebSocket Ingestion**: `/health` endpoint shows connection status, batch stats, InfluxDB status
 - **InfluxDB**: Connection status in websocket-ingestion health check
+- **Cross-Group Callers**: Structured `/health` with group name, dependency status, and circuit breaker state
 - **External Services**: Each service has its own `/health` endpoint
 
 ### Troubleshooting
@@ -481,22 +527,28 @@ The event data flowing through this architecture is also analyzed by the AI Patt
 ### High-Level Flow
 
 ```
-Events from InfluxDB
-        ↓
-AI Pattern Service (Pattern Analysis)
-        ↓
-Synergy Detection (Cross-device correlations)
-        ↓
-Blueprint Opportunity Engine (Blueprint matching)
-        ↓
-Blueprint Deployer (Home Assistant automation creation)
++-- GROUP 1: core-platform -------+
+| Events from InfluxDB            |
+| (via data-api)                  |
++-----------------+---------------+
+                  |
+                  ▼
++-- GROUP 4: automation-intelligence ----------+
+| AI Pattern Service (Pattern Analysis)        |
+|         ↓                                    |
+| Synergy Detection (Cross-device correlations)|
+|         ↓                                    |
+| Blueprint Opportunity Engine                 |
+|         ↓                                    |
+| Blueprint Deployer --> Home Assistant        |
++----------------------------------------------+
 ```
 
 ### Integration Points
 
-1. **Data API → AI Pattern Service**: Query historical event data for pattern analysis
-2. **Blueprint Index Service → AI Pattern Service**: Search indexed community blueprints
-3. **AI Pattern Service → Home Assistant**: Deploy automations via REST API
+1. **Data API (Group 1) --> AI Pattern Service (Group 4)**: Query historical event data for pattern analysis
+2. **Blueprint Index Service (Group 4) --> AI Pattern Service (Group 4)**: Search indexed community blueprints (intra-group)
+3. **AI Pattern Service (Group 4) --> Home Assistant**: Deploy automations via REST API
 
 ### Key Benefits
 
@@ -588,6 +640,7 @@ Environment variables:
 
 ## References
 
+- [Service Groups Architecture](./service-groups.md) - Canonical reference for the 6-group deployment structure
 - [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification and Docker ports
 - [Services Architecture Quick Reference](../../services/README_ARCHITECTURE_QUICK_REF.md) - Service patterns
 - [API Reference](../api/API_REFERENCE.md) - Complete API documentation

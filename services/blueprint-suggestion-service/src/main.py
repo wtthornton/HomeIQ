@@ -1,8 +1,11 @@
 """Main FastAPI application for Blueprint Suggestion Service."""
 
+from __future__ import annotations
+
 import logging
 import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +13,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.routes import init_schema_cache, router
 from .config import settings
 from .database import close_db, get_db_context, init_db
+
+# ---------------------------------------------------------------------------
+# shared/resilience imports
+# ---------------------------------------------------------------------------
+try:
+    _project_root = str(Path(__file__).resolve().parents[4])
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+except IndexError:
+    pass  # Docker: PYTHONPATH already includes /app
+
+from shared.resilience import GroupHealthCheck, wait_for_dependency
 
 
 def _configure_logging() -> None:
@@ -25,16 +40,38 @@ def _configure_logging() -> None:
 _configure_logging()
 logger = logging.getLogger(__name__)
 
+# Module-level health checker, initialised during lifespan.
+_group_health: GroupHealthCheck | None = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
+    global _group_health
+
     # Startup
-    logger.info(f"Starting {settings.service_name} on port {settings.service_port}")
+    logger.info("Starting %s on port %s", settings.service_name, settings.service_port)
     await init_db()
     # Cache schema check so we don't run PRAGMA on every GET /suggestions
     async with get_db_context() as db:
         await init_schema_cache(db)
+
+    # Probe cross-group dependencies (non-fatal)
+    data_api_available = await wait_for_dependency(
+        url=settings.data_api_url, name="data-api", max_retries=10,
+    )
+
+    # Structured group health
+    _group_health = GroupHealthCheck(
+        group_name="automation-intelligence", version="1.0.0",
+    )
+    _group_health.register_dependency("data-api", settings.data_api_url)
+
+    if not data_api_available:
+        _group_health.add_degraded_feature(
+            "blueprint-matching (data-api unreachable at startup)"
+        )
+
     logger.info("Blueprint Suggestion Service started successfully")
 
     yield
@@ -86,9 +123,11 @@ async def root() -> dict[str, str]:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    """Health check endpoint."""
-    return {"status": "healthy", "service": settings.service_name}
+async def health() -> dict:
+    """Structured health check with dependency status."""
+    if _group_health is None:
+        return {"status": "starting", "service": settings.service_name}
+    return await _group_health.to_dict()
 
 
 if __name__ == "__main__":

@@ -82,6 +82,9 @@ infrastructure/.env*
 *.env
 !*.env.example
 !*.env.template
+# Per-group compose env files (contain secrets — never commit)
+compose/*.env
+!compose/*.env.example
 
 # Coverage reports
 htmlcov/

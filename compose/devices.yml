@@ -1,0 +1,372 @@
+# compose/devices.yml — Group 5: device-management
+# Device lifecycle — health monitoring, onboarding, classification, activity recognition.
+# Deploy cadence: Medium
+#
+# Services: device-health-monitor, device-context-classifier, device-setup-assistant,
+#           device-database-client, device-recommender, activity-recognition,
+#           activity-writer, ha-setup-service
+# Depends on: Group 1 (data-api), Group 3 (device-intelligence-service for classification)
+# Depended on by: Group 4 (automation uses device context)
+
+services:
+  device-health-monitor:
+    build:
+      context: ..
+      dockerfile: services/device-health-monitor/Dockerfile
+    container_name: homeiq-device-health-monitor
+    restart: unless-stopped
+    ports:
+      - "8019:8019"
+    env_file:
+      - ../.env
+    environment:
+      - DEVICE_HEALTH_MONITOR_PORT=${DEVICE_HEALTH_MONITOR_PORT:-8019}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8019/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-health-monitor,group=device-management,environment=production"
+
+  device-context-classifier:
+    build:
+      context: ..
+      dockerfile: services/device-context-classifier/Dockerfile
+    container_name: homeiq-device-context-classifier
+    restart: unless-stopped
+    ports:
+      - "8032:8020"
+    env_file:
+      - ../.env
+    environment:
+      - DEVICE_CONTEXT_CLASSIFIER_PORT=${DEVICE_CONTEXT_CLASSIFIER_PORT:-8020}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-context-classifier,group=device-management,environment=production"
+
+  device-setup-assistant:
+    build:
+      context: ..
+      dockerfile: services/device-setup-assistant/Dockerfile
+    container_name: homeiq-device-setup-assistant
+    restart: unless-stopped
+    ports:
+      - "8021:8021"
+    env_file:
+      - ../.env
+    environment:
+      - DEVICE_SETUP_ASSISTANT_PORT=${DEVICE_SETUP_ASSISTANT_PORT:-8021}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8021/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-setup-assistant,group=device-management,environment=production"
+
+  device-database-client:
+    build:
+      context: ..
+      dockerfile: services/device-database-client/Dockerfile
+    container_name: homeiq-device-database-client
+    restart: unless-stopped
+    ports:
+      - "8022:8022"
+    env_file:
+      - ../.env
+    environment:
+      - DEVICE_DATABASE_CLIENT_PORT=${DEVICE_DATABASE_CLIENT_PORT:-8022}
+      - DEVICE_DATABASE_API_URL=${DEVICE_DATABASE_API_URL:-}
+      - DEVICE_DATABASE_API_KEY=${DEVICE_DATABASE_API_KEY:-}
+      - DEVICE_CACHE_DIR=${DEVICE_CACHE_DIR:-data/device_cache}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    volumes:
+      - device_cache_data:/app/data/device_cache
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8022/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-database-client,group=device-management,environment=production"
+
+  device-recommender:
+    build:
+      context: ..
+      dockerfile: services/device-recommender/Dockerfile
+    container_name: homeiq-device-recommender
+    restart: unless-stopped
+    ports:
+      - "8023:8023"
+    env_file:
+      - ../.env
+    environment:
+      - DEVICE_RECOMMENDER_PORT=${DEVICE_RECOMMENDER_PORT:-8023}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - DEVICE_DATABASE_API_URL=${DEVICE_DATABASE_API_URL:-}
+      - DEVICE_DATABASE_API_KEY=${DEVICE_DATABASE_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RELOAD=${RELOAD:-false}
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8023/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=device-recommender,group=device-management,environment=production"
+
+  activity-recognition:
+    build:
+      context: ../services/activity-recognition
+      dockerfile: Dockerfile
+    container_name: homeiq-activity-recognition
+    restart: unless-stopped
+    ports:
+      - "8043:8036"
+    env_file:
+      - ../.env
+    environment:
+      - PORT=8036
+      - HOST=0.0.0.0
+      - MODEL_PATH=${ACTIVITY_MODEL_PATH:-/app/models/activity_lstm.onnx}
+      - DATA_API_URL=http://data-api:8006
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - activity_recognition_models:/app/models
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "python", "/app/healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=activity-recognition,group=device-management,environment=production"
+
+  activity-writer:
+    build:
+      context: ..
+      dockerfile: services/activity-writer/Dockerfile
+    container_name: homeiq-activity-writer
+    restart: unless-stopped
+    ports:
+      - "8045:8035"
+    env_file:
+      - ../.env
+    environment:
+      - SERVICE_PORT=8035
+      - ACTIVITY_WRITER_INTERVAL_SECONDS=${ACTIVITY_WRITER_INTERVAL_SECONDS:-300}
+      - DATA_API_URL=http://data-api:8006
+      - DATA_API_API_KEY=${API_KEY:-}
+      - ACTIVITY_RECOGNITION_URL=http://activity-recognition:8036
+      - ACTIVITY_RECOGNITION_TIMEOUT=30
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - HOME_ID=${HOME_ID:-default}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      activity-recognition:
+        condition: service_started
+      # Cross-group depends_on removed (influxdb + data-api in core)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: '0.5'
+        reservations:
+          memory: 96M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=activity-writer,group=device-management,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8035/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ha-setup-service:
+    build:
+      context: ../services/ha-setup-service
+      dockerfile: Dockerfile
+    container_name: homeiq-setup-service
+    restart: unless-stopped
+    ports:
+      - "8024:8020"
+    env_file:
+      - ../.env
+      - ../infrastructure/.env.websocket
+    environment:
+      - SERVICE_NAME=ha-setup-service
+      - SERVICE_PORT=8020
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - DATABASE_URL=sqlite+aiosqlite:///./data/ha-setup.db
+      - DATA_API_URL=http://data-api:8006
+      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - ADMIN_API_URL=http://admin-api:8004
+      - HEALTH_CHECK_INTERVAL=60
+      - INTEGRATION_CHECK_INTERVAL=300
+      - ENABLE_PERFORMANCE_MONITORING=true
+      - PERFORMANCE_SAMPLE_INTERVAL=30
+    volumes:
+      - ha_setup_data:/app/data
+      - homeiq_logs:/var/log/homeiq
+    # Cross-group depends_on removed (data-api + admin-api in core)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ha-setup-service,group=device-management,environment=production"
+
+# Device-management volumes
+volumes:
+  ha_setup_data:
+  device_cache_data:
+  activity_recognition_models:
+  homeiq_logs:  # Shared with core-platform
+
+networks:
+  homeiq-network:
+    external: true

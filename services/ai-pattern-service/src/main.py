@@ -39,11 +39,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 # Setup logging (use shared logging config)
 try:
     from shared.logging_config import setup_logging
-    logger = setup_logging("ai-pattern-service")
+    logger = setup_logging("ai-pattern-service", group_name="automation-intelligence")
 except ImportError:
     # Fallback if shared logging not available
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger("ai-pattern-service")
+
+# Import resilience utilities
+from shared.resilience import GroupHealthCheck, wait_for_dependency
 
 # Import shared error handler
 try:
@@ -69,6 +72,9 @@ from .scheduler import PatternAnalysisScheduler
 # Global scheduler instance (Epic 39, Story 39.6)
 pattern_scheduler: PatternAnalysisScheduler | None = None
 mqtt_client: MQTTNotificationClient | None = None
+
+# Module-level health checker, initialised during lifespan.
+_group_health: GroupHealthCheck | None = None
 
 
 async def _initialize_mqtt_client() -> MQTTNotificationClient | None:
@@ -160,7 +166,7 @@ async def lifespan(_app: FastAPI):
     Raises:
         Exception: If database initialization fails (prevents service startup)
     """
-    global pattern_scheduler, mqtt_client
+    global pattern_scheduler, mqtt_client, _group_health
 
     logger.info("=" * 60)
     logger.info("AI Pattern Service Starting Up")
@@ -173,6 +179,21 @@ async def lifespan(_app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
         raise
+
+    # Probe cross-group dependencies (non-fatal)
+    data_api_available = await wait_for_dependency(
+        url=settings.data_api_url, name="data-api", max_retries=10,
+    )
+
+    # Structured group health
+    _group_health = GroupHealthCheck(
+        group_name="automation-intelligence", version="1.0.0",
+    )
+    _group_health.register_dependency("data-api", settings.data_api_url)
+    if not data_api_available:
+        _group_health.add_degraded_feature(
+            "pattern-detection (data-api unreachable at startup)"
+        )
 
     # Setup observability if available
     if OBSERVABILITY_AVAILABLE:

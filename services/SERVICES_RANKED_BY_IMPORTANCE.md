@@ -1,13 +1,30 @@
 # HomeIQ Services Ranked by Importance
 
-**Last Updated:** February 7, 2026
+**Last Updated:** February 23, 2026
 **Purpose:** Comprehensive ranking of all services by criticality to system operation
 
 ---
 
 ## Overview
 
-HomeIQ consists of **46+ microservices** organized into a layered architecture. This document ranks services by their importance to system operation, helping teams prioritize monitoring, deployment, and incident response.
+HomeIQ consists of **50+ microservices** organized into a layered architecture. This document ranks services by their importance to system operation, helping teams prioritize monitoring, deployment, and incident response.
+
+---
+
+## Service Groups (Deployment Architecture)
+
+Services are organized into **6 independently deployable groups** based on deployment criticality and domain boundaries. For the canonical reference, see [Service Groups Architecture](../docs/architecture/service-groups.md).
+
+| Group | Name | Count | Services | Compose File |
+|-------|------|-------|----------|--------------|
+| 1 | **core-platform** | 6 | influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention | `compose/core.yml` |
+| 2 | **data-collectors** | 8 | weather-api, smart-meter, sports-api, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator | `compose/collectors.yml` |
+| 3 | **ml-engine** | 9+1 | openvino-service, ml-service, ner-service, openai-service, rag-service, ai-core-service, ai-training-service, device-intelligence-service, model-prep | `compose/ml.yml` |
+| 4 | **automation-intelligence** | 16 | ha-ai-agent, ai-automation-service-new, ai-query, ai-pattern, ai-code-executor, automation-miner, automation-linter, yaml-validation, blueprint-index, blueprint-suggestion, rule-recommendation-ml, api-automation-edge, proactive-agent, energy-correlator, energy-forecasting, automation-trace | `compose/automation.yml` |
+| 5 | **device-management** | 8 | device-health-monitor, device-context-classifier, device-setup-assistant, device-database-client, device-recommender, activity-recognition, activity-writer, ha-setup-service | `compose/devices.yml` |
+| 6 | **frontends** | 3+infra | ai-automation-ui, observability-dashboard, jaeger | `compose/frontends.yml` |
+
+**Dependency flow:** core-platform --> (data-collectors | ml-engine | device-management) --> automation-intelligence --> frontends
 
 ---
 
@@ -260,6 +277,33 @@ Home Assistant (192.168.1.86:8123)
 | Tier 3 | Medium | < 1 hour |
 | Tier 4-7 | Low | Best effort |
 
+### Group-Level Alerting (Resilience)
+
+Services that make cross-group HTTP calls use `shared/resilience` circuit breakers and expose structured `/health` endpoints with a `group` field. Use this for differentiated alerting:
+
+| Group | Severity | Response Time | Rationale |
+|-------|----------|---------------|-----------|
+| core-platform (G1) | P1 (page) | Immediate | All services depend on data-api |
+| ml-engine (G3) | P2 (alert) | 5 min | AI features degrade but basic function continues |
+| automation-intelligence (G4) | P2 (alert) | 5 min | Automation suggestions stop but HA control works |
+| data-collectors (G2) | P3 (notify) | 15 min | Weather/energy data stale but not blocking |
+| device-management (G5) | P3 (notify) | 10 min | Health monitoring delayed but devices work |
+| frontends (G6) | P3 (notify) | 10 min | Dashboard unavailable but backend functional |
+
+### Cross-Group Resilience
+
+Services calling across group boundaries use `CrossGroupClient` with circuit breakers for graceful degradation. When a target group is down, services return empty/cached results instead of crashing.
+
+**Services with resilience rollout complete:**
+- ha-ai-agent-service (G4 → G1, G3)
+- blueprint-suggestion-service (G4 → G1)
+- ai-pattern-service (G4 → G1)
+- ai-automation-service-new (G4 → G1)
+- proactive-agent-service (G4 → G1, G2)
+- device-health-monitor (G5 → G1, G3)
+
+For details, see [`shared/resilience/README.md`](../shared/resilience/README.md).
+
 ### Restart Order (After Outage)
 
 1. InfluxDB
@@ -320,6 +364,7 @@ In `docker-compose.yml`, some services use a different **host** port to avoid co
 
 ## Related Documentation
 
+- [Service Groups Architecture](../docs/architecture/service-groups.md) - Canonical reference for the 6-group deployment structure
 - [Architecture Quick Reference](./README_ARCHITECTURE_QUICK_REF.md)
 - [Tech Stack](../docs/architecture/tech-stack.md)
 - [Source Tree](../docs/architecture/source-tree.md)
@@ -328,4 +373,4 @@ In `docker-compose.yml`, some services use a different **host** port to avoid co
 ---
 
 **Maintained by:** HomeIQ DevOps Team
-**Last Updated:** February 7, 2026
+**Last Updated:** February 23, 2026

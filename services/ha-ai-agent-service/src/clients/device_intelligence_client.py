@@ -2,6 +2,7 @@
 Device Intelligence Service Client
 
 Client for interacting with the Device Intelligence Service device mapping API (Epic AI-24).
+Uses CrossGroupClient for circuit-breaker protection and automatic retries.
 """
 
 import logging
@@ -9,9 +10,14 @@ from typing import Any
 
 import httpx
 
+from shared.resilience import CircuitBreaker, CrossGroupClient
+from shared.resilience.circuit_breaker import CircuitOpenError
+
 from ..config import Settings
 
 logger = logging.getLogger(__name__)
+
+_ml_engine_breaker = CircuitBreaker(name="ml-engine")
 
 
 class DeviceIntelligenceClient:
@@ -43,16 +49,14 @@ class DeviceIntelligenceClient:
             self.api_key = None
 
         self.timeout = 10.0
-        # Build default headers with API key auth (matches device-intelligence-service middleware)
-        headers = {}
-        if self.api_key:
-            headers["X-API-Key"] = self.api_key
-        # Create persistent HTTP client (like DataAPIClient pattern)
-        self.client = httpx.AsyncClient(
+        # X-API-Key header for device-intelligence-service auth (not Bearer)
+        self._auth_headers: dict[str, str] = {"X-API-Key": self.api_key} if self.api_key else {}
+        self._cross_client = CrossGroupClient(
+            base_url=self.base_url,
+            group_name="ml-engine",
             timeout=self.timeout,
-            follow_redirects=True,
-            headers=headers,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            max_retries=3,
+            circuit_breaker=_ml_engine_breaker,
         )
         logger.debug(f"Device Intelligence Client initialized: {self.base_url} (enabled: {self.enabled}, auth={'yes' if self.api_key else 'no'})")
 
@@ -74,14 +78,12 @@ class DeviceIntelligenceClient:
 
         try:
             params = {"limit": limit}
-            response = await self.client.get(
-                f"{self.base_url}/api/devices",
-                params=params
+            response = await self._cross_client.call(
+                "GET", "/api/devices", params=params, headers=self._auth_headers,
             )
             response.raise_for_status()
 
             data = response.json()
-            # Handle response format
             if isinstance(data, dict) and "devices" in data:
                 devices = data["devices"]
             elif isinstance(data, list):
@@ -91,25 +93,19 @@ class DeviceIntelligenceClient:
                 devices = []
 
             return devices
+        except CircuitOpenError:
+            logger.warning("Device Intelligence circuit breaker open — returning empty")
+            return []
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                # Device not found - return empty list
                 return []
             error_text = getattr(e.response, 'text', str(e))[:200] if hasattr(e.response, 'text') else str(e)[:200]
             error_msg = f"Device Intelligence API returned {e.response.status_code}: {error_text}"
-            logger.error(f"❌ HTTP error fetching devices: {error_msg}")
+            logger.error(f"HTTP error fetching devices: {error_msg}")
             raise Exception(error_msg) from e
-        except httpx.ConnectError as e:
-            error_msg = f"Could not connect to Device Intelligence Service at {self.base_url}"
-            logger.error(f"❌ Connection error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.TimeoutException as e:
-            error_msg = "Device Intelligence Service request timed out"
-            logger.error(f"❌ Timeout error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.HTTPError as e:
-            error_msg = f"HTTP error fetching devices: {str(e)}"
-            logger.error(f"❌ {error_msg}")
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as e:
+            error_msg = f"Error fetching devices from Device Intelligence: {e}"
+            logger.error(error_msg)
             raise Exception(error_msg) from e
 
     async def get_device_capabilities(self, device_id: str) -> list[dict[str, Any]]:
@@ -126,30 +122,20 @@ class DeviceIntelligenceClient:
             return []
 
         try:
-            response = await self.client.get(
-                f"{self.base_url}/api/devices/{device_id}/capabilities"
+            response = await self._cross_client.call(
+                "GET", f"/api/devices/{device_id}/capabilities", headers=self._auth_headers,
             )
             response.raise_for_status()
 
             data = response.json()
-            # Handle response format
             if isinstance(data, list):
                 return data
             if isinstance(data, dict) and "capabilities" in data:
                 return data["capabilities"]
             logger.warning(f"Unexpected capabilities response format: {type(data)}")
             return []
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                # Device not found - return empty list
-                return []
-            logger.warning(f"⚠️ Device Intelligence Service error for capabilities: {e.response.status_code}")
-            return []
-        except httpx.RequestError as e:
-            logger.warning(f"⚠️ Device Intelligence Service unavailable for capabilities: {e}")
-            return []
-        except Exception as e:
-            logger.warning(f"⚠️ Error getting device capabilities: {e}")
+        except (CircuitOpenError, httpx.HTTPStatusError, httpx.RequestError, Exception) as e:
+            logger.warning(f"Device Intelligence unavailable for capabilities: {e}")
             return []
 
     async def get_device_type(
@@ -171,18 +157,14 @@ class DeviceIntelligenceClient:
             return None
 
         try:
-            url = f"{self.base_url}/api/device-mappings/{device_id}/type"
-            response = await self.client.post(url, json=device_data)
+            response = await self._cross_client.call(
+                "POST", f"/api/device-mappings/{device_id}/type",
+                json=device_data, headers=self._auth_headers,
+            )
             response.raise_for_status()
             return response.json()
-        except httpx.RequestError as e:
-            logger.warning(f"⚠️ Device Intelligence Service unavailable for device type: {e}")
-            return None
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"⚠️ Device Intelligence Service error for device type: {e.response.status_code}")
-            return None
-        except Exception as e:
-            logger.warning(f"⚠️ Error getting device type from Device Intelligence Service: {e}")
+        except (CircuitOpenError, httpx.RequestError, httpx.HTTPStatusError, Exception) as e:
+            logger.warning(f"Device Intelligence unavailable for device type: {e}")
             return None
 
     async def get_device_relationships(
@@ -206,24 +188,18 @@ class DeviceIntelligenceClient:
             return None
 
         try:
-            url = f"{self.base_url}/api/device-mappings/{device_id}/relationships"
             payload = device_data
             if all_devices:
-                # Note: The API endpoint accepts all_devices as a query parameter or in body
-                # For now, we'll send it in the body if provided
                 payload = {**device_data, "all_devices": all_devices}
 
-            response = await self.client.post(url, json=payload)
+            response = await self._cross_client.call(
+                "POST", f"/api/device-mappings/{device_id}/relationships",
+                json=payload, headers=self._auth_headers,
+            )
             response.raise_for_status()
             return response.json()
-        except httpx.RequestError as e:
-            logger.warning(f"⚠️ Device Intelligence Service unavailable for device relationships: {e}")
-            return None
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"⚠️ Device Intelligence Service error for device relationships: {e.response.status_code}")
-            return None
-        except Exception as e:
-            logger.warning(f"⚠️ Error getting device relationships from Device Intelligence Service: {e}")
+        except (CircuitOpenError, httpx.RequestError, httpx.HTTPStatusError, Exception) as e:
+            logger.warning(f"Device Intelligence unavailable for device relationships: {e}")
             return None
 
     async def get_device_context(
@@ -247,25 +223,20 @@ class DeviceIntelligenceClient:
             return None
 
         try:
-            url = f"{self.base_url}/api/device-mappings/{device_id}/context"
             payload = device_data
             if entities:
                 payload = {**device_data, "entities": entities}
 
-            response = await self.client.post(url, json=payload)
+            response = await self._cross_client.call(
+                "POST", f"/api/device-mappings/{device_id}/context",
+                json=payload, headers=self._auth_headers,
+            )
             response.raise_for_status()
             return response.json()
-        except httpx.RequestError as e:
-            logger.warning(f"⚠️ Device Intelligence Service unavailable for device context: {e}")
-            return None
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"⚠️ Device Intelligence Service error for device context: {e.response.status_code}")
-            return None
-        except Exception as e:
-            logger.warning(f"⚠️ Error getting device context from Device Intelligence Service: {e}")
+        except (CircuitOpenError, httpx.RequestError, httpx.HTTPStatusError, Exception) as e:
+            logger.warning(f"Device Intelligence unavailable for device context: {e}")
             return None
 
     async def close(self):
-        """Close HTTP client connection pool"""
-        await self.client.aclose()
-        logger.debug("Device Intelligence client closed")
+        """No-op — CrossGroupClient uses per-request clients."""
+        logger.debug("Device Intelligence client close called (no-op with CrossGroupClient)")

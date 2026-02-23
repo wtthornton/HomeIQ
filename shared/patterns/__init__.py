@@ -1,18 +1,37 @@
 """
-Reusable Pattern Framework
+Reusable Pattern Framework — homeiq-patterns
 
 Epic: Reusable Pattern Framework (Phase 2)
 Shared abstractions for the three proven patterns from the Automation Improvements epic.
 
 Patterns:
-    - RAGContextService: Keyword-match → corpus-load → context-inject
+    - RAGContextService: Keyword-match -> corpus-load -> context-inject
     - RAGContextRegistry: Multi-domain context assembly
     - UnifiedValidationRouter: Orchestrated multi-backend validation
-    - PostActionVerifier: Action → verify → map-warnings
+    - PostActionVerifier: Action -> verify -> map-warnings
+
+Install (editable, for development):
+    pip install -e shared/patterns/
+
+Install (from git):
+    pip install git+https://github.com/<org>/HomeIQ#subdirectory=shared/patterns
 """
 
-from .rag_context_service import RAGContextService
+try:
+    from importlib.metadata import version as _version
+
+    __version__ = _version("homeiq-patterns")
+except Exception:
+    __version__ = "0.0.0.dev0"
+
+from .post_action_verifier import (
+    PostActionVerifier,
+    VerificationResult,
+    VerificationResultStore,
+    VerificationWarning,
+)
 from .rag_context_registry import RAGContextRegistry
+from .rag_context_service import RAGContextService
 from .unified_validation_router import (
     UnifiedValidationRouter,
     ValidationBackend,
@@ -22,14 +41,9 @@ from .unified_validation_router import (
     categorize_errors,
     get_error_domain_hints,
 )
-from .post_action_verifier import (
-    PostActionVerifier,
-    VerificationResult,
-    VerificationResultStore,
-    VerificationWarning,
-)
 
 __all__ = [
+    "__version__",
     "RAGContextService",
     "RAGContextRegistry",
     "UnifiedValidationRouter",

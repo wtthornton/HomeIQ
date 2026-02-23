@@ -1,80 +1,68 @@
 """
-Weather API Client for Proactive Agent Service
+Weather API Client for Proactive Agent Service (cross-group: data-collectors)
 
 Fetches current weather and forecast data from weather-api service.
+Uses CrossGroupClient with shared circuit breaker for resilience.
 """
 
 from __future__ import annotations
 
 import logging
+import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+try:
+    _project_root = str(Path(__file__).resolve().parents[4])
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+except IndexError:
+    pass  # Docker: PYTHONPATH already includes /app
+
+from shared.resilience import CircuitOpenError, CrossGroupClient
+
+from .breakers import data_collectors_breaker
 
 logger = logging.getLogger(__name__)
 
 
 class WeatherAPIClient:
-    """Client for fetching weather data from Weather API service"""
+    """Resilient client for fetching weather data (data-collectors group)."""
 
     def __init__(self, base_url: str = "http://weather-api:8009"):
-        """
-        Initialize Weather API client.
-
-        Args:
-            base_url: Base URL for Weather API (default: http://weather-api:8009)
-        """
-        self.base_url = base_url.rstrip('/')
-        self.client = httpx.AsyncClient(
+        self.base_url = base_url.rstrip("/")
+        self._cross_client = CrossGroupClient(
+            base_url=self.base_url,
+            group_name="data-collectors",
             timeout=30.0,
-            follow_redirects=True,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            max_retries=3,
+            circuit_breaker=data_collectors_breaker,
         )
-        logger.info(f"Weather API client initialized with base_url={self.base_url}")
+        logger.info("Weather API client initialized with base_url=%s", self.base_url)
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=False  # Don't reraise - return None for graceful degradation
-    )
     async def get_current_weather(self) -> dict[str, Any] | None:
-        """
-        Get current weather conditions.
-
-        Returns:
-            Dictionary with weather data (temperature, condition, etc.) or None if unavailable
-
-        Note:
-            Returns None on any error for graceful degradation.
-            Errors are logged but not raised to allow service to continue.
-        """
+        """Get current weather. Returns None on failure."""
         try:
             logger.debug("Fetching current weather from Weather API")
-            response = await self.client.get(f"{self.base_url}/current-weather")
+            response = await self._cross_client.call(
+                "GET", "/current-weather",
+            )
             response.raise_for_status()
             data = response.json()
             logger.info("Fetched current weather from Weather API")
             return data
-        except httpx.HTTPStatusError as e:
-            error_msg = f"Weather API returned {e.response.status_code}: {e.response.text[:200]}"
-            logger.error(f"HTTP error fetching weather: {error_msg}")
-            return None  # Graceful degradation
-        except httpx.ConnectError:
-            error_msg = f"Could not connect to Weather API at {self.base_url}"
-            logger.warning(f"Connection error: {error_msg}")
-            return None  # Graceful degradation
-        except httpx.TimeoutException:
-            error_msg = "Weather API request timed out after 30 seconds"
-            logger.warning(f"Timeout error: {error_msg}")
-            return None  # Graceful degradation
+        except CircuitOpenError:
+            logger.warning("Weather API circuit open — returning None")
+            return None
+        except httpx.HTTPError as e:
+            logger.warning("HTTP error fetching weather: %s", e)
+            return None
         except Exception as e:
-            logger.error(f"Unexpected error fetching weather: {str(e)}", exc_info=True)
-            return None  # Graceful degradation
+            logger.warning("Unexpected error fetching weather: %s", e, exc_info=True)
+            return None
 
     async def close(self):
-        """Close HTTP client connection pool"""
-        await self.client.aclose()
-        logger.debug("Weather API client closed")
-
+        """No-op — CrossGroupClient uses per-request clients."""
+        logger.debug("Weather API client close (no-op with CrossGroupClient)")

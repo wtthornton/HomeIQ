@@ -105,6 +105,7 @@ export const TabIcons = {
   overview: LayoutDashboard,
   setup: Heart,
   services: Server,
+  groups: Network,
   dependencies: GitBranch,
   devices: Smartphone,
   events: Activity,

@@ -56,6 +56,7 @@ conversation_service: ConversationService | None = None
 prompt_assembly_service: PromptAssemblyService | None = None
 openai_client: OpenAIClient | None = None
 settings: Settings | None = None
+group_health = None  # GroupHealthCheck — initialized in lifespan
 
 
 def _parse_allowed_origins() -> list[str]:
@@ -118,20 +119,44 @@ def _fix_database_permissions(settings: Settings) -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> None:
     """Initialize services on startup, cleanup on shutdown"""
-    global context_builder, tool_service, conversation_service, prompt_assembly_service, openai_client, settings
+    global context_builder, tool_service, conversation_service, prompt_assembly_service, openai_client, settings, group_health
 
-    logger.info("🚀 Starting HA AI Agent Service...")
+    logger.info("Starting HA AI Agent Service...")
     try:
         # Load settings
         settings = Settings()
-        logger.info(f"✅ Settings loaded (HA URL: {settings.ha_url})")
+        logger.info(f"Settings loaded (HA URL: {settings.ha_url})")
 
         # Fix database directory permissions before initialization (Docker volume fix)
         _fix_database_permissions(settings)
 
         # Initialize database
         await init_database(settings.database_url)
-        logger.info("✅ Database initialized")
+        logger.info("Database initialized")
+
+        # Probe cross-group dependencies (non-fatal — start in degraded mode if unavailable)
+        from shared.resilience import GroupHealthCheck, wait_for_dependency
+
+        data_api_available = await wait_for_dependency(
+            url=settings.data_api_url, name="data-api", max_retries=10,
+        )
+        device_intel_available = await wait_for_dependency(
+            url=settings.device_intelligence_url, name="device-intelligence-service", max_retries=5,
+        )
+        if not data_api_available:
+            logger.warning("data-api unavailable — entity resolution will be degraded")
+        if not device_intel_available:
+            logger.warning("device-intelligence unavailable — device context will be limited")
+
+        # Initialize group health checker
+        group_health = GroupHealthCheck(group_name="automation-intelligence", version="1.0.0")
+        group_health.register_dependency("data-api", settings.data_api_url)
+        group_health.register_dependency("device-intelligence-service", settings.device_intelligence_url)
+        group_health.register_dependency("ai-automation-service", settings.ai_automation_service_url)
+        if not data_api_available:
+            group_health.add_degraded_feature("entity-resolution (data-api unreachable at startup)")
+        if not device_intel_available:
+            group_health.add_degraded_feature("device-context (device-intelligence unreachable at startup)")
 
         # Initialize context builder
         context_builder = ContextBuilder(settings)
@@ -247,6 +272,7 @@ async def lifespan(_app: FastAPI) -> None:
     prompt_assembly_service = None
     openai_client = None
     settings = None
+    group_health = None
 
 
 # Create FastAPI app
@@ -281,35 +307,44 @@ app.include_router(device_suggestions_router)
 @app.get("/health")
 async def health_check() -> dict:
     """
-    Comprehensive health check endpoint.
+    Group-aware health check endpoint.
 
-    Verifies all dependencies in a single call:
-    - Database connectivity
-    - Home Assistant connection
-    - Data API connection
-    - Device Intelligence Service connection
-    - OpenAI configuration
-    - Context builder services
+    Uses GroupHealthCheck to probe cross-group dependencies (data-api,
+    device-intelligence, ai-automation-service) and reports group status,
+    dependency latencies, and degraded features.  Also checks local
+    resources (database, OpenAI config).
     """
-    if not context_builder or not settings:
+    if not group_health or not settings:
         raise HTTPException(status_code=503, detail="Service not ready")
 
     try:
-        from .services.health_check_service import HealthCheckService
+        result = await group_health.to_dict()
 
-        health_service = HealthCheckService(settings, context_builder)
-        health_result = await health_service.comprehensive_health_check()
-        await health_service.close()
+        # Enrich with local checks (not remote HTTP deps)
+        from sqlalchemy import text
 
-        # Return appropriate status code based on overall health
-        status_code = 503 if health_result["status"] == "unhealthy" else 200
-        return JSONResponse(content=health_result, status_code=status_code)
+        from .database import get_session
+
+        try:
+            async for session in get_session():
+                await session.execute(text("SELECT 1"))
+            result["dependencies"]["database"] = {"status": "healthy"}
+        except Exception:
+            result["dependencies"]["database"] = {"status": "unhealthy"}
+            if result["status"] == "healthy":
+                result["status"] = "degraded"
+
+        # OpenAI config check
+        if settings.openai_api_key and settings.openai_api_key.get_secret_value():
+            result["dependencies"]["openai"] = {"status": "configured"}
+        else:
+            result["dependencies"]["openai"] = {"status": "not-configured"}
+
+        status_code = 503 if result["status"] == "unhealthy" else 200
+        return JSONResponse(content=result, status_code=status_code)
     except Exception as e:
         logger.exception("Error during health check")
-        raise HTTPException(
-            status_code=503,
-            detail="Health check failed"
-        ) from e
+        raise HTTPException(status_code=503, detail="Health check failed") from e
 
 
 @app.get("/api/v1/context")

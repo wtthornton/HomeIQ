@@ -1,67 +1,65 @@
 """
-Carbon Intensity Client for Proactive Agent Service
+Carbon Intensity Client for Proactive Agent Service (cross-group: core-platform)
 
-Fetches carbon intensity data. Carbon intensity data is stored in InfluxDB
-and accessed via data-api service or directly from carbon-intensity service.
+Fetches carbon intensity data via data-api (InfluxDB).
+Uses CrossGroupClient with shared circuit breaker for resilience.
 """
 
 from __future__ import annotations
 
 import logging
+import os
+import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+try:
+    _project_root = str(Path(__file__).resolve().parents[4])
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+except IndexError:
+    pass  # Docker: PYTHONPATH already includes /app
+
+from shared.resilience import CircuitOpenError, CrossGroupClient
+
+from .breakers import core_platform_breaker
 
 logger = logging.getLogger(__name__)
 
 
 class CarbonIntensityClient:
-    """Client for fetching carbon intensity data from data-api (InfluxDB)"""
+    """Resilient client for fetching carbon intensity via Data API (core-platform group)."""
 
     def __init__(
         self,
         base_url: str = "http://carbon-intensity:8010",
         data_api_url: str = "http://data-api:8006",
     ):
-        """
-        Initialize Carbon Intensity client.
-
-        Args:
-            base_url: Base URL for Carbon Intensity service (default: http://carbon-intensity:8010)
-            data_api_url: Base URL for Data API service (default: http://data-api:8006)
-        """
-        self.base_url = base_url.rstrip('/')
-        self.data_api_url = data_api_url.rstrip('/')
-        self.client = httpx.AsyncClient(
+        self.base_url = base_url.rstrip("/")
+        self.data_api_url = data_api_url.rstrip("/")
+        api_key = os.getenv("DATA_API_API_KEY") or os.getenv("API_KEY")
+        # Carbon intensity data is fetched through data-api (core-platform)
+        self._cross_client = CrossGroupClient(
+            base_url=self.data_api_url,
+            group_name="core-platform",
             timeout=30.0,
-            follow_redirects=True,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            max_retries=3,
+            auth_token=api_key,
+            circuit_breaker=core_platform_breaker,
         )
-        logger.info(f"Carbon Intensity client initialized (data-api: {self.data_api_url})")
+        logger.info("Carbon Intensity client initialized (data-api: %s)", self.data_api_url)
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=False  # Don't reraise - return None for graceful degradation
-    )
     async def get_current_intensity(self) -> dict[str, Any] | None:
-        """
-        Get current carbon intensity from data-api (InfluxDB).
-
-        Returns:
-            Dictionary with carbon intensity data or None if unavailable
-        """
+        """Get current carbon intensity. Returns None on failure."""
         try:
             logger.debug("Fetching current carbon intensity from data-api")
-            response = await self.client.get(
-                f"{self.data_api_url}/api/v1/energy/carbon-intensity/current"
+            response = await self._cross_client.call(
+                "GET", "/api/v1/energy/carbon-intensity/current",
             )
             response.raise_for_status()
             data = response.json()
-
-            # Transform to expected format
             return {
                 "intensity": data.get("intensity", 0),
                 "renewable_percentage": data.get("renewable_percentage", 0),
@@ -72,58 +70,47 @@ class CarbonIntensityClient:
                 "region": data.get("region"),
                 "grid_operator": data.get("grid_operator"),
             }
+        except CircuitOpenError:
+            logger.warning("Data API circuit open — carbon intensity unavailable")
+            return None
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.debug("No carbon intensity data found in InfluxDB")
             else:
-                error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
-                logger.warning(f"HTTP error fetching carbon intensity: {error_msg}")
-            return None  # Graceful degradation
-        except httpx.ConnectError:
-            error_msg = f"Could not connect to Data API at {self.data_api_url}"
-            logger.warning(f"Connection error: {error_msg}")
-            return None  # Graceful degradation
+                logger.warning("HTTP error fetching carbon intensity: %s", e)
+            return None
+        except httpx.HTTPError as e:
+            logger.warning("Connection error fetching carbon intensity: %s", e)
+            return None
         except Exception:
             logger.warning("Error fetching carbon intensity", exc_info=True)
-            return None  # Graceful degradation
+            return None
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=False  # Don't reraise - return None for graceful degradation
-    )
     async def get_trends(self) -> dict[str, Any] | None:
-        """
-        Get carbon intensity trends over the last 24 hours.
-
-        Returns:
-            Dictionary with trends data or None if unavailable
-        """
+        """Get carbon intensity trends over the last 24 hours. Returns None on failure."""
         try:
             logger.debug("Fetching carbon intensity trends from data-api")
-            response = await self.client.get(
-                f"{self.data_api_url}/api/v1/energy/carbon-intensity/trends"
+            response = await self._cross_client.call(
+                "GET", "/api/v1/energy/carbon-intensity/trends",
             )
             response.raise_for_status()
             return response.json()
+        except CircuitOpenError:
+            logger.warning("Data API circuit open — carbon trends unavailable")
+            return None
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.debug("No carbon intensity trends data found")
             else:
-                error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
-                logger.warning(f"HTTP error fetching carbon intensity trends: {error_msg}")
-            return None  # Graceful degradation
-        except httpx.ConnectError:
-            error_msg = f"Could not connect to Data API at {self.data_api_url}"
-            logger.warning(f"Connection error: {error_msg}")
-            return None  # Graceful degradation
+                logger.warning("HTTP error fetching carbon intensity trends: %s", e)
+            return None
+        except httpx.HTTPError as e:
+            logger.warning("Connection error fetching carbon trends: %s", e)
+            return None
         except Exception:
             logger.warning("Error fetching carbon intensity trends", exc_info=True)
-            return None  # Graceful degradation
+            return None
 
     async def close(self):
-        """Close HTTP client connection pool"""
-        await self.client.aclose()
-        logger.debug("Carbon Intensity client closed")
-
+        """No-op — CrossGroupClient uses per-request clients."""
+        logger.debug("Carbon Intensity client close (no-op with CrossGroupClient)")

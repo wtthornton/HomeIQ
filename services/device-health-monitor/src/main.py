@@ -6,19 +6,39 @@ Analyzes device response times, battery levels, power consumption, and generates
 """
 
 import os
+import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+try:
+    _project_root = str(Path(__file__).resolve().parents[3])
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+except IndexError:
+    pass  # Docker: PYTHONPATH already includes /app
+
 from shared.logging_config import setup_logging
+from src.clients.data_api_client import DataAPIClient
+from src.clients.device_intelligence_client import DeviceIntelligenceClient
 from src.ha_client import HAClient
 from src.health_analyzer import HealthAnalyzer
 
-logger = setup_logging("device-health-monitor")
+try:
+    from shared.resilience import GroupHealthCheck, wait_for_dependency
+except ImportError:
+    GroupHealthCheck = None  # type: ignore[assignment,misc]
+    wait_for_dependency = None  # type: ignore[assignment]
+
+logger = setup_logging("device-health-monitor", group_name="device-management")
+
+# Global group health check
+_group_health: GroupHealthCheck | None = None
 
 
 class AnalyzeRequest(BaseModel):
@@ -33,8 +53,32 @@ class AnalyzeRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application lifecycle"""
+    global _group_health
+
     # Startup
     logger.info("Device Health Monitor Service starting up...")
+
+    # Probe cross-group dependencies (non-fatal)
+    if wait_for_dependency is not None:
+        await wait_for_dependency("data-api", "http://data-api:8006/health", timeout=10)
+        await wait_for_dependency(
+            "device-intelligence", "http://device-intelligence-service:8023/health",
+            timeout=10,
+        )
+
+    # Initialize group health check
+    if GroupHealthCheck is not None:
+        _group_health = GroupHealthCheck(
+            group_name="device-management", version="1.0.0",
+        )
+        _group_health.register_dependency("data-api", "http://data-api:8006/health")
+        _group_health.register_dependency(
+            "device-intelligence", "http://device-intelligence-service:8023/health",
+        )
+
+    # Cross-group clients
+    app.state.data_api_client = DataAPIClient()
+    app.state.device_intel_client = DeviceIntelligenceClient()
 
     ha_url = os.getenv("HA_URL", "")
     ha_token = os.getenv("HA_TOKEN", "")
@@ -70,22 +114,22 @@ app = FastAPI(
 
 @app.get("/health")
 async def health_check() -> dict:
-    """Health check endpoint"""
-    if not app.state.ha_configured:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "degraded",
-                "service": "device-health-monitor",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "error": "Home Assistant not configured (HA_URL/HA_TOKEN missing)"
-            }
-        )
-    return {
-        "status": "healthy",
-        "service": "device-health-monitor",
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+    """Health check with group-level status."""
+    if _group_health is not None:
+        response = await _group_health.to_dict()
+    else:
+        response = {
+            "status": "healthy",
+            "service": "device-health-monitor",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    response["ha_configured"] = getattr(app.state, "ha_configured", False)
+    if not response["ha_configured"]:
+        response["status"] = "degraded"
+        response["error"] = "Home Assistant not configured (HA_URL/HA_TOKEN missing)"
+
+    return response
 
 
 @app.get("/")

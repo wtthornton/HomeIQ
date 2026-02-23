@@ -2,15 +2,22 @@
 Data API Client for HA AI Agent Service
 
 Provides access to entities and devices via Data API service.
+Uses CrossGroupClient for circuit-breaker protection and automatic retries.
 """
 
 import logging
 from typing import Any
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+from shared.resilience import CircuitBreaker, CrossGroupClient
+from shared.resilience.circuit_breaker import CircuitOpenError
 
 logger = logging.getLogger(__name__)
+
+# Shared circuit breaker for core-platform group — all DataAPIClient instances
+# share the same breaker so a data-api outage is detected once, not per-client.
+_core_platform_breaker = CircuitBreaker(name="core-platform")
 
 
 class DataAPIClient:
@@ -25,23 +32,16 @@ class DataAPIClient:
             api_key: Optional API key for Bearer auth
         """
         self.base_url = base_url.rstrip('/')
-        headers = {}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        self.client = httpx.AsyncClient(
+        self._cross_client = CrossGroupClient(
+            base_url=self.base_url,
+            group_name="core-platform",
             timeout=30.0,
-            follow_redirects=True,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-            headers=headers
+            max_retries=3,
+            auth_token=api_key,
+            circuit_breaker=_core_platform_breaker,
         )
         logger.info(f"Data API client initialized with base_url={self.base_url}, auth={'yes' if api_key else 'no'}")
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
-    )
     async def fetch_entities(
         self,
         device_id: str | None = None,
@@ -64,7 +64,7 @@ class DataAPIClient:
             List of entity dictionaries with keys: entity_id, device_id, domain, platform, area_id, etc.
 
         Raises:
-            httpx.HTTPError: If API request fails
+            Exception: If API request fails or circuit breaker is open
         """
         try:
             params: dict[str, Any] = {"limit": limit}
@@ -80,10 +80,7 @@ class DataAPIClient:
 
             logger.debug(f"Fetching entities from Data API: {params}")
 
-            response = await self.client.get(
-                f"{self.base_url}/api/entities",
-                params=params
-            )
+            response = await self._cross_client.call("GET", "/api/entities", params=params)
             response.raise_for_status()
 
             data = response.json()
@@ -97,24 +94,20 @@ class DataAPIClient:
                 logger.warning(f"Unexpected entities response format: {type(data)}")
                 entities = []
 
-            logger.info(f"✅ Fetched {len(entities)} entities from Data API")
+            logger.info(f"Fetched {len(entities)} entities from Data API")
             return entities
 
+        except CircuitOpenError as e:
+            error_msg = f"Data API circuit breaker open: {e}"
+            logger.error(f"Circuit open: {error_msg}")
+            raise Exception(error_msg) from e
         except httpx.HTTPStatusError as e:
             error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
-            logger.error(f"❌ HTTP error fetching entities from Data API: {error_msg}")
+            logger.error(f"HTTP error fetching entities from Data API: {error_msg}")
             raise Exception(error_msg) from e
-        except httpx.ConnectError as e:
-            error_msg = f"Could not connect to Data API at {self.base_url}. Is the service running?"
-            logger.error(f"❌ Connection error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.TimeoutException as e:
-            error_msg = "Data API request timed out after 30 seconds"
-            logger.error(f"❌ Timeout error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.HTTPError as e:
-            error_msg = f"HTTP error fetching entities: {str(e)}"
-            logger.error(f"❌ {error_msg}")
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as e:
+            error_msg = f"Error fetching entities from Data API: {e}"
+            logger.error(error_msg)
             raise Exception(error_msg) from e
 
     async def get_devices(
@@ -151,10 +144,7 @@ class DataAPIClient:
 
             logger.debug(f"Fetching devices from Data API: {params}")
 
-            response = await self.client.get(
-                f"{self.base_url}/api/devices",
-                params=params
-            )
+            response = await self._cross_client.call("GET", "/api/devices", params=params)
             response.raise_for_status()
 
             data = response.json()
@@ -168,24 +158,20 @@ class DataAPIClient:
                 logger.warning(f"Unexpected devices response format: {type(data)}")
                 devices = []
 
-            logger.info(f"✅ Fetched {len(devices)} devices from Data API")
+            logger.info(f"Fetched {len(devices)} devices from Data API")
             return devices
 
+        except CircuitOpenError as e:
+            error_msg = f"Data API circuit breaker open: {e}"
+            logger.error(f"Circuit open: {error_msg}")
+            raise Exception(error_msg) from e
         except httpx.HTTPStatusError as e:
             error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
-            logger.error(f"❌ HTTP error fetching devices from Data API: {error_msg}")
+            logger.error(f"HTTP error fetching devices from Data API: {error_msg}")
             raise Exception(error_msg) from e
-        except httpx.ConnectError as e:
-            error_msg = f"Could not connect to Data API at {self.base_url}. Is the service running?"
-            logger.error(f"❌ Connection error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.TimeoutException as e:
-            error_msg = "Data API request timed out after 30 seconds"
-            logger.error(f"❌ Timeout error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.HTTPError as e:
-            error_msg = f"HTTP error fetching devices: {str(e)}"
-            logger.error(f"❌ {error_msg}")
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as e:
+            error_msg = f"Error fetching devices from Data API: {e}"
+            logger.error(error_msg)
             raise Exception(error_msg) from e
 
     async def fetch_device(self, device_id: str) -> dict[str, Any]:
@@ -204,35 +190,29 @@ class DataAPIClient:
         try:
             logger.debug(f"Fetching device {device_id} from Data API")
 
-            response = await self.client.get(
-                f"{self.base_url}/api/devices/{device_id}"
-            )
+            response = await self._cross_client.call("GET", f"/api/devices/{device_id}")
             response.raise_for_status()
 
             device = response.json()
 
-            logger.info(f"✅ Fetched device {device_id} from Data API")
+            logger.info(f"Fetched device {device_id} from Data API")
             return device
 
+        except CircuitOpenError as e:
+            error_msg = f"Data API circuit breaker open: {e}"
+            logger.error(f"Circuit open: {error_msg}")
+            raise Exception(error_msg) from e
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 error_msg = f"Device {device_id} not found in Data API"
-                logger.warning(f"⚠️ {error_msg}")
+                logger.warning(error_msg)
                 raise ValueError(error_msg) from e
             error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
-            logger.error(f"❌ HTTP error fetching device from Data API: {error_msg}")
+            logger.error(f"HTTP error fetching device from Data API: {error_msg}")
             raise Exception(error_msg) from e
-        except httpx.ConnectError as e:
-            error_msg = f"Could not connect to Data API at {self.base_url}. Is the service running?"
-            logger.error(f"❌ Connection error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.TimeoutException as e:
-            error_msg = "Data API request timed out after 30 seconds"
-            logger.error(f"❌ Timeout error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.HTTPError as e:
-            error_msg = f"HTTP error fetching device: {str(e)}"
-            logger.error(f"❌ {error_msg}")
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as e:
+            error_msg = f"Error fetching device from Data API: {e}"
+            logger.error(error_msg)
             raise Exception(error_msg) from e
 
     async def get_areas(self) -> list[dict[str, Any]]:
@@ -279,7 +259,6 @@ class DataAPIClient:
             raise Exception(error_msg) from e
 
     async def close(self):
-        """Close HTTP client connection pool"""
-        await self.client.aclose()
-        logger.debug("Data API client closed")
+        """No-op — CrossGroupClient uses per-request clients."""
+        logger.debug("Data API client close called (no-op with CrossGroupClient)")
 

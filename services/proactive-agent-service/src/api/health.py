@@ -1,4 +1,4 @@
-"""Health check endpoint"""
+"""Health check endpoint with group-level resilience reporting."""
 
 from __future__ import annotations
 
@@ -20,24 +20,24 @@ def set_scheduler_service_for_health(service: Any):
 
 @router.get("/health")
 async def health_check():
-    """
-    Health check endpoint with scheduler status.
+    """Health check with group-level status and scheduler info."""
+    from ..main import _group_health
 
-    Returns:
-        Health status including scheduler information
-    """
-    response = {
-        "status": "healthy",
-        "service": "proactive-agent-service",
-        "version": "1.0.0",
-    }
+    # Start from GroupHealthCheck if available
+    if _group_health is not None:
+        response = await _group_health.to_dict()
+    else:
+        response = {
+            "status": "healthy",
+            "service": "proactive-agent-service",
+            "version": "1.0.0",
+        }
 
-    # Add scheduler status if available
+    # Add scheduler status
     if _scheduler_service is not None:
         try:
             scheduler_running = _scheduler_service.is_running()
             next_run = _scheduler_service.get_next_run_time()
-
             response["scheduler"] = {
                 "enabled": True,
                 "running": scheduler_running,
@@ -57,4 +57,3 @@ async def health_check():
         }
 
     return response
-

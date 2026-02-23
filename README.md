@@ -159,7 +159,7 @@ Once HomeIQ is running, explore these interfaces:
 
 ## 🏗️ Architecture Overview
 
-HomeIQ runs as a collection of **46+ microservices** organized into 7 tiers by criticality, designed for single-home deployment on resource-constrained hardware like an Intel NUC.
+HomeIQ runs as a collection of **50+ microservices** organized into **6 deployment groups** and 7 criticality tiers, designed for single-home deployment on resource-constrained hardware like an Intel NUC.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -194,6 +194,7 @@ Home Assistant → websocket-ingestion → InfluxDB (direct writes)
 - Query via data-api endpoint
 
 For detailed architecture documentation, see:
+- [Service Groups Architecture](docs/architecture/service-groups.md) - The 6-group deployment structure
 - [Services Ranked by Importance](services/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification
 - [Event Flow Architecture](docs/architecture/event-flow-architecture.md) - Event processing and data flow
 - [Development Guide](docs/DEVELOPMENT.md) - Complete system architecture
@@ -201,7 +202,31 @@ For detailed architecture documentation, see:
 
 ---
 
-## 📖 Documentation
+## Service Groups
+
+Services are organized into **6 independently deployable groups** for selective deployment and blast-radius isolation:
+
+| Group | Name | Count | Purpose |
+|-------|------|-------|---------|
+| 1 | **core-platform** | 6 | Data backbone (InfluxDB, data-api, websocket-ingestion, admin-api, dashboard, retention) |
+| 2 | **data-collectors** | 8 | Stateless data fetchers (weather, energy, sports, air quality, calendar, logs) |
+| 3 | **ml-engine** | 9+1 | ML inference and training (OpenVINO, NER, OpenAI, RAG, device-intelligence) |
+| 4 | **automation-intelligence** | 16 | Automation generation, patterns, blueprints, energy analysis |
+| 5 | **device-management** | 8 | Device health, setup, classification, activity recognition |
+| 6 | **frontends** | 3+infra | AI automation UI, observability dashboard, Jaeger tracing |
+
+```bash
+# Deploy selectively by group
+docker compose -f compose/core.yml up -d                          # Core only
+docker compose -f compose/core.yml -f compose/collectors.yml up -d # Core + data
+docker compose up -d                                               # Full stack
+```
+
+See [Service Groups Architecture](docs/architecture/service-groups.md) for full details, dependency graph, and per-group deployment commands.
+
+---
+
+## Documentation
 
 ### Getting Started
 - [Quick Start Guide](docs/QUICK_START.md) — Get up and running
@@ -231,7 +256,7 @@ For detailed architecture documentation, see:
 
 | Metric | Value |
 |--------|-------|
-| **Active Services** | 46+ microservices across 7 tiers |
+| **Active Services** | 50+ microservices across 6 groups and 7 tiers |
 | **Target Hardware** | Intel NUC (i3/i5, 8-16GB RAM) |
 | **Memory Footprint** | ~8-10 GB (optimized) |
 | **Optimized For** | Single home, 50-100 devices |

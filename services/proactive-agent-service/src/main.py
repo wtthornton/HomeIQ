@@ -55,7 +55,13 @@ try:
 except ImportError:
     # Fallback if shared logging not available
     logging.basicConfig(level=logging.INFO)
-    setup_logging = lambda name: logging.getLogger(name)  # noqa: E731
+    setup_logging = lambda name, **_kw: logging.getLogger(name)  # noqa: E731
+
+try:
+    from shared.resilience import GroupHealthCheck, wait_for_dependency  # noqa: E402
+except ImportError:
+    GroupHealthCheck = None  # type: ignore[assignment,misc]
+    wait_for_dependency = None  # type: ignore[assignment]
 
 from .config import Settings
 from .api.health import router as health_router, set_scheduler_service_for_health
@@ -65,12 +71,14 @@ from .services.scheduler_service import SchedulerService
 from .services.suggestion_pipeline_service import SuggestionPipelineService
 
 # Configure structured logging
-logger = setup_logging("proactive-agent-service")
+logger = setup_logging("proactive-agent-service", group_name="automation-intelligence")
 
 # Global settings instance
 settings: Settings | None = None
 # Global scheduler instance
 scheduler_service: SchedulerService | None = None
+# Global group health check
+_group_health: GroupHealthCheck | None = None
 
 
 def _parse_allowed_origins() -> list[str]:
@@ -108,11 +116,26 @@ async def lifespan(_app: FastAPI):
     """Initialize services on startup, cleanup on shutdown"""
     global settings, scheduler_service
 
+    global _group_health
+
     logger.info("Starting Proactive Agent Service...")
     try:
         # Load settings
         settings = Settings()
         logger.info(f"Settings loaded (Port: {settings.service_port})")
+
+        # Probe cross-group dependencies (non-fatal)
+        if wait_for_dependency is not None:
+            await wait_for_dependency("data-api", "http://data-api:8006/health", timeout=10)
+            await wait_for_dependency("weather-api", "http://weather-api:8009/health", timeout=10)
+
+        # Initialize group health check
+        if GroupHealthCheck is not None:
+            _group_health = GroupHealthCheck(
+                group_name="automation-intelligence", version="1.0.0",
+            )
+            _group_health.register_dependency("data-api", "http://data-api:8006/health")
+            _group_health.register_dependency("weather-api", "http://weather-api:8009/health")
 
         # Initialize database (Story AI21.8)
         await _initialize_database(settings)

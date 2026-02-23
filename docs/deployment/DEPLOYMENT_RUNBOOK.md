@@ -1,8 +1,8 @@
 # HomeIQ Deployment Runbook
 
-**Last Updated:** February 7, 2026
+**Last Updated:** February 23, 2026
 **Status:** Active
-**Version:** 2.3
+**Version:** 2.5
 
 ---
 
@@ -20,7 +20,9 @@ This runbook provides step-by-step instructions for deploying HomeIQ to producti
 
 HomeIQ is an AI-powered Home Assistant intelligence platform that captures, enriches, and stores Home Assistant events with multi-source data enrichment, providing real-time monitoring, advanced analytics, conversational AI automation, and production-ready deployment capabilities.
 
-**Deployment Model:** Single NUC deployment - all 47+ microservices run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
+**Deployment Model:** Single NUC deployment - all 50+ microservices (organized into 6 deployment groups) run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
+
+For the full group architecture, see [Service Groups Architecture](../architecture/service-groups.md).
 
 For complete service ranking and deployment priority, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
 
@@ -700,6 +702,141 @@ python scripts/deployment/track-deployment.py \
 
 ---
 
+## Per-Group Deployment
+
+HomeIQ services are organized into 6 independently deployable groups. This enables targeted deployments, faster iteration, and blast-radius isolation.
+
+For the canonical group reference, see [Service Groups Architecture](../architecture/service-groups.md).
+
+### Group Overview
+
+| Group | Compose File | Services | Startup Order |
+|-------|-------------|----------|---------------|
+| 1. core-platform | `compose/core.yml` | influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention | **First** (required by all) |
+| 2. data-collectors | `compose/collectors.yml` | weather-api, smart-meter, sports-api, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator | After core |
+| 3. ml-engine | `compose/ml.yml` | ai-core-service, openvino, ml-service, ner-service, openai-service, rag-service, ai-training, device-intelligence, model-prep | After core |
+| 4. automation-intelligence | `compose/automation.yml` | ha-ai-agent, ai-automation, ai-query, ai-pattern, + 12 more | After core + ml |
+| 5. device-management | `compose/devices.yml` | device-health-monitor, device-context-classifier, + 6 more | After core |
+| 6. frontends | `compose/frontends.yml` | ai-automation-ui, observability-dashboard, jaeger | After core + automation |
+
+### Starting Individual Groups
+
+```bash
+# IMPORTANT: core-platform must always be started first
+docker compose -f compose/core.yml up -d
+
+# Then start any other group independently
+docker compose -f compose/collectors.yml up -d
+docker compose -f compose/ml.yml up -d
+docker compose -f compose/automation.yml up -d
+docker compose -f compose/devices.yml up -d
+docker compose -f compose/frontends.yml up -d
+```
+
+### Starting Group Combinations
+
+```bash
+# Core + collectors (minimal data pipeline with enrichment)
+docker compose -f compose/core.yml -f compose/collectors.yml up -d
+
+# Core + ML + automation (full AI features)
+docker compose -f compose/core.yml -f compose/ml.yml -f compose/automation.yml up -d
+
+# Core + devices (device management without AI)
+docker compose -f compose/core.yml -f compose/devices.yml up -d
+
+# Everything except frontends (headless operation)
+docker compose -f compose/core.yml -f compose/collectors.yml \
+  -f compose/ml.yml -f compose/automation.yml -f compose/devices.yml up -d
+
+# Full stack (all groups via root compose)
+docker compose up -d
+```
+
+### Health Check Commands Per Group
+
+```bash
+# Group 1: core-platform
+echo "=== core-platform ==="
+curl -sf http://localhost:8086/health && echo " influxdb: OK" || echo " influxdb: FAIL"
+curl -sf http://localhost:8006/health && echo " data-api: OK" || echo " data-api: FAIL"
+curl -sf http://localhost:8001/health && echo " websocket-ingestion: OK" || echo " websocket-ingestion: FAIL"
+curl -sf http://localhost:8004/health && echo " admin-api: OK" || echo " admin-api: FAIL"
+curl -sf http://localhost:3000 -o /dev/null && echo " health-dashboard: OK" || echo " health-dashboard: FAIL"
+curl -sf http://localhost:8080/health && echo " data-retention: OK" || echo " data-retention: FAIL"
+
+# Group 2: data-collectors
+echo "=== data-collectors ==="
+for svc in "8009:weather-api" "8014:smart-meter" "8005:sports-api" "8012:air-quality" \
+           "8010:carbon-intensity" "8011:electricity-pricing" "8013:calendar" "8015:log-aggregator"; do
+  port="${svc%%:*}"; name="${svc#*:}"
+  curl -sf "http://localhost:$port/health" && echo " $name: OK" || echo " $name: FAIL"
+done
+
+# Group 3: ml-engine
+echo "=== ml-engine ==="
+curl -sf http://localhost:8018/health && echo " ai-core-service: OK" || echo " ai-core-service: FAIL"
+curl -sf http://localhost:8026/health && echo " openvino-service: OK" || echo " openvino-service: FAIL"
+curl -sf http://localhost:8025/health && echo " ml-service: OK" || echo " ml-service: FAIL"
+curl -sf http://localhost:8028/health && echo " device-intelligence: OK" || echo " device-intelligence: FAIL"
+
+# Group 4: automation-intelligence
+echo "=== automation-intelligence ==="
+curl -sf http://localhost:8030/health && echo " ha-ai-agent: OK" || echo " ha-ai-agent: FAIL"
+curl -sf http://localhost:8036/health && echo " ai-automation: OK" || echo " ai-automation: FAIL"
+curl -sf http://localhost:8034/health && echo " ai-pattern: OK" || echo " ai-pattern: FAIL"
+curl -sf http://localhost:8016/health && echo " automation-linter: OK" || echo " automation-linter: FAIL"
+
+# Group 5: device-management
+echo "=== device-management ==="
+curl -sf http://localhost:8019/health && echo " device-health-monitor: OK" || echo " device-health-monitor: FAIL"
+curl -sf http://localhost:8024/health && echo " ha-setup-service: OK" || echo " ha-setup-service: FAIL"
+curl -sf http://localhost:8043/health && echo " activity-recognition: OK" || echo " activity-recognition: FAIL"
+
+# Group 6: frontends
+echo "=== frontends ==="
+curl -sf http://localhost:3001 -o /dev/null && echo " ai-automation-ui: OK" || echo " ai-automation-ui: FAIL"
+curl -sf http://localhost:16686 -o /dev/null && echo " jaeger: OK" || echo " jaeger: FAIL"
+```
+
+### Per-Group Rollback Procedures
+
+When a deployment in one group fails, roll back only that group without affecting others:
+
+```bash
+# Rollback a single group (example: automation-intelligence)
+docker compose -f compose/automation.yml down
+git checkout <previous-commit> -- compose/automation.yml services/ha-ai-agent-service/ services/ai-automation-service-new/ services/ai-pattern-service/
+docker compose -f compose/automation.yml up -d --build
+
+# Rollback core-platform (CAUTION: affects all groups)
+docker compose -f compose/core.yml down
+git checkout <previous-commit> -- compose/core.yml services/data-api/ services/websocket-ingestion/
+docker compose -f compose/core.yml up -d --build
+# Verify all dependent groups are still healthy after core rollback
+
+# Rollback ML engine (automation may degrade gracefully)
+docker compose -f compose/ml.yml down
+git checkout <previous-commit> -- compose/ml.yml
+docker compose -f compose/ml.yml up -d --build
+# automation-intelligence will use fallback/cached responses
+```
+
+### Per-Group Rebuild
+
+```bash
+# Rebuild and restart a specific group
+docker compose -f compose/collectors.yml up -d --build
+
+# Rebuild a single service within a group
+docker compose -f compose/ml.yml up -d --build openvino-service
+
+# Force recreate containers (useful for config changes)
+docker compose -f compose/devices.yml up -d --force-recreate
+```
+
+---
+
 ## Post-Deployment Verification
 
 ### 1. Service Health Check
@@ -724,7 +861,40 @@ bash scripts/deployment/health-check.sh --critical-only
 - No connection errors
 - All containers running
 
-### 2. Functional Verification
+### 2. Resilience Verification
+
+Services that make cross-group HTTP calls use `shared/resilience` (CircuitBreaker, CrossGroupClient, GroupHealthCheck). After deployment, verify resilience is active:
+
+```bash
+# Verify structured health endpoints return group + dependency info
+# Services should return JSON with "group", "status", and "dependencies" fields
+curl -sf http://localhost:8030/health | python -m json.tool  # ha-ai-agent (group: automation-intelligence)
+curl -sf http://localhost:8034/health | python -m json.tool  # ai-pattern (group: automation-intelligence)
+curl -sf http://localhost:8036/health | python -m json.tool  # ai-automation (group: automation-intelligence)
+curl -sf http://localhost:8031/health | python -m json.tool  # proactive-agent (group: automation-intelligence)
+curl -sf http://localhost:8019/health | python -m json.tool  # device-health-monitor (group: device-management)
+
+# Verify circuit breaker graceful degradation
+# Stop data-api, verify services degrade (return empty results, don't crash)
+docker compose stop data-api
+curl -sf http://localhost:8030/health  # Should show data-api dependency as unhealthy
+docker compose start data-api         # Restore
+```
+
+**Expected structured health response:**
+```json
+{
+  "group": "automation-intelligence",
+  "status": "healthy",
+  "version": "1.0.0",
+  "uptime_seconds": 3600,
+  "dependencies": {
+    "data-api": {"status": "healthy", "latency_ms": 12}
+  }
+}
+```
+
+### 3. Functional Verification
 
 **Test Event Ingestion:**
 ```bash
@@ -1110,6 +1280,7 @@ gh workflow run deployment-notify.yml \
 
 ## References
 
+- [Service Groups Architecture](../architecture/service-groups.md) - Canonical reference for the 6-group deployment structure
 - [Deployment Pipeline Documentation](./DEPLOYMENT_PIPELINE.md) - Complete pipeline architecture
 - [Nginx Proxy Configuration Guide](./NGINX_PROXY_CONFIGURATION.md) - Detailed nginx proxy patterns and troubleshooting
 - [Synergies API Deployment Notes](./SYNERGIES_API_DEPLOYMENT_NOTES.md) - Critical deployment notes for synergies API route fixes

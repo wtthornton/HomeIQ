@@ -1,0 +1,46 @@
+name: "CI \u2014 Device Management"
+
+on:
+  push:
+    paths:
+      - 'services/device-health-monitor/**'
+      - 'services/device-context-classifier/**'
+      - 'services/device-setup-assistant/**'
+      - 'services/device-database-client/**'
+      - 'services/device-recommender/**'
+      - 'services/activity-recognition/**'
+      - 'services/activity-writer/**'
+      - 'services/ha-setup-service/**'
+      - 'compose/devices.yml'
+      - 'shared/patterns/**'
+      - '.github/workflows/ci-devices.yml'
+      - '.github/workflows/reusable-group-ci.yml'
+  pull_request:
+    paths:
+      - 'services/device-health-monitor/**'
+      - 'services/device-context-classifier/**'
+      - 'services/device-setup-assistant/**'
+      - 'services/device-database-client/**'
+      - 'services/device-recommender/**'
+      - 'services/activity-recognition/**'
+      - 'services/activity-writer/**'
+      - 'services/ha-setup-service/**'
+      - 'compose/devices.yml'
+      - 'shared/patterns/**'
+      - '.github/workflows/ci-devices.yml'
+      - '.github/workflows/reusable-group-ci.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-devices-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: ./.github/workflows/reusable-group-ci.yml
+    with:
+      group_name: devices
+      services: '["device-health-monitor","device-context-classifier","device-setup-assistant","device-database-client","device-recommender","activity-recognition","activity-writer","ha-setup-service"]'

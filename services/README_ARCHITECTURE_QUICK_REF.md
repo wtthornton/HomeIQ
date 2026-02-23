@@ -1,20 +1,79 @@
 # Services Architecture Quick Reference
 
-**Last Updated:** February 6, 2026 (Epic 31+)
+**Last Updated:** February 23, 2026 (Phase 5: Service Groups + Resilience)
 **Purpose:** Quick reference for developers working on services
 
 ---
 
-## 📊 Services Overview
+## Services Overview
 
-**Total Services:** 46+ microservices organized into 7 tiers by criticality
+**Total Services:** 50+ microservices organized into **6 deployment groups** and 7 criticality tiers
 
-For a complete ranking of all services by importance, see:
+For detailed documentation, see:
+- **[Service Groups Architecture](../docs/architecture/service-groups.md)** - Canonical reference for the 6-group structure
 - **[Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md)** - Comprehensive tier classification and operational guidelines
 
 ---
 
-## 🚨 IMPORTANT: Epic 31 Architecture Changes
+## Service Group Architecture
+
+HomeIQ services are organized into 6 independently deployable groups:
+
+```
+                    +------------------------------+
+                    |   Group 1: core-platform     |
+                    |   influxdb, data-api,        |
+                    |   websocket-ingestion,       |
+                    |   admin-api, health-dashboard,|
+                    |   data-retention             |
+                    +---------------+--------------+
+                                    |
+          +-------------------------+-------------------------+
+          |                         |                         |
+          v                         v                         v
+  +----------------+     +-------------------+     +-------------------+
+  | Group 2:       |     | Group 3:          |     | Group 5:          |
+  | data-collectors|     | ml-engine         |     | device-management |
+  | 8 services     |     | 9+1 services      |     | 8 services        |
+  +----------------+     +---------+---------+     +-------------------+
+                                   |
+                                   v
+                    +------------------------------+
+                    |   Group 4: automation-       |
+                    |   intelligence (16 services) |
+                    +---------------+--------------+
+                                    |
+                                    v
+                    +------------------------------+
+                    |   Group 6: frontends         |
+                    |   3 services + infra          |
+                    +------------------------------+
+```
+
+### Group Deployment Commands
+
+```bash
+# Full stack (all groups via root compose)
+docker compose up -d
+
+# Core only (minimal data pipeline)
+docker compose -f compose/core.yml up -d
+
+# Core + collectors (data pipeline with enrichment)
+docker compose -f compose/core.yml -f compose/collectors.yml up -d
+
+# Core + ML + automation (AI features)
+docker compose -f compose/core.yml -f compose/ml.yml -f compose/automation.yml up -d
+
+# Single group rebuild
+docker compose -f compose/ml.yml up -d --build
+```
+
+For complete deployment commands per group, see the [Service Groups Architecture](../docs/architecture/service-groups.md) and [Deployment Runbook](../docs/deployment/DEPLOYMENT_RUNBOOK.md).
+
+---
+
+## IMPORTANT: Epic 31 Architecture Changes
 
 ### What Changed
 
@@ -117,11 +176,11 @@ await influxdb.write_sports_data(sensors)
 # Service → InfluxDB (direct write)
 await self.influxdb_client.write_event(event)
 
-# Service → data-api (query)
-response = await httpx.get("http://data-api:8006/api/v1/events")
+# Service → data-api (query) — use CrossGroupClient for cross-group calls
+response = await self._cross_client.call("GET", "/api/v1/events")
 
 # Service → data-api (store metadata)
-response = await httpx.post("http://data-api:8006/internal/devices/bulk_upsert")
+response = await self._cross_client.call("POST", "/internal/devices/bulk_upsert", json=data)
 ```
 
 ### ❌ NOT ALLOWED
@@ -135,7 +194,53 @@ await httpx.post("http://websocket-ingestion:8001/events")  # DON'T DO THIS
 
 # Service → Service (creates coupling)
 await httpx.get("http://weather-api:8009/current")  # Use InfluxDB instead
+
+# Raw httpx for cross-group calls (no resilience)
+await httpx.get("http://data-api:8006/api/entities")  # Use CrossGroupClient instead
 ```
+
+### Cross-Group Resilience Pattern
+
+All cross-group HTTP calls **must** use the `shared/resilience` module. This provides circuit breakers, retry with backoff, Bearer auth, and OTel trace propagation.
+
+```python
+from shared.resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
+
+# Module-level shared breaker (one per target group)
+_core_platform_breaker = CircuitBreaker(name="core-platform")
+
+class DataAPIClient:
+    def __init__(self, base_url="http://data-api:8006", api_key=None):
+        self._cross_client = CrossGroupClient(
+            base_url=base_url, group_name="core-platform",
+            timeout=30.0, max_retries=3, auth_token=api_key,
+            circuit_breaker=_core_platform_breaker,
+        )
+
+    async def fetch_entities(self):
+        try:
+            response = await self._cross_client.call("GET", "/api/entities")
+            response.raise_for_status()
+            return response.json().get("entities", [])
+        except CircuitOpenError:
+            return []  # Graceful degradation
+```
+
+**Key rules:**
+- **Cross-group calls** (e.g., G4 → G1): Use `CrossGroupClient` with shared `CircuitBreaker`
+- **Same-group calls** (e.g., G4 → G4): Use direct `httpx` — no circuit breaker needed
+- **External APIs** (e.g., HA, OpenAI): Use direct `httpx` or `aiohttp` — not group-managed
+- **One breaker per target group**: All clients calling the same group share one breaker instance
+
+**Breaker mapping:**
+
+| Target Group | Breaker Name | Used By |
+|-------------|-------------|---------|
+| core-platform (G1) | `core-platform` | 6 services across G4 and G5 |
+| data-collectors (G2) | `data-collectors` | proactive-agent-service |
+| ml-engine (G3) | `ml-engine` | ha-ai-agent-service, device-health-monitor |
+
+For full documentation, see [`shared/resilience/README.md`](../shared/resilience/README.md).
 
 ---
 
@@ -360,7 +465,9 @@ HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 
 ## Related Documentation
 
+- **[Service Groups Architecture](../docs/architecture/service-groups.md)** - Canonical reference for the 6-group deployment structure
 - **[Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md)** - Complete service tier classification
+- **[Deployment Runbook](../docs/deployment/DEPLOYMENT_RUNBOOK.md)** - Per-group deployment procedures
 - **[Master Call Tree Index](../implementation/analysis/MASTER_CALL_TREE_INDEX.md)** - All call trees
 - **[HA Event Call Tree](../implementation/analysis/HA_EVENT_CALL_TREE.md)** - Detailed event flow
 - **[Tech Stack](../docs/architecture/tech-stack.md)** - Technology choices
@@ -373,7 +480,7 @@ HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 
 ---
 
-**Last Updated:** February 6, 2026
-**Epic Context:** Post-Epic 31 (enrichment-pipeline deprecated)
-**Service Count:** 46+ microservices across 7 tiers
+**Last Updated:** February 23, 2026
+**Epic Context:** Post-Epic 31 (enrichment-pipeline deprecated), Phase 5 (Service Groups + Resilience)
+**Service Count:** 50+ microservices across 6 deployment groups and 7 criticality tiers
 

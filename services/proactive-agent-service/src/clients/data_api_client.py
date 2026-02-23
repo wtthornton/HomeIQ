@@ -1,65 +1,68 @@
 """
-Data API Client for Proactive Agent Service
+Data API Client for Proactive Agent Service (cross-group: core-platform)
 
 Fetches historical patterns and event data from data-api service.
+Uses CrossGroupClient with shared circuit breaker for resilience.
 """
 
 from __future__ import annotations
 
 import logging
+import os
+import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+try:
+    _project_root = str(Path(__file__).resolve().parents[4])
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+except IndexError:
+    pass  # Docker: PYTHONPATH already includes /app
+
+from shared.resilience import CircuitOpenError, CrossGroupClient
+
+from .breakers import core_platform_breaker
 
 logger = logging.getLogger(__name__)
 
 
 class DataAPIClient:
-    """Client for fetching historical patterns and event data from Data API"""
+    """Resilient client for fetching data from Data API (core-platform group)."""
 
     def __init__(self, base_url: str = "http://data-api:8006"):
-        """
-        Initialize Data API client.
-
-        Args:
-            base_url: Base URL for Data API (default: http://data-api:8006)
-        """
-        self.base_url = base_url.rstrip('/')
-        self.client = httpx.AsyncClient(
+        self.base_url = base_url.rstrip("/")
+        api_key = os.getenv("DATA_API_API_KEY") or os.getenv("API_KEY")
+        self._cross_client = CrossGroupClient(
+            base_url=self.base_url,
+            group_name="core-platform",
             timeout=30.0,
-            follow_redirects=True,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            max_retries=3,
+            auth_token=api_key,
+            circuit_breaker=core_platform_breaker,
         )
-        logger.info(f"Data API client initialized with base_url={self.base_url}")
+        # Shorter-timeout client for activity endpoints
+        self._activity_client = CrossGroupClient(
+            base_url=self.base_url,
+            group_name="core-platform",
+            timeout=5.0,
+            max_retries=1,
+            auth_token=api_key,
+            circuit_breaker=core_platform_breaker,
+        )
+        logger.info("Data API client initialized with base_url=%s", self.base_url)
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=False  # Don't reraise - return empty list for graceful degradation
-    )
     async def get_events(
         self,
         entity_id: str | None = None,
         event_type: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """
-        Get historical events.
-
-        Args:
-            entity_id: Optional filter by entity ID
-            event_type: Optional filter by event type
-            start_time: Optional start time (ISO format)
-            end_time: Optional end time (ISO format)
-            limit: Maximum number of events to return
-
-        Returns:
-            List of event dictionaries or empty list if unavailable
-        """
+        """Fetch historical events. Returns [] on failure."""
         try:
             params: dict[str, Any] = {"limit": limit}
             if entity_id:
@@ -71,61 +74,56 @@ class DataAPIClient:
             if end_time:
                 params["end_time"] = end_time
 
-            logger.debug(f"Fetching events from Data API: {params}")
-            response = await self.client.get(
-                f"{self.base_url}/api/v1/events",
-                params=params
+            logger.debug("Fetching events from Data API: %s", params)
+            response = await self._cross_client.call(
+                "GET", "/api/v1/events", params=params,
             )
             response.raise_for_status()
             data = response.json()
             events = data if isinstance(data, list) else data.get("events", [])
-            logger.info(f"Fetched {len(events)} events from Data API")
+            logger.info("Fetched %d events from Data API", len(events))
             return events
-        except httpx.HTTPStatusError as e:
-            error_msg = f"Data API returned {e.response.status_code}: {e.response.text[:200]}"
-            logger.warning(f"HTTP error fetching events: {error_msg}")
-            return []  # Graceful degradation
-        except httpx.ConnectError:
-            error_msg = f"Could not connect to Data API at {self.base_url}"
-            logger.warning(f"Connection error: {error_msg}")
-            return []  # Graceful degradation
+        except CircuitOpenError:
+            logger.warning("Data API circuit open — returning empty events")
+            return []
+        except httpx.HTTPError as e:
+            logger.warning("HTTP error fetching events: %s", e)
+            return []
         except Exception:
             logger.warning("Error fetching events", exc_info=True)
-            return []  # Graceful degradation
+            return []
 
     async def get_activity(self) -> dict[str, Any] | None:
-        """
-        Get current activity from data-api (GET /api/v1/activity).
-        Returns None on timeout, 404, 503, or error (graceful degradation).
-        Timeout: 5s to avoid blocking scheduler.
-        """
+        """Get current activity. Returns None on failure (5s timeout)."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(f"{self.base_url}/api/v1/activity")
-                if response.status_code in (404, 503):
-                    return None
-                if response.status_code != 200:
-                    return None
-                return response.json()
+            response = await self._activity_client.call(
+                "GET", "/api/v1/activity",
+            )
+            if response.status_code in (404, 503):
+                return None
+            if response.status_code != 200:
+                return None
+            return response.json()
+        except CircuitOpenError:
+            logger.debug("Data API circuit open — activity unavailable")
+            return None
         except Exception as e:
             logger.debug("Activity fetch failed: %s", e)
             return None
 
     async def get_activity_history(self, hours: int = 1) -> list[dict[str, Any]]:
-        """
-        Get activity history (GET /api/v1/activity/history?hours=N).
-        Returns [] on failure (graceful degradation).
-        """
+        """Get activity history. Returns [] on failure (5s timeout)."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(
-                    f"{self.base_url}/api/v1/activity/history",
-                    params={"hours": hours},
-                )
-                if response.status_code != 200:
-                    return []
-                data = response.json()
-                return data if isinstance(data, list) else []
+            response = await self._activity_client.call(
+                "GET", "/api/v1/activity/history", params={"hours": hours},
+            )
+            if response.status_code != 200:
+                return []
+            data = response.json()
+            return data if isinstance(data, list) else []
+        except CircuitOpenError:
+            logger.debug("Data API circuit open — activity history unavailable")
+            return []
         except Exception as e:
             logger.debug("Activity history fetch failed: %s", e)
             return []
@@ -135,27 +133,10 @@ class DataAPIClient:
         pattern_type: str | None = None,  # noqa: ARG002
         limit: int = 100,  # noqa: ARG002
     ) -> list[dict[str, Any]]:
-        """
-        Get historical patterns (if available via data-api).
-
-        Args:
-            pattern_type: Optional filter by pattern type
-            limit: Maximum number of patterns to return
-
-        Returns:
-            List of pattern dictionaries or empty list if unavailable
-        """
-        try:
-            # Note: Patterns may be stored in ai-automation-service, not data-api
-            # This is a placeholder for future integration
-            logger.debug("Pattern data may be in ai-automation-service, not data-api")
-            return []
-        except Exception as e:
-            logger.warning(f"Error fetching patterns: {str(e)}", exc_info=True)
-            return []  # Graceful degradation
+        """Get historical patterns (placeholder for future integration)."""
+        logger.debug("Pattern data may be in ai-automation-service, not data-api")
+        return []
 
     async def close(self):
-        """Close HTTP client connection pool"""
-        await self.client.aclose()
-        logger.debug("Data API client closed")
-
+        """No-op — CrossGroupClient uses per-request clients."""
+        logger.debug("Data API client close (no-op with CrossGroupClient)")

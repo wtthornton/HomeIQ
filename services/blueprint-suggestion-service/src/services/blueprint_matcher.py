@@ -43,7 +43,8 @@ class BlueprintMatcher:
         all_suggestions = []
 
         # Fetch blueprints and devices
-        async with BlueprintClient() as blueprint_client, DataApiClient() as data_client:
+        data_client = DataApiClient()
+        async with BlueprintClient() as blueprint_client:
             blueprints = await blueprint_client.get_all_blueprints(limit=settings.max_blueprints_fetch)
             entities = await data_client.get_all_entities(limit=settings.max_entities_fetch)
 
@@ -92,7 +93,8 @@ class BlueprintMatcher:
         all_suggestions = []
 
         # Fetch blueprints and devices
-        async with BlueprintClient() as blueprint_client, DataApiClient() as data_client:
+        data_client = DataApiClient()
+        async with BlueprintClient() as blueprint_client:
             # Fetch blueprints with quality filter
             blueprints = await blueprint_client.get_all_blueprints(
                 limit=settings.max_blueprints_fetch,

@@ -10,6 +10,7 @@ export * from './types';
 export { OverviewTab } from './OverviewTab';
 export { SetupTab } from './SetupTab';
 export { ServicesTab } from './ServicesTab';
+export { GroupsTab } from './GroupsTab';
 export { SportsTab } from './SportsTab';
 export { DependenciesTab } from './DependenciesTab';
 export { EventsTab } from './EventsTab';

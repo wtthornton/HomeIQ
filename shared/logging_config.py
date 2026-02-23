@@ -21,21 +21,23 @@ correlation_id: ContextVar[Optional[str]] = ContextVar('correlation_id', default
 
 class StructuredFormatter(logging.Formatter):
     """Custom formatter for structured JSON logging"""
-    
-    def __init__(self, service_name: str):
+
+    def __init__(self, service_name: str, group_name: str | None = None):
         super().__init__()
         self.service_name = service_name
-    
+        self.group_name = group_name
+
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as structured JSON"""
         # Get correlation ID from context
         corr_id = correlation_id.get()
-        
+
         # Build structured log entry
         log_entry = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "level": record.levelname,
             "service": self.service_name,
+            "group": self.group_name,
             "message": record.getMessage(),
             "correlation_id": corr_id,
             "context": {
@@ -126,14 +128,20 @@ def get_correlation_id() -> Optional[str]:
     return correlation_id.get()
 
 
-def setup_logging(service_name: str, log_level: str = None, log_format: str = None):
+def setup_logging(
+    service_name: str,
+    log_level: str = None,
+    log_format: str = None,
+    group_name: str | None = None,
+):
     """
     Set up enhanced logging configuration for a service
-    
+
     Args:
         service_name: Name of the service
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_format: Log format ('json' or 'text')
+        group_name: Optional service group name (e.g. 'core-platform')
     """
     # Get configuration from environment
     level = log_level or os.getenv('LOG_LEVEL', 'INFO')
@@ -149,7 +157,7 @@ def setup_logging(service_name: str, log_level: str = None, log_format: str = No
     
     # Create formatter based on format type
     if format_type.lower() == 'json':
-        formatter = StructuredFormatter(service_name)
+        formatter = StructuredFormatter(service_name, group_name=group_name)
     else:
         formatter = logging.Formatter(
             fmt='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',

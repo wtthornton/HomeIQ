@@ -1,0 +1,78 @@
+name: Group CI (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      group_name:
+        required: true
+        type: string
+        description: "Name of the service group (e.g., core, collectors, ml)"
+      services:
+        required: true
+        type: string
+        description: "JSON array of service directory names"
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: "CI — ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-${{ inputs.group_name }}-${{ matrix.service }}-${{ github.ref }}
+      cancel-in-progress: true
+    strategy:
+      matrix:
+        service: ${{ fromJson(inputs.services) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint with ruff
+        run: ruff check services/${{ matrix.service }}/
+
+      - name: Check if service has requirements
+        id: check-requirements
+        run: |
+          if [ -f "services/${{ matrix.service }}/requirements.txt" ]; then
+            echo "has_requirements=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_requirements=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install dependencies
+        if: steps.check-requirements.outputs.has_requirements == 'true'
+        run: |
+          pip install -r services/${{ matrix.service }}/requirements.txt
+          pip install pytest pytest-asyncio pytest-timeout 2>/dev/null || true
+
+      - name: Check if service has tests
+        id: check-tests
+        run: |
+          if [ -d "services/${{ matrix.service }}/tests" ] && \
+             [ -n "$(find services/${{ matrix.service }}/tests -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ]; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run tests
+        if: steps.check-tests.outputs.has_tests == 'true'
+        run: |
+          cd services/${{ matrix.service }}
+          pytest tests/ -v --timeout=300
+
+      - name: Report no tests
+        if: steps.check-tests.outputs.has_tests == 'false'
+        run: echo "No tests found for ${{ matrix.service }} — skipping test step"

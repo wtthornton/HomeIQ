@@ -134,6 +134,14 @@ export interface ServiceGroup {
 
 export type ServiceType = 'core' | 'external' | 'storage' | 'ui';
 
+export type ServiceGroupId =
+  | 'core-platform'
+  | 'data-collectors'
+  | 'ml-engine'
+  | 'automation-intelligence'
+  | 'device-management'
+  | 'frontends';
+
 export interface ServiceDefinition {
   id: string;
   name: string;
@@ -141,6 +149,7 @@ export interface ServiceDefinition {
   type: ServiceType;
   port?: number;
   description: string;
+  group?: ServiceGroupId;
 }
 
 export interface ServiceDetails {

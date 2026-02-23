@@ -2,15 +2,20 @@
 AI Automation Service Client for HA AI Agent Service
 
 Provides access to YAML validation via AI Automation Service.
+Uses CrossGroupClient for circuit-breaker protection and automatic retries.
 """
 
 import logging
 from typing import Any
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+from shared.resilience import CircuitBreaker, CrossGroupClient
+from shared.resilience.circuit_breaker import CircuitOpenError
 
 logger = logging.getLogger(__name__)
+
+_automation_breaker = CircuitBreaker(name="automation-intelligence")
 
 
 class AIAutomationClient:
@@ -26,19 +31,16 @@ class AIAutomationClient:
         """
         self.base_url = base_url.rstrip('/')
         self.api_key = api_key
-        self.client = httpx.AsyncClient(
+        self._auth_headers = {"X-HomeIQ-API-Key": api_key} if api_key else {}
+        self._cross_client = CrossGroupClient(
+            base_url=self.base_url,
+            group_name="automation-intelligence",
             timeout=30.0,
-            follow_redirects=True,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            max_retries=3,
+            circuit_breaker=_automation_breaker,
         )
         logger.info(f"AI Automation Service client initialized with base_url={self.base_url}")
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
-    )
     async def validate_yaml(
         self,
         yaml_content: str,
@@ -49,25 +51,17 @@ class AIAutomationClient:
         """
         Validate Home Assistant automation YAML via unified endpoint.
 
-        Phase 2.2: Uses POST /api/v1/automations/validate (schema + entity + service checks).
-
         Args:
             yaml_content: YAML string to validate
             validate_entities: Whether to validate entities exist in HA (default: True)
             validate_safety: Whether to run safety validation (default: True, maps to validate_services)
-            context: Optional context (unused by unified endpoint, kept for compatibility)
+            _context: Optional context (unused by unified endpoint, kept for compatibility)
 
         Returns:
-            Dictionary with validation results:
-            - valid: bool - Whether validation passed
-            - errors: list[str] - List of error messages
-            - warnings: list[str] - List of warning messages
-            - score: float - Quality score (0-100)
-            - fixed_yaml: str | None - Auto-fixed YAML if available
-            - fixes_applied: list[str] - Fixes applied
+            Dictionary with validation results.
 
         Raises:
-            httpx.HTTPError: If API request fails
+            Exception: If API request fails or circuit breaker is open
         """
         try:
             payload = {
@@ -82,45 +76,35 @@ class AIAutomationClient:
                 f"(entities={validate_entities}, services={validate_safety})"
             )
 
-            headers = {}
-            if self.api_key:
-                headers["X-HomeIQ-API-Key"] = self.api_key
-
-            response = await self.client.post(
-                f"{self.base_url}/api/v1/automations/validate",
-                json=payload,
-                headers=headers
+            response = await self._cross_client.call(
+                "POST", "/api/v1/automations/validate",
+                json=payload, headers=self._auth_headers,
             )
             response.raise_for_status()
 
             result = response.json()
 
             logger.info(
-                f"✅ YAML validation complete: valid={result.get('valid', False)}, "
+                f"YAML validation complete: valid={result.get('valid', False)}, "
                 f"errors={len(result.get('errors', []))}, warnings={len(result.get('warnings', []))}"
             )
 
             return result
 
+        except CircuitOpenError as e:
+            error_msg = f"AI Automation Service circuit breaker open: {e}"
+            logger.error(f"Circuit open: {error_msg}")
+            raise Exception(error_msg) from e
         except httpx.HTTPStatusError as e:
             error_msg = f"AI Automation Service returned {e.response.status_code}: {e.response.text[:200]}"
-            logger.error(f"❌ HTTP error validating YAML: {error_msg}")
+            logger.error(f"HTTP error validating YAML: {error_msg}")
             raise Exception(error_msg) from e
-        except httpx.ConnectError as e:
-            error_msg = f"Could not connect to AI Automation Service at {self.base_url}. Is the service running?"
-            logger.error(f"❌ Connection error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.TimeoutException as e:
-            error_msg = "AI Automation Service request timed out after 30 seconds"
-            logger.error(f"❌ Timeout error: {error_msg}")
-            raise Exception(error_msg) from e
-        except httpx.HTTPError as e:
-            error_msg = f"HTTP error validating YAML: {str(e)}"
-            logger.error(f"❌ {error_msg}")
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as e:
+            error_msg = f"Error validating YAML: {e}"
+            logger.error(error_msg)
             raise Exception(error_msg) from e
 
     async def close(self):
-        """Close HTTP client connection pool"""
-        await self.client.aclose()
-        logger.debug("AI Automation Service client closed")
+        """No-op — CrossGroupClient uses per-request clients."""
+        logger.debug("AI Automation Service client close called (no-op with CrossGroupClient)")
 
