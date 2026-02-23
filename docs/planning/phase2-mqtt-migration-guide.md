@@ -295,7 +295,7 @@ Changes (3):
   [OK] requirements.txt: Added paho-mqtt==2.1.0 (required by aiomqtt)
   [OK] requirements.txt: Updated asyncio-mqtt -> aiomqtt==2.4.0
 
-Backup: services/some-service/.migration_backup_mqtt_20260205_123000
+Backup: domains/{group}/some-service/.migration_backup_mqtt_20260205_123000
 
 Running tests...
 [OK] All tests passed (28 tests, 1.8s)

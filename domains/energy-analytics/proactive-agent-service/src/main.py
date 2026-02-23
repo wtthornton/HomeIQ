@@ -1,0 +1,156 @@
+"""
+Proactive Agent Service - Context-aware automation suggestions
+Epic AI-21: Proactive Conversational Agent Service
+
+Responsibilities:
+- Context analysis (weather, sports, energy, historical patterns)
+- Smart prompt generation
+- Agent-to-agent communication with HA AI Agent Service
+- Scheduled proactive suggestion generation
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+try:
+    from homeiq_observability.logging_config import setup_logging  # noqa: E402
+except ImportError:
+    # Fallback if shared logging not available
+    logging.basicConfig(level=logging.INFO)
+    setup_logging = lambda name, **_kw: logging.getLogger(name)  # noqa: E731
+
+try:
+    from homeiq_resilience import GroupHealthCheck, wait_for_dependency  # noqa: E402
+except ImportError:
+    GroupHealthCheck = None  # type: ignore[assignment,misc]
+    wait_for_dependency = None  # type: ignore[assignment]
+
+from .config import Settings
+from .api.health import router as health_router, set_scheduler_service_for_health
+from .api.suggestions import router as suggestions_router, set_scheduler_service
+from .database import init_database, close_database
+from .services.scheduler_service import SchedulerService
+from .services.suggestion_pipeline_service import SuggestionPipelineService
+
+# Configure structured logging
+logger = setup_logging("proactive-agent-service", group_name="automation-intelligence")
+
+# Global settings instance
+settings: Settings | None = None
+# Global scheduler instance
+scheduler_service: SchedulerService | None = None
+# Global group health check
+_group_health: GroupHealthCheck | None = None
+
+
+def _parse_allowed_origins() -> list[str]:
+    """Parse comma-delimited allowed origins from environment."""
+    raw_origins = os.getenv("PROACTIVE_AGENT_ALLOWED_ORIGINS")
+    if raw_origins:
+        parsed = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+        if parsed:
+            return parsed
+    return ["http://localhost:3000", "http://localhost:3001"]
+
+
+ALLOWED_ORIGINS = _parse_allowed_origins()
+
+
+async def _initialize_database(settings_instance: Settings) -> None:
+    """Initialize database connection."""
+    await init_database(settings_instance)
+    logger.info("Database initialized")
+
+
+def _initialize_scheduler(settings_instance: Settings) -> SchedulerService:
+    """Initialize and start scheduler service."""
+    pipeline_service = SuggestionPipelineService()
+    scheduler = SchedulerService(settings_instance, pipeline_service=pipeline_service)
+    scheduler.start()
+    set_scheduler_service(scheduler)  # Set for suggestions API endpoints
+    set_scheduler_service_for_health(scheduler)  # Set for health endpoint
+    logger.info("Scheduler initialized")
+    return scheduler
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Initialize services on startup, cleanup on shutdown"""
+    global settings, scheduler_service
+
+    global _group_health
+
+    logger.info("Starting Proactive Agent Service...")
+    try:
+        # Load settings
+        settings = Settings()
+        logger.info(f"Settings loaded (Port: {settings.service_port})")
+
+        # Probe cross-group dependencies (non-fatal)
+        if wait_for_dependency is not None:
+            await wait_for_dependency(url="http://data-api:8006", name="data-api", max_retries=10)
+            await wait_for_dependency(url="http://weather-api:8009", name="weather-api", max_retries=10)
+
+        # Initialize group health check
+        if GroupHealthCheck is not None:
+            _group_health = GroupHealthCheck(
+                group_name="automation-intelligence", version="1.0.0",
+            )
+            _group_health.register_dependency("data-api", "http://data-api:8006")
+            _group_health.register_dependency("weather-api", "http://weather-api:8009")
+
+        # Initialize database (Story AI21.8)
+        await _initialize_database(settings)
+
+        # Initialize scheduler (Story AI21.7)
+        scheduler_service = _initialize_scheduler(settings)
+
+        logger.info("Proactive Agent Service started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start Proactive Agent Service: {e}", exc_info=True)
+        raise
+
+    yield
+
+    # Cleanup on shutdown
+    logger.info("Proactive Agent Service shutting down")
+    if scheduler_service:
+        scheduler_service.stop()
+        scheduler_service = None
+    await close_database()
+    settings = None
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="Proactive Agent Service",
+    description="Context-aware proactive automation suggestions",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
+
+# Register routers
+app.include_router(health_router)
+app.include_router(suggestions_router)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    _settings = Settings()
+    uvicorn.run(app, host="0.0.0.0", port=_settings.service_port)
+

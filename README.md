@@ -195,10 +195,10 @@ Home Assistant → websocket-ingestion → InfluxDB (direct writes)
 
 For detailed architecture documentation, see:
 - [Service Groups Architecture](docs/architecture/service-groups.md) - The 6-group deployment structure
-- [Services Ranked by Importance](services/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification
+- [Services Ranked by Importance](docs/architecture/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification
 - [Event Flow Architecture](docs/architecture/event-flow-architecture.md) - Event processing and data flow
 - [Development Guide](docs/DEVELOPMENT.md) - Complete system architecture
-- [Services Architecture Quick Reference](services/README_ARCHITECTURE_QUICK_REF.md) - Service patterns
+- [Services Architecture Quick Reference](docs/architecture/README_ARCHITECTURE_QUICK_REF.md) - Service patterns
 
 ---
 
@@ -217,9 +217,9 @@ Services are organized into **6 independently deployable groups** for selective 
 
 ```bash
 # Deploy selectively by group
-docker compose -f compose/core.yml up -d                          # Core only
-docker compose -f compose/core.yml -f compose/collectors.yml up -d # Core + data
-docker compose up -d                                               # Full stack
+docker compose -f domains/core-platform/compose.yml up -d                                                    # Core only
+docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml up -d             # Core + data
+docker compose up -d                                                                                          # Full stack
 ```
 
 See [Service Groups Architecture](docs/architecture/service-groups.md) for full details, dependency graph, and per-group deployment commands.

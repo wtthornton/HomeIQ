@@ -119,7 +119,7 @@ The dashboard has **12 tabs** with comprehensive features:
 
 ### Key React Components
 
-Located in `services/health-dashboard/src/components/`:
+Located in `domains/core-platform/health-dashboard/src/components/`:
 
 ```typescript
 // Main entry point
@@ -299,7 +299,7 @@ write_api.write(bucket=INFLUXDB_BUCKET, record=point)
 ### Frontend Testing (Vitest)
 
 ```bash
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 
 # Run unit tests
 npm run test
@@ -316,7 +316,7 @@ npm run test:coverage
 ### Backend Testing (pytest)
 
 ```bash
-cd services/admin-api  # or any Python service
+cd domains/core-platform/admin-api  # or any Python service
 
 # Run tests
 pytest
@@ -331,7 +331,7 @@ pytest tests/test_health.py -v
 ### E2E Testing (Playwright)
 
 ```bash
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 
 # Run E2E tests
 npm run test:e2e

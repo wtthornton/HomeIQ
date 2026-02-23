@@ -289,9 +289,9 @@ Reports are generated automatically:
 
 ## Related Documentation
 
-- **Component**: `services/ai-automation-ui/src/pages/BlueprintSuggestions.tsx`
-- **API Client**: `services/ai-automation-ui/src/services/blueprintSuggestionsApi.ts`
-- **Backend Service**: `services/blueprint-suggestion-service/`
+- **Component**: `domains/frontends/ai-automation-ui/src/pages/BlueprintSuggestions.tsx`
+- **API Client**: `domains/frontends/ai-automation-ui/src/services/blueprintSuggestionsApi.ts`
+- **Backend Service**: `domains/blueprints/blueprint-suggestion-service/`
 - **E2E Testing Guide**: `tests/E2E_TESTING_GUIDE.md`
 
 ## Test Coverage Summary

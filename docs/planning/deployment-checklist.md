@@ -59,13 +59,13 @@ systemctl restart homeiq-*
 **Node.js Services:**
 ```bash
 # health-dashboard
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm install
 npm run build
 # Deploy build artifacts
 
 # ai-automation-ui
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 npm install
 npm run build
 # Deploy build artifacts
@@ -186,7 +186,7 @@ tail -f logs/<service>.log
 
 **health-dashboard:**
 ```bash
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 
 # 1. Build
 npm run build
@@ -207,7 +207,7 @@ npm run preview
 
 **ai-automation-ui:**
 ```bash
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 
 # Same steps as health-dashboard
 npm run build

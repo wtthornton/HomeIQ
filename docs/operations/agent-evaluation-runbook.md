@@ -14,26 +14,26 @@ The Agent Evaluation Framework continuously measures AI agent quality across a *
 
 ```
 ┌────────────────────────────────────┐
-│  EvaluationScheduler               │  shared/patterns/evaluation/scheduler.py
+│  EvaluationScheduler               │  libs/homeiq-patterns/src/homeiq_patterns/evaluation/scheduler.py
 │  (daily/weekly/monthly runs)       │
 └────────────┬───────────────────────┘
              │ runs evaluators via
              ▼
 ┌────────────────────────────────────┐
-│  EvaluationRegistry + Evaluators   │  shared/patterns/evaluation/registry.py
+│  EvaluationRegistry + Evaluators   │  libs/homeiq-patterns/src/homeiq_patterns/evaluation/registry.py
 │  (13 built-in evaluators, L1-L5)   │
 └────────────┬───────────────────────┘
              │ produces BatchReport
              ▼
 ┌────────────────────────────────────┐
-│  EvaluationStore                   │  shared/patterns/evaluation/store.py
+│  EvaluationStore                   │  libs/homeiq-patterns/src/homeiq_patterns/evaluation/store.py
 │  InfluxDB (time-series scores)     │
 │  SQLite   (session details)        │
 └────────────┬───────────────────────┘
              │
              ▼
 ┌────────────────────────────────────┐
-│  AlertEngine                       │  shared/patterns/evaluation/alerts.py
+│  AlertEngine                       │  libs/homeiq-patterns/src/homeiq_patterns/evaluation/alerts.py
 │  (threshold checking + lifecycle)  │
 └────────────┬───────────────────────┘
              │
@@ -131,7 +131,7 @@ curl -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
 
 ### Step 1: Create Agent Config
 
-Create `shared/patterns/evaluation/configs/{agent_name}.yaml`:
+Create `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/{agent_name}.yaml`:
 
 ```yaml
 agent_name: my-new-agent
@@ -188,7 +188,7 @@ The scheduler auto-discovers configs from the `configs/` directory. For manual r
 ```python
 from shared.patterns.evaluation import ConfigLoader, EvaluationScheduler
 
-config = ConfigLoader.from_yaml("shared/patterns/evaluation/configs/my_new_agent.yaml")
+config = ConfigLoader.from_yaml("libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/my_new_agent.yaml")
 scheduler.register_agent(config, session_source=source)
 ```
 
@@ -216,7 +216,7 @@ python -m shared.patterns.evaluation.run_evaluation --agent my-new-agent
 
 ### Procedure
 
-1. Edit the agent's YAML config in `shared/patterns/evaluation/configs/`
+1. Edit the agent's YAML config in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/`
 2. Update the `thresholds` section
 3. Restart data-api to pick up changes (or wait for next scheduler cycle)
 4. Monitor for 1 week to validate new thresholds
@@ -243,7 +243,7 @@ python -m shared.patterns.evaluation.run_evaluation --agent my-new-agent
 - LLM provider rate limiting
 - Rubric YAML file missing or malformed
 
-**Fix:** Check `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` environment variables. Verify rubric files exist in `shared/patterns/evaluation/rubrics/`.
+**Fix:** Check `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` environment variables. Verify rubric files exist in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/`.
 
 ### Stale Data
 
@@ -295,8 +295,8 @@ Cleanup runs automatically via `store.cleanup_expired()`.
 
 ## Related Documentation
 
-- [Evaluation Framework README](../../shared/patterns/evaluation/README.md)
-- [Rubric Catalog](../../shared/patterns/evaluation/rubrics/README.md)
-- [Agent Configs](../../shared/patterns/evaluation/configs/)
-- [Baseline Reports](../../shared/patterns/evaluation/reports/)
+- [Evaluation Framework README](../../libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md)
+- [Rubric Catalog](../../libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/README.md)
+- [Agent Configs](../../libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/)
+- [Baseline Reports](../../libs/homeiq-patterns/src/homeiq_patterns/evaluation/reports/)
 - [Deployment Runbook](../deployment/DEPLOYMENT_RUNBOOK.md)

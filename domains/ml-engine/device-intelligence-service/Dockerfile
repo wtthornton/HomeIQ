@@ -1,0 +1,82 @@
+# Optimized multi-stage build for faster deployments
+# Reduces build time from ~6+ minutes to ~2-3 minutes
+# Reduces image size from 8.67GB to ~2-3GB (without tabpfn)
+
+FROM python:3.12-slim AS builder
+
+# Upgrade pip (cache this layer)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip==25.2
+
+# Install build dependencies (cache this layer separately)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only requirements first (better layer caching)
+# Use production requirements only - no dev dependencies
+COPY domains/ml-engine/device-intelligence-service/requirements-prod.txt /tmp/requirements.txt
+
+# Install Python dependencies with aggressive caching
+# This layer will be cached unless requirements change
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --user --no-cache-dir -r /tmp/requirements.txt
+
+# Install shared libs from libs/
+COPY libs/ /tmp/libs/
+RUN pip install --no-cache-dir --user \
+    /tmp/libs/homeiq-patterns/ \
+    /tmp/libs/homeiq-resilience/ \
+    /tmp/libs/homeiq-observability/ \
+    /tmp/libs/homeiq-data/ \
+    /tmp/libs/homeiq-ha/
+
+# Production stage - minimal runtime image
+FROM python:3.12-slim
+
+# Install runtime dependencies only (cache apt packages)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 1001 appgroup && \
+    useradd -r -u 1001 -g appgroup appuser
+
+# Copy installed packages from builder (smaller without dev deps)
+COPY --from=builder /root/.local /home/appuser/.local
+
+# Set working directory
+WORKDIR /app
+
+# Copy application source (changes frequently, so copy late)
+COPY domains/ml-engine/device-intelligence-service/src/ ./src/
+
+# Copy models directory (only if needed, exclude backups)
+COPY domains/ml-engine/device-intelligence-service/models/ ./models/
+
+# Set ownership (combine with env setup)
+RUN chown -R appuser:appgroup /app /home/appuser/.local
+
+# Environment variables
+ENV PYTHONPATH=/app:/app/src
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8019
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8019/health/ || exit 1
+
+# Run the application
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8019"]

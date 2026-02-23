@@ -1,0 +1,345 @@
+# domains/automation-core/compose.yml — Core automation generation, validation, and deployment
+# Deploy cadence: High — most active feature development
+#
+# Services: ha-ai-agent-service, ai-automation-service-new, ai-query-service,
+#           yaml-validation-service, automation-linter, ai-code-executor,
+#           automation-trace-service
+# Depends on: core-platform (data-api), ml-engine (ai-core-service)
+# Depended on by: frontends (display automation results), blueprints
+
+services:
+  ha-ai-agent-service:
+    build:
+      context: ../..
+      dockerfile: domains/automation-core/ha-ai-agent-service/Dockerfile
+    container_name: homeiq-ha-ai-agent-service
+    restart: unless-stopped
+    ports:
+      - "8030:8030"
+    env_file:
+      - ../../.env
+    environment:
+      - HA_URL=${HA_HTTP_URL:-http://homeassistant:8123}
+      - HA_TOKEN=${HA_TOKEN:-}
+      - DATA_API_URL=http://data-api:8006
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
+      - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.2-codex}
+      - AI_AUTOMATION_API_KEY=${API_KEY:-}
+      - DATA_API_KEY=${API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (data-api in core, device-intelligence in ml-engine)
+    networks:
+      - homeiq-network
+    volumes:
+      - ha_ai_agent_data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8030/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ha-ai-agent,group=automation-core,environment=production"
+
+  ai-automation-service-new:
+    build:
+      context: ../..
+      dockerfile: domains/automation-core/ai-automation-service-new/Dockerfile
+    container_name: homeiq-ai-automation-service-new
+    restart: unless-stopped
+    ports:
+      - "8036:8025"
+    env_file:
+      - ../../.env
+    environment:
+      - DATA_API_URL=http://data-api:8006
+      - QUERY_SERVICE_URL=http://ai-query-service:8018
+      - PATTERN_SERVICE_URL=http://ai-pattern-service:8020
+      - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
+      - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
+      - OPENAI_YAML_MODEL=${OPENAI_YAML_MODEL:-gpt-5.2-codex}
+      - OPENAI_REASONING_EFFORT=high
+      - OPENAI_TIMEOUT=90
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_automation.db
+      - SERVICE_PORT=8025
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - OTLP_ENDPOINT=http://jaeger:4317
+    depends_on:
+      yaml-validation-service:
+        condition: service_healthy
+      # Cross-group depends_on removed (data-api in core)
+    volumes:
+      - ai_automation_data:/app/data
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8025/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-automation-service-new,group=automation-core,environment=production"
+
+  ai-query-service:
+    build:
+      context: ../..
+      dockerfile: domains/automation-core/ai-query-service/Dockerfile
+    container_name: homeiq-ai-query-service
+    restart: unless-stopped
+    ports:
+      - "8035:8018"
+    env_file:
+      - ../../.env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
+      - DATABASE_PATH=/app/data/ai_automation.db
+      - DATA_API_URL=http://data-api:8006
+      - HA_URL=${HA_HTTP_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8023
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - QUERY_TIMEOUT=${QUERY_TIMEOUT:-5.0}
+      - ENABLE_CACHING=${ENABLE_CACHING:-True}
+      - OTLP_ENDPOINT=http://jaeger:4317
+    volumes:
+      - ai_automation_data:/app/data
+      - ai_automation_models:/app/models
+    networks:
+      - homeiq-network
+    # Cross-group depends_on removed (data-api in core)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '2.0'
+        reservations:
+          memory: 256M
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8018/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-query-service,group=automation-core,environment=production"
+
+  yaml-validation-service:
+    build:
+      context: ../..
+      dockerfile: domains/automation-core/yaml-validation-service/Dockerfile
+    container_name: homeiq-yaml-validation-service
+    restart: unless-stopped
+    ports:
+      - "8037:8037"
+    env_file:
+      - ../../.env
+    environment:
+      - DATA_API_URL=http://data-api:8006
+      - DATA_API_KEY=${API_KEY:-}
+      - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - SERVICE_PORT=8037
+      - VALIDATION_LEVEL=moderate
+      - ENABLE_NORMALIZATION=true
+      - ENABLE_ENTITY_VALIDATION=true
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (data-api in core)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8037/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=yaml-validation-service,group=automation-core,environment=production"
+
+  automation-linter:
+    build:
+      context: ../..
+      dockerfile: domains/automation-core/automation-linter/Dockerfile
+    container_name: homeiq-automation-linter
+    restart: unless-stopped
+    ports:
+      - "8016:8020"
+    environment:
+      - LOG_LEVEL=INFO
+      - MAX_YAML_SIZE_BYTES=500000
+      - PROCESSING_TIMEOUT_SECONDS=30
+    volumes:
+      - ./automation-linter/src:/app/src
+      - ./automation-linter/ui:/app/ui
+      - ../../libs/homeiq-ha/src/homeiq_ha/ha_automation_lint:/app/shared/ha_automation_lint
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8020/health', timeout=5.0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=automation-linter,group=automation-core,environment=production"
+
+  ai-code-executor:
+    build:
+      context: ../..
+      dockerfile: domains/automation-core/ai-code-executor/Dockerfile
+    container_name: homeiq-ai-code-executor
+    restart: unless-stopped
+    expose:
+      - "8030"
+    environment:
+      - EXECUTION_TIMEOUT=30
+      - MAX_MEMORY_MB=128
+      - MAX_CPU_PERCENT=50.0
+      - MCP_WORKSPACE_DIR=/tmp/mcp_workspace
+      - LOG_LEVEL=INFO
+    depends_on:
+      ai-automation-service-new:
+        condition: service_healthy
+      # Cross-group depends_on removed (data-api in core)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: '0.5'
+        reservations:
+          memory: 96M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8030/health', timeout=5.0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-code-executor,group=automation-core,environment=production"
+
+  automation-trace-service:
+    build:
+      context: ../..
+      dockerfile: domains/automation-core/automation-trace-service/Dockerfile
+    container_name: homeiq-automation-trace-service
+    restart: unless-stopped
+    ports:
+      - "8044:8020"
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    env_file:
+      - ../../.env
+    environment:
+      - SERVICE_PORT=8020
+      - HA_WS_URL=${HA_WS_URL:-ws://homeassistant:8123}
+      - HA_HTTP_URL=${HA_HTTP_URL:-http://homeassistant:8123}
+      - HA_TOKEN=${HA_TOKEN}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - DATA_API_URL=http://data-api:8006
+      - DATA_API_API_KEY=${DATA_API_API_KEY:-}
+      - TRACE_POLL_INTERVAL_SECONDS=${TRACE_POLL_INTERVAL_SECONDS:-120}
+      - LOGBOOK_POLL_INTERVAL_SECONDS=${LOGBOOK_POLL_INTERVAL_SECONDS:-300}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (influxdb + data-api in core)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=automation-trace-service,group=automation-core,environment=production"
+
+# Automation-core volumes
+volumes:
+  ai_automation_data:  # Shared with ml-engine (ai-training-service)
+  ai_automation_models:  # Shared with ml-engine
+  ha_ai_agent_data:
+
+networks:
+  homeiq-network:
+    external: true

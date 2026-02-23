@@ -43,7 +43,7 @@ HomeIQ currently runs 52 microservices in a single monorepo with a single `docke
 
 **Depends on:** Nothing (root of dependency tree)
 **Depended on by:** All other groups
-**Compose file:** `docker-compose.core.yml`
+**Compose file:** `domains/core-platform/compose.yml`
 **Deploy cadence:** Low — changes require staging + canary
 **Resource profile:** High availability, persistent volumes, health-checked
 
@@ -68,7 +68,7 @@ HomeIQ currently runs 52 microservices in a single monorepo with a single `docke
 
 **Depends on:** Group 1 (influxdb write, data-api metadata)
 **Depended on by:** Groups 3, 4 (indirect — via InfluxDB data)
-**Compose file:** `docker-compose.collectors.yml`
+**Compose file:** `domains/data-collectors/compose.yml`
 **Deploy cadence:** Medium — per-API contract change
 **Resource profile:** Lightweight, stateless, low memory (128-256MB each)
 
@@ -99,7 +99,7 @@ All are independently deployable and restartable with zero impact on other colle
 
 **Depends on:** Group 1 (data-api for entity/device metadata)
 **Depended on by:** Group 4 (automation calls ML for inference), Group 5 (device classification)
-**Compose file:** `docker-compose.ml.yml`
+**Compose file:** `domains/ml-engine/compose.yml`
 **Deploy cadence:** Frequent — model updates, library upgrades
 **Resource profile:** GPU-capable, high memory (512MB-1.5GB per service), CPU-intensive
 
@@ -142,7 +142,7 @@ ai-core-service depends on openvino, ml-service, ner-service, and openai-service
 
 **Depends on:** Group 1 (data-api), Group 3 (ML inference via ai-core-service)
 **Depended on by:** Group 6 (frontends display automation results)
-**Compose file:** `docker-compose.automation.yml`
+**Compose file:** `domains/automation-core/compose.yml`
 **Deploy cadence:** High — most active feature development
 **Resource profile:** Medium, CPU-bound (256MB-512MB each)
 
@@ -177,7 +177,7 @@ blueprint-suggestion-service → blueprint-index
 
 **Depends on:** Group 1 (data-api), Group 3 (device-intelligence-service for classification)
 **Depended on by:** Group 4 (automation uses device context)
-**Compose file:** `docker-compose.devices.yml`
+**Compose file:** `domains/device-management/compose.yml`
 **Deploy cadence:** Medium
 **Resource profile:** Low-medium (128-512MB each)
 
@@ -195,7 +195,7 @@ blueprint-suggestion-service → blueprint-index
 | jaeger | 16686 | Distributed tracing UI |
 
 **Depends on:** Group 1 (admin-api, data-api), Group 4 (automation endpoints)
-**Compose file:** `docker-compose.frontends.yml`
+**Compose file:** `domains/frontends/compose.yml`
 **Deploy cadence:** High — UI iteration is fast
 **Resource profile:** Lightweight, CDN-friendly static assets
 
@@ -259,7 +259,7 @@ blueprint-suggestion-service → blueprint-index
 | 0.1 | Create `docker/` directory for group compose files | New directory | None |
 | 0.2 | Extract shared network, volume, and env definitions into `docker-compose.base.yml` | New file | None |
 | 0.3 | Create service inventory spreadsheet mapping each service → group | Documentation only | None |
-| 0.4 | Audit `shared/patterns/` imports — which groups use which shared modules | Documentation only | None |
+| 0.4 | Audit `libs/homeiq-patterns/` imports — which groups use which shared modules | Documentation only | None |
 | 0.5 | Audit environment variables — identify cross-group env vars vs group-local | Documentation only | None |
 
 **Deliverable:** Verified service-to-group mapping with no ambiguity.
@@ -274,13 +274,13 @@ blueprint-suggestion-service → blueprint-index
 
 | Step | Task | Details |
 |------|------|---------|
-| 1.1 | Create `compose/` directory | Houses all group compose files and per-group `.env` files |
-| 1.2 | Create `compose/core.yml` + `compose/core.env` | influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention. Defines `homeiq-network` and shared volumes. |
-| 1.3 | Create `compose/collectors.yml` + `compose/collectors.env` | 8 data collector services. Each uses `external: true` for `homeiq-network`. |
-| 1.4 | Create `compose/ml.yml` + `compose/ml.env` | 10 ML services with internal dependency chain |
-| 1.5 | Create `compose/automation.yml` + `compose/automation.env` | 16 automation services |
-| 1.6 | Create `compose/devices.yml` + `compose/devices.env` | 8 device management services |
-| 1.7 | Create `compose/frontends.yml` + `compose/frontends.env` | 3 frontend + Jaeger services |
+| 1.1 | Create `domains/` directory structure | Houses all group compose files and per-group `.env` files |
+| 1.2 | Create `domains/core-platform/compose.yml` + `.env` | influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention. Defines `homeiq-network` and shared volumes. |
+| 1.3 | Create `domains/data-collectors/compose.yml` + `.env` | 8 data collector services. Each uses `external: true` for `homeiq-network`. |
+| 1.4 | Create `domains/ml-engine/compose.yml` + `.env` | 10 ML services with internal dependency chain |
+| 1.5 | Create `domains/automation-core/compose.yml` + `.env` | 16 automation services |
+| 1.6 | Create `domains/device-management/compose.yml` + `.env` | 8 device management services |
+| 1.7 | Create `domains/frontends/compose.yml` + `.env` | 3 frontend + Jaeger services |
 | 1.8 | Create root `docker-compose.yml` using `include` | Replaces monolithic file — includes all 6 group files |
 | 1.9 | Verify: `docker compose config` matches original | Zero-diff validation |
 | 1.10 | Archive original as `docker-compose.yml.bak` | Rollback safety net |
@@ -289,18 +289,18 @@ blueprint-suggestion-service → blueprint-index
 ```yaml
 # docker-compose.yml — includes all groups
 include:
-  - path: compose/core.yml
-    env_file: compose/core.env
-  - path: compose/collectors.yml
-    env_file: compose/collectors.env
-  - path: compose/ml.yml
-    env_file: compose/ml.env
-  - path: compose/automation.yml
-    env_file: compose/automation.env
-  - path: compose/devices.yml
-    env_file: compose/devices.env
-  - path: compose/frontends.yml
-    env_file: compose/frontends.env
+  - path: domains/core-platform/compose.yml
+    env_file: domains/core-platform/.env
+  - path: domains/data-collectors/compose.yml
+    env_file: domains/data-collectors/.env
+  - path: domains/ml-engine/compose.yml
+    env_file: domains/ml-engine/.env
+  - path: domains/automation-core/compose.yml
+    env_file: domains/automation-core/.env
+  - path: domains/device-management/compose.yml
+    env_file: domains/device-management/.env
+  - path: domains/frontends/compose.yml
+    env_file: domains/frontends/.env
 ```
 
 **Per-group standalone usage (the key benefit):**
@@ -309,10 +309,10 @@ include:
 docker compose up -d
 
 # Core only (minimal)
-docker compose -f compose/core.yml up -d
+docker compose -f domains/core-platform/compose.yml up -d
 
 # Core + collectors only (data pipeline without AI)
-docker compose -f compose/core.yml -f compose/collectors.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml up -d
 
 # Development: full stack + dev tools
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
@@ -320,25 +320,25 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 **Per-group `.env` files (best practice):**
 Each group gets its own `.env` file for environment isolation:
-- `compose/core.env` — INFLUXDB_TOKEN, DATABASE_URL, API_KEY
-- `compose/collectors.env` — OPENWEATHERMAP_KEY, WATTTIME_USERNAME, etc.
-- `compose/ml.env` — OPENAI_API_KEY, MODEL_CACHE_DIR, GPU_DEVICE
-- `compose/automation.env` — HA_URL, HA_TOKEN
-- `compose/devices.env` — HA_URL, HA_TOKEN
-- `compose/frontends.env` — API_BASE_URL, VITE_* vars
+- `domains/core-platform/.env` — INFLUXDB_TOKEN, DATABASE_URL, API_KEY
+- `domains/data-collectors/.env` — OPENWEATHERMAP_KEY, WATTTIME_USERNAME, etc.
+- `domains/ml-engine/.env` — OPENAI_API_KEY, MODEL_CACHE_DIR, GPU_DEVICE
+- `domains/automation-core/.env` — HA_URL, HA_TOKEN
+- `domains/device-management/.env` — HA_URL, HA_TOKEN
+- `domains/frontends/.env` — API_BASE_URL, VITE_* vars
 
 **Network strategy:**
-- `compose/core.yml` defines `homeiq-network` as a named network
+- `domains/core-platform/compose.yml` defines `homeiq-network` as a named network
 - All other group files reference it as `external: true`
 - This allows groups to communicate when co-deployed but doesn't crash when deployed alone
 
 ```yaml
-# In compose/core.yml
+# In domains/core-platform/compose.yml
 networks:
   homeiq-network:
     name: homeiq-network
 
-# In compose/collectors.yml (and all other groups)
+# In domains/data-collectors/compose.yml (and all other groups)
 networks:
   homeiq-network:
     external: true
@@ -352,7 +352,7 @@ networks:
 **Conflict prevention:**
 - The `include` directive reports errors if any service name conflicts across included files
 - Ensure no service appears in more than one group file
-- `health-dashboard` lives **only** in `compose/core.yml` (not duplicated in frontends)
+- `health-dashboard` lives **only** in `domains/core-platform/compose.yml` (not duplicated in frontends)
 
 **Deliverable:** 6 group compose files + root include file. `docker compose config` output matches original service definitions. No runtime changes.
 
@@ -360,23 +360,23 @@ networks:
 
 ### Phase 2: Shared Library Packaging (Medium Risk)
 
-**Goal:** Extract `shared/patterns/` into an installable Python package so groups don't need the full monorepo to build.
+**Goal:** Extract `libs/homeiq-patterns/` (formerly `shared/patterns/`) into an installable Python package so groups don't need the full monorepo to build.
 
 > **Best Practice Note:** Use `pyproject.toml` with setuptools (simplest) or hatch (modern). For a monorepo, editable installs (`pip install -e`) during development and published packages for Docker builds is the recommended dual-mode approach. See [Python Packaging Guide](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/) and [Python Monorepo with UV](https://tomasrepcik.dev/blog/2025/2025-10-26-python-workspaces/).
 
 | Step | Task | Details |
 |------|------|---------|
-| 2.1 | Add `pyproject.toml` to `shared/patterns/` | Package name: `homeiq-patterns`, version managed via git tags |
+| 2.1 | Add `pyproject.toml` to `libs/homeiq-patterns/` | Package name: `homeiq-patterns`, version managed via git tags |
 | 2.2 | Define package structure | `src/homeiq_patterns/` layout with `__init__.py` re-exporting `RAGContextService`, `UnifiedValidationRouter`, `PostActionVerifier` |
 | 2.3 | Pin shared dependencies | All third-party deps used by patterns go in `pyproject.toml [project.dependencies]` with version ranges |
-| 2.4 | Add development install support | `pip install -e shared/patterns/` for local development (editable mode) |
+| 2.4 | Add development install support | `pip install -e libs/homeiq-patterns/` for local development (editable mode) |
 | 2.5 | Update all service `requirements.txt` | Replace `sys.path` hacks with `homeiq-patterns>=1.0.0` |
-| 2.6 | Update all service Dockerfiles | Replace `COPY ../../shared /app/shared` with `pip install homeiq-patterns` |
+| 2.6 | Update all service Dockerfiles | Replace shared lib COPY with `pip install homeiq-patterns` |
 | 2.7 | Choose distribution method (see decision matrix below) | Recommended: `pip install git+https://` for simplicity |
-| 2.8 | Update CI to build + publish on `shared/patterns/**` change | Trigger downstream group rebuilds via `workflow_dispatch` |
+| 2.8 | Update CI to build + publish on `libs/homeiq-patterns/**` change | Trigger downstream group rebuilds via `workflow_dispatch` |
 | 2.9 | Run full test suite (152 pattern tests + per-service tests) | Verify no regressions |
 
-**`pyproject.toml` for shared/patterns/:**
+**`pyproject.toml` for libs/homeiq-patterns/:**
 ```toml
 [build-system]
 requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
@@ -399,7 +399,7 @@ where = ["src"]
 
 | Method | Setup Effort | Build Speed | Version Pinning | Recommended For |
 |--------|-------------|-------------|-----------------|-----------------|
-| `pip install git+https://github.com/org/repo#subdirectory=shared/patterns` | Low | Medium | Git tags/SHAs | Small teams, monorepo stays |
+| `pip install git+https://github.com/org/repo#subdirectory=libs/homeiq-patterns` | Low | Medium | Git tags/SHAs | Small teams, monorepo stays |
 | GitHub Packages (PyPI) | Medium | Fast (cached) | Semver | Larger teams, frequent publishes |
 | Local path in Docker (`COPY + pip install -e .`) | None | Fast | Always latest | Interim migration step |
 
@@ -426,7 +426,7 @@ from homeiq_patterns import RAGContextService, UnifiedValidationRouter, PostActi
 3. Updates imports
 4. Runs that service's tests
 
-**Deliverable:** `shared/patterns/` is a pip-installable package. No service needs the full repo to build.
+**Deliverable:** `libs/homeiq-patterns/` is a pip-installable package. No service needs the full repo to build.
 
 ---
 
@@ -441,9 +441,9 @@ from homeiq_patterns import RAGContextService, UnifiedValidationRouter, PostActi
 | 3.1 | Create reusable workflow template | `.github/workflows/reusable-group-ci.yml` — lint, test, Docker build for any service list |
 | 3.2 | Create path-scoped workflows per group | 6 workflow files that call the reusable template |
 | 3.3 | Add concurrency groups per workflow | `concurrency: { group: ci-$GROUP-${{ github.ref }}, cancel-in-progress: true }` |
-| 3.4 | Add shared library publish + cascade workflow | Triggers on `shared/patterns/**`, publishes package, dispatches downstream group rebuilds |
+| 3.4 | Add shared library publish + cascade workflow | Triggers on `libs/homeiq-patterns/**`, publishes package, dispatches downstream group rebuilds |
 | 3.5 | Add cross-group integration test workflow | Triggers on `main` merges, deploys all groups to staging |
-| 3.6 | Add path trigger for compose file changes | Changes to `compose/*.yml` trigger the relevant group's CI |
+| 3.6 | Add path trigger for compose file changes | Changes to `domains/*/compose.yml` trigger the relevant group's CI |
 | 3.7 | Deprecate monolithic workflow | Archive existing workflow, update branch protection rules |
 
 **Reusable workflow pattern:**
@@ -478,9 +478,9 @@ jobs:
       - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - run: pip install ruff
-      - run: ruff check services/${{ matrix.service }}/
+      - run: ruff check domains/*/${{ matrix.service }}/
       - run: |
-          cd services/${{ matrix.service }}
+          cd domains/*/${{ matrix.service }}
           pip install -r requirements.txt 2>/dev/null || true
           pytest tests/ -v 2>/dev/null || echo "No tests found"
 ```
@@ -492,16 +492,16 @@ name: CI — data-collectors
 on:
   push:
     paths:
-      - 'services/weather-api/**'
-      - 'services/smart-meter-service/**'
-      - 'services/sports-api/**'
-      - 'services/air-quality-service/**'
-      - 'services/carbon-intensity-service/**'
-      - 'services/electricity-pricing-service/**'
-      - 'services/calendar-service/**'
-      - 'services/log-aggregator/**'
-      - 'compose/collectors.yml'
-      - 'compose/collectors.env'
+      - 'domains/data-collectors/weather-api/**'
+      - 'domains/data-collectors/smart-meter-service/**'
+      - 'domains/data-collectors/sports-api/**'
+      - 'domains/data-collectors/air-quality-service/**'
+      - 'domains/data-collectors/carbon-intensity-service/**'
+      - 'domains/data-collectors/electricity-pricing-service/**'
+      - 'domains/data-collectors/calendar-service/**'
+      - 'domains/data-collectors/log-aggregator/**'
+      - 'domains/data-collectors/compose.yml'
+      - 'domains/data-collectors/.env'
   pull_request:
     paths: [same as above]
 
@@ -523,7 +523,7 @@ jobs:
 name: Publish homeiq-patterns
 on:
   push:
-    paths: ['shared/patterns/**']
+    paths: ['libs/homeiq-patterns/**']
     branches: [main]
 
 jobs:
@@ -531,7 +531,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - run: pip install build && python -m build shared/patterns/
+      - run: pip install build && python -m build libs/homeiq-patterns/
       # Publish step here (GitHub Packages or git tag)
 
   cascade:
@@ -550,7 +550,7 @@ jobs:
 - Do NOT use `fail-fast: true` in test matrices — it hides failures on other services
 - Do NOT use overly permissive `GITHUB_TOKEN` — set `permissions: contents: read` at workflow level
 - Do NOT skip concurrency groups — wastes runner minutes on superseded commits
-- Always include `shared/patterns/**` in path triggers for groups that use the shared library
+- Always include `libs/homeiq-patterns/**` in path triggers for groups that use the shared library
 
 **Deliverable:** 6 independent CI pipelines + 1 reusable template + 1 integration pipeline + 1 cascade workflow. Build times drop proportionally to group isolation.
 
@@ -566,7 +566,7 @@ jobs:
 
 | Step | Task | Details | Status |
 |------|------|---------|--------|
-| 4.1 | Create `shared/resilience/` utility module | CircuitBreaker, CrossGroupClient, GroupHealthCheck, wait_for_dependency | **Done** |
+| 4.1 | Create `libs/homeiq-resilience/` utility module | CircuitBreaker, CrossGroupClient, GroupHealthCheck, wait_for_dependency | **Done** |
 | 4.2 | Add circuit breakers at every cross-group boundary | Rolled out to ha-ai-agent, blueprint-suggestion, ai-pattern, ai-automation, proactive-agent, device-health-monitor | **Done** |
 | 4.3 | Implement structured health check responses | `/health` returns group-aware status with dependency health via GroupHealthCheck | **Done** |
 | 4.4 | Add startup retry loops | `wait_for_dependency()` non-fatal probes in all cross-group callers | **Done** |
@@ -664,8 +664,8 @@ async def wait_for_dependency(url: str, name: str, max_retries: int = 30):
 
 | Step | Task | Files |
 |------|------|-------|
-| 5.1 | Update `services/SERVICES_RANKED_BY_IMPORTANCE.md` | Add group assignments |
-| 5.2 | Update `services/README_ARCHITECTURE_QUICK_REF.md` | Add group architecture diagram |
+| 5.1 | Update `docs/architecture/SERVICES_RANKED_BY_IMPORTANCE.md` | Add group assignments |
+| 5.2 | Update `docs/architecture/README_ARCHITECTURE_QUICK_REF.md` | Add group architecture diagram |
 | 5.3 | Update `docs/deployment/DEPLOYMENT_RUNBOOK.md` | Per-group deploy procedures |
 | 5.4 | Update `docs/architecture/event-flow-architecture.md` | Add group boundaries to flow diagrams |
 | 5.5 | Create `docs/architecture/service-groups.md` | Canonical reference for group definitions |
@@ -714,15 +714,15 @@ Per microservices best practices, group boundaries are trust boundaries:
 
 - **Service-to-service auth:** All cross-group HTTP calls use Bearer token authentication via `CrossGroupClient(auth_token=...)`. Token sourced from `DATA_API_API_KEY` / `API_KEY` environment variables. **Implemented** for all 6 cross-group callers.
 - **Network policy:** While all groups share `homeiq-network` for simplicity, consider per-group networks in Phase 6 for defense-in-depth
-- **Secrets management:** Per-group `.env` files must NOT be committed to Git. Add `compose/*.env` to `.gitignore`. Use Docker secrets or a `.env.example` pattern.
+- **Secrets management:** Per-group `.env` files must NOT be committed to Git. Add `domains/*/.env` to `.gitignore`. Use Docker secrets or a `.env.example` pattern.
 - **API versioning:** Cross-group APIs should be versioned (`/api/v1/`) so groups can evolve independently without breaking consumers
 
 ### Observability Across Groups
 
-- **Distributed tracing:** `CrossGroupClient` automatically injects `traceparent`/`tracestate` headers when OpenTelemetry is installed (optional import, no hard dependency). Each cross-group call sets span attribute `homeiq.target_group` for group-level trace filtering. **Implemented** in `shared/resilience/cross_group_client.py`.
-- **Structured logging:** `setup_logging(service_name, group_name="...")` embeds the group name in every JSON log line. **Implemented** in `shared/logging_config.py` and all 6 cross-group callers.
+- **Distributed tracing:** `CrossGroupClient` automatically injects `traceparent`/`tracestate` headers when OpenTelemetry is installed (optional import, no hard dependency). Each cross-group call sets span attribute `homeiq.target_group` for group-level trace filtering. **Implemented** in `libs/homeiq-resilience/cross_group_client.py`.
+- **Structured logging:** `setup_logging(service_name, group_name="...")` embeds the group name in every JSON log line. **Implemented** in `libs/homeiq-resilience/logging_config.py` and all 6 cross-group callers.
 - **Group-level metrics:** health-dashboard should aggregate health by group, not just by individual service. `/health` endpoints now return structured `GroupHealthCheck` responses with `group`, `dependencies`, `status`, and `uptime_seconds` fields.
-- **Alerting:** Group-level alerting rules documented in `shared/resilience/README.md`. Severity matrix: core-platform (P1/page), ml-engine/automation-intelligence (P2/alert), data-collectors/device-management/frontends (P3/notify).
+- **Alerting:** Group-level alerting rules documented in `libs/homeiq-resilience/README.md`. Severity matrix: core-platform (P1/page), ml-engine/automation-intelligence (P2/alert), data-collectors/device-management/frontends (P3/notify).
 
 ---
 
@@ -731,7 +731,7 @@ Per microservices best practices, group boundaries are trust boundaries:
 - [ ] 6 group compose files created, validated, documented
 - [ ] `docker compose -f ... config` output matches original `docker-compose.yml` (zero-diff)
 - [ ] Each group can start independently with `docker compose -f base -f group up`
-- [ ] `shared/patterns/` is a pip-installable package
+- [ ] `libs/homeiq-patterns/` is a pip-installable package
 - [ ] 6 CI pipelines with correct path triggers
 - [ ] All 152 pattern tests pass after shared lib packaging
 - [ ] Health dashboard shows group-level status

@@ -226,10 +226,10 @@ tiktoken>=0.8.0,<1.0.0
    source phase3-test-env/bin/activate  # or activate.bat on Windows
 
    # Install current versions
-   pip install -r services/ml-service/requirements.txt
+   pip install -r domains/ml-engine/ml-service/requirements.txt
 
    # Run baseline tests
-   pytest services/ml-service/
+   pytest domains/ml-engine/ml-service/
    ```
 
 2. **Baseline Metrics Collection**
@@ -509,14 +509,14 @@ tiktoken>=0.8.0,<1.0.0
 **Execution:**
 ```bash
 # Run unit tests
-pytest services/ml-service/tests/unit/
-pytest services/ai-pattern-service/tests/unit/
+pytest domains/ml-engine/ml-service/tests/unit/
+pytest domains/pattern-analysis/ai-pattern-service/tests/unit/
 
 # Check for warnings
 pytest -W error::DeprecationWarning
 
 # Type checking
-mypy services/ml-service/
+mypy domains/ml-engine/ml-service/
 ```
 
 ### Level 2: Integration Tests
@@ -530,8 +530,8 @@ mypy services/ml-service/
 **Execution:**
 ```bash
 # Run integration tests
-pytest services/ml-service/tests/integration/
-pytest services/ai-pattern-service/tests/integration/
+pytest domains/ml-engine/ml-service/tests/integration/
+pytest domains/pattern-analysis/ai-pattern-service/tests/integration/
 
 # Test data pipelines end-to-end
 python scripts/test_data_pipeline.py
@@ -662,7 +662,7 @@ def validate_data_integrity(df_before, df_after):
 ### ml-service
 
 **Files to Update:**
-- `services/ml-service/requirements.txt`
+- `domains/ml-engine/ml-service/requirements.txt`
 - Model loading code
 - Data preprocessing pipelines
 - Feature engineering scripts
@@ -696,7 +696,7 @@ def validate_data_integrity(df_before, df_after):
 ### ai-pattern-service
 
 **Files to Update:**
-- `services/ai-pattern-service/requirements.txt`
+- `domains/pattern-analysis/ai-pattern-service/requirements.txt`
 - Pattern analysis code
 - Statistical computations
 - Data transformation logic
@@ -721,7 +721,7 @@ def validate_data_integrity(df_before, df_after):
 ### ha-ai-agent-service
 
 **Files to Update:**
-- `services/ha-ai-agent-service/requirements.txt`
+- `domains/automation-core/ha-ai-agent-service/requirements.txt`
 - OpenAI client initialization
 - API call methods
 - Token counting logic
@@ -758,7 +758,7 @@ def validate_data_integrity(df_before, df_after):
 
 2. **Reinstall Old Versions**
    ```bash
-   pip install -r services/ml-service/requirements.txt
+   pip install -r domains/ml-engine/ml-service/requirements.txt
    ```
 
 3. **Restart Services**
@@ -774,7 +774,7 @@ def validate_data_integrity(df_before, df_after):
    python -c "import pandas; print(pandas.__version__)"
 
    # Run quick test
-   pytest services/ml-service/tests/smoke/
+   pytest domains/ml-engine/ml-service/tests/smoke/
    ```
 
 ### Selective Rollback (Single Library)
@@ -792,7 +792,7 @@ pip install "pandas>=2.2.0,<3.0.0"
 
 **If only one service has issues:**
 ```bash
-cd services/ml-service
+cd domains/ml-engine/ml-service
 git checkout HEAD~1 -- requirements.txt
 pip install -r requirements.txt
 systemctl restart homeiq-ml-service

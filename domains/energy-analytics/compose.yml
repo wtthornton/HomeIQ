@@ -1,0 +1,144 @@
+# domains/energy-analytics/compose.yml — Energy monitoring, correlation, and forecasting
+
+services:
+  energy-correlator:
+    build:
+      context: ../..
+      dockerfile: domains/energy-analytics/energy-correlator/Dockerfile
+    container_name: homeiq-energy-correlator
+    restart: unless-stopped
+    ports:
+      - "8017:8017"
+    env_file:
+      - ../../.env
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - PROCESSING_INTERVAL=${ENERGY_CORRELATION_INTERVAL:-60}
+      - LOOKBACK_MINUTES=${ENERGY_LOOKBACK_MINUTES:-5}
+      - SERVICE_PORT=8017
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-domain: depends on core-platform/influxdb, data-collectors/smart-meter
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=energy-correlator,group=energy-analytics,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8017/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  energy-forecasting:
+    build:
+      context: energy-forecasting
+      dockerfile: Dockerfile
+    container_name: homeiq-energy-forecasting
+    restart: unless-stopped
+    ports:
+      - "8042:8037"
+    env_file:
+      - ../../.env
+    environment:
+      - PORT=8037
+      - HOST=0.0.0.0
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - MODEL_PATH=${ENERGY_MODEL_PATH:-/app/models/energy_forecaster}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - energy_forecasting_models:/app/models
+    # Cross-domain: depends on core-platform/influxdb
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8037/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=energy-forecasting,group=energy-analytics,environment=production"
+
+  proactive-agent-service:
+    build:
+      context: ../..
+      dockerfile: domains/energy-analytics/proactive-agent-service/Dockerfile
+    container_name: homeiq-proactive-agent-service
+    restart: unless-stopped
+    ports:
+      - "8031:8031"
+    env_file:
+      - ../../.env
+    environment:
+      - HA_AI_AGENT_URL=http://ha-ai-agent-service:8030
+      - WEATHER_API_URL=http://weather-api:8009
+      - CARBON_INTENSITY_URL=http://carbon-intensity:8010
+      - DATA_API_URL=http://data-api:8006
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
+      - SCHEDULER_TIME=${SCHEDULER_TIME:-03:00}
+    # Cross-domain: depends on automation-core/ha-ai-agent-service
+    networks:
+      - homeiq-network
+    volumes:
+      - proactive_agent_data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8031/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=proactive-agent-service,group=energy-analytics,environment=production"
+
+volumes:
+  energy_forecasting_models:
+  proactive_agent_data:
+
+networks:
+  homeiq-network:
+    external: true

@@ -7,6 +7,10 @@ on:
         required: true
         type: string
         description: "Name of the service group (e.g., core, collectors, ml)"
+      domain_dir:
+        required: true
+        type: string
+        description: "Domain directory under domains/ (e.g., core-platform, data-collectors)"
       services:
         required: true
         type: string
@@ -40,12 +44,18 @@ jobs:
         run: pip install ruff
 
       - name: Lint with ruff
-        run: ruff check services/${{ matrix.service }}/
+        run: ruff check domains/${{ inputs.domain_dir }}/${{ matrix.service }}/
+
+      - name: Install shared libraries
+        run: |
+          for lib in libs/homeiq-*/; do
+            pip install "$lib" 2>/dev/null || true
+          done
 
       - name: Check if service has requirements
         id: check-requirements
         run: |
-          if [ -f "services/${{ matrix.service }}/requirements.txt" ]; then
+          if [ -f "domains/${{ inputs.domain_dir }}/${{ matrix.service }}/requirements.txt" ]; then
             echo "has_requirements=true" >> $GITHUB_OUTPUT
           else
             echo "has_requirements=false" >> $GITHUB_OUTPUT
@@ -54,14 +64,14 @@ jobs:
       - name: Install dependencies
         if: steps.check-requirements.outputs.has_requirements == 'true'
         run: |
-          pip install -r services/${{ matrix.service }}/requirements.txt
+          pip install -r domains/${{ inputs.domain_dir }}/${{ matrix.service }}/requirements.txt
           pip install pytest pytest-asyncio pytest-timeout 2>/dev/null || true
 
       - name: Check if service has tests
         id: check-tests
         run: |
-          if [ -d "services/${{ matrix.service }}/tests" ] && \
-             [ -n "$(find services/${{ matrix.service }}/tests -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ]; then
+          if [ -d "domains/${{ inputs.domain_dir }}/${{ matrix.service }}/tests" ] && \
+             [ -n "$(find domains/${{ inputs.domain_dir }}/${{ matrix.service }}/tests -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ]; then
             echo "has_tests=true" >> $GITHUB_OUTPUT
           else
             echo "has_tests=false" >> $GITHUB_OUTPUT
@@ -70,7 +80,7 @@ jobs:
       - name: Run tests
         if: steps.check-tests.outputs.has_tests == 'true'
         run: |
-          cd services/${{ matrix.service }}
+          cd domains/${{ inputs.domain_dir }}/${{ matrix.service }}
           pytest tests/ -v --timeout=300
 
       - name: Report no tests

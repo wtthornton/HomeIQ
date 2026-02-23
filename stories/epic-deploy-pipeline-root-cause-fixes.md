@@ -45,7 +45,7 @@ The plan endpoint LLM prompt says "fill in parameters based on user text
 and context" but gives no guidance on what to do when context is missing.
 Result: `target_entity: null`, `target_area: null`, `time_window: null`.
 
-**File:** `services/ai-automation-service-new/src/services/intent_planner.py` (~line 96)
+**File:** `domains/automation-core/ai-automation-service-new/src/services/intent_planner.py` (~line 96)
 
 ### RC2. Templates lack defaults for optional parameters
 
@@ -53,7 +53,7 @@ Template parameter schemas declare `required: false` but provide no
 `default` values. When the LLM returns null and no default exists, the
 placeholder stays as `{{param_name}}`.
 
-**Files:** `services/ai-automation-service-new/src/templates/templates/*.json`
+**Files:** `domains/automation-core/ai-automation-service-new/src/templates/templates/*.json`
 
 ### RC3. Template selection ignores available hardware
 
@@ -62,7 +62,7 @@ because the keywords match. It has no awareness that the office area
 has zero presence/motion sensors, making the template impossible to
 compile into valid YAML.
 
-**File:** `services/ai-automation-service-new/src/services/intent_planner.py`
+**File:** `domains/automation-core/ai-automation-service-new/src/services/intent_planner.py`
 
 ### RC4. `scheduled_task` template uses wrong trigger platform
 
@@ -71,7 +71,7 @@ but `time_pattern` expects integer values for hours/minutes/seconds, not
 a time string like `"00:00:00"`. For fixed-time schedules (midnight, 7am),
 the correct HA platform is `time` with `at: "HH:MM:SS"`.
 
-**File:** `services/ai-automation-service-new/src/templates/templates/scheduled_task.json`
+**File:** `domains/automation-core/ai-automation-service-new/src/templates/templates/scheduled_task.json`
 
 ### RC5. No automation update capability
 
@@ -80,7 +80,7 @@ Every deploy generates a new random `automation_id`
 existing office-lights automation from 7pm to 9pm". The deploy endpoint
 always creates, never updates.
 
-**File:** `services/ai-automation-service-new/src/api/deployment_router.py` (~line 234)
+**File:** `domains/automation-core/ai-automation-service-new/src/api/deployment_router.py` (~line 234)
 
 ### RC6. Placeholder stripping is silent and indiscriminate
 
@@ -88,7 +88,7 @@ always creates, never updates.
 missing optional `color_temp` is stripped the same as a missing required
 `entity_id`, producing structurally invalid YAML with no warning.
 
-**File:** `services/ai-automation-service-new/src/services/yaml_compiler.py`
+**File:** `domains/automation-core/ai-automation-service-new/src/services/yaml_compiler.py`
 
 ---
 
@@ -116,7 +116,7 @@ values for optional parameters:
 | `time_based_light_on` | `color_temp` | (omit from YAML if null) |
 | `temperature_control` | `hvac_mode` | `"heat"` |
 
-**Files:** `services/ai-automation-service-new/src/templates/templates/*.json`
+**Files:** `domains/automation-core/ai-automation-service-new/src/templates/templates/*.json`
 
 #### 1.2 Fix `scheduled_task` trigger platform
 
@@ -137,9 +137,9 @@ Split the template into two trigger variants based on the
 Option A is simpler and keeps templates declarative.
 
 **Files:**
-- `services/ai-automation-service-new/src/templates/templates/scheduled_task.json` (rename to `scheduled_task_interval.json`)
-- New: `services/ai-automation-service-new/src/templates/templates/scheduled_task_at.json`
-- `services/ai-automation-service-new/src/services/intent_planner.py` (update template list)
+- `domains/automation-core/ai-automation-service-new/src/templates/templates/scheduled_task.json` (rename to `scheduled_task_interval.json`)
+- New: `domains/automation-core/ai-automation-service-new/src/templates/templates/scheduled_task_at.json`
+- `domains/automation-core/ai-automation-service-new/src/services/intent_planner.py` (update template list)
 
 #### 1.3 Apply defaults during validation
 
@@ -157,7 +157,7 @@ This already exists at line 105-107 but only runs during type
 validation. Move it to run unconditionally for all params before
 `_resolve_context()`.
 
-**Files:** `services/ai-automation-service-new/src/services/template_validator.py`
+**Files:** `domains/automation-core/ai-automation-service-new/src/services/template_validator.py`
 
 **Acceptance Criteria:**
 - [ ] All templates have defaults for optional params
@@ -195,8 +195,8 @@ or scene_activation over room_entry_light_on.
 - Append to system prompt
 
 **Files:**
-- `services/ai-automation-service-new/src/services/intent_planner.py`
-- `services/ai-automation-service-new/src/clients/data_api_client.py`
+- `domains/automation-core/ai-automation-service-new/src/services/intent_planner.py`
+- `domains/automation-core/ai-automation-service-new/src/clients/data_api_client.py`
   (may need a `fetch_entity_summary()` method for efficiency)
 
 #### 2.2 Add `required_entities` to template schema
@@ -217,9 +217,9 @@ The planner can then filter templates before passing them to the LLM,
 removing templates that can't possibly work.
 
 **Files:**
-- `services/ai-automation-service-new/src/templates/template_schema.py`
-- `services/ai-automation-service-new/src/templates/templates/*.json`
-- `services/ai-automation-service-new/src/services/intent_planner.py`
+- `domains/automation-core/ai-automation-service-new/src/templates/template_schema.py`
+- `domains/automation-core/ai-automation-service-new/src/templates/templates/*.json`
+- `domains/automation-core/ai-automation-service-new/src/services/intent_planner.py`
 
 **Acceptance Criteria:**
 - [ ] "turn on office lights" picks `time_based_light_on` (not
@@ -266,7 +266,7 @@ Plan: {
 }
 ```
 
-**Files:** `services/ai-automation-service-new/src/services/intent_planner.py`
+**Files:** `domains/automation-core/ai-automation-service-new/src/services/intent_planner.py`
 
 **Acceptance Criteria:**
 - [ ] LLM returns non-null values for all params
@@ -323,9 +323,9 @@ The existing strip logic stays but only runs on confirmed-optional
 placeholders. Required-unresolved placeholders fail fast.
 
 **Files:**
-- `services/ai-automation-service-new/src/services/yaml_compiler.py`
-- `services/ai-automation-service-new/src/api/automation_compile_router.py`
-- `services/ai-automation-service-new/src/templates/template_schema.py`
+- `domains/automation-core/ai-automation-service-new/src/services/yaml_compiler.py`
+- `domains/automation-core/ai-automation-service-new/src/api/automation_compile_router.py`
+- `domains/automation-core/ai-automation-service-new/src/templates/template_schema.py`
   (ensure `required` field is accessible)
 
 **Acceptance Criteria:**
@@ -384,9 +384,9 @@ When updating an existing automation:
 3. Record the diff between old and new YAML
 
 **Files:**
-- `services/ai-automation-service-new/src/api/deployment_router.py`
-- `services/ai-automation-service-new/src/services/deployment_service.py`
-- `services/ai-automation-service-new/src/models/` (DeployedAutomation
+- `domains/automation-core/ai-automation-service-new/src/api/deployment_router.py`
+- `domains/automation-core/ai-automation-service-new/src/services/deployment_service.py`
+- `domains/automation-core/ai-automation-service-new/src/models/` (DeployedAutomation
   model may need `template_id`, `area_id` columns)
 
 #### 5.4 Wire into test harness

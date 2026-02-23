@@ -21,7 +21,7 @@ npm install puppeteer
 # Ensure the UI is running
 docker-compose up ai-automation-ui
 # or
-cd services/ai-automation-ui && npm run dev
+cd domains/frontends/ai-automation-ui && npm run dev
 ```
 
 ## Usage

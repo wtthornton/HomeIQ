@@ -787,14 +787,14 @@ Based on risk assessment and dependencies, here's the recommended migration orde
 ### Level 1: Unit Tests
 ```bash
 # Run all unit tests
-pytest services/ml-service/tests/
-pytest services/ai-core-service/tests/
+pytest domains/ml-engine/ml-service/tests/
+pytest domains/ml-engine/ai-core-service/tests/
 ```
 
 ### Level 2: Integration Tests
 ```bash
 # Test ML pipeline end-to-end
-pytest services/ml-service/tests/integration/
+pytest domains/ml-engine/ml-service/tests/integration/
 ```
 
 ### Level 3: Data Integrity Tests

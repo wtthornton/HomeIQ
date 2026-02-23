@@ -228,7 +228,7 @@ export const useHealth = () => {};
 5. Document in `docs/SERVICES_OVERVIEW.md`
 
 ### Add Dashboard Tab
-1. Create `services/health-dashboard/src/components/tabs/MyTab.tsx`
+1. Create `domains/core-platform/health-dashboard/src/components/tabs/MyTab.tsx`
 2. Add to `components/tabs/index.ts`
 3. Register in `Dashboard.tsx` TAB_COMPONENTS
 4. Add to TAB_CONFIG array

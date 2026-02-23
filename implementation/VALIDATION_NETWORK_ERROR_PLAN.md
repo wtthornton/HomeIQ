@@ -3,13 +3,13 @@
 **Date:** 2026-02-09  
 **Issue:** Automation Preview shows "Validation Unavailable (Network Error)" when validating YAML. UI tries to reach `http://localhost:7242/api/v1/validation/validate` but cannot connect.
 
-**Summary:** The UI was using the wrong default port for the HA AI Agent Service (**7242** instead of **8030**). The default in `services/ai-automation-ui/src/services/api-v2.ts` has been changed to `http://localhost:8030`. Rebuild/refresh the UI and ensure `ha-ai-agent-service` is running on 8030; validation should then work.
+**Summary:** The UI was using the wrong default port for the HA AI Agent Service (**7242** instead of **8030**). The default in `domains/frontends/ai-automation-ui/src/services/api-v2.ts` has been changed to `http://localhost:8030`. Rebuild/refresh the UI and ensure `ha-ai-agent-service` is running on 8030; validation should then work.
 
 ---
 
 ## What is api-v2?
 
-**api-v2** (`services/ai-automation-ui/src/services/api-v2.ts`) is the **TypeScript client for the “v2” conversation and automation APIs** used by the HA Agent chat flow. It does two different things:
+**api-v2** (`domains/frontends/ai-automation-ui/src/services/api-v2.ts`) is the **TypeScript client for the “v2” conversation and automation APIs** used by the HA Agent chat flow. It does two different things:
 
 | Responsibility | Base URL | Used for |
 |-----------------|----------|----------|
@@ -30,9 +30,9 @@ So **api-v2** is mostly the v2 conversation API client, plus one direct call to 
 
 Evidence:
 
-- `services/ai-automation-ui/src/services/api-v2.ts` line 482:  
+- `domains/frontends/ai-automation-ui/src/services/api-v2.ts` line 482:  
   `const haAgentUrl = import.meta.env.VITE_HA_AGENT_SERVICE_URL || 'http://localhost:7242';`
-- `services/ai-automation-ui/src/config/api.ts` line 24:  
+- `domains/frontends/ai-automation-ui/src/config/api.ts` line 24:  
   `HA_AI_AGENT: isProduction ? '/api/ha-ai-agent' : 'http://localhost:8030/api'` (correct port).
 - `docker-compose.yml`: `ha-ai-agent-service` exposes `8030:8030`.
 - `ha-ai-agent-service` implements `POST /api/v1/validation/validate` in `src/main.py`.
@@ -77,7 +77,7 @@ Port **7242** appears to be an old or telemetry port (e.g. debug ingest in `Auto
 - [x] Root cause identified (wrong default port 7242 vs 8030).
 - [x] Code fix: default in `api-v2.ts` updated to 8030 (see below).
 - [x] Refactor: `validateYAML` moved to haAiAgentApi; api-v2 delegates to it (single source: `API_CONFIG.HA_AI_AGENT`).
-- [x] Document: API clients table added to `services/ai-automation-ui/README.md`.
+- [x] Document: API clients table added to `domains/frontends/ai-automation-ui/README.md`.
 - [x] Re-test: AutomationPreview tests run without 7242; validation URL is 8030. (Full build still blocked by pre-existing TS errors in ConversationalDashboard.tsx / Deployed.tsx.)
 
 ---
@@ -91,7 +91,7 @@ Port **7242** appears to be an old or telemetry port (e.g. debug ingest in `Auto
    Validation is the only HA AI Agent call in api-v2. Moving it to `haAiAgentApi.ts` would put all HA AI Agent calls in one client and remove the need for a second HA Agent URL in api-v2.
 
 3. **Document frontend API clients**  
-   Add a short note (e.g. in `services/ai-automation-ui/README.md` or a dedicated API.md) that explains:
+   Add a short note (e.g. in `domains/frontends/ai-automation-ui/README.md` or a dedicated API.md) that explains:
    - **api.ts** – main AI Automation backend (patterns, synergies, etc.).
    - **api-v2.ts** – v2 conversation API + (currently) validateYAML to HA AI Agent.
    - **haAiAgentApi.ts** – HA AI Agent Service (chat, conversations, tools).

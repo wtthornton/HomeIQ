@@ -133,8 +133,8 @@ All recommendations below are for **production-stable** versions (no alpha/beta 
 
 ## 6. Files to touch
 
-- **Images:** `docker-compose.yml` (influxdb, jaeger, and optionally home-assistant tag); each `Dockerfile` under `services/` (Python/Node/nginx bases).  
-- **Python:** `requirements-base.txt`; `services/observability-dashboard/requirements.txt`.  
-- **Node:** Root `package.json`; `services/health-dashboard/package.json`; `services/ai-automation-ui/package.json`; `tests/e2e/package.json`.
+- **Images:** `docker-compose.yml` (influxdb, jaeger, and optionally home-assistant tag); each `Dockerfile` under `domains/` (Python/Node/nginx bases).
+- **Python:** `requirements-base.txt`; `domains/frontends/observability-dashboard/requirements.txt`.
+- **Node:** Root `package.json`; `domains/core-platform/health-dashboard/package.json`; `domains/frontends/ai-automation-ui/package.json`; `tests/e2e/package.json`.
 
 After changes, run: rebuilds and health checks for affected services, full test suite (unit + e2e), and a quick smoke test of observability-dashboard and InfluxDB 2.8.

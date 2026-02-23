@@ -29,12 +29,12 @@ Some services use **profiles** and only start when that profile is used:
 
 | Item | Details |
 |------|---------|
-| **Path** | `services/nlp-fine-tuning/` |
+| **Path** | `domains/ml-engine/nlp-fine-tuning/` |
 | **Purpose** | CLI/tooling for fine-tuning language models (OpenAI and PEFT/LoRA) on the Home Assistant Requests dataset. |
 | **Why not in Docker** | No `Dockerfile`; intended as a run-on-demand or local training workflow, not a long-running API service. |
 | **Recommendation** | No change required. To run in Docker later, add a Dockerfile and optional compose service (e.g. for batch jobs or a small API). |
 
-No other service code under `services/` is missing from docker-compose.
+No other service code under `domains/` is missing from docker-compose.
 
 ## Deployment
 

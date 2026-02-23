@@ -1,20 +1,20 @@
-name: "CI \u2014 Frontends"
+name: "CI — Frontends"
 
 on:
   push:
     paths:
-      - 'services/observability-dashboard/**'
-      - 'services/ai-automation-ui/**'
-      - 'compose/frontends.yml'
-      - 'shared/patterns/**'
+      - 'domains/frontends/observability-dashboard/**'
+      - 'domains/frontends/ai-automation-ui/**'
+      - 'domains/frontends/compose.yml'
+      - 'libs/**'
       - '.github/workflows/ci-frontends.yml'
       - '.github/workflows/reusable-group-ci.yml'
   pull_request:
     paths:
-      - 'services/observability-dashboard/**'
-      - 'services/ai-automation-ui/**'
-      - 'compose/frontends.yml'
-      - 'shared/patterns/**'
+      - 'domains/frontends/observability-dashboard/**'
+      - 'domains/frontends/ai-automation-ui/**'
+      - 'domains/frontends/compose.yml'
+      - 'libs/**'
       - '.github/workflows/ci-frontends.yml'
       - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
@@ -31,4 +31,5 @@ jobs:
     uses: ./.github/workflows/reusable-group-ci.yml
     with:
       group_name: frontends
+      domain_dir: frontends
       services: '["observability-dashboard","ai-automation-ui"]'

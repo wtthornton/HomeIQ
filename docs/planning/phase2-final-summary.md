@@ -131,9 +131,9 @@ docker-compose config --quiet  # PASS - No errors
 - `scripts/library-upgrade-influxdb3-0.17.0.py`
 
 ### Service Files
-- `services/energy-forecasting/src/data/energy_loader.py` - InfluxDB 3.0 migration
-- `services/data-retention/src/backup_restore.py` - InfluxDB write API update
-- `services/blueprint-suggestion-service/tests/__init__.py` - Created missing tests directory
+- `domains/energy-analytics/energy-forecasting/src/data/energy_loader.py` - InfluxDB 3.0 migration
+- `domains/core-platform/data-retention/src/backup_restore.py` - InfluxDB write API update
+- `domains/blueprints/blueprint-suggestion-service/tests/__init__.py` - Created missing tests directory
 
 ### Configuration
 - `docker-compose.yml` - Memory limit optimizations (40+ services updated)
@@ -148,8 +148,8 @@ docker-compose config --quiet  # PASS - No errors
 **Root Cause:** Pydantic 2.12's TypeAdapter incorrectly treats `Annotated[DeploymentService, Depends()]` as a Query parameter instead of a dependency.
 
 **Affected Files:**
-- `services/ai-automation-service-new/src/api/deployment_router.py`
-- `services/ai-automation-service-new/src/api/suggestion_router.py`
+- `domains/automation-core/ai-automation-service-new/src/api/deployment_router.py`
+- `domains/automation-core/ai-automation-service-new/src/api/suggestion_router.py`
 
 **Fix Applied:**
 ```python
@@ -166,7 +166,7 @@ deployment_svc: DeploymentService = Depends(get_deployment_service)
 
 **Root Cause:** nginx proxy for `/api/v1/` was not forwarding Authorization header to admin-api.
 
-**Affected File:** `services/health-dashboard/nginx.conf`
+**Affected File:** `domains/core-platform/health-dashboard/nginx.conf`
 
 **Fix Applied:**
 ```nginx

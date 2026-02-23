@@ -27,10 +27,10 @@ Build the reusable Agent Evaluation Framework (Pattern D) — a shared infrastru
 
 ## Code Location & Sharing Strategy
 
-**All code in this epic is 100% shared** — lives in `shared/patterns/evaluation/` alongside the existing Pattern A–C code. No service-specific code is created in this epic.
+**All code in this epic is 100% shared** — lives in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/` alongside the existing Pattern A–C code. No service-specific code is created in this epic.
 
 ```
-shared/patterns/                          ← existing Pattern A-C home
+libs/homeiq-patterns/                          ← existing Pattern A-C home
 ├── __init__.py                           ← will be updated to export Pattern D
 ├── rag_context_service.py                ← Pattern A (exists)
 ├── unified_validation_router.py          ← Pattern B (exists)
@@ -105,7 +105,7 @@ async def chat(request: ChatRequest):
 **So that** all evaluators receive a consistent input regardless of which agent produced the session
 
 **Acceptance Criteria:**
-- [ ] `SessionTrace` Pydantic model defined in `shared/patterns/evaluation/models.py`
+- [ ] `SessionTrace` Pydantic model defined in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/models.py`
 - [ ] Fields: `session_id`, `agent_name`, `timestamp`, `model`, `temperature`
 - [ ] `user_messages: list[UserMessage]` with `content`, `timestamp`, `turn_index`
 - [ ] `agent_responses: list[AgentResponse]` with `content`, `timestamp`, `turn_index`, `tool_calls_in_turn`
@@ -116,7 +116,7 @@ async def chat(request: ChatRequest):
 
 **Story Points:** 3
 **Dependencies:** None
-**Affected Services:** shared/patterns (new module)
+**Affected Services:** libs/homeiq-patterns (new module)
 
 ---
 
@@ -127,7 +127,7 @@ async def chat(request: ChatRequest):
 **So that** I can enable evaluation on any agent by adding a single decorator without modifying agent logic
 
 **Acceptance Criteria:**
-- [ ] `SessionTracer` class in `shared/patterns/evaluation/session_tracer.py`
+- [ ] `SessionTracer` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/session_tracer.py`
 - [ ] Captures request/response pairs with timestamps
 - [ ] Captures tool calls by hooking into the agent's tool execution layer (callback-based, not intrusive)
 - [ ] Supports both synchronous and async tool calls
@@ -138,7 +138,7 @@ async def chat(request: ChatRequest):
 
 **Story Points:** 5
 **Dependencies:** Story 1 (SessionTrace model)
-**Affected Services:** shared/patterns (new module)
+**Affected Services:** libs/homeiq-patterns (new module)
 
 ---
 
@@ -149,7 +149,7 @@ async def chat(request: ChatRequest):
 **So that** evaluators at each level share a consistent interface and can be composed into a full evaluation pipeline
 
 **Acceptance Criteria:**
-- [ ] `BaseEvaluator` abstract class in `shared/patterns/evaluation/base_evaluator.py`
+- [ ] `BaseEvaluator` abstract class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/base_evaluator.py`
 - [ ] Method: `evaluate(session: SessionTrace) → EvaluationResult`
 - [ ] Properties: `level: EvalLevel` (L1–L5), `scope: EvalScope` (SESSION, TOOL_CALL, RESPONSE), `name: str`
 - [ ] `EvaluationResult` model: `evaluator_name`, `level`, `score: float (0-1)`, `label: str`, `explanation: str`, `passed: bool`
@@ -164,7 +164,7 @@ async def chat(request: ChatRequest):
 
 **Story Points:** 5
 **Dependencies:** Story 1 (SessionTrace model)
-**Affected Services:** shared/patterns (new module)
+**Affected Services:** libs/homeiq-patterns (new module)
 
 ---
 
@@ -175,7 +175,7 @@ async def chat(request: ChatRequest):
 **So that** subjective quality evaluations (correctness, faithfulness, helpfulness) can be performed consistently across all agents
 
 **Acceptance Criteria:**
-- [ ] `LLMJudge` class in `shared/patterns/evaluation/llm_judge.py`
+- [ ] `LLMJudge` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/llm_judge.py`
 - [ ] Supports OpenAI (`gpt-4o`, `gpt-4o-mini`) and Anthropic (`claude-sonnet-4-5`) backends via a provider abstraction
 - [ ] Takes a `JudgeRubric` (prompt template + expected output schema + scoring scale)
 - [ ] Method: `judge(session: SessionTrace, rubric: JudgeRubric) → JudgeResult`
@@ -188,7 +188,7 @@ async def chat(request: ChatRequest):
 
 **Story Points:** 5
 **Dependencies:** Story 1 (SessionTrace model)
-**Affected Services:** shared/patterns (new module)
+**Affected Services:** libs/homeiq-patterns (new module)
 
 ---
 
@@ -199,7 +199,7 @@ async def chat(request: ChatRequest):
 **So that** I can see a single-glance health report for any agent session or batch of sessions
 
 **Acceptance Criteria:**
-- [ ] `ScoringEngine` class in `shared/patterns/evaluation/scoring_engine.py`
+- [ ] `ScoringEngine` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/scoring_engine.py`
 - [ ] Method: `score(session: SessionTrace, evaluators: list[BaseEvaluator]) → EvaluationReport`
 - [ ] Method: `score_batch(sessions: list[SessionTrace], evaluators: list) → BatchReport`
 - [ ] `EvaluationReport` model: `session_id`, `agent_name`, `timestamp`, `results: list[EvaluationResult]`, `summary_matrix: SummaryMatrix`
@@ -213,7 +213,7 @@ async def chat(request: ChatRequest):
 
 **Story Points:** 5
 **Dependencies:** Story 3 (BaseEvaluator classes)
-**Affected Services:** shared/patterns (new module)
+**Affected Services:** libs/homeiq-patterns (new module)
 
 ---
 
@@ -224,7 +224,7 @@ async def chat(request: ChatRequest):
 **So that** I can configure tools, paths, parameter rules, system prompt rules, and thresholds without writing evaluator code
 
 **Acceptance Criteria:**
-- [ ] `AgentEvalConfig` Pydantic model in `shared/patterns/evaluation/config.py`
+- [ ] `AgentEvalConfig` Pydantic model in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/config.py`
 - [ ] YAML schema supports:
   - `agent_name: str`
   - `model: str` (agent's LLM model)
@@ -236,13 +236,13 @@ async def chat(request: ChatRequest):
   - `thresholds: dict[str, float]` per metric
   - `priority_matrix: list[PriorityEntry]` with `priority`, `level`, `metric`, `frequency`
 - [ ] `ConfigLoader.load(path: str) → AgentEvalConfig` with YAML validation
-- [ ] Example config file: `shared/patterns/evaluation/configs/example_agent.yaml`
+- [ ] Example config file: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/example_agent.yaml`
 - [ ] JSON Schema generation for IDE autocompletion
 - [ ] Unit tests for config loading, validation, and error handling
 
 **Story Points:** 5
 **Dependencies:** Story 3 (BaseEvaluator — references EvalLevel, metric names)
-**Affected Services:** shared/patterns (new module)
+**Affected Services:** libs/homeiq-patterns (new module)
 
 ---
 
@@ -253,7 +253,7 @@ async def chat(request: ChatRequest):
 **So that** running a full 5-level evaluation is a single function call: `registry.evaluate(session)`
 
 **Acceptance Criteria:**
-- [ ] `EvaluationRegistry` class in `shared/patterns/evaluation/registry.py`
+- [ ] `EvaluationRegistry` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/registry.py`
 - [ ] Method: `register_agent(config: AgentEvalConfig)` — instantiates evaluators from config
 - [ ] Method: `evaluate(session: SessionTrace) → EvaluationReport` — runs all registered evaluators
 - [ ] Method: `evaluate_batch(sessions: list[SessionTrace]) → BatchReport`
@@ -265,7 +265,7 @@ async def chat(request: ChatRequest):
 
 **Story Points:** 5
 **Dependencies:** Stories 3, 4, 5, 6
-**Affected Services:** shared/patterns (new module)
+**Affected Services:** libs/homeiq-patterns (new module)
 
 ---
 
@@ -276,13 +276,13 @@ async def chat(request: ChatRequest):
 **So that** I can enable evaluation on my agent in under 30 minutes
 
 **Acceptance Criteria:**
-- [ ] Documentation in `shared/patterns/evaluation/README.md`
+- [ ] Documentation in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md`
 - [ ] Architecture overview: 5-level pyramid, session tracing, evaluator pipeline, LLM judge, scoring
 - [ ] YAML config reference: every field documented with examples
 - [ ] Quick-start guide: "Add evaluation to your agent in 3 steps" (add middleware, create config, run evaluation)
 - [ ] Built-in rubric catalog: list of all available quality rubrics with descriptions
 - [ ] Example output: sample Summary Matrix and BatchReport
-- [ ] Linked from `shared/patterns/README.md` (existing pattern docs)
+- [ ] Linked from `libs/homeiq-patterns/README.md` (existing pattern docs)
 - [ ] References to Tango evaluation framework as inspiration
 
 **Story Points:** 2
@@ -320,23 +320,23 @@ All artifacts are in the shared package — **zero service-specific code** in th
 
 | Artifact | Path | Shared? |
 |----------|------|---------|
-| **Evaluation Package** | `shared/patterns/evaluation/` | 100% Shared |
-| Package Init (exports) | `shared/patterns/evaluation/__init__.py` | 100% Shared |
-| SessionTrace Model | `shared/patterns/evaluation/models.py` | 100% Shared |
-| SessionTracer Middleware | `shared/patterns/evaluation/session_tracer.py` | 100% Shared |
-| BaseEvaluator + Level Classes | `shared/patterns/evaluation/base_evaluator.py` | 100% Shared |
-| LLM-as-Judge Engine | `shared/patterns/evaluation/llm_judge.py` | 100% Shared |
-| Scoring Engine | `shared/patterns/evaluation/scoring_engine.py` | 100% Shared |
-| Config Schema + Loader | `shared/patterns/evaluation/config.py` | 100% Shared |
-| Evaluation Registry | `shared/patterns/evaluation/registry.py` | 100% Shared |
-| Developer Documentation | `shared/patterns/evaluation/README.md` | 100% Shared |
-| Updated Pattern Init | `shared/patterns/__init__.py` | Update existing |
-| Unit Tests (40+ tests) | `shared/patterns/tests/test_evaluation/` | 100% Shared |
-| Example Config | `shared/patterns/evaluation/configs/example_agent.yaml` | 100% Shared |
+| **Evaluation Package** | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/` | 100% Shared |
+| Package Init (exports) | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/__init__.py` | 100% Shared |
+| SessionTrace Model | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/models.py` | 100% Shared |
+| SessionTracer Middleware | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/session_tracer.py` | 100% Shared |
+| BaseEvaluator + Level Classes | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/base_evaluator.py` | 100% Shared |
+| LLM-as-Judge Engine | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/llm_judge.py` | 100% Shared |
+| Scoring Engine | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/scoring_engine.py` | 100% Shared |
+| Config Schema + Loader | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/config.py` | 100% Shared |
+| Evaluation Registry | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/registry.py` | 100% Shared |
+| Developer Documentation | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md` | 100% Shared |
+| Updated Pattern Init | `libs/homeiq-patterns/__init__.py` | Update existing |
+| Unit Tests (40+ tests) | `libs/homeiq-patterns/tests/test_evaluation/` | 100% Shared |
+| Example Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/example_agent.yaml` | 100% Shared |
 
 ## References
 
 - Tango Workspace Reservation Agent Evaluation Framework (PDF — project reference)
 - [Epic: Reusable Pattern Framework](epic-reusable-pattern-framework.md) (Pattern D follows same approach as Patterns A–C)
 - [PRD: Automation Architecture & Reusable Patterns](../docs/planning/automation-architecture-reusable-patterns-prd.md)
-- [Shared Patterns README](../shared/patterns/README.md)
+- [Shared Patterns README](../libs/homeiq-patterns/README.md)

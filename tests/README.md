@@ -36,7 +36,7 @@ tests/
 ### Health Dashboard
 
 ```bash
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm run test:e2e                 # Run all tests
 npm run test:e2e:ui              # Run with UI mode
 npm run test:e2e:headed          # Run in headed mode
@@ -49,7 +49,7 @@ npm run test:e2e:report         # Show test report
 ### AI Automation UI
 
 ```bash
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 npm run test:e2e                 # Run all tests
 npm run test:e2e:ui              # Run with UI mode
 npm run test:e2e:headed          # Run in headed mode

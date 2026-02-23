@@ -1,6 +1,6 @@
 # TAPPS Review: data-retention
 
-**Service**: `services/data-retention` (Tier 2 - Essential)
+**Service**: `domains/core-platform/data-retention` (Tier 2 - Essential)
 **Date**: 2026-02-22
 **Preset**: standard (threshold: 70.0)
 **Result**: **PASS** -- 23/23 files pass quality gate

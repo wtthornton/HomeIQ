@@ -24,7 +24,7 @@ HomeIQ is an AI-powered Home Assistant intelligence platform that captures, enri
 
 For the full group architecture, see [Service Groups Architecture](../architecture/service-groups.md).
 
-For complete service ranking and deployment priority, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
+For complete service ranking and deployment priority, see **[Services Ranked by Importance](../architecture/SERVICES_RANKED_BY_IMPORTANCE.md)**.
 
 ### Core Features
 
@@ -543,7 +543,7 @@ influxdb (direct writes)
 
 ### 3. Security Checks
 
-- [ ] Run security audit: `python -m pytest services/*/tests/test_*security*.py -v`
+- [ ] Run security audit: `python -m pytest domains/*/tests/test_*security*.py -v`
 - [ ] Verify no hardcoded credentials
 - [ ] Check authentication is enabled on protected endpoints
 - [ ] Review recent security fixes
@@ -712,42 +712,42 @@ For the canonical group reference, see [Service Groups Architecture](../architec
 
 | Group | Compose File | Services | Startup Order |
 |-------|-------------|----------|---------------|
-| 1. core-platform | `compose/core.yml` | influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention | **First** (required by all) |
-| 2. data-collectors | `compose/collectors.yml` | weather-api, smart-meter, sports-api, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator | After core |
-| 3. ml-engine | `compose/ml.yml` | ai-core-service, openvino, ml-service, ner-service, openai-service, rag-service, ai-training, device-intelligence, model-prep | After core |
-| 4. automation-intelligence | `compose/automation.yml` | ha-ai-agent, ai-automation, ai-query, ai-pattern, + 12 more | After core + ml |
-| 5. device-management | `compose/devices.yml` | device-health-monitor, device-context-classifier, + 6 more | After core |
-| 6. frontends | `compose/frontends.yml` | ai-automation-ui, observability-dashboard, jaeger | After core + automation |
+| 1. core-platform | `domains/core-platform/compose.yml` | influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention | **First** (required by all) |
+| 2. data-collectors | `domains/data-collectors/compose.yml` | weather-api, smart-meter, sports-api, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator | After core |
+| 3. ml-engine | `domains/ml-engine/compose.yml` | ai-core-service, openvino, ml-service, ner-service, openai-service, rag-service, ai-training, device-intelligence, model-prep | After core |
+| 4. automation-intelligence | `domains/automation-core/compose.yml` | ha-ai-agent, ai-automation, ai-query, ai-pattern, + 12 more | After core + ml |
+| 5. device-management | `domains/device-management/compose.yml` | device-health-monitor, device-context-classifier, + 6 more | After core |
+| 6. frontends | `domains/frontends/compose.yml` | ai-automation-ui, observability-dashboard, jaeger | After core + automation |
 
 ### Starting Individual Groups
 
 ```bash
 # IMPORTANT: core-platform must always be started first
-docker compose -f compose/core.yml up -d
+docker compose -f domains/core-platform/compose.yml up -d
 
 # Then start any other group independently
-docker compose -f compose/collectors.yml up -d
-docker compose -f compose/ml.yml up -d
-docker compose -f compose/automation.yml up -d
-docker compose -f compose/devices.yml up -d
-docker compose -f compose/frontends.yml up -d
+docker compose -f domains/data-collectors/compose.yml up -d
+docker compose -f domains/ml-engine/compose.yml up -d
+docker compose -f domains/automation-core/compose.yml up -d
+docker compose -f domains/device-management/compose.yml up -d
+docker compose -f domains/frontends/compose.yml up -d
 ```
 
 ### Starting Group Combinations
 
 ```bash
 # Core + collectors (minimal data pipeline with enrichment)
-docker compose -f compose/core.yml -f compose/collectors.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml up -d
 
 # Core + ML + automation (full AI features)
-docker compose -f compose/core.yml -f compose/ml.yml -f compose/automation.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml up -d
 
 # Core + devices (device management without AI)
-docker compose -f compose/core.yml -f compose/devices.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/device-management/compose.yml up -d
 
 # Everything except frontends (headless operation)
-docker compose -f compose/core.yml -f compose/collectors.yml \
-  -f compose/ml.yml -f compose/automation.yml -f compose/devices.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml \
+  -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml -f domains/device-management/compose.yml up -d
 
 # Full stack (all groups via root compose)
 docker compose up -d
@@ -805,20 +805,20 @@ When a deployment in one group fails, roll back only that group without affectin
 
 ```bash
 # Rollback a single group (example: automation-intelligence)
-docker compose -f compose/automation.yml down
-git checkout <previous-commit> -- compose/automation.yml services/ha-ai-agent-service/ services/ai-automation-service-new/ services/ai-pattern-service/
-docker compose -f compose/automation.yml up -d --build
+docker compose -f domains/automation-core/compose.yml down
+git checkout <previous-commit> -- domains/automation-core/
+docker compose -f domains/automation-core/compose.yml up -d --build
 
 # Rollback core-platform (CAUTION: affects all groups)
-docker compose -f compose/core.yml down
-git checkout <previous-commit> -- compose/core.yml services/data-api/ services/websocket-ingestion/
-docker compose -f compose/core.yml up -d --build
+docker compose -f domains/core-platform/compose.yml down
+git checkout <previous-commit> -- domains/core-platform/
+docker compose -f domains/core-platform/compose.yml up -d --build
 # Verify all dependent groups are still healthy after core rollback
 
 # Rollback ML engine (automation may degrade gracefully)
-docker compose -f compose/ml.yml down
-git checkout <previous-commit> -- compose/ml.yml
-docker compose -f compose/ml.yml up -d --build
+docker compose -f domains/ml-engine/compose.yml down
+git checkout <previous-commit> -- domains/ml-engine/
+docker compose -f domains/ml-engine/compose.yml up -d --build
 # automation-intelligence will use fallback/cached responses
 ```
 
@@ -826,13 +826,13 @@ docker compose -f compose/ml.yml up -d --build
 
 ```bash
 # Rebuild and restart a specific group
-docker compose -f compose/collectors.yml up -d --build
+docker compose -f domains/data-collectors/compose.yml up -d --build
 
 # Rebuild a single service within a group
-docker compose -f compose/ml.yml up -d --build openvino-service
+docker compose -f domains/ml-engine/compose.yml up -d --build openvino-service
 
 # Force recreate containers (useful for config changes)
-docker compose -f compose/devices.yml up -d --force-recreate
+docker compose -f domains/device-management/compose.yml up -d --force-recreate
 ```
 
 ---
@@ -863,7 +863,7 @@ bash scripts/deployment/health-check.sh --critical-only
 
 ### 2. Resilience Verification
 
-Services that make cross-group HTTP calls use `shared/resilience` (CircuitBreaker, CrossGroupClient, GroupHealthCheck). After deployment, verify resilience is active:
+Services that make cross-group HTTP calls use `libs/homeiq-resilience` (CircuitBreaker, CrossGroupClient, GroupHealthCheck). After deployment, verify resilience is active:
 
 ```bash
 # Verify structured health endpoints return group + dependency info
@@ -1160,7 +1160,7 @@ docker logs homeiq-dashboard --tail 50
 1. Check admin-api service is running: `curl http://localhost:8004/health`
 2. Verify endpoints are registered as public (no `dependencies=secure_dependency`)
 3. Check frontend API calls include proper headers
-4. Review `services/admin-api/src/main.py` router configuration
+4. Review `domains/core-platform/admin-api/src/main.py` router configuration
 
 ### Health Score Showing 0/100
 

@@ -126,9 +126,9 @@ import re
 
 **Impact:** Fixes "leave home" prompt (69.7% -> ~88%) and prevents future false negatives for any prompt containing keyword substrings.
 
-**Files:** `shared/patterns/evaluation/evaluators/l2_template_match.py` (line 76)
+**Files:** `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_template_match.py` (line 76)
 
-**Tests to update:** `shared/patterns/tests/test_evaluation/test_l2_template_match.py` — add word-boundary test cases; the `test_leave_keyword` workaround comment can be removed.
+**Tests to update:** `libs/homeiq-patterns/tests/test_evaluation/test_l2_template_match.py` — add word-boundary test cases; the `test_leave_keyword` workaround comment can be removed.
 
 ---
 
@@ -158,7 +158,7 @@ Switch `no_direct_yaml_from_llm` from `check_type: llm_judge` to `check_type: re
 
 **Files:**
 - `tests/integration/test_ask_ai_pipeline.py` (SessionTraceBuilder, ~line 336)
-- Or `shared/patterns/evaluation/configs/ai_automation_service.yaml` (rule definition)
+- Or `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml` (rule definition)
 
 ---
 
@@ -186,7 +186,7 @@ Connect the test harness to data-api so entity resolution actually works end-to-
 
 **Files:**
 - `tests/integration/test_ask_ai_pipeline.py` (SessionTraceBuilder metadata)
-- Or `services/data-api/` for full wiring
+- Or `domains/core-platform/data-api/` for full wiring
 
 ---
 
@@ -213,7 +213,7 @@ coerced = [
 
 **Impact:** Fixes the 37.2% result entirely — thermostat would likely score ~85%+ like the other prompts.
 
-**Files:** `services/ai-automation-service-new/src/api/` (plan endpoint response parsing)
+**Files:** `domains/automation-core/ai-automation-service-new/src/api/` (plan endpoint response parsing)
 
 ---
 
@@ -223,7 +223,7 @@ The validator scores 60% (3/5 rules pass) in preview mode. The 2 failing rules a
 
 **Check:** Verify the exception strings in `ai_automation_service.yaml` contain `"dry-run"` or `"Dry-run"` to trigger the deterministic path in `_check_exceptions()`.
 
-**Files:** `shared/patterns/evaluation/configs/ai_automation_service.yaml` (path rule exceptions)
+**Files:** `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml` (path rule exceptions)
 
 ---
 
@@ -233,7 +233,7 @@ Enhancement B from the original plan: many HA automations use `condition` blocks
 
 **Impact:** Minor — only affects prompts whose YAML includes conditions. Current scoring already reaches 0.80.
 
-**Files:** `shared/patterns/evaluation/evaluators/l3_yaml_completeness.py`
+**Files:** `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_yaml_completeness.py`
 
 ---
 

@@ -100,7 +100,7 @@ All components from the comprehensive Playwright test suite plan have been succe
 
 1. **Install Dependencies**
    ```bash
-   cd services/ai-automation-ui
+   cd domains/frontends/ai-automation-ui
    npm install
    ```
 
@@ -112,22 +112,22 @@ All components from the comprehensive Playwright test suite plan have been succe
 3. **Start Services** (if not using webServer config)
    ```bash
    # Terminal 1: Health Dashboard
-   cd services/health-dashboard
+   cd domains/core-platform/health-dashboard
    npm run dev
 
    # Terminal 2: AI Automation UI
-   cd services/ai-automation-ui
+   cd domains/frontends/ai-automation-ui
    npm run dev
    ```
 
 4. **Run Tests**
    ```bash
    # Health Dashboard
-   cd services/health-dashboard
+   cd domains/core-platform/health-dashboard
    npm run test:e2e:smoke
 
    # AI Automation UI
-   cd services/ai-automation-ui
+   cd domains/frontends/ai-automation-ui
    npm run test:e2e:smoke
    ```
 

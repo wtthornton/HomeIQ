@@ -4,12 +4,12 @@ on:
   push:
     branches: [ main, master, develop ]
     paths:
-      - 'services/**/Dockerfile'
+      - 'domains/**/Dockerfile'
       - '.github/workflows/docker-security-scan.yml'
   pull_request:
     branches: [ main, master, develop ]
     paths:
-      - 'services/**/Dockerfile'
+      - 'domains/**/Dockerfile'
       - '.github/workflows/docker-security-scan.yml'
   schedule:
     # Run weekly security scan
@@ -28,7 +28,16 @@ jobs:
           - admin-api
           - weather-api
           - health-dashboard
-          - ai-automation-service
+          - ai-automation-service-new
+          - ha-ai-agent-service
+          - ai-query-service
+          - ai-pattern-service
+          - energy-correlator
+          - energy-forecasting
+          - device-intelligence-service
+          - ml-service
+          - ai-core-service
+          - openvino-service
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,16 +45,31 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Find Dockerfile
+        id: find-dockerfile
+        run: |
+          DOCKERFILE=$(find domains -path "*/${{ matrix.service }}/Dockerfile" -print -quit)
+          if [ -n "$DOCKERFILE" ]; then
+            echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Dockerfile found at $DOCKERFILE"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Dockerfile not found for ${{ matrix.service }}, skipping"
+          fi
+
       - name: Build Docker image
+        if: steps.find-dockerfile.outputs.exists == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: services/${{ matrix.service }}/Dockerfile
+          file: ${{ steps.find-dockerfile.outputs.dockerfile }}
           push: false
           tags: homeiq-${{ matrix.service }}:scan
           load: true
 
       - name: Run Trivy vulnerability scanner
+        if: steps.find-dockerfile.outputs.exists == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: homeiq-${{ matrix.service }}:scan
@@ -54,7 +78,8 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v2
+        if: steps.find-dockerfile.outputs.exists == 'true'
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-${{ matrix.service }}.sarif'
 
@@ -81,4 +106,3 @@ jobs:
           format: 'table'
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
-

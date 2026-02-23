@@ -4,13 +4,13 @@ on:
   push:
     branches: [ master, main, develop ]
     paths:
-      - 'services/**'
+      - 'domains/**'
       - 'docker-compose.yml'
       - '.github/workflows/docker-build.yml'
   pull_request:
     branches: [ master, main, develop ]
     paths:
-      - 'services/**'
+      - 'domains/**'
       - 'docker-compose.yml'
       - '.github/workflows/docker-build.yml'
   workflow_dispatch:
@@ -31,7 +31,6 @@ jobs:
           - admin-api
           - weather-api
           - health-dashboard
-          - ai-automation-service
           - ai-automation-service-new
           - ai-automation-ui
           - carbon-intensity-service
@@ -40,6 +39,7 @@ jobs:
           - calendar-service
           - smart-meter-service
           - energy-correlator
+          - energy-forecasting
           - log-aggregator
           - ml-service
           - ai-core-service
@@ -53,12 +53,24 @@ jobs:
           - openvino-service
           - ha-setup-service
           - data-retention
-          - ner-service
-          - openai-service
           - device-setup-assistant
           - device-database-client
           - device-recommender
           - device-context-classifier
+          - yaml-validation-service
+          - blueprint-index
+          - blueprint-suggestion-service
+          - rule-recommendation-ml
+          - ai-code-executor
+          - automation-trace-service
+          - automation-linter
+          - api-automation-edge
+          - device-health-monitor
+          - activity-recognition
+          - activity-writer
+          - rag-service
+          - observability-dashboard
+          - sports-api
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -77,12 +89,14 @@ jobs:
       - name: Check if Dockerfile exists
         id: check-dockerfile
         run: |
-          if [ -f "services/${{ matrix.service }}/Dockerfile" ]; then
+          DOCKERFILE=$(find domains -path "*/${{ matrix.service }}/Dockerfile" -print -quit)
+          if [ -n "$DOCKERFILE" ]; then
+            echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "✅ Dockerfile found for ${{ matrix.service }}"
+            echo "Dockerfile found for ${{ matrix.service }} at $DOCKERFILE"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "⚠️ Dockerfile not found for ${{ matrix.service }}, skipping build"
+            echo "Dockerfile not found for ${{ matrix.service }}, skipping build"
           fi
 
       - name: Build Docker image
@@ -90,7 +104,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: services/${{ matrix.service }}/Dockerfile
+          file: ${{ steps.check-dockerfile.outputs.dockerfile }}
           push: false
           tags: |
             homeiq-${{ matrix.service }}:latest
@@ -133,7 +147,7 @@ jobs:
       - name: Verify build
         run: |
           docker compose config --services | wc -l
-      
+
       - name: Build Performance Summary
         if: always()
         run: |
@@ -153,7 +167,6 @@ jobs:
           - admin-api
           - weather-api
           - health-dashboard
-          - ai-automation-service
           - ai-automation-service-new
           - ai-automation-ui
           - carbon-intensity-service
@@ -162,6 +175,7 @@ jobs:
           - calendar-service
           - smart-meter-service
           - energy-correlator
+          - energy-forecasting
           - log-aggregator
           - ml-service
           - ai-core-service
@@ -175,8 +189,6 @@ jobs:
           - openvino-service
           - ha-setup-service
           - data-retention
-          - ner-service
-          - openai-service
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -187,12 +199,14 @@ jobs:
       - name: Check if Dockerfile exists
         id: check-dockerfile-scan
         run: |
-          if [ -f "services/${{ matrix.service }}/Dockerfile" ]; then
+          DOCKERFILE=$(find domains -path "*/${{ matrix.service }}/Dockerfile" -print -quit)
+          if [ -n "$DOCKERFILE" ]; then
+            echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "✅ Dockerfile found for ${{ matrix.service }}"
+            echo "Dockerfile found for ${{ matrix.service }} at $DOCKERFILE"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "⚠️ Dockerfile not found for ${{ matrix.service }}, skipping scan"
+            echo "Dockerfile not found for ${{ matrix.service }}, skipping scan"
           fi
 
       - name: Build image for scanning
@@ -200,7 +214,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: services/${{ matrix.service }}/Dockerfile
+          file: ${{ steps.check-dockerfile-scan.outputs.dockerfile }}
           push: false
           tags: scan-${{ matrix.service }}:latest
           cache-from: type=gha
@@ -236,4 +250,3 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-image-${{ matrix.service }}.sarif'
-

@@ -31,18 +31,18 @@ Build the observability layer for the Agent Evaluation Framework — a monitorin
 This epic spans **3 locations** — shared backend, data-api service, and health-dashboard:
 
 ```
-SHARED BACKEND (shared/patterns/evaluation/) — scheduler, store, alerts:
+SHARED BACKEND (libs/homeiq-patterns/src/homeiq_patterns/evaluation/) — scheduler, store, alerts:
 ├── scheduler.py                          ← EvaluationScheduler (runs eval pipelines)
 ├── store.py                              ← EvaluationStore (InfluxDB + SQLite writes)
 └── alerts.py                             ← AlertEngine (threshold checking + lifecycle)
 
-DATA-API SERVICE (services/data-api/src/) — API endpoints:
+DATA-API SERVICE (domains/core-platform/data-api/src/) — API endpoints:
 ├── evaluation_endpoints.py               ← NEW FastAPI router for /api/v1/evaluations/*
 │                                            (follows existing pattern: health_endpoints.py,
 │                                             metrics_endpoints.py, sports_endpoints.py)
 └── main.py                               ← register evaluation router (1 line)
 
-HEALTH-DASHBOARD (services/health-dashboard/src/components/) — React UI:
+HEALTH-DASHBOARD (domains/core-platform/health-dashboard/src/components/) — React UI:
 ├── evaluation/                           ← NEW subdirectory (62 components already exist
 │   │                                        in components/ — use subdirectory to organize)
 │   ├── AgentEvaluationTab.tsx            ← main tab container
@@ -87,7 +87,7 @@ HEALTH-DASHBOARD (services/health-dashboard/src/components/) — React UI:
 **So that** evaluation scores are always current without manual intervention
 
 **Acceptance Criteria:**
-- [ ] `EvaluationScheduler` class in `shared/patterns/evaluation/scheduler.py`
+- [ ] `EvaluationScheduler` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/scheduler.py`
 - [ ] Reads `priority_matrix` from each agent's `AgentEvalConfig` to determine frequency
 - [ ] Schedules: P0 metrics daily (L1 Goal Success, L2 Tool Selection, L3 Category/Date), P1 weekly (L3 All Params, L4 Correctness/Faithfulness), P2 monthly (L4 Helpfulness/Conciseness), P3 monthly (L5 Safety)
 - [ ] Each run: queries recent `SessionTrace` objects from storage, runs configured evaluators, stores results
@@ -99,7 +99,7 @@ HEALTH-DASHBOARD (services/health-dashboard/src/components/) — React UI:
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent-Specific Eval Configs (all agents instrumented)
-**Affected Services:** shared/patterns/evaluation, data-api (8006)
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation, data-api (8006)
 
 ---
 
@@ -110,7 +110,7 @@ HEALTH-DASHBOARD (services/health-dashboard/src/components/) — React UI:
 **So that** I can see whether agent quality is improving or degrading over time
 
 **Acceptance Criteria:**
-- [ ] `EvaluationStore` class in `shared/patterns/evaluation/store.py`
+- [ ] `EvaluationStore` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/store.py`
 - [ ] Time-series scores written to InfluxDB:
   - Measurement: `agent_evaluation`
   - Tags: `agent_name`, `evaluator_name`, `level` (L1-L5)
@@ -213,7 +213,7 @@ HEALTH-DASHBOARD (services/health-dashboard/src/components/) — React UI:
 **So that** I'm notified immediately when an agent's quality degrades and can investigate before users are impacted
 
 **Acceptance Criteria:**
-- [ ] `AlertEngine` class in `shared/patterns/evaluation/alerts.py`
+- [ ] `AlertEngine` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/alerts.py`
 - [ ] Checks scores against `thresholds` from `AgentEvalConfig` after each evaluation run
 - [ ] `Alert` model: `agent_name`, `evaluator_name`, `level`, `metric`, `threshold`, `actual_score`, `priority`, `timestamp`, `status` (active | acknowledged | resolved)
 - [ ] Alert lifecycle: created when threshold violated → active until score recovers or acknowledged
@@ -227,7 +227,7 @@ HEALTH-DASHBOARD (services/health-dashboard/src/components/) — React UI:
 
 **Story Points:** 5
 **Dependencies:** Story 2 (Score storage), Story 3 (API endpoints)
-**Affected Services:** shared/patterns/evaluation, health-dashboard (3000)
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation, health-dashboard (3000)
 
 ---
 
@@ -272,7 +272,7 @@ HEALTH-DASHBOARD (services/health-dashboard/src/components/) — React UI:
   - Troubleshooting: common issues (no sessions captured, LLM judge failures, stale data)
   - Threshold tuning: how to adjust thresholds based on operational experience
 - [ ] Updated `docs/deployment/DEPLOYMENT_RUNBOOK.md` with evaluation service references
-- [ ] Updated `shared/patterns/evaluation/README.md` with operational links
+- [ ] Updated `libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md` with operational links
 
 **Story Points:** 2
 **Dependencies:** Stories 1-7
@@ -307,25 +307,25 @@ Stories 1-7 ──────────> Story 8 (Documentation)
 
 | Artifact | Path | Shared? |
 |----------|------|---------|
-| **Shared Backend** | `shared/patterns/evaluation/` | 100% Shared |
-| Evaluation Scheduler | `shared/patterns/evaluation/scheduler.py` | 100% Shared |
-| Evaluation Store | `shared/patterns/evaluation/store.py` | 100% Shared |
-| Alert Engine | `shared/patterns/evaluation/alerts.py` | 100% Shared |
-| **Data API (1 new file + 1 line wiring)** | `services/data-api/src/` | Service-specific |
-| Evaluation Endpoints | `services/data-api/src/evaluation_endpoints.py` | data-api only |
-| Main.py router registration | `services/data-api/src/main.py` | 1 line added |
-| **Dashboard (5 new components)** | `services/health-dashboard/src/components/evaluation/` | health-dashboard only |
-| AgentEvaluationTab | `services/health-dashboard/src/components/evaluation/AgentEvaluationTab.tsx` | health-dashboard only |
-| SummaryMatrix | `services/health-dashboard/src/components/evaluation/SummaryMatrix.tsx` | health-dashboard only |
-| ScoreTrendChart | `services/health-dashboard/src/components/evaluation/ScoreTrendChart.tsx` | health-dashboard only |
-| SessionTraceViewer | `services/health-dashboard/src/components/evaluation/SessionTraceViewer.tsx` | health-dashboard only |
-| EvalAlertBanner | `services/health-dashboard/src/components/evaluation/EvalAlertBanner.tsx` | health-dashboard only |
+| **Shared Backend** | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/` | 100% Shared |
+| Evaluation Scheduler | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/scheduler.py` | 100% Shared |
+| Evaluation Store | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/store.py` | 100% Shared |
+| Alert Engine | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/alerts.py` | 100% Shared |
+| **Data API (1 new file + 1 line wiring)** | `domains/core-platform/data-api/src/` | Service-specific |
+| Evaluation Endpoints | `domains/core-platform/data-api/src/evaluation_endpoints.py` | data-api only |
+| Main.py router registration | `domains/core-platform/data-api/src/main.py` | 1 line added |
+| **Dashboard (5 new components)** | `domains/core-platform/health-dashboard/src/components/evaluation/` | health-dashboard only |
+| AgentEvaluationTab | `domains/core-platform/health-dashboard/src/components/evaluation/AgentEvaluationTab.tsx` | health-dashboard only |
+| SummaryMatrix | `domains/core-platform/health-dashboard/src/components/evaluation/SummaryMatrix.tsx` | health-dashboard only |
+| ScoreTrendChart | `domains/core-platform/health-dashboard/src/components/evaluation/ScoreTrendChart.tsx` | health-dashboard only |
+| SessionTraceViewer | `domains/core-platform/health-dashboard/src/components/evaluation/SessionTraceViewer.tsx` | health-dashboard only |
+| EvalAlertBanner | `domains/core-platform/health-dashboard/src/components/evaluation/EvalAlertBanner.tsx` | health-dashboard only |
 | **Documentation** | | |
 | Operational Runbook | `docs/operations/agent-evaluation-runbook.md` | Docs |
-| **Unit Tests** | `shared/patterns/tests/test_evaluation/` | 100% Shared |
-| Scheduler Tests | `shared/patterns/tests/test_evaluation/test_scheduler.py` | 100% Shared |
-| Store Tests | `shared/patterns/tests/test_evaluation/test_store.py` | 100% Shared |
-| Alert Tests | `shared/patterns/tests/test_evaluation/test_alerts.py` | 100% Shared |
+| **Unit Tests** | `libs/homeiq-patterns/tests/test_evaluation/` | 100% Shared |
+| Scheduler Tests | `libs/homeiq-patterns/tests/test_evaluation/test_scheduler.py` | 100% Shared |
+| Store Tests | `libs/homeiq-patterns/tests/test_evaluation/test_store.py` | 100% Shared |
+| Alert Tests | `libs/homeiq-patterns/tests/test_evaluation/test_alerts.py` | 100% Shared |
 
 ## References
 
@@ -333,5 +333,5 @@ Stories 1-7 ──────────> Story 8 (Documentation)
 - [Epic: Agent Evaluation Foundation](epic-agent-evaluation-foundation.md) (Phase 1 — framework)
 - [Epic: Built-in Evaluator Library](epic-builtin-evaluator-library.md) (Phase 2 — evaluators)
 - [Epic: Agent-Specific Evaluation Configs](epic-agent-specific-eval-configs.md) (Phase 3 — configs)
-- [Health Dashboard](../services/health-dashboard/) (existing dashboard to extend)
-- [Data API](../services/data-api/) (existing API to extend)
+- [Health Dashboard](../domains/core-platform/health-dashboard/) (existing dashboard to extend)
+- [Data API](../domains/core-platform/data-api/) (existing API to extend)

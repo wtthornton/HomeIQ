@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "homeiq-ha"
+version = "1.0.0"
+description = "HomeIQ Home Assistant integration: connection manager, automation lint engine"
+requires-python = ">=3.11"
+dependencies = [
+    "aiohttp>=3.9",
+    "websockets>=12.0",
+    "pyyaml>=6.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

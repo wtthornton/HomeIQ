@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, master ]
     paths:
-      - 'services/**'
+      - 'domains/**'
       - 'docker-compose.yml'
       - '.github/workflows/docker-deploy.yml'
     tags:
@@ -42,7 +42,7 @@ jobs:
           echo "::notice title=Build Time::Build completed in ${BUILD_MINUTES}m ${BUILD_SECONDS}s"
           echo "BUILD_DURATION=${BUILD_DURATION}" >> $GITHUB_ENV
           echo "::endgroup::"
-      
+
       - name: Build Performance Summary
         if: always()
         run: |
@@ -66,4 +66,3 @@ jobs:
         run: |
           echo "Deployment completed"
           # Add notification logic here (Slack, email, etc.)
-

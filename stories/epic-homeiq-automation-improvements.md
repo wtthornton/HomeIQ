@@ -262,6 +262,6 @@ Story 9 ──────────────> Story 10 (Sport-specific cor
 - [Phase 4 API Documentation](../implementation/PHASE4_AUTOMATION_API_DOCUMENTATION.md) – validation API, deploy response, RAG
 - [Team Tracker Reference Guide](../implementation/teamtracker_automation_reference_guide.md) – all leagues, all attributes
 - [Super Bowl Team Tracker Guide](../implementation/superbowl_teamtracker_lights_guide.md)
-- [HA AI Agent System Prompt](../services/ha-ai-agent-service/src/prompts/system_prompt.py)
-- [Automation Schema](../shared/yaml_validation_service/schema.py)
-- [HA Client](../services/ai-automation-service-new/src/clients/ha_client.py)
+- [HA AI Agent System Prompt](../domains/automation-core/ha-ai-agent-service/src/prompts/system_prompt.py)
+- [Automation Schema](../libs/homeiq-ha/src/homeiq_ha/yaml_validation_service/schema.py)
+- [HA Client](../domains/automation-core/ai-automation-service-new/src/clients/ha_client.py)

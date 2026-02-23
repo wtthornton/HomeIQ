@@ -325,7 +325,7 @@ ha_automation_lint/
 - **Extensible**: Easy to add new rules
 - **Stable**: Rule IDs never change after publication
 
-### Service Wrapper (`services/automation-linter/`)
+### Service Wrapper (`domains/automation-core/automation-linter/`)
 
 FastAPI service that wraps the shared module:
 
@@ -360,7 +360,7 @@ automation-linter/
 
 ```bash
 # Install dependencies
-cd services/automation-linter
+cd domains/automation-core/automation-linter
 pip install -r requirements.txt
 
 # Run service locally
@@ -461,8 +461,8 @@ automation-linter:
 **Volumes (Development):**
 ```yaml
 volumes:
-  - ./services/automation-linter/src:/app/src           # Live reload
-  - ./services/automation-linter/ui:/app/ui             # UI updates
+  - ./domains/automation-core/automation-linter/src:/app/src           # Live reload
+  - ./domains/automation-core/automation-linter/ui:/app/ui             # UI updates
   - ./shared/ha_automation_lint:/app/shared/ha_automation_lint  # Engine updates
 ```
 

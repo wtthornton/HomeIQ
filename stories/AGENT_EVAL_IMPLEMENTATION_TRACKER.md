@@ -180,78 +180,78 @@ Wk 1    Wk 2    Wk 4     Wk 7    Wk 9    Wk 10   Wk 11    Wk 12   Wk 12   Wk 13 
 
 | Artifact | Path | Shared? | Status |
 |----------|------|---------|--------|
-| Evaluation Package | `shared/patterns/evaluation/__init__.py` | 100% Shared | Complete |
-| SessionTrace Model | `shared/patterns/evaluation/models.py` | 100% Shared | Complete |
-| SessionTracer Middleware | `shared/patterns/evaluation/session_tracer.py` | 100% Shared | Complete |
-| BaseEvaluator + Level Classes | `shared/patterns/evaluation/base_evaluator.py` | 100% Shared | Complete |
-| LLM-as-Judge Engine | `shared/patterns/evaluation/llm_judge.py` | 100% Shared | Complete |
-| Scoring Engine | `shared/patterns/evaluation/scoring_engine.py` | 100% Shared | Complete |
-| Config Schema + Loader | `shared/patterns/evaluation/config.py` | 100% Shared | Complete |
-| Evaluation Registry | `shared/patterns/evaluation/registry.py` | 100% Shared | Complete |
-| Foundation Docs | `shared/patterns/evaluation/README.md` | 100% Shared | Complete |
-| Example Config | `shared/patterns/evaluation/configs/example_agent.yaml` | 100% Shared | Complete |
-| Foundation Tests | `shared/patterns/tests/test_evaluation/` | 100% Shared | Complete (394 tests) |
+| Evaluation Package | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/__init__.py` | 100% Shared | Complete |
+| SessionTrace Model | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/models.py` | 100% Shared | Complete |
+| SessionTracer Middleware | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/session_tracer.py` | 100% Shared | Complete |
+| BaseEvaluator + Level Classes | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/base_evaluator.py` | 100% Shared | Complete |
+| LLM-as-Judge Engine | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/llm_judge.py` | 100% Shared | Complete |
+| Scoring Engine | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/scoring_engine.py` | 100% Shared | Complete |
+| Config Schema + Loader | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/config.py` | 100% Shared | Complete |
+| Evaluation Registry | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/registry.py` | 100% Shared | Complete |
+| Foundation Docs | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md` | 100% Shared | Complete |
+| Example Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/example_agent.yaml` | 100% Shared | Complete |
+| Foundation Tests | `libs/homeiq-patterns/tests/test_evaluation/` | 100% Shared | Complete (394 tests) |
 
 ### Epic 2: Evaluators (100% shared code)
 
 | Artifact | Path | Shared? | Status |
 |----------|------|---------|--------|
-| L1 Outcome Evaluators | `shared/patterns/evaluation/evaluators/l1_outcome.py` | 100% Shared | Complete |
-| L2 Path Evaluators | `shared/patterns/evaluation/evaluators/l2_path.py` | 100% Shared | Complete |
-| L3 Details Evaluators | `shared/patterns/evaluation/evaluators/l3_details.py` | 100% Shared | Complete |
-| L4 Quality Evaluators | `shared/patterns/evaluation/evaluators/l4_quality.py` | 100% Shared | Complete (8/8) |
-| L5 Safety Evaluators | `shared/patterns/evaluation/evaluators/l5_safety.py` | 100% Shared | Complete |
-| Rubric: goal_success_rate | `shared/patterns/evaluation/rubrics/goal_success_rate.yaml` | 100% Shared | Complete |
-| Rubric: tool_selection_accuracy | `shared/patterns/evaluation/rubrics/tool_selection_accuracy.yaml` | 100% Shared | Complete |
-| Rubric: tool_parameter_accuracy | `shared/patterns/evaluation/rubrics/tool_parameter_accuracy.yaml` | 100% Shared | Complete |
-| Rubric: correctness | `shared/patterns/evaluation/rubrics/correctness.yaml` | 100% Shared | Complete |
-| Rubric: faithfulness | `shared/patterns/evaluation/rubrics/faithfulness.yaml` | 100% Shared | Complete |
-| Rubric: coherence | `shared/patterns/evaluation/rubrics/coherence.yaml` | 100% Shared | Complete |
-| Rubric: helpfulness | `shared/patterns/evaluation/rubrics/helpfulness.yaml` | 100% Shared | Complete |
-| Rubric: conciseness | `shared/patterns/evaluation/rubrics/conciseness.yaml` | 100% Shared | Complete |
-| Rubric: response_relevance | `shared/patterns/evaluation/rubrics/response_relevance.yaml` | 100% Shared | Complete |
-| Rubric: instruction_following | `shared/patterns/evaluation/rubrics/instruction_following.yaml` | 100% Shared | Complete |
-| Rubric: harmfulness | `shared/patterns/evaluation/rubrics/harmfulness.yaml` | 100% Shared | Complete |
-| Rubric: stereotyping | `shared/patterns/evaluation/rubrics/stereotyping.yaml` | 100% Shared | Complete |
-| Rubric: refusal | `shared/patterns/evaluation/rubrics/refusal.yaml` | 100% Shared | Complete |
-| Rubric Catalog Docs | `shared/patterns/evaluation/rubrics/README.md` | 100% Shared | Complete |
+| L1 Outcome Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l1_outcome.py` | 100% Shared | Complete |
+| L2 Path Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py` | 100% Shared | Complete |
+| L3 Details Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_details.py` | 100% Shared | Complete |
+| L4 Quality Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py` | 100% Shared | Complete (8/8) |
+| L5 Safety Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l5_safety.py` | 100% Shared | Complete |
+| Rubric: goal_success_rate | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/goal_success_rate.yaml` | 100% Shared | Complete |
+| Rubric: tool_selection_accuracy | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/tool_selection_accuracy.yaml` | 100% Shared | Complete |
+| Rubric: tool_parameter_accuracy | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/tool_parameter_accuracy.yaml` | 100% Shared | Complete |
+| Rubric: correctness | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/correctness.yaml` | 100% Shared | Complete |
+| Rubric: faithfulness | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/faithfulness.yaml` | 100% Shared | Complete |
+| Rubric: coherence | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/coherence.yaml` | 100% Shared | Complete |
+| Rubric: helpfulness | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/helpfulness.yaml` | 100% Shared | Complete |
+| Rubric: conciseness | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/conciseness.yaml` | 100% Shared | Complete |
+| Rubric: response_relevance | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/response_relevance.yaml` | 100% Shared | Complete |
+| Rubric: instruction_following | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/instruction_following.yaml` | 100% Shared | Complete |
+| Rubric: harmfulness | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/harmfulness.yaml` | 100% Shared | Complete |
+| Rubric: stereotyping | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/stereotyping.yaml` | 100% Shared | Complete |
+| Rubric: refusal | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/refusal.yaml` | 100% Shared | Complete |
+| Rubric Catalog Docs | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/README.md` | 100% Shared | Complete |
 
 ### Epic 3: Agent Configs (95% shared / 5% per-service wiring)
 
 | Artifact | Path | Shared? | Status |
 |----------|------|---------|--------|
-| HA AI Agent Config | `shared/patterns/evaluation/configs/ha_ai_agent.yaml` | 100% Shared | Complete |
-| Proactive Agent Config | `shared/patterns/evaluation/configs/proactive_agent.yaml` | 100% Shared | Complete |
-| AI Automation Config | `shared/patterns/evaluation/configs/ai_automation_service.yaml` | 100% Shared | Complete |
-| AI Core Config | `shared/patterns/evaluation/configs/ai_core_service.yaml` | 100% Shared | Complete |
-| Session Generator | `shared/patterns/evaluation/session_generator.py` | 100% Shared | Complete |
-| Evaluation Runner | `shared/patterns/evaluation/run_evaluation.py` | 100% Shared | Complete |
-| Baseline Report | `shared/patterns/evaluation/reports/baseline_*_2026-02-11.md` | 100% Shared | Complete (4 agents) |
-| HA AI Agent — SessionTracer wiring | `services/ha-ai-agent-service/src/api/chat_endpoints.py` | ~10 lines | Complete |
-| Proactive Agent — SessionTracer wiring | `services/proactive-agent-service/src/main.py` | ~2 lines | Not Started |
-| AI Automation — SessionTracer wiring | `services/ai-automation-service-new/src/main.py` | ~2 lines | Not Started |
-| AI Core — SessionTracer wiring | `services/ai-core-service/src/main.py` | ~2 lines | Not Started |
+| HA AI Agent Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ha_ai_agent.yaml` | 100% Shared | Complete |
+| Proactive Agent Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/proactive_agent.yaml` | 100% Shared | Complete |
+| AI Automation Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml` | 100% Shared | Complete |
+| AI Core Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_core_service.yaml` | 100% Shared | Complete |
+| Session Generator | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/session_generator.py` | 100% Shared | Complete |
+| Evaluation Runner | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/run_evaluation.py` | 100% Shared | Complete |
+| Baseline Report | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/reports/baseline_*_2026-02-11.md` | 100% Shared | Complete (4 agents) |
+| HA AI Agent — SessionTracer wiring | `domains/automation-core/ha-ai-agent-service/src/api/chat_endpoints.py` | ~10 lines | Complete |
+| Proactive Agent — SessionTracer wiring | `domains/energy-analytics/proactive-agent-service/src/main.py` | ~2 lines | Not Started |
+| AI Automation — SessionTracer wiring | `domains/automation-core/ai-automation-service-new/src/main.py` | ~2 lines | Not Started |
+| AI Core — SessionTracer wiring | `domains/ml-engine/ai-core-service/src/main.py` | ~2 lines | Not Started |
 
 ### Epic 4: Observability (3 locations — shared backend, data-api, health-dashboard)
 
 | Artifact | Path | Shared? | Status |
 |----------|------|---------|--------|
-| Evaluation Scheduler | `shared/patterns/evaluation/scheduler.py` | 100% Shared | Complete |
-| Evaluation Store | `shared/patterns/evaluation/store.py` | 100% Shared | Complete |
-| Alert Engine | `shared/patterns/evaluation/alerts.py` | 100% Shared | Complete |
-| Evaluation Endpoints | `services/data-api/src/evaluation_endpoints.py` | data-api only | Complete |
-| Main.py router registration | `services/data-api/src/main.py` | 1 line added | Complete |
-| AgentEvaluationTab | `services/health-dashboard/src/components/evaluation/AgentEvaluationTab.tsx` | dashboard only | Complete |
-| SummaryMatrix | `services/health-dashboard/src/components/evaluation/SummaryMatrix.tsx` | dashboard only | Complete |
-| ScoreTrendChart | `services/health-dashboard/src/components/evaluation/ScoreTrendChart.tsx` | dashboard only | Complete |
-| SessionTraceViewer | `services/health-dashboard/src/components/evaluation/SessionTraceViewer.tsx` | dashboard only | Complete |
-| EvalAlertBanner | `services/health-dashboard/src/components/evaluation/EvalAlertBanner.tsx` | dashboard only | Complete |
+| Evaluation Scheduler | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/scheduler.py` | 100% Shared | Complete |
+| Evaluation Store | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/store.py` | 100% Shared | Complete |
+| Alert Engine | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/alerts.py` | 100% Shared | Complete |
+| Evaluation Endpoints | `domains/core-platform/data-api/src/evaluation_endpoints.py` | data-api only | Complete |
+| Main.py router registration | `domains/core-platform/data-api/src/main.py` | 1 line added | Complete |
+| AgentEvaluationTab | `domains/core-platform/health-dashboard/src/components/evaluation/AgentEvaluationTab.tsx` | dashboard only | Complete |
+| SummaryMatrix | `domains/core-platform/health-dashboard/src/components/evaluation/SummaryMatrix.tsx` | dashboard only | Complete |
+| ScoreTrendChart | `domains/core-platform/health-dashboard/src/components/evaluation/ScoreTrendChart.tsx` | dashboard only | Complete |
+| SessionTraceViewer | `domains/core-platform/health-dashboard/src/components/evaluation/SessionTraceViewer.tsx` | dashboard only | Complete |
+| EvalAlertBanner | `domains/core-platform/health-dashboard/src/components/evaluation/EvalAlertBanner.tsx` | dashboard only | Complete |
 | Operational Runbook | `docs/operations/agent-evaluation-runbook.md` | Docs | Complete |
-| Endpoint Tests | `shared/patterns/tests/test_evaluation/test_evaluation_endpoints.py` | 100% Shared | Complete (21 tests) |
-| Baseline Runner Tests | `shared/patterns/tests/test_evaluation/test_run_evaluation.py` | 100% Shared | Complete (27 tests) |
-| Scheduler Tests | `shared/patterns/tests/test_evaluation/test_scheduler.py` | 100% Shared | Complete (26 tests) |
-| Store Tests | `shared/patterns/tests/test_evaluation/test_store.py` | 100% Shared | Complete (19 tests) |
-| Alert Tests | `shared/patterns/tests/test_evaluation/test_alerts.py` | 100% Shared | Complete (20 tests) |
+| Endpoint Tests | `libs/homeiq-patterns/tests/test_evaluation/test_evaluation_endpoints.py` | 100% Shared | Complete (21 tests) |
+| Baseline Runner Tests | `libs/homeiq-patterns/tests/test_evaluation/test_run_evaluation.py` | 100% Shared | Complete (27 tests) |
+| Scheduler Tests | `libs/homeiq-patterns/tests/test_evaluation/test_scheduler.py` | 100% Shared | Complete (26 tests) |
+| Store Tests | `libs/homeiq-patterns/tests/test_evaluation/test_store.py` | 100% Shared | Complete (19 tests) |
+| Alert Tests | `libs/homeiq-patterns/tests/test_evaluation/test_alerts.py` | 100% Shared | Complete (20 tests) |
 
 ---
 
@@ -278,4 +278,4 @@ Wk 1    Wk 2    Wk 4     Wk 7    Wk 9    Wk 10   Wk 11    Wk 12   Wk 12   Wk 13 
 - [Epic 3: Agent-Specific Eval Configs](epic-agent-specific-eval-configs.md)
 - [Epic 4: Eval Observability & Monitoring](epic-agent-eval-observability.md)
 - [Tango Evaluation Framework PDF](../docs/references/) (inspiration)
-- [Existing Pattern Framework](../shared/patterns/README.md) (Patterns A-C)
+- [Existing Pattern Framework](../libs/homeiq-patterns/README.md) (Patterns A-C)

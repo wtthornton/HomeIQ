@@ -113,7 +113,7 @@ Update critical libraries across 30+ Python services and 2 Node.js frontend serv
 **Estimated Effort:** 2 hours
 
 **Tasks:**
-- [ ] Scan all services/*/requirements.txt files
+- [ ] Scan all domains/*/*/requirements.txt files
 - [ ] Identify services extending requirements-base.txt
 - [ ] Document services with pinned SQLAlchemy/aiosqlite versions
 - [ ] Check for conflicting version constraints
@@ -522,16 +522,16 @@ curl -f http://localhost:8015/health
 **Update Process:**
 ```bash
 # Health Dashboard
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm install @vitejs/plugin-react@5.1.2 typescript-eslint@8.53.0
 npm install vitest@4.0.17 @playwright/test@1.58.1 happy-dom@20.5.0 msw@2.12.8
-cd ../..
+cd ../../..
 
 # AI Automation UI
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 npm install @vitejs/plugin-react@5.1.2 typescript-eslint@8.53.0
 npm install vitest@4.0.17 @playwright/test@1.58.1 happy-dom@20.5.0 msw@2.12.8
-cd ../..
+cd ../../..
 
 # Rebuild Docker images
 docker-compose build --no-cache health-dashboard ai-automation-ui

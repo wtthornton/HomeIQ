@@ -36,7 +36,7 @@ Implement comprehensive test suite for the AI Automation UI (Port 3001) using mo
 ## File Structure
 
 ```
-services/ai-automation-ui/
+domains/frontends/ai-automation-ui/
 ├── vitest.config.ts (new)
 ├── src/
 │   ├── test/

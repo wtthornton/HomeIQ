@@ -221,4 +221,4 @@ The same **generic patterns** apply to any league/team; only entity IDs, colors,
 - [ha-teamtracker README](https://github.com/vasqued2/ha-teamtracker) – sensor states and attributes
 - [Home Assistant automation trigger docs](https://www.home-assistant.io/docs/automation/trigger/) – state, attribute, template
 - Super Bowl guide: `implementation/superbowl_teamtracker_lights_guide.md`
-- RAG excerpts: `services/ha-ai-agent-service/src/data/superbowl_guide_excerpts.md`
+- RAG excerpts: `domains/automation-core/ha-ai-agent-service/src/data/superbowl_guide_excerpts.md`

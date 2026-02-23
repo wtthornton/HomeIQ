@@ -1,0 +1,71 @@
+# Multi-stage Docker build for AI Query Service
+# Epic 39, Story 39.9: Query Service Foundation
+
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip==25.2
+
+# Copy requirements from service directory
+COPY domains/automation-core/ai-query-service/requirements.txt .
+
+# Install Python dependencies with cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt
+
+# Install shared libs from libs/
+COPY libs/ /tmp/libs/
+RUN pip install --no-cache-dir --user \
+    /tmp/libs/homeiq-patterns/ \
+    /tmp/libs/homeiq-resilience/ \
+    /tmp/libs/homeiq-observability/ \
+    /tmp/libs/homeiq-data/ \
+    /tmp/libs/homeiq-ha/
+
+# ============================================================================
+# Final stage
+# ============================================================================
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install runtime dependencies and create non-root user
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 1001 appgroup && \
+    useradd -r -u 1001 -g appgroup appuser
+
+# Copy Python packages from builder to user directory
+COPY --from=builder /root/.local /home/appuser/.local
+
+# Make sure scripts in .local are usable
+ENV PATH=/home/appuser/.local/bin:$PATH
+ENV PYTHONPATH=/app:/app/src
+
+# Copy service code
+COPY domains/automation-core/ai-query-service/src ./src
+
+# Create data directory for database and set ownership
+RUN mkdir -p /app/data /app/models && \
+    chown -R appuser:appgroup /app /home/appuser/.local
+
+# Switch to non-root user
+USER appuser
+
+# Set working directory
+WORKDIR /app
+
+# Expose port
+EXPOSE 8018
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8018/health || exit 1
+
+# Run service
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8018"]
+

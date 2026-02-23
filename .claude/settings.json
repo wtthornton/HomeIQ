@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(egrep:*)",
-      "mcp__tapps-mcp__*"
+      "mcp__tapps-mcp__*",
+      "mcp__tapps-mcp"
     ]
   },
   "hooks": {

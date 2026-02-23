@@ -115,10 +115,10 @@ curl http://localhost:8002/health  # blueprint-index
 
 ```bash
 # Run tests for each migrated service
-cd services/automation-miner && pytest tests/ -v
-cd services/blueprint-index && pytest tests/ -v
-cd services/ha-setup-service && pytest tests/ -v
-cd services/ha-simulator && pytest tests/ -v
+cd domains/blueprints/automation-miner && pytest tests/ -v
+cd domains/blueprints/blueprint-index && pytest tests/ -v
+cd domains/device-management/ha-setup-service && pytest tests/ -v
+cd domains/core-platform/ha-simulator && pytest tests/ -v
 ```
 
 **Success Criteria for Phase A:**

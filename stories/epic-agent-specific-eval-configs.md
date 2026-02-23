@@ -32,7 +32,7 @@ This mirrors how Tango created 6 custom evaluators (`NoMarkdownHeadings`, `Confi
 This epic is the **only one that touches service-specific code** — but the per-service changes are minimal (~2-10 lines per service). The breakdown:
 
 ```
-SHARED (still in shared/patterns/evaluation/) — ~95% of work:
+SHARED (still in libs/homeiq-patterns/src/homeiq_patterns/evaluation/) — ~95% of work:
 ├── configs/                              ← YAML config files (per-agent but in shared dir)
 │   ├── ha_ai_agent.yaml                  ← HA AI Agent tools, paths, rules, thresholds
 │   ├── proactive_agent.yaml              ← Proactive Agent config
@@ -42,11 +42,11 @@ SHARED (still in shared/patterns/evaluation/) — ~95% of work:
 └── reports/                              ← generated baseline reports
 
 SERVICE-SPECIFIC (minimal wiring — ~5% of work):
-├── services/ha-ai-agent-service/src/main.py            ← add @trace_session decorator (2 lines)
-├── services/ha-ai-agent-service/src/services/           ← add tool call callback hook (~8 lines)
-├── services/proactive-agent-service/src/main.py         ← add @trace_session decorator (2 lines)
-├── services/ai-automation-service-new/src/main.py       ← add @trace_session decorator (2 lines)
-└── services/ai-core-service/src/main.py                 ← add @trace_session decorator (2 lines)
+├── domains/automation-core/ha-ai-agent-service/src/main.py            ← add @trace_session decorator (2 lines)
+├── domains/automation-core/ha-ai-agent-service/src/services/           ← add tool call callback hook (~8 lines)
+├── domains/energy-analytics/proactive-agent-service/src/main.py         ← add @trace_session decorator (2 lines)
+├── domains/automation-core/ai-automation-service-new/src/main.py       ← add @trace_session decorator (2 lines)
+└── domains/ml-engine/ai-core-service/src/main.py                 ← add @trace_session decorator (2 lines)
 ```
 
 **Key distinction:** The YAML configs define agent-specific *data* (tool names, path sequences, rules) but live in the shared directory because the `ConfigLoader` and `EvaluationRegistry` need to find them. The configs contain **zero Python code** — they are purely declarative. Custom system prompt rules like `PreviewBeforeExecute` are YAML entries that instantiate the generic `SystemPromptRuleEvaluator` from Epic 2.
@@ -85,7 +85,7 @@ def execute_tool(tool_name, params):
 
 ## Success Criteria
 
-- [ ] 4 YAML config files — one per agent — in `shared/patterns/evaluation/configs/`
+- [ ] 4 YAML config files — one per agent — in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/`
 - [ ] HA AI Agent config covers: 3 tools, 1 critical path, 5+ system prompt rules, entity resolution parameter rules
 - [ ] Proactive Agent config covers: pipeline stages, context accuracy rules, suggestion quality rules
 - [ ] AI Automation Service config covers: validation/deploy paths, YAML schema rules, safety validation rules
@@ -105,7 +105,7 @@ def execute_tool(tool_name, params):
 **So that** I can automatically detect when the agent skips the preview step or executes without user approval
 
 **Acceptance Criteria:**
-- [ ] Config file: `shared/patterns/evaluation/configs/ha_ai_agent.yaml`
+- [ ] Config file: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ha_ai_agent.yaml`
 - [ ] Tool definitions:
   - `preview_automation_from_prompt` — params: `prompt`, `entity_context`, `conversation_id`
   - `create_automation_from_prompt` — params: `automation_yaml`, `conversation_id`, `approved`
@@ -142,7 +142,7 @@ def execute_tool(tool_name, params):
 
 **Story Points:** 5
 **Dependencies:** Epic: Built-in Evaluator Library (Story 8 — SystemPromptRuleEvaluator base)
-**Affected Services:** None — rules are YAML config entries in `shared/patterns/evaluation/configs/ha_ai_agent.yaml`, not service code. The `SystemPromptRuleEvaluator` base class from Epic 2 instantiates them at runtime.
+**Affected Services:** None — rules are YAML config entries in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ha_ai_agent.yaml`, not service code. The `SystemPromptRuleEvaluator` base class from Epic 2 instantiates them at runtime.
 
 ---
 
@@ -204,7 +204,7 @@ def execute_tool(tool_name, params):
 **So that** I can detect when the agent generates irrelevant suggestions or misinterprets context data
 
 **Acceptance Criteria:**
-- [ ] Config file: `shared/patterns/evaluation/configs/proactive_agent.yaml`
+- [ ] Config file: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/proactive_agent.yaml`
 - [ ] Tool/stage definitions:
   - `fetch_context` — params: `context_types: list[str]` (weather, sports, energy, historical)
   - `analyze_context` — params: `context_data`, `analysis_type`
@@ -235,7 +235,7 @@ def execute_tool(tool_name, params):
 **So that** I can detect when the service deploys invalid YAML, skips validation, or misses post-deploy verification
 
 **Acceptance Criteria:**
-- [ ] Config file: `shared/patterns/evaluation/configs/ai_automation_service.yaml`
+- [ ] Config file: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml`
 - [ ] Tool definitions:
   - `validate_yaml` — params: `content`, `normalize`, `validate_entities`, `validate_services`
   - `deploy_automation` — params: `automation_id`, `yaml_content`, `target_ha_instance`
@@ -268,7 +268,7 @@ def execute_tool(tool_name, params):
 **So that** I can detect when the service routes requests to the wrong ML backend or fails to activate circuit breakers on degradation
 
 **Acceptance Criteria:**
-- [ ] Config file: `shared/patterns/evaluation/configs/ai_core_service.yaml`
+- [ ] Config file: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_core_service.yaml`
 - [ ] Tool definitions:
   - `route_request` — params: `analysis_type`, `input_data`, `priority`
   - `call_openvino` — params: `model_name`, `input_tensor`
@@ -299,14 +299,14 @@ def execute_tool(tool_name, params):
 **So that** I have initial scores to set realistic thresholds and identify the lowest-scoring areas to improve first
 
 **Acceptance Criteria:**
-- [ ] Evaluation runner script: `shared/patterns/evaluation/run_evaluation.py`
+- [ ] Evaluation runner script: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/run_evaluation.py`
 - [ ] Accepts: agent name, session trace source (SQLite DB path or JSON file), output format (markdown, JSON)
 - [ ] Runs all configured evaluators for the specified agent
 - [ ] Produces `BatchReport` with Summary Matrix per agent
 - [ ] Baseline report generated for each agent with at least 5 sessions each
 - [ ] Report includes: per-evaluator scores, aggregate scores, alerts triggered, session-level details
 - [ ] Identifies top 3 lowest-scoring evaluators per agent as improvement priorities
-- [ ] Results stored in `shared/patterns/evaluation/reports/baseline_YYYY-MM-DD.md`
+- [ ] Results stored in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/reports/baseline_YYYY-MM-DD.md`
 - [ ] Thresholds adjusted based on baseline results (update YAML configs)
 
 **Story Points:** 5
@@ -342,24 +342,24 @@ Stories 1-7 ──────────────────────> 
 
 | Artifact | Path | Shared? |
 |----------|------|---------|
-| **Agent Configs (YAML — no code)** | `shared/patterns/evaluation/configs/` | Shared (config) |
-| HA AI Agent Config | `shared/patterns/evaluation/configs/ha_ai_agent.yaml` | Shared (config) |
-| Proactive Agent Config | `shared/patterns/evaluation/configs/proactive_agent.yaml` | Shared (config) |
-| AI Automation Service Config | `shared/patterns/evaluation/configs/ai_automation_service.yaml` | Shared (config) |
-| AI Core Service Config | `shared/patterns/evaluation/configs/ai_core_service.yaml` | Shared (config) |
-| **Evaluation Runner** | `shared/patterns/evaluation/run_evaluation.py` | 100% Shared |
-| **Baseline Reports** | `shared/patterns/evaluation/reports/` | Generated output |
+| **Agent Configs (YAML — no code)** | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/` | Shared (config) |
+| HA AI Agent Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ha_ai_agent.yaml` | Shared (config) |
+| Proactive Agent Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/proactive_agent.yaml` | Shared (config) |
+| AI Automation Service Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml` | Shared (config) |
+| AI Core Service Config | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_core_service.yaml` | Shared (config) |
+| **Evaluation Runner** | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/run_evaluation.py` | 100% Shared |
+| **Baseline Reports** | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/reports/` | Generated output |
 | **Service Wiring (minimal)** | | |
-| HA AI Agent Tracer | `services/ha-ai-agent-service/src/main.py` | ~2 lines added |
-| HA AI Agent Tool Hooks | `services/ha-ai-agent-service/src/services/tool_service.py` | ~8 lines added |
-| Proactive Agent Tracer | `services/proactive-agent-service/src/main.py` | ~2 lines added |
-| AI Automation Tracer | `services/ai-automation-service-new/src/main.py` | ~2 lines added |
-| AI Core Tracer | `services/ai-core-service/src/main.py` | ~2 lines added |
-| **Unit Tests** | `shared/patterns/tests/test_evaluation/` | 100% Shared |
-| HA AI Agent Tests | `shared/patterns/tests/test_evaluation/test_ha_ai_agent_config.py` | 100% Shared |
-| Proactive Agent Tests | `shared/patterns/tests/test_evaluation/test_proactive_agent_config.py` | 100% Shared |
-| AI Automation Tests | `shared/patterns/tests/test_evaluation/test_ai_automation_config.py` | 100% Shared |
-| AI Core Tests | `shared/patterns/tests/test_evaluation/test_ai_core_config.py` | 100% Shared |
+| HA AI Agent Tracer | `domains/automation-core/ha-ai-agent-service/src/main.py` | ~2 lines added |
+| HA AI Agent Tool Hooks | `domains/automation-core/ha-ai-agent-service/src/services/tool_service.py` | ~8 lines added |
+| Proactive Agent Tracer | `domains/energy-analytics/proactive-agent-service/src/main.py` | ~2 lines added |
+| AI Automation Tracer | `domains/automation-core/ai-automation-service-new/src/main.py` | ~2 lines added |
+| AI Core Tracer | `domains/ml-engine/ai-core-service/src/main.py` | ~2 lines added |
+| **Unit Tests** | `libs/homeiq-patterns/tests/test_evaluation/` | 100% Shared |
+| HA AI Agent Tests | `libs/homeiq-patterns/tests/test_evaluation/test_ha_ai_agent_config.py` | 100% Shared |
+| Proactive Agent Tests | `libs/homeiq-patterns/tests/test_evaluation/test_proactive_agent_config.py` | 100% Shared |
+| AI Automation Tests | `libs/homeiq-patterns/tests/test_evaluation/test_ai_automation_config.py` | 100% Shared |
+| AI Core Tests | `libs/homeiq-patterns/tests/test_evaluation/test_ai_core_config.py` | 100% Shared |
 
 ## References
 
@@ -367,4 +367,4 @@ Stories 1-7 ──────────────────────> 
 - [Epic: Agent Evaluation Foundation](epic-agent-evaluation-foundation.md) (prerequisite — framework)
 - [Epic: Built-in Evaluator Library](epic-builtin-evaluator-library.md) (prerequisite — evaluators)
 - [Epic: Agent Evaluation Observability](epic-agent-eval-observability.md) (next — dashboards)
-- [HA AI Agent System Prompt](../services/ha-ai-agent-service/src/prompts/system_prompt.py) (rules source)
+- [HA AI Agent System Prompt](../domains/automation-core/ha-ai-agent-service/src/prompts/system_prompt.py) (rules source)

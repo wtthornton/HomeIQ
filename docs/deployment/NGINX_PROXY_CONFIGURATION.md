@@ -264,7 +264,7 @@ grep -E "container_name:|ports:" docker-compose.yml | grep -A 1 "service-name"
 - [Nginx proxy_pass Documentation](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass)
 - [Docker Networking](https://docs.docker.com/network/)
 - [Deployment Runbook](./DEPLOYMENT_RUNBOOK.md#nginx-proxy-issues-dashboard)
-- [Health Dashboard README](../services/health-dashboard/README.md#nginx-configuration)
+- [Health Dashboard README](../domains/core-platform/health-dashboard/README.md#nginx-configuration)
 
 ---
 

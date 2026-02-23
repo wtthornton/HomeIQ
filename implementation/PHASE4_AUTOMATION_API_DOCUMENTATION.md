@@ -74,7 +74,7 @@ The UI (ConversationalDashboard, Deployed success toast) displays state, last tr
 ## 3. Automation RAG Service
 
 **Service:** ha-ai-agent-service  
-**File:** `services/ha-ai-agent-service/src/services/automation_rag_service.py`
+**File:** `domains/automation-core/ha-ai-agent-service/src/services/automation_rag_service.py`
 
 The RAG corpus includes:
 
@@ -92,7 +92,7 @@ When prompts mention sports/Team Tracker (e.g. “Super Bowl lights when Seahawk
 
 ## References
 
-- Unified validate router: `services/ai-automation-service-new/src/api/automation_yaml_validate_router.py`
-- Deployment service: `services/ai-automation-service-new/src/services/deployment_service.py`
-- HA client (post-deploy state): `services/ai-automation-service-new/src/clients/ha_client.py`
+- Unified validate router: `domains/automation-core/ai-automation-service-new/src/api/automation_yaml_validate_router.py`
+- Deployment service: `domains/automation-core/ai-automation-service-new/src/services/deployment_service.py`
+- HA client (post-deploy state): `domains/automation-core/ai-automation-service-new/src/clients/ha_client.py`
 - Next steps plan: [implementation/AUTOMATION_IMPROVEMENTS_NEXT_STEPS_PLAN.md](AUTOMATION_IMPROVEMENTS_NEXT_STEPS_PLAN.md)

@@ -2000,9 +2000,9 @@ curl http://ha-ai-agent-service:8030/api/v1/complete-prompt
 
 ### Related Documentation
 
-- Service README: `services/ha-ai-agent-service/README.md`
-- API Documentation: `services/ha-ai-agent-service/docs/API_DOCUMENTATION.md`
-- System Prompt: `services/ha-ai-agent-service/docs/SYSTEM_PROMPT.md`
+- Service README: `domains/automation-core/ha-ai-agent-service/README.md`
+- API Documentation: `domains/automation-core/ha-ai-agent-service/docs/API_DOCUMENTATION.md`
+- System Prompt: `domains/automation-core/ha-ai-agent-service/docs/SYSTEM_PROMPT.md`
 
 ---
 
@@ -2065,7 +2065,7 @@ Get device relationships (e.g., segments to master, groups to members).
 
 Get enriched context for a device.
 
-**See:** `services/device-intelligence-service/README.md` for complete API documentation
+**See:** `domains/ml-engine/device-intelligence-service/README.md` for complete API documentation
 - Epic AI-19: `docs/prd/epic-ai19-ha-ai-agent-tier1-context-injection.md`
 
 ---
@@ -2433,7 +2433,7 @@ List synergies with blueprint enrichment.
 - `blueprint_fit_score`: Fit score (0.0-1.0)
 - `has_blueprint_match`: Boolean indicating if a blueprint matches
 
-**See:** `services/ai-pattern-service/README.md` for complete API documentation
+**See:** `domains/pattern-analysis/ai-pattern-service/README.md` for complete API documentation
 
 ---
 

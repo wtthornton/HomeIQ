@@ -16,7 +16,7 @@ The TAPPS MCP server works in Cursor IDE but is **completely invisible** to Clau
 
 ### Session Details
 - **Client:** Claude Code (VS Code extension mode, Claude Opus 4.6)
-- **Task:** Implement 5-story epic (`epic-deploy-pipeline-root-cause-fixes.md`) across `services/ai-automation-service-new/`
+- **Task:** Implement 5-story epic (`epic-deploy-pipeline-root-cause-fixes.md`) across `domains/automation-core/ai-automation-service-new/`
 - **Files modified:** ~15 Python files + 9 JSON template files
 - **TAPPS calls made:** 0
 

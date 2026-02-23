@@ -32,12 +32,12 @@
 
 | Service | Config File | Line |
 |---------|-------------|------|
-| ha-ai-agent-service | `services/ha-ai-agent-service/src/config.py` | ~81 |
-| ai-automation-service-new | `services/ai-automation-service-new/src/config.py` | ~26–28 |
-| ai-query-service | `services/ai-query-service/src/config.py` | ~28 |
-| proactive-agent-service | `services/proactive-agent-service/src/config.py` | ~59 |
-| device-intelligence-service | `services/device-intelligence-service/src/services/name_enhancement/ai_suggester.py` | ~36 |
-| Evaluation | `shared/patterns/evaluation/llm_judge.py` | ~92 |
+| ha-ai-agent-service | `domains/automation-core/ha-ai-agent-service/src/config.py` | ~81 |
+| ai-automation-service-new | `domains/automation-core/ai-automation-service-new/src/config.py` | ~26–28 |
+| ai-query-service | `domains/automation-core/ai-query-service/src/config.py` | ~28 |
+| proactive-agent-service | `domains/energy-analytics/proactive-agent-service/src/config.py` | ~59 |
+| device-intelligence-service | `domains/ml-engine/device-intelligence-service/src/services/name_enhancement/ai_suggester.py` | ~36 |
+| Evaluation | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/llm_judge.py` | ~92 |
 
 ### Docker-compose defaults (runtime authority)
 
@@ -62,7 +62,7 @@ OPENAI_YAML_MODEL=${OPENAI_YAML_MODEL:-gpt-5.2-codex}  # ai-automation-service-n
 All 3 run 100% local on CPU. ~485 MB combined (INT8 optimized).
 INT8 variant: `OpenVINO/bge-reranker-base-int8-ov` (~280 MB).
 
-**Config:** `services/openvino-service/src/models/openvino_manager.py`
+**Config:** `domains/ml-engine/openvino-service/src/models/openvino_manager.py`
 
 ---
 
@@ -89,10 +89,10 @@ INT8 variant: `OpenVINO/bge-reranker-base-int8-ov` (~280 MB).
 
 | Service | Config | Key Settings |
 |---------|--------|-------------|
-| energy-forecasting | `services/energy-forecasting/src/models/energy_forecaster.py` | `model_type` param; input_chunk=168, output_chunk=48 |
-| device-intelligence | `services/device-intelligence-service/src/config.py` | `ML_FAILURE_MODEL` (randomforest/lightgbm/tabpfn), `ML_TRAINING_SCHEDULE=0 2 * * *` |
-| rule-recommendation-ml | `services/rule-recommendation-ml/src/models/rule_recommender.py` | 64 factors, 50 iterations, regularization=0.01 |
-| activity-recognition | `services/activity-recognition/src/models/activity_classifier.py` | 5 input features, 64 hidden, 2 LSTM layers, dropout=0.2, ONNX opset 14 |
+| energy-forecasting | `domains/energy-analytics/energy-forecasting/src/models/energy_forecaster.py` | `model_type` param; input_chunk=168, output_chunk=48 |
+| device-intelligence | `domains/ml-engine/device-intelligence-service/src/config.py` | `ML_FAILURE_MODEL` (randomforest/lightgbm/tabpfn), `ML_TRAINING_SCHEDULE=0 2 * * *` |
+| rule-recommendation-ml | `domains/blueprints/rule-recommendation-ml/src/models/rule_recommender.py` | 64 factors, 50 iterations, regularization=0.01 |
+| activity-recognition | `domains/device-management/activity-recognition/src/models/activity_classifier.py` | 5 input features, 64 hidden, 2 LSTM layers, dropout=0.2, ONNX opset 14 |
 
 ---
 
@@ -112,7 +112,7 @@ INT8 variant: `OpenVINO/bge-reranker-base-int8-ov` (~280 MB).
 | gpt-4o | `gpt-4o-2024-08-06` | High-quality fine-tuning |
 | gpt-3.5-turbo | `gpt-3.5-turbo-0125` | Legacy option |
 
-Also supports local PEFT via `services/nlp-fine-tuning/src/training/fine_tune_peft.py`.
+Also supports local PEFT via `domains/ml-engine/nlp-fine-tuning/src/training/fine_tune_peft.py`.
 
 ---
 
@@ -120,16 +120,16 @@ Also supports local PEFT via `services/nlp-fine-tuning/src/training/fine_tune_pe
 
 | Library | Previous | Updated To | Status | Files Changed |
 |---------|----------|-----------|--------|---------------|
-| `openai` (ha-ai-agent) | `>=1.54.0,<2.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `services/ha-ai-agent-service/requirements.txt` |
-| `openai` (ai-automation) | `>=1.54.0,<2.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `services/ai-automation-service-new/requirements.txt` |
-| `openai` (ai-query) | `>=1.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `services/ai-query-service/requirements.txt` |
-| `openai` (proactive-agent) | `>=1.54.0,<2.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `services/proactive-agent-service/requirements.txt` |
-| `openai` (nlp-fine-tuning) | `>=1.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `services/nlp-fine-tuning/requirements.txt` |
-| `darts` (energy-forecasting) | `>=0.30.0` | **`>=0.40.0,<0.41.0`** | DONE | `services/energy-forecasting/requirements.txt` |
-| `onnxruntime` (activity-rec) | `>=1.19.0` | **`>=1.20.0,<2.0.0`** | DONE | `services/activity-recognition/requirements.txt` |
-| `onnxruntime` (rule-rec-ml) | `>=1.19.0` | **`>=1.20.0,<2.0.0`** | DONE | `services/rule-recommendation-ml/requirements.txt` |
-| `scikit-learn` (rule-rec-ml) | `>=1.4.0` | **`>=1.5.0,<1.6.0`** | DONE | `services/rule-recommendation-ml/requirements.txt` |
-| `torch` (openvino-service) | `>=2.4.0,<3.0.0` | **`>=2.5.0,<3.0.0`** | DONE | `services/openvino-service/requirements.txt` |
+| `openai` (ha-ai-agent) | `>=1.54.0,<2.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `domains/automation-core/ha-ai-agent-service/requirements.txt` |
+| `openai` (ai-automation) | `>=1.54.0,<2.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `domains/automation-core/ai-automation-service-new/requirements.txt` |
+| `openai` (ai-query) | `>=1.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `domains/automation-core/ai-query-service/requirements.txt` |
+| `openai` (proactive-agent) | `>=1.54.0,<2.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `domains/energy-analytics/proactive-agent-service/requirements.txt` |
+| `openai` (nlp-fine-tuning) | `>=1.0.0` | **`>=2.21.0,<3.0.0`** | DONE | `domains/ml-engine/nlp-fine-tuning/requirements.txt` |
+| `darts` (energy-forecasting) | `>=0.30.0` | **`>=0.40.0,<0.41.0`** | DONE | `domains/energy-analytics/energy-forecasting/requirements.txt` |
+| `onnxruntime` (activity-rec) | `>=1.19.0` | **`>=1.20.0,<2.0.0`** | DONE | `domains/device-management/activity-recognition/requirements.txt` |
+| `onnxruntime` (rule-rec-ml) | `>=1.19.0` | **`>=1.20.0,<2.0.0`** | DONE | `domains/blueprints/rule-recommendation-ml/requirements.txt` |
+| `scikit-learn` (rule-rec-ml) | `>=1.4.0` | **`>=1.5.0,<1.6.0`** | DONE | `domains/blueprints/rule-recommendation-ml/requirements.txt` |
+| `torch` (openvino-service) | `>=2.4.0,<3.0.0` | **`>=2.5.0,<3.0.0`** | DONE | `domains/ml-engine/openvino-service/requirements.txt` |
 | `anthropic` (eval datasets) | `==0.79.0` | `>=0.39.x` | TODO | `services/tests/datasets/home-assistant-datasets/requirements_dev.txt` |
 | `sentence-transformers` (openvino) | `==3.3.1` | Keep 3.3.x or plan 5.x | DEFERRED | Needs regression testing before upgrade |
 | `transformers` (openvino) | `==4.46.1` | Keep 4.46.x | DEFERRED | Stable; 5.x available but breaking |
@@ -189,11 +189,11 @@ Also supports local PEFT via `services/nlp-fine-tuning/src/training/fine_tune_pe
 | # | Change | Files Modified |
 |---|--------|---------------|
 | 1 | OpenAI SDK `1.x → 2.21.0+` | 5 requirements.txt (ha-ai-agent, ai-automation, ai-query, proactive-agent, nlp-fine-tuning) |
-| 2 | ha-ai-agent model `gpt-4.1 → gpt-5.2-codex` | `services/ha-ai-agent-service/src/config.py`, `docker-compose.yml` |
-| 3 | Darts `0.30 → 0.40` | `services/energy-forecasting/requirements.txt` |
-| 4 | onnxruntime `1.19 → 1.20` | `services/activity-recognition/requirements.txt`, `services/rule-recommendation-ml/requirements.txt` |
-| 5 | scikit-learn `1.4 → 1.5` | `services/rule-recommendation-ml/requirements.txt` |
-| 6 | torch `2.4 → 2.5` | `services/openvino-service/requirements.txt` |
+| 2 | ha-ai-agent model `gpt-4.1 → gpt-5.2-codex` | `domains/automation-core/ha-ai-agent-service/src/config.py`, `docker-compose.yml` |
+| 3 | Darts `0.30 → 0.40` | `domains/energy-analytics/energy-forecasting/requirements.txt` |
+| 4 | onnxruntime `1.19 → 1.20` | `domains/device-management/activity-recognition/requirements.txt`, `domains/blueprints/rule-recommendation-ml/requirements.txt` |
+| 5 | scikit-learn `1.4 → 1.5` | `domains/blueprints/rule-recommendation-ml/requirements.txt` |
+| 6 | torch `2.4 → 2.5` | `domains/ml-engine/openvino-service/requirements.txt` |
 
 **3 items deferred:**
 - `anthropic` SDK upgrade (eval datasets) — TODO
@@ -210,5 +210,5 @@ Also supports local PEFT via `services/nlp-fine-tuning/src/training/fine_tune_pe
 ## References
 
 - Model selection rationale: `implementation/OPENAI_MODEL_RESEARCH_2026.md`
-- Reusable pattern framework: `shared/patterns/README.md`
+- Reusable pattern framework: `libs/homeiq-patterns/README.md`
 - Service architecture: `services/SERVICES_RANKED_BY_IMPORTANCE.md`

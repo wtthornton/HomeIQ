@@ -342,8 +342,8 @@ tenacity Migration Summary: api-automation-edge
 Changes (1):
   [OK] requirements.txt: Updated tenacity to 9.1.2
 
-Backup: services/api-automation-edge/.migration_backup_tenacity_20260205_122030
-Rollback Script: services/api-automation-edge/rollback_tenacity_20260205_122030.sh
+Backup: domains/pattern-analysis/api-automation-edge/.migration_backup_tenacity_20260205_122030
+Rollback Script: domains/pattern-analysis/api-automation-edge/rollback_tenacity_20260205_122030.sh
 
 Running tests...
 [OK] All tests passed (28 tests, 1.8s)

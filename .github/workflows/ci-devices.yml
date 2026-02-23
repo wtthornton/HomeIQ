@@ -1,32 +1,32 @@
-name: "CI \u2014 Device Management"
+name: "CI — Device Management"
 
 on:
   push:
     paths:
-      - 'services/device-health-monitor/**'
-      - 'services/device-context-classifier/**'
-      - 'services/device-setup-assistant/**'
-      - 'services/device-database-client/**'
-      - 'services/device-recommender/**'
-      - 'services/activity-recognition/**'
-      - 'services/activity-writer/**'
-      - 'services/ha-setup-service/**'
-      - 'compose/devices.yml'
-      - 'shared/patterns/**'
+      - 'domains/device-management/device-health-monitor/**'
+      - 'domains/device-management/device-context-classifier/**'
+      - 'domains/device-management/device-setup-assistant/**'
+      - 'domains/device-management/device-database-client/**'
+      - 'domains/device-management/device-recommender/**'
+      - 'domains/device-management/activity-recognition/**'
+      - 'domains/device-management/activity-writer/**'
+      - 'domains/device-management/ha-setup-service/**'
+      - 'domains/device-management/compose.yml'
+      - 'libs/**'
       - '.github/workflows/ci-devices.yml'
       - '.github/workflows/reusable-group-ci.yml'
   pull_request:
     paths:
-      - 'services/device-health-monitor/**'
-      - 'services/device-context-classifier/**'
-      - 'services/device-setup-assistant/**'
-      - 'services/device-database-client/**'
-      - 'services/device-recommender/**'
-      - 'services/activity-recognition/**'
-      - 'services/activity-writer/**'
-      - 'services/ha-setup-service/**'
-      - 'compose/devices.yml'
-      - 'shared/patterns/**'
+      - 'domains/device-management/device-health-monitor/**'
+      - 'domains/device-management/device-context-classifier/**'
+      - 'domains/device-management/device-setup-assistant/**'
+      - 'domains/device-management/device-database-client/**'
+      - 'domains/device-management/device-recommender/**'
+      - 'domains/device-management/activity-recognition/**'
+      - 'domains/device-management/activity-writer/**'
+      - 'domains/device-management/ha-setup-service/**'
+      - 'domains/device-management/compose.yml'
+      - 'libs/**'
       - '.github/workflows/ci-devices.yml'
       - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
@@ -43,4 +43,5 @@ jobs:
     uses: ./.github/workflows/reusable-group-ci.yml
     with:
       group_name: devices
+      domain_dir: device-management
       services: '["device-health-monitor","device-context-classifier","device-setup-assistant","device-database-client","device-recommender","activity-recognition","activity-writer","ha-setup-service"]'

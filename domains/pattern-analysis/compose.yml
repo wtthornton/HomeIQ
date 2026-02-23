@@ -1,0 +1,106 @@
+# domains/pattern-analysis/compose.yml — Pattern detection and automation edge analysis
+
+services:
+  ai-pattern-service:
+    build:
+      context: ../..
+      dockerfile: domains/pattern-analysis/ai-pattern-service/Dockerfile
+    container_name: ai-pattern-service
+    restart: unless-stopped
+    ports:
+      - "8034:8020"
+    env_file:
+      - ../../.env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
+      - DATABASE_PATH=/app/data/ai_automation.db
+      - DATA_API_URL=http://data-api:8006
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MQTT_BROKER=${MQTT_BROKER:-}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - OTLP_ENDPOINT=http://jaeger:4317
+    volumes:
+      - ai_automation_data:/app/data
+    networks:
+      - homeiq-network
+    # Cross-domain: depends on core-platform/data-api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ai-pattern-service,group=pattern-analysis,environment=production"
+
+  api-automation-edge:
+    build:
+      context: ../..
+      dockerfile: domains/pattern-analysis/api-automation-edge/Dockerfile
+    container_name: homeiq-api-automation-edge
+    restart: unless-stopped
+    ports:
+      - "8041:8025"
+    env_file:
+      - ../../.env
+    environment:
+      - SERVICE_PORT=8025
+      - SERVICE_NAME=api-automation-edge
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
+      - HA_HTTP_URL=${HA_HTTP_URL:-}
+      - HA_WS_URL=${HA_WS_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
+      - HOME_ID=${HOME_ID:-default}
+      - DATABASE_URL=sqlite:////app/data/api-automation-edge.db
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-homeiq_metrics}
+      - MAX_RETRIES=${MAX_RETRIES:-3}
+      - RETRY_DELAY=${RETRY_DELAY:-1.0}
+      - TIMEOUT=${TIMEOUT:-10.0}
+      - CIRCUIT_BREAKER_FAILURE_THRESHOLD=${CIRCUIT_BREAKER_FAILURE_THRESHOLD:-5}
+      - CIRCUIT_BREAKER_TIMEOUT=${CIRCUIT_BREAKER_TIMEOUT:-60.0}
+      - WS_PING_INTERVAL=${WS_PING_INTERVAL:-20}
+      - WS_RECONNECT_DELAY=${WS_RECONNECT_DELAY:-5.0}
+      - CAPABILITY_GRAPH_REFRESH_INTERVAL=${CAPABILITY_GRAPH_REFRESH_INTERVAL:-300}
+      - CAPABILITY_GRAPH_CACHE_TTL=${CAPABILITY_GRAPH_CACHE_TTL:-600}
+      - OTLP_ENDPOINT=http://jaeger:4317
+    volumes:
+      - api_automation_edge_data:/app/data
+    # Cross-domain: depends on core-platform/influxdb, core-platform/data-api
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8025/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=api-automation-edge,group=pattern-analysis,environment=production"
+
+volumes:
+  ai_automation_data:
+  api_automation_edge_data:
+
+networks:
+  homeiq-network:
+    external: true

@@ -1,0 +1,382 @@
+# domains/data-collectors/compose.yml — Group 2: data-collectors
+# Stateless data fetchers. Each polls an external API and writes to InfluxDB.
+# Deploy cadence: Medium — per-API contract change
+#
+# Services: weather-api, smart-meter, sports-api, air-quality, carbon-intensity,
+#           electricity-pricing, calendar, log-aggregator
+# Depends on: Group 1 (influxdb write, data-api metadata)
+# Depended on by: Groups 3, 4 (indirect — via InfluxDB data)
+
+services:
+  weather-api:
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/weather-api/Dockerfile
+    container_name: homeiq-weather-api
+    restart: unless-stopped
+    ports:
+      - "8009:8009"
+    env_file:
+      - ../../.env
+    environment:
+      - SERVICE_PORT=8009
+      - WEATHER_API_KEY=${WEATHER_API_KEY:-}
+      - WEATHER_LOCATION=${WEATHER_LOCATION:-Las Vegas}
+      - CACHE_TTL_SECONDS=900
+      - FETCH_INTERVAL_SECONDS=300
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=weather_data
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (influxdb is in core-platform)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: '0.5'
+        reservations:
+          memory: 96M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=weather-api,group=data-collectors,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8009/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  smart-meter:
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/smart-meter-service/Dockerfile
+    container_name: homeiq-smart-meter
+    restart: unless-stopped
+    ports:
+      - "8014:8014"
+    env_file:
+      - ../../.env
+    environment:
+      - METER_TYPE=${METER_TYPE:-home_assistant}
+      - HA_HTTP_URL=${HA_HTTP_URL:-}
+      - HA_WS_URL=${HA_WS_URL:-}
+      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - NABU_CASA_URL=${NABU_CASA_URL:-}
+      - NABU_CASA_TOKEN=${NABU_CASA_TOKEN:-}
+      - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-}
+      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - METER_API_TOKEN=${METER_API_TOKEN:-}
+      - METER_DEVICE_ID=${METER_DEVICE_ID:-}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - SERVICE_PORT=8014
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (influxdb is in core-platform)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+        reservations:
+          memory: 96M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=smart-meter,group=data-collectors,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8014/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  sports-api:
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/sports-api/Dockerfile
+    container_name: homeiq-sports-api
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    env_file:
+      - ../../.env
+    environment:
+      - SERVICE_PORT=8005
+      - HA_HTTP_URL=${HA_HTTP_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
+      - SPORTS_POLL_INTERVAL=${SPORTS_POLL_INTERVAL:-60}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (influxdb is in core-platform)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: '0.5'
+        reservations:
+          memory: 96M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=sports-api,group=data-collectors,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  air-quality:
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/air-quality-service/Dockerfile
+    container_name: homeiq-air-quality
+    restart: unless-stopped
+    ports:
+      - "8012:8012"
+    env_file:
+      - ../../.env
+    environment:
+      - WEATHER_API_KEY=${WEATHER_API_KEY:-}
+      - LATITUDE=${LATITUDE:-36.1699}
+      - LONGITUDE=${LONGITUDE:--115.1398}
+      - HOME_ASSISTANT_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
+      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - SERVICE_PORT=8012
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (influxdb is in core-platform)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+        reservations:
+          memory: 96M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=air-quality,group=data-collectors,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8012/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - production
+
+  carbon-intensity:
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/carbon-intensity-service/Dockerfile
+    container_name: homeiq-carbon-intensity
+    restart: unless-stopped
+    ports:
+      - "8010:8010"
+    env_file:
+      - ../../.env
+    environment:
+      - WATTTIME_USERNAME=${WATTTIME_USERNAME:-}
+      - WATTTIME_PASSWORD=${WATTTIME_PASSWORD:-}
+      - WATTTIME_API_TOKEN=${WATTTIME_API_TOKEN:-}
+      - GRID_REGION=${GRID_REGION:-CAISO_NORTH}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - SERVICE_PORT=8010
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (influxdb is in core-platform)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: '0.5'
+        reservations:
+          memory: 96M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=carbon-intensity,group=data-collectors,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - production
+
+  electricity-pricing:
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/electricity-pricing-service/Dockerfile
+    container_name: homeiq-electricity-pricing
+    restart: unless-stopped
+    ports:
+      - "8011:8011"
+    env_file:
+      - ../../.env
+    environment:
+      - PRICING_PROVIDER=${PRICING_PROVIDER:-awattar}
+      - PRICING_API_KEY=${PRICING_API_KEY:-}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - SERVICE_PORT=8011
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (influxdb is in core-platform)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+        reservations:
+          memory: 96M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=electricity-pricing,group=data-collectors,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - production
+
+  calendar:
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/calendar-service/Dockerfile
+    container_name: homeiq-calendar
+    restart: unless-stopped
+    ports:
+      - "8013:8013"
+    env_file:
+      - ../../.env
+    environment:
+      - HA_HTTP_URL=${HA_HTTP_URL:-}
+      - HA_WS_URL=${HA_WS_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
+      - CALENDAR_ENTITIES=${CALENDAR_ENTITIES:-calendar.primary}
+      - CALENDAR_FETCH_INTERVAL=${CALENDAR_FETCH_INTERVAL:-900}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - SERVICE_PORT=8013
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-group depends_on removed (influxdb is in core-platform)
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+        reservations:
+          memory: 96M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=calendar,group=data-collectors,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8013/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - production
+
+  log-aggregator:
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/log-aggregator/Dockerfile
+    container_name: homeiq-log-aggregator
+    restart: unless-stopped
+    ports:
+      - "8015:8015"
+    env_file:
+      - ../../.env
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
+      - LOG_FORMAT=json
+      - PORT=8015
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../../logs:/app/logs
+      - homeiq_logs:/var/log/homeiq
+    group_add:
+      - "0"
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=log-aggregator,group=data-collectors,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8015/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# Shared volumes — declared here for standalone usage.
+# When run via root include, merges with core.yml definition.
+volumes:
+  homeiq_logs:
+
+networks:
+  homeiq-network:
+    external: true

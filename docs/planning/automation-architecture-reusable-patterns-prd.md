@@ -74,8 +74,8 @@ User Prompt ("Super Bowl lights when Seahawks score")
 
 | Artifact | Path | Purpose |
 |----------|------|---------|
-| Canonical Automation Schema | `shared/yaml_validation_service/schema.py` | Canonical AutomationSpec: TriggerSpec, ConditionSpec, ActionSpec (variables, repeat, time_pattern, value_template) |
-| RAG Corpus | `services/ha-ai-agent-service/src/data/superbowl_guide_excerpts.md` | Sports/Team Tracker patterns |
+| Canonical Automation Schema | `libs/homeiq-patterns/yaml_validation_service/schema.py` | Canonical AutomationSpec: TriggerSpec, ConditionSpec, ActionSpec (variables, repeat, time_pattern, value_template) |
+| RAG Corpus | `domains/automation-core/ha-ai-agent-service/src/data/superbowl_guide_excerpts.md` | Sports/Team Tracker patterns |
 | Team Tracker Reference | `implementation/teamtracker_automation_reference_guide.md` | All leagues, all attributes |
 | Super Bowl Guide | `implementation/superbowl_teamtracker_lights_guide.md` | Example patterns |
 
@@ -264,7 +264,7 @@ User Prompt ("Super Bowl lights when Seahawks score")
 - [x] Define `PostActionVerifier` interface (action → verify → map warnings)
 - [x] Refactor existing implementations to use shared abstractions
 - [x] 45 unit tests for shared patterns; 26 existing tests pass (no regression)
-- [x] Developer documentation: `shared/patterns/README.md`
+- [x] Developer documentation: `libs/homeiq-patterns/README.md`
 
 ### Phase 3: Apply to High-Value Domains (Complete)
 - [x] Energy RAG for HA AI Agent
@@ -308,11 +308,11 @@ User Prompt ("Super Bowl lights when Seahawks score")
 | Epic: Reusable Pattern Framework (Phase 2) | `stories/epic-reusable-pattern-framework.md` | Complete |
 | Epic: High-Value Domain Extensions (Phase 3) | `stories/epic-high-value-domain-extensions.md` | Complete |
 | Epic: Platform-Wide Pattern Rollout (Phase 4) | `stories/epic-platform-wide-pattern-rollout.md` | Complete |
-| Shared Patterns README | `shared/patterns/README.md` | Complete |
+| Shared Patterns README | `libs/homeiq-patterns/README.md` | Complete |
 | Phase 4 API Documentation | `implementation/PHASE4_AUTOMATION_API_DOCUMENTATION.md` | Complete |
 | Phase 1 Verification | `implementation/PHASE1_AUTOMATION_EPIC_VERIFICATION.md` | Complete |
 | Team Tracker Reference | `implementation/teamtracker_automation_reference_guide.md` | Reference |
-| Services Ranked by Importance | `services/SERVICES_RANKED_BY_IMPORTANCE.md` | Reference |
+| Services Ranked by Importance | `docs/architecture/SERVICES_RANKED_BY_IMPORTANCE.md` | Reference |
 
 ---
 

@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-02-23T22:37:49.577336+00:00",
+  "adoption": {
+    "total_consultations": 18,
+    "daily_rate": 0.6,
+    "domain_usage": {},
+    "tool_usage": {
+      "tapps_consult_expert": 2,
+      "tapps_list_experts": 1,
+      "tapps_lookup_docs": 1,
+      "tapps_project_profile": 3,
+      "tapps_server_info": 5,
+      "tapps_session_start": 3,
+      "tapps_upgrade": 1,
+      "tapps_validate_changed": 2
+    }
+  },
+  "effectiveness": {
+    "avg_score_improvement": 0.0,
+    "first_pass_success_rate": 0.0,
+    "avg_iterations": 0.0,
+    "gate_pass_rate": 0.0
+  },
+  "quality": {
+    "avg_confidence": 0.0,
+    "confidence_trend": "stable",
+    "avg_agreement": 0.0,
+    "rag_cache_hit_rate": 0.0,
+    "rag_avg_latency_ms": 0.0
+  },
+  "roi": {
+    "total_tool_calls": 18,
+    "estimated_time_saved_min": 36.0,
+    "avg_call_duration_ms": 39204.44
+  },
+  "operational": {
+    "error_rate": 0.0556,
+    "avg_latency_ms": 39204.44,
+    "cache_hit_rate": 0.0,
+    "degraded_rate": 0.0
+  }
+}

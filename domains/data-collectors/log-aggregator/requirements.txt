@@ -1,0 +1,6 @@
+aiohttp==3.13.2
+docker==7.1.0
+aiohttp-cors==0.7.0
+
+# HomeIQ shared libraries (installed from libs/ in Docker)
+homeiq-observability>=1.0.0

@@ -4,13 +4,13 @@ on:
   push:
     branches: [ main, master, develop ]
     paths:
-      - 'services/**'
+      - 'domains/**'
       - 'docker-compose.yml'
       - '.github/workflows/docker-test.yml'
   pull_request:
     branches: [ main, master, develop ]
     paths:
-      - 'services/**'
+      - 'domains/**'
       - 'docker-compose.yml'
       - '.github/workflows/docker-test.yml'
   workflow_dispatch:
@@ -42,68 +42,64 @@ jobs:
       - name: Test service health checks
         run: |
           # Wait for services to be healthy (check Docker health status)
-          echo "⏳ Waiting for services to become healthy..."
+          echo "Waiting for services to become healthy..."
           MAX_WAIT=60
           ELAPSED=0
           INTERVAL=2
-          
+
           while [ $ELAPSED -lt $MAX_WAIT ]; do
             HEALTHY_COUNT=$(docker compose ps --format json 2>/dev/null | python3 -c "import sys, json; data = [json.loads(line) for line in sys.stdin]; print(sum(1 for s in data if s.get('Health', '') == 'healthy'))" || echo "0")
             TOTAL_COUNT=$(docker compose ps --format json 2>/dev/null | python3 -c "import sys, json; data = [json.loads(line) for line in sys.stdin]; print(len(data))" || echo "0")
-            
+
             if [ "$HEALTHY_COUNT" -gt "0" ]; then
-              echo "✅ Found $HEALTHY_COUNT healthy service(s)"
+              echo "Found $HEALTHY_COUNT healthy service(s)"
               break
             fi
-            
-            echo "⏳ Waiting... (${ELAPSED}s/${MAX_WAIT}s)"
+
+            echo "Waiting... (${ELAPSED}s/${MAX_WAIT}s)"
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
           done
-          
+
           # Check service health endpoints from host (using port mappings)
-          # Python is available on GitHub Actions runners
           python3 << 'EOF'
           import urllib.request
           import sys
           import socket
-          
+
           services = [
               ("websocket-ingestion", "http://localhost:8001/health"),
               ("data-api", "http://localhost:8006/health"),
               ("admin-api", "http://localhost:8004/health")
           ]
-          
+
           failed = []
           for name, url in services:
               try:
-                  # Check if port is open first
                   host, port = url.replace("http://", "").split(":")[0], int(url.split(":")[1].split("/")[0])
                   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                   sock.settimeout(2)
                   result = sock.connect_ex((host, port))
                   sock.close()
-                  
+
                   if result != 0:
-                      print(f"⚠️ {name}: Port {port} not accessible")
+                      print(f"  {name}: Port {port} not accessible")
                       continue
-                  
-                  # Try HTTP health check
+
                   with urllib.request.urlopen(url, timeout=5) as response:
                       if response.status == 200:
-                          print(f"✅ {name}: healthy (status {response.status})")
+                          print(f"  {name}: healthy (status {response.status})")
                       else:
-                          print(f"⚠️ {name}: status {response.status}")
+                          print(f"  {name}: status {response.status}")
               except urllib.error.HTTPError as e:
                   if e.code == 200:
-                      print(f"✅ {name}: healthy")
+                      print(f"  {name}: healthy")
                   else:
-                      print(f"⚠️ {name}: HTTP {e.code}")
+                      print(f"  {name}: HTTP {e.code}")
               except Exception as e:
-                  print(f"⚠️ {name}: {type(e).__name__} - {e}")
-                  # Don't fail on health check errors, just warn
-          
-          print("✅ Health checks completed (warnings are non-blocking)")
+                  print(f"  {name}: {type(e).__name__} - {e}")
+
+          print("Health checks completed (warnings are non-blocking)")
           EOF
 
       - name: Verify resource limits
@@ -111,22 +107,20 @@ jobs:
           # Check that CPU limits are set for critical services
           CRITICAL_SERVICES=("websocket-ingestion" "data-api" "admin-api")
           MISSING_LIMITS=()
-          
+
           for service in "${CRITICAL_SERVICES[@]}"; do
             if ! docker compose config | grep -A 10 "$service:" | grep -q "cpus:"; then
               MISSING_LIMITS+=("$service")
             fi
           done
-          
+
           if [ ${#MISSING_LIMITS[@]} -gt 0 ]; then
-            echo "⚠️ Warning: CPU limits not found for: ${MISSING_LIMITS[*]}"
-            echo "⚠️ This is a warning, not a failure"
+            echo "Warning: CPU limits not found for: ${MISSING_LIMITS[*]}"
           else
-            echo "✅ CPU limits found for all critical services"
+            echo "CPU limits found for all critical services"
           fi
 
       - name: Cleanup
         if: always()
         run: |
           docker compose down -v
-

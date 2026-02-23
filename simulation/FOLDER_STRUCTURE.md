@@ -134,7 +134,7 @@ simulation/
 
 ### Production Isolation
 
-1. **Separate Directory**: `simulation/` at project root (NOT in `services/`)
+1. **Separate Directory**: `simulation/` at project root (NOT in `domains/`)
 2. **Separate Dependencies**: `simulation/requirements.txt` (NOT in production requirements)
 3. **Separate Docker Profile**: `--profile simulation` (excluded from default)
 4. **One-Way Imports**: Simulation imports from production (read-only), production never imports from simulation

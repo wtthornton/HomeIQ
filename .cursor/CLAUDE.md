@@ -485,7 +485,7 @@ git push origin feature/amazing-feature
 
 ### AI Automation Service (Port 8024→8018)
 
-**Location:** `services/ai-automation-service/`
+**Location:** `domains/automation-core/ai-automation-service-new/`
 
 **Key Features:**
 - Pattern detection (time-of-day, co-occurrence, anomaly)
@@ -508,7 +508,7 @@ git push origin feature/amazing-feature
 
 ### WebSocket Ingestion (Port 8001)
 
-**Location:** `services/websocket-ingestion/`
+**Location:** `domains/core-platform/websocket-ingestion/`
 
 **Key Features:**
 - Real-time HA event capture
@@ -525,7 +525,7 @@ git push origin feature/amazing-feature
 
 ### Data API (Port 8006)
 
-**Location:** `services/data-api/`
+**Location:** `domains/core-platform/data-api/`
 
 **Key Features:**
 - Hybrid query router (SQLite + InfluxDB)
@@ -710,7 +710,7 @@ docker compose restart ai-automation-service
 docker compose logs -f ai-automation-service
 
 # Run database migrations
-cd services/ai-automation-service
+cd domains/automation-core/ai-automation-service-new
 alembic upgrade head
 ```
 
@@ -740,13 +740,13 @@ alembic upgrade head
 - `USE_LANGCHAIN_PATTERNS` - Enable LangChain for pattern detection
 
 **Configuration:**
-- Location: `services/ai-automation-service/src/config.py`
+- Location: `domains/automation-core/ai-automation-service-new/src/config.py`
 - Settings UI: http://localhost:3001/settings
 
 ### PDL Workflows
 
 **YAML-based Procedures:**
-- Location: `services/ai-automation-service/src/pdl/`
+- Location: `domains/automation-core/ai-automation-service-new/src/pdl/`
 - Nightly analysis orchestration
 - Synergy guardrails (when enabled)
 
@@ -762,7 +762,7 @@ alembic upgrade head
 
 ### Safety Validation (6-Rule Engine)
 
-**Implemented in:** `services/ai-automation-service/src/safety_validator.py`
+**Implemented in:** `domains/automation-core/ai-automation-service-new/src/safety_validator.py`
 
 1. No destructive actions without confirmation
 2. No entity ID mismatches

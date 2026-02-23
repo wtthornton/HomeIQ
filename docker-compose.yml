@@ -1,38 +1,48 @@
 # docker-compose.yml — HomeIQ Service Orchestrator
 #
 # This file uses the Docker Compose `include` directive (v2.20+) to compose
-# 6 independently deployable service groups from separate compose files.
+# 9 independently deployable domain groups from co-located compose files.
 #
 # Usage:
-#   Full stack:       docker compose up -d
-#   Core only:        docker compose -f compose/core.yml up -d
-#   Core + collectors: docker compose -f compose/core.yml -f compose/collectors.yml up -d
-#   With tests:       docker compose --profile test up -d
-#   With dev tools:   docker compose --profile development up -d
+#   Full stack:        docker compose up -d
+#   Single domain:     docker compose -f domains/core-platform/compose.yml up -d
+#   Core + collectors: docker compose -f domains/core-platform/compose.yml \
+#                                     -f domains/data-collectors/compose.yml up -d
+#   With dev tools:    docker compose --profile development up -d
+#   Parallel builds:   docker buildx bake full
+#   Domain builds:     docker buildx bake core-platform
 #
-# Group dependency order (start in this order for clean startup):
-#   1. core-platform    (influxdb, data-api, websocket, admin, dashboard, retention)
-#   2. data-collectors  (weather, smart-meter, sports, air-quality, carbon, electricity, calendar, log-aggregator)
-#   3. ml-engine        (openvino, ml, ner, openai, rag, ai-core, training, device-intel, model-prep)
-#   4. automation-intel  (ha-ai-agent, ai-automation, query, pattern, blueprints, energy, traces, ...)
-#   5. device-mgmt      (device-health, classifier, setup, db-client, recommender, activity, ha-setup)
-#   6. frontends        (jaeger, observability-dashboard, ai-automation-ui)
-#   7. test             (home-assistant-test, websocket-test, ha-simulator)
+# Domain dependency order (start in this order for clean startup):
+#   1. core-platform      (influxdb, data-api, websocket, admin, dashboard, retention, ha-simulator)
+#   2. data-collectors    (weather, smart-meter, sports, air-quality, carbon, electricity, calendar, log-aggregator)
+#   3. ml-engine          (openvino, ml, ner, openai, rag, ai-core, training, device-intel, model-prep)
+#   4. automation-core    (ha-ai-agent, ai-automation, query, yaml-validation, linter, code-executor, traces)
+#   5. blueprints         (blueprint-index, blueprint-suggestion, rule-recommendation, automation-miner)
+#   6. energy-analytics   (energy-correlator, energy-forecasting, proactive-agent)
+#   7. device-management  (device-health, classifier, setup, db-client, recommender, activity, ha-setup)
+#   8. pattern-analysis   (ai-pattern, api-automation-edge)
+#   9. frontends          (jaeger, observability-dashboard, ai-automation-ui)
 
 name: homeiq
 
+# Core-platform MUST be first — it defines the homeiq-network bridge network.
+# All other domains reference it as external: true.
 include:
-  - path: compose/core.yml
+  - path: domains/core-platform/compose.yml
     env_file: .env
-  - path: compose/collectors.yml
+  - path: domains/data-collectors/compose.yml
     env_file: .env
-  - path: compose/ml.yml
+  - path: domains/ml-engine/compose.yml
     env_file: .env
-  - path: compose/automation.yml
+  - path: domains/automation-core/compose.yml
     env_file: .env
-  - path: compose/devices.yml
+  - path: domains/blueprints/compose.yml
     env_file: .env
-  - path: compose/frontends.yml
+  - path: domains/energy-analytics/compose.yml
     env_file: .env
-  - path: compose/test.yml
+  - path: domains/device-management/compose.yml
+    env_file: .env
+  - path: domains/pattern-analysis/compose.yml
+    env_file: .env
+  - path: domains/frontends/compose.yml
     env_file: .env

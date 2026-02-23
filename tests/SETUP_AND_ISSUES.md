@@ -6,7 +6,7 @@
 
 **AI Automation UI** needs Playwright installed:
 ```bash
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 npm install
 ```
 
@@ -30,11 +30,11 @@ Before running tests, ensure the services are running:
 
 ```bash
 # Health Dashboard (Port 3000)
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm run dev
 
 # AI Automation UI (Port 3001)  
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 npm run dev
 ```
 
@@ -45,7 +45,7 @@ Or use Docker Compose to start all services.
 ### Health Dashboard Tests
 
 ```bash
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm run test:e2e                 # Run all tests
 npm run test:e2e:smoke           # Run smoke tests only
 npm run test:e2e:ui              # Run with UI mode
@@ -55,7 +55,7 @@ npm run test:e2e:debug           # Run in debug mode
 ### AI Automation UI Tests
 
 ```bash
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 npm run test:e2e                 # Run all tests
 npm run test:e2e:smoke           # Run smoke tests only
 npm run test:e2e:ui              # Run with UI mode
@@ -75,9 +75,9 @@ npx playwright test --ui         # Run with UI mode
 
 ### 1. Playwright Not Installed in AI Automation UI
 
-**Issue**: `@playwright/test` needs to be installed in `services/ai-automation-ui`
+**Issue**: `@playwright/test` needs to be installed in `domains/frontends/ai-automation-ui`
 
-**Fix**: Run `npm install` in `services/ai-automation-ui`
+**Fix**: Run `npm install` in `domains/frontends/ai-automation-ui`
 
 ### 2. WebServer Configuration
 
@@ -164,7 +164,7 @@ All test files have been created:
 
 ## Next Steps
 
-1. **Install dependencies**: Run `npm install` in `services/ai-automation-ui`
+1. **Install dependencies**: Run `npm install` in `domains/frontends/ai-automation-ui`
 2. **Install browsers**: Run `npx playwright install`
 3. **Start services**: Start Health Dashboard and AI Automation UI
 4. **Run smoke tests**: `npm run test:e2e:smoke` to verify setup

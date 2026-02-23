@@ -36,7 +36,7 @@
       }
     },
     "tapps-mcp": {
-      "command": "tapps-mcp",
+      "command": "C:\\Users\\tappt\\.local\\bin\\tapps-mcp.exe",
       "args": [
         "serve"
       ],

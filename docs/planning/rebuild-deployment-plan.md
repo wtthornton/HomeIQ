@@ -386,11 +386,11 @@ cp requirements-base.txt requirements-base.txt.backup
 **1.2. Update Service-Specific Requirements**
 ```bash
 # Update automation-linter (most outdated)
-# services/automation-linter/requirements.txt
+# domains/automation-core/automation-linter/requirements.txt
 # Update FastAPI from 0.115.0 to >=0.119.0
 
 # Update calendar-service (pydantic-settings outdated)
-# services/calendar-service/requirements.txt
+# domains/data-collectors/calendar-service/requirements.txt
 # Update pydantic-settings from 2.1.0 to >=2.12.0,<3.0.0
 ```
 
@@ -457,7 +457,7 @@ docker ps --filter name="data-retention|weather|sports|carbon|electricity|air-qu
 **1.6. Rebuild Frontend Services**
 ```bash
 # Update package.json dependencies for both dashboards
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm install @vitejs/plugin-react@5.1.2 typescript-eslint@8.53.0
 cd ../ai-automation-ui
 npm install @vitejs/plugin-react@5.1.2 typescript-eslint@8.53.0
@@ -637,7 +637,7 @@ docker ps --filter name="energy-|rule-recommendation" --format "table {{.Names}}
 
 **2.8. Update and Rebuild Frontend Services**
 ```bash
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm install vitest@4.0.17 @playwright/test@1.58.1 happy-dom@20.5.0 msw@2.12.8
 
 cd ../ai-automation-ui
@@ -712,7 +712,7 @@ services:
   ml-service-test:
     build:
       context: .
-      dockerfile: services/ml-service/Dockerfile
+      dockerfile: domains/ml-engine/ml-service/Dockerfile
     environment:
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
@@ -729,7 +729,7 @@ EOF
 **3.2. Update ML Service Requirements**
 ```bash
 # Create Phase 3 requirements file
-cat > services/ml-service/requirements-phase3.txt <<EOF
+cat > domains/ml-engine/ml-service/requirements-phase3.txt <<EOF
 -r ../../requirements-base.txt
 
 # ML/AI Libraries - Phase 3 Upgrades
@@ -748,9 +748,9 @@ seaborn>=0.13.0,<0.14.0
 EOF
 
 # Copy to other ML services
-cp services/ml-service/requirements-phase3.txt services/ai-pattern-service/
-cp services/ml-service/requirements-phase3.txt services/ha-ai-agent-service/
-cp services/ml-service/requirements-phase3.txt services/rule-recommendation-ml/
+cp domains/ml-engine/ml-service/requirements-phase3.txt domains/pattern-analysis/ai-pattern-service/
+cp domains/ml-engine/ml-service/requirements-phase3.txt domains/automation-core/ha-ai-agent-service/
+cp domains/ml-engine/ml-service/requirements-phase3.txt domains/blueprints/rule-recommendation-ml/
 ```
 
 **3.3. Update Code for NumPy 2.x Breaking Changes**
@@ -765,7 +765,7 @@ cp services/ml-service/requirements-phase3.txt services/rule-recommendation-ml/
 ```bash
 # Find all NumPy usage in ML services
 cd /c/cursor/HomeIQ
-find services/ml-service services/ai-pattern-service services/ha-ai-agent-service services/rule-recommendation-ml \
+find domains/ml-engine/ml-service domains/pattern-analysis/ai-pattern-service domains/automation-core/ha-ai-agent-service domains/blueprints/rule-recommendation-ml \
   -name "*.py" -exec grep -l "import numpy" {} \;
 
 # Review each file for:
@@ -785,7 +785,7 @@ find services/ml-service services/ai-pattern-service services/ha-ai-agent-servic
 **Code Updates Required:**
 ```bash
 # Find all Pandas usage
-find services/ml-service services/ai-pattern-service services/ha-ai-agent-service services/rule-recommendation-ml \
+find domains/ml-engine/ml-service domains/pattern-analysis/ai-pattern-service domains/automation-core/ha-ai-agent-service domains/blueprints/rule-recommendation-ml \
   -name "*.py" -exec grep -l "import pandas" {} \;
 
 # Review each file for:
@@ -822,7 +822,7 @@ find services/ -name "*.py" -exec grep -l "import openai" {} \;
 cd /c/cursor/HomeIQ
 
 # Update requirements
-cp services/ml-service/requirements-phase3.txt services/ml-service/requirements.txt
+cp domains/ml-engine/ml-service/requirements-phase3.txt domains/ml-engine/ml-service/requirements.txt
 
 # Rebuild
 docker-compose build --no-cache ml-service
@@ -852,7 +852,7 @@ docker ps --filter name=ml-service --format "{{.Status}}"
 **3.6.2. ai-pattern-service**
 ```bash
 # Repeat process for ai-pattern-service
-cp services/ai-pattern-service/requirements-phase3.txt services/ai-pattern-service/requirements.txt
+cp domains/pattern-analysis/ai-pattern-service/requirements-phase3.txt domains/pattern-analysis/ai-pattern-service/requirements.txt
 docker-compose build --no-cache ai-pattern-service
 # Run specific pattern detection tests
 docker exec ai-pattern-service pytest /app/tests/ -v -k "pattern"
@@ -862,7 +862,7 @@ docker-compose up -d ai-pattern-service
 **3.6.3. ha-ai-agent-service**
 ```bash
 # Repeat process for ha-ai-agent-service
-cp services/ha-ai-agent-service/requirements-phase3.txt services/ha-ai-agent-service/requirements.txt
+cp domains/automation-core/ha-ai-agent-service/requirements-phase3.txt domains/automation-core/ha-ai-agent-service/requirements.txt
 docker-compose build --no-cache ha-ai-agent-service
 # Test OpenAI integration
 docker exec ha-ai-agent-service pytest /app/tests/ -v -k "openai"
@@ -872,7 +872,7 @@ docker-compose up -d ha-ai-agent-service
 **3.6.4. rule-recommendation-ml**
 ```bash
 # Repeat process for rule-recommendation-ml
-cp services/rule-recommendation-ml/requirements-phase3.txt services/rule-recommendation-ml/requirements.txt
+cp domains/blueprints/rule-recommendation-ml/requirements-phase3.txt domains/blueprints/rule-recommendation-ml/requirements.txt
 docker-compose build --no-cache rule-recommendation-ml
 # Test ML recommendations
 docker exec rule-recommendation-ml pytest /app/tests/ -v
@@ -882,7 +882,7 @@ docker-compose up -d rule-recommendation-ml
 **3.7. Comprehensive ML Validation**
 ```bash
 # Run full ML test suite
-npm run test:unit:python -- services/ml-service services/ai-pattern-service services/ha-ai-agent-service services/rule-recommendation-ml
+npm run test:unit:python -- domains/ml-engine/ml-service domains/pattern-analysis/ai-pattern-service domains/automation-core/ha-ai-agent-service domains/blueprints/rule-recommendation-ml
 
 # Validate model accuracy
 # (Run your specific model validation scripts here)
@@ -942,7 +942,7 @@ docker-compose up -d ml-service ai-pattern-service ha-ai-agent-service rule-reco
 
 **4.1. Apply Accumulated Updates**
 ```bash
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm install \
   @vitejs/plugin-react@5.1.2 \
   typescript-eslint@8.53.0 \
@@ -966,7 +966,7 @@ npm install \
 cd /c/cursor/HomeIQ
 
 # Build production bundles locally first
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm run build
 npm run test
 cd ../ai-automation-ui
@@ -1144,7 +1144,7 @@ for service in $SERVICES; do
 done
 
 # Run ML validation tests
-npm run test:unit:python -- services/ml-service services/ai-pattern-service
+npm run test:unit:python -- domains/ml-engine/ml-service domains/pattern-analysis/ai-pattern-service
 ```
 
 #### Day 4: Device & Automation Services

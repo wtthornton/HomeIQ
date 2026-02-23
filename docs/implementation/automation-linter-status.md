@@ -60,7 +60,7 @@ The HomeIQ Automation Linter service has been successfully implemented as a firs
 
 **Total Shared Module:** ~1,200 lines of production code
 
-### ✅ FastAPI Service (`services/automation-linter/`)
+### ✅ FastAPI Service (`domains/automation-core/automation-linter/`)
 
 **Status:** Complete and Functional
 
@@ -195,7 +195,7 @@ shared/ha_automation_lint/
 
 **Service (5 files):**
 ```
-services/automation-linter/
+domains/automation-core/automation-linter/
 ├── src/
 │   ├── __init__.py
 │   └── main.py

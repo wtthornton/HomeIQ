@@ -153,7 +153,7 @@ Before merging to master, perform the following tests:
 
 **automation-linter:**
 ```bash
-cd services/automation-linter
+cd domains/automation-core/automation-linter
 pip install -r requirements.txt
 python -m pytest  # If tests exist
 # Test API endpoints manually
@@ -161,7 +161,7 @@ python -m pytest  # If tests exist
 
 **calendar-service:**
 ```bash
-cd services/calendar-service
+cd domains/data-collectors/calendar-service
 pip install -r requirements.txt
 # Test pydantic-settings configuration loading
 ```
@@ -186,7 +186,7 @@ python -m pytest
 
 **health-dashboard:**
 ```bash
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm run build  # Verify build succeeds
 npm run test   # Run unit tests
 npm run lint   # Check linting
@@ -195,7 +195,7 @@ npm run type-check  # TypeScript validation
 
 **ai-automation-ui:**
 ```bash
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 npm run build
 npm run test
 npm run lint
@@ -283,16 +283,16 @@ The following updates are planned for Phase 2 (Standard Library Updates):
 **Commit Message:** feat: Phase 1 library upgrades - critical compatibility fixes
 
 **Files Changed:**
-- services/automation-miner/requirements.txt
-- services/ai-pattern-service/requirements.txt
-- services/ha-ai-agent-service/requirements.txt
-- services/automation-linter/requirements.txt
-- services/calendar-service/requirements.txt
+- domains/blueprints/automation-miner/requirements.txt
+- domains/pattern-analysis/ai-pattern-service/requirements.txt
+- domains/automation-core/ha-ai-agent-service/requirements.txt
+- domains/automation-core/automation-linter/requirements.txt
+- domains/data-collectors/calendar-service/requirements.txt
 - tools/cli/requirements.txt
-- services/health-dashboard/package.json
-- services/health-dashboard/package-lock.json
-- services/ai-automation-ui/package.json
-- services/ai-automation-ui/package-lock.json
+- domains/core-platform/health-dashboard/package.json
+- domains/core-platform/health-dashboard/package-lock.json
+- domains/frontends/ai-automation-ui/package.json
+- domains/frontends/ai-automation-ui/package-lock.json
 - docs/planning/upgrade-summary.md
 - docs/planning/library-upgrade-plan.md
 

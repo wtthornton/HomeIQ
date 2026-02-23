@@ -943,7 +943,7 @@ PHASE=$2
 
 if [ -z "$SERVICE_PATH" ] || [ -z "$PHASE" ]; then
     echo "Usage: $0 <service_path> <phase>"
-    echo "Example: $0 services/automation-linter phase1"
+    echo "Example: $0 domains/automation-core/automation-linter phase1"
     exit 1
 fi
 
@@ -989,7 +989,7 @@ PHASE=$2
 
 if [ -z "$SERVICE_PATH" ] || [ -z "$PHASE" ]; then
     echo "Usage: $0 <service_path> <phase>"
-    echo "Example: $0 services/health-dashboard phase1"
+    echo "Example: $0 domains/core-platform/health-dashboard phase1"
     exit 1
 fi
 

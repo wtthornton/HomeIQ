@@ -1,0 +1,10 @@
+{
+  "library": "pytest",
+  "topic": "monkeypatch setenv",
+  "context7_id": null,
+  "snippet_count": 0,
+  "token_count": 2007,
+  "cached_at": "2026-02-18T15:42:13Z",
+  "fetched_at": "2026-02-18T15:42:13Z",
+  "cache_hits": 0
+}

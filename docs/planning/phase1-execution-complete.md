@@ -74,13 +74,13 @@ Phase 1 automated batch rebuild successfully completed with **95% success rate**
 **Root Cause:** Local `queue/` directory shadowing Python's stdlib `queue` module
 **Fix:** Renamed `src/queue/` → `src/task_queue/` and updated 10 import statements
 **Files Modified:**
-- `services/api-automation-edge/src/task_queue/` (directory rename)
-- `services/api-automation-edge/src/api/execution_router.py`
-- `services/api-automation-edge/src/api/health_router.py`
-- `services/api-automation-edge/src/api/schedule_router.py`
-- `services/api-automation-edge/src/api/task_router.py`
-- `services/api-automation-edge/src/main.py`
-- `services/api-automation-edge/src/rollout/kill_switch.py`
+- `domains/pattern-analysis/api-automation-edge/src/task_queue/` (directory rename)
+- `domains/pattern-analysis/api-automation-edge/src/api/execution_router.py`
+- `domains/pattern-analysis/api-automation-edge/src/api/health_router.py`
+- `domains/pattern-analysis/api-automation-edge/src/api/schedule_router.py`
+- `domains/pattern-analysis/api-automation-edge/src/api/task_router.py`
+- `domains/pattern-analysis/api-automation-edge/src/main.py`
+- `domains/pattern-analysis/api-automation-edge/src/rollout/kill_switch.py`
 
 **Result:** Service healthy, all endpoints responding
 **Commit:** e1437849
@@ -97,7 +97,7 @@ Phase 1 automated batch rebuild successfully completed with **95% success rate**
 2. Line 697: Added type assertion `(error as { message: string }).message`
 
 **Files Modified:**
-- `services/ai-automation-ui/src/pages/ConversationalDashboard.tsx`
+- `domains/frontends/ai-automation-ui/src/pages/ConversationalDashboard.tsx`
 
 **Result:** Build succeeds, service healthy on port 3001
 **Commit:** a500b674

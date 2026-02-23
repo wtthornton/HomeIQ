@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "homeiq-resilience"
+version = "1.0.0"
+description = "HomeIQ cross-group resilience: CircuitBreaker, CrossGroupClient, GroupHealthCheck"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.25",
+    "tenacity>=8.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

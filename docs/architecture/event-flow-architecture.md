@@ -15,7 +15,7 @@ The services involved in event flow are classified by criticality and organized 
 | **Tier 3** (AI/ML) | ai-core-service, pattern-service, energy-forecasting | Intelligence layer | Group 3: ml-engine / Group 4: automation-intelligence |
 | **Tier 6** (Device) | activity-recognition | Activity inference | Group 5: device-management |
 
-For complete service ranking, see **[Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)**.
+For complete service ranking, see **[Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md)**.
 For the 6-group deployment architecture, see **[Service Groups Architecture](./service-groups.md)**.
 
 ## Event Flow Diagram
@@ -266,7 +266,7 @@ The WebSocket Ingestion service uses formal state machines for connection and pr
 
 ### Connection State Machine
 
-**Location:** `services/websocket-ingestion/src/state_machine.py`
+**Location:** `domains/core-platform/websocket-ingestion/src/state_machine.py`
 
 **States:**
 - `DISCONNECTED` - Initial state, not connected
@@ -373,7 +373,7 @@ ERROR → STARTING | STOPPED | RUNNING
 - External services (weather-api, etc.) write directly to InfluxDB
 
 **Files Modified:**
-- `services/websocket-ingestion/src/main.py` - Added inline normalization
+- `domains/core-platform/websocket-ingestion/src/main.py` - Added inline normalization
 - All normalization logic moved from enrichment-pipeline into websocket-ingestion
 
 **Documentation:**
@@ -424,7 +424,7 @@ test_event = {
 }
 
 # Validation happens inline in websocket-ingestion service
-# See: services/websocket-ingestion/src/event_processor.py
+# See: domains/core-platform/websocket-ingestion/src/event_processor.py
 ```
 
 ## Performance Characteristics
@@ -448,7 +448,7 @@ test_event = {
 
 ## Cross-Group Resilience
 
-Services that query data across group boundaries (e.g., G4 automation-intelligence reading from G1 core-platform via data-api) use the `shared/resilience` module for fault tolerance.
+Services that query data across group boundaries (e.g., G4 automation-intelligence reading from G1 core-platform via data-api) use the `libs/homeiq-resilience` module for fault tolerance.
 
 ### Resilience Components
 
@@ -477,12 +477,12 @@ When a target group is unreachable, the circuit breaker opens and services retur
 
 ### Rollout Status
 
-All 6 cross-group callers now use `shared/resilience`:
+All 6 cross-group callers now use `libs/homeiq-resilience`:
 - ha-ai-agent-service, blueprint-suggestion-service, ai-pattern-service, ai-automation-service-new (G4 → G1)
 - proactive-agent-service (G4 → G1, G2)
 - device-health-monitor (G5 → G1, G3)
 
-For details, see [`shared/resilience/README.md`](../../shared/resilience/README.md).
+For details, see [`libs/homeiq-resilience/README.md`](../../libs/homeiq-resilience/README.md).
 
 ## Monitoring and Observability
 
@@ -641,8 +641,8 @@ Environment variables:
 ## References
 
 - [Service Groups Architecture](./service-groups.md) - Canonical reference for the 6-group deployment structure
-- [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification and Docker ports
-- [Services Architecture Quick Reference](../../services/README_ARCHITECTURE_QUICK_REF.md) - Service patterns
+- [Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification and Docker ports
+- [Services Architecture Quick Reference](./README_ARCHITECTURE_QUICK_REF.md) - Service patterns
 - [API Reference](../api/API_REFERENCE.md) - Complete API documentation
 - [Documentation Index](../README.md) - All docs and correct paths
 - [Home Assistant WebSocket API](https://developers.home-assistant.io/docs/api/websocket) - Official HA API docs

@@ -1,0 +1,48 @@
+# AI Pattern Service Requirements
+# Epic 39, Story 39.5: Pattern Service Foundation
+
+# FastAPI and web server
+fastapi>=0.123.0,<0.124.0  # Latest stable (December 2025)
+uvicorn[standard]>=0.32.0,<0.33.0  # Latest stable (2025 - Epic 41)
+pydantic>=2.9.0,<3.0.0  # Latest stable (2025 - Epic 41)
+pydantic-settings>=2.5.0,<3.0.0  # Latest stable (2025 - Epic 41)
+
+# Database
+sqlalchemy==2.0.46  # Phase 1 upgrade - aiosqlite 0.22.1 compatibility
+aiosqlite==0.22.1  # Phase 1 upgrade - futures-based (no threading.Thread)
+
+# Async support
+aiohttp>=3.13.2,<4.0.0  # Latest stable (2025)
+httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
+tenacity>=8.2.0
+
+# Data processing
+pandas>=2.2.0,<3.0.0  # Latest stable (2025 - Epic 41)
+numpy>=1.26.0,<1.27.0  # Latest stable 1.26.x (2025 - Epic 41)
+scikit-learn>=1.5.0,<2.0.0  # Latest stable (2025 - Epic 41)
+scipy>=1.16.3,<2.0.0  # Latest stable (2025 - Epic 41)
+
+# MQTT (for scheduler - Story 39.6)
+paho-mqtt==2.1.0  # Phase 2 upgrade - latest stable
+
+# Scheduler (for daily analysis - Story 39.6)
+apscheduler==3.11.2  # Phase 2 upgrade - latest 3.x stable
+
+# Logging and observability (shared)
+# Note: These should be in shared/ directory
+
+# OpenTelemetry Observability
+opentelemetry-api>=1.24.0,<2.0.0
+opentelemetry-sdk>=1.24.0,<2.0.0
+opentelemetry-instrumentation-fastapi>=0.45b0,<1.0.0
+opentelemetry-exporter-otlp-proto-grpc>=1.24.0,<2.0.0
+opentelemetry-instrumentation-requests>=0.45b0,<1.0.0
+opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0
+
+# Development dependencies moved to requirements-dev.txt
+
+# HomeIQ shared libraries (installed from libs/ in Docker)
+homeiq-resilience>=1.0.0
+homeiq-observability>=1.0.0
+homeiq-data>=1.0.0
+homeiq-ha>=1.0.0

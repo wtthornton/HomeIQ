@@ -82,13 +82,13 @@ touch shared/ha_automation_lint/models.py
 touch shared/ha_automation_lint/constants.py
 
 # Create service wrapper
-mkdir -p services/automation-linter/{src,tests,ui}
-mkdir -p services/automation-linter/src/{api,models,utils}
-touch services/automation-linter/src/__init__.py
-touch services/automation-linter/src/main.py
-touch services/automation-linter/requirements.txt
-touch services/automation-linter/Dockerfile
-touch services/automation-linter/.dockerignore
+mkdir -p domains/automation-core/automation-linter/{src,tests,ui}
+mkdir -p domains/automation-core/automation-linter/src/{api,models,utils}
+touch domains/automation-core/automation-linter/src/__init__.py
+touch domains/automation-core/automation-linter/src/main.py
+touch domains/automation-core/automation-linter/requirements.txt
+touch domains/automation-core/automation-linter/Dockerfile
+touch domains/automation-core/automation-linter/.dockerignore
 
 # Create test corpus
 mkdir -p simulation/automation-linter/{valid,invalid,edge,expected}
@@ -107,7 +107,7 @@ touch docs/automation-linter-rules.md
 **Validation:**
 - [ ] All directories exist
 - [ ] All `__init__.py` files created
-- [ ] Structure matches HomeIQ conventions (see [services/data-api/](../../services/data-api/) for reference)
+- [ ] Structure matches HomeIQ conventions (see [domains/core-platform/data-api/](../../domains/core-platform/data-api/) for reference)
 
 ---
 
@@ -791,7 +791,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY shared/ha_automation_lint /app/shared/ha_automation_lint
 
 # Copy service code
-COPY services/automation-linter/src /app/src
+COPY domains/automation-core/automation-linter/src /app/src
 
 # Expose port
 EXPOSE 8020
@@ -834,7 +834,7 @@ tests/
 #### Task 3.2: Implement FastAPI Service
 **Priority:** CRITICAL
 **Dependencies:** Task 3.1
-**File:** `services/automation-linter/src/main.py`
+**File:** `domains/automation-core/automation-linter/src/main.py`
 
 **Implementation:**
 ```python
@@ -1070,7 +1070,7 @@ if __name__ == "__main__":
 - [ ] All endpoints respond correctly
 - [ ] Request size limits enforced
 - [ ] Error handling includes proper logging
-- [ ] Follows HomeIQ service patterns (compare to [data-api](../../services/data-api/src/main.py))
+- [ ] Follows HomeIQ service patterns (compare to [data-api](../../domains/core-platform/data-api/src/main.py))
 
 ---
 
@@ -1084,7 +1084,7 @@ if __name__ == "__main__":
   automation-linter:
     build:
       context: .
-      dockerfile: services/automation-linter/Dockerfile
+      dockerfile: domains/automation-core/automation-linter/Dockerfile
     container_name: homeiq-automation-linter
     ports:
       - "8020:8020"
@@ -1093,7 +1093,7 @@ if __name__ == "__main__":
       - MAX_YAML_SIZE_BYTES=500000
       - PROCESSING_TIMEOUT_SECONDS=30
     volumes:
-      - ./services/automation-linter/src:/app/src
+      - ./domains/automation-core/automation-linter/src:/app/src
       - ./shared/ha_automation_lint:/app/shared/ha_automation_lint
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8020/health', timeout=5.0)"]
@@ -1123,7 +1123,7 @@ Update `services/README_ARCHITECTURE_QUICK_REF.md`:
 #### Task 3.4: Create Basic UI (Optional for MVP)
 **Priority:** MEDIUM (Can defer to Phase 1)
 **Dependencies:** Task 3.3
-**File:** `services/automation-linter/ui/index.html`
+**File:** `domains/automation-core/automation-linter/ui/index.html`
 
 **Minimal Implementation:**
 ```html
@@ -1868,7 +1868,7 @@ The lint engine is implemented as a shared module at `shared/ha_automation_lint/
 
 ### Service Wrapper
 
-The FastAPI service wrapper is at `services/automation-linter/`.
+The FastAPI service wrapper is at `domains/automation-core/automation-linter/`.
 
 ### Test Corpus
 
@@ -2447,12 +2447,12 @@ action:
 - ✅ `shared/ha_automation_lint/renderers/yaml_renderer.py` - IR to YAML converter
 
 **Service:**
-- ✅ `services/automation-linter/src/__init__.py` - Service module init
-- ✅ `services/automation-linter/src/main.py` - FastAPI service (400+ lines)
-- ✅ `services/automation-linter/requirements.txt` - Python dependencies
-- ✅ `services/automation-linter/Dockerfile` - Container image definition
-- ✅ `services/automation-linter/.dockerignore` - Docker build exclusions
-- ✅ `services/automation-linter/ui/index.html` - Web UI (300+ lines)
+- ✅ `domains/automation-core/automation-linter/src/__init__.py` - Service module init
+- ✅ `domains/automation-core/automation-linter/src/main.py` - FastAPI service (400+ lines)
+- ✅ `domains/automation-core/automation-linter/requirements.txt` - Python dependencies
+- ✅ `domains/automation-core/automation-linter/Dockerfile` - Container image definition
+- ✅ `domains/automation-core/automation-linter/.dockerignore` - Docker build exclusions
+- ✅ `domains/automation-core/automation-linter/ui/index.html` - Web UI (300+ lines)
 
 **Test Corpus:**
 - ✅ `simulation/automation-linter/README.md` - Corpus documentation

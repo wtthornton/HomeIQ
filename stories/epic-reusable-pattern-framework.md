@@ -37,7 +37,7 @@ Extract the three proven patterns from the Automation Improvements epic into sha
 - [x] `UnifiedValidationRouter` template defined; `automation_yaml_validate_router` refactored to use it
 - [x] `PostActionVerifier` interface defined; `ha_client.deploy_automation` refactored to use it
 - [x] All existing tests pass (no regression) — 26/26 RAG tests pass; 45/45 shared pattern tests pass
-- [x] Developer documentation with examples for each pattern (`shared/patterns/README.md`)
+- [x] Developer documentation with examples for each pattern (`libs/homeiq-patterns/README.md`)
 
 ---
 
@@ -50,11 +50,11 @@ Extract the three proven patterns from the Automation Improvements epic into sha
 **So that** I can create new domain RAG services (Energy, Security, Device Setup) without reimplementing boilerplate
 
 **Acceptance Criteria:**
-- [x] `RAGContextService` base class/interface defined in shared module → `shared/patterns/rag_context_service.py`
+- [x] `RAGContextService` base class/interface defined in shared module → `libs/homeiq-patterns/src/homeiq_patterns/rag_context_service.py`
 - [x] Methods: `detect_intent(prompt) → bool`, `load_corpus() → str`, `get_context(prompt) → str`
 - [x] Configurable keyword list (tuple/set) and corpus path per implementation
 - [x] Support for static file corpus and dynamically assembled corpus
-- [x] `AutomationRAGService` refactored to extend `RAGContextService` → `services/ha-ai-agent-service/src/services/automation_rag_service.py`
+- [x] `AutomationRAGService` refactored to extend `RAGContextService` → `domains/automation-core/ha-ai-agent-service/src/services/automation_rag_service.py`
 - [x] Unit tests for base class and refactored `AutomationRAGService` → 10 base class tests + 26 existing tests pass
 
 **Story Points:** 3
@@ -70,7 +70,7 @@ Extract the three proven patterns from the Automation Improvements epic into sha
 **So that** I can run multiple domain detections (sports, energy, security) in parallel and merge results into the prompt
 
 **Acceptance Criteria:**
-- [x] `RAGContextRegistry` class manages registered `RAGContextService` instances → `shared/patterns/rag_context_registry.py`
+- [x] `RAGContextRegistry` class manages registered `RAGContextService` instances → `libs/homeiq-patterns/src/homeiq_patterns/rag_context_registry.py`
 - [x] `register(service: RAGContextService)` method to add domain services
 - [x] `get_all_context(prompt) → list[str]` runs all registered services and returns matching contexts
 - [x] `ContextBuilder` refactored to use `RAGContextRegistry` instead of direct `AutomationRAGService` calls
@@ -90,7 +90,7 @@ Extract the three proven patterns from the Automation Improvements epic into sha
 **So that** new validation endpoints (blueprints, scenes, scripts) follow the same pattern without duplicating orchestration logic
 
 **Acceptance Criteria:**
-- [x] `UnifiedValidationRouter` base class/template defined in shared module → `shared/patterns/unified_validation_router.py`
+- [x] `UnifiedValidationRouter` base class/template defined in shared module → `libs/homeiq-patterns/src/homeiq_patterns/unified_validation_router.py`
 - [x] Standard request model: `content`, `normalize`, `validate_entities`, `validate_services` → `ValidationRequest`
 - [x] Standard response model: `valid`, `errors`, `warnings`, `{domain}_validation` subsections, `score`, `fixed_content`, `fixes_applied` → `ValidationResponse`
 - [x] Pluggable validation backend interface: `validate(content) → ValidationResult` → `ValidationBackend`
@@ -111,7 +111,7 @@ Extract the three proven patterns from the Automation Improvements epic into sha
 **So that** new deploy/apply flows (blueprints, scenes, device setup) include post-action verification without reimplementing the pattern
 
 **Acceptance Criteria:**
-- [x] `PostActionVerifier` base class/interface defined in shared module → `shared/patterns/post_action_verifier.py`
+- [x] `PostActionVerifier` base class/interface defined in shared module → `libs/homeiq-patterns/src/homeiq_patterns/post_action_verifier.py`
 - [x] Methods: `verify(action_result) → VerificationResult`, `map_warnings(verification) → list[Warning]`
 - [x] `VerificationResult` model: `success`, `state`, `warnings`, `metadata` + backward-compat `verification_warning` property
 - [x] `ha_client.deploy_automation` post-deploy logic refactored to use `PostActionVerifier` → `AutomationDeployVerifier`
@@ -135,7 +135,7 @@ Extract the three proven patterns from the Automation Improvements epic into sha
 - [x] Documentation covers UnifiedValidationRouter: template, backend interface, response shape, example
 - [x] Documentation covers PostActionVerifier: interface, verification flow, warning mapping, example
 - [x] Each pattern has a "quick start" showing minimal implementation steps
-- [x] Linked from PRD and architecture docs → `shared/patterns/README.md`
+- [x] Linked from PRD and architecture docs → `libs/homeiq-patterns/README.md`
 
 **Story Points:** 2
 **Dependencies:** Stories 1-4
@@ -161,20 +161,20 @@ Stories 1-4 ──────────────────> Story 5 (Doc
 
 | Artifact | Path |
 |----------|------|
-| **Shared Patterns Package** | `shared/patterns/` |
-| RAGContextService | `shared/patterns/rag_context_service.py` |
-| RAGContextRegistry | `shared/patterns/rag_context_registry.py` |
-| UnifiedValidationRouter | `shared/patterns/unified_validation_router.py` |
-| PostActionVerifier | `shared/patterns/post_action_verifier.py` |
-| Developer Documentation | `shared/patterns/README.md` |
-| Unit Tests (45 tests) | `shared/patterns/tests/` |
+| **Shared Patterns Package** | `libs/homeiq-patterns/` |
+| RAGContextService | `libs/homeiq-patterns/src/homeiq_patterns/rag_context_service.py` |
+| RAGContextRegistry | `libs/homeiq-patterns/src/homeiq_patterns/rag_context_registry.py` |
+| UnifiedValidationRouter | `libs/homeiq-patterns/src/homeiq_patterns/unified_validation_router.py` |
+| PostActionVerifier | `libs/homeiq-patterns/src/homeiq_patterns/post_action_verifier.py` |
+| Developer Documentation | `libs/homeiq-patterns/README.md` |
+| Unit Tests (45 tests) | `libs/homeiq-patterns/tests/` |
 | **Refactored Services** | |
-| AutomationRAGService (extends RAGContextService) | `services/ha-ai-agent-service/src/services/automation_rag_service.py` |
-| ContextBuilder (uses RAGContextRegistry) | `services/ha-ai-agent-service/src/services/context_builder.py` |
-| PromptAssemblyService (uses registry) | `services/ha-ai-agent-service/src/services/prompt_assembly_service.py` |
-| AutomationYAMLValidationRouter (extends UnifiedValidationRouter) | `services/ai-automation-service-new/src/api/automation_yaml_validate_router.py` |
-| AutomationDeployVerifier (extends PostActionVerifier) | `services/ai-automation-service-new/src/services/automation_deploy_verifier.py` |
-| HomeAssistantClient (uses AutomationDeployVerifier) | `services/ai-automation-service-new/src/clients/ha_client.py` |
+| AutomationRAGService (extends RAGContextService) | `domains/automation-core/ha-ai-agent-service/src/services/automation_rag_service.py` |
+| ContextBuilder (uses RAGContextRegistry) | `domains/automation-core/ha-ai-agent-service/src/services/context_builder.py` |
+| PromptAssemblyService (uses registry) | `domains/automation-core/ha-ai-agent-service/src/services/prompt_assembly_service.py` |
+| AutomationYAMLValidationRouter (extends UnifiedValidationRouter) | `domains/automation-core/ai-automation-service-new/src/api/automation_yaml_validate_router.py` |
+| AutomationDeployVerifier (extends PostActionVerifier) | `domains/automation-core/ai-automation-service-new/src/services/automation_deploy_verifier.py` |
+| HomeAssistantClient (uses AutomationDeployVerifier) | `domains/automation-core/ai-automation-service-new/src/clients/ha_client.py` |
 
 ## References
 

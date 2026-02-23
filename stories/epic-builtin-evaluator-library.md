@@ -28,10 +28,10 @@ Implement the concrete, reusable evaluators that ship with the Agent Evaluation 
 
 ## Code Location & Sharing Strategy
 
-**All code in this epic is 100% shared** — evaluators and rubrics live in `shared/patterns/evaluation/`. No service-specific code.
+**All code in this epic is 100% shared** — evaluators and rubrics live in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/`. No service-specific code.
 
 ```
-shared/patterns/evaluation/
+libs/homeiq-patterns/src/homeiq_patterns/evaluation/
 ├── evaluators/                           ← NEW — all 13 built-in evaluators
 │   ├── __init__.py
 │   ├── l1_outcome.py                     ← GoalSuccessRateEvaluator
@@ -88,10 +88,10 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can track the most fundamental metric — did the agent actually help the user?
 
 **Acceptance Criteria:**
-- [ ] `GoalSuccessRateEvaluator` extends `OutcomeEvaluator` in `shared/patterns/evaluation/evaluators/l1_outcome.py`
+- [ ] `GoalSuccessRateEvaluator` extends `OutcomeEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l1_outcome.py`
 - [ ] Scope: SESSION — evaluates the entire conversation
 - [ ] Uses `LLMJudge` with a rubric that considers: user intent, agent actions, final state
-- [ ] Rubric template: `shared/patterns/evaluation/rubrics/goal_success_rate.yaml`
+- [ ] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/goal_success_rate.yaml`
 - [ ] Output labels: `Yes` (100%), `Partial` (50%), `No` (0%)
 - [ ] Handles multi-turn sessions (considers all turns, not just the last one)
 - [ ] Handles sessions that end in error (API failures, timeouts) — should score `No`
@@ -100,7 +100,7 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 
 **Story Points:** 3
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4)
-**Affected Services:** shared/patterns/evaluation
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation
 
 ---
 
@@ -111,18 +111,18 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect when agents use the wrong tool (e.g., booking without searching first)
 
 **Acceptance Criteria:**
-- [ ] `ToolSelectionAccuracyEvaluator` extends `PathEvaluator` in `shared/patterns/evaluation/evaluators/l2_path.py`
+- [ ] `ToolSelectionAccuracyEvaluator` extends `PathEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py`
 - [ ] Scope: TOOL_CALL — evaluates each individual tool call against user intent
 - [ ] Rule-based mode: uses `tools` and `paths` from `AgentEvalConfig` to match intent → expected tool
 - [ ] LLM-fallback mode: when intent-to-tool mapping is ambiguous, uses `LLMJudge` to assess
-- [ ] Rubric template: `shared/patterns/evaluation/rubrics/tool_selection_accuracy.yaml`
+- [ ] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/tool_selection_accuracy.yaml`
 - [ ] Output labels: `Yes` (correct tool), `No` (wrong tool)
 - [ ] Configuration-driven: tool definitions and intent mappings come from YAML config, not hardcoded
 - [ ] Unit tests: correct tool selected, wrong tool selected, ambiguous intent
 
 **Story Points:** 3
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 6)
-**Affected Services:** shared/patterns/evaluation
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation
 
 ---
 
@@ -133,7 +133,7 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect when agents skip required steps (e.g., booking without showing options first)
 
 **Acceptance Criteria:**
-- [ ] `ToolSequenceValidatorEvaluator` extends `PathEvaluator` in `shared/patterns/evaluation/evaluators/l2_path.py`
+- [ ] `ToolSequenceValidatorEvaluator` extends `PathEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py`
 - [ ] Scope: SESSION — evaluates the full tool call sequence across the session
 - [ ] Purely rule-based: no LLM required — compares `tool_calls[].sequence_index` against `paths[].sequence` from config
 - [ ] Supports `exceptions` in path rules (e.g., "direct booking OK if user provides exact space ID")
@@ -145,7 +145,7 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 6)
-**Affected Services:** shared/patterns/evaluation
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation
 
 ---
 
@@ -156,7 +156,7 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect silent failures like AM/PM confusion, wrong entity IDs, or incorrect category mappings
 
 **Acceptance Criteria:**
-- [ ] `ToolParameterAccuracyEvaluator` extends `DetailsEvaluator` in `shared/patterns/evaluation/evaluators/l3_details.py`
+- [ ] `ToolParameterAccuracyEvaluator` extends `DetailsEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_details.py`
 - [ ] Scope: TOOL_CALL — evaluates parameters of each individual tool call
 - [ ] Rule-based checks for:
   - Type validation (expected int got string, etc.)
@@ -167,13 +167,13 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
   - Natural language extraction accuracy (did "2pm" become `14:00`?)
   - Entity resolution (did "living room light" resolve to correct `entity_id`?)
 - [ ] Parameter rules defined in `AgentEvalConfig.parameter_rules` — not hardcoded
-- [ ] Rubric template: `shared/patterns/evaluation/rubrics/tool_parameter_accuracy.yaml`
+- [ ] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/tool_parameter_accuracy.yaml`
 - [ ] Output labels: `Yes` (correct), `No` (incorrect) per parameter
 - [ ] Unit tests: correct params, wrong type, wrong format, AM/PM confusion, wrong entity
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4, 6)
-**Affected Services:** shared/patterns/evaluation
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation
 
 ---
 
@@ -184,24 +184,24 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect hallucinations, fabricated details, and self-contradictions
 
 **Acceptance Criteria:**
-- [ ] `CorrectnessEvaluator` extends `QualityEvaluator` in `shared/patterns/evaluation/evaluators/l4_quality.py`
+- [ ] `CorrectnessEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
   - Checks: information matches API/tool responses, no fabricated data
   - Labels: `Perfectly Correct` (100%), `Partially Correct` (50%), `Incorrect` (0%)
-  - Rubric: `shared/patterns/evaluation/rubrics/correctness.yaml`
+  - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/correctness.yaml`
 - [ ] `FaithfulnessEvaluator` extends `QualityEvaluator`
   - Checks: response stays true to conversation context, no hallucinated preferences
   - Labels: `Completely Yes` (100%), `Generally Yes` (75%), `Generally No` (25%), `Completely No` (0%)
-  - Rubric: `shared/patterns/evaluation/rubrics/faithfulness.yaml`
+  - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/faithfulness.yaml`
 - [ ] `CoherenceEvaluator` extends `QualityEvaluator`
   - Checks: no self-contradictions, consistent numbers/times/names
   - Labels: `Completely Yes` (100%), `Generally Yes` (75%), `Generally No` (25%), `Completely No` (0%)
-  - Rubric: `shared/patterns/evaluation/rubrics/coherence.yaml`
+  - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/coherence.yaml`
 - [ ] All three use `LLMJudge` with session context (user messages + agent responses + tool results)
 - [ ] Unit tests for each evaluator: passing case, failing case, edge case
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4)
-**Affected Services:** shared/patterns/evaluation
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation
 
 ---
 
@@ -212,24 +212,24 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect verbose responses, unhelpful answers, and off-topic replies
 
 **Acceptance Criteria:**
-- [ ] `HelpfulnessEvaluator` extends `QualityEvaluator` in `shared/patterns/evaluation/evaluators/l4_quality.py`
+- [ ] `HelpfulnessEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
   - Checks: clear options presented, guides user to next step, actionable
   - Labels: `Very Helpful` (100%), `Somewhat Helpful` (66%), `Neutral/Mixed` (33%), `Not Helpful` (0%)
-  - Rubric: `shared/patterns/evaluation/rubrics/helpfulness.yaml`
+  - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/helpfulness.yaml`
 - [ ] `ConcisenessEvaluator` extends `QualityEvaluator`
   - Checks: appropriate length for query complexity, no rambling
   - Labels: `Concise` (100%), `Partially Concise` (50%), `Not Concise` (0%)
-  - Rubric: `shared/patterns/evaluation/rubrics/conciseness.yaml`
+  - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/conciseness.yaml`
 - [ ] `ResponseRelevanceEvaluator` extends `QualityEvaluator`
   - Checks: addresses user's question directly, stays on topic
   - Labels: `Completely Yes` (100%), `Neutral/Mixed` (50%), `Completely No` (0%)
-  - Rubric: `shared/patterns/evaluation/rubrics/response_relevance.yaml`
+  - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/response_relevance.yaml`
 - [ ] All three use `LLMJudge` with the user message + agent response pair
 - [ ] Unit tests for each evaluator: strong pass, weak pass, failure
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4)
-**Affected Services:** shared/patterns/evaluation
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation
 
 ---
 
@@ -240,9 +240,9 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect when agents ignore their own rules (formatting, workflow, constraints)
 
 **Acceptance Criteria:**
-- [ ] `InstructionFollowingEvaluator` extends `QualityEvaluator` in `shared/patterns/evaluation/evaluators/l4_quality.py`
+- [ ] `InstructionFollowingEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
 - [ ] Uses `LLMJudge` with the agent's system prompt + session trace
-- [ ] Rubric template: `shared/patterns/evaluation/rubrics/instruction_following.yaml`
+- [ ] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/instruction_following.yaml`
 - [ ] Labels: `Yes` (100%), `Partial` (50%), `No` (0%)
 - [ ] The system prompt text is loaded from `AgentEvalConfig` or provided at evaluation time
 - [ ] This is the generic instruction-following check — agent-specific rule evaluators (like `NoMarkdownHeadings`) are built in Epic 3 using `SystemPromptRuleEvaluator`
@@ -250,7 +250,7 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 
 **Story Points:** 3
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4, 6)
-**Affected Services:** shared/patterns/evaluation
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation
 
 ---
 
@@ -261,7 +261,7 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can define custom rule evaluators (like Tango's `ConfirmBeforeBooking`, `NoMarkdownHeadings`) via config without writing new evaluator code
 
 **Acceptance Criteria:**
-- [ ] `SystemPromptRuleEvaluator` extends `QualityEvaluator` in `shared/patterns/evaluation/evaluators/l4_quality.py`
+- [ ] `SystemPromptRuleEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
 - [ ] Supports three `check_type` modes:
   - `path_validation` — checks tool call sequence (rule-based, no LLM)
   - `response_check` — regex or keyword check on agent response text (rule-based)
@@ -275,7 +275,7 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4, 6)
-**Affected Services:** shared/patterns/evaluation
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation
 
 ---
 
@@ -286,25 +286,25 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can ensure all agents meet baseline safety standards
 
 **Acceptance Criteria:**
-- [ ] `HarmfulnessEvaluator` extends `SafetyEvaluator` in `shared/patterns/evaluation/evaluators/l5_safety.py`
+- [ ] `HarmfulnessEvaluator` extends `SafetyEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l5_safety.py`
   - Checks: no harmful, dangerous, or malicious content
   - Labels: `Not Harmful` (100%), `Harmful` (0%)
-  - Rubric: `shared/patterns/evaluation/rubrics/harmfulness.yaml`
+  - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/harmfulness.yaml`
 - [ ] `StereotypingEvaluator` extends `SafetyEvaluator`
   - Checks: no bias, stereotyping, or discriminatory language
   - Labels: `Not Stereotyping` (100%), `Stereotyping` (0%)
-  - Rubric: `shared/patterns/evaluation/rubrics/stereotyping.yaml`
+  - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/stereotyping.yaml`
 - [ ] `RefusalEvaluator` extends `SafetyEvaluator`
   - Checks: agent doesn't refuse valid requests (false refusal detection)
   - Labels: `No` (didn't refuse — expected, 100%), `Yes` (refused valid request, 0%)
   - Note: 0% score on refusal is EXPECTED behavior (agent should not refuse valid requests)
-  - Rubric: `shared/patterns/evaluation/rubrics/refusal.yaml`
+  - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/refusal.yaml`
 - [ ] All three use `LLMJudge`
 - [ ] Unit tests for each: safe response, harmful response, biased response, valid refusal, false refusal
 
 **Story Points:** 3
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4)
-**Affected Services:** shared/patterns/evaluation
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation
 
 ---
 
@@ -315,20 +315,20 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can understand what each evaluator measures and customize rubrics for my agent's domain
 
 **Acceptance Criteria:**
-- [ ] All 13 rubric YAML files in `shared/patterns/evaluation/rubrics/`:
+- [ ] All 13 rubric YAML files in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/`:
   - `goal_success_rate.yaml`, `tool_selection_accuracy.yaml`, `tool_parameter_accuracy.yaml`
   - `correctness.yaml`, `faithfulness.yaml`, `coherence.yaml`
   - `helpfulness.yaml`, `conciseness.yaml`, `response_relevance.yaml`
   - `instruction_following.yaml`, `harmfulness.yaml`, `stereotyping.yaml`, `refusal.yaml`
 - [ ] Each rubric contains: `name`, `description`, `prompt_template`, `output_labels`, `score_mapping`, `examples` (pass + fail)
-- [ ] Rubric catalog documentation: `shared/patterns/evaluation/rubrics/README.md`
+- [ ] Rubric catalog documentation: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/README.md`
 - [ ] Each rubric documented with: what it measures, when to use it, scoring scale, example judgments
 - [ ] Rubrics are self-contained — all context needed for judgment is in the template
-- [ ] Updated `shared/patterns/evaluation/README.md` with rubric catalog link
+- [ ] Updated `libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md` with rubric catalog link
 
 **Story Points:** 3
 **Dependencies:** Stories 1-9
-**Affected Services:** shared/patterns/evaluation (documentation)
+**Affected Services:** libs/homeiq-patterns/src/homeiq_patterns/evaluation (documentation)
 
 ---
 
@@ -363,22 +363,22 @@ All artifacts are in the shared package — **zero service-specific code** in th
 
 | Artifact | Path | Shared? |
 |----------|------|---------|
-| **Evaluator Modules** | `shared/patterns/evaluation/evaluators/` | 100% Shared |
-| Evaluator Package Init | `shared/patterns/evaluation/evaluators/__init__.py` | 100% Shared |
-| L1 Outcome Evaluators | `shared/patterns/evaluation/evaluators/l1_outcome.py` | 100% Shared |
-| L2 Path Evaluators | `shared/patterns/evaluation/evaluators/l2_path.py` | 100% Shared |
-| L3 Details Evaluators | `shared/patterns/evaluation/evaluators/l3_details.py` | 100% Shared |
-| L4 Quality Evaluators | `shared/patterns/evaluation/evaluators/l4_quality.py` | 100% Shared |
-| L5 Safety Evaluators | `shared/patterns/evaluation/evaluators/l5_safety.py` | 100% Shared |
-| **Rubric Templates** | `shared/patterns/evaluation/rubrics/` | 100% Shared |
-| 13 Rubric YAML files | `shared/patterns/evaluation/rubrics/*.yaml` | 100% Shared |
-| Rubric Catalog Docs | `shared/patterns/evaluation/rubrics/README.md` | 100% Shared |
-| **Unit Tests (50+)** | `shared/patterns/tests/test_evaluation/` | 100% Shared |
-| L1 Tests | `shared/patterns/tests/test_evaluation/test_l1_outcome.py` | 100% Shared |
-| L2 Tests | `shared/patterns/tests/test_evaluation/test_l2_path.py` | 100% Shared |
-| L3 Tests | `shared/patterns/tests/test_evaluation/test_l3_details.py` | 100% Shared |
-| L4 Tests | `shared/patterns/tests/test_evaluation/test_l4_quality.py` | 100% Shared |
-| L5 Tests | `shared/patterns/tests/test_evaluation/test_l5_safety.py` | 100% Shared |
+| **Evaluator Modules** | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/` | 100% Shared |
+| Evaluator Package Init | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/__init__.py` | 100% Shared |
+| L1 Outcome Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l1_outcome.py` | 100% Shared |
+| L2 Path Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py` | 100% Shared |
+| L3 Details Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_details.py` | 100% Shared |
+| L4 Quality Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py` | 100% Shared |
+| L5 Safety Evaluators | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l5_safety.py` | 100% Shared |
+| **Rubric Templates** | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/` | 100% Shared |
+| 13 Rubric YAML files | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/*.yaml` | 100% Shared |
+| Rubric Catalog Docs | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/README.md` | 100% Shared |
+| **Unit Tests (50+)** | `libs/homeiq-patterns/tests/test_evaluation/` | 100% Shared |
+| L1 Tests | `libs/homeiq-patterns/tests/test_evaluation/test_l1_outcome.py` | 100% Shared |
+| L2 Tests | `libs/homeiq-patterns/tests/test_evaluation/test_l2_path.py` | 100% Shared |
+| L3 Tests | `libs/homeiq-patterns/tests/test_evaluation/test_l3_details.py` | 100% Shared |
+| L4 Tests | `libs/homeiq-patterns/tests/test_evaluation/test_l4_quality.py` | 100% Shared |
+| L5 Tests | `libs/homeiq-patterns/tests/test_evaluation/test_l5_safety.py` | 100% Shared |
 
 ## References
 

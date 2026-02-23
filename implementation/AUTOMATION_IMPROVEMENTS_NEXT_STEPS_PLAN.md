@@ -118,7 +118,7 @@ All 8 stories of the epic are implemented. This plan covers verification, integr
 - Epic: `stories/epic-homeiq-automation-improvements.md`
 - **Team Tracker reference (generic):** `implementation/teamtracker_automation_reference_guide.md` – all attributes, all leagues
 - Super Bowl guide (example): `implementation/superbowl_teamtracker_lights_guide.md`
-- RAG excerpts: `services/ha-ai-agent-service/src/data/superbowl_guide_excerpts.md`
-- Unified validate API: `services/ai-automation-service-new/src/api/automation_yaml_validate_router.py`
-- HA client (post-deploy state): `services/ai-automation-service-new/src/clients/ha_client.py`
-- Automation RAG: `services/ha-ai-agent-service/src/services/automation_rag_service.py`
+- RAG excerpts: `domains/automation-core/ha-ai-agent-service/src/data/superbowl_guide_excerpts.md`
+- Unified validate API: `domains/automation-core/ai-automation-service-new/src/api/automation_yaml_validate_router.py`
+- HA client (post-deploy state): `domains/automation-core/ai-automation-service-new/src/clients/ha_client.py`
+- Automation RAG: `domains/automation-core/ha-ai-agent-service/src/services/automation_rag_service.py`

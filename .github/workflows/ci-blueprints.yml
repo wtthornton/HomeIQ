@@ -1,0 +1,39 @@
+name: "CI — Blueprints"
+
+on:
+  push:
+    paths:
+      - 'domains/blueprints/blueprint-index/**'
+      - 'domains/blueprints/blueprint-suggestion-service/**'
+      - 'domains/blueprints/rule-recommendation-ml/**'
+      - 'domains/blueprints/automation-miner/**'
+      - 'domains/blueprints/compose.yml'
+      - 'libs/**'
+      - '.github/workflows/ci-blueprints.yml'
+      - '.github/workflows/reusable-group-ci.yml'
+  pull_request:
+    paths:
+      - 'domains/blueprints/blueprint-index/**'
+      - 'domains/blueprints/blueprint-suggestion-service/**'
+      - 'domains/blueprints/rule-recommendation-ml/**'
+      - 'domains/blueprints/automation-miner/**'
+      - 'domains/blueprints/compose.yml'
+      - 'libs/**'
+      - '.github/workflows/ci-blueprints.yml'
+      - '.github/workflows/reusable-group-ci.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-blueprints-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: ./.github/workflows/reusable-group-ci.yml
+    with:
+      group_name: blueprints
+      domain_dir: blueprints
+      services: '["blueprint-index","blueprint-suggestion-service","rule-recommendation-ml","automation-miner"]'

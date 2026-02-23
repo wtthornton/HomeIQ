@@ -236,17 +236,17 @@ Services that could be updated in future phases:
 **Python Services:**
 ```bash
 # ml-service
-cd services/ml-service
+cd domains/ml-engine/ml-service
 pip install -r requirements.txt
 pytest  # Test with pytest 9.x and tenacity 9.x
 
 # ai-core-service
-cd services/ai-core-service
+cd domains/ml-engine/ai-core-service
 pip install -r requirements.txt
 pytest  # Test with pytest 9.x and tenacity 9.x
 
 # ai-pattern-service
-cd services/ai-pattern-service
+cd domains/pattern-analysis/ai-pattern-service
 pip install -r requirements.txt
 pytest  # Test with pytest 9.x and paho-mqtt 2.1.0
 ```
@@ -254,13 +254,13 @@ pytest  # Test with pytest 9.x and paho-mqtt 2.1.0
 **Node.js Services:**
 ```bash
 # health-dashboard
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 npm test
 npm run lint
 npm run type-check
 
 # ai-automation-ui
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 npm test
 npm run build
 ```
@@ -273,15 +273,15 @@ npm run build
 **Commit:** 76631187
 
 **Files Changed:**
-- services/ha-simulator/requirements.txt
-- services/ml-service/requirements.txt
-- services/ai-core-service/requirements.txt
-- services/ai-pattern-service/requirements.txt
+- domains/core-platform/ha-simulator/requirements.txt
+- domains/ml-engine/ml-service/requirements.txt
+- domains/ml-engine/ai-core-service/requirements.txt
+- domains/pattern-analysis/ai-pattern-service/requirements.txt
 - tools/cli/requirements.txt
-- services/health-dashboard/package.json
-- services/health-dashboard/package-lock.json
-- services/ai-automation-ui/package.json
-- services/ai-automation-ui/package-lock.json
+- domains/core-platform/health-dashboard/package.json
+- domains/core-platform/health-dashboard/package-lock.json
+- domains/frontends/ai-automation-ui/package.json
+- domains/frontends/ai-automation-ui/package-lock.json
 - docs/planning/phase-2-mqtt-migration-guide.md
 
 **Statistics:**

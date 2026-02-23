@@ -31,10 +31,6 @@ This runs scoring + quality gate + security scan in a single call.
 Alternatively, call `tapps_score_file`, `tapps_quality_gate`, and `tapps_security_scan` individually.
 Skipping this means quality issues and vulnerabilities go undetected.
 
-**File path format:** Use paths **relative to project root** (e.g. `services/weather-api/src/main.py`).
-Convert absolute paths (e.g. `C:\cursor\HomeIQ\services\...`) to relative before calling.
-Relative paths ensure dashboard coverage metrics (files scored, files gated, files scanned) are recorded correctly on Windows.
-
 ### Before Declaring Work Complete (BLOCKING)
 
 For multi-file changes: You MUST call `tapps_validate_changed()` to batch-validate all changed files.
@@ -81,6 +77,9 @@ Execute these stages IN ORDER for every code task:
 | `tapps_checklist` | No verification that process was followed |
 | `tapps_consult_expert` | Decisions made without domain expertise |
 | `tapps_impact_analysis` | Refactoring breaks unknown dependents |
+| `tapps_dead_code` | Unused code accumulates, bloating the codebase |
+| `tapps_dependency_scan` | Vulnerable dependencies shipped to production |
+| `tapps_dependency_graph` | Circular imports cause runtime crashes |
 
 ## Response Guidance
 
@@ -89,4 +88,4 @@ Every tool response includes:
 - `pipeline_progress`: Which stages are complete and what comes next
 
 Record progress in `docs/TAPPS_HANDOFF.md` and `docs/TAPPS_RUNLOG.md`.
-For detailed stage instructions, use the `tapps_pipeline` MCP prompt.
+For task-specific recommended tool call order, use the `tapps_workflow` MCP prompt (e.g. `tapps_workflow(task_type="feature")`).

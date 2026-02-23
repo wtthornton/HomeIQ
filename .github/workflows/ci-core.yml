@@ -1,26 +1,26 @@
-name: "CI \u2014 Core Platform"
+name: "CI — Core Platform"
 
 on:
   push:
     paths:
-      - 'services/websocket-ingestion/**'
-      - 'services/data-api/**'
-      - 'services/admin-api/**'
-      - 'services/health-dashboard/**'
-      - 'services/data-retention/**'
-      - 'compose/core.yml'
-      - 'shared/patterns/**'
+      - 'domains/core-platform/websocket-ingestion/**'
+      - 'domains/core-platform/data-api/**'
+      - 'domains/core-platform/admin-api/**'
+      - 'domains/core-platform/health-dashboard/**'
+      - 'domains/core-platform/data-retention/**'
+      - 'domains/core-platform/compose.yml'
+      - 'libs/**'
       - '.github/workflows/ci-core.yml'
       - '.github/workflows/reusable-group-ci.yml'
   pull_request:
     paths:
-      - 'services/websocket-ingestion/**'
-      - 'services/data-api/**'
-      - 'services/admin-api/**'
-      - 'services/health-dashboard/**'
-      - 'services/data-retention/**'
-      - 'compose/core.yml'
-      - 'shared/patterns/**'
+      - 'domains/core-platform/websocket-ingestion/**'
+      - 'domains/core-platform/data-api/**'
+      - 'domains/core-platform/admin-api/**'
+      - 'domains/core-platform/health-dashboard/**'
+      - 'domains/core-platform/data-retention/**'
+      - 'domains/core-platform/compose.yml'
+      - 'libs/**'
       - '.github/workflows/ci-core.yml'
       - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
@@ -37,4 +37,5 @@ jobs:
     uses: ./.github/workflows/reusable-group-ci.yml
     with:
       group_name: core
+      domain_dir: core-platform
       services: '["websocket-ingestion","data-api","admin-api","health-dashboard","data-retention"]'

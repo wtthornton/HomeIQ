@@ -65,7 +65,7 @@ python scripts/phase2-migrate-pytest-asyncio.py \
 
 ```bash
 # Use relative or absolute path
-python scripts/phase2-migrate-pytest-asyncio.py services/automation-miner
+python scripts/phase2-migrate-pytest-asyncio.py domains/blueprints/automation-miner
 ```
 
 ---
@@ -394,8 +394,8 @@ Changes (5):
   [OK] test_api.py: Added @pytest.mark.asyncio to test_search_endpoint
   [OK] requirements.txt: Updated pytest-asyncio to 1.3.0
 
-Backup: services/automation-miner/.migration_backup_20260205_121530
-Rollback Script: services/automation-miner/rollback_pytest_asyncio_20260205_121530.sh
+Backup: domains/blueprints/automation-miner/.migration_backup_20260205_121530
+Rollback Script: domains/blueprints/automation-miner/rollback_pytest_asyncio_20260205_121530.sh
 
 Running tests...
 [OK] All tests passed (42 tests, 2.3s)

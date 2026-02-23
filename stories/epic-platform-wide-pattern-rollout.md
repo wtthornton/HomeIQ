@@ -311,53 +311,53 @@ Story 11 (Sport-Specific Corpus)       (independent)
 
 | Service | File | Keywords (count) |
 |---------|------|-----------------|
-| SecurityRAGService | `services/ha-ai-agent-service/src/services/security_rag_service.py` | 15 |
-| ComfortRAGService | `services/ha-ai-agent-service/src/services/comfort_rag_service.py` | 15 |
-| SceneScriptRAGService | `services/ha-ai-agent-service/src/services/scene_script_rag_service.py` | 10 |
-| DeviceCapabilityRAGService | `services/ha-ai-agent-service/src/services/device_capability_rag_service.py` | 12+ |
+| SecurityRAGService | `domains/automation-core/ha-ai-agent-service/src/services/security_rag_service.py` | 15 |
+| ComfortRAGService | `domains/automation-core/ha-ai-agent-service/src/services/comfort_rag_service.py` | 15 |
+| SceneScriptRAGService | `domains/automation-core/ha-ai-agent-service/src/services/scene_script_rag_service.py` | 10 |
+| DeviceCapabilityRAGService | `domains/automation-core/ha-ai-agent-service/src/services/device_capability_rag_service.py` | 12+ |
 
 ### Corpus Files Created
 
 | Corpus | File |
 |--------|------|
-| Security patterns | `services/ha-ai-agent-service/src/data/security_automation_patterns.md` |
-| Comfort patterns | `services/ha-ai-agent-service/src/data/comfort_automation_patterns.md` |
-| Scene/script patterns | `services/ha-ai-agent-service/src/data/scene_script_patterns.md` |
-| Device capability patterns | `services/ha-ai-agent-service/src/data/device_capability_patterns.md` |
-| Sport-specific patterns | `services/ha-ai-agent-service/src/data/sport_specific_patterns.md` |
+| Security patterns | `domains/automation-core/ha-ai-agent-service/src/data/security_automation_patterns.md` |
+| Comfort patterns | `domains/automation-core/ha-ai-agent-service/src/data/comfort_automation_patterns.md` |
+| Scene/script patterns | `domains/automation-core/ha-ai-agent-service/src/data/scene_script_patterns.md` |
+| Device capability patterns | `domains/automation-core/ha-ai-agent-service/src/data/device_capability_patterns.md` |
+| Sport-specific patterns | `domains/automation-core/ha-ai-agent-service/src/data/sport_specific_patterns.md` |
 
 ### Validation Routers Created
 
 | Endpoint | File |
 |----------|------|
-| `POST /api/v1/scenes/validate` | `services/ai-automation-service-new/src/api/scene_validate_router.py` |
-| `POST /api/v1/scripts/validate` | `services/ai-automation-service-new/src/api/script_validate_router.py` |
+| `POST /api/v1/scenes/validate` | `domains/automation-core/ai-automation-service-new/src/api/scene_validate_router.py` |
+| `POST /api/v1/scripts/validate` | `domains/automation-core/ai-automation-service-new/src/api/script_validate_router.py` |
 
 ### Verifiers Created
 
 | Verifier | File |
 |----------|------|
-| SceneVerifier | `services/ai-automation-service-new/src/services/scene_verifier.py` |
-| ScriptVerifier | `services/ai-automation-service-new/src/services/script_verifier.py` |
-| TaskExecutionVerifier | `services/ai-automation-service-new/src/services/task_execution_verifier.py` |
+| SceneVerifier | `domains/automation-core/ai-automation-service-new/src/services/scene_verifier.py` |
+| ScriptVerifier | `domains/automation-core/ai-automation-service-new/src/services/script_verifier.py` |
+| TaskExecutionVerifier | `domains/automation-core/ai-automation-service-new/src/services/task_execution_verifier.py` |
 
 ### Other Artifacts
 
 | Artifact | File |
 |----------|------|
-| Sports blueprint generator | `services/ai-automation-service-new/src/services/sports_blueprint_generator.py` |
+| Sports blueprint generator | `domains/automation-core/ai-automation-service-new/src/services/sports_blueprint_generator.py` |
 
 ### Tests
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|
-| `shared/patterns/tests/test_epic3_rag_services.py` | 30 | Security, Comfort, SceneScript, DeviceCapability RAG + registry |
-| `shared/patterns/tests/test_epic3_validation_verifiers.py` | 24 | Scene/Script validation, verifiers, task execution, sports blueprint |
+| `libs/homeiq-patterns/tests/test_epic3_rag_services.py` | 30 | Security, Comfort, SceneScript, DeviceCapability RAG + registry |
+| `libs/homeiq-patterns/tests/test_epic3_validation_verifiers.py` | 24 | Scene/Script validation, verifiers, task execution, sports blueprint |
 | **Total Phase 4** | **54** | |
 
 ### Registry Integration
 
-All 4 new RAG services registered in `services/ha-ai-agent-service/src/services/context_builder.py` via `ContextBuilder.initialize()`.
+All 4 new RAG services registered in `domains/automation-core/ha-ai-agent-service/src/services/context_builder.py` via `ContextBuilder.initialize()`.
 
 ---
 
@@ -368,5 +368,5 @@ All 4 new RAG services registered in `services/ha-ai-agent-service/src/services/
 - [Epic: High-Value Domain Extensions](epic-high-value-domain-extensions.md) (prerequisite for Story 10)
 - [Epic: Automation Improvements](epic-homeiq-automation-improvements.md) (deferred Stories 8, 10)
 - [Team Tracker Reference Guide](../implementation/teamtracker_automation_reference_guide.md) (Story 11)
-- [Services Ranked by Importance](../services/SERVICES_RANKED_BY_IMPORTANCE.md)
-- [Shared Patterns README](../shared/patterns/README.md) (pattern documentation and file map)
+- [Services Ranked by Importance](../docs/architecture/SERVICES_RANKED_BY_IMPORTANCE.md)
+- [Shared Patterns README](../libs/homeiq-patterns/README.md) (pattern documentation and file map)

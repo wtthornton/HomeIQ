@@ -57,7 +57,7 @@ trace.metadata["deployment_requested"] = result_had_deploy_flag  # from Pipeline
 **Problem:** There are 4 existing path rules (lines 161-189): `plan_validate_compile_deploy` (full 5-step), `validate_before_deploy`, `verify_after_deploy`, and `rollback_path`. Preview runs fail all rules requiring deploy/verify steps.
 
 **File:**
-- `shared/patterns/evaluation/configs/ai_automation_service.yaml` — `paths:` section (lines 161-189)
+- `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml` — `paths:` section (lines 161-189)
 
 **Changes:** Add a new path rule for preview mode:
 ```yaml
@@ -141,7 +141,7 @@ trace.metadata["generated_yaml"] = result.debug.generated_yaml or ""
 > **CRITICAL:** Stories 1.3 and 1.4 must be implemented atomically. If 1.3 ships without 1.4, the `yaml_safety_check` becomes ineffective — dangerous YAML patterns (shell_command, curl, wget) would pass undetected.
 
 **File:**
-- `shared/patterns/evaluation/evaluators/l4_quality.py` — `SystemPromptRuleEvaluator._check_response()` (lines 367-400)
+- `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py` — `SystemPromptRuleEvaluator._check_response()` (lines 367-400)
 
 **Changes:** When `metadata["generated_yaml"]` exists, check that instead of (or in addition to) `agent_responses[].content`:
 
@@ -297,7 +297,7 @@ if deploy_step and deploy_step.data:
 
 ### Story 3.1 — Template Appropriateness Evaluator (L2) ✅
 
-**New file:** `shared/patterns/evaluation/evaluators/l2_template_match.py`
+**New file:** `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_template_match.py`
 
 **Purpose:** Verify the LLM selected the right template for the user's intent. This is the single most important quality signal for the hybrid flow — if the wrong template is selected, everything downstream is wrong.
 
@@ -378,7 +378,7 @@ class TemplateAppropriatenessEvaluator(PathEvaluator):
 
 ### Story 3.2 — YAML Completeness Evaluator (L3) ✅
 
-**New file:** `shared/patterns/evaluation/evaluators/l3_yaml_completeness.py`
+**New file:** `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_yaml_completeness.py`
 
 **Purpose:** Deterministically verify the generated YAML has all required HA automation structure.
 
@@ -464,7 +464,7 @@ class YAMLCompletenessEvaluator(DetailsEvaluator):
 
 ### Story 3.3 — Entity Resolution Evaluator (L3) ✅
 
-**New file:** `shared/patterns/evaluation/evaluators/l3_entity_resolution.py`
+**New file:** `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_entity_resolution.py`
 
 **Purpose:** Score how well the pipeline resolved abstract references (room names, device types) into concrete HA entity IDs and area IDs.
 
@@ -502,8 +502,8 @@ class EntityResolutionEvaluator(DetailsEvaluator):
 ### Story 3.4 — Register custom evaluators in config ✅
 
 **File:**
-- `shared/patterns/evaluation/configs/ai_automation_service.yaml`
-- `shared/patterns/evaluation/registry.py` — `_build_evaluators()` (lines 104-126)
+- `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml`
+- `libs/homeiq-patterns/src/homeiq_patterns/evaluation/registry.py` — `_build_evaluators()` (lines 104-126)
 
 **Approach:** The registry currently uses a builder pattern with level-specific methods (`_build_l1_evaluators`, `_build_l2_evaluators`, etc. — lines 128-230). Adding a generic `custom_evaluators` YAML section requires a dynamic class loader, which is more complex than needed.
 
@@ -537,7 +537,7 @@ return evals
 
 ### Story 4.1 — Enable `response_relevance` quality rubric ✅
 
-**File:** `shared/patterns/evaluation/configs/ai_automation_service.yaml` (line 258)
+**File:** `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml` (line 258)
 
 **Change:**
 ```yaml
@@ -558,7 +558,7 @@ quality_rubrics:
 
 ### Story 4.2 — Add preview-mode thresholds ✅
 
-**File:** `shared/patterns/evaluation/configs/ai_automation_service.yaml` (line 271)
+**File:** `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml` (line 271)
 
 The current thresholds assume deploy runs. Add a note or separate threshold set for preview mode. Since the config schema doesn't support conditional thresholds, document the expected scores:
 
@@ -590,7 +590,7 @@ thresholds:
 
 ### Story 4.3 — Make path rule exceptions deterministic ✅
 
-**File:** `shared/patterns/evaluation/evaluators/l2_path.py` — `_check_exceptions()` (line 216)
+**File:** `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py` — `_check_exceptions()` (line 216)
 
 **Current:** Sends exception descriptions to LLM for evaluation (slow, non-deterministic).
 
@@ -712,13 +712,13 @@ python tests/integration/eval_regression_check.py --threshold 0.10
 
 **Implementation:**
 
-1. **New endpoint:** `POST /api/v1/evaluations/{agent_name}/results` in `services/data-api/src/evaluation_endpoints.py` — accepts pre-computed evaluation results directly from the test harness (bypasses scheduler). Accepts `SubmitResultsRequest` with `session_id`, `results[]`, and `aggregate_scores`, wraps in a `BatchReport`, and stores via `EvaluationStore.store_batch_report()`.
+1. **New endpoint:** `POST /api/v1/evaluations/{agent_name}/results` in `domains/core-platform/data-api/src/evaluation_endpoints.py` — accepts pre-computed evaluation results directly from the test harness (bypasses scheduler). Accepts `SubmitResultsRequest` with `session_id`, `results[]`, and `aggregate_scores`, wraps in a `BatchReport`, and stores via `EvaluationStore.store_batch_report()`.
 
 2. **`AgentEvaluationRunner.submit_to_data_api()`** in `tests/integration/test_ask_ai_pipeline.py` — new method that POSTs evaluation results to the data-api endpoint. Fails silently if data-api is unavailable (test harness should never break due to data-api).
 
 3. **Harness wiring:** After evaluation runs and JSONL history is written, the harness calls `eval_runner.submit_to_data_api()` to store results for dashboard trending.
 
-**Endpoints available on data-api (port 8006)** — verified in `services/data-api/src/evaluation_endpoints.py`, router mounted with `prefix="/api/v1"` in `main.py` line 424:
+**Endpoints available on data-api (port 8006)** — verified in `domains/core-platform/data-api/src/evaluation_endpoints.py`, router mounted with `prefix="/api/v1"` in `main.py` line 424:
 - `POST /api/v1/evaluations/{agent_name}/trigger` — manual evaluation trigger (line 289)
 - `POST /api/v1/evaluations/{agent_name}/results` — direct result submission (Story 5.4)
 - `GET /api/v1/evaluations/{agent_name}/history` — paginated historical results (line 201)
@@ -814,13 +814,13 @@ python tests/integration/eval_regression_check.py --threshold 0.10
 | File | Phase | Type | Status |
 |------|-------|------|--------|
 | `tests/integration/test_ask_ai_pipeline.py` | 1, 2, 5 | Modified | ✅ Trace builder, metadata enrichment, JSONL history, --min-eval-score CLI |
-| `shared/patterns/evaluation/configs/ai_automation_service.yaml` | 1, 4 | Modified | ✅ Preview path rule, rollback exception, response_relevance rubric, thresholds |
-| `shared/patterns/evaluation/evaluators/l4_quality.py` | 1 | Modified | ✅ `_check_response()` checks metadata YAML |
-| `shared/patterns/evaluation/evaluators/l2_path.py` | 4 | Modified | ✅ `_check_exceptions()` deterministic-first |
-| `shared/patterns/evaluation/evaluators/l2_template_match.py` | 3 | Created | ✅ TemplateAppropriatenessEvaluator |
-| `shared/patterns/evaluation/evaluators/l3_yaml_completeness.py` | 3 | Created | ✅ YAMLCompletenessEvaluator |
-| `shared/patterns/evaluation/evaluators/l3_entity_resolution.py` | 3 | Created | ✅ EntityResolutionEvaluator |
-| `shared/patterns/evaluation/registry.py` | 3 | Modified | ✅ L2/L3 builder methods register new evaluators |
+| `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/ai_automation_service.yaml` | 1, 4 | Modified | ✅ Preview path rule, rollback exception, response_relevance rubric, thresholds |
+| `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py` | 1 | Modified | ✅ `_check_response()` checks metadata YAML |
+| `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py` | 4 | Modified | ✅ `_check_exceptions()` deterministic-first |
+| `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_template_match.py` | 3 | Created | ✅ TemplateAppropriatenessEvaluator |
+| `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_yaml_completeness.py` | 3 | Created | ✅ YAMLCompletenessEvaluator |
+| `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_entity_resolution.py` | 3 | Created | ✅ EntityResolutionEvaluator |
+| `libs/homeiq-patterns/src/homeiq_patterns/evaluation/registry.py` | 3 | Modified | ✅ L2/L3 builder methods register new evaluators |
 | `tests/integration/eval_regression_check.py` | 5 | Created | ✅ Regression detection script |
 
 ---

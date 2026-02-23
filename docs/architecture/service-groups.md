@@ -80,8 +80,8 @@ HomeIQ's 50+ microservices are organized into **6 independently deployable group
 | health-dashboard | 3000 | Primary user UI (React/Vite) |
 | data-retention | 8080 | Data lifecycle -- cleanup, compression, rotation |
 
-**Compose file:** `compose/core.yml`
-**Env file:** `compose/core.env.example`
+**Compose file:** `domains/core-platform/compose.yml`
+**Env file:** `domains/core-platform/compose.env.example`
 **Depends on:** Nothing (root of dependency tree)
 **Depended on by:** All other groups
 
@@ -99,13 +99,13 @@ HomeIQ's 50+ microservices are organized into **6 independently deployable group
 **Deploy commands:**
 ```bash
 # Start core platform only
-docker compose -f compose/core.yml up -d
+docker compose -f domains/core-platform/compose.yml up -d
 
 # Rebuild and start
-docker compose -f compose/core.yml up -d --build
+docker compose -f domains/core-platform/compose.yml up -d --build
 
 # View logs
-docker compose -f compose/core.yml logs -f
+docker compose -f domains/core-platform/compose.yml logs -f
 
 # Health check
 curl http://localhost:8086/health   # InfluxDB
@@ -133,8 +133,8 @@ curl http://localhost:8080/health   # data-retention
 | calendar-service | 8013 | HA calendar entities |
 | log-aggregator | 8015 | Docker socket / service logs |
 
-**Compose file:** `compose/collectors.yml`
-**Env file:** `compose/collectors.env.example`
+**Compose file:** `domains/data-collectors/compose.yml`
+**Env file:** `domains/data-collectors/compose.env.example`
 **Depends on:** Group 1 (influxdb write, data-api metadata)
 **Depended on by:** Groups 3, 4 (indirect -- via InfluxDB data)
 
@@ -153,13 +153,13 @@ Scheduled fetch --> transform --> InfluxDB write
 **Deploy commands:**
 ```bash
 # Start all collectors
-docker compose -f compose/collectors.yml up -d
+docker compose -f domains/data-collectors/compose.yml up -d
 
 # Start a single collector
-docker compose -f compose/collectors.yml up -d weather-api
+docker compose -f domains/data-collectors/compose.yml up -d weather-api
 
 # Restart a failing collector (no impact on others)
-docker compose -f compose/collectors.yml restart smart-meter-service
+docker compose -f domains/data-collectors/compose.yml restart smart-meter-service
 
 # Health checks
 for port in 8009 8014 8005 8012 8010 8011 8013 8015; do
@@ -185,8 +185,8 @@ done
 | device-intelligence-service | 8028 | 6,000+ device capability mapping (ML models) |
 | model-prep | (one-shot) | HuggingFace model download/cache |
 
-**Compose file:** `compose/ml.yml`
-**Env file:** `compose/ml.env.example`
+**Compose file:** `domains/ml-engine/compose.yml`
+**Env file:** `domains/ml-engine/compose.env.example`
 **Depends on:** Group 1 (data-api for entity/device metadata)
 **Depended on by:** Group 4 (automation calls ML for inference), Group 5 (device classification)
 
@@ -215,13 +215,13 @@ openai-service (LLM)
 **Deploy commands:**
 ```bash
 # Start ML engine
-docker compose -f compose/ml.yml up -d
+docker compose -f domains/ml-engine/compose.yml up -d
 
 # Pre-download models first (recommended on first deploy)
-docker compose -f compose/ml.yml run model-prep
+docker compose -f domains/ml-engine/compose.yml run model-prep
 
 # Rebuild after model library upgrade
-docker compose -f compose/ml.yml up -d --build openvino-service ml-service
+docker compose -f domains/ml-engine/compose.yml up -d --build openvino-service ml-service
 
 # Health checks
 curl http://localhost:8018/health   # ai-core-service
@@ -255,8 +255,8 @@ curl http://localhost:8028/health   # device-intelligence-service
 | energy-forecasting | 8042 | 7-day energy consumption predictions |
 | automation-trace-service | 8044 | HA automation trace + logbook ingestion |
 
-**Compose file:** `compose/automation.yml`
-**Env file:** `compose/automation.env.example`
+**Compose file:** `domains/automation-core/compose.yml`
+**Env file:** `domains/automation-core/compose.env.example`
 **Depends on:** Group 1 (data-api), Group 3 (ML inference via ai-core-service)
 **Depended on by:** Group 6 (frontends display automation results)
 
@@ -282,10 +282,10 @@ blueprint-suggestion-service --> blueprint-index
 **Deploy commands:**
 ```bash
 # Start automation intelligence
-docker compose -f compose/automation.yml up -d
+docker compose -f domains/automation-core/compose.yml up -d
 
 # Rebuild a specific service after code change
-docker compose -f compose/automation.yml up -d --build ai-pattern-service
+docker compose -f domains/automation-core/compose.yml up -d --build ai-pattern-service
 
 # Health checks
 curl http://localhost:8030/health   # ha-ai-agent-service
@@ -311,8 +311,8 @@ curl http://localhost:8016/health   # automation-linter
 | activity-writer | 8045 | Periodic activity prediction pipeline |
 | ha-setup-service | 8024 | HA health checks, integration monitoring |
 
-**Compose file:** `compose/devices.yml`
-**Env file:** `compose/devices.env.example`
+**Compose file:** `domains/device-management/compose.yml`
+**Env file:** `domains/device-management/compose.env.example`
 **Depends on:** Group 1 (data-api), Group 3 (device-intelligence-service for classification)
 **Depended on by:** Group 4 (automation uses device context)
 
@@ -325,7 +325,7 @@ curl http://localhost:8016/health   # automation-linter
 **Deploy commands:**
 ```bash
 # Start device management
-docker compose -f compose/devices.yml up -d
+docker compose -f domains/device-management/compose.yml up -d
 
 # Health checks
 curl http://localhost:8019/health   # device-health-monitor
@@ -345,11 +345,11 @@ curl http://localhost:8043/health   # activity-recognition
 | observability-dashboard | 8501 | Monitoring dashboard (Streamlit) |
 | jaeger | 16686 | Distributed tracing UI |
 
-**Compose file:** `compose/frontends.yml`
-**Env file:** `compose/frontends.env.example`
+**Compose file:** `domains/frontends/compose.yml`
+**Env file:** `domains/frontends/compose.env.example`
 **Depends on:** Group 1 (admin-api, data-api), Group 4 (automation endpoints)
 
-**Note:** `health-dashboard` is developed with frontends but deployed with core-platform (Group 1) for availability. It appears only in `compose/core.yml`.
+**Note:** `health-dashboard` is developed with frontends but deployed with core-platform (Group 1) for availability. It appears only in `domains/core-platform/compose.yml`.
 
 **Key environment variables:**
 - `API_BASE_URL` (frontend API target)
@@ -360,7 +360,7 @@ curl http://localhost:8043/health   # activity-recognition
 **Deploy commands:**
 ```bash
 # Start frontends
-docker compose -f compose/frontends.yml up -d
+docker compose -f domains/frontends/compose.yml up -d
 
 # Health checks
 curl http://localhost:3001          # ai-automation-ui
@@ -401,7 +401,7 @@ curl http://localhost:8501/health   # observability-dashboard
 
 ### Resilience at Group Boundaries
 
-All cross-group HTTP calls use `shared/resilience/CrossGroupClient` with circuit breakers, automatic retries with exponential backoff, Bearer auth, and OTel trace propagation. See [shared/resilience/README.md](../../shared/resilience/README.md) for full documentation.
+All cross-group HTTP calls use `libs/homeiq-resilience/CrossGroupClient` with circuit breakers, automatic retries with exponential backoff, Bearer auth, and OTel trace propagation. See [libs/homeiq-resilience/README.md](../../libs/homeiq-resilience/README.md) for full documentation.
 
 **Resilience rollout status (February 2026):**
 
@@ -438,7 +438,7 @@ All cross-group HTTP calls use `shared/resilience/CrossGroupClient` with circuit
 }
 ```
 
-**Alerting severity matrix** (documented in `shared/resilience/README.md`):
+**Alerting severity matrix** (documented in `libs/homeiq-resilience/README.md`):
 
 | Group | Severity | Response Time |
 |-------|----------|--------------|
@@ -460,20 +460,20 @@ All cross-group HTTP calls use `shared/resilience/CrossGroupClient` with circuit
 docker compose up -d
 
 # Core only (minimal system -- data pipeline + dashboard)
-docker compose -f compose/core.yml up -d
+docker compose -f domains/core-platform/compose.yml up -d
 
 # Core + collectors (data pipeline with enrichment)
-docker compose -f compose/core.yml -f compose/collectors.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml up -d
 
 # Core + ML + automation (AI features without device management)
-docker compose -f compose/core.yml -f compose/ml.yml -f compose/automation.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml up -d
 
 # Core + devices (device management without AI)
-docker compose -f compose/core.yml -f compose/devices.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/device-management/compose.yml up -d
 
 # Core + all backends (everything except frontends)
-docker compose -f compose/core.yml -f compose/collectors.yml \
-  -f compose/ml.yml -f compose/automation.yml -f compose/devices.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml \
+  -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml -f domains/device-management/compose.yml up -d
 ```
 
 ### Startup order (recommended):
@@ -494,7 +494,7 @@ docker compose -f compose/core.yml -f compose/collectors.yml \
 All groups share a single Docker network for inter-group communication:
 
 ```yaml
-# Defined in compose/core.yml
+# Defined in domains/core-platform/compose.yml
 networks:
   homeiq-network:
     name: homeiq-network
@@ -515,31 +515,35 @@ This allows:
 ## Compose File Structure
 
 ```
-compose/
-  core.yml                 # Group 1: core-platform services
-  core.env.example         # Environment template for core
-  collectors.yml           # Group 2: data-collectors services
-  collectors.env.example   # Environment template for collectors
-  ml.yml                   # Group 3: ml-engine services
-  ml.env.example           # Environment template for ML
-  automation.yml           # Group 4: automation-intelligence services
-  automation.env.example   # Environment template for automation
-  devices.yml              # Group 5: device-management services
-  devices.env.example      # Environment template for devices
-  frontends.yml            # Group 6: frontend services
-  frontends.env.example    # Environment template for frontends
-  test.yml                 # Test profile services (ha-simulator, etc.)
-  README.md                # Compose structure quick-start guide
+domains/
+  core-platform/
+    compose.yml              # Group 1: core-platform services
+    compose.env.example      # Environment template for core
+  data-collectors/
+    compose.yml              # Group 2: data-collectors services
+    compose.env.example      # Environment template for collectors
+  ml-engine/
+    compose.yml              # Group 3: ml-engine services
+    compose.env.example      # Environment template for ML
+  automation-core/
+    compose.yml              # Group 4: automation-intelligence services
+    compose.env.example      # Environment template for automation
+  device-management/
+    compose.yml              # Group 5: device-management services
+    compose.env.example      # Environment template for devices
+  frontends/
+    compose.yml              # Group 6: frontend services
+    compose.env.example      # Environment template for frontends
 
-docker-compose.yml         # Root file -- includes all 6 group files
+docker-compose.yml           # Root file -- includes all 6 group files
 ```
 
 ---
 
 ## Related Documentation
 
-- [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md) -- Service tier classification with group assignments
-- [Architecture Quick Reference](../../services/README_ARCHITECTURE_QUICK_REF.md) -- Service patterns and port reference
+- [Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md) -- Service tier classification with group assignments
+- [Architecture Quick Reference](./README_ARCHITECTURE_QUICK_REF.md) -- Service patterns and port reference
 - [Deployment Runbook](../deployment/DEPLOYMENT_RUNBOOK.md) -- Per-group deployment procedures
 - [Event Flow Architecture](./event-flow-architecture.md) -- Data flow with group boundary annotations
 - [Service Decomposition Plan](../planning/service-decomposition-plan.md) -- Full implementation plan

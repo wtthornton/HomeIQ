@@ -261,28 +261,28 @@ External Dependencies:
 | Artifact | Path |
 |----------|------|
 | **RAG Services** | |
-| EnergyRAGService | `services/ha-ai-agent-service/src/services/energy_rag_service.py` |
-| BlueprintRAGService | `services/ha-ai-agent-service/src/services/blueprint_rag_service.py` |
-| DeviceSetupRAGService | `services/ha-ai-agent-service/src/services/device_setup_rag_service.py` |
+| EnergyRAGService | `domains/automation-core/ha-ai-agent-service/src/services/energy_rag_service.py` |
+| BlueprintRAGService | `domains/automation-core/ha-ai-agent-service/src/services/blueprint_rag_service.py` |
+| DeviceSetupRAGService | `domains/automation-core/ha-ai-agent-service/src/services/device_setup_rag_service.py` |
 | **Corpus Files** | |
-| Energy Automation Patterns | `services/ha-ai-agent-service/src/data/energy_automation_patterns.md` |
-| Blueprint Patterns | `services/ha-ai-agent-service/src/data/blueprint_patterns.md` |
-| Device Setup Patterns | `services/ha-ai-agent-service/src/data/device_setup_patterns.md` |
+| Energy Automation Patterns | `domains/automation-core/ha-ai-agent-service/src/data/energy_automation_patterns.md` |
+| Blueprint Patterns | `domains/automation-core/ha-ai-agent-service/src/data/blueprint_patterns.md` |
+| Device Setup Patterns | `domains/automation-core/ha-ai-agent-service/src/data/device_setup_patterns.md` |
 | **Validation Routers** | |
-| BlueprintValidationRouter | `services/ai-automation-service-new/src/api/blueprint_validate_router.py` |
-| SetupValidationRouter | `services/ai-automation-service-new/src/api/setup_validate_router.py` |
+| BlueprintValidationRouter | `domains/automation-core/ai-automation-service-new/src/api/blueprint_validate_router.py` |
+| SetupValidationRouter | `domains/automation-core/ai-automation-service-new/src/api/setup_validate_router.py` |
 | **Verifiers** | |
-| BlueprintDeployVerifier | `services/ai-automation-service-new/src/services/blueprint_deploy_verifier.py` |
-| SetupVerifier | `services/ai-automation-service-new/src/services/setup_verifier.py` |
+| BlueprintDeployVerifier | `domains/automation-core/ai-automation-service-new/src/services/blueprint_deploy_verifier.py` |
+| SetupVerifier | `domains/automation-core/ai-automation-service-new/src/services/setup_verifier.py` |
 | **Modified Files** | |
-| ContextBuilder (RAG registration) | `services/ha-ai-agent-service/src/services/context_builder.py` |
+| ContextBuilder (RAG registration) | `domains/automation-core/ha-ai-agent-service/src/services/context_builder.py` |
 | **Tests (53 new)** | |
-| RAG Service Tests (30) | `shared/patterns/tests/test_epic2_rag_services.py` |
-| Validation & Verifier Tests (23) | `shared/patterns/tests/test_epic2_validation_verifiers.py` |
+| RAG Service Tests (30) | `libs/homeiq-patterns/tests/test_epic2_rag_services.py` |
+| Validation & Verifier Tests (23) | `libs/homeiq-patterns/tests/test_epic2_validation_verifiers.py` |
 
 ## References
 
 - [PRD: Automation Architecture & Reusable Patterns](../docs/planning/automation-architecture-reusable-patterns-prd.md)
 - [Epic: Reusable Pattern Framework](epic-reusable-pattern-framework.md) (prerequisite)
 - [Epic: Automation Improvements](epic-homeiq-automation-improvements.md) (reference implementation)
-- [Services Ranked by Importance](../services/SERVICES_RANKED_BY_IMPORTANCE.md)
+- [Services Ranked by Importance](../docs/architecture/SERVICES_RANKED_BY_IMPORTANCE.md)

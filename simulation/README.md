@@ -7,7 +7,7 @@ Comprehensive simulation framework for validating the complete 3 AM batch workfl
 This simulation framework enables pre-production validation of both pipelines (model training → event fetching → pattern detection → suggestion generation → YAML creation → validation) at scale and speed, without real API calls or network dependencies.
 
 **⚠️ CRITICAL: Simulation code is deployed separately from production**
-- **Location**: `simulation/` directory at project root (NOT in `services/`)
+- **Location**: `simulation/` directory at project root (NOT in `domains/`)
 - **Isolation**: Zero dependencies on production services
 - **Deployment**: Separate Docker Compose profile, excluded from production builds
 - **Purpose**: Development, testing, CI/CD validation only
@@ -116,7 +116,7 @@ python -m pytest tests/ -v
 
 The simulation framework integrates with:
 
-- Production code (imports from `services/ai-automation-service/`)
+- Production code (imports from `domains/automation-core/ai-automation-service-new/`)
 - Synthetic data generation (Epic AI-11)
 - Model training pipeline (`scripts/prepare_for_production.py`)
 - YAML validation (production validation logic)

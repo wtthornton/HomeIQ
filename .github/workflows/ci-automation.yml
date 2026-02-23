@@ -1,48 +1,30 @@
-name: "CI \u2014 Automation & Energy"
+name: "CI — Automation Core"
 
 on:
   push:
     paths:
-      - 'services/ha-ai-agent-service/**'
-      - 'services/ai-automation-service-new/**'
-      - 'services/ai-query-service/**'
-      - 'services/ai-pattern-service/**'
-      - 'services/ai-code-executor/**'
-      - 'services/automation-miner/**'
-      - 'services/automation-linter/**'
-      - 'services/yaml-validation-service/**'
-      - 'services/blueprint-index/**'
-      - 'services/blueprint-suggestion-service/**'
-      - 'services/rule-recommendation-ml/**'
-      - 'services/api-automation-edge/**'
-      - 'services/proactive-agent-service/**'
-      - 'services/energy-correlator/**'
-      - 'services/energy-forecasting/**'
-      - 'services/automation-trace-service/**'
-      - 'compose/automation.yml'
-      - 'shared/patterns/**'
+      - 'domains/automation-core/ha-ai-agent-service/**'
+      - 'domains/automation-core/ai-automation-service-new/**'
+      - 'domains/automation-core/ai-query-service/**'
+      - 'domains/automation-core/automation-linter/**'
+      - 'domains/automation-core/yaml-validation-service/**'
+      - 'domains/automation-core/ai-code-executor/**'
+      - 'domains/automation-core/automation-trace-service/**'
+      - 'domains/automation-core/compose.yml'
+      - 'libs/**'
       - '.github/workflows/ci-automation.yml'
       - '.github/workflows/reusable-group-ci.yml'
   pull_request:
     paths:
-      - 'services/ha-ai-agent-service/**'
-      - 'services/ai-automation-service-new/**'
-      - 'services/ai-query-service/**'
-      - 'services/ai-pattern-service/**'
-      - 'services/ai-code-executor/**'
-      - 'services/automation-miner/**'
-      - 'services/automation-linter/**'
-      - 'services/yaml-validation-service/**'
-      - 'services/blueprint-index/**'
-      - 'services/blueprint-suggestion-service/**'
-      - 'services/rule-recommendation-ml/**'
-      - 'services/api-automation-edge/**'
-      - 'services/proactive-agent-service/**'
-      - 'services/energy-correlator/**'
-      - 'services/energy-forecasting/**'
-      - 'services/automation-trace-service/**'
-      - 'compose/automation.yml'
-      - 'shared/patterns/**'
+      - 'domains/automation-core/ha-ai-agent-service/**'
+      - 'domains/automation-core/ai-automation-service-new/**'
+      - 'domains/automation-core/ai-query-service/**'
+      - 'domains/automation-core/automation-linter/**'
+      - 'domains/automation-core/yaml-validation-service/**'
+      - 'domains/automation-core/ai-code-executor/**'
+      - 'domains/automation-core/automation-trace-service/**'
+      - 'domains/automation-core/compose.yml'
+      - 'libs/**'
       - '.github/workflows/ci-automation.yml'
       - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
@@ -51,12 +33,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-automation-${{ github.ref }}
+  group: ci-automation-core-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   ci:
     uses: ./.github/workflows/reusable-group-ci.yml
     with:
-      group_name: automation
-      services: '["ha-ai-agent-service","ai-automation-service-new","ai-query-service","ai-pattern-service","ai-code-executor","automation-miner","automation-linter","yaml-validation-service","blueprint-index","blueprint-suggestion-service","rule-recommendation-ml","api-automation-edge","proactive-agent-service","energy-correlator","energy-forecasting","automation-trace-service"]'
+      group_name: automation-core
+      domain_dir: automation-core
+      services: '["ha-ai-agent-service","ai-automation-service-new","ai-query-service","automation-linter","yaml-validation-service","ai-code-executor","automation-trace-service"]'

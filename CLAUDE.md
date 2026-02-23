@@ -1,3 +1,5 @@
+
+
 # TAPPS Quality Pipeline - MANDATORY
 
 This project uses the TAPPS MCP server for automated code quality enforcement.
@@ -72,6 +74,9 @@ Execute these stages IN ORDER for every code task:
 | `tapps_checklist` | No verification that process was followed |
 | `tapps_consult_expert` | Decisions made without domain expertise |
 | `tapps_impact_analysis` | Refactoring breaks unknown dependents |
+| `tapps_dead_code` | Unused code accumulates, bloating the codebase |
+| `tapps_dependency_scan` | Vulnerable dependencies shipped to production |
+| `tapps_dependency_graph` | Circular imports cause runtime crashes |
 
 ## Response Guidance
 
@@ -80,7 +85,7 @@ Every tool response includes:
 - `pipeline_progress`: Which stages are complete and what comes next
 
 Record progress in `docs/TAPPS_HANDOFF.md` and `docs/TAPPS_RUNLOG.md`.
-For detailed stage instructions, request the `tapps_pipeline` MCP prompt with the stage name.
+For task-specific recommended tool call order, use the `tapps_workflow` MCP prompt (e.g. `tapps_workflow(task_type="feature")`).
 
 ## Agent Teams (Optional)
 

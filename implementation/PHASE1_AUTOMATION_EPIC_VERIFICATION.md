@@ -72,13 +72,13 @@ Schema and validator support these patterns via template conditions and state tr
 
 ### Validator: variables Action Recognition
 
-**File:** `services/yaml-validation-service/src/yaml_validation_service/validator.py`
+**File:** `domains/automation-core/yaml-validation-service/src/yaml_validation_service/validator.py`
 
 The validator did not recognize the `variables` action, causing validation failures for Super Bowl automations. Added `variables` to the accepted action types.
 
 ### Test: Super Bowl Guide Validation
 
-**File:** `services/yaml-validation-service/tests/test_superbowl_guide_validation.py`
+**File:** `domains/automation-core/yaml-validation-service/tests/test_superbowl_guide_validation.py`
 
 New test verifies kickoff and score-flash automation structures pass validation. Uses `normalize=False` to avoid the known normalizer bug (initial_state injected into nested dicts).
 
@@ -97,7 +97,7 @@ New test verifies kickoff and score-flash automation structures pass validation.
 
 ### Verification (Feb 2026)
 
-Integration test `services/ha-ai-agent-service/tests/integration/test_superbowl_lights_e2e.py`:
+Integration test `domains/automation-core/ha-ai-agent-service/tests/integration/test_superbowl_lights_e2e.py`:
 
 1. **RAG detects Super Bowl prompt** – `_matches_sports_intent` returns True for "Super Bowl lights when Seahawks score"
 2. **RAG returns Team Tracker corpus** – `get_automation_context` returns non-empty content

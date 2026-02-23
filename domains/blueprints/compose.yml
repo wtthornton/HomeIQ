@@ -1,0 +1,185 @@
+# domains/blueprints/compose.yml — Blueprint generation, indexing, and recommendation
+# Deploy cadence: Moderate — blueprint catalog updates, recommendation model retraining
+#
+# Services: blueprint-index, blueprint-suggestion-service, rule-recommendation-ml,
+#           automation-miner
+# Depends on: core-platform (data-api), automation-core (pattern service)
+# Depended on by: frontends (display blueprint results)
+
+services:
+  blueprint-index:
+    build:
+      context: blueprint-index
+      dockerfile: Dockerfile
+    container_name: homeiq-blueprint-index
+    restart: unless-stopped
+    ports:
+      - "8038:8031"
+    env_file:
+      - ../../.env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///data/blueprint_index.db
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - SERVICE_PORT=8031
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - blueprint_index_data:/app/data
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8031/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=blueprint-index,group=blueprints,environment=production"
+
+  blueprint-suggestion-service:
+    build:
+      context: ../..
+      dockerfile: domains/blueprints/blueprint-suggestion-service/Dockerfile
+    container_name: homeiq-blueprint-suggestion
+    restart: unless-stopped
+    ports:
+      - "8039:8032"
+    env_file:
+      - ../../.env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///data/blueprint_suggestions.db
+      - BLUEPRINT_INDEX_URL=http://blueprint-index:8031
+      - DATA_API_URL=http://data-api:8006
+      - AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8029
+      - SERVICE_PORT=8032
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - blueprint_suggestions_data:/app/data
+    networks:
+      - homeiq-network
+    depends_on:
+      blueprint-index:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8032/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=blueprint-suggestion,group=blueprints,environment=production"
+
+  rule-recommendation-ml:
+    build:
+      context: rule-recommendation-ml
+      dockerfile: Dockerfile
+    container_name: homeiq-rule-recommendation-ml
+    restart: unless-stopped
+    ports:
+      - "8040:8035"
+    environment:
+      - PORT=8035
+      - HOST=0.0.0.0
+      - MODEL_PATH=./models/rule_recommender.pkl
+      - DEBUG=false
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - rule_recommendation_models:/app/models
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; import sys; response = urllib.request.urlopen('http://localhost:8035/api/v1/health', timeout=5); sys.exit(0 if response.getcode() == 200 else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=rule-recommendation-ml,group=blueprints,environment=production"
+
+  automation-miner:
+    build:
+      context: ../..
+      dockerfile: domains/blueprints/automation-miner/Dockerfile
+    container_name: homeiq-automation-miner
+    restart: unless-stopped
+    ports:
+      - "8029:8019"
+    env_file:
+      - ../../infrastructure/env.automation-miner
+    environment:
+      - ENABLE_AUTOMATION_MINER=true
+      - MINER_DB_PATH=data/automation_miner.db
+      - DISCOURSE_BASE_URL=https://community.home-assistant.io
+      - DISCOURSE_MIN_LIKES=${DISCOURSE_MIN_LIKES:-300}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - automation_miner_data:/app/data
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8019/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=automation-miner,group=blueprints,environment=production"
+
+# Blueprints volumes
+volumes:
+  blueprint_index_data:
+  blueprint_suggestions_data:
+  rule_recommendation_models:
+  automation_miner_data:
+
+networks:
+  homeiq-network:
+    external: true

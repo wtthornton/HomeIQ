@@ -37,7 +37,7 @@
 | [stories/epic-reusable-pattern-framework.md](../stories/epic-reusable-pattern-framework.md) | Epic: Reusable Pattern Framework — Phase 2 (shared abstractions) |
 | [stories/epic-high-value-domain-extensions.md](../stories/epic-high-value-domain-extensions.md) | Epic: High-Value Domain Extensions — Phase 3 (Energy, Blueprint, DeviceSetup) |
 | [stories/epic-platform-wide-pattern-rollout.md](../stories/epic-platform-wide-pattern-rollout.md) | Epic: Platform-Wide Pattern Rollout — Phase 4 (Security, Comfort, Scenes, Device Intelligence) |
-| [shared/patterns/README.md](../shared/patterns/README.md) | Reusable patterns documentation — 8 RAG domains, 5 validation endpoints, 5 verifiers |
+| [libs/homeiq-patterns/README.md](../libs/homeiq-patterns/README.md) | Reusable patterns documentation — 8 RAG domains, 5 validation endpoints, 5 verifiers |
 | [implementation/](../implementation/) | Implementation notes; Playwright E2E plan, execution status, issues list |
 | [implementation/PHASE4_AUTOMATION_API_DOCUMENTATION.md](../implementation/PHASE4_AUTOMATION_API_DOCUMENTATION.md) | Automation validation API, deploy response fields, RAG reference |
 | [docs/planning/automation-architecture-reusable-patterns-prd.md](planning/automation-architecture-reusable-patterns-prd.md) | PRD: Automation architecture and reusable patterns across HomeIQ (all 4 phases complete) |
@@ -45,8 +45,8 @@
 ### Services and ports
 | Path | Description |
 |------|-------------|
-| [services/SERVICES_RANKED_BY_IMPORTANCE.md](../services/SERVICES_RANKED_BY_IMPORTANCE.md) | **Service tiers and Docker host ports** (8042, 8043, etc.) |
-| [services/README_ARCHITECTURE_QUICK_REF.md](../services/README_ARCHITECTURE_QUICK_REF.md) | Service architecture quick reference |
+| [docs/architecture/SERVICES_RANKED_BY_IMPORTANCE.md](architecture/SERVICES_RANKED_BY_IMPORTANCE.md) | **Service tiers and Docker host ports** (8042, 8043, etc.) |
+| [docs/architecture/README_ARCHITECTURE_QUICK_REF.md](architecture/README_ARCHITECTURE_QUICK_REF.md) | Service architecture quick reference |
 
 ### Scripts
 | Path | Description |
@@ -75,7 +75,7 @@
 
 ## Cursor and Docker reference checklist
 
-- **Docker / deployment:** Point to `docs/deployment/DEPLOYMENT_RUNBOOK.md` and `services/SERVICES_RANKED_BY_IMPORTANCE.md`.
-- **API and ports:** Point to `docs/api/API_REFERENCE.md` and `services/SERVICES_RANKED_BY_IMPORTANCE.md`.
+- **Docker / deployment:** Point to `docs/deployment/DEPLOYMENT_RUNBOOK.md` and `docs/architecture/SERVICES_RANKED_BY_IMPORTANCE.md`.
+- **API and ports:** Point to `docs/api/API_REFERENCE.md` and `docs/architecture/SERVICES_RANKED_BY_IMPORTANCE.md`.
 - **Epic/planning docs:** Use `docs/planning/` or `stories/`; no `docs/prd/` in this repo.
 - **Implementation notes:** Use `implementation/` (create files as needed); do not reference missing files under `implementation/`.

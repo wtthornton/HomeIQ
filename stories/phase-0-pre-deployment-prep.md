@@ -283,7 +283,7 @@ cat python_versions_audit.csv | column -t -s,
 **Task 3.2: Identify Dockerfiles and Base Images** (30 min)
 ```bash
 # Find all Dockerfiles
-find services/ -name "Dockerfile" -o -name "Dockerfile.dev" > dockerfiles_list.txt
+find domains/ -name "Dockerfile" -o -name "Dockerfile.dev" > dockerfiles_list.txt
 
 # Extract Python base images
 for dockerfile in $(cat dockerfiles_list.txt); do

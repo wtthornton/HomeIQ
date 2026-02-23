@@ -1,0 +1,183 @@
+"""
+Pytest configuration and fixtures for AI Automation Service
+
+Epic 39, Story 39.12: Query & Automation Service Testing
+"""
+
+import asyncio
+import sys
+from pathlib import Path
+
+# Add service root so src module can be imported
+_service_root = Path(__file__).resolve().parent.parent
+if str(_service_root) not in sys.path:
+    sys.path.insert(0, str(_service_root))
+from collections.abc import AsyncGenerator
+from unittest.mock import AsyncMock
+
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
+
+# Note: These imports will be available once main.py and routers are created
+# from src.database import get_db
+# from src.config import settings
+# from src.main import app
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for the test session."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(scope="function")
+async def test_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Create a test database session using in-memory SQLite.
+
+    Each test gets a fresh database.
+    Note: Automation service uses shared database models (Suggestion, etc.).
+    """
+    # Use in-memory SQLite for tests
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+        echo=False,
+    )
+
+    # Create tables using SQLAlchemy models
+    from src.database.models import Base
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Create session factory
+    async_session_maker = async_sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    # Create session for test
+    async with async_session_maker() as session:
+        yield session
+
+    # Cleanup
+    await engine.dispose()
+
+
+@pytest.fixture(scope="function")
+async def db_session(test_db: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Alias for test_db fixture for e2e tests.
+    Provides a database session for testing.
+    """
+    yield test_db
+
+
+@pytest.fixture
+def sample_suggestion_data():
+    """Sample suggestion data for testing."""
+    return {
+        "title": "Turn on office lights at 7 AM",
+        "description": "Automatically turn on office lights at 7 AM every day",
+        "automation_yaml": None,
+        "confidence": 0.85,
+        "category": "convenience",
+        "priority": "medium",
+        "status": "draft",
+        "device_id": "light.office_lamp",
+        "devices_involved": ["light.office_lamp"],
+    }
+
+
+@pytest.fixture
+def sample_yaml_content():
+    """Sample YAML content for testing."""
+    return """id: 'test-automation-123'
+alias: Test Automation
+description: "Turn on office lights at 7 AM"
+mode: single
+trigger:
+  - platform: time
+    at: '07:00:00'
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.office_lamp
+    data:
+      brightness_pct: 100
+"""
+
+
+@pytest.fixture
+def mock_ha_client():
+    """Mock Home Assistant client for testing."""
+    client = AsyncMock()
+    client.create_automation = AsyncMock(
+        return_value={"success": True, "automation_id": "automation.test_automation_123"}
+    )
+    client.list_automations = AsyncMock(return_value=[])
+    client.get_automation = AsyncMock(
+        return_value={"id": "automation.test", "alias": "Test Automation", "state": "on"}
+    )
+    client.enable_automation = AsyncMock(return_value=True)
+    client.disable_automation = AsyncMock(return_value=True)
+    client.trigger_automation = AsyncMock(return_value=True)
+    client.test_connection = AsyncMock(return_value=True)
+    return client
+
+
+@pytest.fixture
+def mock_openai_client():
+    """Mock OpenAI client for YAML generation testing."""
+    client = AsyncMock()
+    client.generate_with_unified_prompt = AsyncMock(
+        return_value={
+            "automation_yaml": """id: 'test-123'
+alias: Test Automation
+trigger:
+  - platform: time
+    at: '07:00:00'
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.office_lamp
+"""
+        }
+    )
+    return client
+
+
+@pytest.fixture
+def auth_headers():
+    """
+    Authentication headers for test requests.
+
+    Tests use internal service header to bypass API key requirements
+    (simplified internal service-to-service communication).
+    """
+    return {"X-Internal-Service": "true"}
+
+
+@pytest.fixture
+async def client(test_db: AsyncSession):
+    """Create test client with database dependency override."""
+    from httpx import ASGITransport, AsyncClient
+    from src.database import get_db
+    from src.main import app
+
+    async def override_get_db():
+        return test_db
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
