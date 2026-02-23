@@ -78,8 +78,8 @@ class Settings(BaseSettings):
         description="OpenAI API key"
     )
     openai_model: str = Field(
-        default="gpt-4.1",
-        description="OpenAI model to use (gpt-4.1 for chat + tool calling + YAML generation; see implementation/OPENAI_MODEL_RESEARCH_2026.md)"
+        default="gpt-5.2-codex",
+        description="OpenAI model to use (gpt-5.2-codex for agentic chat + tool calling + YAML generation; see implementation/LLM_ML_MODELS_02222026.md)"
     )
     openai_max_tokens: int = Field(
         default=8192,

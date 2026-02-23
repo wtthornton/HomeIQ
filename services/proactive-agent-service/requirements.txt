@@ -22,7 +22,7 @@ alembic>=1.17.2,<1.18.0  # Database migrations
 apscheduler>=3.10.4,<3.11.0  # Async scheduler for batch jobs
 
 # OpenAI Integration (for prompt generation)
-openai>=1.54.0,<2.0.0  # OpenAI Python SDK 1.54+ (2025 best practices)
+openai>=2.21.0,<3.0.0  # OpenAI Python SDK 2.x (Feb 2026 upgrade — Responses API, reasoning params)
 
 # Utilities
 python-dotenv==1.2.1

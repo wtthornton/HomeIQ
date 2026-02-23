@@ -1113,7 +1113,7 @@ services:
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
       - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.2-codex}
       - AI_AUTOMATION_API_KEY=${API_KEY:-}
       - DATA_API_KEY=${API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}

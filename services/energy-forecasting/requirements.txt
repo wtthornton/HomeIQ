@@ -7,7 +7,7 @@ pandas>=2.2.0
 numpy>=1.26.0
 
 # Time Series Forecasting
-darts>=0.30.0
+darts>=0.40.0,<0.41.0  # Feb 2026 upgrade — Chronos2Model, new config system
 
 # ML
 torch>=2.5.0
