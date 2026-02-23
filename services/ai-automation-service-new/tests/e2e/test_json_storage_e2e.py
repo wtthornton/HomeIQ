@@ -57,8 +57,10 @@ async def test_json_storage_and_retrieval_e2e(db_session):
         "triggers": [
             {
                 "platform": "state",
-                "entity_id": "light.test",
-                "to": "on",
+                "config": {
+                    "entity_id": "light.test",
+                    "parameters": {"to": "on"},
+                },
             }
         ],
         "actions": [
@@ -110,7 +112,7 @@ async def test_json_query_e2e(db_session):
             "device_context": {"entity_ids": ["light.test"], "area_ids": ["living_room"]},
             "safety_checks": {"requires_confirmation": False},
             "energy_impact": {"estimated_power_w": 10.0},
-            "triggers": [{"platform": "state", "entity_id": "light.test"}],
+            "triggers": [{"platform": "state", "config": {"entity_id": "light.test"}}],
             "actions": [{"service": "light.turn_on", "target": {"entity_id": "light.test"}}],
             "mode": "single",
         },
@@ -120,7 +122,7 @@ async def test_json_query_e2e(db_session):
             "device_context": {"entity_ids": ["switch.power"], "area_ids": ["bedroom"]},
             "safety_checks": {"requires_confirmation": False},
             "energy_impact": {"estimated_power_w": 5.0},
-            "triggers": [{"platform": "state", "entity_id": "switch.power"}],
+            "triggers": [{"platform": "state", "config": {"entity_id": "switch.power"}}],
             "actions": [{"service": "switch.turn_off", "target": {"entity_id": "switch.power"}}],
             "mode": "single",
         },
@@ -181,7 +183,7 @@ async def test_json_update_e2e(db_session):
         "device_context": {"entity_ids": ["light.test"]},
         "safety_checks": {"requires_confirmation": False},
         "energy_impact": {"estimated_power_w": 10.0},
-        "triggers": [{"platform": "state", "entity_id": "light.test"}],
+        "triggers": [{"platform": "state", "config": {"entity_id": "light.test"}}],
         "actions": [{"service": "light.turn_on", "target": {"entity_id": "light.test"}}],
         "mode": "single",
     }

@@ -22,11 +22,11 @@ def cleanup_after_test():
     yield
 
 
-# Service URLs
-JAEGER_UI_URL = "http://localhost:16686"
-JAEGER_API_URL = "http://localhost:16686/api"
-DATA_API_URL = "http://localhost:8006"
-ADMIN_API_URL = "http://localhost:8004"
+# Service URLs — use 127.0.0.1 to avoid IPv6 resolution issues on Windows Docker
+JAEGER_UI_URL = "http://127.0.0.1:16686"
+JAEGER_API_URL = "http://127.0.0.1:16686/api"
+DATA_API_URL = "http://127.0.0.1:8006"
+ADMIN_API_URL = "http://127.0.0.1:8004"
 
 
 class TestJaegerAvailability:

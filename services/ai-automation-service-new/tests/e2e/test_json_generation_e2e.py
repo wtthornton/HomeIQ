@@ -79,8 +79,10 @@ async def test_json_generation_complete_workflow(db_session):
         "triggers": [
             {
                 "platform": "state",
-                "entity_id": "binary_sensor.motion",
-                "to": "on",
+                "config": {
+                    "entity_id": "binary_sensor.motion",
+                    "parameters": {"to": "on"},
+                },
             }
         ],
         "actions": [
@@ -165,8 +167,10 @@ async def test_json_validation_e2e():
         "triggers": [
             {
                 "platform": "state",
-                "entity_id": "light.test",
-                "to": "on",
+                "config": {
+                    "entity_id": "light.test",
+                    "parameters": {"to": "on"},
+                },
             }
         ],
         "actions": [
@@ -217,7 +221,9 @@ async def test_json_to_yaml_conversion_e2e():
         "triggers": [
             {
                 "platform": "sun",
-                "event": "sunset",
+                "config": {
+                    "parameters": {"event": "sunset"},
+                },
             }
         ],
         "actions": [

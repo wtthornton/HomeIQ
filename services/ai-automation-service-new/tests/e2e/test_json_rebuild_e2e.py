@@ -87,8 +87,13 @@ action:
         "triggers": [
             {
                 "platform": trigger["platform"],
-                "entity_id": trigger.get("entity_id"),
-                "to": trigger.get("to"),
+                "config": {
+                    "entity_id": trigger.get("entity_id"),
+                    "parameters": {
+                        k: v for k, v in trigger.items()
+                        if k not in ("platform", "entity_id")
+                    },
+                },
             }
             for trigger in yaml_dict["trigger"]
         ],
@@ -153,12 +158,16 @@ async def test_json_rebuild_from_description_e2e():
         "triggers": [
             {
                 "platform": "state",
-                "entity_id": "binary_sensor.motion",
-                "to": "on",
+                "config": {
+                    "entity_id": "binary_sensor.motion",
+                    "parameters": {"to": "on"},
+                },
             },
             {
                 "platform": "sun",
-                "event": "sunset",
+                "config": {
+                    "parameters": {"event": "sunset"},
+                },
             },
         ],
         "actions": [
@@ -221,8 +230,10 @@ async def test_json_rebuild_roundtrip_e2e():
         "triggers": [
             {
                 "platform": "state",
-                "entity_id": "light.test",
-                "to": "on",
+                "config": {
+                    "entity_id": "light.test",
+                    "parameters": {"to": "on"},
+                },
             }
         ],
         "actions": [
@@ -269,8 +280,13 @@ async def test_json_rebuild_roundtrip_e2e():
         "triggers": [
             {
                 "platform": trigger["platform"],
-                "entity_id": trigger.get("entity_id"),
-                "to": trigger.get("to"),
+                "config": {
+                    "entity_id": trigger.get("entity_id"),
+                    "parameters": {
+                        k: v for k, v in trigger.items()
+                        if k not in ("platform", "entity_id")
+                    },
+                },
             }
             for trigger in yaml_dict["trigger"]
         ],
