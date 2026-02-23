@@ -60,10 +60,10 @@ async def lifespan(app: FastAPI):
 
     # Probe cross-group dependencies (non-fatal)
     if wait_for_dependency is not None:
-        await wait_for_dependency("data-api", "http://data-api:8006/health", timeout=10)
+        await wait_for_dependency(url="http://data-api:8006", name="data-api", max_retries=10)
         await wait_for_dependency(
-            "device-intelligence", "http://device-intelligence-service:8023/health",
-            timeout=10,
+            url="http://device-intelligence-service:8019", name="device-intelligence",
+            max_retries=10,
         )
 
     # Initialize group health check
@@ -71,9 +71,9 @@ async def lifespan(app: FastAPI):
         _group_health = GroupHealthCheck(
             group_name="device-management", version="1.0.0",
         )
-        _group_health.register_dependency("data-api", "http://data-api:8006/health")
+        _group_health.register_dependency("data-api", "http://data-api:8006")
         _group_health.register_dependency(
-            "device-intelligence", "http://device-intelligence-service:8023/health",
+            "device-intelligence", "http://device-intelligence-service:8019",
         )
 
     # Cross-group clients

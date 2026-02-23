@@ -33,7 +33,7 @@ _ml_engine_breaker = CircuitBreaker(name="ml-engine")
 class DeviceIntelligenceClient:
     """Resilient client for device-intelligence-service (ml-engine group)."""
 
-    def __init__(self, base_url: str = "http://device-intelligence-service:8023"):
+    def __init__(self, base_url: str = "http://device-intelligence-service:8019"):
         self.base_url = base_url.rstrip("/")
         api_key = os.getenv("DEVICE_INTELLIGENCE_API_KEY") or os.getenv("API_KEY")
         self._cross_client = CrossGroupClient(

@@ -138,7 +138,7 @@ class GroupHealthCheck:
         """Ping a single dependency's ``/health`` endpoint."""
         try:
             start = time.monotonic()
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
                 resp = await client.get(f"{base_url}/health")
             elapsed_ms = (time.monotonic() - start) * 1000
 

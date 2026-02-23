@@ -126,16 +126,16 @@ async def lifespan(_app: FastAPI):
 
         # Probe cross-group dependencies (non-fatal)
         if wait_for_dependency is not None:
-            await wait_for_dependency("data-api", "http://data-api:8006/health", timeout=10)
-            await wait_for_dependency("weather-api", "http://weather-api:8009/health", timeout=10)
+            await wait_for_dependency(url="http://data-api:8006", name="data-api", max_retries=10)
+            await wait_for_dependency(url="http://weather-api:8009", name="weather-api", max_retries=10)
 
         # Initialize group health check
         if GroupHealthCheck is not None:
             _group_health = GroupHealthCheck(
                 group_name="automation-intelligence", version="1.0.0",
             )
-            _group_health.register_dependency("data-api", "http://data-api:8006/health")
-            _group_health.register_dependency("weather-api", "http://weather-api:8009/health")
+            _group_health.register_dependency("data-api", "http://data-api:8006")
+            _group_health.register_dependency("weather-api", "http://weather-api:8009")
 
         # Initialize database (Story AI21.8)
         await _initialize_database(settings)

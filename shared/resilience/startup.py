@@ -61,7 +61,7 @@ async def wait_for_dependency(
 
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
                 resp = await client.get(probe_url)
                 if resp.status_code == 200:
                     logger.info(
