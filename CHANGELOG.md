@@ -13,6 +13,39 @@
 - **feat(automation): multi-sensor OR/AND motion trigger + gpt-5-mini compat** (b929ef5) - wtthornton
 - **add automation-trace-service for HA trace + logbook ingestion** (a5aefeb) - wtthornton
 - **feat(automation): YAML compiler + template validator live state filtering** (b08a55e) - wtthornton
+
+### Fixed
+
+- **resolve pre-existing e2e test failures** (d1d0921) - Bill Thornton
+- **OTel mock fallbacks, blueprint-suggestion Docker context, resilience E2E tests** (7d6c3e9) - Bill Thornton
+- **resolve 3 deployment bugs in resilience startup and health probes** (e206790) - Bill Thornton
+- **fix(ha-ai-agent): inject entity inventory, fix device-intel auth, switch to gpt-4.1** (9d9c397) - Bill Thornton
+- **resolve 5 deployment bugs across data-api, ha-ai-agent, ai-pattern, smart-meter** (e4e2c8e) - Bill Thornton
+- **platform-wide code quality review — 6,500+ lint fixes across 46 services** (9aae7e5) - Bill Thornton
+- **fix(ai-automation-service-new): tests, schema, and OpenAI default model** (4f92f92) - Bill Thornton
+- **YAML tests, deployment router, entity extraction, and validator** (34f6f50) - Bill Thornton
+- **Fix activity-recognition bugs; ai-automation-service updates** (a8bbcf9) - Bill Thornton
+- **fix(activity-recognition): quality gate fixes, tests, and refactors** (be3f154) - Bill Thornton
+- **fix(activity-recognition): thread safety, ONNX probs shape, checkpoint load, sequences, healthcheck** (7e4a019) - Bill Thornton
+- **fix(ai-automation-service-new): fix null-safe .get() usage and test imports** (624419d) - Bill Thornton
+- **fix(ai-automation-service-new): resolve 30+ ruff/lint bugs and syntax errors** (998501c) - Bill Thornton
+- **fix(ai-automation-service-new): resolve 40+ lint, security, and exception-handling issues** (e0099bb) - Bill Thornton
+- **resolve 10 bugs via TappsMCP and misc updates** (93ab49f) - Bill Thornton
+- **fix(enhancement): GPT-5.2-Codex temperature compatibility + preview modal** (b6aeb25) - wtthornton
+- **fix(automation-trace): InfluxDB v2 compat + batch data-api POSTs** (3cb5415) - wtthornton
+
+
+### Added
+
+- **service groups decomposition + cross-group resilience rollout** (6e9cf95) - Bill Thornton
+- **upgrade LLM/ML model stack — OpenAI SDK 2.x, gpt-5.2-codex, library alignment** (b62f1a6) - Bill Thornton
+- **feat(activity-recognition): Phase 1+2 integration and quality improvements** (78f19c4) - Bill Thornton
+- **feat(ai-automation-service-new): separate plan (gpt-4o-mini) and YAML (Codex) models** (1bb834b) - Bill Thornton
+- **feat(patterns): Pattern Intelligence epic — scoring, tuning & feedback loop** (35dccf6) - wtthornton
+- **feat(agent): data-api Bearer auth, multi-sensor motion context, docs update** (a30197f) - wtthornton
+- **feat(automation): multi-sensor OR/AND motion trigger + gpt-5-mini compat** (b929ef5) - wtthornton
+- **add automation-trace-service for HA trace + logbook ingestion** (a5aefeb) - wtthornton
+- **feat(automation): YAML compiler + template validator live state filtering** (b08a55e) - wtthornton
 - **feat(deploy): deploy pipeline root cause fixes — 5/5 prompt deploy target** (e819957) - wtthornton
 
 ### Fixed
