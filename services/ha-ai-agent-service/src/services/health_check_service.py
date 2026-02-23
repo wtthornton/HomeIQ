@@ -103,16 +103,16 @@ class HealthCheckService:
     async def check_device_intelligence(self) -> dict[str, Any]:
         """Check Device Intelligence Service connection"""
         try:
-            # Try to get device mapping status (lightweight check)
+            # Use /health endpoint which is exempt from API key auth
             import httpx
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(f"{self.device_intelligence_client.base_url}/api/device-mappings/status")
+            async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+                response = await client.get(f"{self.device_intelligence_client.base_url}/health")
                 response.raise_for_status()
                 data = response.json()
                 return {
                     "status": "healthy",
                     "message": "Device Intelligence Service connection successful",
-                    "handler_count": data.get("handler_count", 0)
+                    "service_status": data.get("status", "unknown")
                 }
         except Exception as e:
             logger.error(f"Device Intelligence health check failed: {e}")

@@ -7,6 +7,8 @@ Epic AI-4: N-Level Synergy Detection
 Extracted from synergy_detector.py for better maintainability.
 """
 
+from __future__ import annotations
+
 import logging
 import uuid
 from typing import Any, Protocol

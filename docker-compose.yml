@@ -2361,7 +2361,7 @@ services:
     container_name: homeiq-activity-writer
     restart: unless-stopped
     ports:
-      - "8035:8035"
+      - "8045:8035"
     env_file:
       - .env
     environment:
