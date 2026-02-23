@@ -435,8 +435,8 @@ services:
 
   blueprint-suggestion-service:
     build:
-      context: ../services/blueprint-suggestion-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/blueprint-suggestion-service/Dockerfile
     container_name: homeiq-blueprint-suggestion
     restart: unless-stopped
     ports:

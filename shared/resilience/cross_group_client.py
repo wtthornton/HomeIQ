@@ -30,6 +30,8 @@ try:
 
     _OTEL_AVAILABLE = True
 except ImportError:  # pragma: no cover
+    trace = None  # type: ignore[assignment]
+    otel_inject = None  # type: ignore[assignment]
     _OTEL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)

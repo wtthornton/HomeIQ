@@ -15,17 +15,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for layer caching
-COPY requirements.txt .
+COPY services/blueprint-suggestion-service/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy shared modules
+COPY shared/ ./shared/
+ENV PYTHONPATH=/app
+
 # Copy application code
-COPY src/ ./src/
+COPY services/blueprint-suggestion-service/src/ ./src/
 
 # Copy Alembic configuration for migrations
-COPY alembic.ini ./
-COPY alembic/ ./alembic/
+COPY services/blueprint-suggestion-service/alembic.ini ./
+COPY services/blueprint-suggestion-service/alembic/ ./alembic/
 
 # Create data directory
 RUN mkdir -p /app/data
